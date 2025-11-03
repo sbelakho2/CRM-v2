@@ -19,7 +19,7 @@
                     </svg>
                     List View
                 </a>
-                <a href="{{ path('app_activity_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors">
+                <a href="{{ path('app_activity_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
@@ -52,11 +52,11 @@
                                 <div class="bg-white rounded-xl border border-neutral-200/60 p-4 hover:border-neutral-300 hover:shadow-sm transition-all">
                                     <div class="flex items-start gap-3">
                                         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
-                                            {% if activity.activityType == 'Call' %}bg-blue-50 text-blue-600
-                                            {% elseif activity.activityType == 'Email' %}bg-purple-50 text-purple-600
-                                            {% elseif activity.activityType == 'Meeting' %}bg-emerald-50 text-emerald-600
-                                            {% elseif activity.activityType starts with 'LinkedIn' %}bg-blue-100 text-blue-700
-                                            {% elseif activity.activityType == 'Follow-up' %}bg-amber-50 text-amber-600
+                                            {% if activity.type == 'Call' %}bg-blue-50 text-blue-600
+                                            {% elseif activity.type == 'Email' %}bg-purple-50 text-purple-600
+                                            {% elseif activity.type == 'Meeting' %}bg-emerald-50 text-emerald-600
+                                            {% elseif activity.type starts with 'LinkedIn' %}bg-blue-100 text-blue-700
+                                            {% elseif activity.type == 'Follow-up' %}bg-amber-50 text-amber-600
                                             {% else %}bg-neutral-50 text-neutral-600{% endif %}">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -64,7 +64,7 @@
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2 mb-1">
-                                                <span class="text-sm font-medium text-neutral-900">{{ activity.activityType }}</span>
+                                                <span class="text-sm font-medium text-neutral-900">{{ activity.type }}</span>
                                                 {% if activity.outcome %}
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
                                                         {% if activity.outcome == 'Successful' %}bg-emerald-100 text-emerald-700

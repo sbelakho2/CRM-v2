@@ -8,17 +8,16 @@ use Psr\Log\LoggerInterface;
 /**
  * Intelligent Lead Scoring Engine
  * 
- * Scores leads 0-100 based on relevance signals (region-agnostic):
- * - Geo (15): Target region presence (any region)
- * - Manufacturing Fit (25): PCBA/SMT/EMS keywords & capabilities
- * - Procurement (20): Supplier portal, RFQ, quality requirements
- * - Sector (15): Target industry alignment
- * - Company Size & Scale (15): Revenue, employee count, operations scale
- * - Contactability (7): Public contact info availability
- * - Freshness (3): Recent content updates
+ * Scores leads 0-100 based on relevance signals:
+ * - Geo (20): Morocco free zone presence
+ * - Manufacturing Fit (20): PCBA/SMT/EMS keywords
+ * - Procurement (18): Supplier portal, RFQ, quality requirements
+ * - Sector (12): Target industry alignment
+ * - Morocco Evidence (15): Sourcing/facility evidence
+ * - Contactability (8): Public contact info
+ * - Freshness (7): Recent content updates
  * 
- * Target: Precision @ top-50 ≥ 75% across all regions
- * Note: Region targeting is handled at discovery layer, not scoring layer
+ * Target: Precision @ top-50 ≥ 75%
  */
 class LeadScoringService
 {
@@ -29,7 +28,7 @@ class LeadScoringService
 
     public function __construct(
         private LoggerInterface $logger,
-        ?string $configPath = null
+        string $configPath = null
     ) {
         $configPath = $configPath ?? __DIR__ . '/../../../config/crawler_config.yaml';
         $this->loadConfig($configPath);
@@ -51,7 +50,7 @@ class LeadScoringService
     }
 
     /**
-     * Score a lead based on extracted features (region-agnostic)
+     * Score a lead based on extracted features
      * 
      * @param array $lead Lead data with extracted features
      * @return array ['score' => int, 'breakdown' => array, 'recommendation' => string]
@@ -61,65 +60,65 @@ class LeadScoringService
         $breakdown = [];
         $totalScore = 0;
 
-        // 1. Geo Signal (+15): Target region presence (any region)
+        // 1. Geo Signal (+20): Morocco free zone presence
         $geoScore = $this->scoreGeo($lead);
         $breakdown['geo'] = [
             'score' => $geoScore,
-            'weight' => 15,
+            'weight' => $this->weights['geo'],
             'signals' => $lead['geo_signals'] ?? []
         ];
         $totalScore += $geoScore;
 
-        // 2. Manufacturing Fit (+25): PCBA/SMT/EMS keywords and capabilities
+        // 2. Manufacturing Fit (+20): PCBA/SMT/EMS keywords
         $mfgScore = $this->scoreManufacturingFit($lead);
         $breakdown['manufacturing'] = [
             'score' => $mfgScore,
-            'weight' => 25,
+            'weight' => $this->weights['mfg_fit'],
             'signals' => $lead['mfg_signals'] ?? []
         ];
         $totalScore += $mfgScore;
 
-        // 3. Procurement Readiness (+20): Portal, RFQ, quality markers
+        // 3. Procurement Readiness (+18): Portal, RFQ, quality markers
         $procurementScore = $this->scoreProcurement($lead);
         $breakdown['procurement'] = [
             'score' => $procurementScore,
-            'weight' => 20,
+            'weight' => $this->weights['procurement'],
             'signals' => $lead['procurement_signals'] ?? []
         ];
         $totalScore += $procurementScore;
 
-        // 4. Sector Fit (+15): Target industry alignment
+        // 4. Sector Fit (+12): Target industry alignment
         $sectorScore = $this->scoreSector($lead);
         $breakdown['sector'] = [
             'score' => $sectorScore,
-            'weight' => 15,
+            'weight' => $this->weights['sector'],
             'signals' => $lead['sector_signals'] ?? []
         ];
         $totalScore += $sectorScore;
 
-        // 5. Company Scale (+15): Revenue, employees, global presence
-        $scaleScore = $this->scoreCompanyScale($lead);
-        $breakdown['company_scale'] = [
-            'score' => $scaleScore,
-            'weight' => 15,
-            'signals' => $lead['scale_signals'] ?? []
+        // 5. Morocco Evidence (+15): Sourcing/facility evidence
+        $moroccoScore = $this->scoreMoroccoEvidence($lead);
+        $breakdown['morocco_evidence'] = [
+            'score' => $moroccoScore,
+            'weight' => $this->weights['morocco_evidence'],
+            'signals' => $lead['morocco_evidence'] ?? []
         ];
-        $totalScore += $scaleScore;
+        $totalScore += $moroccoScore;
 
-        // 6. Contactability (+7): Public contact info
+        // 6. Contactability (+8): Public contact info
         $contactScore = $this->scoreContactability($lead);
         $breakdown['contactability'] = [
             'score' => $contactScore,
-            'weight' => 7,
+            'weight' => $this->weights['contactability'],
             'signals' => $lead['contact_signals'] ?? []
         ];
         $totalScore += $contactScore;
 
-        // 7. Freshness (+3): Recent content updates
+        // 7. Freshness (+7): Recent content updates
         $freshnessScore = $this->scoreFreshness($lead);
         $breakdown['freshness'] = [
             'score' => $freshnessScore,
-            'weight' => 3,
+            'weight' => $this->weights['freshness'],
             'signals' => $lead['freshness_signals'] ?? []
         ];
         $totalScore += $freshnessScore;
@@ -139,205 +138,106 @@ class LeadScoringService
     }
 
     /**
-     * Score geographic relevance (0-15)
-     * Region-agnostic with MEDIUM bonus for Moroccan presence
+     * Score geographic relevance (0-20)
      */
     private function scoreGeo(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $address = strtolower($lead['address'] ?? '');
-        $location = strtolower($lead['location'] ?? '');
-        $combined = $pageContent . ' ' . $address . ' ' . $location;
-
-        // Moroccan indicators get bonus points
-        $moroccanIndicators = ['morocco', 'tanger', 'casablanca', 'marrakech', 'fez', 'meknes', 'tangier'];
-        $hasMoroccoPresence = false;
-        foreach ($moroccanIndicators as $indicator) {
-            if (stripos($combined, $indicator) !== false) {
-                $hasMoroccoPresence = true;
-                break;
-            }
-        }
-
-        // Check for any target region indicators
-        $targetRegions = [
-            // Africa
-            'johannesburg', 'cape town', 'south africa', 'pretoria', 'durban',
-            // Europe
-            'germany', 'poland', 'czech', 'france', 'italy', 'spain', 'netherlands', 'belgium', 'austria', 'hungary',
-            'london', 'manchester', 'scotland', 'midlands', 'yorkshire',
-            // USA
-            'new york', 'new jersey', 'pennsylvania', 'massachusetts', 'virginia', 'florida',
-            'houston', 'dallas', 'austin', 'texas',
-            'seattle', 'portland', 'oregon', 'washington'
-        ];
+        $combined = $pageContent . ' ' . $address;
 
         $matches = 0;
-        foreach ($targetRegions as $region) {
-            if (stripos($combined, $region) !== false) {
+        foreach ($this->zones['morocco_freezones'] ?? [] as $zone) {
+            if (stripos($combined, strtolower($zone)) !== false) {
                 $matches++;
             }
         }
 
-        // Scoring logic: base score + Morocco bonus
-        if ($hasMoroccoPresence) {
-            // Moroccan presence: medium advantage
-            if ($matches >= 1) {
-                // Both Morocco AND other regions
-                return 15; // Full points + synergy
-            } else {
-                // Morocco only
-                return 12; // Medium advantage (80% of max)
-            }
-        } else {
-            // No Morocco presence
-            if ($matches >= 2) {
-                return 10; // Other regions present
-            } elseif ($matches > 0) {
-                return 5;  // Single other region
-            }
-        }
-        
-        return 0;
+        // Full 20 points if any free zone mentioned
+        return $matches > 0 ? 20 : 0;
     }
 
     /**
-     * Score manufacturing fit (0-25)
-     * Elevated weight: manufacturing capability is primary filter
+     * Score manufacturing fit (0-20)
      */
     private function scoreManufacturingFit(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $uniqueTerms = [];
 
-        $mfgKeywords = [
-            'pcba', 'smt', 'ems', 'circuit board', 'assembly', 'manufacturing',
-            'fabrication', 'production', 'electronics', 'semiconductor',
-            'component', 'soldering', 'surface mount', 'contract manufacturer',
-            'odm', 'oem', 'turnkey', 'full-service', 'supply chain'
-        ];
-
-        foreach ($mfgKeywords as $keyword) {
-            if (stripos($pageContent, $keyword) !== false) {
+        foreach ($this->keywords['manufacturing'] ?? [] as $keyword) {
+            if (stripos($pageContent, strtolower($keyword)) !== false) {
                 $uniqueTerms[] = $keyword;
             }
         }
 
-        // 2.5 points per unique term, max 25
-        return min(25, count($uniqueTerms) * 2);
+        // 5 points per unique term, max 20
+        return min(20, count($uniqueTerms) * 5);
     }
 
     /**
-     * Score procurement readiness (0-20)
-     * Shows company has formal sourcing/procurement processes
+     * Score procurement readiness (0-18)
      */
     private function scoreProcurement(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $markers = 0;
 
-        $procurementKeywords = [
-            'procurement', 'purchasing', 'rfq', 'request for quote',
-            'supplier', 'vendor', 'sourcing', 'supply chain',
-            'quality', 'certification', 'iso', 'compliance',
-            'contact us', 'inquiry', 'quote', 'specification'
-        ];
-
-        foreach ($procurementKeywords as $keyword) {
-            if (stripos($pageContent, $keyword) !== false) {
+        foreach ($this->keywords['procurement'] ?? [] as $keyword) {
+            if (stripos($pageContent, strtolower($keyword)) !== false) {
                 $markers++;
             }
         }
 
-        // 2 points per marker, max 20
-        return min(20, $markers * 2);
+        // 6 points per marker, max 18
+        return min(18, $markers * 6);
     }
 
     /**
-     * Score sector alignment (0-15)
+     * Score sector alignment (0-12)
      */
     private function scoreSector(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $uniqueTerms = [];
 
-        $sectorKeywords = [
-            'automotive', 'industrial', 'aerospace', 'rail', 'renewables', 'power electronics',
-            'medical devices', 'telecommunications', 'defense', 'energy'
-        ];
-
-        foreach ($sectorKeywords as $sector) {
-            if (stripos($pageContent, $sector) !== false) {
+        foreach ($this->keywords['sectors'] ?? [] as $sector) {
+            if (stripos($pageContent, strtolower($sector)) !== false) {
                 $uniqueTerms[] = $sector;
             }
         }
 
-        // 3 points per unique sector, max 15
-        return min(15, count($uniqueTerms) * 3);
+        // 3 points per unique sector, max 12
+        return min(12, count($uniqueTerms) * 3);
     }
 
     /**
-     * Score company scale and capability (0-15)
-     * Includes bonus for Moroccan operations
+     * Score Morocco sourcing evidence (0-15)
      */
-    private function scoreCompanyScale(array $lead): int
+    private function scoreMoroccoEvidence(array $lead): int
     {
         $score = 0;
-        $pageContent = strtolower($lead['page_content'] ?? '');
 
-        // MOROCCAN BONUS: Check for Moroccan operations/presence
-        $moroccanKeywords = ['morocco', 'tanger', 'casablanca', 'marrakech', 'fez', 'meknes',
-                            'moroccan facility', 'morocco manufacturing', 'morocco operations',
-                            'maroc', 'royaume du maroc'];
-        $hasMoroccoOps = false;
-        foreach ($moroccanKeywords as $keyword) {
-            if (stripos($pageContent, $keyword) !== false) {
-                $hasMoroccoOps = true;
-                $score += 2; // +2 bonus for Morocco operations
-                break;
-            }
+        // Facility pages mentioning Morocco
+        if (!empty($lead['morocco_facility'])) {
+            $score += 7;
         }
 
-        // Global operations / multiple facilities
-        $globalIndicators = ['global', 'worldwide', 'international', 'multiple locations', 'offices in'];
-        foreach ($globalIndicators as $indicator) {
-            if (stripos($pageContent, $indicator) !== false) {
-                $score += 3;
-                break; // Only count once
-            }
+        // Job postings in Morocco
+        if (!empty($lead['morocco_jobs'])) {
+            $score += 5;
         }
 
-        // Company size signals
-        if (!empty($lead['employee_count'])) {
-            $employees = $lead['employee_count'];
-            if ($employees > 500) {
-                $score += 4;
-            } elseif ($employees > 100) {
-                $score += 2;
-            }
-        }
-
-        // Revenue/market presence
-        if (!empty($lead['annual_revenue'])) {
-            if (stripos($pageContent, 'million') !== false || stripos($pageContent, 'billion') !== false) {
-                $score += 3;
-            }
-        }
-
-        // Established company (founded years ago)
-        if (!empty($lead['founded_year'])) {
-            $founded = (int)$lead['founded_year'];
-            $yearsOld = date('Y') - $founded;
-            if ($yearsOld >= 10) {
-                $score += 5;
-            }
+        // Press releases/news about Morocco
+        if (!empty($lead['morocco_news'])) {
+            $score += 3;
         }
 
         return min(15, $score);
     }
 
     /**
-     * Score contactability (0-7)
+     * Score contactability (0-8)
      */
     private function scoreContactability(array $lead): int
     {
@@ -345,20 +245,24 @@ class LeadScoringService
 
         // Role-based email
         if (!empty($lead['contact_emails_public'])) {
-            $score += 3;
-        }
-
-        // Contact form or supplier portal
-        if (!empty($lead['contact_form_url']) || !empty($lead['supplier_portal_url'])) {
             $score += 4;
         }
 
-        return min(7, $score);
+        // Contact form with procurement option
+        if (!empty($lead['contact_form_url'])) {
+            $score += 2;
+        }
+
+        // Supplier portal
+        if (!empty($lead['supplier_portal_url'])) {
+            $score += 2;
+        }
+
+        return min(8, $score);
     }
 
     /**
-     * Score content freshness (0-3)
-     * Lower weight: doesn't indicate quality
+     * Score content freshness (0-7)
      */
     private function scoreFreshness(array $lead): int
     {
@@ -373,9 +277,9 @@ class LeadScoringService
             $now = new \DateTime();
             $monthsAgo = $now->diff($modifiedDate)->m + ($now->diff($modifiedDate)->y * 12);
 
-            // 3 points if updated in last 24 months
-            if ($monthsAgo <= 24) {
-                return 3;
+            // Full 7 points if updated in last 18 months
+            if ($monthsAgo <= 18) {
+                return 7;
             }
 
             return 0;

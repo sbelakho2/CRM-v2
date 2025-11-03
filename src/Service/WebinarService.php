@@ -8,17 +8,21 @@ use App\Entity\Contact;
 use App\Repository\WebinarRepository;
 use App\Repository\WebinarAttendeeRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Address;
 
 class WebinarService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
         private WebinarRepository $webinarRepository,
-        private WebinarAttendeeRepository $webinarAttendeeRepository
+        private WebinarAttendeeRepository $webinarAttendeeRepository,
+        private MailerInterface $mailer
     ) {}
 
     /**
-     * Register a contact for a webinar
+     * Register a contact for a webinar and send confirmation email
      */
     public function registerAttendee(Webinar $webinar, Contact $contact, string $email, string $name): WebinarAttendee
     {
@@ -36,6 +40,9 @@ class WebinarService
         $this->entityManager->persist($attendee);
         $this->entityManager->persist($webinar);
         $this->entityManager->flush();
+
+        // Send confirmation email
+        $this->sendConfirmationEmail($attendee);
 
         return $attendee;
     }
@@ -115,6 +122,24 @@ class WebinarService
     public function getAttendeesNeedingFollowUp(Webinar $webinar): array
     {
         return $this->webinarAttendeeRepository->findNeedingFollowUp($webinar);
+    }
+
+    /**
+     * Send confirmation email to webinar attendee
+     */
+    private function sendConfirmationEmail(WebinarAttendee $attendee): void
+    {
+        $email = (new TemplatedEmail())
+            ->from(new Address('noreply@starzmorocco.com', 'Starz Morocco'))
+            ->to($attendee->getEmail())
+            ->subject('Webinar Registration Confirmation - ' . $attendee->getWebinar()->getTitle())
+            ->htmlTemplate('emails/webinar_registration.html.twig')
+            ->context([
+                'attendee' => $attendee,
+                'webinar' => $attendee->getWebinar(),
+            ]);
+
+        $this->mailer->send($email);
     }
 
     /**

@@ -11,10 +11,9 @@ use Psr\Log\LoggerInterface;
  */
 class GoogleDorkService
 {
-    public function __construct(
-        private HttpClientInterface $httpClient,
-        private LoggerInterface $logger
-    ) {}
+    public function __construct(private HttpClientInterface $httpClient, private LoggerInterface $logger)
+    {
+    }
 
     /**
      * Search for companies using Google Dorks
@@ -91,7 +90,7 @@ class GoogleDorkService
     /**
      * Find procurement/purchasing contact emails using Google Dorks
      */
-    public function findContactEmails(string $companyName, ?string $domain = null): array
+    public function findContactEmails(string $companyName, string $domain = null): array
     {
         $emails = [];
 
@@ -126,14 +125,13 @@ class GoogleDorkService
 
     /**
      * Build Google Dork queries for company discovery
-     * Region-agnostic: works globally
      */
     private function buildGoogleDorkQueries(string $sector, ?string $location = null): array
     {
         $queries = [];
-        $locationTerm = $location ? " \"{$location}\"" : "";
+        $locationTerm = $location ? " {$location}" : " Morocco";
 
-        // General queries (location-agnostic)
+        // General queries
         $queries[] = "\"{$sector}\" manufacturing{$locationTerm}";
         $queries[] = "{$sector} supplier{$locationTerm}";
         $queries[] = "{$sector} electronics{$locationTerm}";
@@ -141,49 +139,42 @@ class GoogleDorkService
         // LinkedIn-specific dorks
         $queries[] = "site:linkedin.com \"{$sector}\"{$locationTerm} company";
 
-        // Industry-specific capability indicators
-        $queries[] = "{$sector} PCBA assembly{$locationTerm}";
-        $queries[] = "{$sector} contract manufacturer{$locationTerm}";
-        $queries[] = "{$sector} \"supply chain\"{$locationTerm}";
+        // Industry directory dorks
+        $queries[] = "site:moroccanindustry.com {$sector}";
+        $queries[] = "site:zawya.com {$sector} Morocco";
 
-        // Location-specific if provided
+        // Free zone specific
         if ($location) {
-            $queries[] = "\"{$location}\" \"{$sector}\" companies";
-            $queries[] = "\"{$location}\" manufacturing suppliers {$sector}";
-            $queries[] = "{$sector} \"based in {$location}\"";
+            $queries[] = "\"{$location}\" \"{$sector}\" companies list";
+            $queries[] = "site:tanger-free-zone.com {$sector}";
         }
 
-        // Sector-specific global queries (not Morocco-specific)
+        // Sector-specific queries
         switch ($sector) {
             case 'Automotive':
-                $queries[] = "automotive tier 1 suppliers IATF 16949";
-                $queries[] = "automotive electronics manufacturing services";
-                $queries[] = "automotive component manufacturers{$locationTerm}";
+                $queries[] = "automotive tier 1 Morocco suppliers";
+                $queries[] = "electronics manufacturing services Morocco automotive";
+                $queries[] = "IATF 16949 Morocco";
                 break;
             case 'Aerospace':
-                $queries[] = "AS9100 aerospace manufacturing";
-                $queries[] = "aircraft components manufacturing";
-                $queries[] = "aerospace supplier directory{$locationTerm}";
+                $queries[] = "AS9100 Morocco aerospace";
+                $queries[] = "aircraft components manufacturing Morocco";
                 break;
             case 'Industrial':
-                $queries[] = "industrial automation manufacturing";
-                $queries[] = "control panel manufacturers{$locationTerm}";
-                $queries[] = "industrial electronics{$locationTerm}";
+                $queries[] = "industrial automation Morocco";
+                $queries[] = "control panels Morocco";
                 break;
             case 'Rail':
-                $queries[] = "railway electronics manufacturing";
-                $queries[] = "train components suppliers{$locationTerm}";
-                $queries[] = "rail industry manufacturers";
+                $queries[] = "railway electronics Morocco";
+                $queries[] = "train components Morocco";
                 break;
             case 'Renewables':
-                $queries[] = "solar inverter manufacturers{$locationTerm}";
-                $queries[] = "renewable energy component suppliers";
-                $queries[] = "wind energy electronics manufacturing";
+                $queries[] = "solar inverter Morocco";
+                $queries[] = "renewable energy components Morocco";
                 break;
             case 'Power Electronics':
-                $queries[] = "power electronics manufacturing{$locationTerm}";
-                $queries[] = "inverter manufacturers";
-                $queries[] = "power supply manufacturers{$locationTerm}";
+                $queries[] = "power electronics Morocco";
+                $queries[] = "inverter manufacturer Morocco";
                 break;
         }
 
@@ -192,7 +183,6 @@ class GoogleDorkService
 
     /**
      * Guess company domain from name
-     * Tries common TLDs globally
      */
     private function guessCompanyDomain(string $companyName): ?string
     {
@@ -200,16 +190,11 @@ class GoogleDorkService
         $clean = strtolower($companyName);
         $clean = preg_replace('/[^a-z0-9]+/', '', $clean);
         
-        // Common TLDs (global, not Morocco-specific)
+        // Common TLDs for Moroccan companies
         $possibleDomains = [
+            $clean . '.ma',
             $clean . '.com',
-            $clean . '.co.uk',
-            $clean . '.de',
-            $clean . '.fr',
-            $clean . '.nl',
-            $clean . '.eu',
-            $clean . '.io',
-            $clean . '.ma',  // Morocco still included as option
+            $clean . 'morocco.com',
         ];
 
         // In production, verify which domains exist

@@ -12,7 +12,7 @@
                 <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Contacts</h1>
                 <p class="mt-1 text-sm text-neutral-600">Manage your contact database with role-based filtering</p>
             </div>
-            <a href="{{ path('app_contact_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors">
+            <a href="{{ path('app_contact_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -97,7 +97,7 @@
         {# Flash Messages #}
         {% for label, messages in app.flashes %}
             {% for message in messages %}
-                <div class="mb-4 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-neutral-50 text-neutral-800 border border-neutral-200{% endif %}">
+                <div class="mb-4 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
                     {{ message }}
                 </div>
             {% endfor %}
@@ -195,7 +195,7 @@
                                 <h3 class="mt-4 text-sm font-medium text-neutral-900">No contacts found</h3>
                                 <p class="mt-1 text-sm text-neutral-500">Get started by creating a new contact.</p>
                                 <div class="mt-6">
-                                    <a href="{{ path('app_contact_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors">
+                                    <a href="{{ path('app_contact_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                         </svg>

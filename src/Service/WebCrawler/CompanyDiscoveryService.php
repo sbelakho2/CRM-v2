@@ -12,7 +12,6 @@ use Psr\Log\LoggerInterface;
  */
 class CompanyDiscoveryService
 {
-    // AFRICA
     private const MOROCCAN_FREE_ZONES = [
         'TAC' => 'Tanger Automotive City',
         'TFZ' => 'Tanger Free Zone',
@@ -20,64 +19,6 @@ class CompanyDiscoveryService
         'Casablanca' => 'Casablanca/Midparc',
         'Bouskoura' => 'Bouskoura',
         'Nouaceur' => 'Nouaceur',
-    ];
-
-    private const SOUTH_AFRICA_REGIONS = [
-        'Johannesburg' => 'Johannesburg, South Africa',
-        'Cape Town' => 'Cape Town, South Africa',
-        'Durban' => 'Durban, South Africa',
-        'Pretoria' => 'Pretoria, South Africa',
-        'Gqeberha' => 'Gqeberha (Port Elizabeth), South Africa',
-    ];
-
-    // EUROPE
-    private const EU_REGIONS = [
-        'Germany' => 'Germany',
-        'Poland' => 'Poland',
-        'Czech Republic' => 'Czech Republic',
-        'France' => 'France',
-        'Italy' => 'Italy',
-        'Spain' => 'Spain',
-        'Netherlands' => 'Netherlands',
-        'Belgium' => 'Belgium',
-        'Austria' => 'Austria',
-        'Hungary' => 'Hungary',
-    ];
-
-    private const UK_REGIONS = [
-        'London' => 'London, UK',
-        'Midlands' => 'Midlands, UK',
-        'Manchester' => 'Manchester, UK',
-        'Yorkshire' => 'Yorkshire, UK',
-        'Scotland' => 'Scotland, UK',
-    ];
-
-    // UNITED STATES
-    private const US_EAST_COAST = [
-        'New York' => 'New York, NY',
-        'New Jersey' => 'New Jersey, NJ',
-        'Pennsylvania' => 'Pennsylvania, PA',
-        'Massachusetts' => 'Massachusetts, MA',
-        'Connecticut' => 'Connecticut, CT',
-        'Virginia' => 'Virginia, VA',
-        'North Carolina' => 'North Carolina, NC',
-        'Florida' => 'Florida, FL',
-    ];
-
-    private const US_TEXAS = [
-        'Houston' => 'Houston, TX',
-        'Dallas' => 'Dallas, TX',
-        'Austin' => 'Austin, TX',
-        'San Antonio' => 'San Antonio, TX',
-        'Fort Worth' => 'Fort Worth, TX',
-    ];
-
-    private const US_PACIFIC_NORTHWEST = [
-        'Seattle' => 'Seattle, WA',
-        'Portland' => 'Portland, OR',
-        'Spokane' => 'Spokane, WA',
-        'Eugene' => 'Eugene, OR',
-        'Boise' => 'Boise, ID',
     ];
 
     private const TARGET_SECTORS = [
@@ -131,63 +72,18 @@ class CompanyDiscoveryService
     }
 
     /**
-     * Discover companies across all target sectors and regions
-     * Searches all documented regions:
-     * - Africa: Morocco (6 zones), South Africa (5 regions)
-     * - Europe: EU (10 countries), UK (5 regions)
-     * - USA: East Coast (8 states), Texas (5 cities), Pacific Northwest (5 cities)
+     * Discover companies across all target sectors
      */
     public function discoverAllSectors(): array
     {
         $allCompanies = [];
 
         foreach (self::TARGET_SECTORS as $sector) {
-            // AFRICA: Morocco
             foreach (self::MOROCCAN_FREE_ZONES as $code => $name) {
                 $companies = $this->discoverCompanies($sector, $name);
                 $allCompanies = array_merge($allCompanies, $companies);
-                sleep(2);
-            }
-
-            // AFRICA: South Africa
-            foreach (self::SOUTH_AFRICA_REGIONS as $code => $name) {
-                $companies = $this->discoverCompanies($sector, $name);
-                $allCompanies = array_merge($allCompanies, $companies);
-                sleep(2);
-            }
-
-            // EUROPE: EU Countries
-            foreach (self::EU_REGIONS as $code => $name) {
-                $companies = $this->discoverCompanies($sector, $name);
-                $allCompanies = array_merge($allCompanies, $companies);
-                sleep(2);
-            }
-
-            // EUROPE: UK Regions
-            foreach (self::UK_REGIONS as $code => $name) {
-                $companies = $this->discoverCompanies($sector, $name);
-                $allCompanies = array_merge($allCompanies, $companies);
-                sleep(2);
-            }
-
-            // USA: East Coast
-            foreach (self::US_EAST_COAST as $code => $name) {
-                $companies = $this->discoverCompanies($sector, $name);
-                $allCompanies = array_merge($allCompanies, $companies);
-                sleep(2);
-            }
-
-            // USA: Texas
-            foreach (self::US_TEXAS as $code => $name) {
-                $companies = $this->discoverCompanies($sector, $name);
-                $allCompanies = array_merge($allCompanies, $companies);
-                sleep(2);
-            }
-
-            // USA: Pacific Northwest
-            foreach (self::US_PACIFIC_NORTHWEST as $code => $name) {
-                $companies = $this->discoverCompanies($sector, $name);
-                $allCompanies = array_merge($allCompanies, $companies);
+                
+                // Sleep to avoid rate limiting
                 sleep(2);
             }
         }

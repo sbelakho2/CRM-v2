@@ -17,21 +17,12 @@ class ComplianceDocument
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'complianceDocuments')]
+    #[ORM\ManyToOne(targetEntity: Company::class)]
     #[ORM\JoinColumn(nullable: false)]
     private ?Company $company = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null; // ISO 9001, IATF 16949, etc.
-
-    #[ORM\Column(length: 100, nullable: true)]
-    private ?string $documentType = null; // compliance, quote, estimate, fta_pack, dfm_report, cost_breakdown, exceptions_report, sourcing_risk, audit_trail, onboarding_pack
-
-    #[ORM\Column(length: 64, nullable: true)]
-    private ?string $sha256Hash = null; // SHA-256 hash for audit trail
-
-    #[ORM\Column(length: 100, nullable: true)]
-    private ?string $versionId = null; // Dataset/API version identifier
 
     #[ORM\Column(type: 'boolean')]
     private bool $required = true;
@@ -161,34 +152,12 @@ class ComplianceDocument
 
     public function getDocumentType(): ?string
     {
-        return $this->documentType;
+        return $this->name;
     }
 
-    public function setDocumentType(?string $documentType): self
+    public function setDocumentType(string $name): self
     {
-        $this->documentType = $documentType;
-        return $this;
-    }
-
-    public function getSha256Hash(): ?string
-    {
-        return $this->sha256Hash;
-    }
-
-    public function setSha256Hash(?string $sha256Hash): self
-    {
-        $this->sha256Hash = $sha256Hash;
-        return $this;
-    }
-
-    public function getVersionId(): ?string
-    {
-        return $this->versionId;
-    }
-
-    public function setVersionId(?string $versionId): self
-    {
-        $this->versionId = $versionId;
+        $this->name = $name;
         return $this;
     }
 

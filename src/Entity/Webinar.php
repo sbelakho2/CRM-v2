@@ -37,11 +37,17 @@ class Webinar
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $recordingUrl = null;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $meetingUrl = null;
+
     #[ORM\Column(type: 'integer', options: ['default' => 0])]
     private int $registeredCount = 0;
 
     #[ORM\Column(type: 'integer', options: ['default' => 0])]
     private int $attendedCount = 0;
+
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $maxAttendees = null;
 
     #[ORM\OneToMany(mappedBy: 'webinar', targetEntity: WebinarAttendee::class, cascade: ['persist', 'remove'])]
     private Collection $attendees;
@@ -136,6 +142,17 @@ class Webinar
         return $this;
     }
 
+    public function getMeetingUrl(): ?string
+    {
+        return $this->meetingUrl;
+    }
+
+    public function setMeetingUrl(?string $meetingUrl): self
+    {
+        $this->meetingUrl = $meetingUrl;
+        return $this;
+    }
+
     public function getRegisteredCount(): int
     {
         return $this->registeredCount;
@@ -155,6 +172,17 @@ class Webinar
     public function setAttendedCount(int $attendedCount): self
     {
         $this->attendedCount = $attendedCount;
+        return $this;
+    }
+
+    public function getMaxAttendees(): ?int
+    {
+        return $this->maxAttendees;
+    }
+
+    public function setMaxAttendees(?int $maxAttendees): self
+    {
+        $this->maxAttendees = $maxAttendees;
         return $this;
     }
 

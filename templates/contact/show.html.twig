@@ -68,7 +68,7 @@
         {# Flash Messages #}
         {% for label, messages in app.flashes %}
             {% for message in messages %}
-                <div class="mb-6 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-neutral-50 text-neutral-800 border border-neutral-200{% endif %}">
+                <div class="mb-6 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
                     {{ message }}
                 </div>
             {% endfor %}
@@ -161,9 +161,9 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Notes</label>
-                                <textarea name="notes" rows="2" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400" placeholder="Optional notes about this outreach..."></textarea>
+                                <textarea name="notes" rows="2" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" placeholder="Optional notes about this outreach..."></textarea>
                             </div>
-                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors">
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
                                 Track Outreach
                             </button>
                         </form>
@@ -185,17 +185,17 @@
                             {% for activity in contact.activities|slice(0, 8) %}
                                 <div class="flex items-start gap-3 p-3 border border-neutral-200/60 rounded-lg hover:bg-neutral-50">
                                     <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
-                                        {% if activity.activityType == 'Call' %}bg-blue-50 text-blue-600
-                                        {% elseif activity.activityType == 'Email' %}bg-purple-50 text-purple-600
-                                        {% elseif activity.activityType == 'Meeting' %}bg-emerald-50 text-emerald-600
-                                        {% elseif activity.activityType starts with 'LinkedIn' %}bg-blue-50 text-blue-700
+                                        {% if activity.type == 'Call' %}bg-blue-50 text-blue-600
+                                        {% elseif activity.type == 'Email' %}bg-purple-50 text-purple-600
+                                        {% elseif activity.type == 'Meeting' %}bg-emerald-50 text-emerald-600
+                                        {% elseif activity.type starts with 'LinkedIn' %}bg-blue-50 text-blue-700
                                         {% else %}bg-neutral-50 text-neutral-600{% endif %}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                                         </svg>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-neutral-900">{{ activity.activityType }}</p>
+                                        <p class="text-sm font-medium text-neutral-900">{{ activity.type }}</p>
                                         {% if activity.notes %}
                                             <p class="text-xs text-neutral-500 mt-0.5">{{ activity.notes|slice(0, 80) }}...</p>
                                         {% endif %}

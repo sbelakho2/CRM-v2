@@ -73,9 +73,6 @@ class Company
     #[ORM\OneToMany(mappedBy: 'company', targetEntity: RFQ::class, cascade: ['persist', 'remove'])]
     private Collection $rfqs;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: ComplianceDocument::class, cascade: ['persist', 'remove'])]
-    private Collection $complianceDocuments;
-
     #[ORM\OneToOne(mappedBy: 'company', targetEntity: SupplierPortal::class, cascade: ['persist', 'remove'])]
     private ?SupplierPortal $supplierPortal = null;
 
@@ -90,7 +87,6 @@ class Company
         $this->contacts = new ArrayCollection();
         $this->activities = new ArrayCollection();
         $this->rfqs = new ArrayCollection();
-        $this->complianceDocuments = new ArrayCollection();
         $this->createdAt = new \DateTime();
     }
 
@@ -263,33 +259,6 @@ class Company
         return $this->rfqs;
     }
 
-    /**
-     * @return Collection<int, ComplianceDocument>
-     */
-    public function getComplianceDocuments(): Collection
-    {
-        return $this->complianceDocuments;
-    }
-
-    public function addComplianceDocument(ComplianceDocument $document): self
-    {
-        if (!$this->complianceDocuments->contains($document)) {
-            $this->complianceDocuments->add($document);
-            $document->setCompany($this);
-        }
-        return $this;
-    }
-
-    public function removeComplianceDocument(ComplianceDocument $document): self
-    {
-        if ($this->complianceDocuments->removeElement($document)) {
-            if ($document->getCompany() === $this) {
-                $document->setCompany(null);
-            }
-        }
-        return $this;
-    }
-
     public function getSupplierPortal(): ?SupplierPortal
     {
         return $this->supplierPortal;
@@ -384,31 +353,5 @@ class Company
     {
         $this->googleDriveLink = $googleDriveLink;
         return $this;
-    }
-
-    /**
-     * Alias for getSector() for compatibility with email templates
-     */
-    public function getIndustry(): ?string
-    {
-        return $this->getSector();
-    }
-
-    /**
-     * Get employee count (estimated or from data if available)
-     */
-    public function getEmployeeCount(): ?int
-    {
-        // TODO: Add employeeCount field or integrate with external API
-        return null;
-    }
-
-    /**
-     * Get annual revenue (estimated or from data if available)
-     */
-    public function getAnnualRevenue(): ?float
-    {
-        // TODO: Add annualRevenue field or integrate with external API
-        return null;
     }
 }

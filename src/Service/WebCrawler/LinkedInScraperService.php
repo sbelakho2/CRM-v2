@@ -135,7 +135,6 @@ class LinkedInScraperService
 
     /**
      * Build search terms for company discovery
-     * Region-agnostic: global search terms
      */
     private function buildCompanySearchTerms(string $sector, ?string $location = null): array
     {
@@ -146,55 +145,39 @@ class LinkedInScraperService
         
         if ($location) {
             $baseTerm .= ' ' . $location;
-        } else {
-            // Generic if no location specified
-            $baseTerm .= ' supplier';
         }
 
-        // Add location-specific terms if provided
-        if ($location) {
-            $terms[] = $baseTerm;
-            $terms[] = $baseTerm . ' manufacturer';
-            $terms[] = $baseTerm . ' company';
-        } else {
-            // Global search terms
-            $terms[] = $baseTerm . ' electronics';
-            $terms[] = $baseTerm . ' manufacturing';
-            $terms[] = $baseTerm . ' supplier';
-        }
+        // Add Morocco context
+        $terms[] = $baseTerm . ' Morocco';
+        $terms[] = $baseTerm . ' Tanger';
+        $terms[] = $baseTerm . ' Casablanca';
 
-        // Add industry-specific global terms (not region-specific)
+        // Add industry-specific terms
         switch ($sector) {
             case 'Automotive':
-                $terms[] = 'Automotive Supplier IATF';
-                $terms[] = 'Electronics Manufacturing Automotive';
-                $terms[] = 'Tier 1 Automotive Supplier';
-                $terms[] = 'Automotive Component Manufacturer';
+                $terms[] = 'Automotive Supplier Morocco';
+                $terms[] = 'Electronics Manufacturing Morocco Automotive';
+                $terms[] = 'Tier 1 Supplier Morocco';
                 break;
             case 'Aerospace':
-                $terms[] = 'Aerospace Manufacturing AS9100';
-                $terms[] = 'Aircraft Components';
-                $terms[] = 'Aerospace Supplier';
+                $terms[] = 'Aerospace Manufacturing Morocco';
+                $terms[] = 'Aircraft Components Morocco';
                 break;
             case 'Industrial':
-                $terms[] = 'Industrial Electronics Manufacturing';
-                $terms[] = 'Industrial Component Supplier';
-                $terms[] = 'Control Panel Manufacturer';
+                $terms[] = 'Industrial Electronics Morocco';
+                $terms[] = 'Manufacturing Morocco';
                 break;
             case 'Rail':
-                $terms[] = 'Railway Electronics';
-                $terms[] = 'Rail Component Manufacturer';
-                $terms[] = 'Train Electronics Supplier';
+                $terms[] = 'Railway Electronics Morocco';
+                $terms[] = 'Rail Components Morocco';
                 break;
             case 'Renewables':
-                $terms[] = 'Solar Inverter Manufacturer';
-                $terms[] = 'Renewable Energy Component';
-                $terms[] = 'Wind Energy Electronics';
+                $terms[] = 'Solar Manufacturing Morocco';
+                $terms[] = 'Renewable Energy Morocco';
                 break;
             case 'Power Electronics':
-                $terms[] = 'Power Electronics Manufacturer';
-                $terms[] = 'Inverter Manufacturer';
-                $terms[] = 'Power Supply Manufacturer';
+                $terms[] = 'Power Electronics Morocco';
+                $terms[] = 'Inverter Manufacturing Morocco';
                 break;
         }
 

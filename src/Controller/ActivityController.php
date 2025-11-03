@@ -138,6 +138,8 @@ class ActivityController extends AbstractController
     #[Route('/new', name: 'app_activity_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+
         $activity = new Activity();
         
         // Pre-fill company if provided

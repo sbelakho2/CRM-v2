@@ -4,6 +4,9 @@ namespace App\Entity;
 
 use App\Repository\ContactRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
+use App\Entity\Activity;
 
 #[ORM\Entity(repositoryClass: ContactRepository::class)]
 #[ORM\Table(name: 'contacts')]
@@ -45,18 +48,19 @@ class Contact
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
-    #[ORM\Column(type: 'boolean', options: ['default' => true])]
-    private bool $subscribed = true;
-
-    #[ORM\Column(type: 'integer', options: ['default' => 0])]
-    private int $leadScore = 0;
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $role = null;
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
 
+    #[ORM\OneToMany(mappedBy: 'contact', targetEntity: Activity::class)]
+    private Collection $activities;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
+        $this->activities = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -179,6 +183,17 @@ class Contact
         return $this;
     }
 
+    public function getRole(): ?string
+    {
+        return $this->role;
+    }
+
+    public function setRole(?string $role): self
+    {
+        $this->role = $role;
+        return $this;
+    }
+
     public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->createdAt;
@@ -190,30 +205,33 @@ class Contact
         return $this;
     }
 
-    public function isSubscribed(): bool
+    /**
+     * @return Collection<int, Activity>
+     */
+    public function getActivities(): Collection
     {
-        return $this->subscribed;
+        return $this->activities;
     }
 
-    public function setSubscribed(bool $subscribed): self
+    public function addActivity(Activity $activity): self
     {
-        $this->subscribed = $subscribed;
+        if (!$this->activities->contains($activity)) {
+            $this->activities->add($activity);
+            $activity->setContact($this);
+        }
+
         return $this;
     }
 
-    public function getLeadScore(): int
+    public function removeActivity(Activity $activity): self
     {
-        return $this->leadScore;
-    }
+        if ($this->activities->removeElement($activity)) {
+            // set the owning side to null (unless already changed)
+            if ($activity->getContact() === $this) {
+                $activity->setContact(null);
+            }
+        }
 
-    public function setLeadScore(int $leadScore): self
-    {
-        $this->leadScore = $leadScore;
         return $this;
-    }
-
-    public function getTitle(): ?string
-    {
-        return $this->getJobTitle();
     }
 }

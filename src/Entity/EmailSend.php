@@ -25,23 +25,8 @@ class EmailSend
     #[ORM\Column(type: 'integer')]
     private ?int $touchNumber = null; // 1-5
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $emailAddress = null;
-
-    #[ORM\Column(length: 20)]
-    private string $status = 'queued'; // queued, sent, failed, cancelled
-
-    #[ORM\Column(type: 'datetime', nullable: true)]
-    private ?\DateTimeInterface $scheduledAt = null;
-
-    #[ORM\Column(type: 'datetime', nullable: true)]
+    #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $sentAt = null;
-
-    #[ORM\Column(type: 'datetime', nullable: true)]
-    private ?\DateTimeInterface $openedAt = null;
-
-    #[ORM\Column(type: 'datetime', nullable: true)]
-    private ?\DateTimeInterface $clickedAt = null;
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $opened = false;
@@ -55,14 +40,9 @@ class EmailSend
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $bounced = false;
 
-    #[ORM\Column(type: 'integer', options: ['default' => 0])]
-    private int $retryCount = 0;
-
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $failureReason = null;
-
     public function __construct()
     {
+        $this->sentAt = new \DateTime();
     }
 
     public function getId(): ?int
@@ -103,69 +83,14 @@ class EmailSend
         return $this;
     }
 
-    public function getEmailAddress(): ?string
-    {
-        return $this->emailAddress;
-    }
-
-    public function setEmailAddress(?string $emailAddress): self
-    {
-        $this->emailAddress = $emailAddress;
-        return $this;
-    }
-
-    public function getStatus(): string
-    {
-        return $this->status;
-    }
-
-    public function setStatus(string $status): self
-    {
-        $this->status = $status;
-        return $this;
-    }
-
-    public function getScheduledAt(): ?\DateTimeInterface
-    {
-        return $this->scheduledAt;
-    }
-
-    public function setScheduledAt(?\DateTimeInterface $scheduledAt): self
-    {
-        $this->scheduledAt = $scheduledAt;
-        return $this;
-    }
-
     public function getSentAt(): ?\DateTimeInterface
     {
         return $this->sentAt;
     }
 
-    public function setSentAt(?\DateTimeInterface $sentAt): self
+    public function setSentAt(\DateTimeInterface $sentAt): self
     {
         $this->sentAt = $sentAt;
-        return $this;
-    }
-
-    public function getOpenedAt(): ?\DateTimeInterface
-    {
-        return $this->openedAt;
-    }
-
-    public function setOpenedAt(?\DateTimeInterface $openedAt): self
-    {
-        $this->openedAt = $openedAt;
-        return $this;
-    }
-
-    public function getClickedAt(): ?\DateTimeInterface
-    {
-        return $this->clickedAt;
-    }
-
-    public function setClickedAt(?\DateTimeInterface $clickedAt): self
-    {
-        $this->clickedAt = $clickedAt;
         return $this;
     }
 
@@ -210,28 +135,6 @@ class EmailSend
     public function setBounced(bool $bounced): self
     {
         $this->bounced = $bounced;
-        return $this;
-    }
-
-    public function getRetryCount(): int
-    {
-        return $this->retryCount;
-    }
-
-    public function setRetryCount(int $retryCount): self
-    {
-        $this->retryCount = $retryCount;
-        return $this;
-    }
-
-    public function getFailureReason(): ?string
-    {
-        return $this->failureReason;
-    }
-
-    public function setFailureReason(?string $failureReason): self
-    {
-        $this->failureReason = $failureReason;
         return $this;
     }
 }

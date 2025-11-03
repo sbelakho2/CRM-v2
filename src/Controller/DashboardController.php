@@ -3,28 +3,22 @@
 namespace App\Controller;
 
 use App\Service\KPITrackingService;
-use App\Service\NotificationService;
 use App\Repository\CompanyRepository;
 use App\Repository\RFQRepository;
 use App\Repository\ActivityRepository;
 use App\Repository\WebinarRepository;
-use App\Repository\NotificationRepository;
-use App\Entity\Notification;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 
 class DashboardController extends AbstractController
 {
     public function __construct(
         private KPITrackingService $kpiService,
-        private NotificationService $notificationService,
         private CompanyRepository $companyRepository,
         private RFQRepository $rfqRepository,
         private ActivityRepository $activityRepository,
-        private WebinarRepository $webinarRepository,
-        private NotificationRepository $notificationRepository
+        private WebinarRepository $webinarRepository
     ) {}
 
     #[Route('/', name: 'app_dashboard')]
@@ -87,123 +81,4 @@ class DashboardController extends AbstractController
             'pipeline_data' => json_encode($pipelineData),
         ]);
     }
-
-    /**
-     * Get unread notifications for current user
-     * 
-     * @return JsonResponse Array of unread notifications with metadata
-     */
-    #[Route('/api/notifications', name: 'api_notifications', methods: ['GET'])]
-    public function getNotifications(): JsonResponse
-    {
-        $user = $this->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'Unauthorized'], 401);
-        }
-
-        // Get unread count
-        $unreadCount = $this->notificationRepository->countUnreadForUser($user);
-
-        // Get recent unread notifications (limit 5)
-        $notifications = $this->notificationRepository->findUnreadForUser($user, 5);
-
-        // Format notifications for frontend
-        $formatted = [];
-        foreach ($notifications as $notification) {
-            $formatted[] = [
-                'id' => $notification->getId(),
-                'type' => $notification->getType(),
-                'message' => $notification->getMessage(),
-                'icon' => $notification->getIcon(),
-                'label' => $notification->getTypeLabel(),
-                'entityType' => $notification->getEntityType(),
-                'entityId' => $notification->getEntityId(),
-                'data' => $notification->getData(),
-                'readAt' => $notification->getReadAt()?->format('c'),
-                'createdAt' => $notification->getCreatedAt()->format('c'),
-            ];
-        }
-
-        return $this->json([
-            'unread_count' => $unreadCount,
-            'notifications' => $formatted,
-        ]);
-    }
-
-    /**
-     * Mark notification as read
-     * 
-     * @param Notification $notification The notification to mark as read
-     * @return JsonResponse Success response
-     */
-    #[Route('/api/notifications/{id}/read', name: 'api_notification_read', methods: ['PUT'])]
-    public function markNotificationAsRead(Notification $notification): JsonResponse
-    {
-        $user = $this->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'Unauthorized'], 401);
-        }
-
-        // Verify notification belongs to current user
-        if ($notification->getUser() !== $user) {
-            return $this->json(['error' => 'Forbidden'], 403);
-        }
-
-        $this->notificationService->markAsRead($notification);
-
-        return $this->json([
-            'success' => true,
-            'notification_id' => $notification->getId(),
-            'read_at' => $notification->getReadAt()?->format('c'),
-        ]);
-    }
-
-    /**
-     * Get notification count (for badge display)
-     * 
-     * @return JsonResponse Unread count
-     */
-    #[Route('/api/notifications/count', name: 'api_notifications_count', methods: ['GET'])]
-    public function getNotificationCount(): JsonResponse
-    {
-        $user = $this->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'Unauthorized'], 401);
-        }
-
-        $unreadCount = $this->notificationRepository->countUnreadForUser($user);
-
-        return $this->json([
-            'unread_count' => $unreadCount,
-        ]);
-    }
-
-    /**
-     * Mark all notifications as read
-     * 
-     * @return JsonResponse Success response
-     */
-    #[Route('/api/notifications/mark-all-read', name: 'api_notifications_mark_all_read', methods: ['PUT'])]
-    public function markAllAsRead(): JsonResponse
-    {
-        $user = $this->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'Unauthorized'], 401);
-        }
-
-        // Get all unread notifications
-        $notifications = $this->notificationRepository->findUnreadForUser($user, 999);
-
-        $count = 0;
-        foreach ($notifications as $notification) {
-            $this->notificationService->markAsRead($notification);
-            $count++;
-        }
-
-        return $this->json([
-            'success' => true,
-            'marked_as_read' => $count,
-        ]);
-    }
 }
-

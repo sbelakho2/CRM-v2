@@ -8,6 +8,8 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    {% set isAuthPage = app.request.get('_route') in ['app_login', 'app_register', 'app_forgot_password'] %}
+    
     <style>
         /* Claude AI Color Scheme */
         :root {
@@ -38,11 +40,6 @@
             line-height: 1.6;
         }
         
-        /* Use consistent font throughout */
-        body, h1, h2, h3, h4, h5, h6 {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-        }
-        
         /* Sidebar Styles */
         .sidebar {
             width: var(--sidebar-width);
@@ -52,8 +49,6 @@
             left: 0;
             top: 0;
             bottom: 0;
-            display: flex;
-            flex-direction: column;
             overflow-y: auto;
             padding: 32px 0;
             box-shadow: 2px 0 8px rgba(44, 36, 22, 0.04);
@@ -66,7 +61,7 @@
         }
         
         .sidebar-logo {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-family: Georgia, 'Times New Roman', serif;
             font-size: 20px;
             font-weight: 500;
             color: var(--claude-dark-purple);
@@ -77,7 +72,7 @@
         
         .sidebar-nav {
             list-style: none;
-            padding: 0 0 100px 0;
+            padding: 0;
             margin: 0;
         }
         
@@ -119,12 +114,6 @@
         .sidebar-nav-link.active svg {
             opacity: 1;
         }
-
-        .sidebar-footer {
-            margin-top: auto;
-            padding: 20px 8px;
-            border-top: 1px solid var(--claude-border);
-        }
         
         /* Main Content */
         .main-content {
@@ -137,7 +126,7 @@
         
         /* Headers */
         h1, h2, h3, h4, h5, h6 {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-family: Georgia, 'Times New Roman', serif;
             color: var(--claude-text);
             line-height: 1.3;
         }
@@ -533,28 +522,25 @@
         
         /* BUTTONS ONLY: Purple styling for actual buttons */
         /* White backgrounds with text-black are purple buttons (active state in filters) */
-        /* REMOVED: This was making card links purple - disabled for Geist theme */
-        /* a.bg-white.text-black, button.bg-white.text-black {
+        a.bg-white.text-black, button.bg-white.text-black {
             background: var(--claude-purple) !important;
             color: #FFFFFF !important;
-        } */
+        }
         
-        /* Blue buttons become purple - disabled for Geist neutral theme */
-        /* .bg-blue-600, .bg-blue-500 {
+        /* Blue buttons become purple */
+        .bg-blue-600, .bg-blue-500 {
             background: var(--claude-purple) !important;
-        } */
+        }
         
-        /* Blue buttons - disabled for Geist neutral theme */
-        /* .hover\:bg-blue-700:hover, .hover\:bg-blue-600:hover {
+        .hover\:bg-blue-700:hover, .hover\:bg-blue-600:hover {
             background: var(--claude-dark-purple) !important;
-        } */
+        }
         
         /* Primary action buttons that are white become purple */
-        /* REMOVED: This was making all white links/cards purple - disabled for Geist theme */
-        /* a.bg-white:not(td):not(th), button.bg-white:not(td):not(th) {
+        a.bg-white:not(td):not(th), button.bg-white:not(td):not(th) {
             background: var(--claude-purple) !important;
             color: #FFFFFF !important;
-        } */
+        }
         
         .hover\:bg-zinc-100:hover, .hover\:bg-gray-100:hover {
             background: var(--claude-dark-purple) !important;
@@ -617,6 +603,7 @@
 <body{% if (app.request.get('_route') starts with 'app_email_campaign') %} class="email-campaign"{% endif %}>
     {# main layout content starts here #}
     <!-- Geist-style Sidebar -->
+    {% if not isAuthPage %}
     <aside class="sidebar">
         <div style="padding: 0 20px; margin-bottom: 32px;">
             <h1 style="font-size: 16px; font-weight: 600; color: var(--color-text-primary); letter-spacing: normal;">
@@ -627,11 +614,6 @@
         
         <nav>
             <ul class="sidebar-nav">
-                {# Notification Bell Component #}
-                <li class="sidebar-nav-item">
-                    {% include 'components/notification_bell.html.twig' %}
-                </li>
-                
                 <li class="sidebar-nav-item">
                     <a href="{{ path('app_dashboard') }}" class="sidebar-nav-link {% if app.request.get('_route') == 'app_dashboard' %}active{% endif %}">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
@@ -723,91 +705,12 @@
                         Leads
                     </a>
                 </li>
-                
-                <!-- Divider -->
-                <li class="sidebar-nav-item" style="margin: 16px 0;">
-                    <div style="border-top: 1px solid var(--claude-border);"></div>
-                </li>
-                
-                <!-- New Features -->
-                <li class="sidebar-nav-item" style="padding: 0 16px; margin-bottom: 12px;">
-                    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--claude-text-secondary); padding: 0 14px;">
-                        Tools
-                    </div>
-                </li>
-                
-                <li class="sidebar-nav-item">
-                    <a href="{{ path('quote_estimator_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'quote_estimator' %}active{% endif %}">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M2 8L8 2L14 8"/>
-                            <path d="M4 10L8 6L12 10"/>
-                            <line x1="8" y1="6" x2="8" y2="14"/>
-                        </svg>
-                        Quote Estimator
-                    </a>
-                </li>
-                
-                <li class="sidebar-nav-item">
-                    <a href="{{ path('quote_copilot_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'quote_copilot' %}active{% endif %}">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="8" cy="8" r="6"/>
-                            <path d="M8 5V8L11 10"/>
-                            <circle cx="8" cy="8" r="1" fill="currentColor"/>
-                        </svg>
-                        Quote Co-Pilot
-                    </a>
-                </li>
-                
-                <li class="sidebar-nav-item">
-                    <a href="{{ path('abm_dashboard_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'abm_dashboard' %}active{% endif %}">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="2" width="12" height="12" rx="1"/>
-                            <path d="M8 6L11 8L8 10L5 8L8 6Z"/>
-                            <path d="M5 10V12L8 14L11 12V10"/>
-                        </svg>
-                        ABM Dashboard
-                    </a>
-                </li>
-                
-                <li class="sidebar-nav-item">
-                    <a href="{{ path('supplier_portal_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'supplier_portal' %}active{% endif %}">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="2" width="10" height="12" rx="1"/>
-                            <path d="M6 6H10"/>
-                            <path d="M6 9H10"/>
-                            <path d="M6 12H8"/>
-                        </svg>
-                        Supplier Portal
-                    </a>
-                </li>
-                
-                <!-- Admin Section -->
-                <li class="sidebar-nav-item" style="margin: 16px 0;">
-                    <div style="border-top: 1px solid var(--claude-border);"></div>
-                </li>
-                
-                <li class="sidebar-nav-item" style="padding: 0 16px; margin-bottom: 12px;">
-                    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--claude-text-secondary); padding: 0 14px;">
-                        Admin
-                    </div>
-                </li>
-                
-                <li class="sidebar-nav-item">
-                    <a href="{{ path('admin_dataset_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'admin_dataset' %}active{% endif %}">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="2" width="12" height="3" rx="1"/>
-                            <rect x="2" y="6" width="12" height="3" rx="1"/>
-                            <rect x="2" y="10" width="12" height="3" rx="1"/>
-                        </svg>
-                        Dataset Admin
-                    </a>
-                </li>
             </ul>
         </nav>
         
         <!-- User Menu at Bottom -->
-        <div class="sidebar-footer">
-            <div class="sidebar-nav-link" style="padding-bottom: 8px; border-bottom: 1px solid var(--claude-border); margin-bottom: 8px;">
+        <div style="position: absolute; bottom: 20px; left: 0; right: 0; padding: 0 8px;">
+            <div class="sidebar-nav-link">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="8" cy="5" r="3"/>
                     <path d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
@@ -818,42 +721,19 @@
                     Guest
                 {% endif %}
             </div>
-            
-            {% if app.user %}
-                <a href="{{ path('app_logout') }}" class="sidebar-nav-link" style="color: #DC2626; padding: 10px 14px;">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 13H3C2.44772 13 2 12.5523 2 12V4C2 3.44772 2.44772 3 3 3H6"/>
-                        <path d="M11 10L14 7L11 4"/>
-                        <path d="M14 7H6"/>
-                    </svg>
-                    Logout
-                </a>
-            {% endif %}
         </div>
     </aside>
+    {% endif %}
     
     <!-- Main Content -->
-    <main class="main-content">
+    <main class="{% if not isAuthPage %}main-content{% else %}w-full flex items-center justify-center min-h-screen{% endif %}">
         {% block body %}{% endblock %}
     </main>
-    
-    {# Mobile Quick Actions FAB #}
-    {% include 'components/mobile_fab.html.twig' %}
-    
-    {# Keyboard Shortcuts Help Modal #}
-    {% include 'components/shortcuts_help_modal.html.twig' %}
-    
-    {# Keyboard Shortcuts System #}
-    {% include 'components/keyboard_shortcuts.html.twig' %}
     
     {% block javascripts %}
             {{ encore_entry_script_tags('app') }}
         {{ encore_entry_script_tags('app') }}
     {% endblock %}
-    
-    {# Notification System JavaScript #}
-    <script src="{{ asset('js/notification-system.js') }}"></script>
-    
     {# no runtime debug scripts remain #}
 </body>
 </html>

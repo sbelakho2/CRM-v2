@@ -18,7 +18,7 @@ class Activity
     #[ORM\JoinColumn(nullable: false)]
     private ?Company $company = null;
 
-    #[ORM\ManyToOne(targetEntity: Contact::class)]
+    #[ORM\ManyToOne(targetEntity: Contact::class, inversedBy: 'activities')]
     #[ORM\JoinColumn(nullable: true)]
     private ?Contact $contact = null;
 
@@ -31,6 +31,12 @@ class Activity
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $notes = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $outcome = null;
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $activityDate = null;
@@ -104,6 +110,28 @@ class Activity
     public function setDescription(?string $description): self
     {
         $this->description = $description;
+        return $this;
+    }
+
+    public function getNotes(): ?string
+    {
+        return $this->notes;
+    }
+
+    public function setNotes(?string $notes): self
+    {
+        $this->notes = $notes;
+        return $this;
+    }
+
+    public function getOutcome(): ?string
+    {
+        return $this->outcome;
+    }
+
+    public function setOutcome(?string $outcome): self
+    {
+        $this->outcome = $outcome;
         return $this;
     }
 

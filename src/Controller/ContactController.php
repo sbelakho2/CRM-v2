@@ -146,10 +146,11 @@ class ContactController extends AbstractController
     #[Route('/{id}/linkedin-outreach', name: 'app_contact_linkedin_outreach', methods: ['POST'])]
     public function trackLinkedInOutreach(Request $request, Contact $contact): Response
     {
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
         $outreachType = $request->request->get('type', 'Connection Request');
         $notes = $request->request->get('notes', '');
 
-        $this->linkedInService->trackLinkedInOutreach($contact, $outreachType, $notes);
+        $this->linkedInService->trackLinkedInOutreach($contact, $outreachType, $notes, $this->getUser());
 
         $this->addFlash('success', 'LinkedIn outreach tracked successfully!');
 

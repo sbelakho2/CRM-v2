@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Users - Admin{% endblock %}
+
+{% block body %}
+    <h1 class="text-2xl font-semibold mb-4">Users</h1>
+
+    <table class="w-full table-auto">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Roles</th>
+                <th>Active</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+                <tr>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.firstName }} {{ user.lastName }}</td>
+                    <td>{{ user.roles|join(', ') }}</td>
+                    <td>{{ user.isActive() ? 'Yes' : 'No' }}</td>
+                    <td>
+                        <a href="{{ path('admin_user_edit', {id: user.id}) }}">Edit</a>
+                        <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" style="display:inline">
+                            <input type="hidden" name="_token" value="{{ csrf_token('delete_user' ~ user.id) }}">
+                            <button type="submit" onclick="return confirm('Delete user?')">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
