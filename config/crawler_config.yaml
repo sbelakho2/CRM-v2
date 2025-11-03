@@ -1,0 +1,458 @@
+# Crawler Configuration
+# Multi-region PCBA/EMS lead discovery (Morocco + US + EU + UK)
+# Primary: Africa/Tunis (UTC+1) - 08:00 daily
+# Regional batches: 08:30 (US-East, US-TX, UK, EU)
+
+# Time zones for regional batches
+time_zones:
+  primary: Africa/Tunis        # 08:00 primary drop (Morocco focus)
+  us_east: America/New_York    # 08:30 US East Coast batch
+  us_central: America/Chicago  # 08:30 Texas batch
+  uk: Europe/London            # 08:30 UK batch
+  eu: Europe/Paris             # 08:30 EU batch
+
+scheduler:
+  primary_daily: "0 8 * * *"     # Cron format: 08:00 Africa/Tunis
+  us_east_daily: "30 8 * * *"    # 08:30 America/New_York
+  us_texas_daily: "30 8 * * *"   # 08:30 America/Chicago
+  uk_daily: "30 8 * * *"         # 08:30 Europe/London
+  eu_daily: "30 8 * * *"         # 08:30 Europe/Paris
+  enabled: true
+
+# Success Metrics (60 days)
+metrics:
+  precision_at_top_50: 0.75  # ≥75% approval rate
+  net_new_targets_per_week: 10
+  median_review_time_seconds: 45
+
+# Scoring Thresholds
+thresholds:
+  recommend: 55    # Auto-recommend for review
+  drop: 30         # Auto-reject (too low relevance)
+
+# Scoring Weights (total = 130 with regional bonuses)
+weights:
+  geo_morocco: 20          # Morocco free zone presence
+  geo_us: 16               # US East Coast + Texas metros
+  geo_eu: 14               # EU core/nordics/CEE presence
+  geo_uk: 12               # UK presence
+  mfg_fit: 20              # PCBA/SMT/EMS manufacturing
+  procurement: 18          # Procurement readiness signals
+  sector_generic: 12       # Target sector alignment
+  sector_dc_bonus: 4       # Data center bonus
+  morocco_evidence: 15     # Evidence of Morocco sourcing
+  contactability: 8        # Public contact info available
+  freshness: 7             # Recent content updates
+  eu_quality_stack: 10     # IATF 16949, AS9100, ISO 13485, CE
+  eu_procurement_lang: 10  # Multilingual procurement markers
+
+# Keywords by Category
+keywords:
+  manufacturing:
+    - "pcba"
+    - "smt"
+    - "ems"
+    - "electronics assembly"
+    - "contract manufacturing"
+    - "electronics supplier"
+    - "pcb assembly"
+    - "industrial electronics"
+    - "power electronics"
+    - "bms"
+    - "battery management system"
+    - "inverter"
+    - "converter"
+    - "pcb fabrication"
+    - "smt assembly"
+    - "through-hole assembly"
+    - "box build"
+    - "cable assembly"
+    
+  procurement:
+    - "supplier portal"
+    - "vendor registration"
+    - "become a supplier"
+    - "rfq"
+    - "rfp"
+    - "quality requirements"
+    - "supplier quality"
+    - "ppap"
+    - "imds"
+    - "fai"
+    - "fair"
+    - "rohs"
+    - "reach"
+    - "conflict minerals"
+    - "supplier code of conduct"
+    - "supplier onboarding"
+    - "vendor management"
+    - "purchase order"
+    - "sourcing"
+    
+  sectors:
+    - "automotive"
+    - "aerospace"
+    - "rail"
+    - "railway"
+    - "industrial"
+    - "energy"
+    - "renewables"
+    - "solar"
+    - "wind"
+    - "data center"
+    - "telecom"
+    - "medical device"
+    - "powertrain"
+    - "telematics"
+    - "controller"
+    - "hvac"
+    - "building automation"
+
+# Morocco Free Zones & Locations
+zones:
+  morocco_freezones:
+    - "tangier automotive city"
+    - "tac"
+    - "tanger med"
+    - "tmz"
+    - "tangier free zone"
+    - "tfz"
+    - "kenitra"
+    - "atlantic free zone"
+    - "afz kenitra"
+    - "midparc"
+    - "bouskoura"
+    - "casablanca free zone"
+    - "zone franche"
+    - "nouaceur"
+    - "ain sebaa"
+    
+  morocco_cities:
+    - "tangier"
+    - "tanger"
+    - "kenitra"
+    - "casablanca"
+    - "rabat"
+    - "tetouan"
+
+# Regional Definitions (US, EU, UK)
+regions:
+  usa:
+    east_coast_states:
+      - "MA"  # Massachusetts
+      - "RI"  # Rhode Island
+      - "CT"  # Connecticut
+      - "NY"  # New York
+      - "NJ"  # New Jersey
+      - "PA"  # Pennsylvania
+      - "DE"  # Delaware
+      - "MD"  # Maryland
+      - "DC"  # District of Columbia
+      - "VA"  # Virginia
+      - "NC"  # North Carolina
+      - "SC"  # South Carolina
+      - "GA"  # Georgia
+      - "FL"  # Florida
+    texas_metros:
+      - "Dallas"
+      - "Fort Worth"
+      - "Plano"
+      - "Frisco"
+      - "Irving"
+      - "Austin"
+      - "Round Rock"
+      - "Pflugerville"
+      - "Georgetown"
+      - "San Antonio"
+      - "Houston"
+      - "Sugar Land"
+      - "The Woodlands"
+  
+  eu:
+    core_countries:
+      - "DE"  # Germany
+      - "FR"  # France
+      - "IT"  # Italy
+      - "ES"  # Spain
+      - "NL"  # Netherlands
+      - "BE"  # Belgium
+      - "LU"  # Luxembourg
+      - "AT"  # Austria
+      - "IE"  # Ireland
+      - "PT"  # Portugal
+    nordics:
+      - "SE"  # Sweden
+      - "FI"  # Finland
+      - "DK"  # Denmark
+      - "NO"  # Norway
+    cee:
+      - "PL"  # Poland
+      - "CZ"  # Czech Republic
+      - "SK"  # Slovakia
+      - "HU"  # Hungary
+      - "RO"  # Romania
+      - "SI"  # Slovenia
+    tlds:
+      - ".de"
+      - ".fr"
+      - ".it"
+      - ".es"
+      - ".nl"
+      - ".be"
+      - ".lu"
+      - ".at"
+      - ".ie"
+      - ".pt"
+      - ".se"
+      - ".fi"
+      - ".dk"
+      - ".no"
+      - ".pl"
+      - ".cz"
+      - ".sk"
+      - ".hu"
+      - ".ro"
+      - ".si"
+  
+  uk:
+    countries:
+      - "England"
+      - "Scotland"
+      - "Wales"
+      - "Northern Ireland"
+    tlds:
+      - ".uk"
+      - ".co.uk"
+
+# Multilingual Keywords (EU Procurement)
+keywords_multi:
+  fr:  # French
+    - "fournisseur"
+    - "fournisseurs"
+    - "achats"
+    - "approvisionnement"
+    - "portail fournisseur"
+    - "appel d'offres"
+    - "demande de devis"
+    - "qualité fournisseur"
+    - "PPAP"
+    - "IMDS"
+  de:  # German
+    - "Lieferant"
+    - "Lieferanten"
+    - "Einkauf"
+    - "Beschaffung"
+    - "Lieferantenportal"
+    - "Ausschreibung"
+    - "Anfrage"
+    - "Lieferantenqualität"
+    - "PPAP"
+    - "IMDS"
+  it:  # Italian
+    - "fornitore"
+    - "fornitori"
+    - "acquisti"
+    - "approvvigionamento"
+    - "portale fornitori"
+    - "gara"
+    - "richiesta di offerta"
+    - "qualità fornitori"
+  es:  # Spanish
+    - "proveedor"
+    - "proveedores"
+    - "compras"
+    - "abastecimiento"
+    - "portal de proveedores"
+    - "licitación"
+    - "solicitud de oferta"
+    - "calidad de proveedores"
+  nl:  # Dutch
+    - "leverancier"
+    - "leveranciers"
+    - "inkoop"
+    - "leveranciersportaal"
+    - "aanbesteding"
+    - "offerteaanvraag"
+    - "leverancierskwaliteit"
+  pl:  # Polish
+    - "dostawca"
+    - "dostawców"
+    - "zakupy"
+    - "portal dostawcy"
+    - "zapytanie ofertowe"
+    - "jakość dostawców"
+  pt:  # Portuguese
+    - "fornecedor"
+    - "fornecedores"
+    - "compras"
+    - "portal de fornecedores"
+    - "pedido de cotação"
+    - "qualidade de fornecedores"
+
+# EU Quality Standards (Quality Stack)
+quality_standards:
+  automotive:
+    - "IATF 16949"
+    - "VDA 6.3"
+    - "PPAP"
+  aerospace:
+    - "AS9100"
+    - "EN 9100"
+    - "NADCAP"
+  medical:
+    - "ISO 13485"
+    - "MDR"
+    - "FDA 21 CFR"
+  general:
+    - "ISO 9001"
+    - "ISO 14001"
+    - "CE"
+    - "CE marking"
+    - "EN standards"
+    - "IEC"
+
+# Seed Sources (High-Quality Domains)
+seeds:
+  manual_domains:
+    - "tangier-automotive-city.com"
+    - "tangermed.ma"
+    - "afz.ma"
+    - "invest.gov.ma"
+    - "amdie.ma"
+    - "amica.ma"
+    
+  seed_url_patterns:
+    - "/suppliers"
+    - "/become-a-supplier"
+    - "/vendor-registration"
+    - "/locations"
+    - "/manufacturing"
+    - "/morocco"
+    - "/about/facilities"
+    - "/quality"
+
+# Crawler Settings (Polite & Compliant)
+crawler:
+  user_agent: "Starz-Leadbot/1.0 (+support@starz-morocco.com)"
+  obey_robots_txt: true
+  download_delay: 2.5              # seconds between requests
+  concurrent_requests_per_domain: 1
+  concurrent_domains: 2
+  request_timeout: 30              # seconds
+  retry_times: 3
+  retry_http_codes: [500, 502, 503, 504, 522, 524, 408, 429]
+  
+  # Rate limiting
+  rate_limit_requests_per_second: 0.3  # 0.2-0.5 rps
+  adaptive_backoff: true
+  respect_etags: true
+  cache_last_modified: true
+
+# Contact Extraction Rules (GDPR/Privacy Compliant)
+contact_extraction:
+  allowed_email_types:
+    - "role_based"     # purchasing@, procurement@, supplier@
+    - "public_listed"  # Explicitly on contact page
+  
+  role_based_prefixes:
+    - "purchasing"
+    - "procurement"
+    - "supplier"
+    - "vendors"
+    - "quality"
+    - "sourcing"
+    - "supply"
+    - "sales"
+    - "info"
+    - "contact"
+    
+  exclude_personal_data:
+    - true  # No personal emails unless explicitly public
+    
+  require_public_listing:
+    - true  # Must be on public page, not behind login
+
+# Deduplication
+deduplication:
+  fuzzy_match_threshold: 0.92  # Jaro-Winkler
+  normalize_company_name: true
+  check_against_crm: true
+  merge_duplicate_features: true
+  
+# Output
+output:
+  base_path: "/var/crm/provisional/leads"
+  formats: ["csv", "xlsx", "json"]
+  include_fields:
+    - "lead_id"
+    - "company_name"
+    - "legal_name"
+    - "website_root"
+    - "site_location"
+    - "domain_country_guess"
+    - "lead_url"
+    - "sector_tags"
+    - "fit_signals"
+    - "morocco_signal"
+    - "contact_emails_public"
+    - "contact_form_url"
+    - "supplier_portal_url"
+    - "rfq_rfp_page_url"
+    - "last_seen"
+    - "content_last_modified"
+    - "lead_score"
+    - "dupe_key"
+    - "enrichment_status"
+    - "notes_auto"
+    
+# Email Notifications
+notifications:
+  enabled: true
+  recipients:
+    - "crm@starz-morocco.com"
+    - "sales-ops@starz-morocco.com"
+  subject: "Daily Lead Report - {date}"
+  include_top_n: 10
+  include_summary: true
+  include_errors: true
+
+# Compliance & Privacy
+compliance:
+  respect_do_not_crawl_list: true
+  respect_do_not_contact_list: true
+  honor_removal_requests: true
+  encrypt_at_rest: true
+  log_all_decisions: true
+  data_retention_days: 90
+  
+  # GDPR/Morocco Law 09-08
+  personal_data_minimization: true
+  business_data_only: true
+  no_login_gated_scraping: true
+  
+# Monitoring
+monitoring:
+  log_level: "INFO"
+  log_path: "/var/crm/logs"
+  metrics_enabled: true
+  track_metrics:
+    - "precision_at_top_50"
+    - "approval_rate"
+    - "duplicate_rate"
+    - "parse_success_rate"
+    - "domain_timeout_rate"
+    - "average_review_time"
+    - "net_new_per_week"
+    
+# Blacklist/Whitelist
+lists:
+  domain_blacklist: []  # Domains to never crawl
+  domain_whitelist: []  # If set, only crawl these
+  do_not_contact: []    # Companies that requested removal
+  
+# Quality Assurance
+qa:
+  random_sample_per_week: 10
+  manual_audit_required: true
+  track_false_positives: true
+  monthly_weight_review: true

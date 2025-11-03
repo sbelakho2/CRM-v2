@@ -1,0 +1,303 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Review & Launch - {{ campaign.name }}{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            {# Wizard Progress #}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="wizard-progress">
+                        <div class="wizard-step completed">
+                            <div class="step-number">1</div>
+                            <div class="step-label">Basic Info</div>
+                        </div>
+                        <div class="wizard-connector"></div>
+                        <div class="wizard-step completed">
+                            <div class="step-number">2</div>
+                            <div class="step-label">Template</div>
+                        </div>
+                        <div class="wizard-connector"></div>
+                        <div class="wizard-step completed">
+                            <div class="step-number">3</div>
+                            <div class="step-label">Audience</div>
+                        </div>
+                        <div class="wizard-connector"></div>
+                        <div class="wizard-step completed">
+                            <div class="step-number">4</div>
+                            <div class="step-label">Schedule</div>
+                        </div>
+                        <div class="wizard-connector"></div>
+                        <div class="wizard-step active">
+                            <div class="step-number">5</div>
+                            <div class="step-label">Review</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
+                    {# Campaign Summary #}
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-check-circle-fill"></i> Ready to Launch
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="campaign-summary">
+                                <div class="summary-item">
+                                    <div class="summary-label">Campaign Name</div>
+                                    <div class="summary-value">{{ campaign.name }}</div>
+                                </div>
+
+                                {% if campaign.description %}
+                                <div class="summary-item">
+                                    <div class="summary-label">Description</div>
+                                    <div class="summary-value">{{ campaign.description }}</div>
+                                </div>
+                                {% endif %}
+
+                                <div class="summary-item">
+                                    <div class="summary-label">Template</div>
+                                    <div class="summary-value">
+                                        {% if campaign.template %}
+                                            <strong>{{ campaign.template.name }}</strong>
+                                            <p class="text-muted small mb-0">{{ campaign.template.subjectLine }}</p>
+                                        {% else %}
+                                            <span class="text-muted">No template selected</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="summary-item">
+                                    <div class="summary-label">Audience</div>
+                                    <div class="summary-value">
+                                        {% if campaign.segment %}
+                                            <strong>{{ campaign.segment.name }}</strong>
+                                            <div class="recipient-count">
+                                                <i class="bi bi-people-fill text-primary"></i>
+                                                <span class="count-number">{{ recipientCount|number_format }}</span>
+                                                <span class="count-label">recipients</span>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">No segment selected</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="summary-item">
+                                    <div class="summary-label">Schedule</div>
+                                    <div class="summary-value">
+                                        {% if campaign.scheduledAt %}
+                                            <i class="bi bi-calendar-event text-primary"></i>
+                                            <strong>{{ campaign.scheduledAt|date('F j, Y') }}</strong> at
+                                            <strong>{{ campaign.scheduledAt|date('g:i A') }}</strong>
+                                        {% else %}
+                                            <i class="bi bi-send-fill text-primary"></i>
+                                            <strong>Send immediately</strong>
+                                        {% endif %}
+
+                                        {% if campaign.sendTimeOptimization %}
+                                            <div class="mt-2">
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="bi bi-lightbulb-fill"></i> Send time optimization enabled
+                                                </span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Pre-flight Checklist #}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">Pre-flight Checklist</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="checklist">
+                                <div class="checklist-item {{ campaign.template ? 'checked' : 'unchecked' }}">
+                                    <i class="bi {{ campaign.template ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger' }}"></i>
+                                    <span>Email template selected</span>
+                                </div>
+                                <div class="checklist-item {{ campaign.segment ? 'checked' : 'unchecked' }}">
+                                    <i class="bi {{ campaign.segment ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger' }}"></i>
+                                    <span>Target audience defined</span>
+                                </div>
+                                <div class="checklist-item {{ recipientCount > 0 ? 'checked' : 'unchecked' }}">
+                                    <i class="bi {{ recipientCount > 0 ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger' }}"></i>
+                                    <span>Recipients available ({{ recipientCount }})</span>
+                                </div>
+                                <div class="checklist-item {{ campaign.scheduledAt ? 'checked' : 'unchecked' }}">
+                                    <i class="bi {{ campaign.scheduledAt ? 'bi-check-circle-fill text-success' : 'bi-exclamation-circle-fill text-warning' }}"></i>
+                                    <span>Send time configured</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Actions #}
+                    <div class="card">
+                        <div class="card-body">
+                            <form method="post">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <a href="{{ path('app_email_campaign_wizard_schedule', {id: campaign.id}) }}" class="btn btn-outline-secondary">
+                                        <i class="bi bi-arrow-left"></i> Back
+                                    </a>
+
+                                    <div class="action-buttons">
+                                        <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary me-2">
+                                            <i class="bi bi-save"></i> Save as Draft
+                                        </button>
+                                        <button type="submit" name="action" value="launch" class="btn btn-success btn-lg" 
+                                                {% if not campaign.template or not campaign.segment or recipientCount == 0 %}disabled{% endif %}>
+                                            <i class="bi bi-rocket-takeoff-fill"></i> Launch Campaign
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {% if not campaign.template or not campaign.segment or recipientCount == 0 %}
+                                <div class="alert alert-warning mt-3 mb-0">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    Please complete all required steps before launching the campaign.
+                                </div>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.wizard-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.wizard-step {
+    text-align: center;
+    min-width: 100px;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.wizard-step.active .step-number {
+    background: #0d6efd;
+    color: white;
+}
+
+.wizard-step.completed .step-number {
+    background: #198754;
+    color: white;
+}
+
+.step-label {
+    font-size: 13px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.wizard-connector {
+    flex: 1;
+    height: 2px;
+    background: #e9ecef;
+    margin: 0 10px;
+    max-width: 100px;
+}
+
+.campaign-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.summary-item {
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.summary-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.summary-label {
+    font-size: 13px;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.summary-value {
+    font-size: 16px;
+    color: #212529;
+}
+
+.recipient-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8f9fa;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.count-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0d6efd;
+}
+
+.count-label {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+}
+
+.checklist-item i {
+    font-size: 20px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+</style>
+{% endblock %}

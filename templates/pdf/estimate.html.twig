@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Landed-Cost Estimate #{{ estimate.id }}</title>
+    {% include 'pdf/base.css.twig' %}
+</head>
+<body>
+    <div class="header clearfix">
+        <div style="float: left;">
+            <h2 style="margin: 0; border: none; color: #9B6B9E;">CRM Starz Morocco</h2>
+            <p class="text-muted small" style="margin: 2pt 0;">Landed-Cost Calculator</p>
+        </div>
+        
+        <div class="doc-info">
+            <strong>LANDED-COST ESTIMATE</strong>
+            Estimate #: EST-{{ estimate.id }}<br>
+            Date: {{ estimate.createdAt|date('Y-m-d') }}<br>
+            Incoterm: <span class="badge badge-info">{{ estimate.incoterm }}</span>
+        </div>
+    </div>
+    
+    <h1>Landed-Cost Estimate</h1>
+    
+    <table style="margin-bottom: 15pt; border: none;">
+        <tr>
+            <td style="width: 33%; border: none;">
+                <h4>Origin:</h4>
+                <strong>{{ estimate.originCountry }}</strong><br>
+                Port: {{ estimate.originPort ?? 'CAS (Casablanca)' }}
+            </td>
+            <td style="width: 33%; border: none;">
+                <h4>Destination:</h4>
+                <strong>{{ estimate.destCountry }}</strong><br>
+                Port: {{ estimate.destPort ?? 'Auto-selected' }}
+            </td>
+            <td style="width: 34%; border: none;">
+                <h4>Shipment Details:</h4>
+                Weight: {{ estimate.weightKg|number_format(2) }} kg<br>
+                {% if estimate.volumeM3 %}Volume: {{ estimate.volumeM3|number_format(3) }} m³{% endif %}
+            </td>
+        </tr>
+    </table>
+    
+    <h2>Cost Breakdown</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 60%;">Description</th>
+                <th style="width: 20%;">Details</th>
+                <th style="width: 20%;">Amount (USD)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {# Goods Value #}
+            <tr>
+                <td><strong>Goods Value (FOB)</strong></td>
+                <td class="text-center">-</td>
+                <td class="text-right">${{ estimate.goodsValue|number_format(2) }}</td>
+            </tr>
+            
+            {# Freight Cost #}
+            {% if freightCost is defined and freightCost > 0 %}
+            <tr>
+                <td>Freight Cost</td>
+                <td class="text-center">
+                    {{ freightMode ?? 'AIR' }}<br>
+                    <span class="small text-muted">{{ transitDays ?? 5 }} days</span>
+                </td>
+                <td class="text-right">${{ freightCost|number_format(2) }}</td>
+            </tr>
+            {% endif %}
+            
+            {# Insurance #}
+            {% if insuranceCost is defined and insuranceCost > 0 %}
+            <tr>
+                <td>Insurance (0.5% of CIF value)</td>
+                <td class="text-center">-</td>
+                <td class="text-right">${{ insuranceCost|number_format(2) }}</td>
+            </tr>
+            {% endif %}
+            
+            {# CIF Value Subtotal #}
+            {% if estimate.incoterm in ['CIF', 'DDP'] %}
+            <tr class="subtotal-row">
+                <td colspan="2"><strong>CIF Value</strong></td>
+                <td class="text-right"><strong>${{ cifValue|number_format(2) }}</strong></td>
+            </tr>
+            {% endif %}
+            
+            {# Duty #}
+            {% if dutyCost is defined and dutyCost > 0 %}
+            <tr>
+                <td>Import Duty</td>
+                <td class="text-center">
+                    {{ dutyRate|number_format(1) }}%<br>
+                    {% if ftaApplied %}
+                    <span class="badge badge-success">FTA</span>
+                    {% else %}
+                    <span class="badge badge-warning">MFN</span>
+                    {% endif %}
+                </td>
+                <td class="text-right">${{ dutyCost|number_format(2) }}</td>
+            </tr>
+            {% endif %}
+            
+            {# VAT/Tax #}
+            {% if vatCost is defined and vatCost > 0 %}
+            <tr>
+                <td>VAT / Sales Tax</td>
+                <td class="text-center">{{ vatRate|number_format(1) }}%</td>
+                <td class="text-right">${{ vatCost|number_format(2) }}</td>
+            </tr>
+            {% endif %}
+            
+            {# Broker Fees #}
+            {% if brokerFee is defined and brokerFee > 0 %}
+            <tr>
+                <td>Customs Broker Fee</td>
+                <td class="text-center">-</td>
+                <td class="text-right">${{ brokerFee|number_format(2) }}</td>
+            </tr>
+            {% endif %}
+            
+            {# Total Landed Cost #}
+            <tr class="total-row">
+                <td colspan="2"><strong>TOTAL LANDED COST</strong></td>
+                <td class="text-right"><strong>${{ totals.total|number_format(2) }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+    
+    {% if htsCode %}
+    <h2>HS Classification</h2>
+    <table>
+        <tr>
+            <td style="width: 30%;"><strong>HTS Code:</strong></td>
+            <td>{{ htsCode }}</td>
+        </tr>
+        <tr>
+            <td><strong>Description:</strong></td>
+            <td>{{ htsDescription ?? 'Electronic components, NEC' }}</td>
+        </tr>
+        <tr>
+            <td><strong>Duty Type:</strong></td>
+            <td>{{ dutyType ?? 'Ad Valorem' }}</td>
+        </tr>
+        <tr>
+            <td><strong>Trade Agreement:</strong></td>
+            <td>
+                {% if ftaApplied %}
+                    {{ ftaName ?? 'Morocco-US FTA' }} (0% duty)
+                {% else %}
+                    MFN (Most Favored Nation)
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+    {% endif %}
+    
+    <h2>Assumptions</h2>
+    <ul>
+        <li><strong>Incoterm:</strong> {{ estimate.incoterm }} - {{ incoterms[estimate.incoterm].description ?? 'Standard delivery terms' }}</li>
+        <li><strong>Currency:</strong> All amounts are in USD. Exchange rate: 1 MAD = {{ fxRate|number_format(4) }} USD (as of {{ fxDate|date('Y-m-d') }})</li>
+        <li><strong>Freight Mode:</strong> {{ freightMode ?? 'AIR' }} - Estimated transit time: {{ transitDays ?? 5 }} days</li>
+        <li><strong>Insurance:</strong> 0.5% of CIF value (standard marine insurance)</li>
+        {% if ftaApplied %}
+        <li><strong>FTA Eligibility:</strong> Products qualify for {{ ftaName ?? 'Morocco-US FTA' }} preferential duty rate</li>
+        {% endif %}
+    </ul>
+    
+    <div class="warning-box">
+        <strong>Important Notes:</strong><br>
+        • This estimate is for planning purposes only and not a binding quote.<br>
+        • Actual costs may vary based on current exchange rates, freight rates, and customs assessments.<br>
+        • FTA benefits require proper documentation (Certificate of Origin).<br>
+        • Additional fees may apply (terminal handling, port charges, etc.)
+    </div>
+    
+    <div class="footer">
+        <p>
+            <strong>CRM Starz Morocco</strong> | Casablanca, Morocco<br>
+            Generated on {{ "now"|date('Y-m-d H:i:s') }}
+        </p>
+    </div>
+</body>
+</html>

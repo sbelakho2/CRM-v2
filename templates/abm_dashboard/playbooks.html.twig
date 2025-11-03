@@ -1,0 +1,225 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Playbooks{% endblock %}
+
+{% block body %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between border-b border-neutral-200/80 pb-5">
+        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">ABM Playbooks</h1>
+        <button class="inline-flex items-center rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
+            + New Playbook
+        </button>
+    </div>
+
+    <!-- Filter and Search -->
+    <div class="rounded-lg border border-neutral-200/60 bg-neutral-50/50 p-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <input 
+                type="text" 
+                placeholder="Search playbooks..." 
+                class="rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 placeholder-neutral-500 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+            >
+            <select class="rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+            </select>
+            <select class="rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400">
+                <option value="">All Industries</option>
+                <option value="technology">Technology</option>
+                <option value="finance">Finance</option>
+                <option value="healthcare">Healthcare</option>
+                <option value="retail">Retail</option>
+            </select>
+            <button class="rounded-lg bg-neutral-900 px-4 py-2 font-medium text-white transition-colors hover:bg-neutral-800">
+                Filter
+            </button>
+        </div>
+    </div>
+
+    <!-- Playbooks Grid -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <!-- Playbook Card 1 -->
+        <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white transition-all hover:shadow-sm">
+            <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 p-4 text-white">
+                <h3 class="text-lg font-semibold">Enterprise Demo Playbook</h3>
+                <p class="text-sm opacity-90">Created 2 weeks ago</p>
+            </div>
+            <div class="space-y-3 p-4">
+                <div>
+                    <p class="text-sm text-neutral-600">Status</p>
+                    <span class="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">Active</span>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Target Accounts</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[0].account_count | default(24) }} accounts</p>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Success Rate</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[0].success_rate | default(68) }}%</p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        View
+                    </button>
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Playbook Card 2 -->
+        <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white transition-all hover:shadow-sm">
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 p-4 text-white">
+                <h3 class="text-lg font-semibold">Mid-Market Sales Sequence</h3>
+                <p class="text-sm opacity-90">Created 4 weeks ago</p>
+            </div>
+            <div class="space-y-3 p-4">
+                <div>
+                    <p class="text-sm text-neutral-600">Status</p>
+                    <span class="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">Active</span>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Target Accounts</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[1].account_count | default(18) }} accounts</p>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Success Rate</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[1].success_rate | default(52) }}%</p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        View
+                    </button>
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Playbook Card 3 -->
+        <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white transition-all hover:shadow-sm">
+            <div class="bg-gradient-to-r from-amber-500 to-amber-600 p-4 text-white">
+                <h3 class="text-lg font-semibold">Product Launch Campaign</h3>
+                <p class="text-sm opacity-90">Created 1 week ago</p>
+            </div>
+            <div class="space-y-3 p-4">
+                <div>
+                    <p class="text-sm text-neutral-600">Status</p>
+                    <span class="inline-block rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">Draft</span>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Target Accounts</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[2].account_count | default(12) }} accounts</p>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Success Rate</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[2].success_rate | default(0) }}%</p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        View
+                    </button>
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Playbook Card 4 -->
+        <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white transition-all hover:shadow-sm">
+            <div class="bg-gradient-to-r from-rose-500 to-rose-600 p-4 text-white">
+                <h3 class="text-lg font-semibold">Re-engagement Campaign</h3>
+                <p class="text-sm opacity-90">Created 3 weeks ago</p>
+            </div>
+            <div class="space-y-3 p-4">
+                <div>
+                    <p class="text-sm text-neutral-600">Status</p>
+                    <span class="inline-block rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-800">Inactive</span>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Target Accounts</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[3].account_count | default(31) }} accounts</p>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Success Rate</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[3].success_rate | default(45) }}%</p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        View
+                    </button>
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Playbook Card 5 -->
+        <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white transition-all hover:shadow-sm">
+            <div class="bg-gradient-to-r from-sky-500 to-sky-600 p-4 text-white">
+                <h3 class="text-lg font-semibold">Strategic Account Growth</h3>
+                <p class="text-sm opacity-90">Created 5 weeks ago</p>
+            </div>
+            <div class="space-y-3 p-4">
+                <div>
+                    <p class="text-sm text-neutral-600">Status</p>
+                    <span class="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">Active</span>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Target Accounts</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[4].account_count | default(8) }} accounts</p>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Success Rate</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[4].success_rate | default(75) }}%</p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        View
+                    </button>
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Playbook Card 6 -->
+        <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white transition-all hover:shadow-sm">
+            <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4 text-white">
+                <h3 class="text-lg font-semibold">Customer Success Upsell</h3>
+                <p class="text-sm opacity-90">Created 6 weeks ago</p>
+            </div>
+            <div class="space-y-3 p-4">
+                <div>
+                    <p class="text-sm text-neutral-600">Status</p>
+                    <span class="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">Active</span>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Target Accounts</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[5].account_count | default(42) }} accounts</p>
+                </div>
+                <div>
+                    <p class="text-sm text-neutral-600">Success Rate</p>
+                    <p class="font-semibold text-neutral-900">{{ playbooks[5].success_rate | default(63) }}%</p>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        View
+                    </button>
+                    <button class="flex-1 rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200">
+                        Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

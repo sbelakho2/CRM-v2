@@ -1,0 +1,232 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}RFQs - CRM{% endblock %}
+
+{% block body %}
+<div class="content-header">
+    <div>
+        <h1 class="page-title">RFQs</h1>
+        <p class="text-neutral-600 text-sm">Manage all request for quotations</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{{ path('app_rfq_pipeline') }}" class="btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1">
+                <rect x="2" y="3" width="4" height="10" rx="1"/>
+                <rect x="7" y="3" width="4" height="10" rx="1"/>
+                <rect x="12" y="3" width="2" height="10" rx="1"/>
+            </svg>
+            Pipeline View
+        </a>
+        <a href="{{ path('app_rfq_new') }}" class="btn-primary">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1">
+                <path d="M8 3V13M3 8H13"/>
+            </svg>
+            New RFQ
+        </a>
+    </div>
+</div>
+
+{# Filters #}
+<div class="card mb-6">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div>
+            <label class="form-label">Type</label>
+            <select name="type" class="form-select">
+                <option value="">All Types</option>
+                <option value="Standard RFQ" {% if app.request.get('type') == 'Standard RFQ' %}selected{% endif %}>Standard RFQ</option>
+                <option value="NPI" {% if app.request.get('type') == 'NPI' %}selected{% endif %}>NPI</option>
+                <option value="Framework Agreement" {% if app.request.get('type') == 'Framework Agreement' %}selected{% endif %}>Framework Agreement</option>
+            </select>
+        </div>
+        
+        <div>
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                <option value="Pending" {% if app.request.get('status') == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="In Review" {% if app.request.get('status') == 'In Review' %}selected{% endif %}>In Review</option>
+                <option value="Submitted" {% if app.request.get('status') == 'Submitted' %}selected{% endif %}>Submitted</option>
+                <option value="Won" {% if app.request.get('status') == 'Won' %}selected{% endif %}>Won</option>
+                <option value="Lost" {% if app.request.get('status') == 'Lost' %}selected{% endif %}>Lost</option>
+            </select>
+        </div>
+        
+        <div>
+            <label class="form-label">Company</label>
+            <select name="company" class="form-select">
+                <option value="">All Companies</option>
+                {# Companies will be populated dynamically #}
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label">NDA Status</label>
+            <select name="nda_status" class="form-select">
+                <option value="">All</option>
+                <option value="pending" {% if app.request.get('nda_status') == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="sent" {% if app.request.get('nda_status') == 'sent' %}selected{% endif %}>Sent</option>
+                <option value="executed" {% if app.request.get('nda_status') == 'executed' %}selected{% endif %}>Executed</option>
+            </select>
+        </div>
+
+        <div class="flex items-end gap-2">
+            <button type="submit" class="btn-primary">Apply</button>
+            <a href="{{ path('app_rfq_index') }}" class="btn-secondary">Clear</a>
+        </div>
+    </form>
+</div>
+
+{# RFQ List #}
+{% if rfqs|length > 0 %}
+    <div class="space-y-3">
+        {% for rfq in rfqs %}
+            <div class="card hover:border-neutral-300 hover:shadow-sm transition-all">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="text-lg font-semibold text-neutral-900 hover:text-blue-600">
+                                {{ rfq.company.name }}
+                            </a>
+                            
+                            {# Type Badge #}
+                            {% if rfq.type == 'NPI' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-purple-100 text-purple-700">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="mr-1">
+                                        <path d="M8 2L9.5 6.5L14 8L9.5 9.5L8 14L6.5 9.5L2 8L6.5 6.5L8 2Z"/>
+                                    </svg>
+                                    NPI
+                                </span>
+                            {% elseif rfq.type == 'Framework Agreement' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-700">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                        <rect x="3" y="3" width="10" height="10" rx="1"/>
+                                    </svg>
+                                    Framework
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-700">
+                                    Standard
+                                </span>
+                            {% endif %}
+
+                            {# Status Badge #}
+                            {% if rfq.status == 'Won' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700">
+                                    {{ rfq.status }}
+                                </span>
+                            {% elseif rfq.status == 'Lost' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-red-100 text-red-700">
+                                    {{ rfq.status }}
+                                </span>
+                            {% elseif rfq.status == 'Submitted' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-700">
+                                    {{ rfq.status }}
+                                </span>
+                            {% elseif rfq.status == 'In Review' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-700">
+                                    {{ rfq.status }}
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-700">
+                                    {{ rfq.status }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            {% if rfq.rfqNumber %}
+                                <div>
+                                    <span class="text-neutral-500">RFQ #:</span>
+                                    <span class="font-medium text-neutral-900 ml-1">{{ rfq.rfqNumber }}</span>
+                                </div>
+                            {% endif %}
+
+                            {% if rfq.estimatedValue %}
+                                <div>
+                                    <span class="text-neutral-500">Value:</span>
+                                    <span class="font-semibold text-emerald-600 ml-1">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</span>
+                                </div>
+                            {% endif %}
+
+                            {% if rfq.volumeAnnual %}
+                                <div>
+                                    <span class="text-neutral-500">Volume:</span>
+                                    <span class="font-medium text-neutral-900 ml-1">{{ rfq.volumeAnnual|number_format(0, '.', ',') }}/year</span>
+                                </div>
+                            {% endif %}
+
+                            {% if rfq.sopDate %}
+                                <div>
+                                    <span class="text-neutral-500">SOP:</span>
+                                    <span class="font-medium text-neutral-900 ml-1">{{ rfq.sopDate|date('M Y') }}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {# NDA Status #}
+                        <div class="flex gap-2 mt-3">
+                            {% if rfq.ndaExecuted %}
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-100 text-emerald-700">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                        <path d="M3 8L6 11L13 4"/>
+                                    </svg>
+                                    NDA Executed
+                                </span>
+                            {% elseif rfq.ndaSent %}
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                        <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
+                                    </svg>
+                                    NDA Sent ({{ rfq.ndaDate|date('d/m/Y') }})
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-neutral-100 text-neutral-600">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                        <circle cx="8" cy="8" r="6"/>
+                                        <path d="M8 5V8"/>
+                                        <circle cx="8" cy="11" r="0.5" fill="currentColor"/>
+                                    </svg>
+                                    NDA Pending
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 8C2 8 4 4 8 4C12 4 14 8 14 8C14 8 12 12 8 12C4 12 2 8 2 8Z"/>
+                                <circle cx="8" cy="8" r="2"/>
+                            </svg>
+                        </a>
+                        <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card text-center py-12">
+        <div class="flex justify-center mb-4">
+            <div class="w-16 h-16 bg-neutral-100 rounded-xl flex items-center justify-center">
+                <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="text-neutral-400">
+                    <rect x="3" y="3" width="10" height="10" rx="1"/>
+                    <path d="M6 7H10M6 10H8"/>
+                </svg>
+            </div>
+        </div>
+        <h3 class="text-lg font-semibold text-neutral-900 mb-2">No RFQs found</h3>
+        <p class="text-neutral-600 mb-6">Get started by creating your first RFQ.</p>
+        <a href="{{ path('app_rfq_new') }}" class="btn-primary inline-flex">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                <path d="M8 3V13M3 8H13"/>
+            </svg>
+            New RFQ
+        </a>
+    </div>
+{% endif %}
+{% endblock %}

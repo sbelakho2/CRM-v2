@@ -1,0 +1,335 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Email Template Builder{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-envelope-paper"></i> Create Email Template
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="templateForm">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                {# Template Name #}
+                                <div class="mb-4">
+                                    <label for="templateName" class="form-label">Template Name *</label>
+                                    <input type="text" class="form-control" id="templateName" name="name" required>
+                                </div>
+
+                                {# Subject Line #}
+                                <div class="mb-4">
+                                    <label for="subjectLine" class="form-label">Subject Line *</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="subjectLine" name="subject_line" required 
+                                               placeholder="e.g., Hello {{contact.firstName}}, check this out!">
+                                        <button class="btn btn-outline-secondary" type="button" id="insertTokenBtn">
+                                            <i class="bi bi-code-square"></i> Insert Token
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">
+                                        Use personalization tokens like {{contact.firstName}}, {{company.name}}, etc.
+                                    </small>
+                                </div>
+
+                                {# Preview Text #}
+                                <div class="mb-4">
+                                    <label for="previewText" class="form-label">Preview Text</label>
+                                    <input type="text" class="form-control" id="previewText" name="preview_text"
+                                           placeholder="Text shown in inbox preview">
+                                    <small class="text-muted">
+                                        This appears in the inbox next to the subject line (50-100 characters recommended)
+                                    </small>
+                                </div>
+
+                                {# Email Body - WYSIWYG Editor #}
+                                <div class="mb-4">
+                                    <label for="bodyHtml" class="form-label">Email Body *</label>
+                                    <textarea id="bodyHtml" name="body_html" required></textarea>
+                                </div>
+
+                                {# Plain Text Version #}
+                                <div class="mb-4">
+                                    <label for="bodyText" class="form-label">Plain Text Version</label>
+                                    <textarea class="form-control" id="bodyText" name="body_text" rows="8"
+                                              placeholder="Auto-generated from HTML (you can customize)"></textarea>
+                                    <small class="text-muted">
+                                        Fallback for email clients that don't support HTML
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-4">
+                                {# Sidebar - Personalization Tokens #}
+                                <div class="card bg-light border-0 mb-4">
+                                    <div class="card-body">
+                                        <h6 class="mb-3">
+                                            <i class="bi bi-code-square"></i> Personalization Tokens
+                                        </h6>
+                                        
+                                        <div class="token-group mb-3">
+                                            <div class="token-group-label">Contact Fields</div>
+                                            <div class="token-list">
+                                                <button type="button" class="token-btn" data-token="{{contact.firstName}}">
+                                                    {{contact.firstName}}
+                                                </button>
+                                                <button type="button" class="token-btn" data-token="{{contact.lastName}}">
+                                                    {{contact.lastName}}
+                                                </button>
+                                                <button type="button" class="token-btn" data-token="{{contact.email}}">
+                                                    {{contact.email}}
+                                                </button>
+                                                <button type="button" class="token-btn" data-token="{{contact.phone}}">
+                                                    {{contact.phone}}
+                                                </button>
+                                                <button type="button" class="token-btn" data-token="{{contact.title}}">
+                                                    {{contact.title}}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="token-group mb-3">
+                                            <div class="token-group-label">Company Fields</div>
+                                            <div class="token-list">
+                                                <button type="button" class="token-btn" data-token="{{company.name}}">
+                                                    {{company.name}}
+                                                </button>
+                                                <button type="button" class="token-btn" data-token="{{company.industry}}">
+                                                    {{company.industry}}
+                                                </button>
+                                                <button type="button" class="token-btn" data-token="{{company.website}}">
+                                                    {{company.website}}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="token-group">
+                                            <div class="token-group-label">System</div>
+                                            <div class="token-list">
+                                                <button type="button" class="token-btn" data-token="{{unsubscribe_url}}">
+                                                    {{unsubscribe_url}}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {# Category #}
+                                <div class="card bg-light border-0 mb-4">
+                                    <div class="card-body">
+                                        <label for="category" class="form-label">Category</label>
+                                        <select class="form-select" id="category" name="category">
+                                            <option value="general">General</option>
+                                            <option value="welcome">Welcome</option>
+                                            <option value="newsletter">Newsletter</option>
+                                            <option value="promotional">Promotional</option>
+                                            <option value="transactional">Transactional</option>
+                                            <option value="followup">Follow-up</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {# Preview Button #}
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-outline-primary" id="previewBtn">
+                                        <i class="bi bi-eye"></i> Preview
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="tokens" id="tokensInput" value="[]">
+
+                        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
+                            {% if campaignId %}
+                            <a href="{{ path('app_email_campaign_wizard_template', {id: campaignId}) }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            {% else %}
+                            <a href="{{ path('app_email_campaign_templates') }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            {% endif %}
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Template
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Preview Modal #}
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Email Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-subject mb-3">
+                    <strong>Subject:</strong> <span id="previewSubject"></span>
+                </div>
+                <div class="preview-content border rounded p-3" id="previewContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.token-group-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.token-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.token-btn {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    color: #0d6efd;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.token-btn:hover {
+    background: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+.preview-subject {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize TinyMCE
+    tinymce.init({
+        selector: '#bodyHtml',
+        height: 500,
+        menubar: false,
+        plugins: [
+            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+            'insertdatetime', 'media', 'table', 'help', 'wordcount'
+        ],
+        toolbar: 'undo redo | blocks | bold italic forecolor backcolor | ' +
+                'alignleft aligncenter alignright alignjustify | ' +
+                'bullist numlist outdent indent | link image | removeformat code',
+        content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }',
+        setup: function(editor) {
+            editor.on('change', function() {
+                // Auto-generate plain text version
+                const htmlContent = editor.getContent();
+                const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+                document.getElementById('bodyText').value = textContent;
+            });
+        }
+    });
+
+    // Token insertion
+    const tokenBtns = document.querySelectorAll('.token-btn');
+    tokenBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const token = this.dataset.token;
+            const activeElement = document.activeElement;
+            
+            if (activeElement.id === 'subjectLine' || activeElement.id === 'previewText') {
+                // Insert into text input
+                const start = activeElement.selectionStart;
+                const end = activeElement.selectionEnd;
+                const text = activeElement.value;
+                activeElement.value = text.substring(0, start) + token + text.substring(end);
+                activeElement.focus();
+                activeElement.setSelectionRange(start + token.length, start + token.length);
+            } else {
+                // Insert into TinyMCE
+                tinymce.activeEditor.insertContent(token);
+            }
+        });
+    });
+
+    // Preview
+    document.getElementById('previewBtn').addEventListener('click', function() {
+        const subject = document.getElementById('subjectLine').value || 'No subject';
+        const body = tinymce.get('bodyHtml').getContent();
+        
+        // Replace tokens with sample data
+        const sampleData = {
+            '{{contact.firstName}}': 'John',
+            '{{contact.lastName}}': 'Doe',
+            '{{contact.email}}': 'john.doe@example.com',
+            '{{contact.phone}}': '+1 (555) 123-4567',
+            '{{contact.title}}': 'Marketing Manager',
+            '{{company.name}}': 'Acme Corporation',
+            '{{company.industry}}': 'Technology',
+            '{{company.website}}': 'https://acme.com',
+            '{{unsubscribe_url}}': '#unsubscribe'
+        };
+        
+        let previewSubject = subject;
+        let previewBody = body;
+        
+        for (const [token, value] of Object.entries(sampleData)) {
+            previewSubject = previewSubject.replace(new RegExp(token.replace(/[{}]/g, '\\$&'), 'g'), value);
+            previewBody = previewBody.replace(new RegExp(token.replace(/[{}]/g, '\\$&'), 'g'), value);
+        }
+        
+        document.getElementById('previewSubject').textContent = previewSubject;
+        document.getElementById('previewContent').innerHTML = previewBody;
+        
+        new bootstrap.Modal(document.getElementById('previewModal')).show();
+    });
+
+    // Extract and save tokens before form submit
+    document.getElementById('templateForm').addEventListener('submit', function(e) {
+        const subject = document.getElementById('subjectLine').value;
+        const body = tinymce.get('bodyHtml').getContent();
+        
+        // Extract all tokens from subject and body
+        const tokenRegex = /\{\{([^}]+)\}\}/g;
+        const tokens = new Set();
+        
+        let match;
+        while ((match = tokenRegex.exec(subject)) !== null) {
+            tokens.add(match[1]);
+        }
+        while ((match = tokenRegex.exec(body)) !== null) {
+            tokens.add(match[1]);
+        }
+        
+        document.getElementById('tokensInput').value = JSON.stringify(Array.from(tokens));
+    });
+});
+</script>
+{% endblock %}

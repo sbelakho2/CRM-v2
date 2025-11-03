@@ -1,0 +1,109 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Dataset Administration{% endblock %}
+
+{% block body %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between border-b border-neutral-200/80 pb-5">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Dataset Administration</h1>
+        </div>
+        <a href="{{ path('admin_dataset_import_form') }}" class="inline-flex items-center rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
+            ➕ Import Dataset
+        </a>
+    </div>
+
+    {% if message is defined and message %}
+        <div class="rounded-lg border border-green-200/60 bg-green-50/50 p-4 text-sm text-green-800">
+            {{ message }}
+        </div>
+    {% endif %}
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Total Datasets</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">12</p>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Active Versions</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">8</p>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Last Updated</p>
+            <p class="mt-2 text-lg font-semibold text-neutral-900">Oct 22, 2025</p>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Storage Used</p>
+            <p class="mt-2 text-lg font-semibold text-neutral-900">2.4 GB</p>
+        </div>
+    </div>
+
+    <!-- Datasets Table -->
+    <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white">
+        <div class="border-b border-neutral-200 px-6 py-4">
+            <h2 class="text-lg font-semibold tracking-tight text-neutral-900">Active Datasets</h2>
+        </div>
+
+        <table class="w-full">
+            <thead class="border-b border-neutral-200 bg-neutral-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Dataset Name</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Version</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Records</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Last Updated</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Status</th>
+                        <th class="px-6 py-3 text-center text-sm font-semibold text-neutral-900">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-neutral-200">
+                    {% if datasets | default([]) %}
+                        {% for dataset in datasets %}
+                            <tr class="transition-colors hover:bg-neutral-50">
+                                <td class="px-6 py-4 text-sm font-medium text-neutral-900">{{ dataset.name }}</td>
+                                <td class="px-6 py-4 text-sm text-neutral-700">{{ dataset.version }}</td>
+                                <td class="px-6 py-4 text-sm text-neutral-700">{{ dataset.records | number_format }}</td>
+                                <td class="px-6 py-4 text-sm text-neutral-700">{{ dataset.updated_at }}</td>
+                                <td class="px-6 py-4 text-sm">
+                                    <span class="inline-flex rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold leading-5 text-neutral-800">
+                                        {{ dataset.status }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="flex justify-center gap-2">
+                                        <a href="#" class="text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900">View</a>
+                                        <a href="#" class="text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900">Export</a>
+                                        <a href="#" class="text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900">Delete</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-8 text-center text-neutral-700">
+                                No datasets available. <a href="{{ path('admin_dataset_import_form') }}" class="font-medium text-neutral-900 hover:underline">Import one now</a>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <a href="{{ path('admin_dataset_history') }}" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
+                <h3 class="mb-2 text-lg font-semibold text-neutral-900">📋 Version History</h3>
+                <p class="text-sm text-neutral-600">View all dataset versions and changes</p>
+            </a>
+            <a href="{{ path('admin_dataset_import_form') }}" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
+                <h3 class="mb-2 text-lg font-semibold text-neutral-900">⬆️ Import Data</h3>
+                <p class="text-sm text-neutral-600">Upload new datasets or updates</p>
+            </a>
+            <a href="#" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
+                <h3 class="mb-2 text-lg font-semibold text-neutral-900">🔄 Sync Datasets</h3>
+                <p class="text-sm text-neutral-600">Synchronize with external sources</p>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

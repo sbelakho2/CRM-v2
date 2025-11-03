@@ -1,0 +1,270 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}A/B Test Results - {{ campaign.name }}{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4>
+                    <i class="bi bi-bar-chart-line"></i> A/B Test Results
+                </h4>
+                <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Campaign
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if results is empty %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No A/B test configured for this campaign.
+    </div>
+    {% else %}
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="mb-2">Testing: {{ results.test_type|replace({'_': ' '})|title }}</h6>
+                            <p class="text-muted mb-0">
+                                Started {{ results.created_at|date('M d, Y g:i A') }} • 
+                                Duration: {{ results.test_duration_hours }} hours • 
+                                Test Size: {{ results.test_percentage }}%
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            {% if results.winner_declared_at %}
+                            <span class="badge bg-success" style="font-size: 14px;">
+                                <i class="bi bi-trophy-fill"></i> Winner Declared
+                            </span>
+                            {% else %}
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#declareWinnerModal">
+                                <i class="bi bi-flag-fill"></i> Declare Winner
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for variant in results.variants %}
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100 {{ variant.is_winner ? 'border-success' : '' }}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="mb-0">Variant {{ variant.id }}</h5>
+                            {% if variant.is_winner %}
+                            <span class="badge bg-success mt-2">
+                                <i class="bi bi-trophy-fill"></i> Winner
+                            </span>
+                            {% endif %}
+                        </div>
+                        <i class="bi bi-{{ variant.id == 'A' ? 'circle-fill' : variant.id == 'B' ? 'square-fill' : variant.id == 'C' ? 'triangle-fill' : 'diamond-fill' }} text-primary" style="font-size: 24px;"></i>
+                    </div>
+
+                    <div class="variant-config mb-3">
+                        <small class="text-muted">Configuration:</small>
+                        <div class="fw-bold">{{ variant.configuration.value ?? 'N/A' }}</div>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric-row">
+                            <span class="metric-label">Sent</span>
+                            <span class="metric-value">{{ variant.sends|number_format }}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Opens</span>
+                            <span class="metric-value">{{ variant.opens|number_format }}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Clicks</span>
+                            <span class="metric-value">{{ variant.clicks|number_format }}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Replies</span>
+                            <span class="metric-value">{{ variant.replies|number_format }}</span>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="performance-metrics">
+                        <div class="perf-item mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small">Open Rate</span>
+                                <strong class="text-primary">{{ variant.open_rate }}%</strong>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-primary" style="width: {{ variant.open_rate }}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="perf-item mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small">Click Rate</span>
+                                <strong class="text-success">{{ variant.click_rate }}%</strong>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-success" style="width: {{ variant.click_rate }}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="perf-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small">CTOR</span>
+                                <strong class="text-info">{{ variant.ctor }}%</strong>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-info" style="width: {{ variant.ctor }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if results.statistical_analysis is defined %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card {{ results.statistical_analysis.significant ? 'border-success' : 'border-warning' }}">
+                <div class="card-header {{ results.statistical_analysis.significant ? 'bg-success text-white' : 'bg-warning' }}">
+                    <h6 class="mb-0">
+                        <i class="bi bi-graph-up"></i> Statistical Analysis
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3 text-center">
+                            <div class="stat-big">{{ results.statistical_analysis.confidence }}%</div>
+                            <div class="stat-label">Confidence Level</div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="stat-big">{{ results.statistical_analysis.improvement }}%</div>
+                            <div class="stat-label">Improvement</div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="stat-big">{{ results.statistical_analysis.z_score }}</div>
+                            <div class="stat-label">Z-Score</div>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            {% if results.statistical_analysis.significant %}
+                            <i class="bi bi-check-circle-fill text-success" style="font-size: 48px;"></i>
+                            <div class="stat-label mt-2">Statistically Significant</div>
+                            {% else %}
+                            <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 48px;"></i>
+                            <div class="stat-label mt-2">Not Yet Significant</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="alert {{ results.statistical_analysis.significant ? 'alert-success' : 'alert-warning' }} mb-0">
+                        {% if results.statistical_analysis.significant %}
+                        <i class="bi bi-check-circle-fill"></i>
+                        The results are statistically significant with {{ results.statistical_analysis.confidence }}% confidence. 
+                        The winning variant shows a {{ results.statistical_analysis.improvement }}% improvement over the control.
+                        {% else %}
+                        <i class="bi bi-info-circle"></i>
+                        The test needs more data to reach statistical significance (95% confidence). 
+                        Consider waiting longer or increasing the test audience size.
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+
+{# Declare Winner Modal #}
+<div class="modal fade" id="declareWinnerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Declare Winner</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{{ path('app_email_campaign_ab_test_declare_winner', {id: campaign.id}) }}">
+                <div class="modal-body">
+                    <p>Select the metric to determine the winner:</p>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="metric_type" value="open_rate" id="metricOpen" checked>
+                        <label class="form-check-label" for="metricOpen">
+                            Open Rate
+                        </label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="metric_type" value="click_rate" id="metricClick">
+                        <label class="form-check-label" for="metricClick">
+                            Click Rate
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="metric_type" value="reply_rate" id="metricReply">
+                        <label class="form-check-label" for="metricReply">
+                            Reply Rate
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-trophy-fill"></i> Declare Winner
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.metric-value {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.stat-big {
+    font-size: 42px;
+    font-weight: 700;
+    color: #0d6efd;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.variant-config {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+}
+</style>
+{% endblock %}

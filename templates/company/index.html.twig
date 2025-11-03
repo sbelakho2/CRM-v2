@@ -1,0 +1,229 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Companies{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-neutral-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {# Header with Create Button #}
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Companies</h1>
+                <p class="mt-1 text-sm text-neutral-600">Manage your company database with filters</p>
+            </div>
+            <a href="{{ path('app_company_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                New Company
+            </a>
+        </div>
+
+        {# Filters Card #}
+        <div class="bg-white rounded-xl border border-neutral-200/60 p-5 mb-6">
+            <form method="get" action="{{ path('app_company_index') }}" class="space-y-4">
+                
+                {# Search Bar #}
+                <div>
+                    <label for="search" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Search</label>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        id="search" 
+                        value="{{ current_search }}" 
+                        placeholder="Search by company name..." 
+                        class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                </div>
+
+                {# Filter Grid #}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {# Sector Filter #}
+                    <div>
+                        <label for="sector" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Sector</label>
+                        <select 
+                            name="sector" 
+                            id="sector" 
+                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        >
+                            <option value="">All Sectors</option>
+                            {% for sector in sectors %}
+                                <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>{{ sector }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {# Tier Filter #}
+                    <div>
+                        <label for="tier" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Tier</label>
+                        <select 
+                            name="tier" 
+                            id="tier" 
+                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        >
+                            <option value="">All Tiers</option>
+                            {% for tier in tiers %}
+                                <option value="{{ tier }}" {% if current_tier == tier %}selected{% endif %}>Tier {{ tier }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {# Stage Filter #}
+                    <div>
+                        <label for="stage" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Pipeline Stage</label>
+                        <select 
+                            name="stage" 
+                            id="stage" 
+                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        >
+                            <option value="">All Stages</option>
+                            {% for stage in stages %}
+                                <option value="{{ stage }}" {% if current_stage == stage %}selected{% endif %}>{{ stage }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {# Region Filter #}
+                    <div>
+                        <label for="region" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Region</label>
+                        <select 
+                            name="region" 
+                            id="region" 
+                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        >
+                            <option value="">All Regions</option>
+                            {% for region in regions %}
+                                <option value="{{ region }}" {% if current_region == region %}selected{% endif %}>{{ region }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {# Filter Actions #}
+                <div class="flex items-center gap-3 pt-2">
+                    <button 
+                        type="submit" 
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                        Apply Filters
+                    </button>
+                    <a 
+                        href="{{ path('app_company_index') }}" 
+                        class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        {# Flash Messages #}
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="mb-4 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-neutral-50 text-neutral-800 border border-neutral-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        {# Results Count #}
+        <div class="mb-4 text-sm text-neutral-600">
+            Showing <span class="font-medium text-neutral-900">{{ companies|length }}</span> companies
+        </div>
+
+        {# Companies Grid #}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {% for company in companies %}
+                <a href="{{ path('app_company_show', {id: company.id}) }}" class="block bg-white rounded-xl border border-neutral-200/60 p-5 hover:border-neutral-300 hover:shadow-sm transition-all group">
+                    
+                    {# Company Header #}
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-base font-semibold text-neutral-900 truncate group-hover:text-blue-600 transition-colors">
+                                {{ company.name }}
+                            </h3>
+                            <p class="mt-1 text-xs text-neutral-500">{{ company.sector }}</p>
+                        </div>
+                        {% if company.accountTier %}
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-neutral-100 text-neutral-700 text-xs font-semibold flex-shrink-0 ml-3">
+                                {{ company.accountTier }}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {# Company Details #}
+                    <div class="space-y-2">
+                        {# Pipeline Stage #}
+                        {% if company.pipelineStage %}
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full {% if company.pipelineStage == 'Award' %}bg-emerald-500{% elseif company.pipelineStage == 'Proposal' %}bg-blue-500{% else %}bg-neutral-400{% endif %}"></div>
+                                <span class="text-xs text-neutral-600">{{ company.pipelineStage }}</span>
+                            </div>
+                        {% endif %}
+
+                        {# Region #}
+                        {% if company.region %}
+                            <div class="flex items-center gap-2 text-xs text-neutral-600">
+                                <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                {{ company.region }}
+                            </div>
+                        {% endif %}
+
+                        {# Quick Links #}
+                        <div class="flex items-center gap-3 pt-2">
+                            {% if company.website %}
+                                <div class="w-5 h-5 rounded bg-neutral-100 flex items-center justify-center">
+                                    <svg class="w-3 h-3 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                                    </svg>
+                                </div>
+                            {% endif %}
+                            {% if company.linkedInUrl %}
+                                <div class="w-5 h-5 rounded bg-blue-50 flex items-center justify-center">
+                                    <svg class="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                    </svg>
+                                </div>
+                            {% endif %}
+                            {% if company.googleDriveLink %}
+                                <div class="w-5 h-5 rounded bg-yellow-50 flex items-center justify-center">
+                                    <svg class="w-3 h-3 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M7.71 3.5L1.15 15l3.18 5.5L11.88 9zm4.58 0l-6.56 11.5 3.18 5.5 6.56-11.5zM8.3 20.5l-3.18-5.5H21l-3.18 5.5z"/>
+                                    </svg>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            {% else %}
+                <div class="col-span-full text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    <h3 class="mt-4 text-sm font-medium text-neutral-900">No companies found</h3>
+                    <p class="mt-1 text-sm text-neutral-500">Get started by creating a new company.</p>
+                    <div class="mt-6">
+                        <a href="{{ path('app_company_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            New Company
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

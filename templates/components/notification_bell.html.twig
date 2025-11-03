@@ -1,0 +1,264 @@
+{# Notification Bell Component - Added to sidebar nav #}
+
+{# Notification Bell Button #}
+<button 
+    id="notification-bell"
+    type="button"
+    class="sidebar-nav-link notification-bell-button"
+    aria-label="Notifications"
+    title="Notifications"
+    style="width: 100%; justify-content: flex-start; position: relative;"
+>
+    {# Bell Icon #}
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink: 0;">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    </svg>
+    
+    <span style="flex: 1;">Notifications</span>
+
+    {# Unread Badge #}
+    <span 
+        id="notification-badge"
+        class="notification-badge-sidebar hidden"
+    >
+        <span id="notification-count">0</span>
+    </span>
+</button>
+
+{# Notification Dropdown Modal #}
+<div 
+    id="notification-modal"
+    class="notification-modal-sidebar hidden"
+>
+            {# Modal Header #}
+            <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+                <h3 class="text-sm font-semibold text-neutral-900">Notifications</h3>
+                <button 
+                    type="button"
+                    id="notification-close"
+                    class="text-neutral-400 hover:text-neutral-600"
+                    aria-label="Close"
+                >
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+
+            {# Modal Content (Scrollable) #}
+            <div id="notification-list" class="flex-1 overflow-y-auto">
+                {# Notifications will be populated here by JavaScript #}
+                <div class="px-4 py-8 text-center text-neutral-500">
+                    <p class="text-sm">No notifications</p>
+                </div>
+            </div>
+
+            {# Modal Footer #}
+            <div class="px-4 py-3 border-t border-neutral-200 flex items-center justify-between bg-neutral-50">
+                <button 
+                    type="button"
+                    id="notification-mark-all"
+                    class="text-xs text-neutral-600 hover:text-neutral-900 font-medium"
+                >
+                    Mark all as read
+                </button>
+                <a 
+                    href="#" 
+                    class="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                    View all
+                </a>
+            </div>
+</div>
+
+{# Styles (add to your CSS file) #}
+<style>
+    /* Notification Bell Button */
+    .notification-bell-button {
+        cursor: pointer;
+    }
+    
+    /* Sidebar Badge */
+    .notification-badge-sidebar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        background-color: #DC2626;
+        color: white;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    
+    /* Modal positioned from sidebar */
+    .notification-modal-sidebar {
+        position: fixed;
+        left: calc(var(--sidebar-width) + 10px);
+        bottom: 80px;
+        width: 400px;
+        max-width: calc(100vw - var(--sidebar-width) - 30px);
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(44, 36, 22, 0.15);
+        border: 1px solid var(--claude-border);
+        z-index: 1000;
+        max-height: 500px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .notification-modal-sidebar.hidden {
+        display: none !important;
+    }
+    
+    .notification-modal-sidebar:not(.hidden) {
+        animation: slideUp 0.2s ease-out;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Notification Item */
+    .notification-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f3f4f6;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .notification-item:hover {
+        background-color: #f9fafb;
+    }
+
+    .notification-item.read {
+        opacity: 0.6;
+    }
+
+    .notification-item-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .notification-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .notification-content {
+        flex: 1;
+    }
+
+    .notification-message {
+        font-size: 14px;
+        font-weight: 500;
+        color: #111827;
+        margin: 0 0 4px 0;
+    }
+
+    .notification-timestamp {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .notification-unread-indicator {
+        width: 8px;
+        height: 8px;
+        background-color: #3b82f6;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    /* Toast Notification */
+    .toast-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        animation: slideInRight 0.3s ease-out;
+        z-index: 60;
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .toast-notification.fade-out {
+        animation: slideOutRight 0.3s ease-in;
+    }
+
+    @keyframes slideOutRight {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+    }
+
+    .toast-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+
+    .toast-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+
+    .toast-title {
+        font-weight: 600;
+        color: #111827;
+        font-size: 14px;
+    }
+
+    .toast-message {
+        font-size: 13px;
+        color: #4b5563;
+        margin-left: 36px;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .notification-modal-sidebar {
+            position: fixed;
+            left: 10px;
+            right: 10px;
+            bottom: 70px;
+            width: auto;
+            max-width: none;
+        }
+
+        .toast-notification {
+            width: calc(100vw - 40px);
+            max-width: none;
+        }
+    }
+</style>

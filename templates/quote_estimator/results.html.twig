@@ -1,0 +1,133 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Quote Results{% endblock %}
+
+{% block body %}
+<div class="space-y-6">
+    <!-- Header with Geist-style typography -->
+    <div class="border-b border-neutral-200/80 pb-5">
+        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Quote Results</h1>
+    </div>
+    
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <!-- Customer Info -->
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <h2 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Customer</h2>
+            <p class="text-neutral-700">
+                <span class="font-medium text-neutral-900">{{ customer_name | default('N/A') }}</span>
+            </p>
+        </div>
+
+        <!-- Part Info -->
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <h2 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Part Details</h2>
+            <p class="text-sm text-neutral-700">
+                <span class="font-medium">Part #:</span> 
+                <span class="text-neutral-900">{{ part_number | default('N/A') }}</span>
+            </p>
+            <p class="text-sm text-neutral-700 mt-2">
+                <span class="font-medium">Qty:</span> 
+                <span class="text-neutral-900">{{ quantity | default('N/A') }}</span>
+            </p>
+        </div>
+
+        <!-- Pricing Summary -->
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <h2 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Quote Summary</h2>
+            <p class="text-sm text-neutral-700">
+                <span class="font-medium">Unit:</span> 
+                <span class="ml-2 text-lg font-semibold text-neutral-900">${{ unit_price | default('0.00') }}</span>
+            </p>
+            <p class="text-sm text-neutral-700 mt-2">
+                <span class="font-medium">Total:</span> 
+                <span class="ml-2 text-lg font-semibold text-neutral-900">${{ total_price | default('0.00') }}</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Quote Details -->
+    <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+        <h2 class="text-lg font-semibold tracking-tight text-neutral-900 mb-4">Quote Details</h2>
+        
+        <table class="w-full text-left text-sm text-neutral-700">
+            <thead>
+                <tr class="border-b border-neutral-200">
+                    <th class="py-3 font-semibold text-neutral-900">Item</th>
+                    <th class="py-3 text-right font-semibold text-neutral-900">Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="border-b border-neutral-100">
+                    <td class="py-3">Base Cost</td>
+                    <td class="text-right">${{ base_cost | default('0.00') }}</td>
+                </tr>
+                <tr class="border-b border-neutral-100">
+                    <td class="py-3">Material Surcharge</td>
+                    <td class="text-right">{{ material_surcharge | default('0%') }}</td>
+                </tr>
+                <tr class="border-b border-neutral-100">
+                    <td class="py-3">Delivery Cost</td>
+                    <td class="text-right">${{ delivery_cost | default('0.00') }}</td>
+                </tr>
+                <tr class="border-b border-neutral-200 bg-neutral-50">
+                    <td class="py-3 font-semibold text-neutral-900">Total Amount</td>
+                    <td class="text-right font-semibold text-neutral-900">${{ total_price | default('0.00') }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+            {% if special_requirements %}
+                <div class="mt-6 rounded-lg border border-neutral-200/60 bg-neutral-50/50 p-4">
+                    <h3 class="font-medium text-neutral-900 mb-2">Special Requirements:</h3>
+                    <p class="text-sm text-neutral-700">{{ special_requirements }}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Delivery Options -->
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+            <h2 class="text-lg font-semibold tracking-tight text-neutral-900 mb-4">Delivery Options</h2>
+            
+            <div class="space-y-3">
+                <label class="flex cursor-pointer items-center rounded-lg border border-neutral-200/60 p-3 transition-colors hover:bg-neutral-50">
+                    <input type="radio" name="delivery_option" value="standard" class="mr-3">
+                    <div class="flex-1">
+                        <p class="font-medium text-neutral-900">Standard Delivery</p>
+                        <p class="text-sm text-neutral-600">{{ standard_delivery_days | default('7-10') }} business days</p>
+                    </div>
+                    <span class="ml-auto font-semibold text-neutral-900">${{ standard_cost | default('0.00') }}</span>
+                </label>
+
+                <label class="flex cursor-pointer items-center rounded-lg border border-neutral-200/60 p-3 transition-colors hover:bg-neutral-50">
+                    <input type="radio" name="delivery_option" value="expedite" class="mr-3">
+                    <div class="flex-1">
+                        <p class="font-medium text-neutral-900">Expedited Delivery</p>
+                        <p class="text-sm text-neutral-600">{{ expedite_delivery_days | default('3-5') }} business days</p>
+                    </div>
+                    <span class="ml-auto font-semibold text-neutral-900">${{ expedite_cost | default('0.00') }}</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-wrap gap-4 justify-center">
+            <a href="{{ path('quote_estimator_index') }}" class="inline-flex items-center rounded-lg border border-neutral-200/60 bg-white px-6 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+                ← Back to Estimator
+            </a>
+            <button onclick="window.print()" class="inline-flex items-center rounded-lg bg-neutral-900 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
+                🖨️ Print Quote
+            </button>
+            <button onclick="sendEmail()" class="inline-flex items-center rounded-lg bg-neutral-900 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
+                📧 Send to Customer
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function sendEmail() {
+    // TODO: Implement email sending
+    alert('Quote will be sent to customer email');
+}
+</script>
+{% endblock %}

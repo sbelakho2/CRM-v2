@@ -1,0 +1,136 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Send - {{ campaign.name }}{% endblock %}
+
+{% block body %}
+<div class="p-8">
+    <div class="mb-8">
+        <div class="flex items-center gap-3 text-sm text-zinc-400 mb-4">
+            <a href="{{ path('app_email_campaign_index') }}" class="hover:text-white transition-colors">Email Campaigns</a>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 4l4 4-4 4"/>
+            </svg>
+            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="hover:text-white transition-colors">{{ campaign.name }}</a>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 4l4 4-4 4"/>
+            </svg>
+            <span class="text-white">Send Emails</span>
+        </div>
+        <h1 class="text-2xl font-semibold text-white mb-2">Send Campaign Emails</h1>
+        <p class="text-sm text-zinc-400">Select contacts and touch number for {{ campaign.name }}</p>
+    </div>
+
+    <form method="post">
+        <div class="grid grid-cols-3 gap-6">
+            <!-- Contact Selection -->
+            <div class="col-span-2">
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-white">Select Contacts</h2>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="selectAll()" class="text-sm text-zinc-400 hover:text-white transition-colors">
+                                Select All
+                            </button>
+                            <span class="text-zinc-700">•</span>
+                            <button type="button" onclick="deselectAll()" class="text-sm text-zinc-400 hover:text-white transition-colors">
+                                Deselect All
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 max-h-96 overflow-y-auto">
+                        {% if contacts is empty %}
+                            <div class="text-center py-8 text-zinc-500">
+                                No contacts found
+                            </div>
+                        {% else %}
+                            {% for contact in contacts %}
+                                <label class="flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800/50 cursor-pointer transition-colors">
+                                    <input type="checkbox" name="contacts[]" value="{{ contact.id }}" class="contact-checkbox w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-900">
+                                    <div class="flex-1">
+                                        <div class="text-sm text-white">{{ contact.firstName }} {{ contact.lastName }}</div>
+                                        <div class="text-xs text-zinc-500">{{ contact.email }}</div>
+                                    </div>
+                                    {% if contact.company %}
+                                        <div class="text-xs text-zinc-400">{{ contact.company.name }}</div>
+                                    {% endif %}
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Options -->
+            <div>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 sticky top-8">
+                    <h2 class="text-lg font-semibold text-white mb-4">Send Options</h2>
+                    
+                    <div class="space-y-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-zinc-300 mb-2">Touch Number</label>
+                            <select name="touch_number" class="geist-select w-full">
+                                {% for i in 1..campaign.touchCount %}
+                                    <option value="{{ i }}">Touch {{ i }}</option>
+                                {% endfor %}
+                            </select>
+                            <p class="text-xs text-zinc-500 mt-1">Select which touch in the sequence to send</p>
+                        </div>
+
+                        <div class="pt-4 border-t border-zinc-800">
+                            <div class="text-sm text-zinc-400 mb-1">Campaign</div>
+                            <div class="text-sm font-medium text-white">{{ campaign.name }}</div>
+                        </div>
+
+                        <div class="pt-4 border-t border-zinc-800">
+                            <div class="text-sm text-zinc-400 mb-1">Language</div>
+                            <div class="text-sm font-medium text-white">{{ campaign.language }}</div>
+                        </div>
+
+                        <div class="pt-4 border-t border-zinc-800">
+                            <div class="text-sm text-zinc-400 mb-1">Selected Contacts</div>
+                            <div class="text-2xl font-semibold text-white" id="selected-count">0</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="geist-button w-full">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-2">
+                            <path d="M2 3l12 5-12 5V3z"/>
+                        </svg>
+                        Send Emails
+                    </button>
+                    
+                    <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="geist-button-secondary w-full mt-2">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function updateSelectedCount() {
+    const count = document.querySelectorAll('.contact-checkbox:checked').length;
+    document.getElementById('selected-count').textContent = count;
+}
+
+function selectAll() {
+    document.querySelectorAll('.contact-checkbox').forEach(cb => {
+        cb.checked = true;
+    });
+    updateSelectedCount();
+}
+
+function deselectAll() {
+    document.querySelectorAll('.contact-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    updateSelectedCount();
+}
+
+document.querySelectorAll('.contact-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateSelectedCount);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Dataset Version History{% endblock %}
+
+{% block body %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-4xl font-bold text-gray-900 mb-8">Dataset Version History</h1>
+
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h2 class="text-xl font-semibold text-gray-900">All Versions</h2>
+            </div>
+
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Version</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Dataset</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Uploaded By</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Date</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Records</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                        <th class="px-6 py-3 text-center text-sm font-semibold text-gray-900">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% if versions | default([]) %}
+                        {% for version in versions %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900">v{{ version.version | default('1.0') }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-700">{{ version.dataset_name | default('Unknown') }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-600">{{ version.uploaded_by | default('System') }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-600">{{ version.created_at | date('M d, Y H:i') | default('N/A') }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-600">{{ version.record_count | default('0') }}</td>
+                                <td class="px-6 py-4 text-sm">
+                                    {% if version.is_active %}
+                                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                                    {% else %}
+                                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Archived</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="flex gap-2 justify-center">
+                                        <a href="#" class="text-blue-600 hover:text-blue-900 text-sm font-medium">View</a>
+                                        {% if not version.is_active %}
+                                            <a href="#" class="text-green-600 hover:text-green-900 text-sm font-medium">Restore</a>
+                                        {% endif %}
+                                        <a href="#" class="text-red-600 hover:text-red-900 text-sm font-medium">Delete</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                No dataset versions found
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Version Timeline -->
+        <div class="mt-12">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-6">Timeline</h2>
+            <div class="space-y-4">
+                {% if versions | default([]) %}
+                    {% for version in versions %}
+                        <div class="flex gap-4">
+                            <div class="flex flex-col items-center">
+                                <div class="w-3 h-3 bg-blue-600 rounded-full mt-2"></div>
+                                {% if not loop.last %}
+                                    <div class="w-0.5 h-12 bg-gray-300 my-2"></div>
+                                {% endif %}
+                            </div>
+                            <div class="pb-4">
+                                <p class="font-semibold text-gray-900">{{ version.dataset_name | default('Dataset Update') }}</p>
+                                <p class="text-sm text-gray-600">{{ version.created_at | date('F j, Y \a\t H:i') | default('Unknown date') }}</p>
+                                {% if version.description %}
+                                    <p class="text-sm text-gray-700 mt-1">{{ version.description }}</p>
+                                {% endif %}
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Uploaded by {{ version.uploaded_by | default('System') }} • 
+                                    {{ version.record_count | default('0') }} records
+                                </p>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500">No version history available</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Return Link -->
+        <div class="mt-8">
+            <a href="{{ path('admin_dataset_index') }}" class="text-blue-600 hover:text-blue-900 font-medium">
+                ← Back to Dataset Administration
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

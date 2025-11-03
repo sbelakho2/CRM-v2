@@ -1,0 +1,71 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit {{ campaign.name }}{% endblock %}
+
+{% block body %}
+<div class="p-8 max-w-2xl">
+    <div class="mb-8">
+        <div class="flex items-center gap-3 text-sm text-zinc-400 mb-4">
+            <a href="{{ path('app_email_campaign_index') }}" class="hover:text-white transition-colors">Email Campaigns</a>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 4l4 4-4 4"/>
+            </svg>
+            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="hover:text-white transition-colors">{{ campaign.name }}</a>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 4l4 4-4 4"/>
+            </svg>
+            <span class="text-white">Edit</span>
+        </div>
+        <h1 class="text-2xl font-semibold text-white mb-2">Edit Campaign</h1>
+        <p class="text-sm text-zinc-400">Update campaign settings</p>
+    </div>
+
+    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+        {{ form_start(form) }}
+        
+        <div class="space-y-6">
+            <div>
+                {{ form_label(form.name, null, {'label_attr': {'class': 'block text-sm font-medium text-zinc-300 mb-2'}}) }}
+                {{ form_widget(form.name) }}
+                {{ form_errors(form.name) }}
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    {{ form_label(form.language, null, {'label_attr': {'class': 'block text-sm font-medium text-zinc-300 mb-2'}}) }}
+                    {{ form_widget(form.language) }}
+                    {{ form_errors(form.language) }}
+                </div>
+
+                <div>
+                    {{ form_label(form.touchCount, null, {'label_attr': {'class': 'block text-sm font-medium text-zinc-300 mb-2'}}) }}
+                    {{ form_widget(form.touchCount) }}
+                    {{ form_errors(form.touchCount) }}
+                </div>
+            </div>
+
+            <div>
+                {{ form_label(form.description, null, {'label_attr': {'class': 'block text-sm font-medium text-zinc-300 mb-2'}}) }}
+                {{ form_widget(form.description) }}
+                {{ form_errors(form.description) }}
+            </div>
+
+            <div class="flex items-center gap-2">
+                {{ form_widget(form.active, {'attr': {'class': 'w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-900'}}) }}
+                {{ form_label(form.active, null, {'label_attr': {'class': 'text-sm text-zinc-300'}}) }}
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 mt-8 pt-6 border-t border-zinc-800">
+            <button type="submit" class="geist-button">
+                Save Changes
+            </button>
+            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="geist-button-secondary">
+                Cancel
+            </a>
+        </div>
+
+        {{ form_end(form) }}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Registration Confirmed - {{ webinar.title }}{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-black text-white flex items-center justify-center">
+    <div class="max-w-md mx-auto px-6 text-center">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 border border-green-500/20 mb-6">
+            <svg class="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+
+        <h1 class="text-3xl font-light tracking-tight mb-4">Registration Confirmed!</h1>
+        
+        <p class="text-zinc-400 mb-8">
+            You're all set for <strong class="text-white">{{ webinar.title }}</strong>.
+        </p>
+
+        <div class="border border-zinc-800 rounded-lg p-6 bg-zinc-950/50 mb-8 text-left">
+            <div class="flex items-center gap-3 mb-3">
+                <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <div>
+                    <div class="text-sm text-zinc-400">Date & Time</div>
+                    <div class="font-medium">{{ webinar.scheduledDate|date('F d, Y - H:i') }}</div>
+                </div>
+            </div>
+            
+            {% if webinar.meetingUrl %}
+                <div class="mt-4 pt-4 border-t border-zinc-800">
+                    <div class="text-sm text-zinc-400 mb-2">Meeting Link</div>
+                    <a href="{{ webinar.meetingUrl }}" target="_blank" class="text-blue-400 hover:underline text-sm break-all">
+                        {{ webinar.meetingUrl }}
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="space-y-3">
+            <p class="text-sm text-zinc-400">
+                📧 Check your email for a confirmation message with all the details.
+            </p>
+            <p class="text-sm text-zinc-400">
+                We'll send you a reminder 24 hours before the webinar.
+            </p>
+        </div>
+
+        <div class="mt-8">
+            <a href="{{ path('app_dashboard') }}" class="text-sm text-white hover:underline">
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

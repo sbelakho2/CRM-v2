@@ -1,0 +1,174 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Supplier Details{% endblock %}
+
+{% block body %}
+<div class="space-y-6">
+    <a href="{{ path('supplier_portal_index') }}" class="inline-block font-medium text-neutral-600 transition-colors hover:text-neutral-900">
+        ← Back to Suppliers
+    </a>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <!-- Main Content -->
+        <div class="space-y-6 lg:col-span-2">
+            <!-- Supplier Header -->
+            <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+                <div class="mb-4 flex items-start justify-between">
+                    <div>
+                        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">{{ supplier.name }}</h1>
+                        <p class="mt-1 text-sm text-neutral-600">{{ supplier.region }}</p>
+                    </div>
+                    <span class="inline-flex rounded-full bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-800">
+                        {{ supplier.status }}
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 border-t border-neutral-200 pt-4 md:grid-cols-3">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Priority</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ supplier.priority }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Contact Name</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ supplier.contact_name | default('N/A') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Email</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ supplier.email | default('N/A') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Title</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ supplier.title | default('N/A') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Website</p>
+                        <p class="mt-1 font-semibold"><a href="{{ supplier.website }}" target="_blank" class="font-medium text-neutral-600 transition-colors hover:text-neutral-900">Visit</a></p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Portal SLA (Days)</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ supplier.portal_sla_days | default('N/A') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplier Information -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Company Information</h2>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Portal URL</p>
+                        <p class="text-gray-900"><a href="{{ supplier.portal_url }}" target="_blank" class="text-blue-600 hover:underline">{{ supplier.portal_url | default('N/A') }}</a></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">LinkedIn</p>
+                        <p class="text-gray-900"><a href="{{ supplier.linkedin_url }}" target="_blank" class="text-blue-600 hover:underline">Company Profile</a></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Notes</p>
+                        <p class="text-gray-900">{{ supplier.notes | default('No notes') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Next Step</p>
+                        <p class="text-gray-900">{{ supplier.next_step | default('No next step defined') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compliance & NDA -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Compliance & NDA Status</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-gray-700">Compliance Required</span>
+                        <span class="font-semibold">{{ supplier.compliance_required | default('Not specified') | truncate(50) }}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-gray-700">Compliance Provided</span>
+                        <span class="px-3 py-1 bg-{% if supplier.compliance_provided %}green{% else %}red{% endif %}-100 text-{% if supplier.compliance_provided %}green{% else %}red{% endif %}-800 text-sm font-medium rounded-full">
+                            {% if supplier.compliance_provided %}Yes{% else %}No{% endif %}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-gray-700">NDA Sent</span>
+                        <span class="px-3 py-1 bg-{% if supplier.nda_sent %}green{% else %}yellow{% endif %}-100 text-{% if supplier.nda_sent %}green{% else %}yellow{% endif %}-800 text-sm font-medium rounded-full">
+                            {% if supplier.nda_sent %}Yes{% else %}No{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Performance Metrics -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Performance</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">On-Time Delivery</span>
+                            <span class="font-semibold">{{ supplier.on_time_rate | default(95) }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-600 h-2 rounded-full" style="width: {{ supplier.on_time_rate | default(95) }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">Quality Score</span>
+                            <span class="font-semibold">{{ supplier.quality_score | default(88) }}/100</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-neutral-900 h-2 rounded-full" style="width: {{ supplier.quality_score | default(88) }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">Response Time</span>
+                            <span class="font-semibold">{{ supplier.response_time | default('2h') }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Statistics</h2>
+                <div class="space-y-3">
+                    <div class="p-3 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-blue-600">Total Orders</p>
+                        <p class="text-2xl font-bold text-blue-900">{{ supplier.total_orders | default(0) }}</p>
+                    </div>
+                    <div class="p-3 bg-green-50 rounded-lg">
+                        <p class="text-sm text-green-600">Total Spent</p>
+                        <p class="text-2xl font-bold text-green-900">${{ supplier.total_spent | default(0) }}</p>
+                    </div>
+                    <div class="p-3 bg-orange-50 rounded-lg">
+                        <p class="text-sm text-orange-600">Avg Order Value</p>
+                        <p class="text-2xl font-bold text-orange-900">${{ supplier.avg_order_value | default(0) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
+                <div class="space-y-2">
+                    <button class="w-full px-4 py-2 bg-neutral-900 text-white font-medium rounded-lg hover:bg-neutral-800 text-sm">
+                        View Portal
+                    </button>
+                    <button class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200 text-sm">
+                        Send Message
+                    </button>
+                    <button class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200 text-sm">
+                        Edit Details
+                    </button>
+                    <button class="w-full px-4 py-2 border border-red-200 text-red-700 font-medium rounded-lg hover:bg-red-50 text-sm">
+                        Deactivate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

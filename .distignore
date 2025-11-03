@@ -1,0 +1,78 @@
+# Distribution ignore file
+# Files and directories to exclude from production deployment package
+
+# Development dependencies (reinstall on production)
+/vendor/
+/node_modules/
+
+# Development environment files
+/.env.local
+/.env.test
+/.env.*.local
+
+# Cache and logs (regenerated on production)
+/var/cache/*
+!/var/cache/.gitkeep
+/var/log/*
+!/var/log/.gitkeep
+
+# Database files (production will have its own)
+/var/data.db
+/var/data/
+
+# Git files
+/.git/
+/.gitignore
+/.gitattributes
+
+# IDE and editor files
+/.vscode/
+/.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build and development files
+/webpack.config.js
+/package.json
+/package-lock.json
+/composer.lock
+/.php-cs-fixer.php
+/phpunit.xml
+/phpunit.xml.dist
+/.phpunit.result.cache
+/build-dist.ps1
+/build-distribution.ps1
+/composer.phar
+
+# Stub definitions (IDE helpers only)
+/stubs/
+
+# Documentation completion report (internal use)
+/DOCUMENTATION_COMPLETION_REPORT.md
+/CRM_DEVELOPMENT_OUTLINE.md
+
+# Test files
+/tests/
+/phpunit.xml
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+
+# Uploaded test files
+/Tracker.csv
+/Tracker.xlsx
+
+# Build artifacts
+/public/build/
+/assets/
+
+# Development scripts
+/bin/phpunit

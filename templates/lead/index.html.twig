@@ -1,0 +1,123 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Leads - Starz Morocco CRM{% endblock %}
+
+{% block body %}
+<div class="container-fluid mt-4">
+    <h2 class="mb-4">Provisional Leads</h2>
+
+    {# Quick Stats #}
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background-color: #f5f0e8; border: none;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Leads</h6>
+                    <h3 class="mb-0">{{ total_leads }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background-color: #fff3cd; border: none;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Pending Review</h6>
+                    <h3 class="mb-0 text-warning">{{ pending_count }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background-color: #d1e7dd; border: none;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Approved</h6>
+                    <h3 class="mb-0 text-success">{{ approved_count }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background-color: #f8d7da; border: none;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Denied</h6>
+                    <h3 class="mb-0 text-danger">{{ denied_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Action Cards #}
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="card" style="background-color: #f5f0e8; border: none;">
+                <div class="card-body text-center py-5">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9B6B9E" stroke-width="2" class="mb-3">
+                        <path d="M9 11l3 3L22 4"/>
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                    </svg>
+                    <h4 class="mb-3">Review Leads</h4>
+                    <p class="text-muted mb-4">
+                        Review and approve provisional leads from the daily crawler runs.
+                        Filter by region, score, and status.
+                    </p>
+                    <a href="{{ path('app_lead_review') }}" class="btn btn-primary">
+                        <i class="fas fa-tasks"></i> Start Reviewing
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <div class="card" style="background-color: #f5f0e8; border: none;">
+                <div class="card-body text-center py-5">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9B6B9E" stroke-width="2" class="mb-3">
+                        <line x1="12" y1="20" x2="12" y2="10"/>
+                        <line x1="18" y1="20" x2="18" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="16"/>
+                    </svg>
+                    <h4 class="mb-3">Dashboard & KPIs</h4>
+                    <p class="text-muted mb-4">
+                        View lead statistics, regional breakdown, approval rates, and precision metrics.
+                        Track weekly performance.
+                    </p>
+                    <a href="{{ path('app_lead_dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-chart-bar"></i> View Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Information Card #}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card" style="background-color: #e8e3d8; border: none;">
+                <div class="card-body">
+                    <h5 class="mb-3">About Provisional Leads</h5>
+                    <p class="mb-2">
+                        <strong>What are provisional leads?</strong> These are potential PCBA/EMS buyers discovered by our 
+                        intelligent webcrawler across Morocco, US East Coast, Texas, EU, and UK regions.
+                    </p>
+                    <p class="mb-2">
+                        <strong>Daily Drops:</strong> Leads are delivered daily at 08:00 Africa/Tunis (Morocco primary) 
+                        and 08:30 for regional batches (US-East, US-TX, UK, EU).
+                    </p>
+                    <p class="mb-2">
+                        <strong>Scoring:</strong> Each lead is scored 0-100 based on 13 weighted signals including geographic fit, 
+                        manufacturing capabilities, procurement readiness, quality standards, and contactability.
+                    </p>
+                    <p class="mb-3">
+                        <strong>Workflow:</strong> Review → Approve → <span class="badge bg-primary">Add to Companies</span> → Assign Owner → Begin Outreach
+                    </p>
+                    <div class="alert alert-info mb-0" style="background-color: #d1ecf1; border: none;">
+                        <strong><i class="fas fa-info-circle"></i> How to Add Leads to Companies:</strong><br>
+                        1. Go to "Review Leads"<br>
+                        2. Approve good leads by clicking the green checkmark<br>
+                        3. Click "<i class="fas fa-plus-circle"></i> Add to Companies" button on approved leads<br>
+                        4. Lead is instantly added to your Companies list with all details
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

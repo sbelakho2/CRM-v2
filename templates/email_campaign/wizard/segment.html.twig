@@ -1,0 +1,235 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Choose Audience - {{ campaign.name }}{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            {# Wizard Progress #}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="wizard-progress">
+                        <div class="wizard-step completed">
+                            <div class="step-number">1</div>
+                            <div class="step-label">Basic Info</div>
+                        </div>
+                        <div class="wizard-connector"></div>
+                        <div class="wizard-step completed">
+                            <div class="step-number">2</div>
+                            <div class="step-label">Template</div>
+                        </div>
+                        <div class="wizard-connector"></div>
+                        <div class="wizard-step active">
+                            <div class="step-number">3</div>
+                            <div class="step-label">Audience</div>
+                        </div>
+                        <div class="wizard-connector"></div>
+                        <div class="wizard-step">
+                            <div class="step-number">4</div>
+                            <div class="step-label">Schedule</div>
+                        </div>
+                        <div class="wizard-connector"></div>
+                        <div class="wizard-step">
+                            <div class="step-number">5</div>
+                            <div class="step-label">Review</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Segment Selection #}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Choose Your Audience</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="row">
+                            {# Create New Segment Option #}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <label class="segment-card create-new">
+                                    <input type="radio" name="segment_id" value="new" required>
+                                    <div class="segment-preview">
+                                        <div class="create-new-icon">
+                                            <i class="bi bi-funnel" style="font-size: 48px;"></i>
+                                        </div>
+                                        <h6 class="mt-3">Build Custom Segment</h6>
+                                        <p class="text-muted small">Filter contacts by criteria</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            {# Existing Segments #}
+                            {% for segment in segments %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <label class="segment-card">
+                                    <input type="radio" name="segment_id" value="{{ segment.id }}" required>
+                                    <div class="segment-info p-4">
+                                        <div class="d-flex align-items-start justify-content-between mb-3">
+                                            <div>
+                                                <h6 class="mb-1">{{ segment.name }}</h6>
+                                                <p class="text-muted small mb-0">{{ segment.description }}</p>
+                                            </div>
+                                            <i class="bi bi-people-fill text-primary" style="font-size: 24px;"></i>
+                                        </div>
+                                        
+                                        <div class="segment-stats">
+                                            <div class="stat-item">
+                                                <div class="stat-value">{{ segment.contactCount|number_format }}</div>
+                                                <div class="stat-label">Contacts</div>
+                                            </div>
+                                        </div>
+
+                                        {% if segment.lastCalculatedAt %}
+                                        <div class="text-muted small mt-3">
+                                            <i class="bi bi-clock"></i> Updated {{ segment.lastCalculatedAt|date('M d, Y') }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if segments is empty %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> No saved segments yet. Create your first segment to get started!
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ path('app_email_campaign_wizard_template', {id: campaign.id}) }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                Continue <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.wizard-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.wizard-step {
+    text-align: center;
+    min-width: 100px;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.wizard-step.active .step-number {
+    background: #0d6efd;
+    color: white;
+}
+
+.wizard-step.completed .step-number {
+    background: #198754;
+    color: white;
+}
+
+.step-label {
+    font-size: 13px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.wizard-connector {
+    flex: 1;
+    height: 2px;
+    background: #e9ecef;
+    margin: 0 10px;
+    max-width: 100px;
+}
+
+.segment-card {
+    display: block;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    height: 100%;
+    overflow: hidden;
+}
+
+.segment-card:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.segment-card input[type="radio"] {
+    display: none;
+}
+
+.segment-card input[type="radio"]:checked + .segment-preview,
+.segment-card input[type="radio"]:checked + .segment-info {
+    border: 2px solid #0d6efd;
+    background: #f8f9fa;
+}
+
+.segment-card.create-new .segment-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 250px;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+}
+
+.create-new-icon {
+    color: #0d6efd;
+}
+
+.segment-info {
+    min-height: 250px;
+    border-radius: 6px;
+    background: white;
+}
+
+.segment-stats {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 6px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0d6efd;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+</style>
+{% endblock %}

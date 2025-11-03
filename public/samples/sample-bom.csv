@@ -1,0 +1,11 @@
+Part Number,Description,Quantity,Manufacturer,Reference Designators
+STM32F407VGT6,ARM Cortex-M4 Microcontroller,1,STMicroelectronics,U1
+LM1117-3.3,3.3V LDO Voltage Regulator,2,Texas Instruments,"U2,U3"
+0805 10K,Resistor 10K Ohm 5% 1/8W,15,Yageo,"R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13,R14,R15"
+0805 100nF,Capacitor 100nF X7R 50V,20,Murata,"C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,C16,C17,C18,C19,C20"
+LED-0805-RED,LED Red 0805 SMD,4,Kingbright,"D1,D2,D3,D4"
+0805 330R,Resistor 330 Ohm 5% 1/8W,4,Yageo,"R16,R17,R18,R19"
+CRYSTAL-8MHZ,Crystal Oscillator 8MHz,1,Abracon,Y1
+USB-MICRO-B,USB Micro B Connector,1,Amphenol,J1
+HEADER-10PIN,Pin Header 10-Pin 2.54mm,2,Wurth Elektronik,"J2,J3"
+0805 22pF,Capacitor 22pF C0G 50V,2,Samsung,"C21,C22"

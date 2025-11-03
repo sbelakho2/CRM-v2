@@ -1,0 +1,239 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Lead Review - Starz Morocco CRM{% endblock %}
+
+{% block body %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Lead Review</h2>
+        <div>
+            <a href="{{ path('app_lead_dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </a>
+            <a href="{{ path('app_lead_export', {region: region_filter, status: status_filter}) }}" class="btn btn-outline-primary">
+                <i class="fas fa-download"></i> Export CSV
+            </a>
+        </div>
+    </div>
+
+    {# Filters #}
+    <div class="card mb-4" style="background-color: #f5f0e8; border: none;">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Region</label>
+                    <select name="region" class="form-select">
+                        <option value="all" {% if region_filter == 'all' %}selected{% endif %}>All Regions</option>
+                        <option value="morocco" {% if region_filter == 'morocco' %}selected{% endif %}>Morocco</option>
+                        <option value="us_east" {% if region_filter == 'us_east' %}selected{% endif %}>US East Coast</option>
+                        <option value="us_texas" {% if region_filter == 'us_texas' %}selected{% endif %}>US Texas</option>
+                        <option value="eu_core" {% if region_filter == 'eu_core' %}selected{% endif %}>EU Core</option>
+                        <option value="eu_nordics" {% if region_filter == 'eu_nordics' %}selected{% endif %}>EU Nordics</option>
+                        <option value="eu_cee" {% if region_filter == 'eu_cee' %}selected{% endif %}>EU CEE</option>
+                        <option value="uk" {% if region_filter == 'uk' %}selected{% endif %}>UK</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Review</option>
+                        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="denied" {% if status_filter == 'denied' %}selected{% endif %}>Denied</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Minimum Score</label>
+                    <input type="number" name="score_min" class="form-control" value="{{ score_min }}" min="0" max="100">
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Regional Stats Summary #}
+    {% if region_stats|length > 0 %}
+    <div class="row mb-4">
+        {% for stat in region_stats %}
+        <div class="col-md-3 mb-3">
+            <div class="card" style="background-color: #f5f0e8; border: none;">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">{{ stat.regionTag|upper|default('Unknown') }}</h6>
+                    <h4 class="mb-0">{{ stat.total }}</h4>
+                    <small class="text-muted">Avg Score: {{ stat.avg_score|number_format(1) }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Leads Table #}
+    <div class="card" style="background-color: #f5f0e8; border: none;">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Score</th>
+                            <th>Company</th>
+                            <th>Region</th>
+                            <th>Location</th>
+                            <th>Sectors</th>
+                            <th>Contact</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead in leads %}
+                        <tr id="lead-{{ lead.id }}">
+                            <td>
+                                <span class="badge {% if lead.leadScore >= 70 %}bg-success{% elseif lead.leadScore >= 55 %}bg-warning{% else %}bg-secondary{% endif %} rounded-pill">
+                                    {{ lead.leadScore }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{ lead.companyName }}</strong>
+                                {% if lead.websiteRoot %}
+                                <br><small class="text-muted">
+                                    <a href="{{ lead.websiteRoot }}" target="_blank">{{ lead.websiteRoot }}</a>
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ lead.regionTag|upper }}</span>
+                            </td>
+                            <td>
+                                <small>{{ lead.siteLocation ?? lead.usCityMetro ?? 'N/A' }}</small>
+                            </td>
+                            <td>
+                                {% if lead.sectorTags %}
+                                    {% for sector in lead.sectorTags|slice(0, 2) %}
+                                        <span class="badge bg-secondary">{{ sector }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lead.supplierPortalUrl %}
+                                    <a href="{{ lead.supplierPortalUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Supplier Portal">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                {% endif %}
+                                {% if lead.contactEmailsPublic %}
+                                    <span class="badge bg-success" title="{{ lead.contactEmailsPublic|join(', ') }}">
+                                        <i class="fas fa-envelope"></i> {{ lead.contactEmailsPublic|length }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lead.reviewStatus == 'approved' %}
+                                    <span class="badge bg-success">Approved</span>
+                                {% elseif lead.reviewStatus == 'denied' %}
+                                    <span class="badge bg-danger">Denied</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lead.reviewStatus == 'pending' %}
+                                    <button class="btn btn-sm btn-success me-1" onclick="approveLead({{ lead.id }})" title="Approve this lead">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger me-1" onclick="denyLead({{ lead.id }})" title="Deny this lead">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                {% endif %}
+                                {% if lead.reviewStatus == 'approved' and not lead.company %}
+                                    <button class="btn btn-sm btn-primary me-1" onclick="convertLead({{ lead.id }})" title="Add to Companies list">
+                                        <i class="fas fa-plus-circle"></i> Add to Companies
+                                    </button>
+                                {% elseif lead.company %}
+                                    <span class="badge bg-success me-1">
+                                        <i class="fas fa-check-circle"></i> In CRM
+                                    </span>
+                                    <a href="{{ path('app_company_show', {id: lead.company.id}) }}" class="btn btn-sm btn-outline-primary" title="View company record">
+                                        <i class="fas fa-arrow-right"></i> View Company
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                No leads found matching the current filters.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function approveLead(leadId) {
+    if (!confirm('Approve this lead?')) return;
+    
+    fetch(`/leads/approve/${leadId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
+}
+
+function denyLead(leadId) {
+    const reason = prompt('Reason for denial (optional):');
+    
+    fetch(`/leads/deny/${leadId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reason: reason || 'Not a good fit'})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
+}
+
+function convertLead(leadId) {
+    if (!confirm('Add this approved lead to the Companies list?\n\nThis will create a new company record with all lead information.')) return;
+    
+    fetch(`/leads/convert/${leadId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✓ Lead successfully added to Companies!\n\nCompany ID: ' + data.company_id + '\n\nYou can now view it in the Companies section.');
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error converting lead: ' + error.message);
+    });
+}
+</script>
+{% endblock %}

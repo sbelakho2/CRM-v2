@@ -1,0 +1,45 @@
+security:
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+        App\Entity\User:
+            algorithm: auto
+
+    providers:
+        app_user_provider:
+            id: App\Security\UserProvider
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+        main:
+            lazy: true
+            provider: app_user_provider
+            custom_authenticator: App\Security\LoginFormAuthenticator
+            logout:
+                path: app_logout
+                target: app_login
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 604800 # 1 week in seconds
+
+    access_control:
+        # Temporarily disabled for development - ENABLE IN PRODUCTION
+        # - { path: ^/login, roles: PUBLIC_ACCESS }
+        # - { path: ^/logout, roles: PUBLIC_ACCESS }
+        # - { path: ^/, roles: ROLE_USER }
+    
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_SALES_OPS, ROLE_DIGITAL_REP, ROLE_FIELD_REP, ROLE_USER]
+        ROLE_SALES_OPS: [ROLE_DIGITAL_REP, ROLE_FIELD_REP, ROLE_USER]
+        ROLE_DIGITAL_REP: ROLE_USER
+        ROLE_FIELD_REP: ROLE_USER
+
+when@test:
+    security:
+        password_hashers:
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4
+                time_cost: 3
+                memory_cost: 10

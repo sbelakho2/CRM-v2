@@ -1,0 +1,262 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Quote {{ quote.quoteNumber }} - Results{% endblock %}
+
+{% block body %}
+<div class="space-y-6">
+    <!-- Header with Back Link -->
+    <div class="border-b border-neutral-200/80 pb-5">
+        <a href="{{ path('quote_copilot_index') }}" class="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center mb-3">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Back to Quote Co-Pilot
+        </a>
+        <div class="flex items-start justify-between">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Quote {{ quote.quoteNumber }}</h1>
+                <p class="mt-1.5 text-sm text-neutral-600">{{ quote.company.name }} • Created {{ quote.createdAt|date('M d, Y') }}</p>
+            </div>
+            <div class="flex gap-2">
+                {% if quote.coveragePercent >= 90 %}
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">High Coverage</span>
+                {% elseif quote.coveragePercent >= 60 %}
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Medium Coverage</span>
+                {% else %}
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Low Coverage</span>
+                {% endif %}
+                <span class="px-3 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">{{ quote.status|upper }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coverage Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+            <div class="text-sm font-medium text-neutral-600 mb-1">Coverage</div>
+            <div class="text-3xl font-semibold text-neutral-900">{{ quote.coveragePercent|number_format(1) }}%</div>
+            <div class="text-xs text-neutral-500 mt-1">Parts sourced with pricing</div>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+            <div class="text-sm font-medium text-neutral-600 mb-1">Total Cost</div>
+            <div class="text-3xl font-semibold text-neutral-900">${{ quote.totalCost|number_format(2) }}</div>
+            <div class="text-xs text-neutral-500 mt-1">{{ quote.currency }}</div>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+            <div class="text-sm font-medium text-neutral-600 mb-1">BOM Lines</div>
+            <div class="text-3xl font-semibold text-neutral-900">{{ quote.bomLines|length }}</div>
+            <div class="text-xs text-neutral-500 mt-1">Component types</div>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+            <div class="text-sm font-medium text-neutral-600 mb-1">Quantity</div>
+            <div class="text-3xl font-semibold text-neutral-900">{{ quote.quantity }}</div>
+            <div class="text-xs text-neutral-500 mt-1">Units to produce</div>
+        </div>
+    </div>
+
+    <!-- BOM Lines Table -->
+    <div class="rounded-xl border border-neutral-200/60 bg-white overflow-hidden">
+        <div class="px-6 py-4 border-b border-neutral-200/60">
+            <h2 class="text-lg font-semibold tracking-tight text-neutral-900">Bill of Materials</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-neutral-50 border-b border-neutral-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Line</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">MPN</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Manufacturer</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Description</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider">Qty</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider">Unit Price</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider">Ext. Price</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Source</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-neutral-200">
+                    {% for line in quote.bomLines %}
+                        <tr class="hover:bg-neutral-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">{{ line.lineNumber }}</td>
+                            <td class="px-6 py-4 text-sm font-mono text-neutral-900">{{ line.mpn }}</td>
+                            <td class="px-6 py-4 text-sm text-neutral-700">{{ line.manufacturer }}</td>
+                            <td class="px-6 py-4 text-sm text-neutral-700">{{ line.description|truncate(40) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-neutral-900">{{ line.quantity }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-neutral-900">
+                                {% if line.unitPrice %}
+                                    ${{ line.unitPrice|number_format(4) }}
+                                {% else %}
+                                    <span class="text-red-600">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-neutral-900">
+                                {% if line.extendedPrice %}
+                                    ${{ line.extendedPrice|number_format(2) }}
+                                {% else %}
+                                    <span class="text-red-600">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-xs">
+                                {% if line.hasException %}
+                                    <span class="px-2 py-1 rounded-full bg-red-100 text-red-700">{{ line.exceptionReason }}</span>
+                                {% else %}
+                                    <span class="px-2 py-1 rounded-full bg-green-100 text-green-700">{{ line.procurementSource }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-neutral-50 border-t border-neutral-200">
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-right text-sm font-semibold text-neutral-900">Total:</td>
+                        <td class="px-6 py-4 text-right text-sm font-bold text-neutral-900">${{ quote.totalCost|number_format(2) }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quote Details -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+            <h3 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Shipment Details</h3>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-neutral-600">Destination</dt>
+                    <dd class="text-sm font-medium text-neutral-900">{{ quote.shipToCountry }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-neutral-600">Incoterms</dt>
+                    <dd class="text-sm font-medium text-neutral-900">{{ quote.incoterms }}</dd>
+                </div>
+                {% if quote.notes %}
+                    <div>
+                        <dt class="text-sm text-neutral-600">Notes</dt>
+                        <dd class="text-sm font-medium text-neutral-900">{{ quote.notes }}</dd>
+                    </div>
+                {% endif %}
+            </dl>
+        </div>
+
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+            <h3 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Actions</h3>
+            <div class="space-y-3">
+                <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" 
+                   class="block w-full inline-flex items-center justify-center rounded-lg bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Download PDF
+                </a>
+                
+                {% if quote.coveragePercent >= 60 %}
+                    <button onclick="publishQuote({{ quote.id }})" 
+                            class="block w-full inline-flex items-center justify-center rounded-lg border border-neutral-200/60 bg-white px-6 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                        Publish to Customer
+                    </button>
+                {% else %}
+                    <div class="rounded-lg bg-yellow-50 border border-yellow-200 p-4">
+                        <p class="text-sm text-yellow-800">
+                            <strong>⚠ Coverage too low:</strong> Requires ≥60% to publish. Manual pricing needed for missing parts.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function publishQuote(quoteId) {
+    if (!confirm('Publish this quote to the customer? They will receive an email notification.')) {
+        return;
+    }
+    
+    fetch(`/quote-copilot/${quoteId}/publish`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Quote published successfully!');
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error publishing quote');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}
+                        <p class="font-semibold text-gray-900">{{ quote.shipping_method | default('Standard Shipping') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Actions -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
+                <div class="space-y-2">
+                    <button class="w-full px-4 py-2 bg-neutral-900 text-white font-medium rounded-lg hover:bg-neutral-800">
+                        Download PDF
+                    </button>
+                    <button class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200">
+                        Send Quote
+                    </button>
+                    <button class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200">
+                        Export to Excel
+                    </button>
+                    <button class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200">
+                        Create Order
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quote Details -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Quote Details</h2>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <p class="text-gray-600">Quote ID</p>
+                        <p class="font-semibold text-gray-900">{{ quote.id | default('Q-2025-001') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Valid Until</p>
+                        <p class="font-semibold text-gray-900">{{ quote.valid_until | date('M d, Y') | default('30 days') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Source Files</p>
+                        <p class="font-semibold text-gray-900">{{ quote.source_files | length | default(1) }} file(s)</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Generated By</p>
+                        <p class="font-semibold text-gray-900">Quote Co-Pilot AI</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Quote -->
+            <div class="rounded-lg border border-neutral-200/60 bg-neutral-50/50 p-6">
+                <h3 class="mb-3 text-lg font-semibold text-neutral-900">Save This Quote</h3>
+                <p class="mb-4 text-sm text-neutral-700">Save this quote to your library for future reference and use</p>
+                <input type="text" placeholder="Quote name..." class="mb-3 w-full rounded-lg border border-neutral-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400">
+                <button class="w-full rounded-lg bg-neutral-900 px-4 py-2 font-medium text-white hover:bg-neutral-800">
+                    Save Quote
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

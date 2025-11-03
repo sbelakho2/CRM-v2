@@ -1,0 +1,139 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Activity Details{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-neutral-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {# Breadcrumb #}
+        <nav class="mb-6">
+            <ol class="flex items-center gap-2 text-sm">
+                <li><a href="{{ path('app_dashboard') }}" class="text-neutral-600 hover:text-neutral-900">Dashboard</a></li>
+                <li class="text-neutral-400">/</li>
+                <li><a href="{{ path('app_activity_index') }}" class="text-neutral-600 hover:text-neutral-900">Activities</a></li>
+                <li class="text-neutral-400">/</li>
+                <li class="text-neutral-900 font-medium">{{ activity.activityType }}</li>
+            </ol>
+        </nav>
+
+        {# Header #}
+        <div class="flex items-start justify-between mb-6">
+            <div class="flex items-start gap-4">
+                <div class="w-14 h-14 rounded-xl flex items-center justify-center
+                    {% if activity.activityType == 'Call' %}bg-blue-50 text-blue-600
+                    {% elseif activity.activityType == 'Email' %}bg-purple-50 text-purple-600
+                    {% elseif activity.activityType == 'Meeting' %}bg-emerald-50 text-emerald-600
+                    {% elseif activity.activityType starts with 'LinkedIn' %}bg-blue-100 text-blue-700
+                    {% elseif activity.activityType == 'Follow-up' %}bg-amber-50 text-amber-600
+                    {% else %}bg-neutral-50 text-neutral-600{% endif %}">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">{{ activity.activityType }}</h1>
+                    <div class="mt-2 flex items-center gap-3">
+                        <span class="text-sm text-neutral-600">{{ activity.activityDate|date('F d, Y') }}</span>
+                        {% if activity.outcome %}
+                            <span class="text-neutral-400">·</span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if activity.outcome == 'Successful' %}bg-emerald-100 text-emerald-700
+                                {% elseif activity.outcome == 'Follow-up Required' %}bg-amber-100 text-amber-700
+                                {% elseif activity.outcome == 'Not Interested' %}bg-red-100 text-red-700
+                                {% else %}bg-neutral-100 text-neutral-700{% endif %}">
+                                {{ activity.outcome }}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <a href="{{ path('app_activity_edit', {id: activity.id}) }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Edit
+                </a>
+                <form method="post" action="{{ path('app_activity_delete', {id: activity.id}) }}" onsubmit="return confirm('Are you sure you want to delete this activity?');">
+                    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ activity.id) }}">
+                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 border border-red-200 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {# Flash Messages #}
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="mb-6 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-neutral-50 text-neutral-800 border border-neutral-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        {# Main Content #}
+        <div class="bg-white rounded-xl border border-neutral-200/60 p-6 mb-6">
+            <h2 class="text-base font-semibold text-neutral-900 mb-4">Activity Details</h2>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                    <dt class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Company</dt>
+                    <dd class="mt-1 text-sm text-neutral-900">
+                        {% if activity.company %}
+                            <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="text-blue-600 hover:text-blue-700">
+                                {{ activity.company.name }}
+                            </a>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Contact</dt>
+                    <dd class="mt-1 text-sm text-neutral-900">
+                        {% if activity.contact %}
+                            <a href="{{ path('app_contact_show', {id: activity.contact.id}) }}" class="text-blue-600 hover:text-blue-700">
+                                {{ activity.contact.firstName }} {{ activity.contact.lastName }}
+                            </a>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Activity Type</dt>
+                    <dd class="mt-1 text-sm text-neutral-900">{{ activity.activityType }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Date</dt>
+                    <dd class="mt-1 text-sm text-neutral-900">{{ activity.activityDate|date('F d, Y') }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Logged By</dt>
+                    <dd class="mt-1 text-sm text-neutral-900">{{ activity.user.firstName }} {{ activity.user.lastName }}</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Outcome</dt>
+                    <dd class="mt-1 text-sm text-neutral-900">{{ activity.outcome ?? '—' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        {# Notes Section #}
+        {% if activity.notes %}
+            <div class="bg-white rounded-xl border border-neutral-200/60 p-6">
+                <h2 class="text-base font-semibold text-neutral-900 mb-3">Notes</h2>
+                <div class="prose prose-sm max-w-none text-neutral-700">
+                    <p>{{ activity.notes }}</p>
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

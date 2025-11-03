@@ -1,0 +1,303 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}A/B Test Setup - {{ campaign.name }}{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4>
+                    <i class="bi bi-bar-chart-fill"></i> A/B Test Setup
+                </h4>
+                <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Campaign
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Configure A/B Test</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {# Test Type #}
+                        <div class="mb-4">
+                            <label class="form-label">What would you like to test?</label>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="test-type-card">
+                                        <input type="radio" name="test_type" value="subject_line" checked>
+                                        <div class="card-content p-4">
+                                            <i class="bi bi-envelope-open text-primary" style="font-size: 32px;"></i>
+                                            <h6 class="mt-3">Subject Lines</h6>
+                                            <p class="text-muted small mb-0">Test different subject line variations</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="test-type-card">
+                                        <input type="radio" name="test_type" value="send_time">
+                                        <div class="card-content p-4">
+                                            <i class="bi bi-clock text-primary" style="font-size: 32px;"></i>
+                                            <h6 class="mt-3">Send Time</h6>
+                                            <p class="text-muted small mb-0">Find optimal send time</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="test-type-card">
+                                        <input type="radio" name="test_type" value="content">
+                                        <div class="card-content p-4">
+                                            <i class="bi bi-file-text text-primary" style="font-size: 32px;"></i>
+                                            <h6 class="mt-3">Email Content</h6>
+                                            <p class="text-muted small mb-0">Test different content variations</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="test-type-card">
+                                        <input type="radio" name="test_type" value="from_name">
+                                        <div class="card-content p-4">
+                                            <i class="bi bi-person text-primary" style="font-size: 32px;"></i>
+                                            <h6 class="mt-3">From Name</h6>
+                                            <p class="text-muted small mb-0">Test different sender names</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {# Test Configuration #}
+                        <div class="mb-4">
+                            <label for="testPercentage" class="form-label">Test Audience Size</label>
+                            <input type="range" class="form-range" id="testPercentage" name="test_percentage" 
+                                   min="5" max="50" value="20" step="5">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted small">5%</span>
+                                <span class="fw-bold" id="percentageValue">20%</span>
+                                <span class="text-muted small">50%</span>
+                            </div>
+                            <small class="text-muted">
+                                This percentage of your audience will be split between test variants. 
+                                The winner will be sent to the remaining contacts.
+                            </small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="testDuration" class="form-label">Test Duration</label>
+                            <select class="form-select" id="testDuration" name="test_duration">
+                                <option value="4">4 hours</option>
+                                <option value="12">12 hours</option>
+                                <option value="24" selected>24 hours (1 day)</option>
+                                <option value="48">48 hours (2 days)</option>
+                                <option value="72">72 hours (3 days)</option>
+                            </select>
+                            <small class="text-muted">
+                                After this time, the winning variant will be automatically sent to remaining contacts.
+                            </small>
+                        </div>
+
+                        {# Variants Configuration #}
+                        <div class="mb-4">
+                            <label class="form-label">Test Variants</label>
+                            <div id="variantsContainer">
+                                {# Variants will be added here #}
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="addVariantBtn">
+                                <i class="bi bi-plus-circle"></i> Add Variant
+                            </button>
+                        </div>
+
+                        <input type="hidden" name="variants" id="variantsInput">
+
+                        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
+                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Create A/B Test
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            {# Recommendations #}
+            <div class="card bg-light border-0 mb-4">
+                <div class="card-body">
+                    <h6 class="mb-3">
+                        <i class="bi bi-lightbulb-fill text-warning"></i> Recommendations
+                    </h6>
+                    {% for type, recommendation in recommendations %}
+                    <div class="recommendation-item mb-3">
+                        <div class="fw-bold">{{ type|replace({'_': ' '})|title }}</div>
+                        <div class="text-muted small">{{ recommendation }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# Best Practices #}
+            <div class="card border-0">
+                <div class="card-body">
+                    <h6 class="mb-3">
+                        <i class="bi bi-info-circle-fill text-info"></i> Best Practices
+                    </h6>
+                    <ul class="small mb-0">
+                        <li>Test one variable at a time for clear results</li>
+                        <li>Use 20-30% of your audience for testing</li>
+                        <li>Wait at least 24 hours for statistical significance</li>
+                        <li>Ensure each variant has at least 100 recipients</li>
+                        <li>Focus on metrics that matter to your goal</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.test-type-card {
+    display: block;
+    cursor: pointer;
+    height: 100%;
+}
+
+.test-type-card input[type="radio"] {
+    display: none;
+}
+
+.test-type-card .card-content {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    text-align: center;
+    transition: all 0.3s;
+    height: 100%;
+}
+
+.test-type-card:hover .card-content {
+    border-color: #0d6efd;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.test-type-card input[type="radio"]:checked + .card-content {
+    border-color: #0d6efd;
+    background: #f8f9fa;
+    border-width: 3px;
+}
+
+.variant-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.variant-remove-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}
+
+.recommendation-item {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.recommendation-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+</style>
+
+<script>
+let variantCount = 0;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const testPercentage = document.getElementById('testPercentage');
+    const percentageValue = document.getElementById('percentageValue');
+    const addVariantBtn = document.getElementById('addVariantBtn');
+    const variantsContainer = document.getElementById('variantsContainer');
+
+    // Update percentage display
+    testPercentage.addEventListener('input', function() {
+        percentageValue.textContent = this.value + '%';
+    });
+
+    // Add initial 2 variants
+    addVariant('A');
+    addVariant('B');
+
+    // Add variant button
+    addVariantBtn.addEventListener('click', function() {
+        if (variantCount < 4) {
+            const variantId = String.fromCharCode(65 + variantCount); // C, D
+            addVariant(variantId);
+        } else {
+            alert('Maximum 4 variants allowed');
+        }
+    });
+
+    // Form submit
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const variants = [];
+        document.querySelectorAll('.variant-item').forEach(variantDiv => {
+            const variantId = variantDiv.dataset.variantId;
+            const value = variantDiv.querySelector('[data-role="value"]').value;
+            if (value) {
+                variants.push({ id: variantId, value: value });
+            }
+        });
+
+        if (variants.length < 2) {
+            e.preventDefault();
+            alert('At least 2 variants are required');
+            return;
+        }
+
+        document.getElementById('variantsInput').value = JSON.stringify(variants);
+    });
+});
+
+function addVariant(variantId) {
+    const variantsContainer = document.getElementById('variantsContainer');
+    
+    const variantDiv = document.createElement('div');
+    variantDiv.className = 'variant-item';
+    variantDiv.dataset.variantId = variantId;
+    
+    const canRemove = variantCount > 1; // Can't remove if only 2 variants
+    
+    variantDiv.innerHTML = `
+        ${canRemove ? `<button type="button" class="btn btn-sm btn-outline-danger variant-remove-btn" onclick="removeVariant('${variantId}')">
+            <i class="bi bi-x-lg"></i>
+        </button>` : ''}
+        
+        <div class="mb-2">
+            <strong>Variant ${variantId}</strong>
+        </div>
+        <input type="text" class="form-control" data-role="value" placeholder="Enter variant value..." required>
+    `;
+    
+    variantsContainer.appendChild(variantDiv);
+    variantCount++;
+}
+
+function removeVariant(variantId) {
+    const variantDiv = document.querySelector(`[data-variant-id="${variantId}"]`);
+    if (variantDiv) {
+        variantDiv.remove();
+        variantCount--;
+    }
+}
+</script>
+{% endblock %}

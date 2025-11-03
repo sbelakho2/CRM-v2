@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Quote #{{ quote.quoteNumber }}</title>
+    {% include 'pdf/base.css.twig' %}
+</head>
+<body>
+    <div class="header clearfix">
+        {# Logo - replace with actual logo path #}
+        <div style="float: left;">
+            <h2 style="margin: 0; border: none; color: #9B6B9E;">CRM Starz Morocco</h2>
+            <p class="text-muted small" style="margin: 2pt 0;">Electronics Manufacturing & Sourcing</p>
+        </div>
+        
+        <div class="doc-info">
+            <strong>QUOTE</strong>
+            Quote #: {{ quote.quoteNumber }}<br>
+            Date: {{ quote.createdAt|date('Y-m-d') }}<br>
+            {% if quote.validUntil %}
+            Valid Until: {{ quote.validUntil|date('Y-m-d') }}<br>
+            {% endif %}
+        </div>
+    </div>
+    
+    <h1>Quote for {{ company.name }}</h1>
+    
+    <table style="margin-bottom: 15pt; border: none;">
+        <tr>
+            <td style="width: 50%; border: none;">
+                <h4>Bill To:</h4>
+                <strong>{{ company.name }}</strong><br>
+                {% if company.address %}{{ company.address }}<br>{% endif %}
+                {% if company.city %}{{ company.city }}{% if company.country %}, {{ company.country }}{% endif %}<br>{% endif %}
+                {% if company.phone %}Phone: {{ company.phone }}<br>{% endif %}
+                {% if company.email %}Email: {{ company.email }}{% endif %}
+            </td>
+            <td style="width: 50%; border: none;">
+                <h4>Ship To:</h4>
+                {% if quote.shipToAddress %}
+                    {{ quote.shipToAddress|nl2br }}
+                {% else %}
+                    Same as billing address
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+    
+    <h2>Line Items</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">Line</th>
+                <th style="width: 20%;">MPN</th>
+                <th style="width: 15%;">Manufacturer</th>
+                <th style="width: 30%;">Description</th>
+                <th style="width: 8%;">Qty</th>
+                <th style="width: 11%;">Unit Price</th>
+                <th style="width: 11%;">Ext. Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in bomLines %}
+            <tr>
+                <td class="text-center">{{ loop.index }}</td>
+                <td>{{ line.mpn }}</td>
+                <td>{{ line.manufacturer ?? 'N/A' }}</td>
+                <td>{{ line.description ?? 'Electronic Component' }}</td>
+                <td class="text-right">{{ line.quantity|number_format(0) }}</td>
+                <td class="text-right">${{ line.unitPrice|number_format(2) }}</td>
+                <td class="text-right">${{ (line.quantity * line.unitPrice)|number_format(2) }}</td>
+            </tr>
+            {% endfor %}
+            
+            {# Subtotal #}
+            <tr class="subtotal-row">
+                <td colspan="6" class="text-right"><strong>Subtotal</strong></td>
+                <td class="text-right"><strong>${{ totals.subtotal|number_format(2) }}</strong></td>
+            </tr>
+            
+            {# Tax (if applicable) #}
+            {% if totals.tax > 0 %}
+            <tr>
+                <td colspan="6" class="text-right">Tax ({{ totals.taxRate|number_format(1) }}%)</td>
+                <td class="text-right">${{ totals.tax|number_format(2) }}</td>
+            </tr>
+            {% endif %}
+            
+            {# Shipping (if applicable) #}
+            {% if totals.shipping is defined and totals.shipping > 0 %}
+            <tr>
+                <td colspan="6" class="text-right">Shipping</td>
+                <td class="text-right">${{ totals.shipping|number_format(2) }}</td>
+            </tr>
+            {% endif %}
+            
+            {# Total #}
+            <tr class="total-row">
+                <td colspan="6" class="text-right"><strong>TOTAL</strong></td>
+                <td class="text-right"><strong>${{ totals.total|number_format(2) }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+    
+    {% if quote.notes %}
+    <h2>Notes</h2>
+    <p>{{ quote.notes|nl2br }}</p>
+    {% endif %}
+    
+    <h2>Payment Terms</h2>
+    <p>
+        {% if quote.paymentTerms %}
+            {{ quote.paymentTerms }}
+        {% else %}
+            Payment due within 30 days of invoice date. We accept wire transfer, credit card, and ACH payments.
+        {% endif %}
+    </p>
+    
+    <h2>Delivery</h2>
+    <p>
+        {% if quote.deliveryTerms %}
+            {{ quote.deliveryTerms }}
+        {% else %}
+            Standard lead time: 2-4 weeks from order confirmation. Expedited delivery available upon request.
+        {% endif %}
+    </p>
+    
+    <div class="info-box">
+        <strong>Important Information:</strong><br>
+        • This quote is valid for {{ quote.validDays ?? 30 }} days from the date of issue.<br>
+        • Prices are in USD and subject to change based on currency fluctuations.<br>
+        • All products are shipped FOB Morocco unless otherwise specified.<br>
+        • Minimum order value: $500 USD
+    </div>
+    
+    <div class="footer">
+        <p>
+            <strong>CRM Starz Morocco</strong> | Casablanca, Morocco<br>
+            Phone: +212 XXX XXXXXX | Email: sales@crm-starz.ma<br>
+            Generated on {{ "now"|date('Y-m-d H:i:s') }} | Document Hash: {{ documentHash ?? 'N/A' }}
+        </p>
+    </div>
+</body>
+</html>

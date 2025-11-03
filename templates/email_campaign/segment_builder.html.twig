@@ -1,0 +1,419 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Segment Builder{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel"></i> Build Contact Segment
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="segmentForm">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                {# Segment Name #}
+                                <div class="mb-4">
+                                    <label for="segmentName" class="form-label">Segment Name *</label>
+                                    <input type="text" class="form-control" id="segmentName" name="name" required
+                                           placeholder="e.g., Active Customers in Tech Industry">
+                                </div>
+
+                                {# Description #}
+                                <div class="mb-4">
+                                    <label for="segmentDescription" class="form-label">Description</label>
+                                    <textarea class="form-control" id="segmentDescription" name="description" rows="2"
+                                              placeholder="Describe the purpose of this segment"></textarea>
+                                </div>
+
+                                {# Filter Builder #}
+                                <div class="mb-4">
+                                    <label class="form-label">Filter Rules *</label>
+                                    
+                                    <div class="filter-builder" id="filterBuilder">
+                                        {# Main operator selector #}
+                                        <div class="operator-selector mb-3">
+                                            <label class="me-2">Match:</label>
+                                            <div class="btn-group" role="group">
+                                                <input type="radio" class="btn-check" name="mainOperator" id="opAnd" value="AND" checked>
+                                                <label class="btn btn-outline-primary" for="opAnd">ALL</label>
+                                                
+                                                <input type="radio" class="btn-check" name="mainOperator" id="opOr" value="OR">
+                                                <label class="btn btn-outline-primary" for="opOr">ANY</label>
+                                            </div>
+                                            <small class="text-muted ms-2">of the following rules</small>
+                                        </div>
+
+                                        {# Rules container #}
+                                        <div id="rulesContainer" class="rules-container">
+                                            {# Rules will be added here dynamically #}
+                                        </div>
+
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="addRuleBtn">
+                                            <i class="bi bi-plus-circle"></i> Add Rule
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <input type="hidden" name="filter_rules" id="filterRulesInput">
+                            </div>
+
+                            <div class="col-lg-4">
+                                {# Available Fields #}
+                                <div class="card bg-light border-0 mb-4">
+                                    <div class="card-body">
+                                        <h6 class="mb-3">
+                                            <i class="bi bi-list-check"></i> Available Fields
+                                        </h6>
+                                        
+                                        {% for fieldGroup, fields in availableFields %}
+                                        <div class="field-group mb-3">
+                                            <div class="field-group-label">{{ fieldGroup }}</div>
+                                            <div class="field-list">
+                                                {% for field in fields %}
+                                                <div class="field-item">
+                                                    <code>{{ field.name }}</code>
+                                                    <span class="badge bg-secondary">{{ field.type }}</span>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                {# Live Count #}
+                                <div class="card bg-primary text-white mb-4">
+                                    <div class="card-body text-center">
+                                        <div class="count-label mb-2">Matching Contacts</div>
+                                        <div class="count-value" id="contactCount">
+                                            <div class="spinner-border" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-light btn-sm mt-3" id="refreshCountBtn">
+                                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
+                            {% if campaignId %}
+                            <a href="{{ path('app_email_campaign_wizard_segment', {id: campaignId}) }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            {% else %}
+                            <a href="{{ path('app_email_campaign_segments') }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            {% endif %}
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Segment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.operator-selector {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 6px;
+}
+
+.rules-container {
+    border: 2px dashed #dee2e6;
+    border-radius: 6px;
+    padding: 16px;
+    min-height: 100px;
+    margin-bottom: 12px;
+}
+
+.rule-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.rule-item:last-child {
+    margin-bottom: 0;
+}
+
+.rule-remove-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.field-group-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.field-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.field-item code {
+    color: #0d6efd;
+}
+
+.count-label {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+}
+
+.count-value {
+    font-size: 48px;
+    font-weight: 700;
+}
+
+.empty-rules {
+    text-align: center;
+    padding: 32px;
+    color: #6c757d;
+}
+</style>
+
+<script>
+const availableFields = {{ availableFields|json_encode|raw }};
+const operatorsByType = {
+    'string': [
+        { value: '=', label: 'equals' },
+        { value: '!=', label: 'not equals' },
+        { value: 'contains', label: 'contains' },
+        { value: 'not_contains', label: 'does not contain' },
+        { value: 'starts_with', label: 'starts with' },
+        { value: 'ends_with', label: 'ends with' },
+        { value: 'is_empty', label: 'is empty' },
+        { value: 'is_not_empty', label: 'is not empty' }
+    ],
+    'integer': [
+        { value: '=', label: 'equals' },
+        { value: '!=', label: 'not equals' },
+        { value: '>', label: 'greater than' },
+        { value: '>=', label: 'greater than or equal' },
+        { value: '<', label: 'less than' },
+        { value: '<=', label: 'less than or equal' },
+        { value: 'is_empty', label: 'is empty' },
+        { value: 'is_not_empty', label: 'is not empty' }
+    ],
+    'boolean': [
+        { value: '=', label: 'is' }
+    ],
+    'datetime': [
+        { value: '>', label: 'after' },
+        { value: '<', label: 'before' },
+        { value: 'is_empty', label: 'is empty' },
+        { value: 'is_not_empty', label: 'is not empty' }
+    ]
+};
+
+let ruleIdCounter = 0;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const addRuleBtn = document.getElementById('addRuleBtn');
+    const rulesContainer = document.getElementById('rulesContainer');
+    const refreshCountBtn = document.getElementById('refreshCountBtn');
+    const segmentForm = document.getElementById('segmentForm');
+
+    // Add initial rule
+    addRule();
+
+    // Add rule button
+    addRuleBtn.addEventListener('click', addRule);
+
+    // Refresh count button
+    refreshCountBtn.addEventListener('click', updateContactCount);
+
+    // Form submit
+    segmentForm.addEventListener('submit', function(e) {
+        const filterRules = buildFilterRules();
+        document.getElementById('filterRulesInput').value = JSON.stringify(filterRules);
+    });
+
+    // Auto-update count on rule changes (debounced)
+    let countTimeout;
+    rulesContainer.addEventListener('change', function() {
+        clearTimeout(countTimeout);
+        countTimeout = setTimeout(updateContactCount, 1000);
+    });
+});
+
+function addRule() {
+    const ruleId = ++ruleIdCounter;
+    const rulesContainer = document.getElementById('rulesContainer');
+    
+    const ruleDiv = document.createElement('div');
+    ruleDiv.className = 'rule-item';
+    ruleDiv.dataset.ruleId = ruleId;
+    
+    ruleDiv.innerHTML = `
+        <button type="button" class="btn btn-sm btn-outline-danger rule-remove-btn" onclick="removeRule(${ruleId})">
+            <i class="bi bi-x-lg"></i>
+        </button>
+        
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                <label class="form-label small">Field</label>
+                <select class="form-select form-select-sm" data-role="field" onchange="onFieldChange(${ruleId})">
+                    <option value="">Select field...</option>
+                    ${generateFieldOptions()}
+                </select>
+            </div>
+            
+            <div class="col-md-3 mb-2">
+                <label class="form-label small">Operator</label>
+                <select class="form-select form-select-sm" data-role="operator">
+                    <option value="">-</option>
+                </select>
+            </div>
+            
+            <div class="col-md-5 mb-2">
+                <label class="form-label small">Value</label>
+                <input type="text" class="form-control form-control-sm" data-role="value" placeholder="Enter value...">
+            </div>
+        </div>
+    `;
+    
+    rulesContainer.appendChild(ruleDiv);
+}
+
+function generateFieldOptions() {
+    let options = '';
+    for (const [groupName, fields] of Object.entries(availableFields)) {
+        options += `<optgroup label="${groupName}">`;
+        for (const field of fields) {
+            options += `<option value="${field.name}" data-type="${field.type}">${field.name}</option>`;
+        }
+        options += `</optgroup>`;
+    }
+    return options;
+}
+
+function onFieldChange(ruleId) {
+    const ruleDiv = document.querySelector(`[data-rule-id="${ruleId}"]`);
+    const fieldSelect = ruleDiv.querySelector('[data-role="field"]');
+    const operatorSelect = ruleDiv.querySelector('[data-role="operator"]');
+    const valueInput = ruleDiv.querySelector('[data-role="value"]');
+    
+    const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+    const fieldType = selectedOption.dataset.type || 'string';
+    
+    // Update operators based on field type
+    const operators = operatorsByType[fieldType] || operatorsByType['string'];
+    operatorSelect.innerHTML = operators.map(op => 
+        `<option value="${op.value}">${op.label}</option>`
+    ).join('');
+    
+    // Update value input type
+    if (fieldType === 'integer') {
+        valueInput.type = 'number';
+    } else if (fieldType === 'datetime') {
+        valueInput.type = 'date';
+    } else if (fieldType === 'boolean') {
+        valueInput.type = 'checkbox';
+    } else {
+        valueInput.type = 'text';
+    }
+}
+
+function removeRule(ruleId) {
+    const ruleDiv = document.querySelector(`[data-rule-id="${ruleId}"]`);
+    if (ruleDiv) {
+        ruleDiv.remove();
+        updateContactCount();
+    }
+}
+
+function buildFilterRules() {
+    const mainOperator = document.querySelector('input[name="mainOperator"]:checked').value;
+    const rules = [];
+    
+    document.querySelectorAll('.rule-item').forEach(ruleDiv => {
+        const field = ruleDiv.querySelector('[data-role="field"]').value;
+        const operator = ruleDiv.querySelector('[data-role="operator"]').value;
+        const value = ruleDiv.querySelector('[data-role="value"]').value;
+        
+        if (field && operator) {
+            rules.push({ field, operator, value });
+        }
+    });
+    
+    return {
+        operator: mainOperator,
+        rules: rules
+    };
+}
+
+function updateContactCount() {
+    const countEl = document.getElementById('contactCount');
+    const filterRules = buildFilterRules();
+    
+    if (filterRules.rules.length === 0) {
+        countEl.innerHTML = '<span style="font-size: 20px;">Add rules to see count</span>';
+        return;
+    }
+    
+    countEl.innerHTML = '<div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>';
+    
+    fetch('{{ path('app_api_segment_calculate') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(filterRules)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            countEl.innerHTML = '<span style="font-size: 16px; color: #dc3545;">Error</span>';
+        } else {
+            countEl.textContent = data.count.toLocaleString();
+        }
+    })
+    .catch(error => {
+        countEl.innerHTML = '<span style="font-size: 16px; color: #dc3545;">Error</span>';
+        console.error('Error:', error);
+    });
+}
+</script>
+{% endblock %}

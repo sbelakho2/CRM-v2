@@ -1,0 +1,150 @@
+{# Keyboard Shortcuts System #}
+
+<script>
+/**
+ * Keyboard Shortcuts System
+ * Global keyboard shortcuts for quick navigation and actions
+ */
+
+class KeyboardShortcuts {
+    constructor() {
+        this.keys = {};
+        this.shortcuts = {
+            '/': {
+                action: () => this.focusSearch(),
+                description: 'Focus search',
+                category: 'Navigation'
+            },
+            'l': {
+                action: () => this.navigateTo('{{ path('app_activity_new') }}'),
+                description: 'Log activity',
+                category: 'Quick Actions'
+            },
+            '?': {
+                action: () => this.showHelp(),
+                description: 'Show keyboard shortcuts',
+                category: 'Help'
+            }
+        };
+
+        // Combo shortcuts (hold first key, press second)
+        this.comboShortcuts = {
+            'a+c': {
+                action: () => this.navigateTo('{{ path('app_company_new') }}'),
+                description: 'Add company',
+                display: 'A + C',
+                category: 'Quick Actions'
+            },
+            'a+e': {
+                action: () => this.navigateTo('{{ path('app_contact_new') }}'),
+                description: 'Add contact',
+                display: 'A + E',
+                category: 'Quick Actions'
+            }
+        };
+
+        this.init();
+    }
+
+    init() {
+        document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        document.addEventListener('keyup', (e) => this.handleKeyUp(e));
+        console.log('[Keyboard Shortcuts] Initialized');
+    }
+
+    handleKeyDown(e) {
+        // Don't trigger shortcuts when typing in inputs/textareas
+        if (this.isTyping(e.target)) {
+            return;
+        }
+
+        const key = e.key.toLowerCase();
+        this.keys[key] = true;
+
+        // Check single-key shortcuts
+        if (this.shortcuts[key]) {
+            e.preventDefault();
+            this.shortcuts[key].action();
+            return;
+        }
+
+        // Check combo shortcuts
+        for (const [combo, config] of Object.entries(this.comboShortcuts)) {
+            const [first, second] = combo.split('+');
+            if (this.keys[first] && key === second) {
+                e.preventDefault();
+                config.action();
+                return;
+            }
+        }
+    }
+
+    handleKeyUp(e) {
+        const key = e.key.toLowerCase();
+        delete this.keys[key];
+    }
+
+    isTyping(element) {
+        const tagName = element.tagName.toLowerCase();
+        const isEditable = element.isContentEditable;
+        const isInput = ['input', 'textarea', 'select'].includes(tagName);
+        
+        return isInput || isEditable;
+    }
+
+    focusSearch() {
+        const searchInput = document.querySelector('input[name="search"], input[type="search"], #search');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+            console.log('[Shortcuts] Focused search');
+        }
+    }
+
+    navigateTo(url) {
+        console.log('[Shortcuts] Navigating to:', url);
+        window.location.href = url;
+    }
+
+    showHelp() {
+        const modal = document.getElementById('shortcuts-help-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            console.log('[Shortcuts] Help modal opened');
+        }
+    }
+
+    getAllShortcuts() {
+        const all = [];
+
+        // Single-key shortcuts
+        for (const [key, config] of Object.entries(this.shortcuts)) {
+            all.push({
+                keys: key.toUpperCase(),
+                description: config.description,
+                category: config.category
+            });
+        }
+
+        // Combo shortcuts
+        for (const [combo, config] of Object.entries(this.comboShortcuts)) {
+            all.push({
+                keys: config.display || combo.toUpperCase(),
+                description: config.description,
+                category: config.category
+            });
+        }
+
+        return all;
+    }
+}
+
+// Initialize on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        window.keyboardShortcuts = new KeyboardShortcuts();
+    });
+} else {
+    window.keyboardShortcuts = new KeyboardShortcuts();
+}
+</script>

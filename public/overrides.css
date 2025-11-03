@@ -1,0 +1,70 @@
+/* Overrides to map Tailwind utility classes to the Claude theme for non-email pages
+   Loaded last so it wins over compiled or CDN styles. This file intentionally
+   targets body:not(.email-campaign) so Email Campaigns pages remain untouched. */
+
+:root {
+  --claude-cream: #F5F3EE;
+  --claude-tan: #E8E3D8;
+  --claude-brown: #8B7355;
+  --claude-purple: #9B6B9E;
+  --claude-dark-purple: #7C5380;
+  --claude-text: #2C2416;
+  --claude-text-secondary: #5C5041;
+  --claude-border: #DDD8CC;
+}
+
+/* Apply only when NOT on email-campaign pages */
+body:not(.email-campaign) .bg-zinc-900,
+body:not(.email-campaign) .bg-zinc-800 {
+  background: var(--claude-tan) !important;
+}
+
+body:not(.email-campaign) .bg-zinc-900.border-zinc-800 {
+  background: var(--claude-tan) !important;
+  border-color: var(--claude-border) !important;
+}
+
+body:not(.email-campaign) .text-white,
+body:not(.email-campaign) .text-zinc-100,
+body:not(.email-campaign) .text-zinc-200,
+body:not(.email-campaign) .text-zinc-300 {
+  color: var(--claude-text) !important;
+}
+
+body:not(.email-campaign) .text-zinc-400,
+body:not(.email-campaign) .text-zinc-500,
+body:not(.email-campaign) .text-zinc-600,
+body:not(.email-campaign) .text-gray-400,
+body:not(.email-campaign) .text-gray-500,
+body:not(.email-campaign) .text-gray-600 {
+  color: var(--claude-text-secondary) !important;
+}
+
+body:not(.email-campaign) .border-zinc-800,
+body:not(.email-campaign) .border-zinc-700,
+body:not(.email-campaign) .border-zinc-600 {
+  border-color: var(--claude-border) !important;
+}
+
+/* Ensure min-h-screen uses cream on non-email pages */
+body:not(.email-campaign) .min-h-screen { background: var(--claude-cream) !important; }
+
+/* Buttons mapping */
+body:not(.email-campaign) a.bg-white.text-black,
+body:not(.email-campaign) button.bg-white.text-black,
+body:not(.email-campaign) .bg-blue-600,
+body:not(.email-campaign) .bg-blue-500 {
+  background: var(--claude-purple) !important;
+  color: #fff !important;
+}
+
+/* Make sure cards remain white */
+body:not(.email-campaign) div.bg-white, body:not(.email-campaign) section.bg-white, body:not(.email-campaign) article.bg-white {
+  background: #FFFFFF !important;
+}
+
+/* Small utility specificity increase for headings */
+body:not(.email-campaign) .text-2xl, body:not(.email-campaign) .text-xl, body:not(.email-campaign) .text-lg {
+  color: var(--claude-text) !important;
+  font-family: Georgia, 'Times New Roman', serif !important;
+}

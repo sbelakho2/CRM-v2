@@ -1,0 +1,261 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}RFQ Pipeline - CRM{% endblock %}
+
+{% block body %}
+<div class="content-header">
+    <div>
+        <h1 class="page-title">RFQ Pipeline</h1>
+        <p class="text-neutral-600 text-sm">Manage your request for quotations</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{{ path('app_rfq_index') }}" class="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors inline-flex items-center">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1.5">
+                <path d="M2 3H14M2 8H14M2 13H14"/>
+            </svg>
+            List View
+        </a>
+        <a href="{{ path('app_rfq_new') }}" class="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors inline-flex items-center">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1.5">
+                <path d="M8 3V13M3 8H13"/>
+            </svg>
+            New RFQ
+        </a>
+    </div>
+</div>
+
+{# Filters #}
+<div class="mb-6">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+            <label class="form-label">Type</label>
+            <select name="type" class="form-select">
+                <option value="">All Types</option>
+                <option value="Standard RFQ" {% if app.request.get('type') == 'Standard RFQ' %}selected{% endif %}>Standard RFQ</option>
+                <option value="NPI" {% if app.request.get('type') == 'NPI' %}selected{% endif %}>NPI</option>
+                <option value="Framework Agreement" {% if app.request.get('type') == 'Framework Agreement' %}selected{% endif %}>Framework Agreement</option>
+            </select>
+        </div>
+        
+        <div>
+            <label class="form-label">Company</label>
+            <select name="company" class="form-select">
+                <option value="">All Companies</option>
+                {# Companies will be populated dynamically #}
+            </select>
+        </div>
+
+        <div class="flex items-end gap-2">
+            <button type="submit" class="btn-primary">Apply Filters</button>
+            <a href="{{ path('app_rfq_pipeline') }}" class="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Clear</a>
+        </div>
+    </form>
+</div>
+
+{# Kanban Board #}
+<div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+    {# Pending Column #}
+    <div class="bg-white border border-neutral-200/60 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-neutral-900">Pending</h3>
+            <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-medium bg-neutral-100 text-neutral-700 rounded-full">
+                {{ pipeline['Pending']|length }}
+            </span>
+        </div>
+        
+        <div class="space-y-3">
+            {% for rfq in pipeline['Pending'] %}
+                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="block bg-neutral-50 border border-neutral-200/60 rounded-lg p-3 hover:border-neutral-300 hover:shadow-sm transition-all">
+                    <div class="flex items-start justify-between mb-2">
+                        <h4 class="font-medium text-sm text-neutral-900">{{ rfq.company.name }}</h4>
+                        {% if rfq.type == 'NPI' %}
+                            <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">NPI</span>
+                        {% elseif rfq.type == 'Framework Agreement' %}
+                            <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Framework</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if rfq.rfqNumber %}
+                        <p class="text-xs text-neutral-600 mb-2">{{ rfq.rfqNumber }}</p>
+                    {% endif %}
+                    
+                    {% if rfq.estimatedValue %}
+                        <p class="text-xs font-semibold text-emerald-600">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                    {% endif %}
+                    
+                    {# NDA Status #}
+                    <div class="flex gap-1 mt-2">
+                        {% if rfq.ndaExecuted %}
+                            <span class="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">NDA ✓</span>
+                        {% elseif rfq.ndaSent %}
+                            <span class="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">NDA Sent</span>
+                        {% endif %}
+                    </div>
+                </a>
+            {% else %}
+                <p class="text-xs text-neutral-500 text-center py-4">No pending RFQs</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# In Review Column #}
+    <div class="bg-white border border-neutral-200/60 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-neutral-900">In Review</h3>
+            <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                {{ pipeline['In Review']|length }}
+            </span>
+        </div>
+        
+        <div class="space-y-3">
+            {% for rfq in pipeline['In Review'] %}
+                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="block bg-blue-50 border border-blue-200/60 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm transition-all">
+                    <div class="flex items-start justify-between mb-2">
+                        <h4 class="font-medium text-sm text-neutral-900">{{ rfq.company.name }}</h4>
+                        {% if rfq.type == 'NPI' %}
+                            <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">NPI</span>
+                        {% elseif rfq.type == 'Framework Agreement' %}
+                            <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Framework</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if rfq.rfqNumber %}
+                        <p class="text-xs text-neutral-600 mb-2">{{ rfq.rfqNumber }}</p>
+                    {% endif %}
+                    
+                    {% if rfq.estimatedValue %}
+                        <p class="text-xs font-semibold text-emerald-600">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                    {% endif %}
+                    
+                    <div class="flex gap-1 mt-2">
+                        {% if rfq.ndaExecuted %}
+                            <span class="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">NDA ✓</span>
+                        {% elseif rfq.ndaSent %}
+                            <span class="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">NDA Sent</span>
+                        {% endif %}
+                    </div>
+                </a>
+            {% else %}
+                <p class="text-xs text-neutral-500 text-center py-4">No RFQs in review</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# Submitted Column #}
+    <div class="bg-white border border-neutral-200/60 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-neutral-900">Submitted</h3>
+            <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                {{ pipeline['Submitted']|length }}
+            </span>
+        </div>
+        
+        <div class="space-y-3">
+            {% for rfq in pipeline['Submitted'] %}
+                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="block bg-amber-50 border border-amber-200/60 rounded-lg p-3 hover:border-amber-300 hover:shadow-sm transition-all">
+                    <div class="flex items-start justify-between mb-2">
+                        <h4 class="font-medium text-sm text-neutral-900">{{ rfq.company.name }}</h4>
+                        {% if rfq.type == 'NPI' %}
+                            <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">NPI</span>
+                        {% elseif rfq.type == 'Framework Agreement' %}
+                            <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Framework</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if rfq.rfqNumber %}
+                        <p class="text-xs text-neutral-600 mb-2">{{ rfq.rfqNumber }}</p>
+                    {% endif %}
+                    
+                    {% if rfq.estimatedValue %}
+                        <p class="text-xs font-semibold text-emerald-600">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                    {% endif %}
+                    
+                    <div class="flex gap-1 mt-2">
+                        {% if rfq.ndaExecuted %}
+                            <span class="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">NDA ✓</span>
+                        {% elseif rfq.ndaSent %}
+                            <span class="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">NDA Sent</span>
+                        {% endif %}
+                    </div>
+                </a>
+            {% else %}
+                <p class="text-xs text-neutral-500 text-center py-4">No submitted RFQs</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# Won Column #}
+    <div class="bg-white border border-neutral-200/60 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-neutral-900">Won</h3>
+            <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">
+                {{ pipeline['Won']|length }}
+            </span>
+        </div>
+        
+        <div class="space-y-3">
+            {% for rfq in pipeline['Won'] %}
+                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="block bg-emerald-50 border border-emerald-200/60 rounded-lg p-3 hover:border-emerald-300 hover:shadow-sm transition-all">
+                    <div class="flex items-start justify-between mb-2">
+                        <h4 class="font-medium text-sm text-neutral-900">{{ rfq.company.name }}</h4>
+                        {% if rfq.type == 'NPI' %}
+                            <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">NPI</span>
+                        {% elseif rfq.type == 'Framework Agreement' %}
+                            <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Framework</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if rfq.rfqNumber %}
+                        <p class="text-xs text-neutral-600 mb-2">{{ rfq.rfqNumber }}</p>
+                    {% endif %}
+                    
+                    {% if rfq.estimatedValue %}
+                        <p class="text-xs font-semibold text-emerald-600">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                    {% endif %}
+                    
+                    {% if rfq.sopDate %}
+                        <p class="text-xs text-neutral-600 mt-2">SOP: {{ rfq.sopDate|date('M Y') }}</p>
+                    {% endif %}
+                </a>
+            {% else %}
+                <p class="text-xs text-neutral-500 text-center py-4">No won RFQs</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# Lost Column #}
+    <div class="bg-white border border-neutral-200/60 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-neutral-900">Lost</h3>
+            <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-medium bg-neutral-100 text-neutral-700 rounded-full">
+                {{ pipeline['Lost']|length }}
+            </span>
+        </div>
+        
+        <div class="space-y-3">
+            {% for rfq in pipeline['Lost'] %}
+                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="block bg-neutral-50 border border-neutral-200/60 rounded-lg p-3 hover:border-neutral-300 hover:shadow-sm transition-all opacity-70">
+                    <div class="flex items-start justify-between mb-2">
+                        <h4 class="font-medium text-sm text-neutral-900">{{ rfq.company.name }}</h4>
+                        {% if rfq.type == 'NPI' %}
+                            <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">NPI</span>
+                        {% elseif rfq.type == 'Framework Agreement' %}
+                            <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Framework</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if rfq.rfqNumber %}
+                        <p class="text-xs text-neutral-600 mb-2">{{ rfq.rfqNumber }}</p>
+                    {% endif %}
+                    
+                    {% if rfq.estimatedValue %}
+                        <p class="text-xs font-semibold text-neutral-600">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                    {% endif %}
+                </a>
+            {% else %}
+                <p class="text-xs text-neutral-500 text-center py-4">No lost RFQs</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}ABM Dashboard{% endblock %}
+
+{% block body %}
+<div class="space-y-6">
+    <div class="border-b border-neutral-200/80 pb-5">
+        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Account-Based Marketing</h1>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Active Accounts</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{{ active_accounts | default(0) }}</p>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Active Playbooks</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{{ active_playbooks | default(0) }}</p>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Recent Engagements</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{{ recent_engagements | default(0) }}</p>
+        </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Conversion Rate</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{{ conversion_rate | default('0%') }}</p>
+        </div>
+    </div>
+
+    <!-- Main Navigation -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <a href="{{ path('abm_dashboard_accounts') }}" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
+            <h2 class="mb-2 text-lg font-semibold text-neutral-900">👥 Target Accounts</h2>
+            <p class="text-sm text-neutral-600">Manage and monitor your target accounts</p>
+            <p class="mt-4 text-sm font-semibold text-neutral-700">{{ active_accounts | default(0) }} active accounts →</p>
+        </a>
+
+        <a href="{{ path('abm_dashboard_playbooks') }}" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
+            <h2 class="mb-2 text-lg font-semibold text-neutral-900">📋 Playbooks</h2>
+            <p class="text-sm text-neutral-600">Create and manage ABM playbooks</p>
+            <p class="mt-4 text-sm font-semibold text-neutral-700">{{ active_playbooks | default(0) }} playbooks →</p>
+        </a>
+
+        <a href="#" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
+            <h2 class="mb-2 text-lg font-semibold text-neutral-900">📊 Analytics</h2>
+            <p class="text-sm text-neutral-600">View engagement and conversion metrics</p>
+            <p class="mt-4 text-sm font-semibold text-neutral-700">View reports →</p>
+        </a>
+    </div>
+
+    <!-- Engagement Heat Map -->
+    {% if heatMapError %}
+        <div class="rounded-xl border border-red-200/60 bg-red-50 p-6">
+            <p class="text-red-900 font-semibold mb-2">Heat Map Error:</p>
+            <p class="text-red-600 text-sm">{{ heatMapError }}</p>
+        </div>
+    {% elseif heatMapCompanies is defined %}
+        {% if heatMapCompanies|length > 0 %}
+            {% include 'components/engagement_heat_map.html.twig' with {'companies': heatMapCompanies} %}
+        {% else %}
+            <div class="rounded-xl border border-yellow-200/60 bg-yellow-50 p-6">
+                <p class="text-yellow-800 font-semibold mb-2">No Engagement Data</p>
+                <p class="text-yellow-700 text-sm">Add activities to companies to see the heat map. Debug: {{ heatMapCompanies|length }} companies returned.</p>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="rounded-xl border border-red-200/60 bg-red-50 p-6">
+            <p class="text-red-600">Debug: heatMapCompanies variable is not defined in template</p>
+        </div>
+    {% endif %}
+
+    <!-- Recent Activity -->
+    <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
+        <h2 class="mb-4 text-lg font-semibold tracking-tight text-neutral-900">Recent Activity</h2>
+        
+        <div class="space-y-4">
+            {% if activities | default([]) %}
+                {% for activity in activities %}
+                    <div class="flex items-center justify-between rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50">
+                        <div>
+                            <p class="font-medium text-neutral-900">{{ activity.title | default('Activity') }}</p>
+                            <p class="text-sm text-neutral-700">{{ activity.description | default('') }}</p>
+                            <p class="mt-1 text-xs text-neutral-600">{{ activity.timestamp | date('M d, Y H:i') | default('Unknown') }}</p>
+                        </div>
+                        <span class="inline-flex rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold leading-5 text-neutral-800">
+                            {{ activity.type | default('Update') }}
+                        </span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="py-8 text-center text-neutral-600">No recent activity</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Start -->
+    <div class="rounded-lg border border-neutral-200/60 bg-neutral-50/50 p-6">
+        <h2 class="mb-4 text-lg font-semibold text-neutral-900">🚀 Quick Start</h2>
+        <ol class="list-inside list-decimal space-y-2 text-sm text-neutral-700">
+            <li><a href="{{ path('abm_dashboard_accounts') }}" class="font-medium text-neutral-700 hover:text-neutral-900 hover:underline">Add target accounts</a> for your ABM strategy</li>
+            <li><a href="{{ path('abm_dashboard_playbooks') }}" class="font-medium text-neutral-700 hover:text-neutral-900 hover:underline">Create playbooks</a> with specific engagement sequences</li>
+            <li>Monitor visitor activity and engagement metrics</li>
+            <li>Automatically trigger campaigns based on visitor behavior</li>
+            <li>Track conversion and pipeline impact</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

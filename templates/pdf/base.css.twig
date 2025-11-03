@@ -1,0 +1,200 @@
+{# Base CSS for all PDF documents - Geist/Claude Design System #}
+<style>
+@page {
+    margin: 20mm 15mm;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 10pt;
+    color: #1a1a1a;
+    line-height: 1.5;
+    background: #F5F3EE; /* --claude-cream */
+}
+
+h1, h2, h3, h4 {
+    font-family: Georgia, serif;
+    color: #9B6B9E; /* --claude-purple */
+    margin-top: 10pt;
+    margin-bottom: 8pt;
+}
+
+h1 {
+    font-size: 20pt;
+    margin-top: 0;
+    padding-bottom: 5pt;
+    border-bottom: 3px solid #9B6B9E;
+}
+
+h2 {
+    font-size: 16pt;
+    border-bottom: 2px solid #E8E3D8; /* --claude-tan */
+    padding-bottom: 4pt;
+}
+
+h3 {
+    font-size: 12pt;
+}
+
+h4 {
+    font-size: 11pt;
+    font-weight: 600;
+}
+
+p {
+    margin: 6pt 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10pt 0;
+    background: white;
+}
+
+th {
+    background: #E8E3D8; /* --claude-tan */
+    color: #1a1a1a;
+    font-weight: 600;
+    text-align: left;
+    padding: 8pt;
+    border: 1px solid #d0cbc0;
+}
+
+td {
+    padding: 6pt 8pt;
+    border: 1px solid #d0cbc0;
+    vertical-align: top;
+}
+
+tr:nth-child(even) td {
+    background: #faf9f7;
+}
+
+.header {
+    border-bottom: 3px solid #9B6B9E; /* --claude-purple */
+    padding-bottom: 10pt;
+    margin-bottom: 20pt;
+}
+
+.logo {
+    float: left;
+    max-height: 50pt;
+}
+
+.doc-info {
+    float: right;
+    text-align: right;
+    font-size: 9pt;
+    color: #666;
+}
+
+.doc-info strong {
+    font-size: 14pt;
+    color: #9B6B9E;
+    display: block;
+    margin-bottom: 5pt;
+}
+
+.clearfix::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.footer {
+    font-size: 8pt;
+    color: #666;
+    text-align: center;
+    border-top: 1px solid #E8E3D8;
+    padding-top: 5pt;
+    margin-top: 20pt;
+}
+
+.total-row {
+    background: #9B6B9E !important; /* --claude-purple */
+    color: white !important;
+    font-weight: bold;
+}
+
+.total-row td {
+    border-color: #8a5a8d !important;
+}
+
+.subtotal-row {
+    background: #E8E3D8 !important; /* --claude-tan */
+    font-weight: 600;
+}
+
+.warning-box {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 10pt;
+    margin: 10pt 0;
+}
+
+.info-box {
+    background: #d1ecf1;
+    border-left: 4px solid #17a2b8;
+    padding: 10pt;
+    margin: 10pt 0;
+}
+
+.success-box {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+    padding: 10pt;
+    margin: 10pt 0;
+}
+
+.danger-box {
+    background: #f8d7da;
+    border-left: 4px solid #dc3545;
+    padding: 10pt;
+    margin: 10pt 0;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: #666;
+}
+
+.small {
+    font-size: 8pt;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2pt 6pt;
+    border-radius: 3pt;
+    font-size: 8pt;
+    font-weight: 600;
+}
+
+.badge-success {
+    background: #28a745;
+    color: white;
+}
+
+.badge-warning {
+    background: #ffc107;
+    color: #1a1a1a;
+}
+
+.badge-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.badge-info {
+    background: #17a2b8;
+    color: white;
+}
+</style>
