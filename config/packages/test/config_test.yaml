@@ -1,0 +1,49 @@
+# config/packages/test/config_test.yaml
+parameters:
+  # Email settings for test environment
+  env(MAILER_DSN): "null://null"
+  env(MAILER_FROM_ADDRESS): "test@example.com"
+  env(MAILER_FROM_NAME): "Test System"
+
+framework:
+  test: true
+  session:
+    storage_factory_id: session.storage.factory.mock_file
+  profiler:
+    enabled: true
+    collect: false
+  cache:
+    app: cache.adapter.array
+    system: cache.adapter.array
+  mailer:
+    dsn: "%env(MAILER_DSN)%"
+    envelope:
+      sender: "%env(MAILER_FROM_ADDRESS)%"
+    headers:
+      From: "%env(MAILER_FROM_NAME)% <%env(MAILER_FROM_ADDRESS)%>"
+
+monolog:
+  handlers:
+    main:
+      type: fingers_crossed
+      action_level: error
+      handler: nested
+      excluded_http_codes: [404, 405]
+      channels: ["!event"]
+    nested:
+      type: stream
+      path: "%kernel.logs_dir%/test.log"
+      level: debug
+
+security:
+  password_hashers:
+    # Use plaintext password hasher for tests to speed up test execution
+    Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+      algorithm: plaintext
+
+doctrine:
+  dbal:
+    dbname_suffix: "_test"
+    logging: false
+    profiling: false
+    use_savepoints: true

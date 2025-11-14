@@ -1,0 +1,23 @@
+services:
+  App\Service\EmailCampaignService:
+    arguments:
+      $entityManager: "@doctrine.orm.entity_manager"
+      $mailer: "@mailer.mailer"
+
+  App\Service\EmailTemplateService:
+    arguments:
+      $entityManager: "@doctrine.orm.entity_manager"
+      $twig: "@twig"
+
+  App\Service\EmailSchedulerService:
+    arguments:
+      $entityManager: "@doctrine.orm.entity_manager"
+      $messageBus: "@messenger.default_bus"
+
+parameters:
+  email_campaign:
+    sender_email: "%env(MAILER_FROM_ADDRESS)%"
+    sender_name: "%env(MAILER_FROM_NAME)%"
+    batch_size: 50
+    retry_limit: 3
+    tracking_enabled: true

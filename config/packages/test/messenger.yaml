@@ -1,0 +1,6 @@
+framework:
+  messenger:
+    transports:
+      async: "in-memory://"
+      mailer: "in-memory://"
+      failed: "in-memory://"

@@ -28,6 +28,8 @@ security:
     - { path: ^/login, roles: PUBLIC_ACCESS }
     - { path: ^/register, roles: PUBLIC_ACCESS }
     - { path: ^/logout, roles: PUBLIC_ACCESS }
+    - { path: ^/forgot-password, roles: PUBLIC_ACCESS }
+    - { path: ^/reset-password, roles: PUBLIC_ACCESS }
     # Admin area
     - { path: ^/admin, roles: ROLE_ADMIN }
     # All other routes require at least ROLE_USER

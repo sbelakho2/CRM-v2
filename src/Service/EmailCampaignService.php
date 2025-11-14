@@ -96,12 +96,16 @@ class EmailCampaignService
      */
     public function getCampaignMetrics(EmailCampaign $campaign): array
     {
-        $sends = $campaign->getSends();
+        $sends = $campaign->getEmailSends();
         $total = count($sends);
         
         if ($total === 0) {
             return [
                 'total_sent' => 0,
+                'opened' => 0,
+                'clicked' => 0,
+                'replied' => 0,
+                'bounced' => 0,
                 'open_rate' => 0,
                 'click_rate' => 0,
                 'reply_rate' => 0,

@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CRM Starz Morocco{% endblock %}</title>
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    {% set isAuthPage = app.request.get('_route') in ['app_login', 'app_register', 'app_forgot_password'] %}
-    
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}{% endblock %} - CRM Starz Morocco</title>
+        
+        <!-- Tailwind CSS CDN -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        
+        {% set isAuthPage = app.request.get('_route') in ['app_login', 'app_register', 'app_forgot_password', 'app_reset_password'] %}
+            <style>
         /* Claude AI Color Scheme */
         :root {
             --sidebar-width: 260px;
@@ -561,13 +560,6 @@
             color: var(--claude-dark-purple) !important;
         }
         
-        /* All heading classes use serif and dark text */
-        .text-2xl, .text-xl, .text-lg,
-        .font-light, .font-semibold, .font-medium {
-            color: var(--claude-text) !important;
-            font-family: Georgia, 'Times New Roman', serif !important;
-        }
-        
         /* Active tab indicators use purple */
         .border-b-2.border-white,
         a.border-white, button.border-white {
@@ -606,9 +598,9 @@
     {% if not isAuthPage %}
     <aside class="sidebar">
         <div style="padding: 0 20px; margin-bottom: 32px;">
-            <h1 style="font-size: 16px; font-weight: 600; color: var(--color-text-primary); letter-spacing: normal;">
+            <div class="sidebar-brand" style="font-size: 16px; font-weight: 600; color: var(--color-text-primary); letter-spacing: normal;">
                 Starz Morocco
-            </h1>
+            </div>
             <p style="font-size: 13px; color: var(--color-text-tertiary); font-weight: 400;">CRM System</p>
         </div>
         

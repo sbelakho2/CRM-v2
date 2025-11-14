@@ -90,7 +90,7 @@ class EmailCampaignController extends AbstractController
         
         // Get sends grouped by touch number
         $sendsByTouch = [];
-        foreach ($campaign->getSends() as $send) {
+        foreach ($campaign->getEmailSends() as $send) {
             $touchNum = $send->getTouchNumber();
             if (!isset($sendsByTouch[$touchNum])) {
                 $sendsByTouch[$touchNum] = [];

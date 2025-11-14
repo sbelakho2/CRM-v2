@@ -1,42 +1,56 @@
 doctrine:
-    dbal:
-        url: '%env(resolve:DATABASE_URL)%'
-        profiling_collect_backtrace: '%kernel.debug%'
-    orm:
-        auto_generate_proxy_classes: true
-        enable_lazy_ghost_objects: true
-        report_fields_where_declared: true
-        validate_xml_mapping: true
-        naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
-        auto_mapping: true
-        mappings:
-            App:
-                is_bundle: false
-                dir: '%kernel.project_dir%/src/Entity'
-                prefix: 'App\Entity'
-                alias: App
+  dbal:
+    url: "%env(resolve:DATABASE_URL)%"
+    profiling_collect_backtrace: "%kernel.debug%"
+    use_savepoints: true
+  orm:
+    auto_generate_proxy_classes: true
+    enable_lazy_ghost_objects: true
+    report_fields_where_declared: true
+    validate_xml_mapping: true
+    naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
+    auto_mapping: true
+    mappings:
+      App:
+        is_bundle: false
+        dir: "%kernel.project_dir%/src/Entity"
+        prefix: 'App\Entity'
+        alias: App
 
 when@test:
-    doctrine:
-        dbal:
-            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+  doctrine:
+    dbal:
+      url: "mysql://root:Formation2020*@127.0.0.1:3306/starz_crm_test?serverVersion=8.0"
+      use_savepoints: true
+      logging: false
+    orm:
+      auto_generate_proxy_classes: true
+      proxy_dir: "%kernel.cache_dir%/doctrine/orm/Proxies"
+      second_level_cache:
+        enabled: false
+      metadata_cache_driver:
+        type: array
+      query_cache_driver:
+        type: array
+      result_cache_driver:
+        type: array
 
 when@prod:
-    doctrine:
-        orm:
-            auto_generate_proxy_classes: false
-            proxy_dir: '%kernel.build_dir%/doctrine/orm/Proxies'
-            query_cache_driver:
-                type: pool
-                pool: doctrine.system_cache_pool
-            result_cache_driver:
-                type: pool
-                pool: doctrine.result_cache_pool
+  doctrine:
+    orm:
+      auto_generate_proxy_classes: false
+      proxy_dir: "%kernel.build_dir%/doctrine/orm/Proxies"
+      query_cache_driver:
+        type: pool
+        pool: doctrine.system_cache_pool
+      result_cache_driver:
+        type: pool
+        pool: doctrine.result_cache_pool
 
-    framework:
-        cache:
-            pools:
-                doctrine.result_cache_pool:
-                    adapter: cache.app
-                doctrine.system_cache_pool:
-                    adapter: cache.system
+  framework:
+    cache:
+      pools:
+        doctrine.result_cache_pool:
+          adapter: cache.app
+        doctrine.system_cache_pool:
+          adapter: cache.system

@@ -31,15 +31,28 @@ class EmailCampaign
     #[ORM\Column(type: 'json')]
     private array $touchTemplates = []; // Array of template IDs
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    private array $abTestVariants = [];
+
     #[ORM\Column(type: 'boolean')]
-    private bool $active = true;
+    private bool $active = false;
 
     #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: EmailSend::class, cascade: ['persist', 'remove'])]
-    private Collection $sends;
+    private Collection $emailSends;
+
+    #[ORM\ManyToMany(targetEntity: Contact::class, mappedBy: 'emailCampaigns')]
+    private Collection $contacts;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $scheduledAt = null;
+
+    #[ORM\ManyToOne(targetEntity: EmailTemplate::class)]
+    private ?EmailTemplate $template = null;
 
     public function __construct()
     {
-        $this->sends = new ArrayCollection();
+        $this->emailSends = new ArrayCollection();
+        $this->contacts = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -116,8 +129,90 @@ class EmailCampaign
     /**
      * @return Collection<int, EmailSend>
      */
-    public function getSends(): Collection
+    public function getEmailSends(): Collection
     {
-        return $this->sends;
+        return $this->emailSends;
+    }
+
+    public function addEmailSend(EmailSend $send): self
+    {
+        if (!$this->emailSends->contains($send)) {
+            $this->emailSends->add($send);
+            $send->setCampaign($this);
+        }
+
+        return $this;
+    }
+
+    public function removeEmailSend(EmailSend $send): self
+    {
+        if ($this->emailSends->removeElement($send)) {
+            if ($send->getCampaign() === $this) {
+                $send->setCampaign(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Contact>
+     */
+    public function getContacts(): Collection
+    {
+        return $this->contacts;
+    }
+
+    public function addContact(Contact $contact): self
+    {
+        if (!$this->contacts->contains($contact)) {
+            $this->contacts->add($contact);
+        }
+
+        return $this;
+    }
+
+    public function removeContact(Contact $contact): self
+    {
+        $this->contacts->removeElement($contact);
+        return $this;
+    }
+
+    public function getScheduledAt(): ?\DateTimeInterface
+    {
+        return $this->scheduledAt;
+    }
+
+    public function setScheduledAt(?\DateTimeInterface $scheduledAt): self
+    {
+        $this->scheduledAt = $scheduledAt;
+        return $this;
+    }
+
+    public function getTemplate(): ?EmailTemplate
+    {
+        return $this->template;
+    }
+
+    public function setTemplate(?EmailTemplate $template): self
+    {
+        $this->template = $template;
+        return $this;
+    }
+
+    /**
+     * A/B test variant configurations
+     *
+     * @return array<int, mixed>
+     */
+    public function getAbTestVariants(): array
+    {
+        return $this->abTestVariants;
+    }
+
+    public function setAbTestVariants(array $variants): self
+    {
+        $this->abTestVariants = $variants;
+        return $this;
     }
 }

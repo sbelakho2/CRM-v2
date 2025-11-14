@@ -7,6 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use App\Entity\Activity;
+use App\Entity\EmailCampaign;
 
 #[ORM\Entity(repositoryClass: ContactRepository::class)]
 #[ORM\Table(name: 'contacts')]
@@ -57,10 +58,15 @@ class Contact
     #[ORM\OneToMany(mappedBy: 'contact', targetEntity: Activity::class)]
     private Collection $activities;
 
+    #[ORM\ManyToMany(targetEntity: EmailCampaign::class, inversedBy: 'contacts')]
+    #[ORM\JoinTable(name: 'contact_email_campaigns')]
+    private Collection $emailCampaigns;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
         $this->activities = new ArrayCollection();
+        $this->emailCampaigns = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -75,7 +81,17 @@ class Contact
 
     public function setCompany(?Company $company): self
     {
+        $oldCompany = $this->company;
         $this->company = $company;
+
+        if ($oldCompany !== null && $oldCompany->getContacts()->contains($this)) {
+            $oldCompany->getContacts()->removeElement($this);
+        }
+
+        if ($company !== null && !$company->getContacts()->contains($this)) {
+            $company->getContacts()->add($this);
+        }
+
         return $this;
     }
 
@@ -230,6 +246,33 @@ class Contact
             if ($activity->getContact() === $this) {
                 $activity->setContact(null);
             }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, EmailCampaign>
+     */
+    public function getEmailCampaigns(): Collection
+    {
+        return $this->emailCampaigns;
+    }
+
+    public function addEmailCampaign(EmailCampaign $emailCampaign): self
+    {
+        if (!$this->emailCampaigns->contains($emailCampaign)) {
+            $this->emailCampaigns->add($emailCampaign);
+            $emailCampaign->addContact($this);
+        }
+
+        return $this;
+    }
+
+    public function removeEmailCampaign(EmailCampaign $emailCampaign): self
+    {
+        if ($this->emailCampaigns->removeElement($emailCampaign)) {
+            $emailCampaign->removeContact($this);
         }
 
         return $this;

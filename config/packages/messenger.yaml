@@ -1,18 +1,19 @@
 framework:
-    messenger:
-        # Uncomment this (and the failed transport below) to send failed messages to this transport for later handling.
-        # failure_transport: failed
+  messenger:
+    failure_transport: failed
 
-        transports:
-            # https://symfony.com/doc/current/messenger.html#transport-configuration
-            # async: '%env(MESSENGER_TRANSPORT_DSN)%'
-            # failed: 'doctrine://default?queue_name=failed'
-            # sync: 'sync://'
+    transports:
+      async: "%env(MESSENGER_TRANSPORT_DSN)%"
+      failed: "doctrine://default?queue_name=failed"
+      sync: "sync://"
+      mailer:
+        dsn: "doctrine://default?queue_name=mailer"
+        options:
+          queue_name: mailer
 
-        routing:
-            # Route your messages to the transports
-            # 'App\Message\YourMessage': async
-
+    routing:
+      'Symfony\Component\Mailer\Messenger\SendEmailMessage': sync
+      'App\Message\EmailCampaignMessage': mailer
 # when@test:
 #    framework:
 #        messenger:

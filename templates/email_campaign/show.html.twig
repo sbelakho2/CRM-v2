@@ -144,7 +144,7 @@
     <!-- Recent Sends -->
     <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
         <h2 class="text-lg font-semibold text-white mb-4">Recent Sends</h2>
-        {% if campaign.sends is empty %}
+        {% if campaign.emailSends is empty %}
             <div class="text-center py-8 text-zinc-500">
                 No emails sent yet
             </div>
@@ -162,7 +162,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for send in campaign.sends|slice(0, 20) %}
+                        {% for send in campaign.emailSends|slice(0, 20) %}
                             <tr class="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                                 <td class="py-3">
                                     <div class="text-sm text-white">{{ send.contact.firstName }} {{ send.contact.lastName }}</div>
@@ -202,9 +202,9 @@
                     </tbody>
                 </table>
             </div>
-            {% if campaign.sends|length > 20 %}
+            {% if campaign.emailSends|length > 20 %}
                 <div class="mt-4 text-center text-sm text-zinc-500">
-                    Showing 20 of {{ campaign.sends|length }} sends
+                    Showing 20 of {{ campaign.emailSends|length }} sends
                 </div>
             {% endif %}
         {% endif %}
