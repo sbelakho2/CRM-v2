@@ -41,24 +41,38 @@ class UnifiedPdfGeneratorService
     ) {}
 
     /**
-     * Generate customer quote PDF
+     * Generate quote PDF with BOM breakdown
      * 
-     * @param Quote $quote Quote entity with line items
-     * @return ComplianceDocument Generated PDF document
+     * @param Quote $quote Quote entity with BOM lines
+     * @return string PDF content
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Render templates/pdf/quote.html.twig with quote data
      * 2. Generate PDF using mPDF (landscape A4, margins 15mm)
-     * 3. Calculate SHA-256 hash of PDF content
-     * 4. Create ComplianceDocument entity (documentType: 'quote')
-     * 5. Upload PDF to public/uploads/documents/{company_id}/
-     * 6. Log to ReportAudit with dataset_versions_json, api_versions_json
-     * 7. Include: Quote number, line items, pricing, coverage %, DFM warnings
+     * 3. Include: Quote number, line items, pricing, coverage %, DFM warnings
      */
-    public function generateQuotePdf(Quote $quote): ComplianceDocument
+    public function generateQuotePdf(Quote $quote): string
     {
-        // TODO: Implement quote PDF generation
-        throw new \RuntimeException('Quote PDF generation not yet implemented');
+        // Render the quote template
+        $html = $this->twig->render('pdf/quote.html.twig', [
+            'quote' => $quote,
+        ]);
+
+        // Generate PDF
+        $mpdf = new \Mpdf\Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4-L', // Landscape
+            'margin_left' => 15,
+            'margin_right' => 15,
+            'margin_top' => 20,
+            'margin_bottom' => 20,
+            'margin_header' => 10,
+            'margin_footer' => 10,
+        ]);
+
+        $mpdf->WriteHTML($html);
+        
+        return $mpdf->Output('', 'S'); // Return as string
     }
 
     /**

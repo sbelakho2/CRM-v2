@@ -128,67 +128,106 @@ class AbmDashboardController extends AbstractController
     #[Route('/accounts', name: 'abm_dashboard_accounts', methods: ['GET'])]
     public function accounts(Request $request): Response
     {
-        // TODO: Implement account list with filters
-        // 
-        // Steps:
-        // 1. Get filter parameters:
-        //    $filters = [
-        //        'minEngagementScore' => (int) $request->query->get('min_score', 0),
-        //        'industry' => $request->query->get('industry'),
-        //        'country' => $request->query->get('country'),
-        //        'sortBy' => $request->query->get('sort', 'lastSeenAt'),
-        //        'sortOrder' => $request->query->get('order', 'DESC')
-        //    ];
-        // 
-        // 2. Build query:
-        //    $qb = $this->entityManager->getRepository(AbmAccount::class)
-        //        ->createQueryBuilder('a');
-        //    
-        //    if ($filters['minEngagementScore'] > 0) {
-        //        $qb->andWhere('a.engagementScore >= :minScore')
-        //           ->setParameter('minScore', $filters['minEngagementScore']);
-        //    }
-        //    
-        //    if ($filters['industry']) {
-        //        $qb->andWhere('a.industry = :industry')
-        //           ->setParameter('industry', $filters['industry']);
-        //    }
-        //    
-        //    if ($filters['country']) {
-        //        $qb->andWhere('a.country = :country')
-        //           ->setParameter('country', $filters['country']);
-        //    }
-        //    
-        //    $qb->orderBy('a.' . $filters['sortBy'], $filters['sortOrder']);
-        // 
-        // 3. Get paginated results:
-        //    $accounts = $qb->getQuery()->getResult();
-        // 
-        // 4. Get available filter options:
-        //    $industries = $this->entityManager->getRepository(AbmAccount::class)
-        //        ->createQueryBuilder('a')
-        //        ->select('DISTINCT a.industry')
-        //        ->where('a.industry IS NOT NULL')
-        //        ->getQuery()
-        //        ->getResult();
-        //    
-        //    $countries = $this->entityManager->getRepository(AbmAccount::class)
-        //        ->createQueryBuilder('a')
-        //        ->select('DISTINCT a.country')
-        //        ->where('a.country IS NOT NULL')
-        //        ->getQuery()
-        //        ->getResult();
-        // 
-        // 5. Render account list template:
-        //    return $this->render('abm_dashboard/accounts.html.twig', [
-        //        'accounts' => $accounts,
-        //        'filters' => $filters,
-        //        'industries' => $industries,
-        //        'countries' => $countries
-        //    ]);
+        // Get ABM accounts from the database
+        $accounts = $this->entityManager->getRepository(AbmAccount::class)
+            ->createQueryBuilder('a')
+            ->orderBy('a.lastActivityAt', 'DESC')
+            ->addOrderBy('a.engagementScore', 'DESC')
+            ->getQuery()
+            ->getResult();
+        
+        // Transform ABM accounts for the template
+        $accountData = [];
+        foreach ($accounts as $account) {
+            $accountData[] = [
+                'id' => $account->getId(),
+                'name' => $account->getAccountName(),
+                'industry' => $account->getMetadata()['industry'] ?? 'N/A',
+                'location' => $account->getMetadata()['country'] ?? 'N/A',
+                'company_size' => $account->getMetadata()['company_size'] ?? 'N/A',
+                'revenue' => $account->getMetadata()['revenue'] ?? 'N/A',
+                'status' => $account->getIcpTier() ? 'active' : 'prospect',
+                'engagement_score' => $account->getEngagementScore() ?? 0,
+            ];
+        }
         
         return $this->render('abm_dashboard/accounts.html.twig', [
-            'pageTitle' => 'ABM Accounts'
+            'pageTitle' => 'ABM Accounts',
+            'accounts' => $accountData
+        ]);
+    }
+
+    /**
+     * Create new ABM account
+     */
+    #[Route('/account/new', name: 'abm_dashboard_account_new', methods: ['GET', 'POST'])]
+    public function newAccount(Request $request): Response
+    {
+        $account = new AbmAccount();
+        
+        if ($request->isMethod('POST')) {
+            $account->setAccountName($request->request->get('account_name'));
+            $account->setDomain($request->request->get('domain'));
+            $account->setIcpTier($request->request->get('icp_tier'));
+            
+            // Store additional data in metadata
+            $metadata = [
+                'industry' => $request->request->get('industry'),
+                'country' => $request->request->get('country'),
+                'company_size' => $request->request->get('company_size'),
+                'revenue' => $request->request->get('revenue'),
+            ];
+            $account->setMetadata($metadata);
+            
+            $this->entityManager->persist($account);
+            $this->entityManager->flush();
+            
+            $this->addFlash('success', 'ABM account created successfully');
+            return $this->redirectToRoute('abm_dashboard_accounts');
+        }
+        
+        return $this->render('abm_dashboard/account_form.html.twig', [
+            'pageTitle' => 'New ABM Account',
+            'account' => null
+        ]);
+    }
+
+    /**
+     * Edit ABM account
+     */
+    #[Route('/account/{id}/edit', name: 'abm_dashboard_account_edit', methods: ['GET', 'POST'])]
+    public function editAccount(string $id, Request $request): Response
+    {
+        $account = $this->entityManager->getRepository(AbmAccount::class)->find((int)$id);
+        
+        if (!$account) {
+            throw $this->createNotFoundException('ABM account not found');
+        }
+        
+        if ($request->isMethod('POST')) {
+            $account->setAccountName($request->request->get('account_name'));
+            $account->setDomain($request->request->get('domain'));
+            $account->setIcpTier($request->request->get('icp_tier'));
+            
+            // Update metadata
+            $metadata = [
+                'industry' => $request->request->get('industry'),
+                'country' => $request->request->get('country'),
+                'company_size' => $request->request->get('company_size'),
+                'revenue' => $request->request->get('revenue'),
+            ];
+            $account->setMetadata($metadata);
+            $account->setUpdatedAt(new \DateTime());
+            
+            $this->entityManager->flush();
+            
+            $this->addFlash('success', 'ABM account updated successfully');
+            return $this->redirectToRoute('abm_dashboard_accounts');
+        }
+        
+        return $this->render('abm_dashboard/account_form.html.twig', [
+            'pageTitle' => 'Edit ABM Account',
+            'account' => $account
         ]);
     }
 
@@ -196,57 +235,33 @@ class AbmDashboardController extends AbstractController
      * Account detail with activity timeline
      */
     #[Route('/account/{id}', name: 'abm_dashboard_account_detail', methods: ['GET'])]
-    public function accountDetail(int $id): Response
+    public function accountDetail(string $id): Response
     {
-        // TODO: Implement account detail page
-        // 
-        // Steps:
-        // 1. Get account:
-        //    $account = $this->entityManager->getRepository(AbmAccount::class)->find($id);
-        //    if (!$account) {
-        //        throw $this->createNotFoundException('Account not found');
-        //    }
-        // 
-        // 2. Get activity timeline:
-        //    $hits = $this->entityManager->getRepository(AbmHit::class)
-        //        ->findBy(['abmAccount' => $account], ['hitAt' => 'DESC'], 100);
-        // 
-        // 3. Get triggered playbooks:
-        //    $playbookRuns = $this->entityManager->getRepository(PlaybookRun::class)
-        //        ->createQueryBuilder('pr')
-        //        ->join('pr.playbook', 'p')
-        //        ->where('pr.abmHit IN (:hits)')
-        //        ->setParameter('hits', $hits)
-        //        ->orderBy('pr.executedAt', 'DESC')
-        //        ->getQuery()
-        //        ->getResult();
-        // 
-        // 4. Calculate engagement metrics:
-        //    $pageViews = count($hits);
-        //    $uniquePages = count(array_unique(array_map(fn($h) => $h->getPageUrl(), $hits)));
-        //    $avgSessionDuration = 0; // TODO: Calculate from WebEvent data
-        //    
-        //    $intentSignals = [
-        //        'pricingPageViews' => count(array_filter($hits, fn($h) => str_contains($h->getPageUrl(), '/pricing'))),
-        //        'documentDownloads' => count(array_filter($hits, fn($h) => $h->getEventType() === 'download')),
-        //        'formSubmissions' => count(array_filter($hits, fn($h) => $h->getEventType() === 'form_submit'))
-        //    ];
-        // 
-        // 5. Render account detail template:
-        //    return $this->render('abm_dashboard/account_detail.html.twig', [
-        //        'account' => $account,
-        //        'hits' => $hits,
-        //        'playbookRuns' => $playbookRuns,
-        //        'metrics' => [
-        //            'pageViews' => $pageViews,
-        //            'uniquePages' => $uniquePages,
-        //            'avgSessionDuration' => $avgSessionDuration
-        //        ],
-        //        'intentSignals' => $intentSignals
-        //    ]);
+        $abmAccount = $this->entityManager->getRepository(AbmAccount::class)->find((int)$id);
+        
+        if (!$abmAccount) {
+            throw $this->createNotFoundException('ABM account not found');
+        }
+        
+        // Transform ABM account data for the template
+        $account = [
+            'id' => $abmAccount->getId(),
+            'name' => $abmAccount->getAccountName(),
+            'industry' => $abmAccount->getMetadata()['industry'] ?? 'N/A',
+            'location' => $abmAccount->getMetadata()['country'] ?? 'N/A',
+            'company_size' => $abmAccount->getMetadata()['company_size'] ?? 'N/A',
+            'revenue' => $abmAccount->getMetadata()['revenue'] ?? 'N/A',
+            'status' => $abmAccount->getIcpTier() ? 'active' : 'prospect',
+            'engagement_score' => $abmAccount->getEngagementScore() ?? 0,
+            'page_views' => $abmAccount->getTotalPageViews() ?? 0,
+            'created_at' => $abmAccount->getCreatedAt(),
+            'emails_sent' => 0, // TODO: Calculate from EmailSend entity
+            'email_opens' => 0, // TODO: Calculate from EmailSend entity
+        ];
         
         return $this->render('abm_dashboard/account_detail.html.twig', [
             'pageTitle' => 'Account Detail',
+            'account' => $account,
             'accountId' => $id
         ]);
     }
@@ -338,13 +353,13 @@ class AbmDashboardController extends AbstractController
      * Toggle playbook active status
      */
     #[Route('/playbook/{id}/toggle', name: 'abm_dashboard_playbook_toggle', methods: ['POST'])]
-    public function togglePlaybook(int $id): JsonResponse
+    public function togglePlaybook(string $id): JsonResponse
     {
         // TODO: Implement playbook toggle
         // 
         // Steps:
         // 1. Get playbook:
-        //    $playbook = $this->entityManager->getRepository(Playbook::class)->find($id);
+        //    $playbook = $this->entityManager->getRepository(Playbook::class)->find((int)$id);
         //    if (!$playbook) {
         //        return new JsonResponse(['error' => 'Playbook not found'], 404);
         //    }

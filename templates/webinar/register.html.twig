@@ -1,9 +1,12 @@
-{% extends 'base.html.twig' %}
-
-{% block title %}Register - {{ webinar.title }}{% endblock %}
-
-{% block body %}
-<div class="min-h-screen bg-black text-white">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - {{ webinar.title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-black text-white">
     <div class="max-w-2xl mx-auto px-6 py-16">
         <div class="text-center mb-12">
             <h1 class="text-4xl font-light tracking-tight mb-4">{{ webinar.title }}</h1>
@@ -68,5 +71,5 @@
             </form>
         </div>
     </div>
-</div>
-{% endblock %}
+</body>
+</html>

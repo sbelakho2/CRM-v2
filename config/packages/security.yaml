@@ -30,6 +30,10 @@ security:
     - { path: ^/logout, roles: PUBLIC_ACCESS }
     - { path: ^/forgot-password, roles: PUBLIC_ACCESS }
     - { path: ^/reset-password, roles: PUBLIC_ACCESS }
+    # Public access for email tracking (must be accessible by non-logged-in email recipients)
+    - { path: ^/email-campaigns/track, roles: PUBLIC_ACCESS }
+    # Public access for email webhooks (must be accessible by email service providers)
+    - { path: ^/webhook/email, roles: PUBLIC_ACCESS }
     # Admin area
     - { path: ^/admin, roles: ROLE_ADMIN }
     # All other routes require at least ROLE_USER

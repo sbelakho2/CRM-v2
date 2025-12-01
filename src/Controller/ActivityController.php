@@ -174,9 +174,22 @@ class ActivityController extends AbstractController
             return $this->redirectToRoute('app_activity_index');
         }
 
+        // Get all contacts with their company IDs for client-side filtering
+        $contacts = $this->contactRepository->findAll();
+        $contactsData = [];
+        foreach ($contacts as $contact) {
+            $contactsData[] = [
+                'id' => $contact->getId(),
+                'firstName' => $contact->getFirstName(),
+                'lastName' => $contact->getLastName(),
+                'companyId' => $contact->getCompany() ? $contact->getCompany()->getId() : null,
+            ];
+        }
+
         return $this->render('activity/new.html.twig', [
             'activity' => $activity,
             'form' => $form,
+            'contactsData' => json_encode($contactsData),
         ]);
     }
 
@@ -202,9 +215,22 @@ class ActivityController extends AbstractController
             return $this->redirectToRoute('app_activity_show', ['id' => $activity->getId()]);
         }
 
+        // Get all contacts with their company IDs for client-side filtering
+        $contacts = $this->contactRepository->findAll();
+        $contactsData = [];
+        foreach ($contacts as $contact) {
+            $contactsData[] = [
+                'id' => $contact->getId(),
+                'firstName' => $contact->getFirstName(),
+                'lastName' => $contact->getLastName(),
+                'companyId' => $contact->getCompany() ? $contact->getCompany()->getId() : null,
+            ];
+        }
+
         return $this->render('activity/edit.html.twig', [
             'activity' => $activity,
             'form' => $form,
+            'contactsData' => json_encode($contactsData),
         ]);
     }
 

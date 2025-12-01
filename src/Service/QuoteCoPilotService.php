@@ -128,10 +128,27 @@ class QuoteCoPilotService
      */
     public function parseBom(string $bomFilePath): array
     {
+        // Check file extension (case-insensitive)
         $ext = strtolower(pathinfo($bomFilePath, PATHINFO_EXTENSION));
         
-        if ($ext !== 'csv') {
-            throw new \RuntimeException('Only CSV format is currently supported. Excel/Altium/KiCad support coming soon.');
+        // Also check MIME type for uploaded files
+        $mimeType = '';
+        if (function_exists('mime_content_type')) {
+            $mimeType = mime_content_type($bomFilePath);
+        }
+        
+        // Accept CSV files by extension or MIME type
+        $isValidCsv = ($ext === 'csv') || 
+                      (strpos($mimeType, 'text/') === 0) || 
+                      (strpos($mimeType, 'text/csv') !== false) ||
+                      (strpos($mimeType, 'text/plain') !== false);
+        
+        if (!$isValidCsv) {
+            throw new \RuntimeException(sprintf(
+                'Only CSV format is currently supported. Excel/Altium/KiCad support coming soon. (Detected: ext=%s, mime=%s)',
+                $ext,
+                $mimeType
+            ));
         }
 
         $bomLines = [];
@@ -267,6 +284,7 @@ class QuoteCoPilotService
         $totalCount = count($bomData);
         $sourcedCount = 0;
         $exceptionsCount = 0;
+        $totalCost = '0.00';
 
         $quote = $this->quoteRepository->find($quoteId);
         if (!$quote) {
@@ -288,15 +306,17 @@ class QuoteCoPilotService
             $bomLine->setQuantity($line['quantity']);
             
             if ($pricingResult['found']) {
+                $extendedPrice = bcmul($pricingResult['unitPrice'], (string)$line['quantity'], 2);
                 $bomLine->setUnitPrice($pricingResult['unitPrice']);
-                $bomLine->setExtendedPrice(
-                    bcmul($pricingResult['unitPrice'], (string)$line['quantity'], 2)
-                );
+                $bomLine->setExtendedPrice($extendedPrice);
                 $bomLine->setProcurementSource($pricingResult['source']);
                 $bomLine->setAvailability($pricingResult['availability']);
                 $bomLine->setLeadTimeDays($pricingResult['leadTimeDays']);
                 $bomLine->setHasException(false);
                 $sourcedCount++;
+                
+                // Accumulate total cost as we process each line
+                $totalCost = bcadd($totalCost, $extendedPrice, 2);
             } else {
                 $bomLine->setUnitPrice(null);
                 $bomLine->setExtendedPrice(null);
@@ -311,14 +331,7 @@ class QuoteCoPilotService
             $this->entityManager->persist($bomLine);
         }
 
-        // Calculate quote totals
-        $totalCost = '0.00';
-        foreach ($quote->getBomLines() as $bomLine) {
-            if ($bomLine->getExtendedPrice()) {
-                $totalCost = bcadd($totalCost, $bomLine->getExtendedPrice(), 2);
-            }
-        }
-
+        // Set quote totals
         $quote->setTotalCost($totalCost);
         
         // Calculate coverage percentage

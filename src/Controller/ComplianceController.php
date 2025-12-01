@@ -31,7 +31,7 @@ class ComplianceController extends AbstractController
         // Get or generate compliance checklist
         $documents = $this->complianceDocumentRepository->findBy(
             ['company' => $company],
-            ['documentType' => 'ASC']
+            ['name' => 'ASC']
         );
 
         // If no documents exist, initialize them
@@ -39,7 +39,7 @@ class ComplianceController extends AbstractController
             $this->compliancePackService->initializeCompliancePackForCompany($company);
             $documents = $this->complianceDocumentRepository->findBy(
                 ['company' => $company],
-                ['documentType' => 'ASC']
+                ['name' => 'ASC']
             );
         }
 

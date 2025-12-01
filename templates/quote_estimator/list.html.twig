@@ -1,0 +1,181 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ pageTitle }}{% endblock %}
+
+{% block body %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">{{ pageTitle }}</h1>
+            <p class="text-muted">Manage quote requests and estimates</p>
+        </div>
+        <a href="{{ path('quote_estimator_index') }}" class="geist-button">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 3V13M3 8H13"/>
+            </svg>
+            New Quote Request
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="card">
+        <form method="GET" class="flex gap-4">
+            <div class="flex-1">
+                <input 
+                    type="text" 
+                    name="search" 
+                    placeholder="Search by estimate number, customer name, or part number..." 
+                    value="{{ search }}"
+                    class="geist-input"
+                >
+            </div>
+            <button type="submit" class="geist-button">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="7" cy="7" r="4"/>
+                    <path d="M11 11L14 14"/>
+                </svg>
+                Search
+            </button>
+            {% if search %}
+                <a href="{{ path('quote_estimator_list') }}" class="geist-button-secondary">
+                    Clear
+                </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Total Estimates</div>
+            <div class="stat-value">{{ estimates|length }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">This Month</div>
+            <div class="stat-value">
+                {% set thisMonth = estimates|filter(e => e.createdAt|date('Y-m') == 'now'|date('Y-m'))|length %}
+                {{ thisMonth }}
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Pending</div>
+            <div class="stat-value">
+                {{ estimates|length }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Estimates Table -->
+    <div class="card" style="padding: 0;">
+        {% if estimates|length > 0 %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Estimate #</th>
+                        <th>Customer</th>
+                        <th>Part Number</th>
+                        <th>Quantity</th>
+                        <th>Delivery Date</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for estimate in estimates %}
+                        {% set quoteData = quoteDataMap[estimate.id] ?? {} %}
+                        <tr>
+                            <td>
+                                <span class="font-medium text-purple-600">{{ estimate.estimateNumber }}</span>
+                            </td>
+                            <td>
+                                {% if quoteData.customer_name %}
+                                    <div class="font-medium">{{ quoteData.customer_name }}</div>
+                                {% elseif estimate.company %}
+                                    <div class="font-medium">{{ estimate.company.name }}</div>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="font-mono text-sm">{{ quoteData.part_number ?? '—' }}</span>
+                            </td>
+                            <td>
+                                <span class="font-medium">{{ quoteData.quantity ?? '—' }}</span>
+                            </td>
+                            <td>
+                                {% if quoteData.delivery_date %}
+                                    <span class="text-sm">{{ quoteData.delivery_date|date('M d, Y') }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-warning">Pending Pricing</span>
+                            </td>
+                            <td>
+                                <span class="text-sm text-muted">{{ estimate.createdAt|date('M d, Y') }}</span>
+                            </td>
+                            <td>
+                                <div class="flex gap-2">
+                                    <a href="{{ path('quote_estimator_results', {id: estimate.id}) }}" class="text-sm text-purple-600 hover:text-purple-800">
+                                        View
+                                    </a>
+                                    <button onclick="deleteEstimate({{ estimate.id }})" class="text-sm text-red-600 hover:text-red-800">
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="p-12 text-center">
+                <svg class="w-16 h-16 mx-auto mb-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <h3 class="text-lg font-medium text-neutral-900 mb-2">No Estimates Found</h3>
+                <p class="text-neutral-600 mb-4">
+                    {% if search %}
+                        No estimates match your search criteria.
+                    {% else %}
+                        Get started by creating your first quote request.
+                    {% endif %}
+                </p>
+                <a href="{{ path('quote_estimator_index') }}" class="geist-button">
+                    Create New Quote Request
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function deleteEstimate(id) {
+    if (!confirm('Are you sure you want to delete this estimate? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch(`/quote-estimator/${id}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error deleting estimate');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

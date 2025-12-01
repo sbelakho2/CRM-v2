@@ -42,23 +42,26 @@ class LinkedInScraperService
         // Build search query
         $searchTerms = $this->buildCompanySearchTerms($sector, $location);
         
-        // In production, this would use LinkedIn Sales Navigator API
-        // For now, we return search URLs for manual review
-        $searchUrls = [];
+        // Generate LinkedIn search URLs for manual review
+        $this->logger->info("=" . str_repeat("=", 70));
+        $this->logger->info("LINKEDIN SEARCH URLS - Copy and paste these into your browser:");
+        $this->logger->info("=" . str_repeat("=", 70));
+        
         foreach ($searchTerms as $term) {
-            $searchUrls[] = $this->generateLinkedInSearchUrl($term, 'companies');
+            $searchUrl = $this->generateLinkedInSearchUrl($term, 'companies');
+            $this->logger->info("🔗 " . $searchUrl);
         }
 
-        $this->logger->info("Generated LinkedIn search URLs", [
-            'count' => count($searchUrls),
-            'urls' => $searchUrls
-        ]);
+        $this->logger->info("=" . str_repeat("=", 70));
+        $this->logger->info("💡 TIP: Visit these URLs, find companies, then add them manually at /companies/new");
+        $this->logger->info("=" . str_repeat("=", 70));
 
-        // Return empty for now - manual data entry or API integration needed
-        // In production, integrate with:
-        // - LinkedIn Sales Navigator API
-        // - RocketReach API
-        // - Apollo.io API
+        // NOTE: To make this automatic, you need to integrate with:
+        // - LinkedIn Sales Navigator API (expensive, requires enterprise account)
+        // - RocketReach API (costs money per contact)
+        // - Apollo.io API (costs money per search)
+        
+        // For now, return empty - requires manual data entry
         return [];
     }
 

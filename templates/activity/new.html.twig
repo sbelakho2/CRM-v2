@@ -45,12 +45,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         {{ form_label(form.company, null, {'label_attr': {'class': 'block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2'}}) }}
-                        {{ form_widget(form.company, {'attr': {'class': 'w-full px-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors'}}) }}
+                        {{ form_widget(form.company, {'attr': {'class': 'w-full px-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors', 'id': 'activity_company'}}) }}
                         {{ form_errors(form.company, {'attr': {'class': 'mt-1 text-xs text-red-600'}}) }}
                     </div>
                     <div>
                         {{ form_label(form.contact, null, {'label_attr': {'class': 'block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2'}}) }}
-                        {{ form_widget(form.contact, {'attr': {'class': 'w-full px-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors'}}) }}
+                        {{ form_widget(form.contact, {'attr': {'class': 'w-full px-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors', 'id': 'activity_contact'}}) }}
                         {{ form_errors(form.contact, {'attr': {'class': 'mt-1 text-xs text-red-600'}}) }}
                     </div>
                 </div>
@@ -107,4 +107,75 @@ select.form-select {
     padding-right: 2.5rem;
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const companySelect = document.getElementById('activity_company');
+    const contactSelect = document.getElementById('activity_contact');
+    
+    if (!companySelect || !contactSelect) {
+        return;
+    }
+    
+    // Get all contacts data from the server (pre-loaded, no API call needed)
+    const contactsData = {{ contactsData|raw }};
+    
+    // Store all original contact options from the form
+    const allContactOptions = Array.from(contactSelect.options);
+    
+    // Function to filter contacts by company
+    function filterContacts() {
+        const selectedCompanyId = companySelect.value;
+        
+        // Clear current options
+        contactSelect.innerHTML = '';
+        
+        // Add placeholder
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select contact (optional)';
+        contactSelect.appendChild(placeholder);
+        
+        if (!selectedCompanyId) {
+            // No company selected - show all contacts
+            allContactOptions.forEach(option => {
+                if (option.value) { // Skip the placeholder
+                    contactSelect.appendChild(option.cloneNode(true));
+                }
+            });
+            return;
+        }
+        
+        // Filter contacts by company ID (client-side, instant!)
+        const filteredContacts = contactsData.filter(contact => 
+            contact.companyId == selectedCompanyId
+        );
+        
+        // Add filtered contacts to dropdown
+        filteredContacts.forEach(contact => {
+            const option = document.createElement('option');
+            option.value = contact.id;
+            option.textContent = `${contact.firstName} ${contact.lastName}`;
+            contactSelect.appendChild(option);
+        });
+        
+        // If no contacts found, show a message
+        if (filteredContacts.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No contacts for this company';
+            option.disabled = true;
+            contactSelect.appendChild(option);
+        }
+    }
+    
+    // Listen for company selection changes
+    companySelect.addEventListener('change', filterContacts);
+    
+    // Initial filter on page load if company is pre-selected
+    if (companySelect.value) {
+        filterContacts();
+    }
+});
+</script>
 {% endblock %}

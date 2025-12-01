@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Email Tracking</title>
+  </head>
+  <body>
+    <h1>Email Tracking Test</h1>
+
+    <h2>Test Open Tracking (ID 9)</h2>
+    <p>The pixel below should mark email ID 9 as opened:</p>
+    <img
+      src="/email-campaigns/track/9/open"
+      width="1"
+      height="1"
+      alt="Tracking Pixel"
+      style="border: 1px solid red"
+    />
+
+    <h2>Test Click Tracking (ID 9)</h2>
+    <p>
+      <a
+        href="/email-campaigns/track/9/click?url=https://starzelectronics.site"
+        target="_blank"
+        >Click here to test click tracking</a
+      >
+    </p>
+
+    <h2>Check Status</h2>
+    <p><a href="/email-campaigns/4">Go to Campaign Page to see results</a></p>
+
+    <hr />
+
+    <h2>Instructions:</h2>
+    <ol>
+      <li>Open browser dev tools (F12) and go to Network tab</li>
+      <li>Refresh this page to trigger the pixel load</li>
+      <li>
+        Look for a request to "/email-campaigns/track/9/open" - it should return
+        a 1x1 GIF
+      </li>
+      <li>Click the "Click here" link above</li>
+      <li>Check the database or campaign page to see if flags are updated</li>
+    </ol>
+
+    <hr />
+
+    <h2>Debug Info:</h2>
+    <pre id="debug"></pre>
+
+    <script>
+      // Log when pixel loads
+      const img = document.querySelector('img[alt="Tracking Pixel"]');
+      img.addEventListener("load", () => {
+        document.getElementById("debug").textContent +=
+          "Tracking pixel loaded successfully!\n";
+      });
+      img.addEventListener("error", () => {
+        document.getElementById("debug").textContent +=
+          "ERROR: Tracking pixel failed to load!\n";
+      });
+    </script>
+  </body>
+</html>

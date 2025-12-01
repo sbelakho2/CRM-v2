@@ -18,7 +18,9 @@ class WebinarService
         private EntityManagerInterface $entityManager,
         private WebinarRepository $webinarRepository,
         private WebinarAttendeeRepository $webinarAttendeeRepository,
-        private MailerInterface $mailer
+        private MailerInterface $mailer,
+        private string $mailerFromAddress,
+        private string $mailerFromName
     ) {}
 
     /**
@@ -76,6 +78,29 @@ class WebinarService
     }
 
     /**
+     * Send follow-up email to attendee
+     */
+    public function sendFollowUpEmail(WebinarAttendee $attendee): void
+    {
+        $webinar = $attendee->getWebinar();
+        
+        $email = (new TemplatedEmail())
+            ->from(new Address($this->mailerFromAddress, $this->mailerFromName))
+            ->to($attendee->getEmail())
+            ->subject('Thank you for attending: ' . $webinar->getTitle())
+            ->htmlTemplate('emails/webinar_followup.html.twig')
+            ->context([
+                'attendee' => $attendee,
+                'webinar' => $webinar,
+            ]);
+
+        $this->mailer->send($email);
+        
+        // Mark as sent
+        $this->markFollowUpSent($attendee);
+    }
+
+    /**
      * Get upcoming webinars
      */
     public function getUpcomingWebinars(?string $language = null): array
@@ -130,7 +155,7 @@ class WebinarService
     private function sendConfirmationEmail(WebinarAttendee $attendee): void
     {
         $email = (new TemplatedEmail())
-            ->from(new Address('noreply@starzmorocco.com', 'Starz Morocco'))
+            ->from(new Address($this->mailerFromAddress, $this->mailerFromName))
             ->to($attendee->getEmail())
             ->subject('Webinar Registration Confirmation - ' . $attendee->getWebinar()->getTitle())
             ->htmlTemplate('emails/webinar_registration.html.twig')

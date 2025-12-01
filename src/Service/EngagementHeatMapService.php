@@ -158,7 +158,7 @@ class EngagementHeatMapService
             $emailSends = $this->emailSendRepository->findBy(['contact' => $contact]);
             
             foreach ($emailSends as $send) {
-                if ($send->getOpenedAt()) {
+                if ($send->isOpened()) {
                     $totalOpens++;
                 }
             }

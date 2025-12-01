@@ -9,6 +9,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[Route('/admin/users')]
 class UserController extends AbstractController
@@ -16,10 +17,62 @@ class UserController extends AbstractController
     #[Route('', name: 'admin_user_index', methods: ['GET'])]
     public function index(Request $request, EntityManagerInterface $em): Response
     {
-        $users = $em->getRepository(User::class)->findAll();
+        $search = $request->query->get('search');
+        $role = $request->query->get('role');
+        $status = $request->query->get('status');
+
+        $qb = $em->getRepository(User::class)->createQueryBuilder('u');
+
+        // Search by name or email
+        if ($search) {
+            $qb->andWhere('u.email LIKE :search OR u.firstName LIKE :search OR u.lastName LIKE :search')
+               ->setParameter('search', '%' . $search . '%');
+        }
+
+        // Filter by role
+        if ($role) {
+            $qb->andWhere('u.roles LIKE :role')
+               ->setParameter('role', '%' . $role . '%');
+        }
+
+        // Filter by status
+        if ($status === 'active') {
+            $qb->andWhere('u.active = true');
+        } elseif ($status === 'inactive') {
+            $qb->andWhere('u.active = false');
+        }
+
+        $users = $qb->orderBy('u.id', 'DESC')->getQuery()->getResult();
 
         return $this->render('admin/user/index.html.twig', [
             'users' => $users,
+        ]);
+    }
+
+    #[Route('/new', name: 'admin_user_new', methods: ['GET', 'POST'])]
+    public function new(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher): Response
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $user = new User();
+        $form = $this->createForm(UserAdminType::class, $user, ['is_new' => true]);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            // Hash the plain password
+            $plainPassword = $form->get('plainPassword')->getData();
+            $hashedPassword = $passwordHasher->hashPassword($user, $plainPassword);
+            $user->setPassword($hashedPassword);
+            
+            $em->persist($user);
+            $em->flush();
+            
+            $this->addFlash('success', 'User created successfully!');
+            return $this->redirectToRoute('admin_user_index');
+        }
+
+        return $this->render('admin/user/new.html.twig', [
+            'form' => $form->createView(),
         ]);
     }
 

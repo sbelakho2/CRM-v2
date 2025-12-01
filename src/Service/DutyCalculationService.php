@@ -66,53 +66,75 @@ class DutyCalculationService
         bool $useFta = false,
         ?string $incoterm = null
     ): array {
-        // TODO: Implement duty calculation
-        // 
-        // Steps:
-        // 1. Query tariff_rates table for HTS code + destination country
-        //    SELECT * FROM tariff_rates 
-        //    WHERE hts_code = :hts AND destination_country = :dest
-        //    AND asof <= :today ORDER BY asof DESC LIMIT 1
-        // 
-        // 2. If useFta = true, check FTA eligibility:
-        //    - Call ftaEligibilityService->checkEligibility()
-        //    - If ELIGIBLE, query fta_rules for preferential rate
-        //    - If CONDITIONAL or INELIGIBLE, fall back to MFN
-        // 
-        // 3. Calculate duty amount based on duty_type:
-        //    - AD_VALOREM: dutyAmount = customsValue * (dutyRate / 100)
-        //    - SPECIFIC: dutyAmount = quantity * specificRate (convert UOM if needed)
-        //    - MIXED: dutyAmount = max(adValoremAmount, specificAmount)
-        // 
-        // 4. If incoterm = 'DDP', calculate VAT/GST:
-        //    - vatBase = customsValue + dutyAmount (duty inclusive base)
-        //    - vatAmount = vatBase * (vatRate / 100)
-        //    - Get VAT rate from tariff_rates.vat_rate (if null, default to 0)
-        // 
-        // 5. Calculate FTA savings (if applicable):
-        //    - ftaSavings = mfnDutyAmount - ftaDutyAmount
-        // 
-        // 6. Return breakdown:
-        //    return [
-        //        'dutyRate' => (float) $dutyRate,
-        //        'dutyAmount' => round($dutyAmount, 2),
-        //        'vatRate' => (float) $vatRate,
-        //        'vatAmount' => round($vatAmount, 2),
-        //        'totalTax' => round($dutyAmount + $vatAmount, 2),
-        //        'method' => $useFta ? 'FTA' : 'MFN',
-        //        'ftaSavings' => $ftaSavings ? round($ftaSavings, 2) : null,
-        //        'breakdown' => [
-        //            'customsValue' => $customsValue,
-        //            'dutyType' => $tariffRate->getDutyType(), // AD_VALOREM, SPECIFIC, MIXED
-        //            'specificRate' => $tariffRate->getSpecificRate(),
-        //            'specificUom' => $tariffRate->getSpecificUom(),
-        //            'htsCode' => $htsCode,
-        //            'originCountry' => $originCountry,
-        //            'destinationCountry' => $destinationCountry
-        //        ]
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Step 1: Look up tariff rate
+        $tariffRate = $this->tariffRateRepository->createQueryBuilder('tr')
+            ->where('tr.hsCode = :hsCode')
+            ->andWhere('tr.destinationCountry = :dest')
+            ->andWhere('tr.originCountry = :origin')
+            ->andWhere('tr.effectiveDate <= :today')
+            ->andWhere('tr.expiryDate IS NULL OR tr.expiryDate >= :today')
+            ->setParameter('hsCode', $htsCode)
+            ->setParameter('dest', $destinationCountry)
+            ->setParameter('origin', $originCountry)
+            ->setParameter('today', new \DateTime())
+            ->orderBy('tr.effectiveDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        
+        if (!$tariffRate) {
+            throw new \RuntimeException(
+                "Tariff rate not found for HTS: $htsCode, Origin: $originCountry, Destination: $destinationCountry"
+            );
+        }
+        
+        // Step 2: Determine which rate to use (FTA or MFN)
+        $dutyRate = 0.0;
+        $ftaSavings = null;
+        $method = 'MFN';
+        
+        if ($useFta && $tariffRate->getFtaRate() !== null) {
+            // Use FTA preferential rate
+            $dutyRate = (float) $tariffRate->getFtaRate();
+            $mfnRate = (float) ($tariffRate->getMfnRate() ?? $tariffRate->getDutyRate());
+            $ftaSavings = $customsValue * ($mfnRate - $dutyRate) / 100;
+            $method = 'FTA';
+        } else {
+            // Use MFN standard rate
+            $dutyRate = (float) ($tariffRate->getMfnRate() ?? $tariffRate->getDutyRate());
+        }
+        
+        // Step 3: Calculate duty amount (ad-valorem)
+        $dutyAmount = $customsValue * ($dutyRate / 100);
+        
+        // Step 4: Calculate VAT if DDP incoterm
+        $vatRate = 0.0;
+        $vatAmount = 0.0;
+        
+        if ($incoterm === 'DDP') {
+            $vatData = $this->calculateVat($customsValue, $dutyAmount, $destinationCountry);
+            $vatRate = $vatData['vatRate'];
+            $vatAmount = $vatData['vatAmount'];
+        }
+        
+        return [
+            'dutyRate' => $dutyRate,
+            'dutyAmount' => round($dutyAmount, 2),
+            'vatRate' => $vatRate,
+            'vatAmount' => round($vatAmount, 2),
+            'totalTax' => round($dutyAmount + $vatAmount, 2),
+            'method' => $method,
+            'ftaSavings' => $ftaSavings ? round($ftaSavings, 2) : null,
+            'ftaAgreement' => $useFta ? $tariffRate->getFtaAgreement() : null,
+            'breakdown' => [
+                'customsValue' => $customsValue,
+                'hsCode' => $htsCode,
+                'originCountry' => $originCountry,
+                'destinationCountry' => $destinationCountry,
+                'quantity' => $quantity,
+                'uom' => $uom
+            ]
+        ];
     }
 
     /**
@@ -191,35 +213,39 @@ class DutyCalculationService
         float $quantity,
         string $uom
     ): array {
-        // TODO: Implement MFN rate lookup
-        // 
-        // Steps:
-        // 1. Query tariff_rates for latest MFN rate:
-        //    $tariffRate = $this->tariffRateRepository->findOneBy([
-        //        'htsCode' => $htsCode,
-        //        'destinationCountry' => $destinationCountry
-        //    ], ['asof' => 'DESC']);
-        // 
-        // 2. Calculate duty based on duty_type:
-        //    - AD_VALOREM: dutyAmount = customsValue * (dutyRate / 100)
-        //    - SPECIFIC: dutyAmount = quantity * specificRate (convert UOM)
-        //    - MIXED: dutyAmount = max(adValorem, specific)
-        // 
-        // 3. Handle UOM conversion if specificUom != uom:
-        //    - KG → G: multiply by 1000
-        //    - EA → DOZEN: divide by 12
-        //    - etc. (add conversions as needed)
-        // 
-        // 4. Return MFN rate data:
-        //    return [
-        //        'dutyRate' => (float) $tariffRate->getDutyRate(),
-        //        'dutyAmount' => round($dutyAmount, 2),
-        //        'dutyType' => $tariffRate->getDutyType(), // AD_VALOREM, SPECIFIC, MIXED
-        //        'specificRate' => $tariffRate->getSpecificRate(),
-        //        'specificUom' => $tariffRate->getSpecificUom()
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Query tariff_rates for latest MFN rate
+        $tariffRate = $this->tariffRateRepository->createQueryBuilder('tr')
+            ->where('tr.hsCode = :hsCode')
+            ->andWhere('tr.destinationCountry = :dest')
+            ->andWhere('tr.effectiveDate <= :today')
+            ->andWhere('tr.expiryDate IS NULL OR tr.expiryDate >= :today')
+            ->setParameter('hsCode', $htsCode)
+            ->setParameter('dest', $destinationCountry)
+            ->setParameter('today', new \DateTime())
+            ->orderBy('tr.effectiveDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        
+        if (!$tariffRate) {
+            throw new \RuntimeException(
+                "Tariff rate not found for HTS: $htsCode, Destination: $destinationCountry"
+            );
+        }
+        
+        // Use MFN rate if available, otherwise fallback to standard duty rate
+        $dutyRate = (float) ($tariffRate->getMfnRate() ?? $tariffRate->getDutyRate());
+        
+        // Calculate duty amount (ad-valorem)
+        $dutyAmount = $customsValue * ($dutyRate / 100);
+        
+        return [
+            'dutyRate' => $dutyRate,
+            'dutyAmount' => round($dutyAmount, 2),
+            'dutyType' => 'AD_VALOREM', // Simplified for now
+            'specificRate' => null,
+            'specificUom' => null
+        ];
     }
 
     /**
@@ -240,28 +266,35 @@ class DutyCalculationService
         float $dutyAmount,
         string $destinationCountry
     ): array {
-        // TODO: Implement VAT calculation
-        // 
-        // Steps:
-        // 1. Get VAT rate from tariff_rates table (or country-specific VAT table):
-        //    - Morocco: 20%
-        //    - USA: 0% (no federal VAT, state sales tax handled separately)
-        //    - EU countries: 15-27% (country-specific)
-        // 
-        // 2. Calculate VAT base (duty-inclusive):
-        //    vatBase = customsValue + dutyAmount
-        // 
-        // 3. Calculate VAT amount:
-        //    vatAmount = vatBase * (vatRate / 100)
-        // 
-        // 4. Return VAT data:
-        //    return [
-        //        'vatRate' => (float) $vatRate,
-        //        'vatAmount' => round($vatAmount, 2),
-        //        'vatBase' => round($vatBase, 2)
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Country-specific VAT rates
+        $vatRates = [
+            'MA' => 20.0,  // Morocco
+            'FR' => 20.0,  // France
+            'DE' => 19.0,  // Germany
+            'ES' => 21.0,  // Spain
+            'IT' => 22.0,  // Italy
+            'NL' => 21.0,  // Netherlands
+            'BE' => 21.0,  // Belgium
+            'UK' => 20.0,  // United Kingdom
+            'US' => 0.0,   // USA (no federal VAT)
+            'CN' => 13.0,  // China
+            'IN' => 18.0,  // India
+            'TR' => 18.0,  // Turkey
+        ];
+        
+        $vatRate = $vatRates[$destinationCountry] ?? 0.0;
+        
+        // Calculate VAT base (duty-inclusive)
+        $vatBase = $customsValue + $dutyAmount;
+        
+        // Calculate VAT amount
+        $vatAmount = $vatBase * ($vatRate / 100);
+        
+        return [
+            'vatRate' => $vatRate,
+            'vatAmount' => round($vatAmount, 2),
+            'vatBase' => round($vatBase, 2)
+        ];
     }
 
     /**

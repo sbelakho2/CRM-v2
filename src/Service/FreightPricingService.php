@@ -60,46 +60,89 @@ class FreightPricingService
         float $goodsValue,
         ?string $containerType = null
     ): array {
-        // TODO: Implement freight calculation
-        // 
-        // Steps:
-        // 1. Calculate chargeable weight (for AIR/LCL):
-        //    $chargeableWeight = $this->getChargeableWeight($weightKg, $volumeM3, $mode);
-        // 
-        // 2. Query freight_table for rate:
-        //    SELECT * FROM freight_table
-        //    WHERE lane_code = :lane
-        //    AND mode = :mode
-        //    AND asof <= :today
-        //    ORDER BY asof DESC LIMIT 1
-        // 
-        // 3. Calculate freight cost based on mode:
-        //    - AIR: cost = chargeableWeight * rate_per_kg
-        //    - LCL: cost = volumeM3 * rate_per_cbm
-        //    - FCL: cost = flat_rate (20GP, 40GP, or 40HQ)
-        // 
-        // 4. Calculate insurance (0.5% of goods value):
-        //    $insurance = $this->calculateInsurance($goodsValue);
-        // 
-        // 5. Return freight breakdown:
-        //    return [
-        //        'freightCost' => round($freightCost, 2),
-        //        'chargeableWeight' => $chargeableWeight ? round($chargeableWeight, 2) : null,
-        //        'volumetricWeight' => $volumetricWeight ? round($volumetricWeight, 2) : null,
-        //        'ratePerUnit' => (float) $ratePerUnit,
-        //        'insurance' => round($insurance, 2),
-        //        'totalCost' => round($freightCost + $insurance, 2),
-        //        'breakdown' => [
-        //            'laneCode' => $laneCode,
-        //            'mode' => $mode,
-        //            'actualWeight' => $weightKg,
-        //            'volume' => $volumeM3,
-        //            'containerType' => $containerType,
-        //            'goodsValue' => $goodsValue
-        //        ]
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Step 1: Calculate chargeable weight
+        $chargeableWeight = $this->getChargeableWeight($weightKg, $volumeM3, $mode);
+        $volumetricWeight = null;
+        
+        if ($mode === 'AIR') {
+            $volumetricWeight = $volumeM3 * 167;
+        } elseif ($mode === 'LCL') {
+            $volumetricWeight = $weightKg / 1000; // Weight-based volume
+        }
+        
+        // Step 2: Query freight_table for rate - need to parse lane_code to origin/destination
+        // Lane code format: "ORIGIN-DESTINATION" (e.g., "Tangier-Rotterdam")
+        $laneParts = explode('-', $laneCode, 2);
+        if (count($laneParts) !== 2) {
+            throw new \InvalidArgumentException("Invalid lane code format: $laneCode (expected ORIGIN-DESTINATION)");
+        }
+        
+        [$originPort, $destinationPort] = $laneParts;
+        
+        $freightRate = $this->freightTableRepository->createQueryBuilder('ft')
+            ->where('ft.originPort = :origin')
+            ->andWhere('ft.destinationPort = :dest')
+            ->andWhere('ft.transportMode = :mode')
+            ->andWhere('ft.effectiveDate <= :today')
+            ->andWhere('ft.expiryDate IS NULL OR ft.expiryDate >= :today')
+            ->setParameter('origin', $originPort)
+            ->setParameter('dest', $destinationPort)
+            ->setParameter('mode', $mode === 'AIR' ? 'Air' : ($mode === 'FCL' || $mode === 'LCL' ? 'Ocean' : $mode))
+            ->setParameter('today', new \DateTime())
+            ->orderBy('ft.effectiveDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        
+        if (!$freightRate) {
+            throw new \RuntimeException(
+                "No freight rate found for route $laneCode, mode $mode"
+            );
+        }
+        
+        // Step 3: Calculate freight cost based on mode
+        $freightCost = 0.0;
+        $ratePerUnit = 0.0;
+        
+        if ($mode === 'AIR') {
+            // Air freight charged by chargeable weight (kg)
+            $costPerKg = (float) $freightRate->getCostPerUnit();
+            $freightCost = $chargeableWeight * $costPerKg;
+            $ratePerUnit = $costPerKg;
+            
+        } elseif ($mode === 'LCL') {
+            // LCL charged by volume (m³)
+            $costPerCbm = (float) $freightRate->getCostPerUnit();
+            $freightCost = $chargeableWeight * $costPerCbm; // chargeableWeight is in m³ for LCL
+            $ratePerUnit = $costPerCbm;
+            
+        } elseif ($mode === 'FCL') {
+            // FCL flat rate per container
+            $freightCost = (float) $freightRate->getCostPerUnit();
+            $ratePerUnit = $freightCost;
+        }
+        
+        // Step 4: Calculate insurance
+        $insurance = $this->calculateInsurance($goodsValue, $freightCost);
+        
+        return [
+            'freightCost' => round($freightCost, 2),
+            'chargeableWeight' => $chargeableWeight ? round($chargeableWeight, 2) : null,
+            'volumetricWeight' => $volumetricWeight ? round($volumetricWeight, 2) : null,
+            'ratePerUnit' => round($ratePerUnit, 2),
+            'insurance' => round($insurance, 2),
+            'totalCost' => round($freightCost + $insurance, 2),
+            'transitDays' => $freightRate->getTransitDays(),
+            'carrier' => $freightRate->getCarrier(),
+            'breakdown' => [
+                'laneCode' => $laneCode,
+                'mode' => $mode,
+                'actualWeight' => $weightKg,
+                'volume' => $volumeM3,
+                'containerType' => $containerType ?? $freightRate->getContainerType(),
+                'goodsValue' => $goodsValue
+            ]
+        ];
     }
 
     /**
@@ -175,40 +218,42 @@ class FreightPricingService
         string $mode,
         ?\DateTime $asofDate = null
     ): array {
-        // TODO: Implement freight rate lookup
-        // 
-        // Steps:
-        // 1. Default asofDate to today if not provided:
-        //    $asofDate = $asofDate ?? new \DateTime();
-        // 
-        // 2. Query freight_table for rate:
-        //    $qb = $this->freightTableRepository->createQueryBuilder('ft');
-        //    $freightRate = $qb
-        //        ->where('ft.laneCode = :lane')
-        //        ->andWhere('ft.mode = :mode')
-        //        ->andWhere('ft.asof <= :asof')
-        //        ->setParameter('lane', $laneCode)
-        //        ->setParameter('mode', $mode)
-        //        ->setParameter('asof', $asofDate)
-        //        ->orderBy('ft.asof', 'DESC')
-        //        ->setMaxResults(1)
-        //        ->getQuery()
-        //        ->getOneOrNullResult();
-        // 
-        // 3. Return rate data:
-        //    if (!$freightRate) {
-        //        throw new \RuntimeException("No freight rate found for lane $laneCode, mode $mode");
-        //    }
-        // 
-        //    return [
-        //        'ratePerKg' => $freightRate->getRatePerKg(),
-        //        'ratePerCbm' => $freightRate->getRatePerCbm(),
-        //        'flatRate' => $freightRate->getFlatRate(),
-        //        'containerType' => $freightRate->getContainerType(),
-        //        'asof' => $freightRate->getAsof()
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        $asofDate = $asofDate ?? new \DateTime();
+        
+        // Parse lane code to origin/destination
+        $laneParts = explode('-', $laneCode, 2);
+        if (count($laneParts) !== 2) {
+            throw new \InvalidArgumentException("Invalid lane code format: $laneCode");
+        }
+        
+        [$originPort, $destinationPort] = $laneParts;
+        
+        $freightRate = $this->freightTableRepository->createQueryBuilder('ft')
+            ->where('ft.originPort = :origin')
+            ->andWhere('ft.destinationPort = :dest')
+            ->andWhere('ft.transportMode = :mode')
+            ->andWhere('ft.effectiveDate <= :asof')
+            ->setParameter('origin', $originPort)
+            ->setParameter('dest', $destinationPort)
+            ->setParameter('mode', $mode)
+            ->setParameter('asof', $asofDate)
+            ->orderBy('ft.effectiveDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        
+        if (!$freightRate) {
+            throw new \RuntimeException("No freight rate found for lane $laneCode, mode $mode");
+        }
+        
+        return [
+            'costPerUnit' => (float) $freightRate->getCostPerUnit(),
+            'currency' => $freightRate->getCurrency(),
+            'containerType' => $freightRate->getContainerType(),
+            'transitDays' => $freightRate->getTransitDays(),
+            'carrier' => $freightRate->getCarrier(),
+            'effectiveDate' => $freightRate->getEffectiveDate()
+        ];
     }
 
     /**

@@ -70,75 +70,109 @@ class DatasetImportService
      */
     public function importTariffData(string $csvPath, string $signaturePath, string $description): array
     {
-        // TODO: Implement tariff data import
-        // 
-        // Steps:
-        // 1. Verify signature:
-        //    $this->verifySignature($csvPath, $signaturePath);
-        // 
-        // 2. Generate new version_id (UUID):
-        //    $versionId = Uuid::v4()->toRfc4122();
-        // 
-        // 3. Create DatasetVersion entry:
-        //    $version = new DatasetVersion();
-        //    $version->setVersionId($versionId);
-        //    $version->setDatasetType('TARIFF_RATES');
-        //    $version->setDescription($description);
-        //    $version->setImportedAt(new \DateTime());
-        //    $version->setImportedBy($this->getUser()); // TODO: Get current user
-        //    $version->setIsActive(false); // Activate after import completes
-        //    $this->entityManager->persist($version);
-        // 
-        // 4. Parse CSV and import rows:
-        //    $handle = fopen($csvPath, 'r');
-        //    $header = fgetcsv($handle); // Skip header row
-        //    $recordsImported = 0;
-        //    $asofDate = null;
-        // 
-        //    while (($row = fgetcsv($handle)) !== false) {
-        //        // Map CSV columns to array
-        //        $data = array_combine($header, $row);
-        //        
-        //        // Create TariffRate entity
-        //        $tariffRate = new TariffRate();
-        //        $tariffRate->setHtsCode($data['hts_code']);
-        //        $tariffRate->setDestinationCountry($data['destination_country']);
-        //        $tariffRate->setDutyRate((float) $data['duty_rate']);
-        //        $tariffRate->setDutyType($data['duty_type']); // AD_VALOREM, SPECIFIC, MIXED
-        //        $tariffRate->setSpecificRate($data['specific_rate'] ? (float) $data['specific_rate'] : null);
-        //        $tariffRate->setSpecificUom($data['specific_uom'] ?: null);
-        //        $tariffRate->setVatRate($data['vat_rate'] ? (float) $data['vat_rate'] : null);
-        //        $tariffRate->setAsof(new \DateTime($data['asof']));
-        //        $tariffRate->setVersionId($versionId);
-        //        
-        //        $this->entityManager->persist($tariffRate);
-        //        $recordsImported++;
-        //        
-        //        if (!$asofDate) {
-        //            $asofDate = $tariffRate->getAsof();
-        //        }
-        //    }
-        //    fclose($handle);
-        // 
-        // 5. Update version with record count:
-        //    $version->setRecordCount($recordsImported);
-        //    $version->setAsof($asofDate);
-        // 
-        // 6. Flush to database:
-        //    $this->entityManager->flush();
-        // 
-        // 7. Activate new version:
-        //    $this->activateVersion($versionId);
-        // 
-        // 8. Return import summary:
-        //    return [
-        //        'versionId' => $versionId,
-        //        'recordsImported' => $recordsImported,
-        //        'asof' => $asofDate,
-        //        'datasetType' => 'TARIFF_RATES'
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Step 1: Verify signature
+        $this->verifySignature($csvPath, $signaturePath);
+        
+        // Step 2: Generate UUID for this version
+        $versionUuid = Uuid::v4()->toRfc4122();
+        $sha256Hash = hash_file('sha256', $csvPath);
+        
+        // Step 3: Create DatasetVersion entity
+        $version = new DatasetVersion();
+        $version->setDatasetType('TARIFF_RATES');
+        $version->setVersionUuid($versionUuid);
+        $version->setSha256Hash($sha256Hash);
+        $version->setImportedAt(new \DateTime());
+        $version->setImportedBy('admin'); // TODO: Get from security context
+        $version->setIsActive(false);
+        
+        if ($description) {
+            $version->setMetadata(['description' => $description]);
+        }
+        
+        $this->entityManager->persist($version);
+        $this->entityManager->flush(); // Get ID before importing rows
+        
+        // Step 4: Parse CSV
+        $handle = fopen($csvPath, 'r');
+        if (!$handle) {
+            throw new \RuntimeException("Cannot open CSV file: $csvPath");
+        }
+        
+        // Read header
+        $headers = fgetcsv($handle);
+        $recordsImported = 0;
+        $errors = [];
+        $effectiveDate = null;
+        
+        // Step 5: Import each row
+        while (($row = fgetcsv($handle)) !== false) {
+            if (empty(array_filter($row))) {
+                continue; // Skip empty rows
+            }
+            
+            try {
+                $data = array_combine($headers, $row);
+                
+                // Create TariffRate entity
+                $tariffRate = new \App\Entity\TariffRate();
+                $tariffRate->setHsCode($data['hs_code']);
+                $tariffRate->setOriginCountry($data['origin_country'] ?? 'MA');
+                $tariffRate->setDestinationCountry($data['destination_country']);
+                $tariffRate->setDutyRate($data['duty_rate']);
+                $tariffRate->setMfnRate($data['mfn_rate'] ?? null);
+                $tariffRate->setFtaRate($data['fta_rate'] ?? null);
+                $tariffRate->setEffectiveDate(new \DateTime($data['effective_date']));
+                
+                if (isset($data['expiry_date']) && !empty($data['expiry_date'])) {
+                    $tariffRate->setExpiryDate(new \DateTime($data['expiry_date']));
+                }
+                
+                if (isset($data['fta_agreement']) && !empty($data['fta_agreement'])) {
+                    $tariffRate->setFtaAgreement($data['fta_agreement']);
+                }
+                
+                if (isset($data['notes']) && !empty($data['notes'])) {
+                    $tariffRate->setNotes($data['notes']);
+                }
+                
+                $this->entityManager->persist($tariffRate);
+                $recordsImported++;
+                
+                if (!$effectiveDate) {
+                    $effectiveDate = $tariffRate->getEffectiveDate();
+                }
+                
+                // Batch flush every 100 rows for performance
+                if ($recordsImported % 100 === 0) {
+                    $this->entityManager->flush();
+                    $this->entityManager->clear(\App\Entity\TariffRate::class); // Clear memory
+                }
+                
+            } catch (\Exception $e) {
+                $errors[] = "Row $recordsImported: " . $e->getMessage();
+            }
+        }
+        
+        fclose($handle);
+        
+        // Final flush
+        $this->entityManager->flush();
+        
+        // Step 6: Update version with record count
+        $version->setRecordCount($recordsImported);
+        $this->entityManager->flush();
+        
+        // Step 7: Activate this version (deactivate others)
+        $this->activateVersion($versionUuid);
+        
+        return [
+            'versionId' => $versionUuid,
+            'recordsImported' => $recordsImported,
+            'errors' => $errors,
+            'effectiveDate' => $effectiveDate,
+            'datasetType' => 'TARIFF_RATES'
+        ];
     }
 
     /**
@@ -158,19 +192,101 @@ class DatasetImportService
      */
     public function importFreightData(string $csvPath, string $signaturePath, string $description): array
     {
-        // TODO: Implement freight data import
-        // 
-        // Steps:
-        // 1. Verify signature
-        // 2. Generate version_id (UUID)
-        // 3. Create DatasetVersion entry (dataset_type = 'FREIGHT_TABLES')
-        // 4. Parse CSV and create FreightTable entities:
-        //    - Set lane_code, mode, rate_per_kg, rate_per_cbm, flat_rate, container_type
-        //    - Set asof timestamp, version_id
-        // 5. Flush and activate version
-        // 6. Return summary
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Step 1: Verify signature
+        $this->verifySignature($csvPath, $signaturePath);
+        
+        // Step 2: Generate UUID for this version
+        $versionUuid = Uuid::v4()->toRfc4122();
+        $sha256Hash = hash_file('sha256', $csvPath);
+        
+        // Step 3: Create DatasetVersion entity
+        $version = new DatasetVersion();
+        $version->setDatasetType('FREIGHT_TABLES');
+        $version->setVersionUuid($versionUuid);
+        $version->setSha256Hash($sha256Hash);
+        $version->setImportedAt(new \DateTime());
+        $version->setIsActive(false);
+        
+        if ($description) {
+            $version->setMetadata(['description' => $description]);
+        }
+        
+        $this->entityManager->persist($version);
+        $this->entityManager->flush();
+        
+        // Step 4: Parse CSV and import rows
+        $handle = fopen($csvPath, 'r');
+        if (!$handle) {
+            throw new \RuntimeException("Cannot open CSV file: $csvPath");
+        }
+        
+        $headers = fgetcsv($handle);
+        $recordsImported = 0;
+        $errors = [];
+        
+        while (($row = fgetcsv($handle)) !== false) {
+            if (empty(array_filter($row))) {
+                continue;
+            }
+            
+            try {
+                $data = array_combine($headers, $row);
+                
+                $freight = new \App\Entity\FreightTable();
+                $freight->setOriginPort($data['origin_port']);
+                $freight->setDestinationPort($data['destination_port']);
+                $freight->setTransportMode($data['transport_mode']); // Ocean, Air, Rail, Truck
+                $freight->setContainerType($data['container_type']); // 20GP, 40GP, 40HQ, LCL, FCL
+                $freight->setCostPerUnit($data['cost_per_unit']);
+                $freight->setCurrency($data['currency'] ?? 'USD');
+                
+                if (isset($data['transit_days']) && !empty($data['transit_days'])) {
+                    $freight->setTransitDays((int)$data['transit_days']);
+                }
+                
+                $freight->setEffectiveDate(new \DateTime($data['effective_date']));
+                
+                if (isset($data['expiry_date']) && !empty($data['expiry_date'])) {
+                    $freight->setExpiryDate(new \DateTime($data['expiry_date']));
+                }
+                
+                if (isset($data['carrier']) && !empty($data['carrier'])) {
+                    $freight->setCarrier($data['carrier']);
+                }
+                
+                if (isset($data['notes']) && !empty($data['notes'])) {
+                    $freight->setNotes($data['notes']);
+                }
+                
+                $this->entityManager->persist($freight);
+                $recordsImported++;
+                
+                if ($recordsImported % 100 === 0) {
+                    $this->entityManager->flush();
+                    $this->entityManager->clear(\App\Entity\FreightTable::class);
+                }
+                
+            } catch (\Exception $e) {
+                $errors[] = "Row $recordsImported: " . $e->getMessage();
+            }
+        }
+        
+        fclose($handle);
+        $this->entityManager->flush();
+        
+        // Update version with record count
+        $version->setRecordCount($recordsImported);
+        $this->entityManager->flush();
+        
+        // Activate this version
+        $this->activateVersion($versionUuid);
+        
+        return [
+            'versionId' => $versionUuid,
+            'recordsImported' => $recordsImported,
+            'errors' => $errors,
+            'datasetType' => 'FREIGHT_TABLES'
+        ];
     }
 
     /**
@@ -371,16 +487,10 @@ class DatasetImportService
      */
     public function getVersionHistory(string $datasetType): array
     {
-        // TODO: Implement version history retrieval
-        // 
-        // Steps:
-        // 1. Query dataset_versions table:
-        //    return $this->datasetVersionRepository->findBy(
-        //        ['datasetType' => $datasetType],
-        //        ['importedAt' => 'DESC']
-        //    );
-
-        throw new \RuntimeException('Feature not yet implemented');
+        return $this->datasetVersionRepository->findBy(
+            ['datasetType' => $datasetType],
+            ['importedAt' => 'DESC']
+        );
     }
 
     /**
@@ -392,15 +502,9 @@ class DatasetImportService
      */
     public function getActiveVersion(string $datasetType): ?DatasetVersion
     {
-        // TODO: Implement active version retrieval
-        // 
-        // Steps:
-        // 1. Query for active version:
-        //    return $this->datasetVersionRepository->findOneBy([
-        //        'datasetType' => $datasetType,
-        //        'isActive' => true
-        //    ]);
-
-        throw new \RuntimeException('Feature not yet implemented');
+        return $this->datasetVersionRepository->findOneBy([
+            'datasetType' => $datasetType,
+            'isActive' => true
+        ]);
     }
 }

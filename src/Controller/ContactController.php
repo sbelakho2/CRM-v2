@@ -77,6 +77,16 @@ class ContactController extends AbstractController
     public function new(Request $request): Response
     {
         $contact = new Contact();
+        
+        // Pre-select company if company_id is provided in query string
+        $companyId = $request->query->get('company_id');
+        if ($companyId) {
+            $company = $this->entityManager->getRepository(\App\Entity\Company::class)->find($companyId);
+            if ($company) {
+                $contact->setCompany($company);
+            }
+        }
+        
         $form = $this->createForm(ContactType::class, $contact);
         $form->handleRequest($request);
 
@@ -85,6 +95,11 @@ class ContactController extends AbstractController
             $this->entityManager->flush();
 
             $this->addFlash('success', 'Contact created successfully!');
+
+            // If contact was created from company page, redirect back to company
+            if ($contact->getCompany()) {
+                return $this->redirectToRoute('app_company_show', ['id' => $contact->getCompany()->getId()]);
+            }
 
             return $this->redirectToRoute('app_contact_show', ['id' => $contact->getId()]);
         }

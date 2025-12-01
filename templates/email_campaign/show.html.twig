@@ -159,6 +159,7 @@
                             <th class="text-center text-xs font-medium text-zinc-400 pb-3">Opened</th>
                             <th class="text-center text-xs font-medium text-zinc-400 pb-3">Clicked</th>
                             <th class="text-center text-xs font-medium text-zinc-400 pb-3">Replied</th>
+                            <th class="text-center text-xs font-medium text-zinc-400 pb-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -196,6 +197,26 @@
                                     {% else %}
                                         <span class="inline-block w-2 h-2 bg-zinc-700 rounded-full"></span>
                                     {% endif %}
+                                </td>
+                                <td class="py-3 text-center">
+                                    <div class="flex items-center justify-center gap-1">
+                                        {% if not send.replied %}
+                                            <form method="post" action="{{ path('app_email_send_mark_replied', {id: send.id}) }}" class="inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('mark_replied' ~ send.id) }}">
+                                                <button type="submit" class="text-xs text-purple-400 hover:text-purple-300 transition-colors" title="Mark as Replied">
+                                                    ↩️
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if not send.bounced %}
+                                            <form method="post" action="{{ path('app_email_send_mark_bounced', {id: send.id}) }}" class="inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('mark_bounced' ~ send.id) }}">
+                                                <button type="submit" class="text-xs text-red-400 hover:text-red-300 transition-colors" title="Mark as Bounced">
+                                                    ⚠️
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                         {% endfor %}

@@ -3,9 +3,8 @@
 {% block title %}{{ webinar.title }} - Webinar{% endblock %}
 
 {% block body %}
-<div class="main-content">
-    <!-- Header -->
-    <div class="page-header">
+<!-- Header -->
+<div class="page-header">
         <div>
             <div class="flex items-center gap-4 text-sm mb-6" style="color: var(--claude-text-secondary);">
                 <a href="{{ path('app_webinar_index') }}" class="hover:text-white">Webinars</a>
@@ -48,8 +47,7 @@
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-6 py-8">
-        <div class="grid grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-3 gap-6 mb-8">
             <!-- Stats Cards -->
             <div class="border border-zinc-800 rounded-lg p-6 bg-zinc-950/50">
                 <div class="text-zinc-400 text-sm mb-2">Registered</div>
@@ -199,5 +197,4 @@
             {% endif %}
         </div>
     </div>
-</div>
 {% endblock %}

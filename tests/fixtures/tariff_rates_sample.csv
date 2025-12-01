@@ -1,0 +1,9 @@
+hs_code,origin_country,destination_country,duty_rate,mfn_rate,fta_rate,effective_date,expiry_date,fta_agreement,notes
+8473.30.51,MA,US,0.00,2.50,0.00,2025-01-01,2025-12-31,Morocco-US FTA,Electronics parts duty-free under FTA
+8473.30.51,MA,FR,2.50,2.50,,2025-01-01,2025-12-31,,Standard EU duty rate
+8471.30.00,MA,US,0.00,0.00,0.00,2025-01-01,2025-12-31,Morocco-US FTA,Computer parts duty-free
+8471.30.00,MA,DE,0.00,0.00,,2025-01-01,2025-12-31,,EU preferential rate
+8541.10.00,MA,US,0.00,1.00,0.00,2025-01-01,2025-12-31,Morocco-US FTA,Semiconductor devices
+8542.31.00,MA,UK,0.00,0.00,,2025-01-01,2025-12-31,,Post-Brexit rate
+8536.90.00,MA,ES,2.70,2.70,,2025-01-01,2025-12-31,,Electrical apparatus
+8504.40.00,MA,IT,2.30,2.30,,2025-01-01,2025-12-31,,Power supplies and converters

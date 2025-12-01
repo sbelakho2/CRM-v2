@@ -1,13 +1,13 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Edit User - Admin{% endblock %}
+{% block title %}New User - Admin{% endblock %}
 
 {% block body %}
 <!-- Page Header -->
 <div class="page-header">
     <div>
-        <h1 class="page-title">Edit User</h1>
-        <p class="text-muted">Update user information and permissions</p>
+        <h1 class="page-title">Create New User</h1>
+        <p class="text-muted">Add a new user to the system</p>
     </div>
 </div>
 
@@ -35,6 +35,15 @@
         {{ form_errors(form.email) }}
     </div>
 
+    {% if form.plainPassword is defined %}
+    <div class="form-group">
+        {{ form_label(form.plainPassword, 'Password') }}
+        {{ form_widget(form.plainPassword, {'attr': {'class': 'geist-input'}}) }}
+        {{ form_errors(form.plainPassword) }}
+        <small class="text-muted">Minimum 6 characters</small>
+    </div>
+    {% endif %}
+
     <div class="form-group">
         {{ form_label(form.roles) }}
         {{ form_widget(form.roles, {'attr': {'class': 'geist-select'}}) }}
@@ -54,7 +63,7 @@
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M13 3L6 13L3 9"/>
             </svg>
-            Save Changes
+            Create User
         </button>
         <a href="{{ path('admin_user_index') }}" class="btn-secondary">Cancel</a>
     </div>

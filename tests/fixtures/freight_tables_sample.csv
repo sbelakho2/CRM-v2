@@ -1,0 +1,11 @@
+origin_port,destination_port,transport_mode,container_type,cost_per_unit,currency,transit_days,effective_date,expiry_date,carrier,notes
+Tangier,Rotterdam,Ocean,20GP,850.00,EUR,7,2025-01-01,2025-12-31,Maersk,Direct route
+Tangier,Rotterdam,Ocean,40GP,1200.00,EUR,7,2025-01-01,2025-12-31,Maersk,Direct route
+Casablanca,Le Havre,Ocean,20GP,920.00,EUR,8,2025-01-01,2025-12-31,CMA CGM,Weekly service
+Casablanca,Le Havre,Ocean,40GP,1350.00,EUR,8,2025-01-01,2025-12-31,CMA CGM,Weekly service
+Casablanca,New York,Ocean,20GP,1850.00,USD,18,2025-01-01,2025-12-31,MSC,Transatlantic
+Casablanca,New York,Ocean,40GP,2900.00,USD,18,2025-01-01,2025-12-31,MSC,Transatlantic
+Casablanca,Los Angeles,Ocean,20GP,2100.00,USD,25,2025-01-01,2025-12-31,Evergreen,Via Suez Canal
+Casablanca,Los Angeles,Ocean,40GP,3400.00,USD,25,2025-01-01,2025-12-31,Evergreen,Via Suez Canal
+Tangier,Hamburg,Ocean,20GP,780.00,EUR,6,2025-01-01,2025-12-31,Hapag-Lloyd,Fast service
+Tangier,Hamburg,Ocean,40GP,1100.00,EUR,6,2025-01-01,2025-12-31,Hapag-Lloyd,Fast service

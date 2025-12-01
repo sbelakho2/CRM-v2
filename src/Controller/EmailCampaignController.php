@@ -286,4 +286,26 @@ class EmailCampaignController extends AbstractController
         $url = $request->query->get('url', '/');
         return $this->redirect($url);
     }
+
+    #[Route('/send/{id}/mark-replied', name: 'app_email_send_mark_replied', methods: ['POST'])]
+    public function markReplied(EmailSend $send, Request $request): Response
+    {
+        $this->campaignService->markReplied($send);
+        
+        $this->addFlash('success', 'Email marked as replied.');
+        
+        // Redirect back to campaign show page
+        return $this->redirectToRoute('app_email_campaign_show', ['id' => $send->getCampaign()->getId()]);
+    }
+
+    #[Route('/send/{id}/mark-bounced', name: 'app_email_send_mark_bounced', methods: ['POST'])]
+    public function markBounced(EmailSend $send, Request $request): Response
+    {
+        $this->campaignService->markBounced($send);
+        
+        $this->addFlash('success', 'Email marked as bounced.');
+        
+        // Redirect back to campaign show page
+        return $this->redirectToRoute('app_email_campaign_show', ['id' => $send->getCampaign()->getId()]);
+    }
 }

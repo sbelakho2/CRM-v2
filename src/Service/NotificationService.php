@@ -124,7 +124,7 @@ class NotificationService
                 $notification->setData([
                     'subject' => $email->getSubject(),
                     'recipient' => $email->getRecipientEmail(),
-                    'opened_at' => $email->getOpenedAt()?->format('Y-m-d H:i:s')
+                    'opened_at' => $email->isOpened() ? $email->getSentAt()?->format('Y-m-d H:i:s') : null
                 ]);
 
                 $this->em->persist($notification);

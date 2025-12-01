@@ -398,7 +398,7 @@ class EmailConsentService
         ];
 
         foreach ($sends as $send) {
-            if ($send->getOpenedAt()) {
+            if ($send->isOpened()) {
                 $stats['emails_opened']++;
             }
             if ($send->getClickedAt()) {

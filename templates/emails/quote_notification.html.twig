@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #9B6B9E 0%, #7C5380 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            background: #f5f5f5;
+            padding: 30px 20px;
+        }
+        .quote-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .quote-info table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .quote-info td {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .quote-info td:first-child {
+            font-weight: bold;
+            color: #666;
+            width: 40%;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #9B6B9E;
+            color: white;
+            padding: 14px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .cta-button:hover {
+            background: #7C5380;
+        }
+        .footer {
+            background: #333;
+            color: #999;
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            border-radius: 0 0 8px 8px;
+        }
+        .footer a {
+            color: #9B6B9E;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 New Quote Available</h1>
+        <p style="margin: 10px 0 0 0; opacity: 0.9;">CRM Starz Morocco</p>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ company.name }} Team,</p>
+        
+        <p>We're pleased to provide you with a detailed quote for your electronic components requirements.</p>
+        
+        <div class="quote-info">
+            <h2 style="margin-top: 0; color: #9B6B9E;">Quote Summary</h2>
+            <table>
+                <tr>
+                    <td>Quote Number:</td>
+                    <td><strong>{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Date:</td>
+                    <td>{{ quote.createdAt|date('F d, Y') }}</td>
+                </tr>
+                <tr>
+                    <td>Valid Until:</td>
+                    <td>{{ quote.createdAt|date_modify('+30 days')|date('F d, Y') }}</td>
+                </tr>
+                <tr>
+                    <td>Quantity:</td>
+                    <td>{{ quote.quantity ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td>Ship To:</td>
+                    <td>{{ quote.shipToCountry ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td>Total Amount:</td>
+                    <td><strong style="color: #9B6B9E; font-size: 18px;">${{ quote.totalCost|default(0)|number_format(2) }}</strong></td>
+                </tr>
+                <tr>
+                    <td>Coverage:</td>
+                    <td>{{ quote.coveragePercent|default(0)|number_format(1) }}% of components sourced</td>
+                </tr>
+            </table>
+        </div>
+        
+        <p>The detailed quote with full Bill of Materials breakdown is attached as a PDF to this email.</p>
+        
+        <div style="text-align: center;">
+            <a href="#" class="cta-button">Review Quote Details</a>
+        </div>
+        
+        <h3 style="color: #9B6B9E;">What's Next?</h3>
+        <ul>
+            <li>Review the attached PDF for complete BOM breakdown</li>
+            <li>Verify component specifications and quantities</li>
+            <li>Reply to this email with any questions or modifications</li>
+            <li>Approve the quote to proceed with your order</li>
+        </ul>
+        
+        <p><strong>Important Notes:</strong></p>
+        <ul>
+            <li>This quote is valid for 30 days from the issue date</li>
+            <li>Prices are in USD and subject to component availability</li>
+            <li>Lead times may vary based on component stock levels</li>
+            <li>Shipping terms: {{ quote.incoterms ?? 'FCA' }}</li>
+        </ul>
+        
+        <p>If you have any questions or need modifications to this quote, please don't hesitate to contact us.</p>
+        
+        <p>Best regards,<br>
+        <strong>CRM Starz Morocco</strong><br>
+        Electronics Manufacturing & Sourcing</p>
+    </div>
+    
+    <div class="footer">
+        <p>
+            <strong>CRM Starz Morocco</strong><br>
+            Casablanca, Morocco<br>
+            Email: <a href="mailto:quotes@starzelectronics.site">quotes@starzelectronics.site</a><br>
+            Web: <a href="https://starzelectronics.site">starzelectronics.site</a>
+        </p>
+        <p style="margin-top: 15px; font-size: 11px;">
+            This email was sent regarding Quote {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}
+        </p>
+    </div>
+</body>
+</html>

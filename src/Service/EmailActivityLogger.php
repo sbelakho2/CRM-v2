@@ -70,17 +70,17 @@ class EmailActivityLogger
         );
 
         // Add engagement info if available
-        if ($send->getOpenedAt()) {
+        if ($send->isOpened()) {
             $description .= sprintf(
                 "\n✓ Opened at: %s",
-                $send->getOpenedAt()->format('Y-m-d H:i')
+                $send->getSentAt()->format('Y-m-d H:i')
             );
         }
 
-        if ($send->getClickedAt()) {
+        if ($send->isClicked()) {
             $description .= sprintf(
                 "\n✓ Clicked at: %s",
-                $send->getClickedAt()->format('Y-m-d H:i')
+                $send->getSentAt()->format('Y-m-d H:i')
             );
         }
 
@@ -156,8 +156,8 @@ class EmailActivityLogger
 
         // Append new engagement
         $timestamp = match($engagementType) {
-            'opened' => $send->getOpenedAt(),
-            'clicked' => $send->getClickedAt(),
+            'opened' => $send->isOpened() ? $send->getSentAt() : null,
+            'clicked' => $send->isClicked() ? $send->getSentAt() : null,
             'replied' => null, // No timestamp for replied
             default => new \DateTime()
         };

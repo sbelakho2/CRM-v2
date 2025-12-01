@@ -169,17 +169,7 @@ class WebinarController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/attendees', name: 'app_webinar_attendees', methods: ['GET'])]
-    public function attendees(Webinar $webinar): Response
-    {
-        $attendees = $this->entityManager->getRepository(WebinarAttendee::class)
-            ->findBy(['webinar' => $webinar], ['registeredAt' => 'DESC']);
 
-        return $this->render('webinar/attendees.html.twig', [
-            'webinar' => $webinar,
-            'attendees' => $attendees,
-        ]);
-    }
 
     #[Route('/{id}/attendees/{attendeeId}/mark-attended', name: 'app_webinar_mark_attended', methods: ['POST'])]
     public function markAttended(Webinar $webinar, int $attendeeId): Response
@@ -191,7 +181,7 @@ class WebinarController extends AbstractController
             $this->addFlash('success', 'Attendee marked as attended.');
         }
 
-        return $this->redirectToRoute('app_webinar_attendees', ['id' => $webinar->getId()]);
+        return $this->redirectToRoute('app_webinar_show', ['id' => $webinar->getId()]);
     }
 
     #[Route('/{id}/send-followup', name: 'app_webinar_send_followup', methods: ['POST'])]
@@ -200,11 +190,22 @@ class WebinarController extends AbstractController
         if ($this->isCsrfTokenValid('followup'.$webinar->getId(), $request->request->get('_token'))) {
             $attendees = $this->webinarService->getAttendeesNeedingFollowUp($webinar);
             
+            $sentCount = 0;
             foreach ($attendees as $attendee) {
-                $this->webinarService->markFollowUpSent($attendee);
+                try {
+                    $this->webinarService->sendFollowUpEmail($attendee);
+                    $sentCount++;
+                } catch (\Exception $e) {
+                    // Log error but continue with other attendees
+                    $this->addFlash('warning', 'Failed to send email to ' . $attendee->getEmail());
+                }
             }
             
-            $this->addFlash('success', count($attendees) . ' follow-up emails sent successfully!');
+            if ($sentCount > 0) {
+                $this->addFlash('success', $sentCount . ' follow-up email(s) sent successfully!');
+            } else {
+                $this->addFlash('info', 'No attendees need follow-up emails.');
+            }
         }
 
         return $this->redirectToRoute('app_webinar_show', ['id' => $webinar->getId()]);

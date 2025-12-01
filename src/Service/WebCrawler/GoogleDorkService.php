@@ -28,21 +28,27 @@ class GoogleDorkService
         $searchQueries = $this->buildGoogleDorkQueries($sector, $location);
         $discovered = [];
 
+        // Log search URLs for manual review
+        $this->logger->info("=" . str_repeat("=", 70));
+        $this->logger->info("GOOGLE SEARCH URLS - Copy and paste these into your browser:");
+        $this->logger->info("=" . str_repeat("=", 70));
+        
         foreach ($searchQueries as $query) {
-            $this->logger->debug("Google search query", ['query' => $query]);
-            
-            // In production, you could use:
-            // - Google Custom Search API
-            // - SerpAPI
-            // - ScraperAPI
-            
-            // For now, generate search URLs for manual review
             $searchUrl = "https://www.google.com/search?q=" . urlencode($query);
-            $this->logger->info("Google search URL", ['url' => $searchUrl]);
+            $this->logger->info("🔍 " . $searchUrl);
         }
+        
+        $this->logger->info("=" . str_repeat("=", 70));
+        $this->logger->info("💡 TIP: Visit these URLs, find companies, then add them manually at /companies/new");
+        $this->logger->info("=" . str_repeat("=", 70));
 
-        // Return empty for now - requires API integration or manual processing
-        return [];
+        // NOTE: To make this automatic, you need to integrate with:
+        // - Google Custom Search API (costs money)
+        // - SerpAPI (costs money)
+        // - Or use a web scraping service like ScraperAPI
+        
+        // For now, return empty - requires manual data entry
+        return $discovered;
     }
 
     /**

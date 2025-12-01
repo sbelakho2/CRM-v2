@@ -31,7 +31,7 @@ class EmailCampaign
     #[ORM\Column(type: 'json')]
     private array $touchTemplates = []; // Array of template IDs
 
-    #[ORM\Column(type: 'json', nullable: true)]
+    #[ORM\Column(type: 'json')]
     private array $abTestVariants = [];
 
     #[ORM\Column(type: 'boolean')]

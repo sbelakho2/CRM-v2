@@ -14,6 +14,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
+use Psr\Log\LoggerInterface;
 
 /**
  * QuoteCoPilotController
@@ -44,7 +47,9 @@ class QuoteCoPilotController extends AbstractController
         private QuoteCoPilotService $copilotService,
         private DfmLintService $dfmLintService,
         private CostingEngineService $costingEngine,
-        private UnifiedPdfGeneratorService $pdfGenerator
+        private UnifiedPdfGeneratorService $pdfGenerator,
+        private MailerInterface $mailer,
+        private LoggerInterface $logger
     ) {}
 
     /**
@@ -60,6 +65,25 @@ class QuoteCoPilotController extends AbstractController
         return $this->render('quote_copilot/index.html.twig', [
             'companies' => $companies,
             'countries' => $countries,
+        ]);
+    }
+
+    /**
+     * List all quotes
+     */
+    #[Route('/quotes', name: 'quote_copilot_list', methods: ['GET'])]
+    public function list(): Response
+    {
+        $quotes = $this->entityManager->getRepository(Quote::class)
+            ->createQueryBuilder('q')
+            ->leftJoin('q.company', 'c')
+            ->addSelect('c')
+            ->orderBy('q.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        return $this->render('quote_copilot/list.html.twig', [
+            'quotes' => $quotes,
         ]);
     }
 
@@ -269,10 +293,122 @@ class QuoteCoPilotController extends AbstractController
             throw $this->createNotFoundException('Quote not found');
         }
 
-        // For MVP: Return JSON with quote data (PDF generation can be added later)
-        // Production: Use TCPDF or Dompdf to generate proper PDF
-        $this->addFlash('info', 'PDF generation will be implemented in the next iteration');
-        return $this->redirectToRoute('quote_copilot_results', ['id' => $id]);
+        try {
+            // Generate PDF using the unified PDF generator service
+            $pdfContent = $this->pdfGenerator->generateQuotePdf($quote);
+            
+            $response = new Response($pdfContent);
+            $response->headers->set('Content-Type', 'application/pdf');
+            $response->headers->set('Content-Disposition', sprintf(
+                'attachment; filename="quote-%s.pdf"',
+                $quote->getQuoteNumber() ?? $quote->getId()
+            ));
+            
+            return $response;
+        } catch (\Exception $e) {
+            // Log the error and show user-friendly message
+            $this->logger->error('PDF Generation failed for Quote ' . $id, [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $this->addFlash('error', 'Error generating PDF: ' . $e->getMessage());
+            return $this->redirectToRoute('quote_copilot_results', ['id' => $id]);
+        }
+    }
+
+    /**
+     * Export quote to Excel
+     */
+    #[Route('/{id}/excel', name: 'quote_copilot_excel', methods: ['GET'])]
+    public function downloadExcel(int $id): Response
+    {
+        $quote = $this->entityManager->getRepository(Quote::class)->find($id);
+        if (!$quote) {
+            throw $this->createNotFoundException('Quote not found');
+        }
+
+        // Create CSV content (simple Excel-compatible format)
+        $csv = [];
+        $csv[] = ['Quote Number', $quote->getQuoteNumber() ?? 'Q-' . $quote->getId()];
+        $csv[] = ['Company', $quote->getCompany()->getName()];
+        $csv[] = ['Date', $quote->getCreatedAt()->format('Y-m-d')];
+        $csv[] = ['Quantity', $quote->getQuantity()];
+        $csv[] = ['Ship To', $quote->getShipToCountry()];
+        $csv[] = ['Incoterms', $quote->getIncoterms()];
+        $csv[] = [];
+        
+        // BOM Lines header
+        $csv[] = ['Line', 'MPN', 'Manufacturer', 'Description', 'Qty', 'Unit Price', 'Extended Price', 'Source'];
+        
+        // BOM Lines data
+        foreach ($quote->getBomLines() as $line) {
+            $csv[] = [
+                $line->getLineNumber() ?? '',
+                $line->getMpn() ?? '',
+                $line->getManufacturer() ?? '',
+                $line->getDescription() ?? '',
+                $line->getQuantity() ?? '',
+                $line->getUnitPrice() ?? '',
+                $line->getExtendedPrice() ?? '',
+                $line->getProcurementSource() ?? ''
+            ];
+        }
+        
+        $csv[] = [];
+        $csv[] = ['Total Cost', $quote->getTotalCost()];
+        $csv[] = ['Coverage', $quote->getCoveragePercent() . '%'];
+
+        // Generate CSV
+        $output = fopen('php://temp', 'r+');
+        foreach ($csv as $row) {
+            fputcsv($output, $row);
+        }
+        rewind($output);
+        $csvContent = stream_get_contents($output);
+        fclose($output);
+
+        $response = new Response($csvContent);
+        $response->headers->set('Content-Type', 'text/csv');
+        $response->headers->set('Content-Disposition', sprintf(
+            'attachment; filename="quote-%s.csv"',
+            $quote->getQuoteNumber() ?? $quote->getId()
+        ));
+
+        return $response;
+    }
+
+    /**
+     * Get contacts for quote company
+     */
+    #[Route('/{id}/contacts', name: 'quote_copilot_contacts', methods: ['GET'])]
+    public function getContacts(int $id): Response
+    {
+        $quote = $this->entityManager->getRepository(Quote::class)->find($id);
+        if (!$quote) {
+            return $this->json(['success' => false, 'message' => 'Quote not found'], 404);
+        }
+
+        $company = $quote->getCompany();
+        $contacts = $company->getContacts();
+        
+        $contactsData = [];
+        foreach ($contacts as $contact) {
+            if ($contact->getEmail()) {
+                $contactsData[] = [
+                    'id' => $contact->getId(),
+                    'name' => $contact->getFirstName() . ' ' . $contact->getLastName(),
+                    'email' => $contact->getEmail(),
+                    'role' => $contact->getJobTitle() ?? 'Contact',
+                ];
+            }
+        }
+
+        return $this->json([
+            'success' => true,
+            'contacts' => $contactsData,
+            'count' => count($contactsData)
+        ]);
     }
 
     /**
@@ -294,19 +430,97 @@ class QuoteCoPilotController extends AbstractController
             ], 400);
         }
 
+        // Get contact ID from request
+        $data = json_decode($request->getContent(), true);
+        $contactId = $data['contactId'] ?? null;
+
         // Update quote status
         $quote->setStatus('sent');
         $quote->setAutoPublished(true);
         $this->entityManager->flush();
 
-        // TODO: Send email notification to customer
+        // Send email notification to customer
+        try {
+            $this->sendQuoteEmail($quote, $contactId);
+        } catch (\Exception $e) {
+            // Log error but don't fail the request - Quote is already marked as sent
+            $this->logger->error('Email sending failed for Quote ' . $quote->getId(), [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return $this->json([
+                'success' => false,
+                'message' => 'Error sending email: ' . $e->getMessage()
+            ], 500);
+        }
+
         // TODO: Create Activity record
         // TODO: Create Notification for sales team
 
         return $this->json([
             'success' => true,
-            'message' => sprintf('Quote %s published successfully', $quote->getQuoteNumber())
+            'message' => sprintf('Quote %s published successfully', $quote->getQuoteNumber() ?? $quote->getId())
         ]);
+    }
+
+    /**
+     * Send quote email to customer
+     */
+    private function sendQuoteEmail(Quote $quote, ?int $contactId = null): void
+    {
+        $company = $quote->getCompany();
+        
+        // Get contact email - either specified contact or first available
+        $toEmail = null;
+        $contactName = null;
+        $contacts = $company->getContacts();
+        
+        if ($contactId) {
+            // Find specific contact by ID
+            $contactRepo = $this->entityManager->getRepository(\App\Entity\Contact::class);
+            $contact = $contactRepo->find($contactId);
+            
+            if ($contact && $contact->getEmail() && $contact->getCompany() === $company) {
+                $toEmail = $contact->getEmail();
+                $contactName = $contact->getFirstName() . ' ' . $contact->getLastName();
+            } else {
+                throw new \RuntimeException('Invalid contact ID or contact does not belong to this company');
+            }
+        } else {
+            // Get first contact with an email
+            if ($contacts->count() > 0) {
+                foreach ($contacts as $contact) {
+                    if ($contact->getEmail()) {
+                        $toEmail = $contact->getEmail();
+                        $contactName = $contact->getFirstName() . ' ' . $contact->getLastName();
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!$toEmail) {
+            throw new \RuntimeException('No email address found for company or its contacts');
+        }
+
+        // Generate PDF attachment
+        $pdfContent = $this->pdfGenerator->generateQuotePdf($quote);
+        
+        // Create email
+        $email = (new Email())
+            ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'contact@starzelectronics.site')
+            ->to($toEmail)
+            ->subject(sprintf('Quote %s - CRM Starz Morocco', $quote->getQuoteNumber() ?? ('Q-' . $quote->getId())))
+            ->html($this->renderView('emails/quote_notification.html.twig', [
+                'quote' => $quote,
+                'company' => $company,
+                'contactName' => $contactName,
+            ]))
+            ->attach($pdfContent, sprintf('quote-%s.pdf', $quote->getQuoteNumber() ?? $quote->getId()), 'application/pdf');
+
+        // Send email
+        $this->mailer->send($email);
     }
 
     /**

@@ -116,7 +116,9 @@
                 <div class="bg-white rounded-xl border border-neutral-200/60 p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-base font-semibold text-neutral-900">Contacts</h2>
-                        <button class="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Contact</button>
+                        <a href="{{ path('app_contact_new', {company_id: company.id}) }}" class="geist-button-secondary text-sm">
+                            + Add Contact
+                        </a>
                     </div>
                     {% if company.contacts is empty %}
                         <div class="text-center py-8 text-sm text-neutral-500">
