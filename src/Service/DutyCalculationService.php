@@ -160,33 +160,64 @@ class DutyCalculationService
         float $customsValue,
         array $eligibilityResult
     ): array {
-        // TODO: Implement FTA rate application
-        // 
-        // Steps:
-        // 1. Query fta_rules table:
-        //    SELECT * FROM fta_rules
-        //    WHERE origin_country = :origin 
-        //    AND destination_country = :dest
-        //    AND hts_code = :hts
-        //    AND effective_from <= :today
-        //    AND (effective_to IS NULL OR effective_to >= :today)
-        //    LIMIT 1
-        // 
-        // 2. Get preferential_rate (usually 0% or reduced %)
-        // 
-        // 3. Check if declaration required:
-        //    - If eligibility = 'CONDITIONAL', requiresDeclaration = true
-        //    - Generate declaration template using ftaEligibilityService->generateDeclarationTemplate()
-        // 
-        // 4. Return FTA rate data:
-        //    return [
-        //        'dutyRate' => (float) $ftaRule->getPreferentialRate(),
-        //        'ftaAgreement' => $ftaRule->getFtaAgreement(), // e.g., 'Morocco-US FTA'
-        //        'requiresDeclaration' => $requiresDeclaration,
-        //        'declarationTemplate' => $declarationTemplate ?? null
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Query fta_rules table for active FTA rules
+        $today = new \DateTime();
+        
+        $ftaRule = $this->ftaRuleRepository->createQueryBuilder('f')
+            ->where('f.originCountry = :origin')
+            ->andWhere('f.destinationCountry = :dest')
+            ->andWhere('f.htsCode = :hts')
+            ->andWhere('f.effectiveFrom <= :today')
+            ->andWhere('f.effectiveTo IS NULL OR f.effectiveTo >= :today')
+            ->setParameter('origin', $originCountry)
+            ->setParameter('dest', $destinationCountry)
+            ->setParameter('hts', $htsCode)
+            ->setParameter('today', $today)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        
+        if (!$ftaRule) {
+            // No FTA rule found - fallback to MFN rate
+            return [
+                'dutyRate' => null,
+                'ftaAgreement' => null,
+                'requiresDeclaration' => false,
+                'declarationTemplate' => null,
+                'notFound' => true
+            ];
+        }
+        
+        // 2. Get preferential rate
+        $preferentialRate = (float) $ftaRule->getPreferentialRate();
+        
+        // 3. Check if declaration required
+        $eligibilityStatus = $eligibilityResult['eligible'] ?? 'UNKNOWN';
+        $requiresDeclaration = in_array($eligibilityStatus, ['CONDITIONAL', 'ELIGIBLE']);
+        
+        $declarationTemplate = null;
+        if ($requiresDeclaration) {
+            try {
+                $declarationTemplate = $this->ftaEligibilityService->generateDeclarationTemplate(
+                    $htsCode,
+                    $originCountry,
+                    $destinationCountry,
+                    $eligibilityResult
+                );
+            } catch (\Exception $e) {
+                // If template generation fails, continue without it
+                $declarationTemplate = null;
+            }
+        }
+        
+        // 4. Return FTA rate data
+        return [
+            'dutyRate' => $preferentialRate,
+            'ftaAgreement' => $ftaRule->getFtaAgreement(),
+            'requiresDeclaration' => $requiresDeclaration,
+            'declarationTemplate' => $declarationTemplate,
+            'notFound' => false
+        ];
     }
 
     /**
@@ -323,36 +354,99 @@ class DutyCalculationService
         string $destinationCountry,
         string $originCountry
     ): array {
-        // TODO: Implement FTA savings calculation
-        // 
-        // Steps:
-        // 1. Calculate MFN duty:
-        //    $mfnResult = $this->applyMfnRate($htsCode, $destinationCountry, $customsValue, $quantity, $uom);
-        //    $mfnDuty = $mfnResult['dutyAmount'];
-        // 
-        // 2. Check FTA eligibility:
-        //    $eligibility = $this->ftaEligibilityService->checkEligibility(...);
-        //    if ($eligibility['eligible'] !== 'ELIGIBLE') {
-        //        return ['eligible' => false, ...];
-        //    }
-        // 
-        // 3. Calculate FTA duty:
-        //    $ftaResult = $this->applyFtaRate($htsCode, $originCountry, $destinationCountry, $customsValue, $eligibility);
-        //    $ftaDuty = $customsValue * ($ftaResult['dutyRate'] / 100);
-        // 
-        // 4. Calculate savings:
-        //    $savings = $mfnDuty - $ftaDuty;
-        //    $savingsPercent = $mfnDuty > 0 ? ($savings / $mfnDuty) * 100 : 0;
-        // 
-        // 5. Return savings data:
-        //    return [
-        //        'mfnDuty' => round($mfnDuty, 2),
-        //        'ftaDuty' => round($ftaDuty, 2),
-        //        'savings' => round($savings, 2),
-        //        'savingsPercent' => round($savingsPercent, 1),
-        //        'eligible' => true
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Calculate MFN duty (standard rate)
+        try {
+            $mfnResult = $this->applyMfnRate(
+                $htsCode,
+                $destinationCountry,
+                $customsValue,
+                $quantity,
+                $uom
+            );
+            $mfnDuty = $mfnResult['dutyAmount'];
+        } catch (\Exception $e) {
+            // If MFN rate not found, cannot calculate savings
+            return [
+                'eligible' => false,
+                'error' => 'MFN rate not found: ' . $e->getMessage()
+            ];
+        }
+        
+        // 2. Check FTA eligibility
+        try {
+            $eligibility = $this->ftaEligibilityService->checkEligibility(
+                $htsCode,
+                $originCountry,
+                $destinationCountry
+            );
+            
+            $eligibleStatus = $eligibility['eligible'] ?? 'NOT_ELIGIBLE';
+            
+            if (!in_array($eligibleStatus, ['ELIGIBLE', 'CONDITIONAL'])) {
+                return [
+                    'eligible' => false,
+                    'reason' => $eligibility['reason'] ?? 'Not eligible for FTA',
+                    'mfnDuty' => round($mfnDuty, 2),
+                    'ftaDuty' => round($mfnDuty, 2),
+                    'savings' => 0,
+                    'savingsPercent' => 0
+                ];
+            }
+        } catch (\Exception $e) {
+            // If eligibility check fails, assume not eligible
+            return [
+                'eligible' => false,
+                'error' => 'Eligibility check failed: ' . $e->getMessage(),
+                'mfnDuty' => round($mfnDuty, 2)
+            ];
+        }
+        
+        // 3. Calculate FTA duty (preferential rate)
+        try {
+            $ftaResult = $this->applyFtaRate(
+                $htsCode,
+                $originCountry,
+                $destinationCountry,
+                $customsValue,
+                $eligibility
+            );
+            
+            if ($ftaResult['notFound'] ?? false) {
+                // FTA rule not found
+                return [
+                    'eligible' => false,
+                    'reason' => 'FTA rule not found',
+                    'mfnDuty' => round($mfnDuty, 2),
+                    'ftaDuty' => round($mfnDuty, 2),
+                    'savings' => 0,
+                    'savingsPercent' => 0
+                ];
+            }
+            
+            $ftaDutyRate = $ftaResult['dutyRate'] ?? 0;
+            $ftaDuty = $customsValue * ($ftaDutyRate / 100);
+            
+        } catch (\Exception $e) {
+            return [
+                'eligible' => false,
+                'error' => 'FTA rate calculation failed: ' . $e->getMessage(),
+                'mfnDuty' => round($mfnDuty, 2)
+            ];
+        }
+        
+        // 4. Calculate savings
+        $savings = $mfnDuty - $ftaDuty;
+        $savingsPercent = $mfnDuty > 0 ? ($savings / $mfnDuty) * 100 : 0;
+        
+        // 5. Return savings data
+        return [
+            'mfnDuty' => round($mfnDuty, 2),
+            'ftaDuty' => round($ftaDuty, 2),
+            'savings' => round($savings, 2),
+            'savingsPercent' => round($savingsPercent, 1),
+            'eligible' => true,
+            'ftaAgreement' => $ftaResult['ftaAgreement'] ?? null,
+            'requiresDeclaration' => $ftaResult['requiresDeclaration'] ?? false
+        ];
     }
 }

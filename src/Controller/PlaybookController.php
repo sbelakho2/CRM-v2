@@ -1,0 +1,262 @@
+<?php
+
+namespace App\Controller;
+
+use App\Entity\Playbook;
+use App\Entity\PlaybookRun;
+use App\Repository\PlaybookRepository;
+use App\Repository\PlaybookRunRepository;
+use App\Service\PlaybookEngine;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Routing\Annotation\Route;
+
+#[Route('/playbooks')]
+class PlaybookController extends AbstractController
+{
+    public function __construct(
+        private EntityManagerInterface $entityManager,
+        private PlaybookRepository $playbookRepository,
+        private PlaybookRunRepository $playbookRunRepository,
+        private PlaybookEngine $playbookEngine
+    ) {}
+
+    #[Route('/', name: 'app_playbook_index', methods: ['GET'])]
+    public function index(): Response
+    {
+        $playbooks = $this->playbookRepository->findBy([], ['priority' => 'DESC']);
+        
+        // Calculate stats for each playbook
+        $playbookStats = [];
+        foreach ($playbooks as $playbook) {
+            $runs = $this->playbookRunRepository->findByPlaybook($playbook, 100);
+            $totalRuns = count($runs);
+            $successfulRuns = count(array_filter($runs, fn($run) => $run->getStatus() === 'completed'));
+            
+            $playbookStats[$playbook->getId()] = [
+                'total_runs' => $totalRuns,
+                'successful_runs' => $successfulRuns,
+                'success_rate' => $totalRuns > 0 ? ($successfulRuns / $totalRuns) * 100 : 0,
+                'last_run' => $runs[0] ?? null
+            ];
+        }
+        
+        return $this->render('playbook/index.html.twig', [
+            'playbooks' => $playbooks,
+            'playbookStats' => $playbookStats,
+        ]);
+    }
+
+    #[Route('/new', name: 'app_playbook_new', methods: ['GET', 'POST'])]
+    public function new(Request $request): Response
+    {
+        if ($request->isMethod('POST')) {
+            $playbook = new Playbook();
+            $playbook->setName($request->request->get('name'));
+            $playbook->setDescription($request->request->get('description'));
+            $playbook->setPriority((int) $request->request->get('priority', 100));
+            $playbook->setIsActive($request->request->get('is_active', '1') === '1');
+            $playbook->setNotes($request->request->get('notes'));
+            
+            // Parse trigger rules
+            $triggerRules = $request->request->get('trigger_rules', '[]');
+            $playbook->setTriggerRules($triggerRules);
+            
+            // Parse actions
+            $actions = $request->request->get('actions', '[]');
+            $playbook->setActions($actions);
+            
+            $this->entityManager->persist($playbook);
+            $this->entityManager->flush();
+            
+            $this->addFlash('success', 'Playbook created successfully');
+            return $this->redirectToRoute('app_playbook_show', ['id' => $playbook->getId()]);
+        }
+        
+        return $this->render('playbook/new.html.twig', [
+            'availableTriggers' => $this->getAvailableTriggers(),
+            'availableActions' => $this->getAvailableActions(),
+        ]);
+    }
+
+    #[Route('/{id}', name: 'app_playbook_show', methods: ['GET'])]
+    public function show(Playbook $playbook): Response
+    {
+        $runs = $this->playbookRunRepository->findByPlaybook($playbook, 50);
+        
+        // Calculate statistics
+        $stats = [
+            'total_runs' => count($runs),
+            'completed' => count(array_filter($runs, fn($r) => $r->getStatus() === 'completed')),
+            'failed' => count(array_filter($runs, fn($r) => $r->getStatus() === 'failed')),
+            'pending' => count(array_filter($runs, fn($r) => $r->getStatus() === 'pending')),
+        ];
+        
+        return $this->render('playbook/show.html.twig', [
+            'playbook' => $playbook,
+            'runs' => $runs,
+            'stats' => $stats,
+        ]);
+    }
+
+    #[Route('/{id}/edit', name: 'app_playbook_edit', methods: ['GET', 'POST'])]
+    public function edit(Request $request, Playbook $playbook): Response
+    {
+        if ($request->isMethod('POST')) {
+            $playbook->setName($request->request->get('name'));
+            $playbook->setDescription($request->request->get('description'));
+            $playbook->setPriority((int) $request->request->get('priority', 100));
+            $playbook->setIsActive($request->request->get('is_active', '1') === '1');
+            $playbook->setNotes($request->request->get('notes'));
+            
+            // Update trigger rules
+            $triggerRules = $request->request->get('trigger_rules', '[]');
+            $playbook->setTriggerRules($triggerRules);
+            
+            // Update actions
+            $actions = $request->request->get('actions', '[]');
+            $playbook->setActions($actions);
+            
+            $playbook->setUpdatedAt(new \DateTime());
+            
+            $this->entityManager->flush();
+            
+            $this->addFlash('success', 'Playbook updated successfully');
+            return $this->redirectToRoute('app_playbook_show', ['id' => $playbook->getId()]);
+        }
+        
+        return $this->render('playbook/edit.html.twig', [
+            'playbook' => $playbook,
+            'availableTriggers' => $this->getAvailableTriggers(),
+            'availableActions' => $this->getAvailableActions(),
+        ]);
+    }
+
+    #[Route('/{id}/delete', name: 'app_playbook_delete', methods: ['POST'])]
+    public function delete(Request $request, Playbook $playbook): Response
+    {
+        $this->entityManager->remove($playbook);
+        $this->entityManager->flush();
+        
+        $this->addFlash('success', 'Playbook deleted successfully');
+        return $this->redirectToRoute('app_playbook_index');
+    }
+
+    #[Route('/{id}/toggle', name: 'app_playbook_toggle', methods: ['POST'])]
+    public function toggle(Playbook $playbook): JsonResponse
+    {
+        $playbook->setIsActive(!$playbook->isActive());
+        $playbook->setUpdatedAt(new \DateTime());
+        $this->entityManager->flush();
+        
+        return $this->json([
+            'success' => true,
+            'is_active' => $playbook->isActive(),
+            'message' => $playbook->isActive() ? 'Playbook activated' : 'Playbook deactivated'
+        ]);
+    }
+
+    #[Route('/builder/triggers', name: 'app_playbook_builder_triggers', methods: ['GET'])]
+    public function builderTriggers(): Response
+    {
+        return $this->render('playbook/builder_triggers.html.twig', [
+            'availableTriggers' => $this->getAvailableTriggers(),
+        ]);
+    }
+
+    #[Route('/builder/actions', name: 'app_playbook_builder_actions', methods: ['GET'])]
+    public function builderActions(): Response
+    {
+        return $this->render('playbook/builder_actions.html.twig', [
+            'availableActions' => $this->getAvailableActions(),
+        ]);
+    }
+
+    private function getAvailableTriggers(): array
+    {
+        return [
+            'abm' => [
+                'label' => 'ABM & Visitor Tracking',
+                'triggers' => [
+                    ['field' => 'abm_hits_7d', 'label' => 'Page views in last 7 days', 'type' => 'number'],
+                    ['field' => 'company_tier', 'label' => 'Company tier', 'type' => 'select', 'options' => ['A', 'B', 'C']],
+                    ['field' => 'engagement_score', 'label' => 'Engagement score', 'type' => 'number'],
+                    ['field' => 'visited_pricing', 'label' => 'Visited pricing page', 'type' => 'boolean'],
+                ]
+            ],
+            'lead' => [
+                'label' => 'Lead Management',
+                'triggers' => [
+                    ['field' => 'lead_score', 'label' => 'Lead score', 'type' => 'number'],
+                    ['field' => 'lead_status', 'label' => 'Lead status', 'type' => 'select', 'options' => ['NEW', 'CONTACTED', 'QUALIFIED', 'LOST']],
+                    ['field' => 'lead_source', 'label' => 'Lead source', 'type' => 'select', 'options' => ['Website', 'LinkedIn', 'Referral', 'Trade Show']],
+                ]
+            ],
+            'email' => [
+                'label' => 'Email Engagement',
+                'triggers' => [
+                    ['field' => 'email_opened', 'label' => 'Email opened', 'type' => 'boolean'],
+                    ['field' => 'email_clicked', 'label' => 'Email clicked', 'type' => 'boolean'],
+                    ['field' => 'email_replied', 'label' => 'Email replied', 'type' => 'boolean'],
+                ]
+            ],
+            'quote' => [
+                'label' => 'Quote & RFQ',
+                'triggers' => [
+                    ['field' => 'quote_value', 'label' => 'Quote value', 'type' => 'currency'],
+                    ['field' => 'quote_status', 'label' => 'Quote status', 'type' => 'select', 'options' => ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED']],
+                    ['field' => 'days_pending', 'label' => 'Days pending', 'type' => 'number'],
+                ]
+            ],
+        ];
+    }
+
+    private function getAvailableActions(): array
+    {
+        return [
+            'activity' => [
+                'label' => 'Create Activity',
+                'description' => 'Create a task, call, or meeting in CRM',
+                'params' => [
+                    ['name' => 'type', 'label' => 'Activity type', 'type' => 'select', 'options' => ['CALL', 'EMAIL', 'MEETING', 'TASK']],
+                    ['name' => 'priority', 'label' => 'Priority', 'type' => 'select', 'options' => ['LOW', 'MEDIUM', 'HIGH', 'URGENT']],
+                    ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
+                ]
+            ],
+            'email' => [
+                'label' => 'Send Email',
+                'description' => 'Send automated email from template',
+                'params' => [
+                    ['name' => 'template', 'label' => 'Email template', 'type' => 'select', 'options' => ['welcome', 'follow_up', 'hot_lead', 'quote_reminder']],
+                    ['name' => 'delay_hours', 'label' => 'Delay (hours)', 'type' => 'number'],
+                ]
+            ],
+            'lead' => [
+                'label' => 'Update Lead',
+                'description' => 'Update lead score or status',
+                'params' => [
+                    ['name' => 'score_delta', 'label' => 'Score change', 'type' => 'number'],
+                    ['name' => 'status', 'label' => 'New status', 'type' => 'select', 'options' => ['NEW', 'CONTACTED', 'QUALIFIED', 'LOST']],
+                ]
+            ],
+            'assign' => [
+                'label' => 'Assign Owner',
+                'description' => 'Assign lead/company to user',
+                'params' => [
+                    ['name' => 'user_id', 'label' => 'User', 'type' => 'user_select'],
+                ]
+            ],
+            'webhook' => [
+                'label' => 'Webhook',
+                'description' => 'Send data to external URL',
+                'params' => [
+                    ['name' => 'url', 'label' => 'Webhook URL', 'type' => 'url'],
+                    ['name' => 'payload', 'label' => 'JSON payload', 'type' => 'textarea'],
+                ]
+            ],
+        ];
+    }
+}

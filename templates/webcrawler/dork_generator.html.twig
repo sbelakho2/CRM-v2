@@ -1,0 +1,164 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Google Dork Generator{% endblock %}
+
+{% block body %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <a href="{{ path('app_webcrawler_index') }}" class="text-blue-600 hover:text-blue-800 text-sm">
+            ← Back to WebCrawler
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-4">Google Dork Generator</h1>
+        <p class="text-gray-600 mb-6">Generate custom Google search queries for company discovery</p>
+
+        <!-- Quick Generator -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4">Quick Generator</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Company/Domain</label>
+                    <input type="text" id="domain-input" placeholder="example.com" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Sector</label>
+                    <select id="sector-input" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="">Select sector...</option>
+                        {% for sector in sectors %}
+                            <option value="{{ sector }}">{{ sector }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div id="generated-dorks" class="space-y-2"></div>
+        </div>
+
+        <!-- Dork Templates -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4">Dork Templates</h2>
+            
+            {% for category, templates in dork_templates %}
+                <div class="mb-6">
+                    <h3 class="font-medium text-gray-900 mb-3">{{ category }}</h3>
+                    <div class="space-y-2">
+                        {% for template in templates %}
+                            <div class="flex items-center gap-2 bg-gray-50 rounded p-3">
+                                <code class="flex-1 text-sm text-gray-700">{{ template }}</code>
+                                <button onclick="copyDork('{{ template|escape('js') }}')" class="text-blue-600 hover:text-blue-800 text-sm">Copy</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Advanced Tips -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="font-semibold text-blue-900 mb-2">Google Dork Tips</h3>
+            <ul class="text-sm text-blue-800 space-y-1">
+                <li>• <code>site:</code> - Search within a specific domain</li>
+                <li>• <code>inurl:</code> - Search for text in URL</li>
+                <li>• <code>intitle:</code> - Search for text in page title</li>
+                <li>• <code>"exact phrase"</code> - Search for exact phrase match</li>
+                <li>• <code>OR</code> - Search for either term (must be uppercase)</li>
+                <li>• <code>-keyword</code> - Exclude results with keyword</li>
+                <li>• <code>filetype:pdf</code> - Search for specific file types</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Example Searches -->
+    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-4">Example Searches</h2>
+        
+        <div class="space-y-4">
+            <div>
+                <div class="font-medium text-gray-900 mb-1">Find Automotive Suppliers in Morocco</div>
+                <code class="block bg-gray-100 p-3 rounded text-sm">
+                    "automotive" "morocco" ("tier 1" OR "tier 2" OR "supplier") -jobs -careers
+                </code>
+            </div>
+            
+            <div>
+                <div class="font-medium text-gray-900 mb-1">Find Companies with Supplier Portals</div>
+                <code class="block bg-gray-100 p-3 rounded text-sm">
+                    site:*.ma inurl:supplier OR inurl:vendor "portal" OR "registration"
+                </code>
+            </div>
+            
+            <div>
+                <div class="font-medium text-gray-900 mb-1">Find Aerospace Companies in Free Zones</div>
+                <code class="block bg-gray-100 p-3 rounded text-sm">
+                    "aerospace" ("tanger free zone" OR "atlantic free zone") manufacturer OR supplier
+                </code>
+            </div>
+            
+            <div>
+                <div class="font-medium text-gray-900 mb-1">Find Electronics Manufacturing Services</div>
+                <code class="block bg-gray-100 p-3 rounded text-sm">
+                    "morocco" ("EMS" OR "PCBA" OR "PCB assembly") contract manufacturer
+                </code>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyDork(template) {
+    navigator.clipboard.writeText(template).then(() => {
+        // Show temporary feedback
+        event.target.textContent = '✓ Copied';
+        setTimeout(() => event.target.textContent = 'Copy', 2000);
+    });
+}
+
+// Generate dorks on input
+const domainInput = document.getElementById('domain-input');
+const sectorInput = document.getElementById('sector-input');
+const generatedDorks = document.getElementById('generated-dorks');
+
+function generateDorks() {
+    const domain = domainInput.value.trim();
+    const sector = sectorInput.value;
+    
+    if (!domain && !sector) {
+        generatedDorks.innerHTML = '';
+        return;
+    }
+    
+    const dorks = [];
+    
+    if (domain) {
+        dorks.push(`site:${domain} "supplier portal"`);
+        dorks.push(`site:${domain} "vendor registration"`);
+        dorks.push(`site:${domain} contact procurement`);
+        dorks.push(`site:linkedin.com/company "${domain.replace('.com', '')}"`);
+    }
+    
+    if (sector) {
+        dorks.push(`"${sector}" morocco supplier manufacturer`);
+        dorks.push(`"${sector}" "free zone" supplier`);
+    }
+    
+    if (domain && sector) {
+        dorks.push(`"${domain}" "${sector}" contact`);
+    }
+    
+    generatedDorks.innerHTML = dorks.map(dork => `
+        <div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded p-3">
+            <code class="flex-1 text-sm text-gray-700">${dork}</code>
+            <button onclick="copyDork('${dork.replace(/'/g, "\\'")}')" class="text-blue-600 hover:text-blue-800 text-sm">Copy</button>
+            <a href="https://www.google.com/search?q=${encodeURIComponent(dork)}" target="_blank" class="text-green-600 hover:text-green-800 text-sm">Search</a>
+        </div>
+    `).join('');
+}
+
+domainInput.addEventListener('input', generateDorks);
+sectorInput.addEventListener('change', generateDorks);
+</script>
+{% endblock %}

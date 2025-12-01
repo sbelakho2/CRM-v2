@@ -59,7 +59,7 @@ class LinkedInService
     /**
      * Track LinkedIn outreach activity
      */
-    public function trackLinkedInOutreach(Contact $contact, string $messageType, string $notes, $user = null): Activity
+    public function trackLinkedInOutreach(Contact $contact, string $messageType, string $notes, mixed $user = null): Activity
     {
         $activity = new Activity();
         $activity->setCompany($contact->getCompany());

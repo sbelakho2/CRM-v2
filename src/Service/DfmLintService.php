@@ -60,47 +60,65 @@ class DfmLintService
      */
     public function lintBom(int $quoteId, array $options = []): array
     {
-        // TODO: Implement BOM linting
-        // 
-        // Steps:
-        // 1. Get all BOM lines for quote:
-        //    $bomLines = $this->bomLineRepository->findBy(['quoteId' => $quoteId]);
-        // 
-        // 2. Get all active DFM rules:
-        //    $rules = $this->dfmRuleRepository->findBy(['isActive' => true]);
-        //    
-        //    // Filter by category if specified in options:
-        //    if (isset($options['categories'])) {
-        //        $rules = array_filter($rules, fn($r) => in_array($r->getCategory(), $options['categories']));
-        //    }
-        // 
-        // 3. Apply each rule to BOM:
-        //    $findings = [];
-        //    foreach ($rules as $rule) {
-        //        $ruleFindings = $this->applyRule($rule, $bomLines, $quoteId);
-        //        $findings = array_merge($findings, $ruleFindings);
-        //    }
-        // 
-        // 4. Categorize findings by severity:
-        //    $categorized = $this->categorizeFindings($findings);
-        // 
-        // 5. Persist findings to database:
-        //    foreach ($findings as $finding) {
-        //        $this->entityManager->persist($finding);
-        //    }
-        //    $this->entityManager->flush();
-        // 
-        // 6. Return summary:
-        //    return [
-        //        'findingsCount' => count($findings),
-        //        'criticalCount' => $categorized['CRITICAL'],
-        //        'highCount' => $categorized['HIGH'],
-        //        'mediumCount' => $categorized['MEDIUM'],
-        //        'lowCount' => $categorized['LOW'],
-        //        'findings' => $findings
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get all BOM lines for quote
+        $bomLines = $this->bomLineRepository->findBy(['quote' => $quoteId]);
+        
+        if (empty($bomLines)) {
+            return [
+                'findingsCount' => 0,
+                'criticalCount' => 0,
+                'highCount' => 0,
+                'mediumCount' => 0,
+                'lowCount' => 0,
+                'findings' => []
+            ];
+        }
+        
+        // 2. Get all active DFM rules
+        $rules = $this->dfmRuleRepository->findBy(['isActive' => true]);
+        
+        // Filter by category if specified
+        if (isset($options['categories']) && !empty($options['categories'])) {
+            $rules = array_filter($rules, fn($r) => in_array($r->getCategory(), $options['categories']));
+        }
+        
+        // 3. Apply each rule to BOM
+        $findings = [];
+        foreach ($rules as $rule) {
+            $ruleFindings = $this->applyRule($rule, $bomLines, $quoteId);
+            $findings = array_merge($findings, $ruleFindings);
+        }
+        
+        // 4. Categorize findings by severity
+        $categorized = [
+            'CRITICAL' => 0,
+            'HIGH' => 0,
+            'MEDIUM' => 0,
+            'LOW' => 0,
+        ];
+        
+        foreach ($findings as $finding) {
+            $severity = $finding->getSeverity();
+            if (isset($categorized[$severity])) {
+                $categorized[$severity]++;
+            }
+        }
+        
+        // 5. Persist findings to database
+        foreach ($findings as $finding) {
+            $this->entityManager->persist($finding);
+        }
+        $this->entityManager->flush();
+        
+        // 6. Return summary
+        return [
+            'findingsCount' => count($findings),
+            'criticalCount' => $categorized['CRITICAL'],
+            'highCount' => $categorized['HIGH'],
+            'mediumCount' => $categorized['MEDIUM'],
+            'lowCount' => $categorized['LOW'],
+            'findings' => $findings
+        ];
     }
 
     /**
@@ -114,43 +132,45 @@ class DfmLintService
      */
     public function applyRule(DfmRule $rule, array $bomLines, int $quoteId): array
     {
-        // TODO: Implement rule application
-        // 
-        // Steps:
-        // 1. Parse rule condition (JSON):
-        //    $ruleCondition = json_decode($rule->getRuleConditionJson(), true);
-        //    
-        //    Example rule conditions:
-        //    - Obsolete parts: {"field": "lifecycle", "operator": "equals", "value": "OBSOLETE"}
-        //    - Single-source: {"field": "manufacturer", "operator": "in", "value": ["Broadcom", "Analog Devices"]}
-        //    - High cost: {"field": "unitPrice", "operator": "greaterThan", "value": 50.00}
-        //    - Exotic packages: {"field": "package", "operator": "in", "value": ["BGA-256", "QFN-64"]}
-        // 
-        // 2. Evaluate condition for each BOM line:
-        //    $findings = [];
-        //    foreach ($bomLines as $bomLine) {
-        //        $matches = $this->evaluateCondition($ruleCondition, $bomLine);
-        //        
-        //        if ($matches) {
-        //            // Create DfmFinding
-        //            $finding = new DfmFinding();
-        //            $finding->setQuoteId($quoteId);
-        //            $finding->setBomLineId($bomLine->getId());
-        //            $finding->setRuleId($rule->getId());
-        //            $finding->setSeverity($rule->getSeverity());
-        //            $finding->setCategory($rule->getCategory()); // COMPONENT, PCB_DESIGN, ASSEMBLY, COST
-        //            $finding->setMessage($this->formatMessage($rule->getMessageTemplate(), $bomLine));
-        //            $finding->setRemediation($rule->getRemediationText());
-        //            $finding->setDetectedAt(new \DateTime());
-        //            
-        //            $findings[] = $finding;
-        //        }
-        //    }
-        // 
-        // 3. Return findings:
-        //    return $findings;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Parse rule condition (JSON)
+        $ruleConditionJson = $rule->getRuleConditionJson();
+        if (empty($ruleConditionJson)) {
+            return [];
+        }
+        
+        $ruleCondition = json_decode($ruleConditionJson, true);
+        if (!$ruleCondition) {
+            return [];
+        }
+        
+        // 2. Evaluate condition for each BOM line
+        $findings = [];
+        foreach ($bomLines as $bomLine) {
+            try {
+                $matches = $this->evaluateCondition($ruleCondition, $bomLine);
+                
+                if ($matches) {
+                    // Create DfmFinding
+                    $finding = new DfmFinding();
+                    $finding->setQuoteId($quoteId);
+                    $finding->setBomLineId($bomLine->getId());
+                    $finding->setRuleId($rule->getId());
+                    $finding->setSeverity($rule->getSeverity());
+                    $finding->setCategory($rule->getCategory());
+                    $finding->setMessage($this->formatMessage($rule->getMessageTemplate(), $bomLine));
+                    $finding->setRemediation($rule->getRemediationText() ?? 'Contact engineering for guidance');
+                    $finding->setDetectedAt(new \DateTime());
+                    
+                    $findings[] = $finding;
+                }
+            } catch (\Exception $e) {
+                // Skip this BOM line if evaluation fails
+                continue;
+            }
+        }
+        
+        // 3. Return findings
+        return $findings;
     }
 
     /**
@@ -196,40 +216,74 @@ class DfmLintService
      */
     private function evaluateCondition(array $condition, $bomLine): bool
     {
-        // TODO: Implement condition evaluation
-        // 
-        // Steps:
-        // 1. Get field value from BomLine:
-        //    $field = $condition['field'];
-        //    $getter = 'get' . ucfirst($field);
-        //    $value = method_exists($bomLine, $getter) ? $bomLine->$getter() : null;
-        // 
-        // 2. Evaluate operator:
-        //    $operator = $condition['operator'];
-        //    $expectedValue = $condition['value'];
-        //    
-        //    switch ($operator) {
-        //        case 'equals':
-        //            return $value === $expectedValue;
-        //        case 'notEquals':
-        //            return $value !== $expectedValue;
-        //        case 'in':
-        //            return in_array($value, $expectedValue);
-        //        case 'notIn':
-        //            return !in_array($value, $expectedValue);
-        //        case 'greaterThan':
-        //            return $value > $expectedValue;
-        //        case 'lessThan':
-        //            return $value < $expectedValue;
-        //        case 'contains':
-        //            return str_contains($value, $expectedValue);
-        //        case 'regex':
-        //            return preg_match($expectedValue, $value) === 1;
-        //        default:
-        //            throw new \InvalidArgumentException("Unknown operator: $operator");
-        //    }
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get field value from BomLine
+        $field = $condition['field'] ?? null;
+        if (!$field) {
+            return false;
+        }
+        
+        // Try standard getter
+        $getter = 'get' . ucfirst($field);
+        if (method_exists($bomLine, $getter)) {
+            $value = $bomLine->$getter();
+        } else {
+            // Try alternative getter patterns (e.g., 'is' for booleans)
+            $isGetter = 'is' . ucfirst($field);
+            if (method_exists($bomLine, $isGetter)) {
+                $value = $bomLine->$isGetter();
+            } else {
+                // Field doesn't exist on entity
+                return false;
+            }
+        }
+        
+        // 2. Evaluate operator
+        $operator = $condition['operator'] ?? 'equals';
+        $expectedValue = $condition['value'] ?? null;
+        
+        switch ($operator) {
+            case 'equals':
+                return $value == $expectedValue;
+                
+            case 'notEquals':
+                return $value != $expectedValue;
+                
+            case 'in':
+                return is_array($expectedValue) && in_array($value, $expectedValue);
+                
+            case 'notIn':
+                return is_array($expectedValue) && !in_array($value, $expectedValue);
+                
+            case 'greaterThan':
+                return is_numeric($value) && is_numeric($expectedValue) && $value > $expectedValue;
+                
+            case 'lessThan':
+                return is_numeric($value) && is_numeric($expectedValue) && $value < $expectedValue;
+                
+            case 'greaterOrEqual':
+                return is_numeric($value) && is_numeric($expectedValue) && $value >= $expectedValue;
+                
+            case 'lessOrEqual':
+                return is_numeric($value) && is_numeric($expectedValue) && $value <= $expectedValue;
+                
+            case 'contains':
+                return is_string($value) && is_string($expectedValue) && str_contains($value, $expectedValue);
+                
+            case 'notContains':
+                return is_string($value) && is_string($expectedValue) && !str_contains($value, $expectedValue);
+                
+            case 'regex':
+                return is_string($value) && is_string($expectedValue) && preg_match($expectedValue, $value) === 1;
+                
+            case 'isEmpty':
+                return empty($value);
+                
+            case 'isNotEmpty':
+                return !empty($value);
+                
+            default:
+                throw new \InvalidArgumentException("Unknown operator: $operator");
+        }
     }
 
     /**
@@ -242,22 +296,24 @@ class DfmLintService
      */
     private function formatMessage(string $template, $bomLine): string
     {
-        // TODO: Implement message formatting
-        // 
-        // Steps:
-        // 1. Replace placeholders with BOM line values:
-        //    Example template: "Part {mpn} by {manufacturer} is obsolete"
-        //    
-        //    $message = $template;
-        //    $message = str_replace('{mpn}', $bomLine->getMpn(), $message);
-        //    $message = str_replace('{manufacturer}', $bomLine->getManufacturer(), $message);
-        //    $message = str_replace('{designator}', $bomLine->getDesignator(), $message);
-        //    $message = str_replace('{qty}', $bomLine->getQty(), $message);
-        //    $message = str_replace('{unitPrice}', $bomLine->getUnitPrice(), $message);
-        //    
-        //    return $message;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Replace common BOM line placeholders
+        $replacements = [
+            '{mpn}' => $bomLine->getMpn() ?? 'N/A',
+            '{manufacturer}' => $bomLine->getManufacturer() ?? 'N/A',
+            '{description}' => $bomLine->getDescription() ?? 'N/A',
+            '{designator}' => $bomLine->getDesignator() ?? 'N/A',
+            '{quantity}' => $bomLine->getQuantity() ?? 0,
+            '{unitPrice}' => $bomLine->getUnitPrice() ?? 0,
+            '{supplier}' => $bomLine->getSupplier() ?? 'N/A',
+            '{leadTimeDays}' => $bomLine->getLeadTimeDays() ?? 'N/A',
+        ];
+        
+        $message = $template;
+        foreach ($replacements as $placeholder => $value) {
+            $message = str_replace($placeholder, (string) $value, $message);
+        }
+        
+        return $message;
     }
 
     /**

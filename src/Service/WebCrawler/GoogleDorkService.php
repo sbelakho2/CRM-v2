@@ -96,7 +96,7 @@ class GoogleDorkService
     /**
      * Find procurement/purchasing contact emails using Google Dorks
      */
-    public function findContactEmails(string $companyName, string $domain = null): array
+    public function findContactEmails(string $companyName, ?string $domain = null): array
     {
         $emails = [];
 

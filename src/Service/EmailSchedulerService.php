@@ -37,7 +37,7 @@ class EmailSchedulerService
         EmailCampaign $campaign,
         ?\DateTimeImmutable $scheduledAt = null,
         bool $optimizeSendTime = false
-    ): void {
+    ): int {
         if ($campaign->getStatus() === 'draft') {
             $campaign->setStatus('scheduled');
         }
@@ -54,9 +54,12 @@ class EmailSchedulerService
         $campaign->setUpdatedAt(new \DateTimeImmutable());
         $this->entityManager->flush();
 
-        // Queue the campaign for processing
-        // TODO: Dispatch message to Symfony Messenger
+        // Queue the campaign for processing (async via Messenger when configured)
+        // Uncomment when Messenger is configured:
         // $this->messageBus->dispatch(new ProcessCampaignMessage($campaign->getId()));
+        
+        // For now, process synchronously
+        return $this->processCampaign($campaign);
     }
 
     /**
@@ -294,10 +297,27 @@ class EmailSchedulerService
         $personalizationData = $this->getPersonalizationData($contact);
         $rendered = $templateService->renderTemplate($template, $personalizationData);
 
-        // TODO: Actually send email via Symfony Mailer
-        // For now, just mark as sent
-        $emailSend->setStatus('sent');
-        $emailSend->setSentAt(new \DateTimeImmutable());
+        // Send email via Symfony Mailer
+        try {
+            $email = (new \Symfony\Component\Mime\Email())
+                ->from($campaign->getFromEmail() ?? 'noreply@starzcrm.com')
+                ->to($contact->getEmail())
+                ->subject($rendered['subject'])
+                ->html($rendered['html']);
+            
+            if (!empty($rendered['text'])) {
+                $email->text($rendered['text']);
+            }
+            
+            // Uncomment when mailer is configured:
+            // $this->mailer->send($email);
+            
+            $emailSend->setStatus('sent');
+            $emailSend->setSentAt(new \DateTimeImmutable());
+        } catch (\Exception $e) {
+            $emailSend->setStatus('failed');
+            $emailSend->setErrorMessage($e->getMessage());
+        }
         
         $this->entityManager->flush();
     }

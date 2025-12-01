@@ -117,7 +117,63 @@ class CostingEngineService
         //        'pricePerSqcm' => round($pricePerSqcm, 2)
         //    ];
 
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Calculate board area (convert mm² to cm²)
+        $width = $pcbSpec['width'] ?? 100;
+        $height = $pcbSpec['height'] ?? 100;
+        $areaPerBoard = ($width / 10) * ($height / 10);
+        
+        // 2. Query PcbCurve for base price
+        $layers = $pcbSpec['layers'] ?? 2;
+        $curve = $this->pcbCurveRepository->createQueryBuilder('p')
+            ->where('p.layerCount = :layers')
+            ->setParameter('layers', $layers)
+            ->orderBy('p.asof', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        
+        // Default pricing if no curve found
+        $basePricePerSqcm = $curve?->getPricePerSqcm() ?? 0.15;
+        $setupCostBase = $curve?->getSetupCost() ?? 150.00;
+        
+        // 3. Apply complexity multipliers
+        $multiplier = 1.0;
+        
+        $material = $pcbSpec['material'] ?? 'FR4';
+        if ($material === 'POLYIMIDE') {
+            $multiplier *= 1.5;
+        }
+        
+        $surfaceFinish = $pcbSpec['surfaceFinish'] ?? 'HASL';
+        if ($surfaceFinish === 'ENIG') {
+            $multiplier *= 1.2;
+        } elseif ($surfaceFinish === 'OSP') {
+            $multiplier *= 0.95;
+        }
+        
+        // 4. Calculate unit cost
+        $pricePerSqcm = $basePricePerSqcm * $multiplier;
+        $unitCost = $areaPerBoard * $pricePerSqcm;
+        
+        // 5. Apply quantity discounts
+        $qty = $pcbSpec['qty'] ?? 1;
+        if ($qty >= 1000) {
+            $unitCost *= 0.7;
+        } elseif ($qty >= 100) {
+            $unitCost *= 0.85;
+        }
+        
+        // 6. Setup cost
+        $setupCost = $setupCostBase;
+        
+        // 7. Return cost breakdown
+        return [
+            'unitCost' => round($unitCost, 2),
+            'setupCost' => round($setupCost, 2),
+            'totalCost' => round(($unitCost * $qty) + $setupCost, 2),
+            'areaPerBoard' => round($areaPerBoard, 2),
+            'pricePerSqcm' => round($pricePerSqcm, 4)
+        ];
     }
 
     /**
@@ -196,7 +252,72 @@ class CostingEngineService
         //        'pricePerComponent' => round($basePricePerComponent, 2)
         //    ];
 
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Query AsmCurve for base price
+        $curve = $this->asmCurveRepository->createQueryBuilder('a')
+            ->orderBy('a.asof', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        
+        $basePricePerComponent = $curve?->getPricePerComponent() ?? 0.05;
+        $setupCostBase = $curve?->getSetupCost() ?? 250.00;
+        
+        // 2. Apply package complexity multipliers
+        $packageMultipliers = [
+            '0201' => 1.5,
+            '0402' => 1.2,
+            '0603' => 1.0,
+            '0805' => 1.0,
+            '1206' => 0.9,
+            'QFN' => 1.5,
+            'BGA' => 2.0,
+            'SOIC' => 1.1,
+            'TSSOP' => 1.2,
+            'SSOP' => 1.2,
+            'DIP' => 1.3,
+            'SOT' => 1.0,
+        ];
+        
+        $totalCost = 0.0;
+        $packageComplexity = $asmSpec['packageComplexity'] ?? [];
+        
+        foreach ($packageComplexity as $pkg => $count) {
+            $multiplier = $packageMultipliers[$pkg] ?? 1.0;
+            $totalCost += $count * ($basePricePerComponent * $multiplier);
+        }
+        
+        // If no package data, use component count
+        if ($totalCost == 0 && isset($asmSpec['componentCount'])) {
+            $totalCost = $asmSpec['componentCount'] * $basePricePerComponent;
+        }
+        
+        // 3. Apply side count multiplier
+        $sideCount = $asmSpec['sideCount'] ?? 1;
+        if ($sideCount === 2) {
+            $totalCost *= 1.4;
+        }
+        
+        // 4. Calculate unit cost
+        $unitCost = $totalCost;
+        
+        // 5. Apply quantity discounts
+        $qty = $asmSpec['qty'] ?? 1;
+        if ($qty >= 1000) {
+            $unitCost *= 0.75;
+        } elseif ($qty >= 100) {
+            $unitCost *= 0.9;
+        }
+        
+        // 6. Setup cost
+        $setupCost = $setupCostBase;
+        
+        // 7. Return cost breakdown
+        return [
+            'unitCost' => round($unitCost, 2),
+            'setupCost' => round($setupCost, 2),
+            'totalCost' => round(($unitCost * $qty) + $setupCost, 2),
+            'pricePerComponent' => round($basePricePerComponent, 4)
+        ];
     }
 
     /**
@@ -246,7 +367,42 @@ class CostingEngineService
         // 3. Return NRE breakdown:
         //    return array_merge($costs, ['totalNre' => round($totalNre, 2)]);
 
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Query NreTable for item costs
+        $nreRates = [];
+        $items = ['stencil', 'fixture', 'programming', 'firstArticle'];
+        
+        foreach ($items as $item) {
+            $rate = $this->nreTableRepository->createQueryBuilder('n')
+                ->where('n.itemType = :type')
+                ->setParameter('type', strtoupper($item))
+                ->orderBy('n.asof', 'DESC')
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
+            
+            // Default costs if not found in database
+            $defaults = [
+                'stencil' => 150.00,
+                'fixture' => 500.00,
+                'programming' => 200.00,
+                'firstArticle' => 300.00
+            ];
+            
+            $nreRates[$item] = $rate?->getCost() ?? $defaults[$item];
+        }
+        
+        // 2. Calculate total NRE based on requested items
+        $costs = [
+            'stencilCost' => ($nreItems['stencil'] ?? false) ? $nreRates['stencil'] : 0.0,
+            'fixtureCost' => ($nreItems['fixture'] ?? false) ? $nreRates['fixture'] : 0.0,
+            'programmingCost' => ($nreItems['programming'] ?? false) ? $nreRates['programming'] : 0.0,
+            'firstArticleCost' => ($nreItems['firstArticle'] ?? false) ? $nreRates['firstArticle'] : 0.0
+        ];
+        
+        $totalNre = array_sum($costs);
+        
+        // 3. Return NRE breakdown
+        return array_merge($costs, ['totalNre' => round($totalNre, 2)]);
     }
 
     /**
@@ -303,7 +459,39 @@ class CostingEngineService
         //        'slotId' => $slot->getId()
         //    ];
 
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Query CapacityCalendar for requested date
+        $slot = $this->capacityCalendarRepository->findOneBy([
+            'productionDate' => $requestedDate
+        ]);
+        
+        // 2. Check if slot exists and has capacity
+        if (!$slot) {
+            return [
+                'available' => false,
+                'confirmedDate' => null,
+                'capacityRemaining' => null,
+                'slotId' => null
+            ];
+        }
+        
+        $capacityRemaining = $slot->getMaxBoards() - $slot->getBookedBoards();
+        
+        if ($capacityRemaining < $quantityBoards) {
+            return [
+                'available' => false,
+                'confirmedDate' => null,
+                'capacityRemaining' => $capacityRemaining,
+                'slotId' => $slot->getId()
+            ];
+        }
+        
+        // 3. Return availability
+        return [
+            'available' => true,
+            'confirmedDate' => $requestedDate,
+            'capacityRemaining' => $capacityRemaining,
+            'slotId' => $slot->getId()
+        ];
     }
 
     /**
@@ -348,7 +536,33 @@ class CostingEngineService
         //    $this->entityManager->flush();
         //    return true;
 
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get capacity slot
+        $slot = $this->capacityCalendarRepository->find($slotId);
+        if (!$slot) {
+            throw new \RuntimeException("Capacity slot $slotId not found");
+        }
+        
+        // 2. Check capacity still available
+        $capacityRemaining = $slot->getMaxBoards() - $slot->getBookedBoards();
+        if ($capacityRemaining < $quantityBoards) {
+            return false;
+        }
+        
+        // 3. Update booked_boards
+        $slot->setBookedBoards($slot->getBookedBoards() + $quantityBoards);
+        
+        // 4. Add quote ID to bookings JSON
+        $bookings = json_decode($slot->getBookingsJson() ?? '[]', true);
+        $bookings[] = [
+            'quoteId' => $quoteId,
+            'quantity' => $quantityBoards,
+            'bookedAt' => (new \DateTime())->format('Y-m-d H:i:s')
+        ];
+        $slot->setBookingsJson(json_encode($bookings));
+        
+        // 5. Flush changes
+        $this->entityManager->flush();
+        return true;
     }
 
     /**

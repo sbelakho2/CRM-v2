@@ -45,8 +45,60 @@ class HtsClassificationService
      */
     public function classifyBomLine(array $bomLine): array
     {
-        // TODO: Implement HTS classification waterfall
-        throw new \RuntimeException('HTS classification not yet implemented');
+        // 1. Check if HTS code is provided
+        if (!empty($bomLine['hts_code'])) {
+            return [
+                'hts_code' => $bomLine['hts_code'],
+                'confidence' => 100,
+                'method' => 'PROVIDED',
+                'rule_id' => null
+            ];
+        }
+        
+        // 2. Try exact MPN match
+        $mpn = $bomLine['mpn'] ?? null;
+        $manufacturer = $bomLine['manufacturer'] ?? null;
+        
+        if ($mpn && $manufacturer) {
+            $mappedRule = $this->htsMapRuleRepository->createQueryBuilder('h')
+                ->where('h.mpnPattern = :mpn')
+                ->andWhere('h.manufacturer = :manufacturer')
+                ->andWhere('h.isActive = true')
+                ->setParameter('mpn', $mpn)
+                ->setParameter('manufacturer', $manufacturer)
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
+            
+            if ($mappedRule) {
+                return [
+                    'hts_code' => $mappedRule->getHtsCode(),
+                    'confidence' => $this->calculateConfidence('MAPPED', $mappedRule),
+                    'method' => 'MAPPED',
+                    'rule_id' => $mappedRule->getId()
+                ];
+            }
+        }
+        
+        // 3. Apply heuristic matching
+        $heuristicRule = $this->applyHeuristics($bomLine);
+        
+        if ($heuristicRule) {
+            return [
+                'hts_code' => $heuristicRule->getHtsCode(),
+                'confidence' => $this->calculateConfidence('HEURISTIC', $heuristicRule),
+                'method' => 'HEURISTIC',
+                'rule_id' => $heuristicRule->getId()
+            ];
+        }
+        
+        // 4. No match found
+        return [
+            'hts_code' => null,
+            'confidence' => 0,
+            'method' => 'UNKNOWN',
+            'rule_id' => null
+        ];
     }
 
     /**
@@ -71,8 +123,57 @@ class HtsClassificationService
      */
     private function applyHeuristics(array $bomLine): ?HtsMapRule
     {
-        // TODO: Implement heuristic matching
-        throw new \RuntimeException('Heuristic matching not yet implemented');
+        $description = $bomLine['description'] ?? '';
+        $category = $bomLine['category'] ?? '';
+        
+        // Extract keywords from description (words with 4+ characters)
+        $keywords = [];
+        if ($description) {
+            $words = preg_split('/\s+/', strtolower($description));
+            foreach ($words as $word) {
+                $cleaned = preg_replace('/[^a-z0-9]/', '', $word);
+                if (strlen($cleaned) >= 4) {
+                    $keywords[] = $cleaned;
+                }
+            }
+        }
+        
+        // Build query for heuristic matching
+        $qb = $this->htsMapRuleRepository->createQueryBuilder('h')
+            ->where('h.isActive = true');
+        
+        // Add keyword matching conditions
+        if (!empty($keywords)) {
+            $keywordConditions = [];
+            foreach ($keywords as $i => $keyword) {
+                $keywordConditions[] = "h.keywordPattern LIKE :keyword{$i}";
+                $qb->setParameter("keyword{$i}", "%{$keyword}%");
+            }
+            
+            $qb->andWhere('(' . implode(' OR ', $keywordConditions) . ')');
+        }
+        
+        // Add category matching as alternative
+        if ($category) {
+            if (!empty($keywords)) {
+                $qb->orWhere('h.category = :category');
+            } else {
+                $qb->andWhere('h.category = :category');
+            }
+            $qb->setParameter('category', $category);
+        }
+        
+        // If no keywords or category, return null
+        if (empty($keywords) && !$category) {
+            return null;
+        }
+        
+        // Order by priority and confidence
+        $qb->orderBy('h.priority', 'DESC')
+            ->addOrderBy('h.confidenceScore', 'DESC')
+            ->setMaxResults(1);
+        
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     /**
@@ -132,8 +233,34 @@ class HtsClassificationService
      */
     public function getClassificationStats(array $classificationResults): array
     {
-        // TODO: Implement statistics calculation
-        throw new \RuntimeException('Classification statistics not yet implemented');
+        $stats = [
+            'total' => count($classificationResults),
+            'provided' => 0,
+            'mapped' => 0,
+            'heuristic' => 0,
+            'unknown' => 0,
+            'avg_confidence' => 0
+        ];
+        
+        if (empty($classificationResults)) {
+            return $stats;
+        }
+        
+        $totalConfidence = 0;
+        
+        foreach ($classificationResults as $result) {
+            $method = strtolower($result['method'] ?? 'unknown');
+            
+            if (isset($stats[$method])) {
+                $stats[$method]++;
+            }
+            
+            $totalConfidence += $result['confidence'] ?? 0;
+        }
+        
+        $stats['avg_confidence'] = round($totalConfidence / $stats['total'], 1);
+        
+        return $stats;
     }
 
     /**

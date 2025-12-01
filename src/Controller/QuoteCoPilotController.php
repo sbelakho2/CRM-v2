@@ -121,8 +121,9 @@ class QuoteCoPilotController extends AbstractController
         }
 
         try {
-            // Parse BOM file
-            $bomData = $this->copilotService->parseBom($bomFile->getPathname());
+            // Parse BOM file (pass original extension since temp file has no extension)
+            $originalExtension = $bomFile->getClientOriginalExtension();
+            $bomData = $this->copilotService->parseBom($bomFile->getPathname(), $originalExtension);
 
             // Create Quote entity
             $companyRepository = $this->entityManager->getRepository(\App\Entity\Company::class);

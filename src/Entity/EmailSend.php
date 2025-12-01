@@ -14,7 +14,7 @@ class EmailSend
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: EmailCampaign::class, inversedBy: 'sends')]
+    #[ORM\ManyToOne(targetEntity: EmailCampaign::class, inversedBy: 'emailSends')]
     #[ORM\JoinColumn(nullable: false)]
     private ?EmailCampaign $campaign = null;
 
@@ -39,6 +39,9 @@ class EmailSend
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $bounced = false;
+
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
+    private ?string $variant = null;
 
     public function __construct()
     {
@@ -135,6 +138,17 @@ class EmailSend
     public function setBounced(bool $bounced): self
     {
         $this->bounced = $bounced;
+        return $this;
+    }
+
+    public function getVariant(): ?string
+    {
+        return $this->variant;
+    }
+
+    public function setVariant(?string $variant): self
+    {
+        $this->variant = $variant;
         return $this;
     }
 }

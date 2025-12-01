@@ -1,0 +1,246 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Create Playbook{% endblock %}
+
+{% block body %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="mb-6">
+        <a href="{{ path('app_playbook_index') }}" class="text-blue-600 hover:text-blue-800 text-sm">
+            ← Back to Playbooks
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-6">Create New Playbook</h1>
+
+        <form method="post" id="playbook-form">
+            <!-- Basic Info -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold mb-4">Basic Information</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Playbook Name *</label>
+                    <input type="text" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., High-Value ABM Engagement">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea name="description" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="What does this playbook do?"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                        <input type="number" name="priority" value="100" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <p class="text-xs text-gray-500 mt-1">Higher numbers run first</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select name="is_active" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trigger Rules -->
+            <div class="mb-6 pb-6 border-b">
+                <h2 class="text-lg font-semibold mb-4">Trigger Rules</h2>
+                <p class="text-sm text-gray-600 mb-4">Define when this playbook should run (all conditions must match)</p>
+                
+                <div id="trigger-rules" class="space-y-3"></div>
+                
+                <button type="button" onclick="addTriggerRule()" class="mt-3 btn btn-secondary text-sm">+ Add Trigger</button>
+                
+                <input type="hidden" name="trigger_rules" id="trigger-rules-json" value="[]">
+            </div>
+
+            <!-- Actions -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold mb-4">Actions</h2>
+                <p class="text-sm text-gray-600 mb-4">What should happen when triggers match?</p>
+                
+                <div id="actions-list" class="space-y-3"></div>
+                
+                <button type="button" onclick="addAction()" class="mt-3 btn btn-secondary text-sm">+ Add Action</button>
+                
+                <input type="hidden" name="actions" id="actions-json" value="[]">
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
+                <textarea name="notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Additional context or documentation"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <a href="{{ path('app_playbook_index') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Create Playbook</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const availableTriggers = {{ availableTriggers|json_encode|raw }};
+const availableActions = {{ availableActions|json_encode|raw }};
+
+let triggerRules = [];
+let actions = [];
+
+function addTriggerRule() {
+    const ruleId = triggerRules.length;
+    triggerRules.push({ field: '', operator: '=', value: '' });
+    
+    const ruleDiv = document.createElement('div');
+    ruleDiv.className = 'flex gap-2 items-center bg-gray-50 p-3 rounded';
+    ruleDiv.id = `trigger-${ruleId}`;
+    ruleDiv.innerHTML = `
+        <select onchange="updateTriggerField(${ruleId}, this.value)" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+            <option value="">Select trigger...</option>
+            ${Object.entries(availableTriggers).map(([key, group]) => `
+                <optgroup label="${group.label}">
+                    ${group.triggers.map(t => `<option value="${t.field}">${t.label}</option>`).join('')}
+                </optgroup>
+            `).join('')}
+        </select>
+        
+        <select onchange="updateTriggerOperator(${ruleId}, this.value)" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+            <option value="=">=</option>
+            <option value="!=">!=</option>
+            <option value=">">&gt;</option>
+            <option value=">=">&gt;=</option>
+            <option value="<">&lt;</option>
+            <option value="<=">&lt;=</option>
+            <option value="contains">contains</option>
+        </select>
+        
+        <input type="text" onchange="updateTriggerValue(${ruleId}, this.value)" placeholder="Value" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+        
+        <button type="button" onclick="removeTriggerRule(${ruleId})" class="text-red-600 hover:text-red-800 px-2">✕</button>
+    `;
+    
+    document.getElementById('trigger-rules').appendChild(ruleDiv);
+}
+
+function updateTriggerField(id, field) {
+    triggerRules[id].field = field;
+    updateTriggerRulesJSON();
+}
+
+function updateTriggerOperator(id, operator) {
+    triggerRules[id].operator = operator;
+    updateTriggerRulesJSON();
+}
+
+function updateTriggerValue(id, value) {
+    triggerRules[id].value = value;
+    updateTriggerRulesJSON();
+}
+
+function removeTriggerRule(id) {
+    document.getElementById(`trigger-${id}`).remove();
+    triggerRules[id] = null;
+    updateTriggerRulesJSON();
+}
+
+function updateTriggerRulesJSON() {
+    const validRules = triggerRules.filter(r => r !== null && r.field);
+    document.getElementById('trigger-rules-json').value = JSON.stringify(validRules);
+}
+
+function addAction() {
+    const actionId = actions.length;
+    actions.push({ type: '', params: {} });
+    
+    const actionDiv = document.createElement('div');
+    actionDiv.className = 'bg-gray-50 p-4 rounded';
+    actionDiv.id = `action-${actionId}`;
+    actionDiv.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <select onchange="updateActionType(${actionId}, this.value)" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option value="">Select action...</option>
+                ${Object.entries(availableActions).map(([key, action]) => `
+                    <option value="${key}">${action.label}</option>
+                `).join('')}
+            </select>
+            <button type="button" onclick="removeAction(${actionId})" class="ml-2 text-red-600 hover:text-red-800 px-2">✕</button>
+        </div>
+        <div id="action-params-${actionId}" class="space-y-2"></div>
+    `;
+    
+    document.getElementById('actions-list').appendChild(actionDiv);
+}
+
+function updateActionType(id, type) {
+    actions[id].type = type;
+    actions[id].params = {};
+    
+    const paramsDiv = document.getElementById(`action-params-${id}`);
+    paramsDiv.innerHTML = '';
+    
+    if (type && availableActions[type]) {
+        const action = availableActions[type];
+        paramsDiv.innerHTML = `<p class="text-xs text-gray-600 mb-2">${action.description}</p>`;
+        
+        action.params.forEach(param => {
+            const paramDiv = document.createElement('div');
+            paramDiv.className = 'flex items-center gap-2';
+            
+            let inputHtml = '';
+            if (param.type === 'select') {
+                inputHtml = `<select onchange="updateActionParam(${id}, '${param.name}', this.value)" class="flex-1 px-2 py-1 border rounded text-xs">
+                    <option value="">Select...</option>
+                    ${param.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                </select>`;
+            } else if (param.type === 'textarea') {
+                inputHtml = `<textarea onchange="updateActionParam(${id}, '${param.name}', this.value)" rows="2" class="flex-1 px-2 py-1 border rounded text-xs"></textarea>`;
+            } else {
+                inputHtml = `<input type="${param.type}" onchange="updateActionParam(${id}, '${param.name}', this.value)" class="flex-1 px-2 py-1 border rounded text-xs">`;
+            }
+            
+            paramDiv.innerHTML = `
+                <label class="text-xs text-gray-700 w-32">${param.label}:</label>
+                ${inputHtml}
+            `;
+            
+            paramsDiv.appendChild(paramDiv);
+        });
+    }
+    
+    updateActionsJSON();
+}
+
+function updateActionParam(id, paramName, value) {
+    actions[id].params[paramName] = value;
+    updateActionsJSON();
+}
+
+function removeAction(id) {
+    document.getElementById(`action-${id}`).remove();
+    actions[id] = null;
+    updateActionsJSON();
+}
+
+function updateActionsJSON() {
+    const validActions = actions.filter(a => a !== null && a.type);
+    document.getElementById('actions-json').value = JSON.stringify(validActions);
+}
+
+// Form submission validation
+document.getElementById('playbook-form').addEventListener('submit', function(e) {
+    if (triggerRules.filter(r => r !== null && r.field).length === 0) {
+        e.preventDefault();
+        alert('Please add at least one trigger rule');
+        return false;
+    }
+    
+    if (actions.filter(a => a !== null && a.type).length === 0) {
+        e.preventDefault();
+        alert('Please add at least one action');
+        return false;
+    }
+});
+</script>
+{% endblock %}

@@ -25,5 +25,27 @@ services:
       - "../src/Entity/"
       - "../src/Kernel.php"
 
+  # Audit Log Listener
+  App\EventListener\AuditLogListener:
+    tags:
+      - { name: doctrine.event_listener, event: postPersist }
+      - { name: doctrine.event_listener, event: preUpdate }
+      - { name: doctrine.event_listener, event: preRemove }
+
+  # API Client Configuration
+  App\Service\Integration\MouserApiClient:
+    arguments:
+      $apiKey: '%env(MOUSER_API_KEY)%'
+
+  App\Service\Integration\DigiKeyApiClient:
+    arguments:
+      $clientId: '%env(DIGIKEY_CLIENT_ID)%'
+      $clientSecret: '%env(DIGIKEY_CLIENT_SECRET)%'
+
+  App\Service\Integration\NexarApiClient:
+    arguments:
+      $clientId: '%env(NEXAR_CLIENT_ID)%'
+      $clientSecret: '%env(NEXAR_CLIENT_SECRET)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

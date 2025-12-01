@@ -702,15 +702,6 @@
                         Compliance
                     </a>
                 </li>
-                <li class="sidebar-nav-item">
-                    <a href="{{ path('app_email_campaign_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'app_email_campaign' %}active{% endif %}">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 3l12 5-12 5V3z"/>
-                            <circle cx="13" cy="8" r="2"/>
-                        </svg>
-                        Email Campaigns
-                    </a>
-                </li>
                 
                 <li class="sidebar-nav-item">
                     <a href="{{ path('app_lead_review') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'app_lead' %}active{% endif %}">
@@ -719,6 +710,37 @@
                             <circle cx="8" cy="7" r="2"/>
                         </svg>
                         Leads
+                    </a>
+                </li>
+                
+                <li class="sidebar-nav-item">
+                    <a href="{{ path('app_webcrawler_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'app_webcrawler' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 2C4.7 2 2 4.7 2 8C2 11.3 4.7 14 8 14C11.3 14 14 11.3 14 8C14 4.7 11.3 2 8 2Z"/>
+                            <path d="M2 8H14M8 2C6 4 5 6 5 8C5 10 6 12 8 14M8 2C10 4 11 6 11 8C11 10 10 12 8 14"/>
+                        </svg>
+                        WebCrawler
+                    </a>
+                </li>
+                
+                <li class="sidebar-nav-item">
+                    <a href="{{ path('app_email_campaign_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'app_email_campaign' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="4" width="12" height="8" rx="1"/>
+                            <path d="M2 4L8 9L14 4"/>
+                        </svg>
+                        Email Campaigns
+                    </a>
+                </li>
+                
+                <li class="sidebar-nav-item">
+                    <a href="{{ path('app_playbook_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'app_playbook' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="2" width="10" height="12" rx="1"/>
+                            <path d="M6 6H10M6 9H10"/>
+                            <circle cx="13" cy="3" r="1.5" fill="currentColor"/>
+                        </svg>
+                        ABM Playbooks
                     </a>
                 </li>
                 
@@ -816,5 +838,172 @@
         {{ encore_entry_script_tags('app') }}
     {% endblock %}
     {# no runtime debug scripts remain #}
+    
+    <!-- ABM Web Event Tracking -->
+    <script>
+    (function() {
+        'use strict';
+        
+        // Configuration
+        const ABM_CONFIG = {
+            apiEndpoint: '/api/web-event',
+            trackPageViews: true,
+            trackClicks: true,
+            trackFormSubmits: true,
+            trackDownloads: true,
+            debounceDelay: 500
+        };
+        
+        // Tracking state
+        let isTracking = true;
+        let eventQueue = [];
+        let sendTimeout = null;
+        
+        /**
+         * Send event to backend API
+         */
+        function sendEvent(eventData) {
+            if (!isTracking) return;
+            
+            fetch(ABM_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(eventData)
+            }).catch(function(error) {
+                console.warn('ABM tracking error:', error);
+            });
+        }
+        
+        /**
+         * Track page view
+         */
+        function trackPageView() {
+            if (!ABM_CONFIG.trackPageViews) return;
+            
+            sendEvent({
+                url: window.location.pathname + window.location.search,
+                event_type: 'page_view',
+                metadata: {
+                    title: document.title,
+                    referrer: document.referrer
+                }
+            });
+        }
+        
+        /**
+         * Track link clicks
+         */
+        function trackClick(event) {
+            if (!ABM_CONFIG.trackClicks) return;
+            
+            const target = event.target.closest('a');
+            if (!target) return;
+            
+            const href = target.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+            
+            sendEvent({
+                url: window.location.pathname,
+                event_type: 'click',
+                metadata: {
+                    link_text: target.textContent.trim().substring(0, 100),
+                    link_href: href,
+                    link_class: target.className
+                }
+            });
+        }
+        
+        /**
+         * Track form submissions
+         */
+        function trackFormSubmit(event) {
+            if (!ABM_CONFIG.trackFormSubmits) return;
+            
+            const form = event.target;
+            const formId = form.id || form.name || 'unknown';
+            const formAction = form.action || window.location.href;
+            
+            sendEvent({
+                url: window.location.pathname,
+                event_type: 'form_submit',
+                metadata: {
+                    form_id: formId,
+                    form_action: formAction,
+                    form_method: form.method
+                }
+            });
+        }
+        
+        /**
+         * Track file downloads
+         */
+        function trackDownload(event) {
+            if (!ABM_CONFIG.trackDownloads) return;
+            
+            const target = event.target.closest('a');
+            if (!target) return;
+            
+            const href = target.getAttribute('href');
+            if (!href) return;
+            
+            // Check if it's a download link (pdf, doc, xls, zip, etc.)
+            const downloadExtensions = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|csv)$/i;
+            if (!downloadExtensions.test(href)) return;
+            
+            sendEvent({
+                url: window.location.pathname,
+                event_type: 'download',
+                metadata: {
+                    file_name: href.split('/').pop(),
+                    file_url: href
+                }
+            });
+        }
+        
+        /**
+         * Initialize tracking
+         */
+        function init() {
+            // Track initial page view
+            trackPageView();
+            
+            // Track clicks with debouncing
+            let clickTimeout;
+            document.addEventListener('click', function(e) {
+                clearTimeout(clickTimeout);
+                clickTimeout = setTimeout(function() {
+                    trackClick(e);
+                    trackDownload(e);
+                }, ABM_CONFIG.debounceDelay);
+            }, true);
+            
+            // Track form submissions
+            document.addEventListener('submit', trackFormSubmit, true);
+            
+            // Track page visibility changes (user returns to tab)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && ABM_CONFIG.trackPageViews) {
+                    sendEvent({
+                        url: window.location.pathname,
+                        event_type: 'page_focus',
+                        metadata: {
+                            title: document.title
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
 </body>
 </html>

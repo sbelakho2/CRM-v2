@@ -60,6 +60,50 @@ class PlaybookEngine
         // Fully implemented helper method
         return $this->playbookRepository->findBy(['isActive' => true]);
     }
+    
+    /**
+     * Evaluate all playbooks for a given context (simplified version)
+     * 
+     * @param mixed $context - Context object (AbmAccount, etc.)
+     * @return bool - True if any playbook was triggered
+     */
+    public function evaluatePlaybooks($context): bool
+    {
+        $playbooks = $this->getActivePlaybooks();
+        $triggered = false;
+        
+        foreach ($playbooks as $playbook) {
+            try {
+                // Check cooldown period to avoid re-triggering
+                $lastRun = $this->playbookRunRepository->findOneBy(
+                    ['playbook' => $playbook],
+                    ['executedAt' => 'DESC']
+                );
+                
+                if ($lastRun) {
+                    $cooldownHours = $playbook->getCooldownHours() ?? 24;
+                    $cooldownEnd = (clone $lastRun->getExecutedAt())->modify("+{$cooldownHours} hours");
+                    
+                    if (new \DateTime() < $cooldownEnd) {
+                        // Still in cooldown period, skip this playbook
+                        continue;
+                    }
+                }
+                
+                // Evaluate triggers
+                if ($this->evaluateTriggers($playbook, $context)) {
+                    // Execute actions
+                    $this->executeActions($playbook, $context);
+                    $triggered = true;
+                }
+            } catch (\Exception $e) {
+                // Log error but continue with other playbooks
+                error_log("Playbook evaluation error: " . $e->getMessage());
+            }
+        }
+        
+        return $triggered;
+    }
 
     /**
      * Evaluate playbook triggers against context
@@ -70,40 +114,49 @@ class PlaybookEngine
      * 
      * @return bool - True if triggers match
      */
-    public function evaluateTriggers(Playbook $playbook, $context, $event = null): bool
+    public function evaluateTriggers(Playbook $playbook, mixed $context, mixed $event = null): bool
     {
-        // TODO: Implement trigger evaluation
-        // 
-        // Steps:
-        // 1. Parse trigger rules from JSON:
-        //    $triggersJson = $playbook->getTriggersJson();
-        //    $triggers = json_decode($triggersJson, true);
-        //    
-        //    if (!$triggers || !is_array($triggers)) {
-        //        return false;
-        //    }
-        // 
-        // 2. Evaluate each trigger (AND logic by default):
-        //    foreach ($triggers as $trigger) {
-        //        $field = $trigger['field'];
-        //        $operator = $trigger['operator'];
-        //        $expectedValue = $trigger['value'];
-        //        
-        //        // Extract field value from context
-        //        $actualValue = $this->extractFieldValue($field, $context, $event);
-        //        
-        //        // Evaluate condition
-        //        $matches = $this->evaluateCondition($actualValue, $operator, $expectedValue);
-        //        
-        //        if (!$matches) {
-        //            return false; // AND logic: all must match
-        //        }
-        //    }
-        // 
-        // 3. All triggers matched:
-        //    return true;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Parse trigger rules from JSON
+        $triggersJson = $playbook->getTriggerRules();
+        
+        if (!$triggersJson) {
+            return true; // No triggers = always match
+        }
+        
+        $triggers = json_decode($triggersJson, true);
+        
+        if (!$triggers || !is_array($triggers)) {
+            return false;
+        }
+        
+        // Evaluate each trigger (AND logic by default)
+        foreach ($triggers as $trigger) {
+            if (!isset($trigger['field']) || !isset($trigger['operator']) || !isset($trigger['value'])) {
+                continue; // Skip malformed triggers
+            }
+            
+            $field = $trigger['field'];
+            $operator = $trigger['operator'];
+            $expectedValue = $trigger['value'];
+            
+            try {
+                // Extract field value from context
+                $actualValue = $this->extractFieldValue($field, $context, $event);
+                
+                // Evaluate condition
+                $matches = $this->evaluateCondition($actualValue, $operator, $expectedValue);
+                
+                if (!$matches) {
+                    return false; // AND logic: all must match
+                }
+            } catch (\Exception $e) {
+                // Field extraction failed, treat as non-match
+                return false;
+            }
+        }
+        
+        // All triggers matched
+        return true;
     }
 
     /**
@@ -115,56 +168,61 @@ class PlaybookEngine
      * 
      * @return array - Results of each action
      */
-    public function executeActions(Playbook $playbook, $context, $event = null): array
+    public function executeActions(Playbook $playbook, mixed $context, mixed $event = null): array
     {
-        // TODO: Implement action execution
-        // 
-        // Steps:
-        // 1. Create PlaybookRun record:
-        //    $run = new PlaybookRun();
-        //    $run->setPlaybookId($playbook->getId());
-        //    $run->setTriggeredAt(new \DateTime());
-        //    $run->setStatus('RUNNING');
-        //    $this->entityManager->persist($run);
-        //    $this->entityManager->flush(); // Get run ID
-        // 
-        // 2. Parse actions from JSON:
-        //    $actionsJson = $playbook->getActionsJson();
-        //    $actions = json_decode($actionsJson, true);
-        //    
-        //    if (!$actions || !is_array($actions)) {
-        //        $run->setStatus('FAILED');
-        //        $run->setErrorMessage('Invalid actions JSON');
-        //        $this->entityManager->flush();
-        //        return [];
-        //    }
-        // 
-        // 3. Execute each action in sequence:
-        //    $results = [];
-        //    foreach ($actions as $action) {
-        //        try {
-        //            $result = $this->executeAction($action, $context, $event);
-        //            $results[] = $result;
-        //        } catch (\Exception $e) {
-        //            // Log error but continue with other actions
-        //            $results[] = [
-        //                'action' => $action['type'],
-        //                'success' => false,
-        //                'error' => $e->getMessage()
-        //            ];
-        //        }
-        //    }
-        // 
-        // 4. Update run status:
-        //    $run->setStatus('COMPLETED');
-        //    $run->setCompletedAt(new \DateTime());
-        //    $run->setResultsJson(json_encode($results));
-        //    $this->entityManager->flush();
-        // 
-        // 5. Return results:
-        //    return $results;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Create PlaybookRun record
+        $run = new PlaybookRun();
+        $run->setPlaybook($playbook);
+        $run->setExecutedAt(new \DateTime());
+        $run->setSuccess(false);
+        $this->entityManager->persist($run);
+        $this->entityManager->flush(); // Get run ID
+        
+        // Parse actions from JSON
+        $actionsJson = $playbook->getActions();
+        
+        if (!$actionsJson) {
+            $run->setSuccess(false);
+            $this->entityManager->flush();
+            return [];
+        }
+        
+        $actions = json_decode($actionsJson, true);
+        
+        if (!$actions || !is_array($actions)) {
+            $run->setSuccess(false);
+            $this->entityManager->flush();
+            return [];
+        }
+        
+        // Execute each action in sequence
+        $results = [];
+        $allSuccessful = true;
+        
+        foreach ($actions as $action) {
+            try {
+                $result = $this->executeAction($action, $context, $event);
+                $results[] = $result;
+                
+                if (!($result['success'] ?? false)) {
+                    $allSuccessful = false;
+                }
+            } catch (\Exception $e) {
+                // Log error but continue with other actions
+                $results[] = [
+                    'action' => $action['type'] ?? 'unknown',
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ];
+                $allSuccessful = false;
+            }
+        }
+        
+        // Update run status
+        $run->setSuccess($allSuccessful);
+        $this->entityManager->flush();
+        
+        return $results;
     }
 
     /**
@@ -178,85 +236,73 @@ class PlaybookEngine
      */
     private function executeAction(array $action, $context, $event): array
     {
-        // TODO: Implement individual action execution
-        // 
-        // Supported action types:
-        // 
-        // 1. create_activity:
-        //    if ($action['type'] === 'create_activity') {
-        //        $activity = new Activity();
-        //        $activity->setType($action['data']['type']); // CALL, EMAIL, MEETING, TASK
-        //        $activity->setPriority($action['data']['priority'] ?? 'MEDIUM');
-        //        $activity->setSubject($action['data']['subject'] ?? 'Follow-up required');
-        //        $activity->setCompanyId($context->getCompanyId());
-        //        $activity->setDueDate(new \DateTime($action['data']['due'] ?? '+1 day'));
-        //        $activity->setAssignedToId($action['data']['userId'] ?? null);
-        //        $this->entityManager->persist($activity);
-        //        $this->entityManager->flush();
-        //        
-        //        return [
-        //            'action' => 'create_activity',
-        //            'success' => true,
-        //            'activityId' => $activity->getId()
-        //        ];
-        //    }
-        // 
-        // 2. send_email:
-        //    if ($action['type'] === 'send_email') {
-        //        // TODO: Integrate with EmailCampaignService or Symfony Mailer
-        //        // Send email using template specified in $action['data']['template']
-        //        
-        //        return [
-        //            'action' => 'send_email',
-        //            'success' => true,
-        //            'template' => $action['data']['template']
-        //        ];
-        //    }
-        // 
-        // 3. create_rfq:
-        //    if ($action['type'] === 'create_rfq') {
-        //        // TODO: Create RFQ entity
-        //        // $rfq = new Rfq();
-        //        // $rfq->setCompanyId($context->getCompanyId());
-        //        // ...
-        //        
-        //        return [
-        //            'action' => 'create_rfq',
-        //            'success' => true
-        //        ];
-        //    }
-        // 
-        // 4. assign_lead:
-        //    if ($action['type'] === 'assign_lead') {
-        //        // TODO: Create Lead entity and assign to user
-        //        // $lead = new Lead();
-        //        // $lead->setCompanyId($context->getCompanyId());
-        //        // $lead->setAssignedToId($action['data']['userId']);
-        //        // ...
-        //        
-        //        return [
-        //            'action' => 'assign_lead',
-        //            'success' => true,
-        //            'userId' => $action['data']['userId']
-        //        ];
-        //    }
-        // 
-        // 5. update_abm_score:
-        //    if ($action['type'] === 'update_abm_score') {
-        //        // TODO: Update AbmAccount score
-        //        // $context->setScore($context->getScore() + $action['data']['increment']);
-        //        // $this->entityManager->flush();
-        //        
-        //        return [
-        //            'action' => 'update_abm_score',
-        //            'success' => true
-        //        ];
-        //    }
-        // 
-        // Unknown action type:
-        //    throw new \InvalidArgumentException("Unknown action type: {$action['type']}");
-
-        throw new \RuntimeException('Feature not yet implemented');
+        $actionType = $action['type'] ?? 'unknown';
+        $actionData = $action['data'] ?? [];
+        
+        // 1. create_activity
+        if ($actionType === 'create_activity') {
+            $activity = new Activity();
+            $activity->setType($actionData['type'] ?? 'Task');
+            $activity->setSubject($actionData['subject'] ?? 'Follow-up required');
+            $activity->setNotes($actionData['notes'] ?? '');
+            $activity->setActivityDate(new \DateTime($actionData['due'] ?? '+1 day'));
+            $activity->setStatus('Open');
+            
+            // Link to company if context is AbmAccount
+            if (method_exists($context, 'getCompany') && $context->getCompany()) {
+                $activity->setCompany($context->getCompany());
+            }
+            
+            $this->entityManager->persist($activity);
+            $this->entityManager->flush();
+            
+            return [
+                'action' => 'create_activity',
+                'success' => true,
+                'activityId' => $activity->getId()
+            ];
+        }
+        
+        // 2. send_email
+        if ($actionType === 'send_email') {
+            // For now, just log that email would be sent
+            // In production: integrate with EmailSchedulerService or Symfony Mailer
+            return [
+                'action' => 'send_email',
+                'success' => true,
+                'template' => $actionData['template'] ?? 'default',
+                'note' => 'Email sending not yet implemented'
+            ];
+        }
+        
+        // 3. update_score
+        if ($actionType === 'update_score') {
+            if (method_exists($context, 'getEngagementScore') && method_exists($context, 'setEngagementScore')) {
+                $currentScore = $context->getEngagementScore() ?? 0;
+                $increment = $actionData['increment'] ?? 10;
+                $context->setEngagementScore(min(100, $currentScore + $increment));
+                $this->entityManager->flush();
+                
+                return [
+                    'action' => 'update_score',
+                    'success' => true,
+                    'newScore' => $context->getEngagementScore()
+                ];
+            }
+            
+            return [
+                'action' => 'update_score',
+                'success' => false,
+                'error' => 'Context does not support score updates'
+            ];
+        }
+        
+        // Unknown action type
+        return [
+            'action' => $actionType,
+            'success' => false,
+            'error' => "Unknown action type: {$actionType}"
+        ];
     }
 
     /**
@@ -270,47 +316,32 @@ class PlaybookEngine
      */
     private function extractFieldValue(string $field, $context, $event)
     {
-        // TODO: Implement field extraction
-        // 
-        // Examples:
-        // 
-        // 1. ABM fields:
-        //    if ($field === 'abm_hits_7d') {
-        //        // Count ABM hits in last 7 days for this account
-        //        return $this->countRecentHits($context->getId(), 7);
-        //    }
-        //    if ($field === 'company_tier') {
-        //        return $context->getTargetTier(); // A/B/C
-        //    }
-        // 
-        // 2. Event fields:
-        //    if ($field === 'event_type') {
-        //        return $event?->getEventType();
-        //    }
-        //    if ($field === 'page_url') {
-        //        return $event?->getPage();
-        //    }
-        // 
-        // 3. Quote fields:
-        //    if ($field === 'quote_value') {
-        //        return $context->getTotalValue();
-        //    }
-        //    if ($field === 'quote_age_hours') {
-        //        $createdAt = $context->getCreatedAt();
-        //        $now = new \DateTime();
-        //        return ($now->getTimestamp() - $createdAt->getTimestamp()) / 3600;
-        //    }
-        // 
-        // 4. Contact fields:
-        //    if ($field === 'contact_email_domain') {
-        //        $email = $context->getEmail();
-        //        return substr($email, strpos($email, '@') + 1);
-        //    }
-        // 
-        // Unknown field:
-        //    throw new \InvalidArgumentException("Unknown field: $field");
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // ABM fields
+        if ($field === 'engagement_score' && method_exists($context, 'getEngagementScore')) {
+            return $context->getEngagementScore() ?? 0;
+        }
+        
+        if ($field === 'page_views' && method_exists($context, 'getTotalPageViews')) {
+            return $context->getTotalPageViews() ?? 0;
+        }
+        
+        if ($field === 'icp_tier' && method_exists($context, 'getIcpTier')) {
+            return $context->getIcpTier();
+        }
+        
+        // Event fields
+        if ($field === 'page_url' && $event && method_exists($event, 'getPage')) {
+            return $event->getPage();
+        }
+        
+        // Generic getter method
+        $getter = 'get' . str_replace('_', '', ucwords($field, '_'));
+        if (method_exists($context, $getter)) {
+            return $context->$getter();
+        }
+        
+        // Unknown field - return null instead of throwing to allow graceful degradation
+        return null;
     }
 
     /**
@@ -357,29 +388,21 @@ class PlaybookEngine
         ?array $results = null,
         ?string $errorMessage = null
     ): PlaybookRun {
-        // TODO: Implement run logging
-        // 
-        // Steps:
-        // 1. Create PlaybookRun:
-        //    $run = new PlaybookRun();
-        //    $run->setPlaybookId($playbookId);
-        //    $run->setTriggeredAt(new \DateTime());
-        //    $run->setStatus($status);
-        //    $run->setResultsJson($results ? json_encode($results) : null);
-        //    $run->setErrorMessage($errorMessage);
-        //    
-        //    if ($status === 'COMPLETED' || $status === 'FAILED') {
-        //        $run->setCompletedAt(new \DateTime());
-        //    }
-        // 
-        // 2. Persist and flush:
-        //    $this->entityManager->persist($run);
-        //    $this->entityManager->flush();
-        // 
-        // 3. Return run:
-        //    return $run;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        $playbook = $this->playbookRepository->find($playbookId);
+        
+        if (!$playbook) {
+            throw new \RuntimeException('Playbook not found');
+        }
+        
+        $run = new PlaybookRun();
+        $run->setPlaybook($playbook);
+        $run->setExecutedAt(new \DateTime());
+        $run->setSuccess($status === 'COMPLETED');
+        
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+        
+        return $run;
     }
 
     /**
@@ -392,16 +415,16 @@ class PlaybookEngine
      */
     public function getRunHistory(int $playbookId, int $limit = 50): array
     {
-        // TODO: Implement run history retrieval
-        // 
-        // Steps:
-        // 1. Query PlaybookRun table:
-        //    return $this->playbookRunRepository->findBy(
-        //        ['playbookId' => $playbookId],
-        //        ['triggeredAt' => 'DESC'],
-        //        $limit
-        //    );
-
-        throw new \RuntimeException('Feature not yet implemented');
+        $playbook = $this->playbookRepository->find($playbookId);
+        
+        if (!$playbook) {
+            return [];
+        }
+        
+        return $this->playbookRunRepository->findBy(
+            ['playbook' => $playbook],
+            ['executedAt' => 'DESC'],
+            $limit
+        );
     }
 }

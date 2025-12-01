@@ -117,14 +117,32 @@ class EmailAnalyticsService
         foreach ($variants as $index => $variant) {
             $variantName = $variant['name'] ?? "Variant " . ($index + 1);
             
-            // TODO: Filter EmailSend records by variant
-            // For now, return placeholder data
+            // Query EmailSend records filtered by variant name
+            $stats = $this->entityManager->createQuery(
+                'SELECT 
+                    COUNT(es.id) as sent,
+                    SUM(CASE WHEN es.opened = true THEN 1 ELSE 0 END) as opened,
+                    SUM(CASE WHEN es.clicked = true THEN 1 ELSE 0 END) as clicked
+                 FROM App\Entity\EmailSend es 
+                 WHERE es.campaign = :campaign AND es.variant = :variant'
+            )
+            ->setParameter('campaign', $campaign)
+            ->setParameter('variant', $variantName)
+            ->getSingleResult();
+            
+            $sent = (int) $stats['sent'];
+            $opened = (int) $stats['opened'];
+            $clicked = (int) $stats['clicked'];
+            
+            $openRate = $sent > 0 ? round(($opened / $sent) * 100, 2) : 0;
+            $clickRate = $sent > 0 ? round(($clicked / $sent) * 100, 2) : 0;
+            
             $results[$variantName] = [
-                'sent' => 0,
-                'opened' => 0,
-                'clicked' => 0,
-                'openRate' => 0,
-                'clickRate' => 0,
+                'sent' => $sent,
+                'opened' => $opened,
+                'clicked' => $clicked,
+                'openRate' => $openRate,
+                'clickRate' => $clickRate,
             ];
         }
 

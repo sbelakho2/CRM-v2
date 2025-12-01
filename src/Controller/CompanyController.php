@@ -5,10 +5,13 @@ namespace App\Controller;
 use App\Entity\Company;
 use App\Form\CompanyType;
 use App\Repository\CompanyRepository;
+use App\Service\ExportService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/companies')]
@@ -16,7 +19,8 @@ class CompanyController extends AbstractController
 {
     public function __construct(
         private CompanyRepository $companyRepository,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private ExportService $exportService
     ) {}
 
     #[Route('', name: 'app_company_index', methods: ['GET'])]
@@ -142,5 +146,60 @@ class CompanyController extends AbstractController
         }
 
         return $this->redirectToRoute('app_company_index');
+    }
+
+    #[Route('/export/{format}', name: 'app_company_export', requirements: ['format' => 'csv|xlsx'], methods: ['GET'])]
+    public function export(Request $request, string $format): Response
+    {
+        // Get the same filters as index action
+        $sector = $request->query->get('sector');
+        $tier = $request->query->get('tier');
+        $stage = $request->query->get('stage');
+        $region = $request->query->get('region');
+        $search = $request->query->get('search');
+
+        $qb = $this->companyRepository->createQueryBuilder('c');
+
+        if ($sector) {
+            $qb->andWhere('c.sector = :sector')
+               ->setParameter('sector', $sector);
+        }
+
+        if ($tier) {
+            $qb->andWhere('c.accountTier = :tier')
+               ->setParameter('tier', $tier);
+        }
+
+        if ($stage) {
+            $qb->andWhere('c.pipelineStage = :stage')
+               ->setParameter('stage', $stage);
+        }
+
+        if ($region) {
+            $qb->andWhere('c.region = :region')
+               ->setParameter('region', $region);
+        }
+
+        if ($search) {
+            $qb->andWhere('c.name LIKE :search')
+               ->setParameter('search', '%' . $search . '%');
+        }
+
+        $qb->orderBy('c.name', 'ASC');
+
+        $companies = $qb->getQuery()->getResult();
+
+        // Generate export file
+        $filepath = $this->exportService->exportCompanies($companies, $format);
+
+        // Create response
+        $response = new BinaryFileResponse($filepath);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            basename($filepath)
+        );
+        $response->deleteFileAfterSend(true);
+
+        return $response;
     }
 }

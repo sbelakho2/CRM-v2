@@ -51,15 +51,13 @@ class AbmResolverService
      * Process web event and resolve visitor
      * 
      * @param array $eventData - Web event data
-     *   - ipAddress: string
-     *   - page: string (URL path)
-     *   - userAgent: string
-     *   - timestamp: \DateTime
-     *   - eventType: string (PAGEVIEW, DOWNLOAD, FORM_SUBMIT)
-     *   - metadata: array (additional data)
+     *   - ip: string
+     *   - url: string (URL path)
+     *   - user_agent: string
+     *   - timestamp: string
+     *   - referer: string
      * 
      * @return array{
-     *   webEventId: int,
      *   resolved: bool,
      *   companyName: string|null,
      *   abmHitId: int|null,
@@ -68,52 +66,66 @@ class AbmResolverService
      */
     public function processWebEvent(array $eventData): array
     {
-        // TODO: Implement web event processing
-        // 
-        // Steps:
-        // 1. Create WebEvent entity:
-        //    $event = new WebEvent();
-        //    $event->setIpAddress($eventData['ipAddress']);
-        //    $event->setPage($eventData['page']);
-        //    $event->setUserAgent($eventData['userAgent']);
-        //    $event->setTimestamp($eventData['timestamp'] ?? new \DateTime());
-        //    $event->setEventType($eventData['eventType']);
-        //    $event->setMetadataJson(json_encode($eventData['metadata'] ?? []));
-        //    $this->entityManager->persist($event);
-        //    $this->entityManager->flush(); // Get event ID
-        // 
-        // 2. Resolve IP address:
-        //    $resolvedData = $this->resolveIp($eventData['ipAddress']);
-        // 
-        // 3. If resolved to company, check if ABM target:
-        //    $abmHitId = null;
-        //    $playbookTriggered = false;
-        //    
-        //    if ($resolvedData['companyName']) {
-        //        $abmAccount = $this->abmAccountRepository->findOneBy([
-        //            'companyName' => $resolvedData['companyName']
-        //        ]);
-        //        
-        //        if ($abmAccount) {
-        //            // Create ABM hit
-        //            $abmHit = $this->createAbmHit($event, $abmAccount, $resolvedData);
-        //            $abmHitId = $abmHit->getId();
-        //            
-        //            // Trigger playbooks
-        //            $playbookTriggered = $this->triggerPlaybooks($abmAccount, $event);
-        //        }
-        //    }
-        // 
-        // 4. Return processing result:
-        //    return [
-        //        'webEventId' => $event->getId(),
-        //        'resolved' => $resolvedData['resolved'],
-        //        'companyName' => $resolvedData['companyName'],
-        //        'abmHitId' => $abmHitId,
-        //        'playbookTriggered' => $playbookTriggered
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Resolve IP address
+        $resolvedData = $this->resolveIp($eventData['ip']);
+        
+        // Check if resolved to a company and if it's an ABM target
+        $abmHitId = null;
+        $playbookTriggered = false;
+        
+        if ($resolvedData['companyName']) {
+            // Look for ABM account by domain or company name
+            $domain = $this->extractDomainFromCompanyName($resolvedData['companyName']);
+            
+            $abmAccount = null;
+            if ($domain) {
+                $abmAccount = $this->abmAccountRepository->findOneBy(['domain' => $domain]);
+            }
+            
+            if (!$abmAccount && $resolvedData['companyName']) {
+                $abmAccount = $this->abmAccountRepository->findOneBy(['accountName' => $resolvedData['companyName']]);
+            }
+            
+            if ($abmAccount) {
+                // Create ABM hit
+                $abmHit = new AbmHit();
+                $abmHit->setAbmAccount($abmAccount);
+                $abmHit->setHitAt(new \DateTime($eventData['timestamp'] ?? 'now'));
+                $abmHit->setPage($eventData['url']);
+                $abmHit->setIpAddress($eventData['ip']);
+                $abmHit->setUserAgent($eventData['user_agent'] ?? '');
+                $abmHit->setReferer($eventData['referer'] ?? '');
+                
+                $this->entityManager->persist($abmHit);
+                
+                // Update account metrics
+                $abmAccount->setLastActivityAt(new \DateTime());
+                $abmAccount->setTotalPageViews(($abmAccount->getTotalPageViews() ?? 0) + 1);
+                
+                // Simple engagement score update (+1 per page view, cap at 100)
+                $currentScore = $abmAccount->getEngagementScore() ?? 0;
+                $abmAccount->setEngagementScore(min(100, $currentScore + 1));
+                
+                $this->entityManager->flush();
+                
+                $abmHitId = $abmHit->getId();
+                
+                // Trigger playbooks (will implement in next step)
+                try {
+                    $playbookTriggered = $this->playbookEngine->evaluatePlaybooks($abmAccount);
+                } catch (\Exception $e) {
+                    // Playbook engine not fully implemented yet, continue
+                    $playbookTriggered = false;
+                }
+            }
+        }
+        
+        return [
+            'resolved' => $resolvedData['resolved'],
+            'companyName' => $resolvedData['companyName'],
+            'abmHitId' => $abmHitId,
+            'playbookTriggered' => $playbookTriggered
+        ];
     }
 
     /**
@@ -131,123 +143,93 @@ class AbmResolverService
      */
     public function resolveIp(string $ipAddress): array
     {
-        // TODO: Implement IP resolution
-        // 
-        // Steps:
-        // 1. Query IpMap table:
-        //    $ipMap = $this->ipMapRepository->findOneBy(['ipAddress' => $ipAddress]);
-        //    
-        //    if ($ipMap) {
-        //        // Found in cache
-        //        return [
-        //            'resolved' => true,
-        //            'companyName' => $ipMap->getOrganization(),
-        //            'isp' => $ipMap->getIsp(),
-        //            'country' => $ipMap->getCountry(),
-        //            'city' => $ipMap->getCity()
-        //        ];
-        //    }
-        // 
-        // 2. Perform GeoIP lookup (using MaxMind GeoIP2 or similar):
-        //    // TODO: Integrate GeoIP2 library
-        //    // $geoReader = new \GeoIp2\Database\Reader('/path/to/GeoLite2-City.mmdb');
-        //    // $record = $geoReader->city($ipAddress);
-        //    // $organization = $record->traits->organization;
-        //    // $isp = $record->traits->isp;
-        //    // $country = $record->country->isoCode;
-        //    // $city = $record->city->name;
-        // 
-        // 3. Cache result in IpMap:
-        //    $newIpMap = new IpMap();
-        //    $newIpMap->setIpAddress($ipAddress);
-        //    $newIpMap->setOrganization($organization);
-        //    $newIpMap->setIsp($isp);
-        //    $newIpMap->setCountry($country);
-        //    $newIpMap->setCity($city);
-        //    $newIpMap->setLookedUpAt(new \DateTime());
-        //    $this->entityManager->persist($newIpMap);
-        //    $this->entityManager->flush();
-        // 
-        // 4. Return resolved data:
-        //    return [
-        //        'resolved' => $organization !== null,
-        //        'companyName' => $organization,
-        //        'isp' => $isp,
-        //        'country' => $country,
-        //        'city' => $city
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
-    }
-
-    /**
-     * Create ABM hit record
-     * 
-     * @param WebEvent $event - Web event
-     * @param AbmAccount $account - ABM account
-     * @param array $resolvedData - Resolved IP data
-     * 
-     * @return AbmHit
-     */
-    public function createAbmHit(WebEvent $event, AbmAccount $account, array $resolvedData): AbmHit
-    {
-        // TODO: Implement ABM hit creation
-        // 
-        // Steps:
-        // 1. Create AbmHit entity:
-        //    $hit = new AbmHit();
-        //    $hit->setAbmAccountId($account->getId());
-        //    $hit->setWebEventId($event->getId());
-        //    $hit->setDetectedAt($event->getTimestamp());
-        //    $hit->setIpAddress($event->getIpAddress());
-        //    $hit->setPage($event->getPage());
-        //    $hit->setEventType($event->getEventType());
-        //    $hit->setResolvedCompanyName($resolvedData['companyName']);
-        //    $hit->setCountry($resolvedData['country']);
-        //    $hit->setCity($resolvedData['city']);
-        // 
-        // 2. Persist hit:
-        //    $this->entityManager->persist($hit);
-        //    $this->entityManager->flush();
-        // 
-        // 3. Return hit:
-        //    return $hit;
-
-        throw new \RuntimeException('Feature not yet implemented');
-    }
-
-    /**
-     * Trigger playbooks based on ABM account activity
-     * 
-     * @param AbmAccount $account - ABM account
-     * @param WebEvent $event - Latest web event
-     * 
-     * @return bool - True if any playbook triggered
-     */
-    public function triggerPlaybooks(AbmAccount $account, WebEvent $event): bool
-    {
-        // TODO: Implement playbook triggering
-        // 
-        // Steps:
-        // 1. Get all active playbooks:
-        //    $playbooks = $this->playbookEngine->getActivePlaybooks();
-        // 
-        // 2. Evaluate triggers for each playbook:
-        //    $triggered = false;
-        //    foreach ($playbooks as $playbook) {
-        //        $shouldTrigger = $this->playbookEngine->evaluateTriggers($playbook, $account, $event);
-        //        
-        //        if ($shouldTrigger) {
-        //            // Execute playbook actions
-        //            $this->playbookEngine->executeActions($playbook, $account, $event);
-        //            $triggered = true;
-        //        }
-        //    }
-        // 
-        // 3. Return true if any triggered:
-        //    return $triggered;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Check IpMap cache first
+        $ipMap = $this->ipMapRepository->findOneBy(['ipAddress' => $ipAddress]);
+        
+        if ($ipMap) {
+            // Found in cache
+            return [
+                'resolved' => true,
+                'companyName' => $ipMap->getOrganization(),
+                'isp' => $ipMap->getIsp(),
+                'country' => $ipMap->getCountry(),
+                'city' => $ipMap->getCity()
+            ];
+        }
+        
+        // 2. Basic IP resolution using reverse DNS lookup
+        // For now, use a simple approach - in production, integrate GeoIP2 or similar
+        $organization = null;
+        $isp = null;
+        $country = null;
+        $city = null;
+        
+        try {
+            // Attempt reverse DNS lookup
+            $hostname = gethostbyaddr($ipAddress);
+            
+            if ($hostname !== $ipAddress) {
+                // Successfully resolved hostname
+                // Extract organization from hostname (e.g., "mail.company.com" -> "company")
+                $parts = explode('.', $hostname);
+                if (count($parts) >= 2) {
+                    // Get the second-level domain as organization
+                    $organization = ucfirst($parts[count($parts) - 2]);
+                }
+                
+                // Check if it looks like ISP/residential (common patterns)
+                $residentialPatterns = ['comcast', 'verizon', 'att', 'cox', 'charter', 'spectrum'];
+                foreach ($residentialPatterns as $pattern) {
+                    if (stripos($hostname, $pattern) !== false) {
+                        $isp = ucfirst($pattern);
+                        $organization = null; // Don't track residential IPs
+                        break;
+                    }
+                }
+            }
+            
+            // Basic country detection from IP (first octet heuristic - not accurate)
+            // In production, use MaxMind GeoIP2
+            $firstOctet = (int)explode('.', $ipAddress)[0];
+            if ($firstOctet >= 1 && $firstOctet <= 127) {
+                $country = 'US'; // North America
+            } elseif ($firstOctet >= 128 && $firstOctet <= 191) {
+                $country = 'EU'; // Europe
+            } else {
+                $country = 'APAC'; // Asia-Pacific
+            }
+            
+        } catch (\Exception $e) {
+            // DNS lookup failed, continue with null values
+        }
+        
+        // 3. Cache result in IpMap (even if unresolved, to avoid repeated lookups)
+        try {
+            $newIpMap = $this->entityManager->getRepository(\App\Entity\IpMap::class)->findOneBy(['ipAddress' => $ipAddress]);
+            if (!$newIpMap) {
+                $newIpMap = new \App\Entity\IpMap();
+                $newIpMap->setIpAddress($ipAddress);
+            }
+            $newIpMap->setOrganization($organization);
+            $newIpMap->setIsp($isp);
+            $newIpMap->setCountry($country);
+            $newIpMap->setCity($city);
+            $newIpMap->setLookedUpAt(new \DateTime());
+            
+            $this->entityManager->persist($newIpMap);
+            $this->entityManager->flush();
+        } catch (\Exception $e) {
+            // IpMap table might not exist yet, continue
+        }
+        
+        // 4. Return resolved data
+        return [
+            'resolved' => $organization !== null,
+            'companyName' => $organization,
+            'isp' => $isp,
+            'country' => $country,
+            'city' => $city
+        ];
     }
 
     /**
@@ -260,24 +242,17 @@ class AbmResolverService
      */
     public function getRecentHits(int $accountId, int $days = 30): array
     {
-        // TODO: Implement recent hits retrieval
-        // 
-        // Steps:
-        // 1. Calculate cutoff date:
-        //    $cutoffDate = new \DateTime("-$days days");
-        // 
-        // 2. Query AbmHit table:
-        //    $qb = $this->abmHitRepository->createQueryBuilder('ah');
-        //    return $qb
-        //        ->where('ah.abmAccountId = :accountId')
-        //        ->andWhere('ah.detectedAt >= :cutoff')
-        //        ->setParameter('accountId', $accountId)
-        //        ->setParameter('cutoff', $cutoffDate)
-        //        ->orderBy('ah.detectedAt', 'DESC')
-        //        ->getQuery()
-        //        ->getResult();
-
-        throw new \RuntimeException('Feature not yet implemented');
+        $cutoffDate = new \DateTime("-$days days");
+        
+        $qb = $this->abmHitRepository->createQueryBuilder('ah');
+        return $qb
+            ->where('ah.abmAccount = :accountId')
+            ->andWhere('ah.hitAt >= :cutoff')
+            ->setParameter('accountId', $accountId)
+            ->setParameter('cutoff', $cutoffDate)
+            ->orderBy('ah.hitAt', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -296,82 +271,133 @@ class AbmResolverService
      */
     public function getAccountStats(int $accountId): array
     {
-        // TODO: Implement account statistics
-        // 
-        // Steps:
-        // 1. Get all hits for account:
-        //    $hits = $this->abmHitRepository->findBy(['abmAccountId' => $accountId]);
-        // 
-        // 2. Calculate statistics:
-        //    $stats = [
-        //        'totalHits' => count($hits),
-        //        'lastHitAt' => null,
-        //        'pageviews' => 0,
-        //        'downloads' => 0,
-        //        'formSubmits' => 0,
-        //        'uniqueVisitors' => []
-        //    ];
-        //    
-        //    foreach ($hits as $hit) {
-        //        // Last hit timestamp
-        //        if (!$stats['lastHitAt'] || $hit->getDetectedAt() > $stats['lastHitAt']) {
-        //            $stats['lastHitAt'] = $hit->getDetectedAt();
-        //        }
-        //        
-        //        // Event type counts
-        //        if ($hit->getEventType() === 'PAGEVIEW') $stats['pageviews']++;
-        //        if ($hit->getEventType() === 'DOWNLOAD') $stats['downloads']++;
-        //        if ($hit->getEventType() === 'FORM_SUBMIT') $stats['formSubmits']++;
-        //        
-        //        // Unique visitors (by IP)
-        //        $stats['uniqueVisitors'][$hit->getIpAddress()] = true;
-        //    }
-        //    
-        //    $stats['uniqueVisitors'] = count($stats['uniqueVisitors']);
-        // 
-        // 3. Return statistics:
-        //    return $stats;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        $account = $this->abmAccountRepository->find($accountId);
+        
+        if (!$account) {
+            return [
+                'totalHits' => 0,
+                'lastHitAt' => null,
+                'pageviews' => 0,
+                'downloads' => 0,
+                'formSubmits' => 0,
+                'uniqueVisitors' => 0
+            ];
+        }
+        
+        $hits = $this->abmHitRepository->findBy(['abmAccount' => $account]);
+        
+        $stats = [
+            'totalHits' => count($hits),
+            'lastHitAt' => null,
+            'pageviews' => 0,
+            'downloads' => 0,
+            'formSubmits' => 0,
+            'uniqueVisitors' => []
+        ];
+        
+        foreach ($hits as $hit) {
+            // Last hit timestamp
+            if (!$stats['lastHitAt'] || $hit->getHitAt() > $stats['lastHitAt']) {
+                $stats['lastHitAt'] = $hit->getHitAt();
+            }
+            
+            // Count all as pageviews for now (can be enhanced later)
+            $stats['pageviews']++;
+            
+            // Unique visitors (by IP)
+            $stats['uniqueVisitors'][$hit->getIpAddress()] = true;
+        }
+        
+        $stats['uniqueVisitors'] = count($stats['uniqueVisitors']);
+        
+        return $stats;
     }
 
     /**
      * Bulk import ABM target account list
      * 
      * @param string $csvPath - Path to CSV file with company names
-     * 
      * @return int - Number of accounts imported
      */
     public function importTargetAccounts(string $csvPath): int
     {
-        // TODO: Implement account import
-        // 
-        // Steps:
-        // 1. Parse CSV:
-        //    $handle = fopen($csvPath, 'r');
-        //    $header = fgetcsv($handle);
-        //    
-        //    $count = 0;
-        //    while (($row = fgetcsv($handle)) !== false) {
-        //        $data = array_combine($header, $row);
-        //        
-        //        // Create AbmAccount
-        //        $account = new AbmAccount();
-        //        $account->setCompanyName($data['company_name']);
-        //        $account->setIndustry($data['industry'] ?? null);
-        //        $account->setTargetTier($data['tier'] ?? 'B'); // A/B/C tier
-        //        $account->setIsActive(true);
-        //        $account->setAddedAt(new \DateTime());
-        //        
-        //        $this->entityManager->persist($account);
-        //        $count++;
-        //    }
-        //    fclose($handle);
-        // 
-        // 2. Flush and return count:
-        //    $this->entityManager->flush();
-        //    return $count;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        if (!file_exists($csvPath)) {
+            throw new \RuntimeException("CSV file not found: {$csvPath}");
+        }
+        
+        $handle = fopen($csvPath, 'r');
+        if (!$handle) {
+            throw new \RuntimeException("Cannot open CSV file: {$csvPath}");
+        }
+        
+        $header = fgetcsv($handle);
+        if (!$header) {
+            fclose($handle);
+            throw new \RuntimeException("Empty CSV file");
+        }
+        
+        $count = 0;
+        while (($row = fgetcsv($handle)) !== false) {
+            if (empty(array_filter($row))) {
+                continue; // Skip empty rows
+            }
+            
+            $data = array_combine($header, $row);
+            
+            // Check if account already exists
+            $existingAccount = $this->abmAccountRepository->findOneBy([
+                'accountName' => $data['company_name'] ?? $data['name'] ?? null
+            ]);
+            
+            if ($existingAccount) {
+                continue; // Skip duplicates
+            }
+            
+            // Create AbmAccount
+            $account = new AbmAccount();
+            $account->setAccountName($data['company_name'] ?? $data['name']);
+            $account->setDomain($data['domain'] ?? $this->extractDomainFromCompanyName($data['company_name'] ?? $data['name']));
+            $account->setIcpTier($data['tier'] ?? 'B');
+            
+            // Set metadata
+            $metadata = [];
+            if (isset($data['industry'])) $metadata['industry'] = $data['industry'];
+            if (isset($data['country'])) $metadata['country'] = $data['country'];
+            if (isset($data['company_size'])) $metadata['company_size'] = $data['company_size'];
+            if (isset($data['revenue'])) $metadata['revenue'] = $data['revenue'];
+            $account->setMetadata($metadata);
+            
+            $account->setEngagementScore(0);
+            $account->setTotalPageViews(0);
+            
+            $this->entityManager->persist($account);
+            $count++;
+        }
+        
+        fclose($handle);
+        $this->entityManager->flush();
+        
+        return $count;
+    }
+    
+    /**
+     * Extract domain from company name
+     * 
+     * @param string $companyName - Company name
+     * @return string|null - Domain or null
+     */
+    private function extractDomainFromCompanyName(string $companyName): ?string
+    {
+        // Simple heuristic: lowercase, remove common suffixes, add .com
+        $cleanName = strtolower($companyName);
+        $cleanName = str_replace([' inc', ' llc', ' ltd', ' corp', ' corporation', ' company'], '', $cleanName);
+        $cleanName = trim($cleanName);
+        $cleanName = str_replace(' ', '', $cleanName); // Remove spaces
+        
+        if (strlen($cleanName) > 2) {
+            return $cleanName . '.com';
+        }
+        
+        return null;
     }
 }

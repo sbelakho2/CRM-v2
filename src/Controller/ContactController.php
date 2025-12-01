@@ -6,10 +6,13 @@ use App\Entity\Contact;
 use App\Form\ContactType;
 use App\Repository\ContactRepository;
 use App\Service\LinkedInService;
+use App\Service\ExportService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/contacts')]
@@ -18,7 +21,8 @@ class ContactController extends AbstractController
     public function __construct(
         private ContactRepository $contactRepository,
         private EntityManagerInterface $entityManager,
-        private LinkedInService $linkedInService
+        private LinkedInService $linkedInService,
+        private ExportService $exportService
     ) {}
 
     #[Route('', name: 'app_contact_index', methods: ['GET'])]
@@ -170,5 +174,50 @@ class ContactController extends AbstractController
         $this->addFlash('success', 'LinkedIn outreach tracked successfully!');
 
         return $this->redirectToRoute('app_contact_show', ['id' => $contact->getId()]);
+    }
+
+    #[Route('/export/{format}', name: 'app_contact_export', requirements: ['format' => 'csv|xlsx'], methods: ['GET'])]
+    public function export(Request $request, string $format): Response
+    {
+        // Get the same filters as index action
+        $role = $request->query->get('role');
+        $company = $request->query->get('company');
+        $search = $request->query->get('search');
+
+        $qb = $this->contactRepository->createQueryBuilder('c')
+            ->leftJoin('c.company', 'co')
+            ->addSelect('co');
+
+        if ($role) {
+            $qb->andWhere('c.role = :role')
+               ->setParameter('role', $role);
+        }
+
+        if ($company) {
+            $qb->andWhere('co.id = :company')
+               ->setParameter('company', $company);
+        }
+
+        if ($search) {
+            $qb->andWhere('c.firstName LIKE :search OR c.lastName LIKE :search OR c.email LIKE :search')
+               ->setParameter('search', '%' . $search . '%');
+        }
+
+        $qb->orderBy('c.lastName', 'ASC');
+
+        $contacts = $qb->getQuery()->getResult();
+
+        // Generate export file
+        $filepath = $this->exportService->exportContacts($contacts, $format);
+
+        // Create response
+        $response = new BinaryFileResponse($filepath);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            basename($filepath)
+        );
+        $response->deleteFileAfterSend(true);
+
+        return $response;
     }
 }

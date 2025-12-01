@@ -46,7 +46,8 @@ class DatasetImportService
         private DatasetVersionRepository $datasetVersionRepository,
         private TariffRateRepository $tariffRateRepository,
         private FreightTableRepository $freightTableRepository,
-        private FxRateRepository $fxRateRepository
+        private FxRateRepository $fxRateRepository,
+        private ?\Symfony\Bundle\SecurityBundle\Security $security = null
     ) {}
 
     /**
@@ -83,7 +84,10 @@ class DatasetImportService
         $version->setVersionUuid($versionUuid);
         $version->setSha256Hash($sha256Hash);
         $version->setImportedAt(new \DateTime());
-        $version->setImportedBy('admin'); // TODO: Get from security context
+        
+        // Get current user from security context
+        $user = $this->security?->getUser();
+        $version->setImportedBy($user ? $user->getUserIdentifier() : 'system');
         $version->setIsActive(false);
         
         if ($description) {
@@ -306,18 +310,110 @@ class DatasetImportService
      */
     public function importFxRates(string $csvPath, string $signaturePath, string $description): array
     {
-        // TODO: Implement FX rate import
-        // 
-        // Steps:
         // 1. Verify signature
-        // 2. Generate version_id (UUID)
-        // 3. Create DatasetVersion entry (dataset_type = 'FX_RATES')
-        // 4. Parse CSV and create FxRate entities:
-        //    - Set from_currency, to_currency, rate, asof, version_id
-        // 5. Flush and activate version
+        if (!$this->verifySignature($csvPath, $signaturePath)) {
+            throw new \RuntimeException('Signature verification failed - file may be tampered');
+        }
+        
+        // 2. Generate version_id
+        $versionId = Uuid::v4()->toRfc4122();
+        
+        // 3. Create DatasetVersion entry
+        $user = $this->security?->getUser();
+        $version = new DatasetVersion();
+        $version->setVersionId($versionId);
+        $version->setDatasetType('FX_RATES');
+        $version->setDescription($description);
+        $version->setImportedAt(new \DateTime());
+        $version->setImportedBy($user ? $user->getUserIdentifier() : 'system');
+        $version->setSignature(hash_file('sha256', $csvPath));
+        $version->setIsActive(false);
+        
+        $this->entityManager->persist($version);
+        
+        // 4. Parse CSV and create FxRate entities
+        $handle = fopen($csvPath, 'r');
+        if (!$handle) {
+            throw new \RuntimeException("Cannot open CSV file: $csvPath");
+        }
+        
+        // Skip header
+        fgetcsv($handle);
+        
+        $imported = 0;
+        $errors = [];
+        
+        while (($row = fgetcsv($handle)) !== false) {
+            try {
+                if (count($row) < 4) {
+                    $errors[] = "Invalid row (expected 4 columns): " . implode(',', $row);
+                    continue;
+                }
+                
+                [$fromCurrency, $toCurrency, $rate, $asof] = $row;
+                
+                $fxRate = new \App\Entity\FxRate();
+                $fxRate->setFromCurrency(strtoupper(trim($fromCurrency)));
+                $fxRate->setToCurrency(strtoupper(trim($toCurrency)));
+                $fxRate->setRate(trim($rate));
+                $fxRate->setAsof(new \DateTime(trim($asof)));
+                $fxRate->setVersionId($versionId);
+                $fxRate->setIsActive(false);
+                
+                $this->entityManager->persist($fxRate);
+                $imported++;
+                
+                // Batch flush every 100 records
+                if ($imported % 100 === 0) {
+                    $this->entityManager->flush();
+                }
+                
+            } catch (\Exception $e) {
+                $errors[] = "Error on row: " . implode(',', $row) . " - " . $e->getMessage();
+            }
+        }
+        
+        fclose($handle);
+        
+        // 5. Flush remaining records and activate version
+        $this->entityManager->flush();
+        
+        // Deactivate old versions
+        $this->entityManager->createQuery(
+            'UPDATE App\Entity\DatasetVersion v 
+             SET v.isActive = false 
+             WHERE v.datasetType = :type'
+        )
+        ->setParameter('type', 'FX_RATES')
+        ->execute();
+        
+        $this->entityManager->createQuery(
+            'UPDATE App\Entity\FxRate f 
+             SET f.isActive = false'
+        )->execute();
+        
+        // Activate new version
+        $version->setIsActive(true);
+        
+        $this->entityManager->createQuery(
+            'UPDATE App\Entity\FxRate f 
+             SET f.isActive = true 
+             WHERE f.versionId = :versionId'
+        )
+        ->setParameter('versionId', $versionId)
+        ->execute();
+        
+        $this->entityManager->flush();
+        
         // 6. Return summary
-
-        throw new \RuntimeException('Feature not yet implemented');
+        return [
+            'success' => true,
+            'version_id' => $versionId,
+            'dataset_type' => 'FX_RATES',
+            'records_imported' => $imported,
+            'errors' => $errors,
+            'description' => $description
+        ];
     }
 
     /**
@@ -330,39 +426,93 @@ class DatasetImportService
      */
     public function snapshotDataset(string $datasetType, string $description): string
     {
-        // TODO: Implement dataset snapshot
-        // 
-        // Steps:
-        // 1. Get current active version:
-        //    $activeVersion = $this->datasetVersionRepository->findOneBy([
-        //        'datasetType' => $datasetType,
-        //        'isActive' => true
-        //    ]);
-        // 
-        // 2. Generate new version_id:
-        //    $newVersionId = Uuid::v4()->toRfc4122();
-        // 
-        // 3. Clone all records from active version to new version:
-        //    - For TARIFF_RATES: Copy all tariff_rates rows with old version_id
-        //    - For FREIGHT_TABLES: Copy all freight_table rows
-        //    - For FX_RATES: Copy all fx_rates rows
-        //    - Update version_id to $newVersionId
-        // 
-        // 4. Create new DatasetVersion entry:
-        //    $newVersion = new DatasetVersion();
-        //    $newVersion->setVersionId($newVersionId);
-        //    $newVersion->setDatasetType($datasetType);
-        //    $newVersion->setDescription("SNAPSHOT: $description");
-        //    $newVersion->setImportedAt(new \DateTime());
-        //    $newVersion->setIsActive(false);
-        //    $newVersion->setRecordCount($activeVersion->getRecordCount());
-        //    $newVersion->setAsof($activeVersion->getAsof());
-        // 
-        // 5. Flush and return new version_id:
-        //    $this->entityManager->flush();
-        //    return $newVersionId;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get current active version
+        $activeVersion = $this->datasetVersionRepository->findOneBy([
+            'datasetType' => $datasetType,
+            'isActive' => true
+        ]);
+        
+        if (!$activeVersion) {
+            throw new \RuntimeException("No active version found for dataset type: $datasetType");
+        }
+        
+        // 2. Generate new version_id
+        $newVersionId = Uuid::v4()->toRfc4122();
+        $oldVersionId = $activeVersion->getVersionId();
+        
+        // 3. Clone records based on dataset type
+        $recordCount = 0;
+        
+        switch ($datasetType) {
+            case 'TARIFF_RATES':
+                // Clone tariff_rates
+                $recordCount = $this->entityManager->createQuery(
+                    'SELECT COUNT(t.id) FROM App\\Entity\\TariffRate t WHERE t.versionId = :versionId'
+                )
+                ->setParameter('versionId', $oldVersionId)
+                ->getSingleScalarResult();
+                
+                $this->entityManager->getConnection()->executeStatement(
+                    'INSERT INTO tariff_rates (hts_code, duty_rate, description, version_id, is_active, created_at) 
+                     SELECT hts_code, duty_rate, description, :newVersionId, 0, NOW() 
+                     FROM tariff_rates WHERE version_id = :oldVersionId',
+                    ['newVersionId' => $newVersionId, 'oldVersionId' => $oldVersionId]
+                );
+                break;
+                
+            case 'FREIGHT_TABLES':
+                // Clone freight_tables
+                $recordCount = $this->entityManager->createQuery(
+                    'SELECT COUNT(f.id) FROM App\\Entity\\FreightTable f WHERE f.versionId = :versionId'
+                )
+                ->setParameter('versionId', $oldVersionId)
+                ->getSingleScalarResult();
+                
+                $this->entityManager->getConnection()->executeStatement(
+                    'INSERT INTO freight_tables (origin_port, destination_port, carrier, transit_days, rate_per_kg, version_id, is_active, created_at) 
+                     SELECT origin_port, destination_port, carrier, transit_days, rate_per_kg, :newVersionId, 0, NOW() 
+                     FROM freight_tables WHERE version_id = :oldVersionId',
+                    ['newVersionId' => $newVersionId, 'oldVersionId' => $oldVersionId]
+                );
+                break;
+                
+            case 'FX_RATES':
+                // Clone fx_rates
+                $recordCount = $this->entityManager->createQuery(
+                    'SELECT COUNT(f.id) FROM App\\Entity\\FxRate f WHERE f.versionId = :versionId'
+                )
+                ->setParameter('versionId', $oldVersionId)
+                ->getSingleScalarResult();
+                
+                $this->entityManager->getConnection()->executeStatement(
+                    'INSERT INTO fx_rates (from_currency, to_currency, rate, asof, version_id, is_active, created_at) 
+                     SELECT from_currency, to_currency, rate, asof, :newVersionId, 0, NOW() 
+                     FROM fx_rates WHERE version_id = :oldVersionId',
+                    ['newVersionId' => $newVersionId, 'oldVersionId' => $oldVersionId]
+                );
+                break;
+                
+            default:
+                throw new \InvalidArgumentException("Unknown dataset type: $datasetType");
+        }
+        
+        // 4. Create new DatasetVersion entry
+        $user = $this->security?->getUser();
+        $newVersion = new DatasetVersion();
+        $newVersion->setVersionId($newVersionId);
+        $newVersion->setDatasetType($datasetType);
+        $newVersion->setDescription("SNAPSHOT: $description");
+        $newVersion->setImportedAt(new \DateTime());
+        $newVersion->setImportedBy($user ? $user->getUserIdentifier() : 'system');
+        $newVersion->setIsActive(false);
+        $newVersion->setRecordCount($recordCount);
+        
+        $this->entityManager->persist($newVersion);
+        
+        // 5. Flush and return new version_id
+        $this->entityManager->flush();
+        
+        return $newVersionId;
     }
 
     /**
@@ -379,39 +529,87 @@ class DatasetImportService
      */
     public function rollbackDataset(string $versionId): array
     {
-        // TODO: Implement dataset rollback
-        // 
-        // Steps:
-        // 1. Find target version:
-        //    $targetVersion = $this->datasetVersionRepository->findOneBy(['versionId' => $versionId]);
-        //    if (!$targetVersion) {
-        //        throw new \RuntimeException("Version $versionId not found");
-        //    }
-        // 
-        // 2. Find current active version:
-        //    $currentVersion = $this->datasetVersionRepository->findOneBy([
-        //        'datasetType' => $targetVersion->getDatasetType(),
-        //        'isActive' => true
-        //    ]);
-        // 
-        // 3. Deactivate current version:
-        //    $currentVersion->setIsActive(false);
-        // 
-        // 4. Activate target version:
-        //    $targetVersion->setIsActive(true);
-        // 
-        // 5. Flush changes:
-        //    $this->entityManager->flush();
-        // 
-        // 6. Return rollback summary:
-        //    return [
-        //        'oldVersionId' => $currentVersion->getVersionId(),
-        //        'newVersionId' => $targetVersion->getVersionId(),
-        //        'datasetType' => $targetVersion->getDatasetType(),
-        //        'recordCount' => $targetVersion->getRecordCount()
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Find target version
+        $targetVersion = $this->datasetVersionRepository->findOneBy(['versionId' => $versionId]);
+        if (!$targetVersion) {
+            throw new \RuntimeException("Version $versionId not found");
+        }
+        
+        // 2. Find current active version
+        $currentVersion = $this->datasetVersionRepository->findOneBy([
+            'datasetType' => $targetVersion->getDatasetType(),
+            'isActive' => true
+        ]);
+        
+        $datasetType = $targetVersion->getDatasetType();
+        
+        // 3. Deactivate all versions and data for this dataset type
+        $this->entityManager->createQuery(
+            'UPDATE App\\Entity\\DatasetVersion v 
+             SET v.isActive = false 
+             WHERE v.datasetType = :type'
+        )
+        ->setParameter('type', $datasetType)
+        ->execute();
+        
+        // Deactivate data based on type
+        switch ($datasetType) {
+            case 'TARIFF_RATES':
+                $this->entityManager->createQuery(
+                    'UPDATE App\\Entity\\TariffRate t SET t.isActive = false'
+                )->execute();
+                
+                $this->entityManager->createQuery(
+                    'UPDATE App\\Entity\\TariffRate t 
+                     SET t.isActive = true 
+                     WHERE t.versionId = :versionId'
+                )
+                ->setParameter('versionId', $versionId)
+                ->execute();
+                break;
+                
+            case 'FREIGHT_TABLES':
+                $this->entityManager->createQuery(
+                    'UPDATE App\\Entity\\FreightTable f SET f.isActive = false'
+                )->execute();
+                
+                $this->entityManager->createQuery(
+                    'UPDATE App\\Entity\\FreightTable f 
+                     SET f.isActive = true 
+                     WHERE f.versionId = :versionId'
+                )
+                ->setParameter('versionId', $versionId)
+                ->execute();
+                break;
+                
+            case 'FX_RATES':
+                $this->entityManager->createQuery(
+                    'UPDATE App\\Entity\\FxRate f SET f.isActive = false'
+                )->execute();
+                
+                $this->entityManager->createQuery(
+                    'UPDATE App\\Entity\\FxRate f 
+                     SET f.isActive = true 
+                     WHERE f.versionId = :versionId'
+                )
+                ->setParameter('versionId', $versionId)
+                ->execute();
+                break;
+        }
+        
+        // 4. Activate target version
+        $targetVersion->setIsActive(true);
+        
+        // 5. Flush changes
+        $this->entityManager->flush();
+        
+        // 6. Return rollback summary
+        return [
+            'oldVersionId' => $currentVersion?->getVersionId(),
+            'newVersionId' => $targetVersion->getVersionId(),
+            'datasetType' => $targetVersion->getDatasetType(),
+            'recordCount' => $targetVersion->getRecordCount()
+        ];
     }
 
     /**
