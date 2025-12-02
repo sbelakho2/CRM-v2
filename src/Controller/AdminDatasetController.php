@@ -68,23 +68,15 @@ class AdminDatasetController extends AbstractController
     #[Route('/import', name: 'admin_dataset_import_form', methods: ['GET'])]
     public function importForm(): Response
     {
-        // TODO: Implement import form display
-        // 
-        // Steps:
-        // 1. Get available dataset types:
-        //    $datasetTypes = [
-        //        'tariff_rate' => 'Tariff Rates (HTS code duties)',
-        //        'freight_table' => 'Freight Tables (lane pricing)',
-        //        'fx_rate' => 'FX Rates (currency exchange)'
-        //    ];
-        // 
-        // 2. Render import form template:
-        //    return $this->render('admin_dataset/import_form.html.twig', [
-        //        'datasetTypes' => $datasetTypes,
-        //        'maxFileSize' => '50MB'
-        //    ]);
+        $datasetTypes = [
+            'tariff_rate' => 'Tariff Rates (HTS code duties)',
+            'freight_table' => 'Freight Tables (lane pricing)',
+            'fx_rate' => 'FX Rates (currency exchange)'
+        ];
         
         return $this->render('admin_dataset/import_form.html.twig', [
+            'datasetTypes' => $datasetTypes,
+            'maxFileSize' => '50MB',
             'pageTitle' => 'Import Dataset'
         ]);
     }
@@ -95,73 +87,76 @@ class AdminDatasetController extends AbstractController
     #[Route('/import', name: 'admin_dataset_import', methods: ['POST'])]
     public function import(Request $request): Response
     {
-        // TODO: Implement dataset import
-        // 
-        // Steps:
-        // 1. Validate file upload:
-        //    /** @var UploadedFile $datasetFile */
-        //    $datasetFile = $request->files->get('dataset_file');
-        //    if (!$datasetFile) {
-        //        $this->addFlash('error', 'Please upload a dataset file');
-        //        return $this->redirectToRoute('admin_dataset_import_form');
-        //    }
-        //    
-        //    $allowedExtensions = ['csv', 'json', 'xml'];
-        //    if (!in_array($datasetFile->getClientOriginalExtension(), $allowedExtensions)) {
-        //        $this->addFlash('error', 'Invalid file format. Please upload CSV, JSON, or XML file');
-        //        return $this->redirectToRoute('admin_dataset_import_form');
-        //    }
-        // 
-        // 2. Get import parameters:
-        //    $datasetType = $request->request->get('dataset_type'); // tariff_rate, freight_table, fx_rate
-        //    $signature = $request->request->get('signature'); // Optional SHA-256 signature
-        //    $createSnapshot = (bool) $request->request->get('create_snapshot', true);
-        // 
-        // 3. Validate dataset type:
-        //    $validTypes = ['tariff_rate', 'freight_table', 'fx_rate'];
-        //    if (!in_array($datasetType, $validTypes)) {
-        //        $this->addFlash('error', 'Invalid dataset type');
-        //        return $this->redirectToRoute('admin_dataset_import_form');
-        //    }
-        // 
-        // 4. Create snapshot of current data (if requested):
-        //    if ($createSnapshot) {
-        //        try {
-        //            $snapshotVersion = $this->datasetImport->createSnapshot($datasetType);
-        //            $this->addFlash('info', "Snapshot created: {$snapshotVersion}");
-        //        } catch (\Exception $e) {
-        //            $this->addFlash('warning', 'Snapshot creation failed: ' . $e->getMessage());
-        //        }
-        //    }
-        // 
-        // 5. Import dataset:
-        //    try {
-        //        $result = $this->datasetImport->importDataset(
-        //            $datasetType,
-        //            $datasetFile->getPathname(),
-        //            $signature
-        //        );
-        //    } catch (\Exception $e) {
-        //        $this->addFlash('error', 'Import failed: ' . $e->getMessage());
-        //        return $this->redirectToRoute('admin_dataset_import_form');
-        //    }
-        // 
-        // 6. Display import summary:
-        //    $this->addFlash('success', sprintf(
-        //        'Dataset imported successfully: %d rows inserted, %d updated, %d errors',
-        //        $result['inserted'],
-        //        $result['updated'],
-        //        $result['errors']
-        //    ));
-        //    
-        //    if ($result['errors'] > 0) {
-        //        $this->addFlash('warning', 'Some rows failed to import. Check logs for details.');
-        //    }
-        // 
-        // 7. Redirect to overview:
-        //    return $this->redirectToRoute('admin_dataset_index');
+        // 1. Validate file upload
+        $datasetFile = $request->files->get('dataset_file');
+        if (!$datasetFile) {
+            $this->addFlash('error', 'Please upload a dataset file');
+            return $this->redirectToRoute('admin_dataset_import_form');
+        }
         
-        throw new \RuntimeException('Feature not yet implemented');
+        $allowedExtensions = ['csv', 'json', 'xml'];
+        $extension = $datasetFile->getClientOriginalExtension();
+        if (!in_array($extension, $allowedExtensions)) {
+            $this->addFlash('error', 'Invalid file format. Please upload CSV, JSON, or XML file');
+            return $this->redirectToRoute('admin_dataset_import_form');
+        }
+        
+        // 2. Get import parameters
+        $datasetType = $request->request->get('dataset_type', 'fx_rate');
+        $signature = $request->request->get('signature');
+        $createSnapshot = (bool) $request->request->get('create_snapshot', true);
+        
+        // 3. Validate dataset type
+        $validTypes = ['tariff_rate', 'freight_table', 'fx_rate'];
+        if (!in_array($datasetType, $validTypes)) {
+            $this->addFlash('error', 'Invalid dataset type');
+            return $this->redirectToRoute('admin_dataset_import_form');
+        }
+        
+        // 4. Create snapshot of current data (if requested)
+        if ($createSnapshot) {
+            try {
+                $snapshotVersion = $this->datasetImport->snapshotDataset($datasetType, 'PRE_IMPORT');
+                $this->addFlash('info', "Snapshot created: {$snapshotVersion}");
+            } catch (\Exception $e) {
+                $this->addFlash('warning', 'Snapshot creation failed: ' . $e->getMessage());
+            }
+        }
+        
+        // 5. Import dataset (currently only FX rates implemented)
+        try {
+            if ($datasetType === 'fx_rate') {
+                $result = $this->datasetImport->importFxRates(
+                    $datasetFile->getPathname(),
+                    $signature
+                );
+            } else {
+                // Placeholder for other dataset types
+                $this->addFlash('warning', "Import for {$datasetType} not yet implemented");
+                return $this->redirectToRoute('admin_dataset_import_form');
+            }
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Import failed: ' . $e->getMessage());
+            return $this->redirectToRoute('admin_dataset_import_form');
+        }
+        
+        // 6. Display import summary
+        $this->addFlash('success', sprintf(
+            'Dataset imported successfully: %d rows imported, version %s',
+            $result['imported_count'],
+            $result['version_uuid']
+        ));
+        
+        if (!empty($result['errors'])) {
+            $this->addFlash('warning', sprintf(
+                '%d errors encountered. First error: %s',
+                count($result['errors']),
+                $result['errors'][0] ?? 'Unknown'
+            ));
+        }
+        
+        // 7. Redirect to overview
+        return $this->redirectToRoute('admin_dataset_index');
     }
 
     /**
@@ -170,54 +165,50 @@ class AdminDatasetController extends AbstractController
     #[Route('/{datasetType}/rollback', name: 'admin_dataset_rollback', methods: ['POST'])]
     public function rollback(string $datasetType, Request $request): Response
     {
-        // TODO: Implement dataset rollback
-        // 
-        // Steps:
-        // 1. Validate dataset type:
-        //    $validTypes = ['tariff_rate', 'freight_table', 'fx_rate'];
-        //    if (!in_array($datasetType, $validTypes)) {
-        //        $this->addFlash('error', 'Invalid dataset type');
-        //        return $this->redirectToRoute('admin_dataset_index');
-        //    }
-        // 
-        // 2. Get target version:
-        //    $targetVersion = $request->request->get('target_version');
-        //    if (!$targetVersion) {
-        //        $this->addFlash('error', 'Please specify target version');
-        //        return $this->redirectToRoute('admin_dataset_index');
-        //    }
-        // 
-        // 3. Create snapshot of current data before rollback:
-        //    try {
-        //        $snapshotVersion = $this->datasetImport->createSnapshot($datasetType);
-        //        $this->addFlash('info', "Pre-rollback snapshot created: {$snapshotVersion}");
-        //    } catch (\Exception $e) {
-        //        $this->addFlash('warning', 'Snapshot creation failed: ' . $e->getMessage());
-        //        // Continue with rollback anyway
-        //    }
-        // 
-        // 4. Perform rollback:
-        //    try {
-        //        $result = $this->datasetImport->rollbackToVersion(
-        //            $datasetType,
-        //            $targetVersion
-        //        );
-        //    } catch (\Exception $e) {
-        //        $this->addFlash('error', 'Rollback failed: ' . $e->getMessage());
-        //        return $this->redirectToRoute('admin_dataset_index');
-        //    }
-        // 
-        // 5. Display rollback summary:
-        //    $this->addFlash('success', sprintf(
-        //        'Rolled back to version %s: %d rows restored',
-        //        $targetVersion,
-        //        $result['rowsRestored']
-        //    ));
-        // 
-        // 6. Redirect to overview:
-        //    return $this->redirectToRoute('admin_dataset_index');
+        // 1. Validate dataset type
+        $validTypes = ['tariff_rate', 'freight_table', 'fx_rate'];
+        if (!in_array($datasetType, $validTypes)) {
+            $this->addFlash('error', 'Invalid dataset type');
+            return $this->redirectToRoute('admin_dataset_index');
+        }
         
-        throw new \RuntimeException('Feature not yet implemented');
+        // 2. Get target version
+        $targetVersion = $request->request->get('target_version');
+        if (!$targetVersion) {
+            $this->addFlash('error', 'Please specify target version');
+            return $this->redirectToRoute('admin_dataset_index');
+        }
+        
+        // 3. Create snapshot of current data before rollback
+        try {
+            $snapshotVersion = $this->datasetImport->snapshotDataset($datasetType, 'PRE_ROLLBACK');
+            $this->addFlash('info', "Pre-rollback snapshot created: {$snapshotVersion}");
+        } catch (\Exception $e) {
+            $this->addFlash('warning', 'Snapshot creation failed: ' . $e->getMessage());
+            // Continue with rollback anyway
+        }
+        
+        // 4. Perform rollback
+        try {
+            $result = $this->datasetImport->rollbackDataset(
+                $datasetType,
+                $targetVersion
+            );
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Rollback failed: ' . $e->getMessage());
+            return $this->redirectToRoute('admin_dataset_index');
+        }
+        
+        // 5. Display rollback summary
+        $this->addFlash('success', sprintf(
+            'Rolled back %s to version %s: %s',
+            $datasetType,
+            $targetVersion,
+            $result['message'] ?? 'Success'
+        ));
+        
+        // 6. Redirect to overview
+        return $this->redirectToRoute('admin_dataset_index');
     }
 
     /**
@@ -226,59 +217,59 @@ class AdminDatasetController extends AbstractController
     #[Route('/history', name: 'admin_dataset_history', methods: ['GET'])]
     public function history(Request $request): Response
     {
-        // TODO: Implement import history display
-        // 
-        // Steps:
-        // 1. Get dataset type filter:
-        //    $datasetType = $request->query->get('type'); // Optional filter
-        // 
-        // 2. Build version history query:
-        //    // NOTE: This requires DatasetVersion entity which we haven't created yet
-        //    // For now, get import timestamps from each dataset type
-        //    
-        //    $tariffHistory = $this->entityManager->getRepository(TariffRate::class)
-        //        ->createQueryBuilder('t')
-        //        ->select('t.versionUuid, t.importedAt, COUNT(t.id) as rowCount')
-        //        ->where('t.versionUuid IS NOT NULL')
-        //        ->groupBy('t.versionUuid, t.importedAt')
-        //        ->orderBy('t.importedAt', 'DESC')
-        //        ->getQuery()
-        //        ->getResult();
-        //    
-        //    $freightHistory = $this->entityManager->getRepository(FreightTable::class)
-        //        ->createQueryBuilder('f')
-        //        ->select('f.versionUuid, f.importedAt, COUNT(f.id) as rowCount')
-        //        ->where('f.versionUuid IS NOT NULL')
-        //        ->groupBy('f.versionUuid, f.importedAt')
-        //        ->orderBy('f.importedAt', 'DESC')
-        //        ->getQuery()
-        //        ->getResult();
-        //    
-        //    $fxHistory = $this->entityManager->getRepository(FxRate::class)
-        //        ->createQueryBuilder('fx')
-        //        ->select('fx.versionUuid, fx.importedAt, COUNT(fx.id) as rowCount')
-        //        ->where('fx.versionUuid IS NOT NULL')
-        //        ->groupBy('fx.versionUuid, fx.importedAt')
-        //        ->orderBy('fx.importedAt', 'DESC')
-        //        ->getQuery()
-        //        ->getResult();
-        // 
-        // 3. Combine and sort history:
-        //    $combinedHistory = array_merge(
-        //        array_map(fn($h) => array_merge($h, ['type' => 'tariff_rate']), $tariffHistory),
-        //        array_map(fn($h) => array_merge($h, ['type' => 'freight_table']), $freightHistory),
-        //        array_map(fn($h) => array_merge($h, ['type' => 'fx_rate']), $fxHistory)
-        //    );
-        //    
-        //    usort($combinedHistory, fn($a, $b) => $b['importedAt'] <=> $a['importedAt']);
-        // 
-        // 4. Render history template:
-        //    return $this->render('admin_dataset/history.html.twig', [
-        //        'history' => $combinedHistory,
-        //        'filterType' => $datasetType
-        //    ]);
+        // 1. Get optional dataset type filter
+        $datasetType = $request->query->get('type');
         
+        // 2. Build version history queries for each dataset type
+        $tariffHistory = $this->entityManager->getRepository(TariffRate::class)
+            ->createQueryBuilder('t')
+            ->select('t.versionUuid', 't.importedAt', 'COUNT(t.id) as rowCount')
+            ->where('t.versionUuid IS NOT NULL')
+            ->groupBy('t.versionUuid', 't.importedAt')
+            ->orderBy('t.importedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+        
+        $freightHistory = $this->entityManager->getRepository(FreightTable::class)
+            ->createQueryBuilder('f')
+            ->select('f.versionUuid', 'f.importedAt', 'COUNT(f.id) as rowCount')
+            ->where('f.versionUuid IS NOT NULL')
+            ->groupBy('f.versionUuid', 'f.importedAt')
+            ->orderBy('f.importedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+        
+        $fxHistory = $this->entityManager->getRepository(FxRate::class)
+            ->createQueryBuilder('fx')
+            ->select('fx.versionUuid', 'fx.importedAt', 'COUNT(fx.id) as rowCount')
+            ->where('fx.versionUuid IS NOT NULL')
+            ->groupBy('fx.versionUuid', 'fx.importedAt')
+            ->orderBy('fx.importedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+        
+        // 3. Combine all history records with type labels
+        $combinedHistory = array_merge(
+            array_map(fn($h) => array_merge($h, ['type' => 'tariff_rate']), $tariffHistory),
+            array_map(fn($h) => array_merge($h, ['type' => 'freight_table']), $freightHistory),
+            array_map(fn($h) => array_merge($h, ['type' => 'fx_rate']), $fxHistory)
+        );
+        
+        // 4. Sort by import date descending
+        usort($combinedHistory, fn($a, $b) => $b['importedAt'] <=> $a['importedAt']);
+        
+        // 5. Apply type filter if specified
+        if ($datasetType) {
+            $combinedHistory = array_filter(
+                $combinedHistory,
+                fn($h) => $h['type'] === $datasetType
+            );
+        }
+        
+        // 6. Render history template
         return $this->render('admin_dataset/history.html.twig', [
+            'history' => $combinedHistory,
+            'filterType' => $datasetType,
             'pageTitle' => 'Import History'
         ]);
     }

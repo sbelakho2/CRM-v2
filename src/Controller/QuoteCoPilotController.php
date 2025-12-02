@@ -456,8 +456,27 @@ class QuoteCoPilotController extends AbstractController
             ], 500);
         }
 
-        // TODO: Create Activity record
-        // TODO: Create Notification for sales team
+        // Create Activity record for quote publication
+        $activity = new \App\Entity\Activity();
+        $activity->setType('QUOTE_PUBLISHED');
+        $activity->setDescription(sprintf('Quote %s published and emailed to %s', 
+            $quote->getQuoteNumber() ?? $quote->getId(), $toEmail));
+        $activity->setCompany($company);
+        $activity->setQuote($quote);
+        $activity->setCreatedAt(new \DateTimeImmutable());
+        $this->entityManager->persist($activity);
+        
+        // Create Notification for sales team
+        $notification = new \App\Entity\Notification();
+        $notification->setType('QUOTE_PUBLISHED');
+        $notification->setMessage(sprintf('Quote %s has been published', 
+            $quote->getQuoteNumber() ?? $quote->getId()));
+        $notification->setQuote($quote);
+        $notification->setIsRead(false);
+        $notification->setCreatedAt(new \DateTimeImmutable());
+        $this->entityManager->persist($notification);
+        
+        $this->entityManager->flush();
 
         return $this->json([
             'success' => true,

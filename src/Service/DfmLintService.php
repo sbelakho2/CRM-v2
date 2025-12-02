@@ -326,19 +326,17 @@ class DfmLintService
      */
     public function getFindings(int $quoteId, ?string $severityFilter = null): array
     {
-        // TODO: Implement findings retrieval
-        // 
-        // Steps:
-        // 1. Build query:
-        //    $criteria = ['quoteId' => $quoteId];
-        //    if ($severityFilter) {
-        //        $criteria['severity'] = $severityFilter;
-        //    }
-        // 
-        // 2. Query findings:
-        //    return $this->dfmFindingRepository->findBy($criteria, ['severity' => 'ASC', 'detectedAt' => 'DESC']);
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Build query criteria
+        $criteria = ['quoteId' => $quoteId];
+        if ($severityFilter) {
+            $criteria['severity'] = $severityFilter;
+        }
+        
+        // 2. Query findings with ordering
+        return $this->dfmFindingRepository->findBy(
+            $criteria,
+            ['severity' => 'ASC', 'detectedAt' => 'DESC']
+        );
     }
 
     /**
@@ -350,24 +348,19 @@ class DfmLintService
      */
     public function resolveFinding(int $findingId, string $resolution, ?string $notes = null): void
     {
-        // TODO: Implement finding resolution
-        // 
-        // Steps:
-        // 1. Get finding:
-        //    $finding = $this->dfmFindingRepository->find($findingId);
-        //    if (!$finding) {
-        //        throw new \RuntimeException("Finding $findingId not found");
-        //    }
-        // 
-        // 2. Update resolution fields:
-        //    $finding->setResolution($resolution);
-        //    $finding->setResolutionNotes($notes);
-        //    $finding->setResolvedAt(new \DateTime());
-        // 
-        // 3. Flush changes:
-        //    $this->entityManager->flush();
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get finding
+        $finding = $this->dfmFindingRepository->find($findingId);
+        if (!$finding) {
+            throw new \RuntimeException("Finding $findingId not found");
+        }
+        
+        // 2. Update resolution fields
+        $finding->setResolution($resolution);
+        $finding->setResolutionNotes($notes);
+        $finding->setResolvedAt(new \DateTime());
+        
+        // 3. Flush changes
+        $this->entityManager->flush();
     }
 
     /**
@@ -385,40 +378,48 @@ class DfmLintService
      */
     public function getStatistics(int $quoteId): array
     {
-        // TODO: Implement statistics calculation
-        // 
-        // Steps:
-        // 1. Get all findings for quote:
-        //    $findings = $this->dfmFindingRepository->findBy(['quoteId' => $quoteId]);
-        // 
-        // 2. Count by severity:
-        //    $bySeverity = $this->categorizeFindings($findings);
-        // 
-        // 3. Count by category:
-        //    $byCategory = [];
-        //    foreach ($findings as $finding) {
-        //        $category = $finding->getCategory();
-        //        $byCategory[$category] = ($byCategory[$category] ?? 0) + 1;
-        //    }
-        // 
-        // 4. Count resolved/unresolved:
-        //    $resolvedCount = 0;
-        //    foreach ($findings as $finding) {
-        //        if ($finding->getResolvedAt() !== null) {
-        //            $resolvedCount++;
-        //        }
-        //    }
-        // 
-        // 5. Return statistics:
-        //    return [
-        //        'totalFindings' => count($findings),
-        //        'bySeverity' => $bySeverity,
-        //        'byCategory' => $byCategory,
-        //        'resolvedCount' => $resolvedCount,
-        //        'unresolvedCount' => count($findings) - $resolvedCount
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get all findings for quote
+        $findings = $this->dfmFindingRepository->findBy(['quoteId' => $quoteId]);
+        
+        // 2. Count by severity
+        $bySeverity = [
+            'CRITICAL' => 0,
+            'HIGH' => 0,
+            'MEDIUM' => 0,
+            'LOW' => 0,
+            'INFO' => 0
+        ];
+        
+        foreach ($findings as $finding) {
+            $severity = $finding->getSeverity();
+            if (isset($bySeverity[$severity])) {
+                $bySeverity[$severity]++;
+            }
+        }
+        
+        // 3. Count by category
+        $byCategory = [];
+        foreach ($findings as $finding) {
+            $category = $finding->getCategory();
+            $byCategory[$category] = ($byCategory[$category] ?? 0) + 1;
+        }
+        
+        // 4. Count resolved/unresolved
+        $resolvedCount = 0;
+        foreach ($findings as $finding) {
+            if ($finding->getResolvedAt() !== null) {
+                $resolvedCount++;
+            }
+        }
+        
+        // 5. Return statistics
+        return [
+            'totalFindings' => count($findings),
+            'bySeverity' => $bySeverity,
+            'byCategory' => $byCategory,
+            'resolvedCount' => $resolvedCount,
+            'unresolvedCount' => count($findings) - $resolvedCount
+        ];
     }
 
     /**
@@ -430,32 +431,50 @@ class DfmLintService
      */
     public function importRules(string $jsonPath): int
     {
-        // TODO: Implement rule import
-        // 
-        // Steps:
-        // 1. Parse JSON file:
-        //    $rulesData = json_decode(file_get_contents($jsonPath), true);
-        // 
-        // 2. Create DfmRule entities:
-        //    $count = 0;
-        //    foreach ($rulesData as $ruleData) {
-        //        $rule = new DfmRule();
-        //        $rule->setRuleName($ruleData['name']);
-        //        $rule->setCategory($ruleData['category']);
-        //        $rule->setSeverity($ruleData['severity']);
-        //        $rule->setRuleConditionJson(json_encode($ruleData['condition']));
-        //        $rule->setMessageTemplate($ruleData['message']);
-        //        $rule->setRemediationText($ruleData['remediation']);
-        //        $rule->setIsActive(true);
-        //        
-        //        $this->entityManager->persist($rule);
-        //        $count++;
-        //    }
-        // 
-        // 3. Flush and return count:
-        //    $this->entityManager->flush();
-        //    return $count;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Validate file exists
+        if (!file_exists($jsonPath)) {
+            throw new \RuntimeException("Rules file not found: $jsonPath");
+        }
+        
+        // 2. Parse JSON file
+        $jsonContent = file_get_contents($jsonPath);
+        $rulesData = json_decode($jsonContent, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException('Invalid JSON: ' . json_last_error_msg());
+        }
+        
+        if (!is_array($rulesData)) {
+            throw new \RuntimeException('Rules data must be an array');
+        }
+        
+        // 3. Create DfmRule entities
+        $count = 0;
+        foreach ($rulesData as $ruleData) {
+            if (!isset($ruleData['name'], $ruleData['category'], $ruleData['severity'])) {
+                continue; // Skip invalid rules
+            }
+            
+            $rule = new DfmRule();
+            $rule->setRuleName($ruleData['name']);
+            $rule->setCategory($ruleData['category']);
+            $rule->setSeverity($ruleData['severity']);
+            $rule->setRuleConditionJson(json_encode($ruleData['condition'] ?? []));
+            $rule->setMessageTemplate($ruleData['message'] ?? '');
+            $rule->setRemediationText($ruleData['remediation'] ?? '');
+            $rule->setIsActive($ruleData['active'] ?? true);
+            
+            $this->entityManager->persist($rule);
+            $count++;
+            
+            // Batch flush every 50 rules
+            if ($count % 50 === 0) {
+                $this->entityManager->flush();
+            }
+        }
+        
+        // 4. Final flush and return count
+        $this->entityManager->flush();
+        return $count;
     }
 }

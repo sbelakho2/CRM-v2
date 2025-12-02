@@ -54,56 +54,54 @@ class DocumentManagerService
         string $entityType,
         ?int $userId = null
     ): ComplianceDocument {
-        // TODO: Implement document storage
-        // 
-        // Steps:
-        // 1. Calculate SHA-256 hash:
-        //    if (!file_exists($filePath)) {
-        //        throw new \RuntimeException("File not found: $filePath");
-        //    }
-        //    $hash = hash_file('sha256', $filePath);
-        // 
-        // 2. Check if document already exists with same hash:
-        //    $existingDoc = $this->complianceDocumentRepository->findOneBy([
-        //        'documentType' => $documentType,
-        //        'entityId' => $entityId,
-        //        'entityType' => $entityType,
-        //        'sha256Hash' => $hash
-        //    ]);
-        //    
-        //    if ($existingDoc) {
-        //        // Document already stored with same hash (no changes)
-        //        return $existingDoc;
-        //    }
-        // 
-        // 3. Get version number (increment from latest):
-        //    $latestDoc = $this->complianceDocumentRepository->findOneBy([
-        //        'documentType' => $documentType,
-        //        'entityId' => $entityId,
-        //        'entityType' => $entityType
-        //    ], ['versionNumber' => 'DESC']);
-        //    
-        //    $versionNumber = $latestDoc ? $latestDoc->getVersionNumber() + 1 : 1;
-        // 
-        // 4. Create ComplianceDocument entity:
-        //    $document = new ComplianceDocument();
-        //    $document->setDocumentType($documentType);
-        //    $document->setEntityId($entityId);
-        //    $document->setEntityType($entityType);
-        //    $document->setFilePath($filePath);
-        //    $document->setSha256Hash($hash);
-        //    $document->setVersionNumber($versionNumber);
-        //    $document->setGeneratedAt(new \DateTime());
-        //    $document->setGeneratedBy($userId);
-        // 
-        // 5. Persist document:
-        //    $this->entityManager->persist($document);
-        //    $this->entityManager->flush();
-        // 
-        // 6. Return document:
-        //    return $document;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Calculate SHA-256 hash
+        if (!file_exists($filePath)) {
+            throw new \RuntimeException("File not found: $filePath");
+        }
+        $hash = hash_file('sha256', $filePath);
+        
+        // 2. Check if document already exists with same hash
+        $existingDoc = $this->complianceDocumentRepository->findOneBy([
+            'documentType' => $documentType,
+            'entityId' => $entityId,
+            'entityType' => $entityType,
+            'sha256Hash' => $hash
+        ]);
+        
+        if ($existingDoc) {
+            // Document already stored with same hash (no changes)
+            return $existingDoc;
+        }
+        
+        // 3. Get version number (increment from latest)
+        $latestDoc = $this->complianceDocumentRepository->findOneBy([
+            'documentType' => $documentType,
+            'entityId' => $entityId,
+            'entityType' => $entityType
+        ], ['versionNumber' => 'DESC']);
+        
+        $versionNumber = $latestDoc ? $latestDoc->getVersionNumber() + 1 : 1;
+        
+        // 4. Create ComplianceDocument entity
+        $document = new ComplianceDocument();
+        $document->setDocumentType($documentType);
+        $document->setEntityId($entityId);
+        $document->setEntityType($entityType);
+        $document->setFilePath($filePath);
+        $document->setSha256Hash($hash);
+        $document->setVersionNumber($versionNumber);
+        $document->setGeneratedAt(new \DateTime());
+        
+        if ($userId) {
+            $document->setGeneratedBy($userId);
+        }
+        
+        // 5. Persist document
+        $this->entityManager->persist($document);
+        $this->entityManager->flush();
+        
+        // 6. Return document
+        return $document;
     }
 
     /**
@@ -122,33 +120,28 @@ class DocumentManagerService
         ?string $documentType = null,
         bool $latestOnly = true
     ) {
-        // TODO: Implement document retrieval
-        // 
-        // Steps:
-        // 1. Build query criteria:
-        //    $criteria = [
-        //        'entityType' => $entityType,
-        //        'entityId' => $entityId
-        //    ];
-        //    
-        //    if ($documentType) {
-        //        $criteria['documentType'] = $documentType;
-        //    }
-        // 
-        // 2. Query documents:
-        //    if ($latestOnly) {
-        //        return $this->complianceDocumentRepository->findOneBy(
-        //            $criteria,
-        //            ['generatedAt' => 'DESC']
-        //        );
-        //    } else {
-        //        return $this->complianceDocumentRepository->findBy(
-        //            $criteria,
-        //            ['generatedAt' => 'DESC']
-        //        );
-        //    }
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Build query criteria
+        $criteria = [
+            'entityType' => $entityType,
+            'entityId' => $entityId
+        ];
+        
+        if ($documentType) {
+            $criteria['documentType'] = $documentType;
+        }
+        
+        // 2. Query documents
+        if ($latestOnly) {
+            return $this->complianceDocumentRepository->findOneBy(
+                $criteria,
+                ['generatedAt' => 'DESC']
+            );
+        } else {
+            return $this->complianceDocumentRepository->findBy(
+                $criteria,
+                ['generatedAt' => 'DESC']
+            );
+        }
     }
 
     /**
@@ -161,29 +154,24 @@ class DocumentManagerService
      */
     public function getAllDocuments(string $entityType, int $entityId): array
     {
-        // TODO: Implement document listing
-        // 
-        // Steps:
-        // 1. Get all documents:
-        //    $documents = $this->complianceDocumentRepository->findBy([
-        //        'entityType' => $entityType,
-        //        'entityId' => $entityId
-        //    ], ['generatedAt' => 'DESC']);
-        // 
-        // 2. Group by document type:
-        //    $grouped = [];
-        //    foreach ($documents as $doc) {
-        //        $type = $doc->getDocumentType();
-        //        if (!isset($grouped[$type])) {
-        //            $grouped[$type] = [];
-        //        }
-        //        $grouped[$type][] = $doc;
-        //    }
-        // 
-        // 3. Return grouped documents:
-        //    return $grouped;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get all documents
+        $documents = $this->complianceDocumentRepository->findBy([
+            'entityType' => $entityType,
+            'entityId' => $entityId
+        ], ['generatedAt' => 'DESC']);
+        
+        // 2. Group by document type
+        $grouped = [];
+        foreach ($documents as $doc) {
+            $type = $doc->getDocumentType();
+            if (!isset($grouped[$type])) {
+                $grouped[$type] = [];
+            }
+            $grouped[$type][] = $doc;
+        }
+        
+        // 3. Return grouped documents
+        return $grouped;
     }
 
     /**
@@ -204,21 +192,14 @@ class DocumentManagerService
         string $newFilePath,
         ?int $userId = null
     ): ComplianceDocument {
-        // TODO: Implement document versioning
-        // 
-        // Steps:
-        // 1. Store new version (automatically increments version number):
-        //    return $this->storeDocument(
-        //        $newFilePath,
-        //        $documentType,
-        //        $entityId,
-        //        $entityType,
-        //        $userId
-        //    );
-        // 
-        // Note: storeDocument() already handles versioning by incrementing version_number
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Store new version (automatically increments version number)
+        return $this->storeDocument(
+            $newFilePath,
+            $documentType,
+            $entityId,
+            $entityType,
+            $userId
+        );
     }
 
     /**
@@ -235,43 +216,38 @@ class DocumentManagerService
      */
     public function verifyHash(int $documentId): array
     {
-        // TODO: Implement hash verification
-        // 
-        // Steps:
-        // 1. Get document:
-        //    $document = $this->complianceDocumentRepository->find($documentId);
-        //    if (!$document) {
-        //        throw new \RuntimeException("Document $documentId not found");
-        //    }
-        // 
-        // 2. Get stored hash:
-        //    $storedHash = $document->getSha256Hash();
-        // 
-        // 3. Calculate current hash from file:
-        //    $filePath = $document->getFilePath();
-        //    if (!file_exists($filePath)) {
-        //        return [
-        //            'valid' => false,
-        //            'storedHash' => $storedHash,
-        //            'currentHash' => null,
-        //            'errorMessage' => 'File not found on disk'
-        //        ];
-        //    }
-        //    
-        //    $currentHash = hash_file('sha256', $filePath);
-        // 
-        // 4. Compare hashes:
-        //    $valid = ($storedHash === $currentHash);
-        // 
-        // 5. Return verification result:
-        //    return [
-        //        'valid' => $valid,
-        //        'storedHash' => $storedHash,
-        //        'currentHash' => $currentHash,
-        //        'errorMessage' => $valid ? null : 'Hash mismatch - file may be corrupted or tampered'
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get document
+        $document = $this->complianceDocumentRepository->find($documentId);
+        if (!$document) {
+            throw new \RuntimeException("Document $documentId not found");
+        }
+        
+        // 2. Get stored hash
+        $storedHash = $document->getSha256Hash();
+        
+        // 3. Calculate current hash from file
+        $filePath = $document->getFilePath();
+        if (!file_exists($filePath)) {
+            return [
+                'valid' => false,
+                'storedHash' => $storedHash,
+                'currentHash' => null,
+                'errorMessage' => 'File not found on disk'
+            ];
+        }
+        
+        $currentHash = hash_file('sha256', $filePath);
+        
+        // 4. Compare hashes
+        $valid = ($storedHash === $currentHash);
+        
+        // 5. Return verification result
+        return [
+            'valid' => $valid,
+            'storedHash' => $storedHash,
+            'currentHash' => $currentHash,
+            'errorMessage' => $valid ? null : 'Hash mismatch - file may be corrupted or tampered'
+        ];
     }
 
     /**
@@ -282,25 +258,22 @@ class DocumentManagerService
      */
     public function deleteDocument(int $documentId, ?int $userId = null): void
     {
-        // TODO: Implement document deletion
-        // 
-        // Steps:
-        // 1. Get document:
-        //    $document = $this->complianceDocumentRepository->find($documentId);
-        //    if (!$document) {
-        //        throw new \RuntimeException("Document $documentId not found");
-        //    }
-        // 
-        // 2. Soft delete (mark as deleted):
-        //    $document->setDeletedAt(new \DateTime());
-        //    $document->setDeletedBy($userId);
-        // 
-        // 3. Flush changes:
-        //    $this->entityManager->flush();
-        // 
+        // 1. Get document
+        $document = $this->complianceDocumentRepository->find($documentId);
+        if (!$document) {
+            throw new \RuntimeException("Document $documentId not found");
+        }
+        
+        // 2. Soft delete (mark as deleted)
+        $document->setDeletedAt(new \DateTime());
+        if ($userId) {
+            $document->setDeletedBy($userId);
+        }
+        
+        // 3. Flush changes
+        $this->entityManager->flush();
+        
         // Note: File is NOT deleted from disk (compliance requirement - keep audit trail)
-
-        throw new \RuntimeException('Feature not yet implemented');
     }
 
     /**
@@ -314,17 +287,12 @@ class DocumentManagerService
      */
     public function getVersionHistory(string $entityType, int $entityId, string $documentType): array
     {
-        // TODO: Implement version history retrieval
-        // 
-        // Steps:
-        // 1. Query all versions:
-        //    return $this->complianceDocumentRepository->findBy([
-        //        'entityType' => $entityType,
-        //        'entityId' => $entityId,
-        //        'documentType' => $documentType
-        //    ], ['versionNumber' => 'DESC']);
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // Query all versions
+        return $this->complianceDocumentRepository->findBy([
+            'entityType' => $entityType,
+            'entityId' => $entityId,
+            'documentType' => $documentType
+        ], ['versionNumber' => 'DESC']);
     }
 
     /**
@@ -340,47 +308,42 @@ class DocumentManagerService
      */
     public function getStatistics(): array
     {
-        // TODO: Implement statistics calculation
-        // 
-        // Steps:
-        // 1. Get all documents:
-        //    $documents = $this->complianceDocumentRepository->findAll();
-        // 
-        // 2. Calculate statistics:
-        //    $stats = [
-        //        'totalDocuments' => count($documents),
-        //        'byType' => [],
-        //        'totalSizeMb' => 0.0,
-        //        'oldestDocument' => null,
-        //        'newestDocument' => null
-        //    ];
-        //    
-        //    foreach ($documents as $doc) {
-        //        // Count by type
-        //        $type = $doc->getDocumentType();
-        //        $stats['byType'][$type] = ($stats['byType'][$type] ?? 0) + 1;
-        //        
-        //        // Sum file sizes
-        //        if (file_exists($doc->getFilePath())) {
-        //            $stats['totalSizeMb'] += filesize($doc->getFilePath()) / (1024 * 1024);
-        //        }
-        //        
-        //        // Track oldest/newest
-        //        $generatedAt = $doc->getGeneratedAt();
-        //        if (!$stats['oldestDocument'] || $generatedAt < $stats['oldestDocument']) {
-        //            $stats['oldestDocument'] = $generatedAt;
-        //        }
-        //        if (!$stats['newestDocument'] || $generatedAt > $stats['newestDocument']) {
-        //            $stats['newestDocument'] = $generatedAt;
-        //        }
-        //    }
-        //    
-        //    $stats['totalSizeMb'] = round($stats['totalSizeMb'], 2);
-        // 
-        // 3. Return statistics:
-        //    return $stats;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get all documents
+        $documents = $this->complianceDocumentRepository->findAll();
+        
+        // 2. Calculate statistics
+        $stats = [
+            'totalDocuments' => count($documents),
+            'byType' => [],
+            'totalSizeMb' => 0.0,
+            'oldestDocument' => null,
+            'newestDocument' => null
+        ];
+        
+        foreach ($documents as $doc) {
+            // Count by type
+            $type = $doc->getDocumentType();
+            $stats['byType'][$type] = ($stats['byType'][$type] ?? 0) + 1;
+            
+            // Sum file sizes
+            if (file_exists($doc->getFilePath())) {
+                $stats['totalSizeMb'] += filesize($doc->getFilePath()) / (1024 * 1024);
+            }
+            
+            // Track oldest/newest
+            $generatedAt = $doc->getGeneratedAt();
+            if (!$stats['oldestDocument'] || $generatedAt < $stats['oldestDocument']) {
+                $stats['oldestDocument'] = $generatedAt;
+            }
+            if (!$stats['newestDocument'] || $generatedAt > $stats['newestDocument']) {
+                $stats['newestDocument'] = $generatedAt;
+            }
+        }
+        
+        $stats['totalSizeMb'] = round($stats['totalSizeMb'], 2);
+        
+        // 3. Return statistics
+        return $stats;
     }
 
     /**
@@ -392,44 +355,39 @@ class DocumentManagerService
      */
     public function cleanupOldVersions(int $keepVersions = 5): int
     {
-        // TODO: Implement cleanup
-        // 
-        // Steps:
-        // 1. Get all documents grouped by entity + type:
-        //    $allDocs = $this->complianceDocumentRepository->findAll();
-        //    
-        //    $grouped = [];
-        //    foreach ($allDocs as $doc) {
-        //        $key = "{$doc->getEntityType()}_{$doc->getEntityId()}_{$doc->getDocumentType()}";
-        //        if (!isset($grouped[$key])) {
-        //            $grouped[$key] = [];
-        //        }
-        //        $grouped[$key][] = $doc;
-        //    }
-        // 
-        // 2. For each group, delete old versions:
-        //    $cleanedCount = 0;
-        //    foreach ($grouped as $docs) {
-        //        // Sort by version number descending
-        //        usort($docs, fn($a, $b) => $b->getVersionNumber() <=> $a->getVersionNumber());
-        //        
-        //        // Keep only last N versions
-        //        $toDelete = array_slice($docs, $keepVersions);
-        //        
-        //        foreach ($toDelete as $doc) {
-        //            $this->entityManager->remove($doc);
-        //            // Also delete physical file
-        //            if (file_exists($doc->getFilePath())) {
-        //                unlink($doc->getFilePath());
-        //            }
-        //            $cleanedCount++;
-        //        }
-        //    }
-        // 
-        // 3. Flush deletions:
-        //    $this->entityManager->flush();
-        //    return $cleanedCount;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get all documents grouped by entity + type
+        $allDocs = $this->complianceDocumentRepository->findAll();
+        
+        $grouped = [];
+        foreach ($allDocs as $doc) {
+            $key = "{$doc->getEntityType()}_{$doc->getEntityId()}_{$doc->getDocumentType()}";
+            if (!isset($grouped[$key])) {
+                $grouped[$key] = [];
+            }
+            $grouped[$key][] = $doc;
+        }
+        
+        // 2. For each group, delete old versions
+        $cleanedCount = 0;
+        foreach ($grouped as $docs) {
+            // Sort by version number descending
+            usort($docs, fn($a, $b) => $b->getVersionNumber() <=> $a->getVersionNumber());
+            
+            // Keep only last N versions
+            $toDelete = array_slice($docs, $keepVersions);
+            
+            foreach ($toDelete as $doc) {
+                $this->entityManager->remove($doc);
+                // Also delete physical file
+                if (file_exists($doc->getFilePath())) {
+                    @unlink($doc->getFilePath()); // @ suppresses warnings if file already gone
+                }
+                $cleanedCount++;
+            }
+        }
+        
+        // 3. Flush deletions
+        $this->entityManager->flush();
+        return $cleanedCount;
     }
 }

@@ -43,7 +43,8 @@ class QuoteEstimatorController extends AbstractController
         private FtaEligibilityService $ftaEligibilityService,
         private DutyCalculationService $dutyCalculationService,
         private FreightPricingService $freightPricingService,
-        private UnifiedPdfGeneratorService $pdfGenerator
+        private UnifiedPdfGeneratorService $pdfGenerator,
+        private CountryService $countryService
     ) {}
 
     /**
@@ -52,16 +53,12 @@ class QuoteEstimatorController extends AbstractController
     #[Route('', name: 'quote_estimator_index', methods: ['GET'])]
     public function index(): Response
     {
-        // TODO: Implement form display
-        // 
-        // Steps:
-        // 1. Render Twig template with form:
-        //    return $this->render('quote_estimator/index.html.twig', [
-        //        'countries' => $this->getCountryList(),
-        //        'originCountries' => $this->getCountryList(), // Same list for origin
-        //        'incoterms' => ['EXW', 'FOB', 'CIF', 'DDP'],
-        //        'defaultOrigin' => 'MA' // Morocco as default origin
-        //    ]);
+        return $this->render('quote_estimator/index.html.twig', [
+            'countries' => $this->countryService->getCountryList(),
+            'originCountries' => $this->countryService->getCountryList(),
+            'incoterms' => ['EXW', 'FOB', 'CIF', 'DDP'],
+            'defaultOrigin' => 'MA'
+        ]);
         // 
         // Form fields:
         // - Origin Country (dropdown, default: MA)
@@ -220,22 +217,29 @@ class QuoteEstimatorController extends AbstractController
     #[Route('/{id}/pdf', name: 'quote_estimator_pdf', methods: ['GET'])]
     public function downloadPdf(int $id): Response
     {
-        // TODO: Implement PDF download
-        // 
-        // Steps:
-        // 1. Get estimate:
-        //    $estimate = $this->entityManager->getRepository(Estimate::class)->find($id);
-        //    if (!$estimate) {
-        //        throw $this->createNotFoundException('Estimate not found');
-        //    }
-        // 
-        // 2. Generate PDF:
-        //    $pdfPath = $this->pdfGenerator->generateEstimatePdf($estimate);
-        // 
-        // 3. Return PDF response:
-        //    return $this->file($pdfPath, "estimate_{$id}.pdf");
+        // 1. Get estimate
+        $estimate = $this->entityManager->getRepository(Estimate::class)->find($id);
+        if (!$estimate) {
+            throw $this->createNotFoundException('Estimate not found');
+        }
         
-        throw new \RuntimeException('Feature not yet implemented');
+        try {
+            // 2. Generate PDF using UnifiedPdfGeneratorService
+            $document = $this->pdfGenerator->generateEstimatePdf($estimate);
+            
+            // 3. Check if PDF file exists
+            $pdfPath = $document->getFilePath();
+            if (!file_exists($pdfPath)) {
+                throw $this->createNotFoundException('PDF file not found');
+            }
+            
+            // 4. Return PDF response
+            return $this->file($pdfPath, sprintf('estimate_%d_%s.pdf', $id, date('Ymd')));
+            
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'PDF generation failed: ' . $e->getMessage());
+            return $this->redirectToRoute('quote_estimator_detail', ['id' => $id]);
+        }
     }
 
     /**
@@ -275,69 +279,6 @@ class QuoteEstimatorController extends AbstractController
      */
     private function getCountryList(): array
     {
-        // TODO: Move to dedicated service or load from database
-        // Consider using ISO 3166-1 alpha-2 standard country codes
-        
-        return [
-            // North America
-            'US' => 'United States',
-            'CA' => 'Canada',
-            'MX' => 'Mexico',
-            
-            // Europe
-            'FR' => 'France',
-            'DE' => 'Germany',
-            'GB' => 'United Kingdom',
-            'IT' => 'Italy',
-            'ES' => 'Spain',
-            'NL' => 'Netherlands',
-            'BE' => 'Belgium',
-            'PL' => 'Poland',
-            'SE' => 'Sweden',
-            'NO' => 'Norway',
-            'CH' => 'Switzerland',
-            'AT' => 'Austria',
-            'IE' => 'Ireland',
-            'DK' => 'Denmark',
-            'FI' => 'Finland',
-            'PT' => 'Portugal',
-            'CZ' => 'Czech Republic',
-            'RO' => 'Romania',
-            'GR' => 'Greece',
-            
-            // Middle East & Africa
-            'MA' => 'Morocco',
-            'EG' => 'Egypt',
-            'ZA' => 'South Africa',
-            'AE' => 'United Arab Emirates',
-            'SA' => 'Saudi Arabia',
-            'IL' => 'Israel',
-            'TR' => 'Turkey',
-            'KE' => 'Kenya',
-            'NG' => 'Nigeria',
-            
-            // Asia Pacific
-            'CN' => 'China',
-            'JP' => 'Japan',
-            'KR' => 'South Korea',
-            'IN' => 'India',
-            'SG' => 'Singapore',
-            'MY' => 'Malaysia',
-            'TH' => 'Thailand',
-            'VN' => 'Vietnam',
-            'ID' => 'Indonesia',
-            'PH' => 'Philippines',
-            'TW' => 'Taiwan',
-            'HK' => 'Hong Kong',
-            'AU' => 'Australia',
-            'NZ' => 'New Zealand',
-            
-            // South America
-            'BR' => 'Brazil',
-            'AR' => 'Argentina',
-            'CL' => 'Chile',
-            'CO' => 'Colombia',
-            'PE' => 'Peru',
-        ];
+        return $this->countryService->getCountryList();
     }
 }

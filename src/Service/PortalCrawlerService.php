@@ -52,57 +52,58 @@ class PortalCrawlerService
      */
     public function discoverPortals(string $companyName, ?string $domain = null): array
     {
-        // TODO: Implement portal discovery
-        // 
-        // Steps:
-        // 1. If domain not provided, search for company domain:
-        //    if (!$domain) {
-        //        // TODO: Use Google search API or domain lookup
-        //        // For now, construct likely domains
-        //        $cleanName = strtolower(preg_replace('/[^a-z0-9]/i', '', $companyName));
-        //        $domain = "$cleanName.com";
-        //    }
-        // 
-        // 2. Canonicalize domain:
-        //    $canonicalDomain = $this->canonicalizeDomain($domain);
-        // 
-        // 3. Try common supplier portal paths:
-        //    $portalPaths = [
-        //        '/supplier',
-        //        '/supplier-portal',
-        //        '/vendors',
-        //        '/vendor-portal',
-        //        '/procurement',
-        //        '/sourcing'
-        //    ];
-        //    
-        //    $discoveredPortals = [];
-        //    foreach ($portalPaths as $path) {
-        //        $url = "https://$canonicalDomain$path";
-        //        
-        //        try {
-        //            $response = $this->httpClient->request('GET', $url, ['timeout' => 5]);
-        //            if ($response->getStatusCode() === 200) {
-        //                $content = $response->getContent();
-        //                
-        //                // Detect portal vendor
-        //                $vendor = $this->detectPortalVendor($url, $content);
-        //                
-        //                $discoveredPortals[] = [
-        //                    'url' => $url,
-        //                    'vendor' => $vendor,
-        //                    'companyName' => $companyName
-        //                ];
-        //            }
-        //        } catch (\Exception $e) {
-        //            // Path not found, continue
-        //        }
-        //    }
-        // 
-        // 4. Return discovered portals:
-        //    return $discoveredPortals;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. If domain not provided, construct likely domain
+        if (!$domain) {
+            // Note: Google search API integration would go here
+            // For now, construct likely domain from company name
+            $cleanName = strtolower(preg_replace('/[^a-z0-9]/i', '', $companyName));
+            $domain = "$cleanName.com";
+        }
+        
+        // 2. Canonicalize domain
+        $canonicalDomain = $this->canonicalizeDomain($domain);
+        
+        // 3. Try common supplier portal paths
+        $portalPaths = [
+            '/supplier',
+            '/supplier-portal',
+            '/vendors',
+            '/vendor-portal',
+            '/procurement',
+            '/sourcing'
+        ];
+        
+        $discoveredPortals = [];
+        
+        foreach ($portalPaths as $path) {
+            $url = "https://$canonicalDomain$path";
+            
+            try {
+                $response = $this->httpClient->request('GET', $url, [
+                    'timeout' => 5,
+                    'max_redirects' => 3
+                ]);
+                
+                if ($response->getStatusCode() === 200) {
+                    $content = $response->getContent();
+                    
+                    // Detect portal vendor
+                    $vendor = $this->detectPortalVendor($url, $content);
+                    
+                    $discoveredPortals[] = [
+                        'url' => $url,
+                        'vendor' => $vendor,
+                        'companyName' => $companyName
+                    ];
+                }
+            } catch (\Exception $e) {
+                // Path not found or network error, continue
+                continue;
+            }
+        }
+        
+        // 4. Return discovered portals
+        return $discoveredPortals;
     }
 
     /**
@@ -119,57 +120,59 @@ class PortalCrawlerService
      */
     public function checkRobotsTxt(string $domain): array
     {
-        // TODO: Implement robots.txt checking
-        // 
-        // Steps:
-        // 1. Fetch robots.txt:
-        //    $robotsUrl = "https://$domain/robots.txt";
-        //    
-        //    try {
-        //        $response = $this->httpClient->request('GET', $robotsUrl);
-        //        $robotsTxt = $response->getContent();
-        //    } catch (\Exception $e) {
-        //        // No robots.txt found, assume allowed
-        //        return [
-        //            'allowed' => true,
-        //            'disallowedPaths' => [],
-        //            'crawlDelay' => null,
-        //            'userAgent' => '*'
-        //        ];
-        //    }
-        // 
-        // 2. Parse robots.txt:
-        //    $lines = explode("\n", $robotsTxt);
-        //    $disallowedPaths = [];
-        //    $crawlDelay = null;
-        //    $currentUserAgent = '*';
-        //    
-        //    foreach ($lines as $line) {
-        //        $line = trim($line);
-        //        
-        //        if (str_starts_with($line, 'User-agent:')) {
-        //            $currentUserAgent = trim(substr($line, 11));
-        //        }
-        //        
-        //        if (str_starts_with($line, 'Disallow:')) {
-        //            $path = trim(substr($line, 9));
-        //            $disallowedPaths[] = $path;
-        //        }
-        //        
-        //        if (str_starts_with($line, 'Crawl-delay:')) {
-        //            $crawlDelay = (int)trim(substr($line, 12));
-        //        }
-        //    }
-        // 
-        // 3. Return parsed data:
-        //    return [
-        //        'allowed' => empty($disallowedPaths) || !in_array('/', $disallowedPaths),
-        //        'disallowedPaths' => $disallowedPaths,
-        //        'crawlDelay' => $crawlDelay,
-        //        'userAgent' => $currentUserAgent
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Fetch robots.txt
+        $robotsUrl = "https://$domain/robots.txt";
+        
+        try {
+            $response = $this->httpClient->request('GET', $robotsUrl, ['timeout' => 5]);
+            $robotsTxt = $response->getContent();
+        } catch (\Exception $e) {
+            // No robots.txt found, assume allowed
+            return [
+                'allowed' => true,
+                'disallowedPaths' => [],
+                'crawlDelay' => null,
+                'userAgent' => '*'
+            ];
+        }
+        
+        // 2. Parse robots.txt
+        $lines = explode("\n", $robotsTxt);
+        $disallowedPaths = [];
+        $crawlDelay = null;
+        $currentUserAgent = '*';
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Skip comments and empty lines
+            if (empty($line) || str_starts_with($line, '#')) {
+                continue;
+            }
+            
+            if (str_starts_with($line, 'User-agent:')) {
+                $currentUserAgent = trim(substr($line, 11));
+            }
+            
+            if (str_starts_with($line, 'Disallow:')) {
+                $path = trim(substr($line, 9));
+                if (!empty($path)) {
+                    $disallowedPaths[] = $path;
+                }
+            }
+            
+            if (str_starts_with($line, 'Crawl-delay:')) {
+                $crawlDelay = (int)trim(substr($line, 12));
+            }
+        }
+        
+        // 3. Return parsed data
+        return [
+            'allowed' => empty($disallowedPaths) || !in_array('/', $disallowedPaths),
+            'disallowedPaths' => $disallowedPaths,
+            'crawlDelay' => $crawlDelay,
+            'userAgent' => $currentUserAgent
+        ];
     }
 
     /**
@@ -185,53 +188,65 @@ class PortalCrawlerService
      */
     public function reviewTos(string $portalUrl): array
     {
-        // TODO: Implement TOS extraction
-        // 
-        // Steps:
-        // 1. Fetch portal page:
-        //    $response = $this->httpClient->request('GET', $portalUrl);
-        //    $html = $response->getContent();
-        // 
-        // 2. Search for TOS link (common patterns):
-        //    $tosPatterns = [
-        //        '/<a[^>]*href=["\']([^"\']*terms[^"\']*)["\'][^>]*>/i',
-        //        '/<a[^>]*href=["\']([^"\']*tos[^"\']*)["\'][^>]*>/i',
-        //        '/<a[^>]*href=["\']([^"\']*legal[^"\']*)["\'][^>]*>/i'
-        //    ];
-        //    
-        //    $tosUrl = null;
-        //    foreach ($tosPatterns as $pattern) {
-        //        if (preg_match($pattern, $html, $matches)) {
-        //            $tosUrl = $matches[1];
-        //            break;
-        //        }
-        //    }
-        // 
-        // 3. If TOS link found, fetch TOS page:
-        //    $tosText = null;
-        //    if ($tosUrl) {
-        //        // Make absolute URL if relative
-        //        if (!str_starts_with($tosUrl, 'http')) {
-        //            $parsedUrl = parse_url($portalUrl);
-        //            $baseUrl = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
-        //            $tosUrl = $baseUrl . $tosUrl;
-        //        }
-        //        
-        //        $tosResponse = $this->httpClient->request('GET', $tosUrl);
-        //        $tosHtml = $tosResponse->getContent();
-        //        
-        //        // Extract text (strip HTML tags)
-        //        $tosText = strip_tags($tosHtml);
-        //    }
-        // 
-        // 4. Return TOS data:
-        //    return [
-        //        'tosUrl' => $tosUrl,
-        //        'tosText' => $tosText,
-        //        'extractedAt' => new \DateTime()
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        try {
+            // 1. Fetch portal page
+            $response = $this->httpClient->request('GET', $portalUrl, ['timeout' => 10]);
+            $html = $response->getContent();
+            
+            // 2. Search for TOS link (common patterns)
+            $tosPatterns = [
+                '/<a[^>]*href=["\']([^"\']*terms[^"\']*)["\'][^>]*>/i',
+                '/<a[^>]*href=["\']([^"\']*tos[^"\']*)["\'][^>]*>/i',
+                '/<a[^>]*href=["\']([^"\']*legal[^"\']*)["\'][^>]*>/i',
+                '/<a[^>]*href=["\']([^"\']*privacy[^"\']*)["\'][^>]*>/i'
+            ];
+            
+            $tosUrl = null;
+            foreach ($tosPatterns as $pattern) {
+                if (preg_match($pattern, $html, $matches)) {
+                    $tosUrl = $matches[1];
+                    break;
+                }
+            }
+            
+            // 3. If TOS link found, fetch TOS page
+            $tosText = null;
+            if ($tosUrl) {
+                // Make absolute URL if relative
+                if (!str_starts_with($tosUrl, 'http')) {
+                    $parsedUrl = parse_url($portalUrl);
+                    $baseUrl = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
+                    $tosUrl = ltrim($tosUrl, '/');
+                    $tosUrl = "$baseUrl/$tosUrl";
+                }
+                
+                try {
+                    $tosResponse = $this->httpClient->request('GET', $tosUrl, ['timeout' => 10]);
+                    $tosHtml = $tosResponse->getContent();
+                    
+                    // Extract text (strip HTML tags, limit to 10000 chars)
+                    $tosText = strip_tags($tosHtml);
+                    $tosText = substr($tosText, 0, 10000);
+                } catch (\Exception $e) {
+                    // TOS page not accessible
+                    $tosText = null;
+                }
+            }
+            
+            // 4. Return TOS data
+            return [
+                'tosUrl' => $tosUrl,
+                'tosText' => $tosText,
+                'extractedAt' => new \DateTime()
+            ];
+        } catch (\Exception $e) {
+            // Portal not accessible
+            return [
+                'tosUrl' => null,
+                'tosText' => null,
+                'extractedAt' => new \DateTime()
+            ];
+        }
     }
 
     /**
@@ -314,45 +329,51 @@ class PortalCrawlerService
      */
     public function createPortal(array $portalData, int $companyId): SupplierPortal
     {
-        // TODO: Implement portal creation
-        // 
-        // Steps:
-        // 1. Check if portal already exists:
-        //    $canonicalUrl = $this->canonicalizeDomain($portalData['url']);
-        //    $existingPortal = $this->supplierPortalRepository->findOneBy([
-        //        'companyId' => $companyId,
-        //        'portalUrl' => $canonicalUrl
-        //    ]);
-        //    
-        //    if ($existingPortal) {
-        //        return $existingPortal;
-        //    }
-        // 
-        // 2. Create SupplierPortal entity:
-        //    $portal = new SupplierPortal();
-        //    $portal->setCompanyId($companyId);
-        //    $portal->setPortalUrl($canonicalUrl);
-        //    $portal->setPortalVendor($portalData['vendor']);
-        //    $portal->setDiscoveredAt(new \DateTime());
-        //    $portal->setStatus('DISCOVERED');
-        // 
-        // 3. Check robots.txt and TOS:
-        //    $domain = parse_url($canonicalUrl, PHP_URL_HOST);
-        //    $robotsCheck = $this->checkRobotsTxt($domain);
-        //    $tosData = $this->reviewTos($canonicalUrl);
-        //    
-        //    $portal->setRobotsTxtAllowed($robotsCheck['allowed']);
-        //    $portal->setTosUrl($tosData['tosUrl']);
-        //    $portal->setTosExtractedAt($tosData['extractedAt']);
-        // 
-        // 4. Persist portal:
-        //    $this->entityManager->persist($portal);
-        //    $this->entityManager->flush();
-        // 
-        // 5. Return portal:
-        //    return $portal;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Check if portal already exists
+        $canonicalUrl = $this->canonicalizeDomain($portalData['url']);
+        $existingPortal = $this->supplierPortalRepository->findOneBy([
+            'companyId' => $companyId,
+            'portalUrl' => $canonicalUrl
+        ]);
+        
+        if ($existingPortal) {
+            // Update vendor if changed
+            $existingPortal->setPortalVendor($portalData['vendor']);
+            $this->entityManager->flush();
+            return $existingPortal;
+        }
+        
+        // 2. Create SupplierPortal entity
+        $portal = new SupplierPortal();
+        $portal->setCompanyId($companyId);
+        $portal->setPortalUrl($canonicalUrl);
+        $portal->setPortalVendor($portalData['vendor']);
+        $portal->setDiscoveredAt(new \DateTime());
+        $portal->setStatus('DISCOVERED');
+        
+        // 3. Check robots.txt and TOS
+        try {
+            // Extract domain from URL
+            $parsedUrl = parse_url($portalData['url']);
+            $domain = $parsedUrl['host'] ?? $canonicalUrl;
+            
+            $robotsCheck = $this->checkRobotsTxt($domain);
+            $tosData = $this->reviewTos($portalData['url']);
+            
+            $portal->setRobotsTxtAllowed($robotsCheck['allowed']);
+            $portal->setTosUrl($tosData['tosUrl']);
+            $portal->setTosExtractedAt($tosData['extractedAt']);
+        } catch (\Exception $e) {
+            // If checks fail, still create portal with defaults
+            $portal->setRobotsTxtAllowed(true);
+        }
+        
+        // 4. Persist portal
+        $this->entityManager->persist($portal);
+        $this->entityManager->flush();
+        
+        // 5. Return portal
+        return $portal;
     }
 
     /**
@@ -365,33 +386,28 @@ class PortalCrawlerService
      */
     public function getOrCreateCanonical(string $domain, string $companyName): CompanyCanonical
     {
-        // TODO: Implement canonical domain management
-        // 
-        // Steps:
-        // 1. Canonicalize domain:
-        //    $canonicalDomain = $this->canonicalizeDomain($domain);
-        // 
-        // 2. Check if canonical exists:
-        //    $canonical = $this->companyCanonicalRepository->findOneBy([
-        //        'canonicalDomain' => $canonicalDomain
-        //    ]);
-        //    
-        //    if ($canonical) {
-        //        return $canonical;
-        //    }
-        // 
-        // 3. Create new canonical:
-        //    $canonical = new CompanyCanonical();
-        //    $canonical->setCanonicalDomain($canonicalDomain);
-        //    $canonical->setCompanyName($companyName);
-        //    $canonical->setCreatedAt(new \DateTime());
-        // 
-        // 4. Persist and return:
-        //    $this->entityManager->persist($canonical);
-        //    $this->entityManager->flush();
-        //    return $canonical;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Canonicalize domain
+        $canonicalDomain = $this->canonicalizeDomain($domain);
+        
+        // 2. Check if canonical exists
+        $canonical = $this->companyCanonicalRepository->findOneBy([
+            'canonicalDomain' => $canonicalDomain
+        ]);
+        
+        if ($canonical) {
+            return $canonical;
+        }
+        
+        // 3. Create new canonical
+        $canonical = new CompanyCanonical();
+        $canonical->setCanonicalDomain($canonicalDomain);
+        $canonical->setCompanyName($companyName);
+        $canonical->setCreatedAt(new \DateTime());
+        
+        // 4. Persist and return
+        $this->entityManager->persist($canonical);
+        $this->entityManager->flush();
+        return $canonical;
     }
 
     /**
@@ -404,39 +420,39 @@ class PortalCrawlerService
      */
     public function mergeDuplicates(int $primaryId, array $duplicateIds): int
     {
-        // TODO: Implement duplicate merging
-        // 
-        // Steps:
-        // 1. Get primary canonical:
-        //    $primary = $this->companyCanonicalRepository->find($primaryId);
-        //    if (!$primary) {
-        //        throw new \RuntimeException("Primary canonical $primaryId not found");
-        //    }
-        // 
-        // 2. Get all duplicate canonicals:
-        //    $duplicates = $this->companyCanonicalRepository->findBy(['id' => $duplicateIds]);
-        // 
-        // 3. Update all SupplierPortal records pointing to duplicates:
-        //    $mergedCount = 0;
-        //    foreach ($duplicates as $duplicate) {
-        //        // Update portals to point to primary
-        //        $portals = $this->supplierPortalRepository->findBy([
-        //            'companyId' => $duplicate->getId()
-        //        ]);
-        //        
-        //        foreach ($portals as $portal) {
-        //            $portal->setCompanyId($primaryId);
-        //        }
-        //        
-        //        // Remove duplicate
-        //        $this->entityManager->remove($duplicate);
-        //        $mergedCount++;
-        //    }
-        // 
-        // 4. Flush changes:
-        //    $this->entityManager->flush();
-        //    return $mergedCount;
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get primary canonical
+        $primary = $this->companyCanonicalRepository->find($primaryId);
+        if (!$primary) {
+            throw new \RuntimeException("Primary canonical $primaryId not found");
+        }
+        
+        // 2. Get all duplicate canonicals
+        $duplicates = $this->companyCanonicalRepository->findBy(['id' => $duplicateIds]);
+        
+        if (empty($duplicates)) {
+            return 0;
+        }
+        
+        // 3. Update all SupplierPortal records pointing to duplicates
+        $mergedCount = 0;
+        
+        foreach ($duplicates as $duplicate) {
+            // Update portals to point to primary
+            $portals = $this->supplierPortalRepository->findBy([
+                'companyId' => $duplicate->getId()
+            ]);
+            
+            foreach ($portals as $portal) {
+                $portal->setCompanyId($primaryId);
+            }
+            
+            // Remove duplicate
+            $this->entityManager->remove($duplicate);
+            $mergedCount++;
+        }
+        
+        // 4. Flush changes
+        $this->entityManager->flush();
+        return $mergedCount;
     }
 }

@@ -83,7 +83,20 @@ class EmailWebhookController extends AbstractController
             case 'unsubscribed':
                 // User unsubscribed
                 $this->logger->info('User unsubscribed', ['send_id' => $sendId]);
-                // TODO: Mark contact as unsubscribed
+                
+                // Mark contact as unsubscribed if we can identify them
+                if (isset($data['email'])) {
+                    $email = $data['email'];
+                    $contactRepo = $this->entityManager->getRepository(\App\Entity\Contact::class);
+                    $contact = $contactRepo->findOneBy(['email' => $email]);
+                    
+                    if ($contact) {
+                        $contact->setEmailOptOut(true);
+                        $contact->setEmailOptOutDate(new \DateTimeImmutable());
+                        $this->entityManager->flush();
+                        $this->logger->info('Contact marked as unsubscribed', ['contact_id' => $contact->getId()]);
+                    }
+                }
                 break;
                 
             case 'complained':

@@ -300,7 +300,44 @@ class FreightPricingService
         // 5. Return sorted comparisons:
         //    return $comparisons;
 
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Get all ranked routes
+        $routes = $this->routeSelectionService->rankRoutes($destinationCountry);
+        
+        if (empty($routes)) {
+            return [];
+        }
+        
+        // 2. Evaluate optimal mode
+        $mode = $this->routeSelectionService->evaluateModeByWeight($weightKg, $volumeM3);
+        
+        // 3. Calculate freight cost for each route
+        $comparisons = [];
+        
+        foreach ($routes as $route) {
+            try {
+                $laneCode = $route->getLaneCode();
+                $cost = $this->calculateFreight($laneCode, $mode, $weightKg, $volumeM3, $goodsValue);
+                
+                $comparisons[] = [
+                    'laneCode' => $laneCode,
+                    'routeCode' => $route->getRouteCode(),
+                    'mode' => $mode,
+                    'rank' => $route->getRank(),
+                    'freight_cost' => $cost['freightCost'],
+                    'insurance' => $cost['insurance'],
+                    'total_cost' => $cost['totalCost'],
+                    'transit_days' => $route->getTransitDays()
+                ];
+            } catch (\Exception $e) {
+                // Skip routes without pricing
+                continue;
+            }
+        }
+        
+        // 4. Sort by total cost
+        usort($comparisons, fn($a, $b) => $a['total_cost'] <=> $b['total_cost']);
+        
+        return $comparisons;
     }
 
     /**
@@ -337,6 +374,61 @@ class FreightPricingService
         //        'laneCode' => $route['laneCode']
         //    ];
 
-        throw new \RuntimeException('Feature not yet implemented');
+        try {
+            // 1. Select optimal route
+            $route = $this->routeSelectionService->selectOptimalRoute(
+                $destinationCountry,
+                $weightKg,
+                $volumeM3
+            );
+            
+            // 2. Mode is already determined by selectOptimalRoute
+            $mode = $route['mode'];
+            
+            // 3. Calculate freight (assume $10k goods value)
+            $laneCode = $route['origin_port'] . '-' . $route['destination_port'];
+            $cost = $this->calculateFreight($laneCode, $mode, $weightKg, $volumeM3, 10000);
+            
+            // 4. Return simplified estimate
+            return [
+                'estimatedFreight' => $cost['freightCost'],
+                'estimatedInsurance' => $cost['insurance'],
+                'totalEstimate' => $cost['totalCost'],
+                'mode' => $mode,
+                'routeCode' => $route['route_code'],
+                'transitDays' => $route['transit_days'],
+                'currency' => $route['currency']
+            ];
+        } catch (\Exception $e) {
+            // Fallback to generic estimate if no route found
+            $mode = $this->routeSelectionService->evaluateModeByWeight($weightKg, $volumeM3);
+            
+            // Generic rates per mode
+            $genericRates = [
+                'AIR' => 5.0,  // $5/kg
+                'LCL' => 50.0, // $50/cbm
+                'FCL' => 2000.0 // $2000/container
+            ];
+            
+            $freight = match($mode) {
+                'AIR' => $weightKg * $genericRates['AIR'],
+                'LCL' => $volumeM3 * $genericRates['LCL'],
+                'FCL' => $genericRates['FCL'],
+                default => 0
+            };
+            
+            $insurance = 10000 * 0.003; // 0.3% of $10k
+            
+            return [
+                'estimatedFreight' => round($freight, 2),
+                'estimatedInsurance' => round($insurance, 2),
+                'totalEstimate' => round($freight + $insurance, 2),
+                'mode' => $mode,
+                'routeCode' => 'GENERIC',
+                'transitDays' => 14,
+                'currency' => 'USD',
+                'note' => 'Generic estimate - no specific route found'
+            ];
+        }
     }
 }

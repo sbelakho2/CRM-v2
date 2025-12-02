@@ -582,30 +582,25 @@ class CostingEngineService
      */
     public function getTotalMfgCost(array $pcbSpec, array $asmSpec, array $nreItems): array
     {
-        // TODO: Implement total cost calculation
-        // 
-        // Steps:
-        // 1. Calculate each component:
-        //    $pcbCost = $this->calculatePcbCost($pcbSpec);
-        //    $asmCost = $this->calculateAsmCost($asmSpec);
-        //    $nreCost = $this->calculateNre($nreItems);
-        // 
-        // 2. Sum total:
-        //    $totalMfgCost = $pcbCost['totalCost'] + $asmCost['totalCost'] + $nreCost['totalNre'];
-        // 
-        // 3. Return breakdown:
-        //    return [
-        //        'pcbCost' => $pcbCost['totalCost'],
-        //        'asmCost' => $asmCost['totalCost'],
-        //        'nreCost' => $nreCost['totalNre'],
-        //        'totalMfgCost' => round($totalMfgCost, 2),
-        //        'breakdown' => [
-        //            'pcb' => $pcbCost,
-        //            'asm' => $asmCost,
-        //            'nre' => $nreCost
-        //        ]
-        //    ];
-
-        throw new \RuntimeException('Feature not yet implemented');
+        // 1. Calculate each component cost
+        $pcbCost = $this->calculatePcbCost($pcbSpec);
+        $asmCost = $this->calculateAsmCost($asmSpec);
+        $nreCost = $this->calculateNre($nreItems);
+        
+        // 2. Sum total manufacturing cost
+        $totalMfgCost = $pcbCost['totalCost'] + $asmCost['totalCost'] + $nreCost['totalNre'];
+        
+        // 3. Return comprehensive breakdown
+        return [
+            'pcbCost' => $pcbCost['totalCost'],
+            'asmCost' => $asmCost['totalCost'],
+            'nreCost' => $nreCost['totalNre'],
+            'totalMfgCost' => round($totalMfgCost, 2),
+            'breakdown' => [
+                'pcb' => $pcbCost,
+                'asm' => $asmCost,
+                'nre' => $nreCost
+            ]
+        ];
     }
 }

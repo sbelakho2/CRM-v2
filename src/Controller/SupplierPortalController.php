@@ -93,52 +93,43 @@ class SupplierPortalController extends AbstractController
     #[Route('/discover', name: 'supplier_portal_discover', methods: ['POST'])]
     public function discover(Request $request): Response
     {
-        // TODO: Implement portal discovery
-        // 
-        // Steps:
-        // 1. Get domain from request:
-        //    $domain = $request->request->get('domain');
-        //    if (!$domain) {
-        //        $this->addFlash('error', 'Please provide a domain');
-        //        return $this->redirectToRoute('supplier_portal_index');
-        //    }
-        // 
-        // 2. Discover portal:
-        //    try {
-        //        $portalData = $this->portalCrawler->discoverPortal($domain);
-        //    } catch (\Exception $e) {
-        //        $this->addFlash('error', 'Portal discovery failed: ' . $e->getMessage());
-        //        return $this->redirectToRoute('supplier_portal_index');
-        //    }
-        // 
-        // 3. Check if portal already exists:
-        //    $existingPortal = $this->entityManager->getRepository(SupplierPortal::class)
-        //        ->findOneBy(['portalUrl' => $portalData['portalUrl']]);
-        //    
-        //    if ($existingPortal) {
-        //        $this->addFlash('info', 'Portal already exists');
-        //        return $this->redirectToRoute('supplier_portal_detail', ['id' => $existingPortal->getId()]);
-        //    }
-        // 
-        // 4. Create new portal:
-        //    $portal = new SupplierPortal();
-        //    $portal->setCompanyDomain($portalData['domain']);
-        //    $portal->setPortalUrl($portalData['portalUrl']);
-        //    $portal->setVendor($portalData['vendor']);
-        //    $portal->setRobotsTxt($portalData['robotsTxt']);
-        //    $portal->setTosUrl($portalData['tosUrl']);
-        //    $portal->setPrivacyUrl($portalData['privacyUrl']);
-        //    $portal->setCompliant($portalData['compliant']);
-        //    $portal->setLastCheckedAt(new \DateTime());
-        //    
-        //    $this->entityManager->persist($portal);
-        //    $this->entityManager->flush();
-        // 
-        // 5. Redirect to portal detail:
-        //    $this->addFlash('success', 'Portal discovered successfully');
-        //    return $this->redirectToRoute('supplier_portal_detail', ['id' => $portal->getId()]);
+        // 1. Get company name and domain from request
+        $companyName = $request->request->get('company_name');
+        $domain = $request->request->get('domain');
         
-        throw new \RuntimeException('Feature not yet implemented');
+        if (!$companyName) {
+            $this->addFlash('error', 'Please provide a company name');
+            return $this->redirectToRoute('supplier_portal_index');
+        }
+        
+        // 2. Discover portals
+        try {
+            $discoveredPortals = $this->portalCrawler->discoverPortals($companyName, $domain);
+            
+            if (empty($discoveredPortals)) {
+                $this->addFlash('warning', 'No supplier portals found for this company');
+                return $this->redirectToRoute('supplier_portal_index');
+            }
+            
+            // 3. Create portal entities for discovered portals
+            $createdCount = 0;
+            $companyId = $request->request->get('company_id', 1); // Default to 1 if not provided
+            
+            foreach ($discoveredPortals as $portalData) {
+                $portal = $this->portalCrawler->createPortal($portalData, $companyId);
+                if ($portal) {
+                    $createdCount++;
+                }
+            }
+            
+            // 4. Redirect with success message
+            $this->addFlash('success', sprintf('%d portal(s) discovered and created', $createdCount));
+            return $this->redirectToRoute('supplier_portal_index');
+            
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Portal discovery failed: ' . $e->getMessage());
+            return $this->redirectToRoute('supplier_portal_index');
+        }
     }
 
     /**
@@ -147,45 +138,34 @@ class SupplierPortalController extends AbstractController
     #[Route('/{id}/onboard', name: 'supplier_portal_onboard', methods: ['POST'])]
     public function onboard(int $id, Request $request): Response
     {
-        // TODO: Implement onboarding pack generation
-        // 
-        // Steps:
-        // 1. Get portal:
-        //    $portal = $this->entityManager->getRepository(SupplierPortal::class)->find($id);
-        //    if (!$portal) {
-        //        throw $this->createNotFoundException('Portal not found');
-        //    }
-        // 
-        // 2. Get pack type:
-        //    $packType = $request->request->get('pack_type', 'FULL'); // FULL, QUICK, CUSTOM
-        // 
-        // 3. Generate onboarding pack:
-        //    $packData = $this->onboardingPack->generatePack(
-        //        $portal->getId(),
-        //        $packType
-        //    );
-        // 
-        // 4. Create OnboardingPack entity:
-        //    $pack = new OnboardingPack();
-        //    $pack->setSupplierPortal($portal);
-        //    $pack->setPackType($packType);
-        //    $pack->setDocumentsJson(json_encode($packData['documents']));
-        //    $pack->setSubmitted(false);
-        //    $pack->setCreatedAt(new \DateTime());
-        //    
-        //    $this->entityManager->persist($pack);
-        //    $this->entityManager->flush();
-        // 
-        // 5. Generate PDF:
-        //    $pdfPath = $this->pdfGenerator->generateOnboardingPackPdf($pack);
-        //    $pack->setPdfPath($pdfPath);
-        //    $this->entityManager->flush();
-        // 
-        // 6. Redirect with success message:
-        //    $this->addFlash('success', 'Onboarding pack generated successfully');
-        //    return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+        // 1. Get company ID from request
+        $companyId = $request->request->get('company_id', 1);
         
-        throw new \RuntimeException('Feature not yet implemented');
+        // 2. Get pack type
+        $packType = $request->request->get('pack_type', 'FULL'); // FULL, QUICK, CUSTOM
+        $customFields = $request->request->all('custom_fields') ?? [];
+        
+        try {
+            // 3. Generate onboarding pack
+            $packData = $this->onboardingPack->generatePack(
+                $companyId,
+                $packType,
+                $customFields
+            );
+            
+            // 4. Redirect with success message
+            $this->addFlash('success', sprintf(
+                'Onboarding pack #%d generated successfully. PDF: %s',
+                $packData['packId'],
+                basename($packData['pdfPath'])
+            ));
+            
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+            
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Pack generation failed: ' . $e->getMessage());
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+        }
     }
 
     /**
@@ -194,54 +174,46 @@ class SupplierPortalController extends AbstractController
     #[Route('/{id}/submit', name: 'supplier_portal_submit', methods: ['POST'])]
     public function submit(int $id, Request $request): Response
     {
-        // TODO: Implement onboarding pack submission
-        // 
-        // Steps:
-        // 1. Get portal and pack:
-        //    $portal = $this->entityManager->getRepository(SupplierPortal::class)->find($id);
-        //    if (!$portal) {
-        //        throw $this->createNotFoundException('Portal not found');
-        //    }
-        //    
-        //    $packId = $request->request->get('pack_id');
-        //    $pack = $this->entityManager->getRepository(OnboardingPack::class)->find($packId);
-        //    if (!$pack || $pack->getSupplierPortal()->getId() !== $id) {
-        //        throw $this->createNotFoundException('Onboarding pack not found');
-        //    }
-        // 
-        // 2. Check compliance:
-        //    if (!$portal->getCompliant()) {
-        //        $this->addFlash('error', 'Cannot submit to non-compliant portal');
-        //        return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
-        //    }
-        // 
-        // 3. Get submission method:
-        //    $method = $request->request->get('method', 'WEB_FORM'); // WEB_FORM, ARIBA_API, COUPA_API, MANUAL
-        // 
-        // 4. Submit pack:
-        //    try {
-        //        $result = $this->onboardingPack->submitPack(
-        //            $pack->getId(),
-        //            $method
-        //        );
-        //    } catch (\Exception $e) {
-        //        $this->addFlash('error', 'Submission failed: ' . $e->getMessage());
-        //        return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
-        //    }
-        // 
-        // 5. Update pack status:
-        //    $pack->setSubmitted(true);
-        //    $pack->setSubmittedAt(new \DateTime());
-        //    $pack->setSubmissionMethod($method);
-        //    $pack->setSubmissionResponse(json_encode($result));
-        //    
-        //    $this->entityManager->flush();
-        // 
-        // 6. Redirect with success message:
-        //    $this->addFlash('success', 'Onboarding pack submitted successfully');
-        //    return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+        // 1. Get pack ID and credentials
+        $packId = $request->request->get('pack_id');
+        if (!$packId) {
+            $this->addFlash('error', 'Pack ID is required');
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+        }
         
-        throw new \RuntimeException('Feature not yet implemented');
+        // 2. Get credentials if provided
+        $credentials = [
+            'username' => $request->request->get('username'),
+            'password' => $request->request->get('password')
+        ];
+        
+        try {
+            // 3. Submit pack to portal
+            $result = $this->onboardingPack->submitToPortal(
+                (int)$packId,
+                $id,
+                $credentials
+            );
+            
+            // 4. Display result
+            if ($result['success']) {
+                $this->addFlash('success', sprintf(
+                    'Pack submitted successfully via %s',
+                    $result['method']
+                ));
+            } else {
+                $this->addFlash('warning', sprintf(
+                    'Submission pending: %s',
+                    $result['errorMessage'] ?? 'Manual submission required'
+                ));
+            }
+            
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+            
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Submission failed: ' . $e->getMessage());
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+        }
     }
 
     /**
@@ -250,23 +222,26 @@ class SupplierPortalController extends AbstractController
     #[Route('/{portalId}/pack/{packId}/pdf', name: 'supplier_portal_pack_pdf', methods: ['GET'])]
     public function downloadPackPdf(int $portalId, int $packId): Response
     {
-        // TODO: Implement PDF download
-        // 
-        // Steps:
-        // 1. Get pack:
-        //    $pack = $this->entityManager->getRepository(OnboardingPack::class)->find($packId);
-        //    if (!$pack || $pack->getSupplierPortal()->getId() !== $portalId) {
-        //        throw $this->createNotFoundException('Onboarding pack not found');
-        //    }
-        // 
-        // 2. Check if PDF exists:
-        //    if (!$pack->getPdfPath() || !file_exists($pack->getPdfPath())) {
-        //        throw $this->createNotFoundException('PDF not found');
-        //    }
-        // 
-        // 3. Return PDF response:
-        //    return $this->file($pack->getPdfPath(), "onboarding_pack_{$packId}.pdf");
-        
-        throw new \RuntimeException('Feature not yet implemented');
+        try {
+            // 1. Get pack status
+            $packStatus = $this->onboardingPack->getPackStatus($packId);
+            
+            // 2. Check if PDF exists (for demo, create a simple response)
+            $pdfPath = sprintf('public/uploads/onboarding/onboarding_pack_%d_%s.pdf', 
+                $packId, 
+                date('Ymd')
+            );
+            
+            if (!file_exists($pdfPath)) {
+                throw $this->createNotFoundException('PDF not yet generated');
+            }
+            
+            // 3. Return PDF response
+            return $this->file($pdfPath, sprintf('onboarding_pack_%d.pdf', $packId));
+            
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'PDF download failed: ' . $e->getMessage());
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $portalId]);
+        }
     }
 }
