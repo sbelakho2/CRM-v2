@@ -12,7 +12,7 @@
                 <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Companies</h1>
                 <p class="mt-1 text-sm text-neutral-600">Manage your company database with filters</p>
             </div>
-            <a href="{{ path('app_company_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <a href="{{ path('app_company_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -164,13 +164,13 @@
                         {% if company.pipelineStage %}
                             <div class="flex items-center gap-2">
                                 <div class="w-2 h-2 rounded-full {% if company.pipelineStage == 'Award' %}bg-emerald-500{% elseif company.pipelineStage == 'Proposal' %}bg-blue-500{% else %}bg-neutral-400{% endif %}"></div>
-                                <span class="text-xs text-neutral-600">{{ company.pipelineStage }}</span>
+                                <span class="text-xs text-neutral-500">{{ company.pipelineStage }}</span>
                             </div>
                         {% endif %}
 
                         {# Region #}
                         {% if company.region %}
-                            <div class="flex items-center gap-2 text-xs text-neutral-600">
+                            <div class="flex items-center gap-2 text-xs text-neutral-500">
                                 <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -213,11 +213,11 @@
                     <h3 class="mt-4 text-sm font-medium text-neutral-900">No companies found</h3>
                     <p class="mt-1 text-sm text-neutral-500">Get started by creating a new company.</p>
                     <div class="mt-6">
-                        <a href="{{ path('app_company_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                        <a href="{{ path('app_company_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
-                            New Company
+                            Create First Company
                         </a>
                     </div>
                 </div>

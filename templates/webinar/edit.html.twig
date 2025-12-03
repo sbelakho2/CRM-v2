@@ -63,11 +63,14 @@
                     {{ form_errors(form.recordingUrl) }}
                 </div>
 
-                <div class="flex gap-3 pt-4">
-                    <button type="submit" class="px-6 py-2 bg-white text-black font-medium rounded-lg hover:bg-zinc-100 transition-colors">
+                <div class="flex items-center gap-3 pt-4">
+                    <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
                         Save Changes
                     </button>
-                    <a href="{{ path('app_webinar_show', {id: webinar.id}) }}" class="px-6 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-900 transition-colors">
+                    <a href="{{ path('app_webinar_show', {id: webinar.id}) }}" class="inline-flex items-center gap-2 px-5 py-2.5 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
                         Cancel
                     </a>
                 </div>

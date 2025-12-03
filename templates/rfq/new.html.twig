@@ -1,171 +1,120 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}New RFQ - CRM{% endblock %}
+{% block title %}Create RFQ - CRM{% endblock %}
 
 {% block body %}
-<div class="content-header">
-    <div>
-        <nav class="text-sm mb-2">
-            <a href="{{ path('app_dashboard') }}" class="text-neutral-600 hover:text-neutral-900">Dashboard</a>
-            <span class="text-neutral-400 mx-2">/</span>
-            <a href="{{ path('app_rfq_index') }}" class="text-neutral-600 hover:text-neutral-900">RFQs</a>
-            <span class="text-neutral-400 mx-2">/</span>
-            <span class="text-neutral-900">New</span>
-        </nav>
-        <h1 class="page-title">Create New RFQ</h1>
-    </div>
-</div>
+{# Define reusable class variables for maintainability #}
+{% set label_class = 'block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2' %}
+{% set input_class = 'w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500' %}
+{% set error_class = 'mt-1 text-xs text-red-600' %}
+{% set help_class = 'text-xs text-neutral-500 mt-1' %}
 
-<div class="max-w-4xl">
-    <div class="card">
+<div class="min-h-screen bg-neutral-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mb-6">
+            <nav class="text-sm mb-2">
+                <a href="{{ path('app_dashboard') }}" class="text-neutral-600 hover:text-neutral-900">Dashboard</a>
+                <span class="text-neutral-400 mx-2">/</span>
+                <a href="{{ path('app_rfq_index') }}" class="text-neutral-600 hover:text-neutral-900">RFQs</a>
+                <span class="text-neutral-400 mx-2">/</span>
+                <span class="text-neutral-900">New</span>
+            </nav>
+            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Create New RFQ</h1>
+        </div>
+
+        <div class="bg-white rounded-xl border border-neutral-200/60 p-6">
         {{ form_start(form) }}
         
         <div class="space-y-6">
             {# Company & Basic Info #}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="md:col-span-2">
-                    <label class="form-label">{{ form_label(form.company) }}</label>
-                    {{ form_widget(form.company) }}
-                    {{ form_errors(form.company) }}
+                    {{ form_label(form.company, null, {'label_attr': {'class': label_class}}) }}
+                    {{ form_widget(form.company, {'attr': {'class': input_class}}) }}
+                    {{ form_errors(form.company, {'attr': {'class': error_class}}) }}
                 </div>
 
                 <div>
-                    <label class="form-label">{{ form_label(form.rfqNumber) }}</label>
-                    {{ form_widget(form.rfqNumber) }}
-                    {{ form_errors(form.rfqNumber) }}
+                    {{ form_label(form.rfqNumber, null, {'label_attr': {'class': label_class}}) }}
+                    {{ form_widget(form.rfqNumber, {'attr': {'class': input_class}}) }}
+                    {{ form_errors(form.rfqNumber, {'attr': {'class': error_class}}) }}
                 </div>
 
                 <div>
-                    <label class="form-label">{{ form_label(form.rfqDate) }}</label>
-                    {{ form_widget(form.rfqDate) }}
-                    {{ form_errors(form.rfqDate) }}
+                    {{ form_label(form.rfqDate, null, {'label_attr': {'class': label_class}}) }}
+                    {{ form_widget(form.rfqDate, {'attr': {'class': input_class}}) }}
+                    {{ form_errors(form.rfqDate, {'attr': {'class': error_class}}) }}
                 </div>
             </div>
 
             {# Type & Status #}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="form-label">{{ form_label(form.type) }}</label>
-                    {{ form_widget(form.type) }}
-                    {{ form_errors(form.type) }}
-                    <p class="text-xs text-neutral-500 mt-1">Select NPI for new product introduction or Framework for long-term agreements</p>
+                    {{ form_label(form.type, null, {'label_attr': {'class': label_class}}) }}
+                    {{ form_widget(form.type, {'attr': {'class': input_class}}) }}
+                    {{ form_errors(form.type, {'attr': {'class': error_class}}) }}
+                    <p class="{{ help_class }}">Select NPI for new product introduction or Framework for long-term agreements</p>
                 </div>
 
                 <div>
-                    <label class="form-label">{{ form_label(form.status) }}</label>
-                    {{ form_widget(form.status) }}
-                    {{ form_errors(form.status) }}
+                    {{ form_label(form.status, null, {'label_attr': {'class': label_class}}) }}
+                    {{ form_widget(form.status, {'attr': {'class': input_class}}) }}
+                    {{ form_errors(form.status, {'attr': {'class': error_class}}) }}
                 </div>
             </div>
 
             {# Financial Details #}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="form-label">{{ form_label(form.estimatedValue) }}</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="text-neutral-400">
-                                <circle cx="8" cy="8" r="6"/>
-                                <path d="M8 5V8M8 11H8.01"/>
-                            </svg>
-                        </div>
-                        <div class="pl-10">
-                            {{ form_widget(form.estimatedValue) }}
-                        </div>
-                    </div>
-                    {{ form_errors(form.estimatedValue) }}
+                    {{ form_label(form.estimatedValue, null, {'label_attr': {'class': label_class}}) }}
+                    {{ form_widget(form.estimatedValue, {'attr': {'class': input_class}}) }}
+                    {{ form_errors(form.estimatedValue, {'attr': {'class': error_class}}) }}
                 </div>
 
                 <div>
-                    <label class="form-label">{{ form_label(form.volumeAnnual) }}</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="text-neutral-400">
-                                <rect x="2" y="4" width="3" height="8" rx="1"/>
-                                <rect x="6.5" y="2" width="3" height="10" rx="1"/>
-                                <rect x="11" y="6" width="3" height="6" rx="1"/>
-                            </svg>
-                        </div>
-                        <div class="pl-10">
-                            {{ form_widget(form.volumeAnnual) }}
-                        </div>
-                    </div>
-                    {{ form_errors(form.volumeAnnual) }}
+                    {{ form_label(form.volumeAnnual, null, {'label_attr': {'class': label_class}}) }}
+                    {{ form_widget(form.volumeAnnual, {'attr': {'class': input_class}}) }}
+                    {{ form_errors(form.volumeAnnual, {'attr': {'class': error_class}}) }}
                 </div>
             </div>
 
             {# SOP Date #}
             <div>
-                <label class="form-label">{{ form_label(form.sopDate) }}</label>
-                {{ form_widget(form.sopDate) }}
-                {{ form_errors(form.sopDate) }}
-                <p class="text-xs text-neutral-500 mt-1">Expected Start of Production date</p>
+                {{ form_label(form.sopDate, null, {'label_attr': {'class': label_class}}) }}
+                {{ form_widget(form.sopDate, {'attr': {'class': input_class}}) }}
+                {{ form_errors(form.sopDate, {'attr': {'class': error_class}}) }}
+                <p class="{{ help_class }}">Expected Start of Production date</p>
             </div>
 
             {# Technical Scope #}
             <div>
-                <label class="form-label">{{ form_label(form.technicalScope) }}</label>
-                {{ form_widget(form.technicalScope) }}
-                {{ form_errors(form.technicalScope) }}
-                <p class="text-xs text-neutral-500 mt-1">Describe technical requirements, specifications, and scope of work</p>
+                {{ form_label(form.technicalScope, null, {'label_attr': {'class': label_class}}) }}
+                {{ form_widget(form.technicalScope, {'attr': {'class': input_class, 'rows': 4}}) }}
+                {{ form_errors(form.technicalScope, {'attr': {'class': error_class}}) }}
+                <p class="{{ help_class }}">Describe technical requirements, specifications, and scope of work</p>
             </div>
 
             {# Notes #}
             <div>
-                <label class="form-label">{{ form_label(form.notes) }}</label>
-                {{ form_widget(form.notes) }}
-                {{ form_errors(form.notes) }}
+                {{ form_label(form.notes, null, {'label_attr': {'class': label_class}}) }}
+                {{ form_widget(form.notes, {'attr': {'class': input_class, 'rows': 3}}) }}
+                {{ form_errors(form.notes, {'attr': {'class': error_class}}) }}
             </div>
         </div>
 
-        <div class="flex gap-3 pt-6 border-t border-neutral-200 mt-6">
-            <button type="submit" class="btn-primary">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="inline-block mr-1">
-                    <path d="M3 8L6 11L13 4"/>
-                </svg>
-                Create RFQ
-            </button>
-            <a href="{{ path('app_rfq_index') }}" class="btn-secondary">Cancel</a>
-        </div>
+            {# Form Actions #}
+            <div class="flex items-center gap-3 pt-6 border-t border-neutral-200">
+                <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Create RFQ
+                </button>
+                <a href="{{ path('app_rfq_index') }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">Cancel</a>
+            </div>
 
-        {{ form_end(form) }}
+            {{ form_end(form) }}
+        </div>
     </div>
 </div>
-
-<style>
-    .form-label {
-        display: block;
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: #404040;
-        margin-bottom: 0.5rem;
-    }
-
-    .form-input, .form-select {
-        width: 100%;
-        padding: 0.625rem 0.875rem;
-        font-size: 0.875rem;
-        line-height: 1.5;
-        color: #171717;
-        background-color: #ffffff;
-        border: 1px solid rgba(23, 23, 23, 0.1);
-        border-radius: 0.5rem;
-        transition: all 0.15s ease;
-    }
-
-    .form-input:focus, .form-select:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .form-select {
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-        background-position: right 0.5rem center;
-        background-repeat: no-repeat;
-        background-size: 1.5em 1.5em;
-        padding-right: 2.5rem;
-    }
-</style>
 {% endblock %}

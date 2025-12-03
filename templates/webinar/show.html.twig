@@ -31,14 +31,14 @@
                     </div>
                 </div>
 
-                <div class="flex gap-2">
+                <div class="flex items-center gap-3 ml-auto">
                     <a href="{{ path('app_webinar_edit', {id: webinar.id}) }}" 
-                       class="px-4 py-2 border border-zinc-700 text-sm rounded-lg hover:bg-zinc-900 transition-colors">
+                       class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
                         Edit
                     </a>
                     <form method="post" action="{{ path('app_webinar_delete', {id: webinar.id}) }}" onsubmit="return confirm('Are you sure?');" class="inline">
                         <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ webinar.id) }}">
-                        <button type="submit" class="px-4 py-2 border border-red-900/50 text-red-400 text-sm rounded-lg hover:bg-red-950/30 transition-colors">
+                        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 border border-red-200 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors">
                             Delete
                         </button>
                     </form>

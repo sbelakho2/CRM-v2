@@ -53,9 +53,16 @@ body:not(.email-campaign) .min-h-screen { background: var(--claude-cream) !impor
 body:not(.email-campaign) a.bg-white.text-black,
 body:not(.email-campaign) button.bg-white.text-black,
 body:not(.email-campaign) .bg-blue-600,
-body:not(.email-campaign) .bg-blue-500 {
+body:not(.email-campaign) .bg-blue-500,
+body:not(.email-campaign) .bg-purple-600 {
   background: var(--claude-purple) !important;
-  color: #fff !important;
+  color: #FFFFFF !important;
+}
+
+body:not(.email-campaign) .bg-purple-600:hover,
+body:not(.email-campaign) .hover\:bg-purple-700:hover {
+  background: var(--claude-dark-purple) !important;
+  color: #FFFFFF !important;
 }
 
 /* Make sure cards remain white */

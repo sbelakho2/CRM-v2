@@ -23,13 +23,13 @@
                             <div class="col-lg-8">
                                 {# Template Name #}
                                 <div class="mb-4">
-                                    <label for="templateName" class="form-label">Template Name *</label>
+                                    <label for="templateName" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Template Name *</label>
                                     <input type="text" class="form-control" id="templateName" name="name" required>
                                 </div>
 
                                 {# Subject Line #}
                                 <div class="mb-4">
-                                    <label for="subjectLine" class="form-label">Subject Line *</label>
+                                    <label for="subjectLine" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Subject Line *</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="subjectLine" name="subject_line" required 
                                                placeholder="e.g., Hello {{contact.firstName}}, check this out!">
@@ -44,7 +44,7 @@
 
                                 {# Preview Text #}
                                 <div class="mb-4">
-                                    <label for="previewText" class="form-label">Preview Text</label>
+                                    <label for="previewText" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Preview Text</label>
                                     <input type="text" class="form-control" id="previewText" name="preview_text"
                                            placeholder="Text shown in inbox preview">
                                     <small class="text-muted">
@@ -54,13 +54,13 @@
 
                                 {# Email Body - WYSIWYG Editor #}
                                 <div class="mb-4">
-                                    <label for="bodyHtml" class="form-label">Email Body *</label>
+                                    <label for="bodyHtml" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Email Body *</label>
                                     <textarea id="bodyHtml" name="body_html" required></textarea>
                                 </div>
 
                                 {# Plain Text Version #}
                                 <div class="mb-4">
-                                    <label for="bodyText" class="form-label">Plain Text Version</label>
+                                    <label for="bodyText" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Plain Text Version</label>
                                     <textarea class="form-control" id="bodyText" name="body_text" rows="8"
                                               placeholder="Auto-generated from HTML (you can customize)"></textarea>
                                     <small class="text-muted">
@@ -127,8 +127,8 @@
                                 {# Category #}
                                 <div class="card bg-light border-0 mb-4">
                                     <div class="card-body">
-                                        <label for="category" class="form-label">Category</label>
-                                        <select class="form-select" id="category" name="category">
+                                        <label for="category" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Category</label>
+                                        <select class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" id="category" name="category">
                                             <option value="general">General</option>
                                             <option value="welcome">Welcome</option>
                                             <option value="newsletter">Newsletter</option>

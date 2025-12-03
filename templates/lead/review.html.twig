@@ -17,45 +17,43 @@
     </div>
 
     {# Filters #}
-    <div class="card mb-4" style="background-color: #f5f0e8; border: none;">
-        <div class="card-body">
-            <form method="get" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label">Region</label>
-                    <select name="region" class="form-select">
-                        <option value="all" {% if region_filter == 'all' %}selected{% endif %}>All Regions</option>
-                        <option value="morocco" {% if region_filter == 'morocco' %}selected{% endif %}>Morocco</option>
-                        <option value="us_east" {% if region_filter == 'us_east' %}selected{% endif %}>US East Coast</option>
-                        <option value="us_texas" {% if region_filter == 'us_texas' %}selected{% endif %}>US Texas</option>
-                        <option value="eu_core" {% if region_filter == 'eu_core' %}selected{% endif %}>EU Core</option>
-                        <option value="eu_nordics" {% if region_filter == 'eu_nordics' %}selected{% endif %}>EU Nordics</option>
-                        <option value="eu_cee" {% if region_filter == 'eu_cee' %}selected{% endif %}>EU CEE</option>
-                        <option value="uk" {% if region_filter == 'uk' %}selected{% endif %}>UK</option>
-                    </select>
-                </div>
+    <div class="bg-white rounded-xl border border-neutral-200/60 p-5 mb-4">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Region</label>
+                <select name="region" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                    <option value="all" {% if region_filter == 'all' %}selected{% endif %}>All Regions</option>
+                    <option value="morocco" {% if region_filter == 'morocco' %}selected{% endif %}>Morocco</option>
+                    <option value="us_east" {% if region_filter == 'us_east' %}selected{% endif %}>US East Coast</option>
+                    <option value="us_texas" {% if region_filter == 'us_texas' %}selected{% endif %}>US Texas</option>
+                    <option value="eu_core" {% if region_filter == 'eu_core' %}selected{% endif %}>EU Core</option>
+                    <option value="eu_nordics" {% if region_filter == 'eu_nordics' %}selected{% endif %}>EU Nordics</option>
+                    <option value="eu_cee" {% if region_filter == 'eu_cee' %}selected{% endif %}>EU CEE</option>
+                    <option value="uk" {% if region_filter == 'uk' %}selected{% endif %}>UK</option>
+                </select>
+            </div>
 
-                <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    <select name="status" class="form-select">
-                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
-                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Review</option>
-                        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
-                        <option value="denied" {% if status_filter == 'denied' %}selected{% endif %}>Denied</option>
-                    </select>
-                </div>
+            <div class="col-md-3">
+                <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Status</label>
+                <select name="status" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Review</option>
+                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="denied" {% if status_filter == 'denied' %}selected{% endif %}>Denied</option>
+                </select>
+            </div>
 
-                <div class="col-md-3">
-                    <label class="form-label">Minimum Score</label>
-                    <input type="number" name="score_min" class="form-control" value="{{ score_min }}" min="0" max="100">
-                </div>
+            <div class="col-md-3">
+                <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Minimum Score</label>
+                <input type="number" name="score_min" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" value="{{ score_min }}" min="0" max="100">
+            </div>
 
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-filter"></i> Apply Filters
-                    </button>
-                </div>
-            </form>
-        </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 w-100">
+                    <i class="fas fa-filter"></i> Apply Filters
+                </button>
+            </div>
+        </form>
     </div>
 
     {# Regional Stats Summary #}
