@@ -10,7 +10,7 @@
             <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Quote Co-Pilot Quotes</h1>
             <p class="text-sm text-neutral-600 mt-1">Automated quotes generated from BOM files</p>
         </div>
-        <a href="{{ path('quote_copilot_index') }}" class="inline-flex items-center rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
+        <a href="{{ path('quote_copilot_index') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-2">
                 <path d="M8 3V13M3 8H13"/>
             </svg>
@@ -19,12 +19,12 @@
     </div>
 
     <!-- Quotes Table -->
-    <div class="card">
+    <div class="rounded-xl border border-neutral-200/60 bg-white overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-neutral-200">
                 <thead class="bg-neutral-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Quote #</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Quote #</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Company</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Created</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Quantity</th>
@@ -67,11 +67,11 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {% if quote.status == 'sent' %}
-                                    <span class="badge badge-success">Sent</span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Sent</span>
                                 {% elseif quote.status == 'draft' %}
-                                    <span class="badge badge-secondary">Draft</span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Draft</span>
                                 {% else %}
-                                    <span class="badge">{{ quote.status|capitalize }}</span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ quote.status|capitalize }}</span>
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

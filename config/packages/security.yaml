@@ -21,7 +21,8 @@ security:
         target: app_login
       remember_me:
         secret: "%kernel.secret%"
-        lifetime: 604800 # 1 week in seconds
+        lifetime: 2592000 # 30 days in seconds
+        always_remember_me: true
 
   access_control:
     # Public access for login and register

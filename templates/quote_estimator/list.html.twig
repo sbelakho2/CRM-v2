@@ -5,12 +5,12 @@
 {% block body %}
 <div class="space-y-6">
     <!-- Header -->
-    <div class="page-header">
+    <div class="border-b border-neutral-200/80 pb-5 flex items-center justify-between">
         <div>
-            <h1 class="page-title">{{ pageTitle }}</h1>
-            <p class="text-muted">Manage quote requests and estimates</p>
+            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">{{ pageTitle }}</h1>
+            <p class="mt-1 text-sm text-neutral-600">Manage quote requests and estimates</p>
         </div>
-        <a href="{{ path('quote_estimator_index') }}" class="geist-button">
+        <a href="{{ path('quote_estimator_index') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M8 3V13M3 8H13"/>
             </svg>
@@ -19,7 +19,7 @@
     </div>
 
     <!-- Filters -->
-    <div class="card">
+    <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
         <form method="GET" class="flex gap-4">
             <div class="flex-1">
                 <input 
@@ -27,10 +27,10 @@
                     name="search" 
                     placeholder="Search by estimate number, customer name, or part number..." 
                     value="{{ search }}"
-                    class="geist-input"
+                    class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 >
             </div>
-            <button type="submit" class="geist-button">
+            <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="7" cy="7" r="4"/>
                     <path d="M11 11L14 14"/>
@@ -38,7 +38,7 @@
                 Search
             </button>
             {% if search %}
-                <a href="{{ path('quote_estimator_list') }}" class="geist-button-secondary">
+                <a href="{{ path('quote_estimator_list') }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
                     Clear
                 </a>
             {% endif %}
@@ -46,28 +46,26 @@
     </div>
 
     <!-- Statistics -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-label">Total Estimates</div>
-            <div class="stat-value">{{ estimates|length }}</div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Total Estimates</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{{ estimates|length }}</p>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">This Month</div>
-            <div class="stat-value">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">This Month</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">
                 {% set thisMonth = estimates|filter(e => e.createdAt|date('Y-m') == 'now'|date('Y-m'))|length %}
                 {{ thisMonth }}
-            </div>
+            </p>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">Pending</div>
-            <div class="stat-value">
-                {{ estimates|length }}
-            </div>
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Pending</p>
+            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{{ estimates|length }}</p>
         </div>
     </div>
 
     <!-- Estimates Table -->
-    <div class="card" style="padding: 0;">
+    <div class="rounded-xl border border-neutral-200/60 bg-white overflow-hidden">
         {% if estimates|length > 0 %}
             <table>
                 <thead>
@@ -112,14 +110,14 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="badge badge-warning">Pending Pricing</span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending Pricing</span>
                             </td>
                             <td>
-                                <span class="text-sm text-muted">{{ estimate.createdAt|date('M d, Y') }}</span>
+                                <span class="text-sm text-neutral-600">{{ estimate.createdAt|date('M d, Y') }}</span>
                             </td>
                             <td>
                                 <div class="flex gap-2">
-                                    <a href="{{ path('quote_estimator_results', {id: estimate.id}) }}" class="text-sm text-purple-600 hover:text-purple-800">
+                                    <a href="{{ path('quote_estimator_results', {id: estimate.id}) }}" class="text-sm text-blue-600 hover:text-blue-800">
                                         View
                                     </a>
                                     <button onclick="deleteEstimate({{ estimate.id }})" class="text-sm text-red-600 hover:text-red-800">
@@ -144,7 +142,7 @@
                         Get started by creating your first quote request.
                     {% endif %}
                 </p>
-                <a href="{{ path('quote_estimator_index') }}" class="geist-button">
+                <a href="{{ path('quote_estimator_index') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
                     Create New Quote Request
                 </a>
             </div>

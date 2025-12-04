@@ -824,17 +824,27 @@
         </nav>
         
         <!-- User Menu at Bottom -->
-        <div style="position: absolute; bottom: 20px; left: 0; right: 0; padding: 0 8px;">
-            <div class="sidebar-nav-link">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="8" cy="5" r="3"/>
-                    <path d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
-                </svg>
-                {% if app.user %}
-                    {{ app.user.name|default('User') }}
-                {% else %}
-                    Guest
-                {% endif %}
+        <div style="margin-top: auto; padding: 20px 8px 20px 8px; border-top: 1px solid var(--claude-border);">
+            <div style="padding: 0 8px; margin-bottom: 8px;">
+                <a href="{{ path('profile_index') }}" class="sidebar-nav-link">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="8" cy="5" r="3"/>
+                        <path d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
+                    </svg>
+                    {% if app.user %}
+                        {{ app.user.fullName|default('User') }}
+                    {% else %}
+                        Guest
+                    {% endif %}
+                </a>
+            </div>
+            <div style="padding: 0 8px;">
+                <a href="{{ path('app_logout') }}" class="sidebar-nav-link" style="color: var(--claude-text-secondary);">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 3h2a2 2 0 012 2v8a2 2 0 01-2 2h-2M7 11l-4-4 4-4M3 7h10"/>
+                    </svg>
+                    Logout
+                </a>
             </div>
         </div>
     </aside>

@@ -3,30 +3,31 @@
 {% block title %}LeadBot WebCrawler{% endblock %}
 
 {% block body %}
-<div class="container mx-auto px-4 py-8">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">LeadBot WebCrawler</h1>
-        <p class="text-gray-600">Discover companies using Google Dorks and LinkedIn search</p>
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="border-b border-neutral-200/80 pb-5">
+        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">LeadBot WebCrawler</h1>
+        <p class="mt-1 text-sm text-neutral-600">Discover companies using Google Dorks and LinkedIn search</p>
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
             <div class="text-sm font-medium text-gray-500 mb-1">Total Discovered</div>
             <div class="text-3xl font-bold text-gray-900">{{ stats.total_leads }}</div>
         </div>
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
             <div class="text-sm font-medium text-gray-500 mb-1">Pending Review</div>
             <div class="text-3xl font-bold text-yellow-600">{{ stats.pending }}</div>
         </div>
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
             <div class="text-sm font-medium text-gray-500 mb-1">Approved</div>
             <div class="text-3xl font-bold text-green-600">{{ stats.approved }}</div>
         </div>
     </div>
 
     <!-- Discovery Form -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+    <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
         <h2 class="text-xl font-semibold mb-4">Start New Discovery</h2>
         
         <form id="discovery-form" class="space-y-4">

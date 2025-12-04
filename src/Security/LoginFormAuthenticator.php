@@ -44,11 +44,11 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
+        // Redirect to the target path if it exists, otherwise go to dashboard
         if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
             return new RedirectResponse($targetPath);
         }
-
-        // Redirect to dashboard after successful login
+        
         return new RedirectResponse($this->urlGenerator->generate('app_dashboard'));
     }
 

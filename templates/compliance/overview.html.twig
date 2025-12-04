@@ -3,43 +3,37 @@
 {% block title %}Compliance Overview - CRM{% endblock %}
 
 {% block body %}
-<div class="min-h-screen bg-black text-white">
+<div class="space-y-6">
     <!-- Header -->
-    <div class="border-b border-zinc-800 bg-black/50 backdrop-blur-xl sticky top-0 z-10">
-        <div class="max-w-7xl mx-auto px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-light tracking-tight">Compliance Overview</h1>
-                    <p class="text-sm text-zinc-400 mt-1">Track compliance status across all companies</p>
-                </div>
-            </div>
+    <div class="border-b border-neutral-200/80 pb-5">
+        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Compliance Overview</h1>
+        <p class="mt-1 text-sm text-neutral-600">Track compliance status across all companies</p>
+    </div>
 
-            <!-- Filter Tabs -->
-            <div class="flex gap-4 mt-6 border-b border-zinc-800">
-                <a href="{{ path('app_compliance_overview') }}" 
-                   class="px-4 py-2 text-sm {{ not current_sector ? 'text-white border-b-2 border-white' : 'text-zinc-400 hover:text-white' }} transition-colors">
-                    All Sectors
-                </a>
-                {% for sector in sectors %}
-                    <a href="{{ path('app_compliance_overview', {sector: sector}) }}" 
-                       class="px-4 py-2 text-sm {{ current_sector == sector ? 'text-white border-b-2 border-white' : 'text-zinc-400 hover:text-white' }} transition-colors">
-                        {{ sector }}
-                    </a>
-                {% endfor %}
-            </div>
-        </div>
+    <!-- Filter Tabs -->
+    <div class="flex gap-2 mb-6">
+        <a href="{{ path('app_compliance_overview') }}" 
+           class="px-4 py-2 text-sm font-medium rounded-lg transition-colors {{ not current_sector ? 'bg-blue-600 text-white' : 'bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50' }}">
+            All Sectors
+        </a>
+        {% for sector in sectors %}
+            <a href="{{ path('app_compliance_overview', {sector: sector}) }}" 
+               class="px-4 py-2 text-sm font-medium rounded-lg transition-colors {{ current_sector == sector ? 'bg-blue-600 text-white' : 'bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50' }}">
+                {{ sector }}
+            </a>
+        {% endfor %}
     </div>
 
     <!-- Companies List -->
-    <div class="max-w-7xl mx-auto px-6 py-8">
+    <div>
         {% if compliance_data is empty %}
-            <div class="text-center py-16">
-                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-900 mb-4">
-                    <svg class="w-8 h-8 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="rounded-xl border border-neutral-200/60 bg-white p-12 text-center">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-neutral-100 mb-4">
+                    <svg class="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                 </div>
-                <p class="text-zinc-400">No companies found</p>
+                <p class="text-neutral-500">No companies found</p>
             </div>
         {% else %}
             <div class="grid gap-4">
@@ -47,17 +41,17 @@
                     {% set company = data.company %}
                     {% set stats = data.stats %}
                     
-                    <div class="border border-zinc-800 rounded-lg p-6 hover:border-zinc-700 transition-colors bg-zinc-950/50">
+                    <div class="rounded-xl border border-neutral-200/60 bg-white p-6 hover:border-neutral-300 hover:shadow-sm transition-all">
                         <div class="flex items-start justify-between mb-4">
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <h3 class="text-lg font-medium">
-                                        <a href="{{ path('app_compliance_company', {id: company.id}) }}" class="hover:text-zinc-300">
+                                    <h3 class="text-lg font-semibold text-neutral-900">
+                                        <a href="{{ path('app_compliance_company', {id: company.id}) }}" class="hover:text-blue-600 transition-colors">
                                             {{ company.name }}
                                         </a>
                                     </h3>
                                     {% if company.sector %}
-                                        <span class="px-2 py-0.5 text-xs rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
                                             {{ company.sector }}
                                         </span>
                                     {% endif %}
@@ -65,18 +59,18 @@
                             </div>
 
                             <div class="text-right">
-                                <div class="text-2xl font-light mb-1">{{ stats.completion_percentage }}%</div>
-                                <div class="text-xs text-zinc-500">Complete</div>
+                                <div class="text-2xl font-semibold text-neutral-900 mb-1">{{ stats.completion_percentage }}%</div>
+                                <div class="text-xs text-neutral-600">Complete</div>
                             </div>
                         </div>
 
                         <!-- Progress Bar -->
                         <div class="mb-4">
-                            <div class="h-2 bg-zinc-900 rounded-full overflow-hidden">
+                            <div class="h-2 bg-neutral-100 rounded-full overflow-hidden">
                                 <div class="h-full transition-all duration-500
                                     {{ stats.completion_percentage == 100 ? 'bg-green-500' : 
                                        stats.completion_percentage >= 75 ? 'bg-blue-500' : 
-                                       stats.completion_percentage >= 50 ? 'bg-yellow-500' : 
+                                       stats.completion_percentage >= 50 ? 'bg-amber-500' : 
                                        'bg-red-500' }}" 
                                      style="width: {{ stats.completion_percentage }}%"></div>
                             </div>
@@ -84,26 +78,26 @@
 
                         <!-- Stats -->
                         <div class="flex items-center gap-6 text-xs">
-                            <div class="flex items-center gap-2 text-zinc-400">
+                            <div class="flex items-center gap-2 text-neutral-600">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
                                 <span>{{ stats.total }} Total</span>
                             </div>
-                            <div class="flex items-center gap-2 text-blue-400">
+                            <div class="flex items-center gap-2 text-blue-600">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                                 </svg>
                                 <span>{{ stats.uploaded }} Uploaded</span>
                             </div>
-                            <div class="flex items-center gap-2 text-green-400">
+                            <div class="flex items-center gap-2 text-green-600">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                                 <span>{{ stats.approved }} Approved</span>
                             </div>
                             {% if stats.pending > 0 %}
-                                <div class="flex items-center gap-2 text-yellow-400">
+                                <div class="flex items-center gap-2 text-amber-600">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
@@ -111,7 +105,7 @@
                                 </div>
                             {% endif %}
                             {% if stats.expired > 0 %}
-                                <div class="flex items-center gap-2 text-red-400">
+                                <div class="flex items-center gap-2 text-red-600">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
