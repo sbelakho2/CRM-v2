@@ -6,6 +6,7 @@ use App\Entity\Company;
 use App\Entity\ComplianceDocument;
 use App\Repository\ComplianceDocumentRepository;
 use App\Service\CompliancePackService;
+use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,7 +23,8 @@ class ComplianceController extends AbstractController
         private EntityManagerInterface $entityManager,
         private ComplianceDocumentRepository $complianceDocumentRepository,
         private CompliancePackService $compliancePackService,
-        private SluggerInterface $slugger
+        private SluggerInterface $slugger,
+        private GuidanceNotificationService $guidanceService
     ) {}
 
     #[Route('/company/{id}', name: 'app_compliance_company', methods: ['GET'])]
@@ -76,6 +78,17 @@ class ComplianceController extends AbstractController
                 $document->setUploadedAt(new \DateTime());
 
                 $this->entityManager->flush();
+
+                // Auto-dismiss "add compliance" notification if it exists for this company
+                $company = $document->getCompany();
+                $companyId = $company->getId();
+                $this->guidanceService->autoDismissNotifications("company_{$companyId}_add_compliance");
+
+                // Provide guidance after document upload
+                $this->guidanceService->afterComplianceDocumentUploaded(
+                    $company->getName(),
+                    $companyId
+                );
 
                 $this->addFlash('success', 'Document uploaded successfully!');
             } catch (FileException $e) {

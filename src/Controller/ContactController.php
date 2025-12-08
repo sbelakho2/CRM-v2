@@ -7,6 +7,7 @@ use App\Form\ContactType;
 use App\Repository\ContactRepository;
 use App\Service\LinkedInService;
 use App\Service\ExportService;
+use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,7 +23,8 @@ class ContactController extends AbstractController
         private ContactRepository $contactRepository,
         private EntityManagerInterface $entityManager,
         private LinkedInService $linkedInService,
-        private ExportService $exportService
+        private ExportService $exportService,
+        private GuidanceNotificationService $guidanceService
     ) {}
 
     #[Route('', name: 'app_contact_index', methods: ['GET'])]
@@ -97,6 +99,15 @@ class ContactController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->entityManager->persist($contact);
             $this->entityManager->flush();
+
+            // Auto-dismiss "add contact" notification if it exists for this company
+            if ($contact->getCompany()) {
+                $companyId = $contact->getCompany()->getId();
+                $this->guidanceService->autoDismissNotifications("company_{$companyId}_add_contact");
+            }
+
+            // Provide guidance for next steps
+            $this->guidanceService->afterContactCreated($contact);
 
             $this->addFlash('success', 'Contact created successfully!');
 

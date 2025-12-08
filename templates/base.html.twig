@@ -655,6 +655,20 @@
                 </li>
                 
                 <li class="sidebar-nav-item">
+                    <a href="{{ path('app_guidance_all') }}" class="sidebar-nav-link {% if app.request.get('_route') == 'app_guidance_all' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 2L2 6V14H6V10H10V14H14V6L8 2Z"/>
+                            <circle cx="8" cy="1" r="0.5" fill="currentColor"/>
+                        </svg>
+                        Guidance
+                        {% set notifCount = app.session.get('guidance_notifications')|length %}
+                        {% if notifCount > 0 %}
+                            <span class="ml-auto inline-flex items-center justify-center w-5 h-5 text-xs font-medium text-white bg-blue-600 rounded-full">{{ notifCount }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                
+                <li class="sidebar-nav-item">
                     <a href="{{ path('app_company_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'app_company' %}active{% endif %}">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M2 13V5L8 2L14 5V13"/>
@@ -852,6 +866,11 @@
     
     <!-- Main Content -->
     <main class="{% if not isAuthPage %}main-content{% else %}w-full flex items-center justify-center min-h-screen{% endif %}">
+        {# Guidance Notifications #}
+        {% if not isAuthPage %}
+            {% include 'components/guidance_notifications.html.twig' %}
+        {% endif %}
+        
         {% block body %}{% endblock %}
     </main>
     
@@ -869,10 +888,10 @@
         // Configuration
         const ABM_CONFIG = {
             apiEndpoint: '/api/web-event',
-            trackPageViews: true,
-            trackClicks: true,
-            trackFormSubmits: true,
-            trackDownloads: true,
+            trackPageViews: false, // Disabled - causing 500 errors
+            trackClicks: false,
+            trackFormSubmits: false,
+            trackDownloads: false,
             debounceDelay: 500
         };
         
@@ -1027,5 +1046,12 @@
         }
     })();
     </script>
+    
+    <style>
+    /* Ensure Symfony Web Profiler is visible */
+    .sf-toolbar {
+        z-index: 99999 !important;
+    }
+    </style>
 </body>
 </html>

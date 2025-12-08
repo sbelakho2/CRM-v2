@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Lead;
 use App\Entity\Company;
 use App\Repository\LeadRepository;
+use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,6 +16,10 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/leads')]
 class LeadController extends AbstractController
 {
+    public function __construct(
+        private GuidanceNotificationService $guidanceService
+    ) {}
+
     #[Route('/', name: 'app_lead_index')]
     public function index(LeadRepository $leadRepo): Response
     {
@@ -201,6 +206,9 @@ class LeadController extends AbstractController
         // After flush, update CRM record ID
         $lead->setCrmRecordId((string)$company->getId());
         $em->flush();
+
+        // Provide guidance after lead conversion
+        $this->guidanceService->afterLeadConverted($company, $lead);
 
         return $this->json([
             'success' => true,

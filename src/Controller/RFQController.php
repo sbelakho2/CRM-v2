@@ -7,6 +7,7 @@ use App\Entity\RFQ;
 use App\Form\RFQType;
 use App\Repository\RFQRepository;
 use App\Repository\CompanyRepository;
+use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,6 +17,10 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/rfqs')]
 class RFQController extends AbstractController
 {
+    public function __construct(
+        private GuidanceNotificationService $guidanceService
+    ) {}
+
     #[Route('/', name: 'app_rfq_index', methods: ['GET'])]
     public function index(Request $request, RFQRepository $rfqRepository): Response
     {
@@ -121,6 +126,14 @@ class RFQController extends AbstractController
             $entityManager->persist($rfq);
             $entityManager->flush();
 
+            // Provide guidance for RFQ workflow
+            $companyName = $rfq->getCompany() ? $rfq->getCompany()->getName() : 'Customer';
+            $this->guidanceService->afterRFQCreated(
+                $rfq->getId(),
+                $companyName,
+                $rfq->getSopDate() !== null
+            );
+
             $this->addFlash('success', 'RFQ created successfully.');
 
             return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
@@ -181,6 +194,10 @@ class RFQController extends AbstractController
         if (in_array($newStatus, ['Pending', 'In Review', 'Submitted', 'Won', 'Lost'])) {
             $rfq->setStatus($newStatus);
             $entityManager->flush();
+
+            // Provide guidance based on new status
+            $companyName = $rfq->getCompany() ? $rfq->getCompany()->getName() : 'Customer';
+            $this->guidanceService->afterRFQStatusUpdated($rfq->getId(), $newStatus, $companyName);
 
             $this->addFlash('success', 'RFQ status updated to ' . $newStatus);
         }

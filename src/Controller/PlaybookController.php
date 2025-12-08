@@ -7,6 +7,7 @@ use App\Entity\PlaybookRun;
 use App\Repository\PlaybookRepository;
 use App\Repository\PlaybookRunRepository;
 use App\Service\PlaybookEngine;
+use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,7 +22,8 @@ class PlaybookController extends AbstractController
         private EntityManagerInterface $entityManager,
         private PlaybookRepository $playbookRepository,
         private PlaybookRunRepository $playbookRunRepository,
-        private PlaybookEngine $playbookEngine
+        private PlaybookEngine $playbookEngine,
+        private GuidanceNotificationService $guidanceService
     ) {}
 
     #[Route('/', name: 'app_playbook_index', methods: ['GET'])]
@@ -71,6 +73,9 @@ class PlaybookController extends AbstractController
             
             $this->entityManager->persist($playbook);
             $this->entityManager->flush();
+            
+            // Provide guidance after playbook creation
+            $this->guidanceService->afterPlaybookCreated($playbook->getId(), $playbook->getName());
             
             $this->addFlash('success', 'Playbook created successfully');
             return $this->redirectToRoute('app_playbook_show', ['id' => $playbook->getId()]);

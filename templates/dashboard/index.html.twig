@@ -2,6 +2,11 @@
 
 {% block title %}Dashboard - STARZ Morocco CRM{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block body %}
 <div class="space-y-6">
     <!-- Header with Geist-style typography -->

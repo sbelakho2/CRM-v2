@@ -10,6 +10,7 @@ use App\Repository\EmailCampaignRepository;
 use App\Repository\EmailSendRepository;
 use App\Repository\ContactRepository;
 use App\Service\EmailCampaignService;
+use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,7 +25,8 @@ class EmailCampaignController extends AbstractController
         private EmailCampaignRepository $campaignRepository,
         private EmailSendRepository $sendRepository,
         private ContactRepository $contactRepository,
-        private EmailCampaignService $campaignService
+        private EmailCampaignService $campaignService,
+        private GuidanceNotificationService $guidanceService
     ) {}
 
     #[Route('/', name: 'app_email_campaign_index', methods: ['GET'])]
@@ -72,6 +74,12 @@ class EmailCampaignController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->entityManager->persist($campaign);
             $this->entityManager->flush();
+
+            // Provide guidance for campaign workflow
+            $this->guidanceService->afterEmailCampaignCreated(
+                $campaign->getId(),
+                $campaign->getName()
+            );
 
             $this->addFlash('success', 'Email campaign created successfully.');
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
@@ -211,6 +219,9 @@ class EmailCampaignController extends AbstractController
                     $sentCount++;
                 }
             }
+
+            // Provide guidance after sending campaign
+            $this->guidanceService->afterEmailCampaignSent($campaign->getId(), $sentCount);
 
             $this->addFlash('success', "Sent {$sentCount} emails successfully.");
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);

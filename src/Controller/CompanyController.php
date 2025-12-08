@@ -6,6 +6,7 @@ use App\Entity\Company;
 use App\Form\CompanyType;
 use App\Repository\CompanyRepository;
 use App\Service\ExportService;
+use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,7 +21,8 @@ class CompanyController extends AbstractController
     public function __construct(
         private CompanyRepository $companyRepository,
         private EntityManagerInterface $entityManager,
-        private ExportService $exportService
+        private ExportService $exportService,
+        private GuidanceNotificationService $guidanceService
     ) {}
 
     #[Route('', name: 'app_company_index', methods: ['GET'])]
@@ -96,6 +98,9 @@ class CompanyController extends AbstractController
             $this->entityManager->persist($company);
             $this->entityManager->flush();
 
+            // Provide guidance for next steps
+            $this->guidanceService->afterCompanyCreated($company);
+
             $this->addFlash('success', 'Company created successfully!');
 
             return $this->redirectToRoute('app_company_show', ['id' => $company->getId()]);
@@ -110,6 +115,9 @@ class CompanyController extends AbstractController
     #[Route('/{id}', name: 'app_company_show', methods: ['GET'])]
     public function show(Company $company): Response
     {
+        // Check for incomplete profile and provide guidance
+        $this->guidanceService->checkIncompleteCompanyProfile($company);
+
         return $this->render('company/show.html.twig', [
             'company' => $company,
         ]);

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\KPITrackingService;
+use App\Service\GuidanceNotificationService;
 use App\Repository\CompanyRepository;
 use App\Repository\RFQRepository;
 use App\Repository\ActivityRepository;
@@ -18,12 +19,16 @@ class DashboardController extends AbstractController
         private CompanyRepository $companyRepository,
         private RFQRepository $rfqRepository,
         private ActivityRepository $activityRepository,
-        private WebinarRepository $webinarRepository
+        private WebinarRepository $webinarRepository,
+        private GuidanceNotificationService $guidanceService
     ) {}
 
     #[Route('/', name: 'app_dashboard')]
     public function index(): Response
     {
+        // Daily workflow reminders are shown on the guidance notifications page
+        // Visit /guidance/all to see all notifications
+
         // Get 90-day KPIs
         $kpis = $this->kpiService->get90DayKPIs();
         

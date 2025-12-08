@@ -7,6 +7,7 @@ use App\Form\ActivityType;
 use App\Repository\ActivityRepository;
 use App\Repository\CompanyRepository;
 use App\Repository\ContactRepository;
+use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,7 +21,8 @@ class ActivityController extends AbstractController
         private ActivityRepository $activityRepository,
         private CompanyRepository $companyRepository,
         private ContactRepository $contactRepository,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private GuidanceNotificationService $guidanceService
     ) {}
 
     #[Route('', name: 'app_activity_index', methods: ['GET'])]
@@ -168,6 +170,19 @@ class ActivityController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->entityManager->persist($activity);
             $this->entityManager->flush();
+
+            // Auto-dismiss "log activity" notification if it exists for this company/contact
+            if ($activity->getCompany()) {
+                $companyId = $activity->getCompany()->getId();
+                $this->guidanceService->autoDismissNotifications("company_{$companyId}_log_activity");
+            }
+            if ($activity->getContact()) {
+                $contactId = $activity->getContact()->getId();
+                $this->guidanceService->autoDismissNotifications("contact_{$contactId}_log_activity");
+            }
+
+            // Provide guidance based on activity outcome
+            $this->guidanceService->afterActivityLogged($activity);
 
             $this->addFlash('success', 'Activity logged successfully!');
 
