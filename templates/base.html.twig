@@ -730,12 +730,23 @@
                 </li>
                 
                 <li class="sidebar-nav-item">
-                    <a href="{{ path('app_lead_review') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'app_lead' %}active{% endif %}">
+                    <a href="{{ path('app_lead_review') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'app_lead' and app.request.get('_route') != 'lead_discovery_index' %}active{% endif %}">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 2L3 7L8 12L13 7L8 2Z"/>
                             <circle cx="8" cy="7" r="2"/>
                         </svg>
                         Leads
+                    </a>
+                </li>
+                
+                <li class="sidebar-nav-item">
+                    <a href="{{ path('lead_discovery_index') }}" class="sidebar-nav-link {% if app.request.get('_route') starts with 'lead_discovery' %}active{% endif %}">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="7" cy="7" r="5"/>
+                            <path d="M14 14L11 11"/>
+                            <path d="M7 5V9M5 7H9"/>
+                        </svg>
+                        Lead Discovery
                     </a>
                 </li>
                 

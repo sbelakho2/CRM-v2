@@ -47,5 +47,10 @@ services:
       $clientId: '%env(NEXAR_CLIENT_ID)%'
       $clientSecret: '%env(NEXAR_CLIENT_SECRET)%'
 
+  App\Service\GoogleSearchService:
+    arguments:
+      $apiKey: '%env(GOOGLE_API_KEY)%'
+      $searchEngineId: '%env(GOOGLE_SEARCH_ENGINE_ID)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

@@ -1,0 +1,133 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Lead Discovery - Google Search{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="container mx-auto px-4">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Lead Discovery</h1>
+                <p class="text-gray-600">Search for potential leads using Google Custom Search API</p>
+            </div>
+
+            <!-- Search Form -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <form method="post" action="{{ path('lead_discovery_search') }}" class="space-y-4">
+                    <div>
+                        <label for="query" class="block text-sm font-medium text-gray-700 mb-2">
+                            Search Query
+                        </label>
+                        <input 
+                            type="text" 
+                            name="query" 
+                            id="query" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="e.g., aerospace manufacturing morocco"
+                            required
+                        >
+                        <p class="mt-1 text-sm text-gray-500">
+                            Enter keywords to search for potential leads
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="sector" class="block text-sm font-medium text-gray-700 mb-2">
+                                Sector (Optional)
+                            </label>
+                            <select 
+                                name="sector" 
+                                id="sector" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="all">All Sectors</option>
+                                <option value="aerospace">Aerospace</option>
+                                <option value="automotive">Automotive</option>
+                                <option value="electronics">Electronics</option>
+                                <option value="manufacturing">General Manufacturing</option>
+                                <option value="energy">Energy & Renewables</option>
+                                <option value="pharmaceutical">Pharmaceutical</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="limit" class="block text-sm font-medium text-gray-700 mb-2">
+                                Number of Results
+                            </label>
+                            <select 
+                                name="limit" 
+                                id="limit" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="5">5 results</option>
+                                <option value="10" selected>10 results</option>
+                                <option value="20">20 results</option>
+                                <option value="50">50 results</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-4">
+                        <button 
+                            type="submit" 
+                            class="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <svg class="inline-block w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            Search Companies
+                        </button>
+
+                        <a href="{{ path('app_lead_index') }}" class="text-gray-600 hover:text-gray-900">
+                            Back to Leads
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Info Box -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-blue-800">About API Usage</h3>
+                        <div class="mt-2 text-sm text-blue-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Free tier: 100 queries per day</li>
+                                <li>Paid tier: $5 per 1,000 queries</li>
+                                <li>Results are automatically filtered for duplicates</li>
+                                <li>You can preview results before importing</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Example Searches -->
+            <div class="mt-6 bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Example Searches</h3>
+                <div class="space-y-2">
+                    <button onclick="document.getElementById('query').value = this.textContent" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                        aerospace manufacturers morocco
+                    </button>
+                    <button onclick="document.getElementById('query').value = this.textContent" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                        automotive parts suppliers casablanca
+                    </button>
+                    <button onclick="document.getElementById('query').value = this.textContent" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                        electronic components distributors morocco
+                    </button>
+                    <button onclick="document.getElementById('query').value = this.textContent" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                        industrial manufacturing companies tangier
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
