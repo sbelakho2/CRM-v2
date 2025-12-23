@@ -1,7 +1,7 @@
 # CRM Project – Documentation Index
 
-**Last Updated:** October 30, 2025  
-**Release Train:** V1 Core CRM (Notifications, Quick Actions, Authentication, ABM Heat Map, Quote Co-Pilot)
+**Last Updated:** December 8, 2025  
+**Release Train:** V1 Core CRM (Notifications, Quick Actions, Authentication, ABM Heat Map, Quote Co-Pilot, Guidance System, Google Search Integration)
 
 This index replaces the legacy Feature #1 portal and reflects the full CRM feature set that is now in place. All documents have been moved under `Documentation/` – bookmarks that pointed at the repository root should be updated to the paths listed below.
 
@@ -48,6 +48,13 @@ This index replaces the legacy Feature #1 portal and reflects the full CRM featu
 ### Data & Integrations
 - **Data Operations / Real Data Tracker** – `05-Data-Operations/REAL_DATA_TRACKER_INTEGRATION_COMPLETE.md`
 - **LeadBot / WebCrawler Testing** – `03-LeadBot-Webcrawler/WEBCRAWLER_TEST_RESULTS.md`
+- **Google Custom Search Integration** – `GOOGLE_SEARCH_SETUP.md`
+
+### Latest Updates (December 2025)
+- **Pre-Deployment Checklist** – `PRE_DEPLOYMENT_CHECKLIST.md`
+- **Project Status (Updated)** – `PROJECT_STATUS.md`
+- **Contextual Guidance System** – Integrated in core controllers
+- **Google Search Lead Discovery** – Full API integration with web interface
 
 ---
 
@@ -60,6 +67,8 @@ This index replaces the legacy Feature #1 portal and reflects the full CRM featu
 | Secure Authentication (Standalone Login + Logout) | ✅ Live | `src/Controller/SecurityController.php`, `NEW_USER_GUIDE.md#secure-login` |
 | Engagement Heat Map Dashboard | ✅ Live | `06-Architecture/EngagementHeatMapService` (controller doc), `NEW_USER_GUIDE.md#engagement-heat-map` |
 | Quote Co-Pilot (BOM → Quote automation) | ✅ Live | `06-Architecture/API_WATERFALL.md`, `07-Deployment-Operations/DEPLOYMENT_CHECKLIST.md#quote-co-pilot`, `10-Quality-Assurance/TEST_EXECUTION_REPORT.md` |
+| **Contextual Guidance System (NEW Dec 2025)** | ✅ Live | `src/Service/GuidanceNotificationService.php`, `src/Controller/GuidanceController.php` |
+| **Google Search Lead Discovery (NEW Dec 2025)** | ✅ Ready | `GOOGLE_SEARCH_SETUP.md`, `src/Service/GoogleSearchService.php`, `src/Controller/LeadDiscoveryController.php` |
 
 Historic feature artifacts (for Feature #1 planning and interim milestones) remain in `09-Project-Status/` and are labelled as **Archive** within their headings.
 
@@ -72,9 +81,12 @@ Historic feature artifacts (for Feature #1 planning and interim milestones) rema
   - Mobile Quick Actions: `templates/components/mobile_fab.html.twig`, `public/js/mobile-quick-actions.js`
   - Heat Map: `src/Service/EngagementHeatMapService.php`, `templates/components/engagement_heat_map.html.twig`
   - Quote Co-Pilot: `src/Controller/QuoteCoPilotController.php`, `src/Service/QuoteCoPilotService.php`
+  - Guidance System: `src/Service/GuidanceNotificationService.php`, `src/Controller/GuidanceController.php`, `templates/components/guidance_notifications.html.twig`
+  - Google Search: `src/Service/GoogleSearchService.php`, `src/Controller/LeadDiscoveryController.php`, `src/Command/SearchCompaniesCommand.php`
 
 - **Key Environment Variables**
   - `MOUSER_API_KEY`, `DIGIKEY_CLIENT_ID`, `DIGIKEY_CLIENT_SECRET`, `NEXAR_CLIENT_ID`, `NEXAR_CLIENT_SECRET` (Quote Co-Pilot pricing waterfall)
+  - `GOOGLE_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` (Google Custom Search API)
   - `APP_ENV`, `APP_SECRET`, `DATABASE_URL`
 
 - **Essential Commands**

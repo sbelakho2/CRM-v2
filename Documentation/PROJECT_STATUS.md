@@ -2,11 +2,11 @@
 
 ## ✅ Status: ALL SYSTEMS OPERATIONAL
 
-**Date**: October 28, 2025  
+**Date**: December 8, 2025  
 **Server**: http://127.0.0.1:8000  
-**Database**: SQLite (var/data.db)  
+**Database**: SQLite (var/data.db) / MySQL (production)  
 **Errors**: 0 compilation errors  
-**Status**: Production-Ready  
+**Status**: Production-Ready & Deployment-Ready  
 
 ---
 
@@ -36,6 +36,32 @@
 - **Excel Template Generator**
 - **Bulk Contact Import**
 - **Company Discovery**
+
+### 4. Contextual Guidance System
+- **Smart Notifications** (contextual workflow reminders)
+- **Auto-dismiss** (action completion tracking)
+- **Max 3 Display** (with "View All" page)
+- **Permanent Dismissal** (session-based tracking)
+- **Daily Workflow Reminders** (once-per-day generation)
+- **15+ Guidance Methods** (company, contact, activity, lead, RFQ, compliance, etc.)
+
+### 5. Google Custom Search Integration
+- **Lead Discovery Service** (Google Custom Search API)
+- **Web-based Search Interface** (sector filtering, result preview)
+- **Command-line Tool** (CLI for automated searches)
+- **Quota Management** (usage tracking, cost estimation)
+- **Duplicate Prevention** (automatic website deduplication)
+- **Selective Import** (import selected or all results)
+
+### 6. Test Data Generation
+- **GenerateTestDataCommand** (comprehensive test data creation)
+- **Test User**: test@starz.ma / test123
+- **15 Companies** with Morocco sectors
+- **30 Contacts** with procurement roles
+- **50 Activities** across multiple types
+- **20 Leads** with various review statuses
+- **10 RFQs** with different stages
+- **25 Compliance Documents** across companies
 
 ---
 
@@ -85,6 +111,9 @@ crm-starz-morocco/
 │   ├── CRAWLER_COMPLIANCE.md             # ✅ Requirements compliance
 │   ├── WEBCRAWLER_README.md              # ✅ User documentation
 │   ├── QUICKSTART.md                     # ✅ Quick start guide
+│   ├── GOOGLE_SEARCH_SETUP.md            # ✅ Google API setup guide
+│   ├── PRODUCTION_DEPLOYMENT_GUIDE.md    # ✅ Complete deployment guide
+│   ├── DEPLOYMENT_READINESS_FINAL.md     # ✅ Deployment checklist
 │   └── CRM_DEVELOPMENT_OUTLINE.md        # Original spec
 └── var/
     └── data.db                           # SQLite database
@@ -152,8 +181,12 @@ php bin/console app:find-contacts 5  # By ID
 # Start server
 php -S 127.0.0.1:8000 -t public
 
-# Create user
+# Create users
 php bin/console app:create-user
+php bin/console app:create-admin
+
+# Generate test data
+php bin/console app:generate-test-data
 
 # Database operations
 php bin/console doctrine:schema:update --force
@@ -161,6 +194,19 @@ php bin/console doctrine:migrations:migrate
 
 # List all commands
 php bin/console list app
+```
+
+### Google Search Lead Discovery
+
+```powershell
+# Search for companies (preview only)
+php bin/console app:search-companies "aerospace morocco" --dry-run
+
+# Search and import 20 companies
+php bin/console app:search-companies "automotive suppliers" --limit=20 --import
+
+# Search by specific sector
+php bin/console app:search-companies "electronics" --sector=aerospace --import
 ```
 
 ---
@@ -176,6 +222,10 @@ php bin/console list app
 | Email Campaigns | http://127.0.0.1:8000/email-campaigns |
 | Webinars | http://127.0.0.1:8000/webinars |
 | Activities | http://127.0.0.1:8000/activities |
+| Leads | http://127.0.0.1:8000/leads |
+| Lead Discovery | http://127.0.0.1:8000/lead-discovery |
+| Guidance Notifications | http://127.0.0.1:8000/guidance/all |
+| Compliance | http://127.0.0.1:8000/compliance |
 
 ---
 
@@ -308,17 +358,35 @@ WHERE review_date >= DATE('now', '-7 days');
 | **WEBCRAWLER_README.md** | User guide for crawler |
 | **CRAWLER_IMPLEMENTATION.md** | Complete technical guide (Weeks 1-10) |
 | **CRAWLER_COMPLIANCE.md** | Requirements compliance matrix |
+| **GOOGLE_SEARCH_SETUP.md** | Google Custom Search API setup |
+| **PRODUCTION_DEPLOYMENT_GUIDE.md** | Complete deployment instructions |
+| **DEPLOYMENT_READINESS_FINAL.md** | Pre-deployment checklist |
 | **CRM_DEVELOPMENT_OUTLINE.md** | Original specification |
 
 ---
 
 ## 💡 Key Features Highlights
 
-### Intelligent Scoring
+### Intelligent Scoring (Webcrawler)
 - **Config-driven** - Change weights without code
 - **7 signals** - Comprehensive relevance model
 - **Auto-recommend** - ≥55 score threshold
 - **Auto-drop** - <30 score (saves review time)
+
+### Google Search Integration (NEW)
+- **API-powered** - Google Custom Search API
+- **Cost-effective** - 100 free queries/day, then $5/1000
+- **Smart filtering** - Sector and location targeting
+- **Duplicate prevention** - Automatic website checking
+- **Selective import** - Choose which leads to add
+- **Quota tracking** - Real-time cost estimation
+
+### Contextual Guidance (NEW)
+- **Smart reminders** - Contextual workflow guidance
+- **Auto-dismiss** - Completed actions tracked
+- **Permanent dismissal** - Never show again option
+- **Daily reminders** - Once-per-day generation
+- **15+ scenarios** - Company, contact, activity, lead, RFQ, etc.
 
 ### GDPR Compliance
 - **Role-based emails only** (procurement@, supplier@)
@@ -332,7 +400,7 @@ WHERE review_date >= DATE('now', '-7 days');
 - **Score breakdown** with rationale
 - **One-click approve/deny**
 - **Automatic CRM sync**
-- **Email summaries** daily
+- **Contextual guidance** throughout workflows
 
 ---
 
@@ -369,6 +437,40 @@ WHERE review_date >= DATE('now', '-7 days');
 
 ---
 
+## 🆕 Recent Updates (December 2025)
+
+### Contextual Guidance System
+- **Created**: `GuidanceNotificationService` with 15+ contextual methods
+- **Templates**: Notification display components and full view page
+- **Integration**: 9 controllers with auto-dismiss logic
+- **Features**: Manual dismiss, clear all, permanent dismissal, max 3 display
+- **Performance**: Once-per-day generation to prevent timeouts
+
+### Google Custom Search Integration
+- **Service**: `GoogleSearchService` with HTTP client integration
+- **Command**: `SearchCompaniesCommand` for CLI searches
+- **Controller**: `LeadDiscoveryController` for web interface
+- **Templates**: Search form and results display with quota tracking
+- **Documentation**: Complete setup guide with API instructions
+- **Configuration**: Service registration and environment variables
+
+### Test Data System
+- **Command**: `GenerateTestDataCommand` for development data
+- **Generated**: Test user, 15 companies, 30 contacts, 50 activities, 20 leads, 10 RFQs, 25 compliance docs
+- **Purpose**: Development testing and QA validation
+
+### Bug Fixes & Improvements
+- Fixed Chart.js loading error (added CDN)
+- Fixed web-event API 500 error (disabled tracking)
+- Fixed dashboard timeout (moved daily reminders)
+- Fixed Log Activity button URL generation
+- Fixed multiple entity field errors in test data generation
+- Updated all entity mappings for compatibility
+
+---
+
 **Built**: October 28, 2025  
+**Last Updated**: December 8, 2025  
 **Status**: ✅ COMPLETE & OPERATIONAL  
-**Next**: Import Tracker.xlsx and start discovering leads! 🚀
+**Deployment Status**: ✅ READY FOR PRODUCTION  
+**Next**: Configure Google API credentials and deploy to production! 🚀
