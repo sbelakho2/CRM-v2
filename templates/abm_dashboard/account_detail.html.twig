@@ -168,7 +168,7 @@
                         <a href="{{ path('abm_dashboard_playbooks') }}" class="rams-btn rams-btn--secondary">
                             {{ 'abm_dashboard.launch_playbook'|trans }}
                         </a>
-                        <button onclick="if(confirm('{{ 'abm_dashboard.remove_confirm'|trans }}')) { window.location.href='{{ path('abm_dashboard_accounts') }}'; }" class="rams-btn rams-btn--danger">
+                        <button type="button" onclick="ramsConfirm('{{ 'abm_dashboard.remove_confirm'|trans }}', function() { window.location.href='{{ path('abm_dashboard_accounts') }}'; }, {variant: 'danger'})" class="rams-btn rams-btn--danger">
                             {{ 'abm_dashboard.remove_account'|trans }}
                         </button>
                     </div>

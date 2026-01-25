@@ -13,13 +13,13 @@
         <svg class="rams-fab__icon rams-fab__icon--plus" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        <svg class="rams-fab__icon rams-fab__icon--close hidden" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="rams-fab__icon rams-fab__icon--close rams-hidden" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
     </button>
 
     {# Sub-action Buttons #}
-    <div id="fab-actions" class="rams-fab__actions hidden">
+    <div id="fab-actions" class="rams-fab__actions rams-hidden">
         {# Log Activity #}
         <a 
             href="{{ path('app_activity_new') }}" 
@@ -272,13 +272,13 @@
         function openFab() {
             fab.classList.add('active');
             fab.setAttribute('aria-expanded', 'true');
-            fabActions.classList.remove('hidden');
+            fabActions.classList.remove('rams-hidden');
         }
 
         function closeFab() {
             fab.classList.remove('active');
             fab.setAttribute('aria-expanded', 'false');
-            fabActions.classList.add('hidden');
+            fabActions.classList.add('rams-hidden');
         }
 
         // Close FAB when clicking outside

@@ -21,10 +21,9 @@
                 <p class="rams-dymo">{{ company.name }}</p>
             </div>
 
-            <form method="post" action="{{ path('app_compliance_generate_pack', {id: company.id}) }}">
+            <form method="post" action="{{ path('app_compliance_generate_pack', {id: company.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'compliance.regenerate_confirm'|trans|default('This will reset all compliance documents. Continue?') }}', {variant: 'warning'})">
                 <input type="hidden" name="_token" value="{{ csrf_token('generate' ~ company.id) }}">
-                <button type="submit" onclick="return confirm('{{ 'compliance.regenerate_confirm'|trans|default('This will reset all compliance documents. Continue?') }}');" 
-                        class="rams-btn rams-btn--secondary">
+                <button type="submit" class="rams-btn rams-btn--secondary">
                     {{ 'compliance.regenerate_pack'|trans|default('Regenerate Pack') }}
                 </button>
             </form>
@@ -135,9 +134,9 @@
                                 </svg>
                             </a>
 
-                            <form method="post" action="{{ path('app_compliance_delete', {id: document.id}) }}" style="display:inline">
+                            <form method="post" action="{{ path('app_compliance_delete', {id: document.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'compliance.remove_confirm'|trans|default('Remove this document?') }}', {variant: 'danger'})">
                                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ document.id) }}">
-                                <button type="submit" onclick="return confirm('{{ 'compliance.remove_confirm'|trans|default('Remove this document?') }}');"
+                                <button type="submit"
                                         class="rams-btn rams-btn--ghost rams-btn--sm rams-text-danger" title="{{ 'common.remove'|trans }}">
                                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -145,7 +144,7 @@
                                 </button>
                             </form>
                         {% else %}
-                            <form method="post" action="{{ path('app_compliance_upload', {id: document.id}) }}" enctype="multipart/form-data" style="display:inline">
+                            <form method="post" action="{{ path('app_compliance_upload', {id: document.id}) }}" enctype="multipart/form-data" class="rams-inline-block">
                                 <input type="file" name="file" class="rams-sr-only" id="file-{{ document.id }}" onchange="this.form.submit()">
                                 <label for="file-{{ document.id }}" class="rams-btn rams-btn--primary rams-btn--sm" style="cursor:pointer">
                                     {{ 'common.upload'|trans }}
@@ -153,7 +152,7 @@
                             </form>
                         {% endif %}
 
-                        <form method="post" action="{{ path('app_compliance_toggle_required', {id: document.id}) }}" style="display:inline">
+                        <form method="post" action="{{ path('app_compliance_toggle_required', {id: document.id}) }}" class="rams-inline-block">
                             <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ document.id) }}">
                             <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm" 
                                     title="{{ document.required ? 'compliance.mark_optional'|trans|default('Mark as Optional') : 'compliance.mark_required'|trans|default('Mark as Required') }}">

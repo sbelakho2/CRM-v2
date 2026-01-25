@@ -298,9 +298,9 @@
             .then(response => response.json())
             .then(data => {
                 closeModal('requestModal');
-                alert(data.message || 'Request submitted successfully!');
+                ramsAlert(data.message || 'Request submitted successfully!', {variant: 'success'});
             })
-            .catch(error => alert('Error submitting request: ' + error.message));
+            .catch(error => ramsAlert('Error submitting request: ' + error.message, {variant: 'error'}));
         }
         
         function submitAcceptance() {
@@ -322,7 +322,7 @@
                 closeModal('acceptModal');
                 document.querySelector('.rams-quote-card .rams-module__content').innerHTML = `
                     <div class="rams-text--center rams-py-xl">
-                        <div class="rams-text--success" style="font-size: 4rem;">✓</div>
+                        <div class="rams-text--success rams-text-6xl">✓</div>
                         <h2 class="rams-heading rams-heading--2 rams-mt-md">Quote Accepted!</h2>
                         <p class="rams-text rams-text--muted">${result.message}</p>
                         <ul class="rams-list rams-list--check rams-text--left rams-mx-auto" style="max-width: 400px;">
@@ -331,7 +331,7 @@
                     </div>
                 `;
             })
-            .catch(error => alert('Error: ' + error.message));
+            .catch(error => ramsAlert('Error: ' + error.message, {variant: 'error'}));
         }
     </script>
 </body>

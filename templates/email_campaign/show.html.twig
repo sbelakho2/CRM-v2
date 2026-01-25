@@ -264,7 +264,7 @@
                         <h3 class="rams-danger-zone__title">{{ 'email_campaign.delete_campaign'|trans }}</h3>
                         <p class="rams-danger-zone__description">{{ 'email_campaign.delete_warning'|trans|default('Once deleted, all campaign data will be permanently lost.') }}</p>
                     </div>
-                    <form method="post" action="{{ path('app_email_campaign_delete', {id: campaign.id}) }}" onsubmit="return confirm('{{ 'email_campaign.confirm_delete'|trans|default('Are you sure you want to delete this campaign? All send data will be lost.') }}');">
+                    <form method="post" action="{{ path('app_email_campaign_delete', {id: campaign.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'email_campaign.confirm_delete'|trans|default('Are you sure you want to delete this campaign? All send data will be lost.') }}', {variant: 'danger'})">
                         <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ campaign.id) }}">
                         <button type="submit" class="rams-btn rams-btn--danger">
                             {{ 'common.delete'|trans }}

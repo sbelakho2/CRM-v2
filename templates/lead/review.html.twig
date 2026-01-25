@@ -210,20 +210,20 @@
 
 <script>
 function approveLead(leadId) {
-    if (!confirm('{{ 'lead.confirm_approve'|trans|default('Approve this lead?') }}')) return;
-    
-    fetch(`/leads/approve/${leadId}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('{{ 'common.error'|trans }}: ' + data.message);
-        }
-    });
+    ramsConfirm('{{ 'lead.confirm_approve'|trans|default('Approve this lead?') }}', function() {
+        fetch(`/leads/approve/${leadId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                ramsAlert('{{ 'common.error'|trans }}: ' + data.message, {variant: 'error'});
+            }
+        });
+    }, {title: '{{ 'lead.approve'|trans|default('Approve Lead') }}', variant: 'default'});
 }
 
 function denyLead(leadId) {
@@ -239,30 +239,29 @@ function denyLead(leadId) {
         if (data.success) {
             location.reload();
         } else {
-            alert('{{ 'common.error'|trans }}: ' + data.message);
+            ramsAlert('{{ 'common.error'|trans }}: ' + data.message, {variant: 'error'});
         }
     });
 }
 
 function convertLead(leadId) {
-    if (!confirm('{{ 'lead.confirm_convert'|trans|default('Add this approved lead to the Companies list?') }}')) return;
-    
-    fetch(`/leads/convert/${leadId}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('{{ 'lead.convert_success'|trans|default('Lead successfully added to Companies!') }}');
-            location.reload();
-        } else {
-            alert('{{ 'common.error'|trans }}: ' + data.message);
+    ramsConfirm('{{ 'lead.confirm_convert'|trans|default('Add this approved lead to the Companies list?') }}', function() {
+        fetch(`/leads/convert/${leadId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                ramsAlert('{{ 'lead.convert_success'|trans|default('Lead successfully added to Companies!') }}', {variant: 'success', onClose: function() { location.reload(); }});
+            } else {
+                ramsAlert('{{ 'common.error'|trans }}: ' + data.message, {variant: 'error'});
         }
     })
     .catch(error => {
-        alert('{{ 'lead.convert_error'|trans|default('Error converting lead:') }} ' + error.message);
+        ramsAlert('{{ 'lead.convert_error'|trans|default('Error converting lead:') }} ' + error.message, {variant: 'error'});
     });
+    }, {title: '{{ 'lead.convert'|trans|default('Convert Lead') }}', variant: 'default'});
 }
 </script>
 {% endblock %}

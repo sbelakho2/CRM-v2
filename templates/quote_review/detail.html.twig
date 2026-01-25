@@ -506,67 +506,68 @@ document.getElementById('override-form').addEventListener('submit', async (e) =>
 });
 
 document.getElementById('verify-all-high-btn').addEventListener('click', async () => {
-    if (!confirm('{{ 'quote.review.confirm_verify_all'|trans|default('Verify all high-confidence matches?') }}')) return;
-    
-    try {
-        const response = await fetch(`/quote-review/${quoteId}/verify-all-high`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await response.json();
-        if (data.success) {
-            showToast(data.message);
-            location.reload();
-        } else {
-            showToast(data.error || '{{ 'common.failed'|trans|default('Failed') }}', 'error');
+    ramsConfirm('{{ 'quote.review.confirm_verify_all'|trans|default('Verify all high-confidence matches?') }}', async function() {
+        try {
+            const response = await fetch(`/quote-review/${quoteId}/verify-all-high`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast(data.message);
+                location.reload();
+            } else {
+                showToast(data.error || '{{ 'common.failed'|trans|default('Failed') }}', 'error');
+            }
+        } catch (e) {
+            showToast('Error: ' + e.message, 'error');
         }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
+    });
 });
 
 document.getElementById('approve-quote-btn').addEventListener('click', async () => {
-    if (!confirm('{{ 'quote.review.confirm_approve'|trans|default('Approve this quote for publishing?') }}')) return;
-    
-    try {
-        const response = await fetch(`/quote-review/${quoteId}/approve`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await response.json();
-        if (data.success) {
-            showToast(data.message);
-            if (data.redirect) window.location.href = data.redirect;
-        } else {
-            let msg = data.error;
-            if (data.unverified_count) msg += ` (${data.unverified_count} {{ 'quote.review.unverified'|trans|default('unverified') }})`;
-            if (data.unpriced_count) msg += ` (${data.unpriced_count} {{ 'quote.review.unpriced'|trans|default('unpriced') }})`;
-            showToast(msg, 'error');
+    ramsConfirm('{{ 'quote.review.confirm_approve'|trans|default('Approve this quote for publishing?') }}', async function() {
+        try {
+            const response = await fetch(`/quote-review/${quoteId}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast(data.message);
+                if (data.redirect) window.location.href = data.redirect;
+            } else {
+                let msg = data.error;
+                if (data.unverified_count) msg += ` (${data.unverified_count} {{ 'quote.review.unverified'|trans|default('unverified') }})`;
+                if (data.unpriced_count) msg += ` (${data.unpriced_count} {{ 'quote.review.unpriced'|trans|default('unpriced') }})`;
+                showToast(msg, 'error');
+            }
+        } catch (e) {
+            showToast('Error: ' + e.message, 'error');
         }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
+    });
 });
 
 async function selectAlternative(lineId, altMpn, source) {
-    if (!confirm(`{{ 'quote.review.switch_alternative'|trans|default('Switch to alternative part?') }}\n\n{{ 'quote.review.new_mpn'|trans|default('New MPN') }}: ${altMpn}\n{{ 'common.source'|trans|default('Source') }}: ${source}`)) return;
-    
-    try {
-        const response = await fetch(`/quote-review/line/${lineId}/select-alternative`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mpn: altMpn, source: source })
-        });
-        const data = await response.json();
-        if (data.success) {
-            showToast(`{{ 'quote.review.switched_to'|trans|default('Switched to') }} ${altMpn}`);
-            location.reload();
-        } else {
-            showToast(data.error || '{{ 'quote.review.failed_select_alt'|trans|default('Failed to select alternative') }}', 'error');
+    const message = `{{ 'quote.review.switch_alternative'|trans|default('Switch to alternative part?') }}\n\n{{ 'quote.review.new_mpn'|trans|default('New MPN') }}: ${altMpn}\n{{ 'common.source'|trans|default('Source') }}: ${source}`;
+    ramsConfirm(message, async function() {
+        try {
+            const response = await fetch(`/quote-review/line/${lineId}/select-alternative`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mpn: altMpn, source: source })
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast(`{{ 'quote.review.switched_to'|trans|default('Switched to') }} ${altMpn}`);
+                location.reload();
+            } else {
+                showToast(data.error || '{{ 'quote.review.failed_select_alt'|trans|default('Failed to select alternative') }}', 'error');
+            }
+        } catch (e) {
+            showToast('Error: ' + e.message, 'error');
         }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
+    });
 }
 </script>
 {% endblock %}

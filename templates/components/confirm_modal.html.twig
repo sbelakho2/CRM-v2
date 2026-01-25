@@ -1,0 +1,234 @@
+{# 
+    Sensei-Rams Confirmation Modal Component
+    
+    Usage: Include this component once in base.html.twig
+    Then call: ramsConfirm(message, onConfirm, options)
+    
+    Options:
+    - title: string (default: 'Confirm Action')
+    - confirmText: string (default: 'Confirm')
+    - cancelText: string (default: 'Cancel')
+    - variant: 'danger' | 'warning' | 'default' (default: 'default')
+#}
+
+{# Confirmation Modal Backdrop #}
+<div class="rams-modal-backdrop rams-hidden" id="rams-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="rams-confirm-title">
+    <div class="rams-modal rams-modal--sm">
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3 class="rams-module__title" id="rams-confirm-title">
+                    <span id="rams-confirm-icon" class="rams-module__title-icon">⚠️</span>
+                    <span id="rams-confirm-title-text">{{ 'common.confirm_action'|trans|default('Confirm Action') }}</span>
+                </h3>
+                <button type="button" class="rams-btn rams-btn--ghost rams-btn--icon" onclick="ramsConfirmCancel()" aria-label="{{ 'common.close'|trans }}">
+                    <svg viewBox="0 0 20 20" fill="currentColor" style="width: 1.25rem; height: 1.25rem;">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="rams-module__content">
+                <p id="rams-confirm-message" class="rams-text--muted">{{ 'common.confirm_message'|trans|default('Are you sure you want to proceed?') }}</p>
+            </div>
+            <div class="rams-module__footer rams-flex rams-gap-2 rams-justify-end">
+                <button type="button" id="rams-confirm-cancel-btn" class="rams-btn rams-btn--secondary" onclick="ramsConfirmCancel()">
+                    {{ 'common.cancel'|trans }}
+                </button>
+                <button type="button" id="rams-confirm-btn" class="rams-btn rams-btn--danger" onclick="ramsConfirmAction()">
+                    {{ 'common.confirm'|trans }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Confirmation Modal Styles */
+.rams-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: var(--space-4);
+}
+
+.rams-modal-backdrop.rams-hidden {
+    display: none;
+}
+
+.rams-modal {
+    width: 100%;
+    max-width: 480px;
+    animation: rams-modal-enter 0.2s ease-out;
+}
+
+.rams-modal--sm {
+    max-width: 400px;
+}
+
+.rams-modal--lg {
+    max-width: 600px;
+}
+
+@keyframes rams-modal-enter {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.rams-module__title-icon {
+    margin-right: var(--space-2);
+}
+
+/* Variant-specific button colors */
+.rams-confirm--danger #rams-confirm-btn {
+    background: var(--rams-red);
+}
+
+.rams-confirm--warning #rams-confirm-btn {
+    background: var(--rams-orange);
+    color: var(--rams-foreground);
+}
+</style>
+
+<script>
+/**
+ * Sensei-Rams Confirmation Modal
+ * Replaces native browser confirm() dialogs with styled modal
+ */
+(function() {
+    let confirmCallback = null;
+    let cancelCallback = null;
+    
+    /**
+     * Show confirmation modal
+     * @param {string} message - The confirmation message
+     * @param {Function} onConfirm - Callback when confirmed
+     * @param {Object} options - Optional configuration
+     */
+    window.ramsConfirm = function(message, onConfirm, options = {}) {
+        const modal = document.getElementById('rams-confirm-modal');
+        const titleText = document.getElementById('rams-confirm-title-text');
+        const messageEl = document.getElementById('rams-confirm-message');
+        const confirmBtn = document.getElementById('rams-confirm-btn');
+        const cancelBtn = document.getElementById('rams-confirm-cancel-btn');
+        const iconEl = document.getElementById('rams-confirm-icon');
+        
+        // Set content
+        messageEl.textContent = message;
+        titleText.textContent = options.title || '{{ 'common.confirm_action'|trans|default('Confirm Action') }}';
+        confirmBtn.textContent = options.confirmText || '{{ 'common.confirm'|trans|default('Confirm') }}';
+        cancelBtn.textContent = options.cancelText || '{{ 'common.cancel'|trans|default('Cancel') }}';
+        
+        // Set variant
+        modal.classList.remove('rams-confirm--danger', 'rams-confirm--warning');
+        confirmBtn.classList.remove('rams-btn--danger', 'rams-btn--warning', 'rams-btn--primary');
+        
+        switch (options.variant) {
+            case 'danger':
+                modal.classList.add('rams-confirm--danger');
+                confirmBtn.classList.add('rams-btn--danger');
+                iconEl.textContent = '🗑️';
+                break;
+            case 'warning':
+                modal.classList.add('rams-confirm--warning');
+                confirmBtn.classList.add('rams-btn--warning');
+                iconEl.textContent = '⚠️';
+                break;
+            default:
+                confirmBtn.classList.add('rams-btn--primary');
+                iconEl.textContent = '❓';
+        }
+        
+        // Store callbacks
+        confirmCallback = onConfirm;
+        cancelCallback = options.onCancel || null;
+        
+        // Show modal
+        modal.classList.remove('rams-hidden');
+        confirmBtn.focus();
+        
+        // Trap focus and handle escape
+        document.addEventListener('keydown', handleModalKeydown);
+    };
+    
+    /**
+     * Execute confirm action
+     */
+    window.ramsConfirmAction = function() {
+        const modal = document.getElementById('rams-confirm-modal');
+        modal.classList.add('rams-hidden');
+        document.removeEventListener('keydown', handleModalKeydown);
+        
+        if (confirmCallback) {
+            confirmCallback();
+            confirmCallback = null;
+        }
+    };
+    
+    /**
+     * Cancel and close modal
+     */
+    window.ramsConfirmCancel = function() {
+        const modal = document.getElementById('rams-confirm-modal');
+        modal.classList.add('rams-hidden');
+        document.removeEventListener('keydown', handleModalKeydown);
+        
+        if (cancelCallback) {
+            cancelCallback();
+            cancelCallback = null;
+        }
+        confirmCallback = null;
+    };
+    
+    /**
+     * Handle keyboard events in modal
+     */
+    function handleModalKeydown(e) {
+        if (e.key === 'Escape') {
+            ramsConfirmCancel();
+        }
+    }
+    
+    /**
+     * Helper: Confirm form submission
+     * Usage: <form onsubmit="return ramsConfirmSubmit(event, 'Delete this item?', {variant: 'danger'})">
+     */
+    window.ramsConfirmSubmit = function(event, message, options = {}) {
+        event.preventDefault();
+        const form = event.target;
+        
+        ramsConfirm(message, function() {
+            // Remove the onsubmit to prevent infinite loop
+            const originalSubmit = form.onsubmit;
+            form.onsubmit = null;
+            form.submit();
+            form.onsubmit = originalSubmit;
+        }, options);
+        
+        return false;
+    };
+    
+    /**
+     * Helper: Confirm link navigation
+     * Usage: <a href="..." onclick="return ramsConfirmLink(event, 'Are you sure?')">
+     */
+    window.ramsConfirmLink = function(event, message, options = {}) {
+        event.preventDefault();
+        const href = event.currentTarget.href;
+        
+        ramsConfirm(message, function() {
+            window.location.href = href;
+        }, options);
+        
+        return false;
+    };
+})();
+</script>

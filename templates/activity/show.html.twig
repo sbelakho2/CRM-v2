@@ -44,7 +44,7 @@
                     </svg>
                     {{ 'common.edit'|trans }}
                 </a>
-                <form method="post" action="{{ path('app_activity_delete', {id: activity.id}) }}" onsubmit="return confirm('{{ 'activity.confirm_delete'|trans|default('Are you sure you want to delete this activity?') }}');">
+                <form method="post" action="{{ path('app_activity_delete', {id: activity.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'activity.confirm_delete'|trans|default('Are you sure you want to delete this activity?') }}', {variant: 'danger'})">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ activity.id) }}">
                     <button type="submit" class="rams-btn rams-btn--danger">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

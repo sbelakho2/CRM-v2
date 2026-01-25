@@ -3,7 +3,7 @@
 {% block title %}{{ 'profile.my_profile'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
+<div class="rams-stack rams-gap-6">
     {# Header Module #}
     <div class="rams-module">
         <div class="rams-module__header">
@@ -35,41 +35,41 @@
         </div>
     {% endfor %}
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="rams-grid rams-grid--2">
         {# User Information Module #}
         <div class="rams-module">
             <div class="rams-module__header">
                 <h2 class="rams-module__title">{{ 'profile.account_info'|trans|default('Account Information') }}</h2>
             </div>
-            <div class="rams-module__content p-6">
-                <div class="space-y-4">
+            <div class="rams-module__content rams-p-6">
+                <div class="rams-stack rams-gap-4">
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'user.full_name'|trans|default('Full Name') }}</label>
-                        <p class="rams-dymo text-lg">{{ user.fullName }}</p>
+                        <p class="rams-dymo rams-text-lg">{{ user.fullName }}</p>
                     </div>
 
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'common.email'|trans }}</label>
-                        <p class="rams-dymo text-lg">{{ user.email }}</p>
+                        <p class="rams-dymo rams-text-lg">{{ user.email }}</p>
                     </div>
 
                     {% if user.role %}
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'user.role'|trans|default('Role') }}</label>
-                        <p class="rams-dymo text-lg">{{ user.role }}</p>
+                        <p class="rams-dymo rams-text-lg">{{ user.role }}</p>
                     </div>
                     {% endif %}
 
                     {% if user.territory %}
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'user.territory'|trans|default('Territory') }}</label>
-                        <p class="rams-dymo text-lg">{{ user.territory }}</p>
+                        <p class="rams-dymo rams-text-lg">{{ user.territory }}</p>
                     </div>
                     {% endif %}
 
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'user.roles'|trans|default('Roles') }}</label>
-                        <div class="flex flex-wrap gap-2">
+                        <div class="rams-flex rams-flex-wrap rams-gap-2">
                             {% for role in user.roles %}
                                 <span class="rams-badge rams-badge--info">
                                     {{ role|replace({'ROLE_': ''}) }}
@@ -93,8 +93,8 @@
             <div class="rams-module__header">
                 <h2 class="rams-module__title">{{ 'profile.change_password'|trans }}</h2>
             </div>
-            <div class="rams-module__content p-6">
-                {{ form_start(form, {'attr': {'class': 'space-y-4'}}) }}
+            <div class="rams-module__content rams-p-6">
+                {{ form_start(form, {'attr': {'class': 'rams-stack rams-gap-4'}}) }}
                     <div class="rams-form__group">
                         {{ form_label(form.currentPassword, 'profile.current_password'|trans|default('Current Password'), {'label_attr': {'class': 'rams-form__label'}}) }}
                         {{ form_widget(form.currentPassword, {'attr': {'class': 'rams-form__input'}}) }}
@@ -113,7 +113,7 @@
                         {{ form_errors(form.newPassword.second) }}
                     </div>
 
-                    <div class="rams-module__footer flex justify-end">
+                    <div class="rams-module__footer rams-flex rams-justify-end">
                         <button type="submit" class="rams-btn rams-btn--primary">
                             {{ 'profile.update_password'|trans|default('Update Password') }}
                         </button>

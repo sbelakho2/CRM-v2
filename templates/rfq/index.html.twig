@@ -12,13 +12,13 @@
         </div>
         <div class="rams-btn-group">
             <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-btn--secondary">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
                 </svg>
                 {{ 'rfq.actions.pipeline_view'|trans }}
             </a>
             <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 {{ 'rfq.actions.new'|trans }}
@@ -97,14 +97,14 @@
                                     {# Type Badge #}
                                     {% if rfq.type == 'NPI' %}
                                         <span class="rams-badge rams-badge--npi">
-                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="mr-1">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                                                 <path d="M8 2L9.5 6.5L14 8L9.5 9.5L8 14L6.5 9.5L2 8L6.5 6.5L8 2Z"/>
                                             </svg>
                                             {{ 'rfq.type.npi'|trans }}
                                         </span>
                                     {% elseif rfq.type == 'Framework Agreement' %}
                                         <span class="rams-badge rams-badge--framework">
-                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                 <rect x="3" y="3" width="10" height="10" rx="1"/>
                                             </svg>
                                             {{ 'rfq.type.framework'|trans }}
@@ -161,21 +161,21 @@
                                 <div class="rams-rfq-card__nda">
                                     {% if rfq.ndaExecuted %}
                                         <span class="rams-badge rams-badge--success rams-badge--small">
-                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 8L6 11L13 4"/>
                                             </svg>
                                             {{ 'rfq.nda.executed'|trans }}
                                         </span>
                                     {% elseif rfq.ndaSent %}
                                         <span class="rams-badge rams-badge--warning rams-badge--small">
-                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
                                             </svg>
                                             {{ 'rfq.nda.sent'|trans }} ({{ rfq.ndaDate|date('d/m/Y') }})
                                         </span>
                                     {% else %}
                                         <span class="rams-badge rams-badge--small">
-                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                            <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                 <circle cx="8" cy="8" r="6"/>
                                                 <path d="M8 5V8"/>
                                                 <circle cx="8" cy="11" r="0.5" fill="currentColor"/>

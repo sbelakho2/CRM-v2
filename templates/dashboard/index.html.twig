@@ -36,7 +36,7 @@
                 </div>
                 <div class="rams-mt-3">
                     <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ 'common.total'|trans }}: ${{ (kpis.target_pipeline / 1000000)|number_format(1) }}M</span>
+                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: ${{ (kpis.target_pipeline / 1000000)|number_format(1) }}M</span>
                         <span class="rams-badge rams-badge--info">{{ pipeline_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
@@ -61,7 +61,7 @@
                 </div>
                 <div class="rams-mt-3">
                     <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ 'common.total'|trans }}: {{ kpis.target_rfqs }}</span>
+                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ kpis.target_rfqs }}</span>
                         <span class="rams-badge rams-badge--success">{{ rfq_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
@@ -86,7 +86,7 @@
                 </div>
                 <div class="rams-mt-3">
                     <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ 'common.total'|trans }}: {{ kpis.target_npis }}</span>
+                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ kpis.target_npis }}</span>
                         <span class="rams-badge rams-badge--primary">{{ npi_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
@@ -111,7 +111,7 @@
                 </div>
                 <div class="rams-mt-3">
                     <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ 'common.total'|trans }}: {{ kpis.target_frameworks }}</span>
+                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ kpis.target_frameworks }}</span>
                         <span class="rams-badge rams-badge--warning">{{ framework_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
@@ -224,11 +224,11 @@
                                 <span class="rams-andon__light rams-andon__light--off"></span>
                             {% endif %}
                         </span>
-                        <div style="flex: 1; min-width: 0;">
-                            <p style="font-size: var(--text-sm); font-weight: 500;">{{ activity.type }}</p>
-                            <p class="rams-text-muted" style="font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ activity.company.name }}</p>
+                        <div class="rams-flex-1">
+                            <p class="rams-text-sm rams-font-medium">{{ activity.type }}</p>
+                            <p class="rams-text-muted rams-text-xs rams-truncate">{{ activity.company.name }}</p>
                         </div>
-                        <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ activity.activityDate|date('M d') }}</span>
+                        <span class="rams-text-muted rams-text-xs">{{ activity.activityDate|date('M d') }}</span>
                     </div>
                     {% else %}
                     <div class="rams-flex rams-justify-center rams-p-6">
@@ -242,16 +242,20 @@
 </div>
 
 <script>
-{# Industrial-inspired chart styling #}
+{# Industrial-inspired chart styling using CSS custom properties for consistency #}
+const computedStyle = getComputedStyle(document.documentElement);
 const ramsColors = {
-    orange: '#FFBE00',
-    green: '#2D8C3C',
-    red: '#D62D2D',
-    steel: '#4A90E2',
-    foreground: '#1A1A1A',
-    muted: '#999999',
-    panel: '#D9D9D9',
-    line: '#CCCCCC'
+    orange: computedStyle.getPropertyValue('--rams-orange').trim() || '#FFBE00',
+    green: computedStyle.getPropertyValue('--rams-green').trim() || '#2D8C3C',
+    red: computedStyle.getPropertyValue('--rams-red').trim() || '#D62D2D',
+    steel: computedStyle.getPropertyValue('--rams-steel').trim() || '#4A90E2',
+    foreground: computedStyle.getPropertyValue('--rams-foreground').trim() || '#1A1A1A',
+    muted: computedStyle.getPropertyValue('--rams-muted').trim() || '#999999',
+    panel: computedStyle.getPropertyValue('--rams-panel').trim() || '#D9D9D9',
+    line: computedStyle.getPropertyValue('--rams-border').trim() || '#CCCCCC',
+    {# Chart-specific colors using new CSS variables #}
+    chartPurple: computedStyle.getPropertyValue('--rams-chart-purple').trim() || '#8B5CF6',
+    chartEmerald: computedStyle.getPropertyValue('--rams-chart-emerald').trim() || '#22C55E'
 };
 
 Chart.defaults.font.family = "'JetBrains Mono', 'SF Mono', 'Consolas', monospace";
@@ -317,9 +321,9 @@ new Chart(pipelineCtx, {
                 ramsColors.steel,
                 ramsColors.green,
                 ramsColors.orange,
-                '#8B5CF6',
+                ramsColors.chartPurple,
                 ramsColors.red,
-                '#22C55E'
+                ramsColors.chartEmerald
             ],
             borderWidth: 0,
             hoverOffset: 4

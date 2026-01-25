@@ -349,6 +349,12 @@
         {% block encore_script %}{% endblock %}
     {% endblock %}
     
+    {# Modal Components #}
+    {% if not isAuthPage %}
+        {% include 'components/confirm_modal.html.twig' ignore missing %}
+        {% include 'components/alert_modal.html.twig' ignore missing %}
+    {% endif %}
+    
     {# System Clock Script #}
     <script>
     (function() {

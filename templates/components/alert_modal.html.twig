@@ -1,0 +1,228 @@
+{# 
+    Sensei-Rams Alert Modal Component
+    
+    Usage: Include this component once in base.html.twig
+    Then call: ramsAlert(message, options)
+    
+    Options:
+    - title: string (default: based on variant)
+    - buttonText: string (default: 'OK')
+    - variant: 'info' | 'success' | 'warning' | 'error' (default: 'info')
+    - onClose: function (optional callback when closed)
+    
+    Examples:
+    ramsAlert('Operation completed successfully!', {variant: 'success'});
+    ramsAlert('Something went wrong', {variant: 'error', title: 'Error'});
+    ramsAlert('Please check your input', {variant: 'warning', onClose: () => console.log('closed')});
+#}
+
+{# Alert Modal Backdrop #}
+<div class="rams-modal-backdrop rams-hidden" id="rams-alert-modal" role="alertdialog" aria-modal="true" aria-labelledby="rams-alert-title" aria-describedby="rams-alert-message">
+    <div class="rams-modal rams-modal--sm">
+        <div class="rams-module">
+            <div class="rams-module__header" id="rams-alert-header">
+                <h3 class="rams-module__title" id="rams-alert-title">
+                    <span id="rams-alert-icon" class="rams-module__title-icon">ℹ️</span>
+                    <span id="rams-alert-title-text">{{ 'common.information'|trans|default('Information') }}</span>
+                </h3>
+                <button type="button" class="rams-btn rams-btn--ghost rams-btn--icon" onclick="ramsAlertClose()" aria-label="{{ 'common.close'|trans }}">
+                    <svg class="rams-icon--md" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="rams-module__content">
+                <p id="rams-alert-message" class="rams-text--muted">{{ 'common.alert_default_message'|trans|default('Please note this information.') }}</p>
+            </div>
+            <div class="rams-module__footer rams-flex rams-justify-end">
+                <button type="button" id="rams-alert-btn" class="rams-btn rams-btn--primary" onclick="ramsAlertClose()">
+                    {{ 'common.ok'|trans|default('OK') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Alert Modal Variant Styles */
+.rams-alert-modal--info .rams-module__header {
+    border-bottom-color: var(--rams-steel);
+}
+
+.rams-alert-modal--success .rams-module__header {
+    border-bottom-color: var(--rams-green);
+}
+
+.rams-alert-modal--warning .rams-module__header {
+    border-bottom-color: var(--rams-orange);
+}
+
+.rams-alert-modal--error .rams-module__header {
+    border-bottom-color: var(--rams-red);
+}
+
+/* Header accent bar */
+.rams-alert-modal--info #rams-alert-header {
+    background: linear-gradient(to right, var(--rams-info-bg), transparent);
+}
+
+.rams-alert-modal--success #rams-alert-header {
+    background: linear-gradient(to right, var(--rams-success-bg), transparent);
+}
+
+.rams-alert-modal--warning #rams-alert-header {
+    background: linear-gradient(to right, var(--rams-warning-bg), transparent);
+}
+
+.rams-alert-modal--error #rams-alert-header {
+    background: linear-gradient(to right, var(--rams-danger-bg), transparent);
+}
+
+/* Button variants */
+.rams-alert-modal--info #rams-alert-btn {
+    background: var(--rams-steel);
+    border-color: var(--rams-steel);
+    color: #fff;
+}
+
+.rams-alert-modal--success #rams-alert-btn {
+    background: var(--rams-green);
+    border-color: var(--rams-green);
+    color: #fff;
+}
+
+.rams-alert-modal--warning #rams-alert-btn {
+    background: var(--rams-orange);
+    border-color: var(--rams-orange);
+    color: var(--rams-foreground);
+}
+
+.rams-alert-modal--error #rams-alert-btn {
+    background: var(--rams-red);
+    border-color: var(--rams-red);
+    color: #fff;
+}
+</style>
+
+<script>
+/**
+ * Sensei-Rams Alert Modal
+ * Replaces native browser alert() dialogs with styled modal
+ */
+(function() {
+    let closeCallback = null;
+    
+    /**
+     * Default titles for each variant
+     */
+    const defaultTitles = {
+        info: '{{ 'common.information'|trans|default('Information') }}',
+        success: '{{ 'common.success'|trans|default('Success') }}',
+        warning: '{{ 'common.warning'|trans|default('Warning') }}',
+        error: '{{ 'common.error'|trans|default('Error') }}'
+    };
+    
+    /**
+     * Icons for each variant
+     */
+    const variantIcons = {
+        info: 'ℹ️',
+        success: '✅',
+        warning: '⚠️',
+        error: '❌'
+    };
+    
+    /**
+     * Show alert modal
+     * @param {string} message - The alert message
+     * @param {Object} options - Optional configuration
+     */
+    window.ramsAlert = function(message, options = {}) {
+        const modal = document.getElementById('rams-alert-modal');
+        const titleText = document.getElementById('rams-alert-title-text');
+        const messageEl = document.getElementById('rams-alert-message');
+        const alertBtn = document.getElementById('rams-alert-btn');
+        const iconEl = document.getElementById('rams-alert-icon');
+        
+        // Determine variant (default to info)
+        const variant = options.variant || 'info';
+        
+        // Set content
+        messageEl.textContent = message;
+        titleText.textContent = options.title || defaultTitles[variant] || defaultTitles.info;
+        alertBtn.textContent = options.buttonText || '{{ 'common.ok'|trans|default('OK') }}';
+        iconEl.textContent = variantIcons[variant] || variantIcons.info;
+        
+        // Set variant class
+        modal.classList.remove(
+            'rams-alert-modal--info',
+            'rams-alert-modal--success',
+            'rams-alert-modal--warning',
+            'rams-alert-modal--error'
+        );
+        modal.classList.add('rams-alert-modal--' + variant);
+        
+        // Store callback
+        closeCallback = options.onClose || null;
+        
+        // Show modal
+        modal.classList.remove('rams-hidden');
+        alertBtn.focus();
+        
+        // Handle escape key
+        document.addEventListener('keydown', handleAlertKeydown);
+        
+        // Return a promise for async usage
+        return new Promise((resolve) => {
+            const originalCallback = closeCallback;
+            closeCallback = function() {
+                if (originalCallback) originalCallback();
+                resolve();
+            };
+        });
+    };
+    
+    /**
+     * Close alert modal
+     */
+    window.ramsAlertClose = function() {
+        const modal = document.getElementById('rams-alert-modal');
+        modal.classList.add('rams-hidden');
+        document.removeEventListener('keydown', handleAlertKeydown);
+        
+        if (closeCallback) {
+            closeCallback();
+            closeCallback = null;
+        }
+    };
+    
+    /**
+     * Handle keyboard events in modal
+     */
+    function handleAlertKeydown(e) {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+            e.preventDefault();
+            ramsAlertClose();
+        }
+    }
+    
+    /**
+     * Convenience methods for each variant
+     */
+    window.ramsAlertInfo = function(message, options = {}) {
+        return ramsAlert(message, { ...options, variant: 'info' });
+    };
+    
+    window.ramsAlertSuccess = function(message, options = {}) {
+        return ramsAlert(message, { ...options, variant: 'success' });
+    };
+    
+    window.ramsAlertWarning = function(message, options = {}) {
+        return ramsAlert(message, { ...options, variant: 'warning' });
+    };
+    
+    window.ramsAlertError = function(message, options = {}) {
+        return ramsAlert(message, { ...options, variant: 'error' });
+    };
+})();
+</script>

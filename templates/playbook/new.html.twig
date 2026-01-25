@@ -17,7 +17,7 @@
         <p class="rams-page-subtitle">{{ 'playbook.subtitle'|trans }}</p>
     </div>
 
-    <div class="rams-module" style="max-width: 1000px;">
+    <div class="rams-module rams-module--wide">
         <div class="rams-module__header">
             <h2 class="rams-module__title">{{ 'playbook.configuration'|trans }}</h2>
         </div>
@@ -110,7 +110,8 @@ function addTriggerRule(existingRule = null) {
     const rule = existingRule || { field: '', operator: '', value: '' };
     
     const ruleDiv = document.createElement('div');
-    ruleDiv.className = 'flex gap-2 items-center bg-neutral-50 p-3 rounded-lg';
+    ruleDiv.className = 'rams-flex rams-gap-2 rams-items-center rams-p-3 rams-bg-panel';
+    ruleDiv.style.borderRadius = 'var(--radius-sm)';
     ruleDiv.id = `trigger-${ruleId}`;
     
     let fieldOptions = availableTriggers.map(t => 
@@ -118,11 +119,11 @@ function addTriggerRule(existingRule = null) {
     ).join('');
     
     ruleDiv.innerHTML = `
-        <select class="rams-form__select flex-1" onchange="updateTriggerField(${ruleId}, 'field', this.value)">
+        <select class="rams-form__select rams-flex-1" onchange="updateTriggerField(${ruleId}, 'field', this.value)">
             <option value="">Select field...</option>
             ${fieldOptions}
         </select>
-        <select class="rams-form__select flex-1" onchange="updateTriggerField(${ruleId}, 'operator', this.value)">
+        <select class="rams-form__select rams-flex-1" onchange="updateTriggerField(${ruleId}, 'operator', this.value)">
             <option value="==" ${rule.operator === '==' ? 'selected' : ''}>equals</option>
             <option value="!=" ${rule.operator === '!=' ? 'selected' : ''}>not equals</option>
             <option value=">" ${rule.operator === '>' ? 'selected' : ''}>greater than</option>
@@ -131,7 +132,7 @@ function addTriggerRule(existingRule = null) {
             <option value="<=" ${rule.operator === '<=' ? 'selected' : ''}>less or equal</option>
             <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>contains</option>
         </select>
-        <input type="text" class="rams-form__input flex-1" placeholder="Value" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
+        <input type="text" class="rams-form__input rams-flex-1" placeholder="Value" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
         <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
     `;
     
@@ -164,7 +165,8 @@ function addAction(existingAction = null) {
     const action = existingAction || { type: '', params: {} };
     
     const actionDiv = document.createElement('div');
-    actionDiv.className = 'bg-neutral-50 p-4 rounded-lg';
+    actionDiv.className = 'rams-p-4 rams-bg-panel';
+    actionDiv.style.borderRadius = 'var(--radius-sm)';
     actionDiv.id = `action-${actionId}`;
     
     let actionOptions = availableActions.map(a => 
@@ -172,14 +174,14 @@ function addAction(existingAction = null) {
     ).join('');
     
     actionDiv.innerHTML = `
-        <div class="flex gap-2 items-center mb-3">
-            <select class="rams-form__select flex-1" onchange="updateActionType(${actionId}, this.value)">
+        <div class="rams-flex rams-gap-2 rams-items-center rams-mb-3">
+            <select class="rams-form__select rams-flex-1" onchange="updateActionType(${actionId}, this.value)">
                 <option value="">Select action...</option>
                 ${actionOptions}
             </select>
             <button type="button" onclick="removeAction(${actionId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
         </div>
-        <div id="action-params-${actionId}" class="space-y-2"></div>
+        <div id="action-params-${actionId}" class="rams-stack rams-gap-2"></div>
     `;
     
     document.getElementById('actions-list').appendChild(actionDiv);

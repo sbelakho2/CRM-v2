@@ -40,7 +40,7 @@
                     </div>
                 </form>
 
-                <div id="expansion-results" class="rams-results hidden">
+                <div id="expansion-results" class="rams-results rams-hidden">
                     <h3 class="rams-results__title">{{ 'webcrawler.expanded_keywords'|trans }}</h3>
                     <div id="keywords-list" class="rams-keyword-cloud"></div>
                     
@@ -98,7 +98,7 @@ document.getElementById('expansion-form').addEventListener('submit', async funct
         const data = await response.json();
         
         if (data.success) {
-            resultsDiv.classList.remove('hidden');
+            resultsDiv.classList.remove('rams-hidden');
             keywordsList.innerHTML = data.keywords.map(kw => 
                 `<span class="rams-keyword-tag">${kw}</span>`
             ).join('');
@@ -107,7 +107,7 @@ document.getElementById('expansion-form').addEventListener('submit', async funct
             window.expandedKeywords = data.keywords;
         }
     } catch (error) {
-        alert('{{ 'common.error'|trans }}: ' + error.message);
+        ramsAlert('{{ 'common.error'|trans }}: ' + error.message, {variant: 'error'});
     }
 });
 

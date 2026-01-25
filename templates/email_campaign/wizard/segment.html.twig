@@ -86,7 +86,7 @@
                             </div>
 
                             {# Segment Selection Grid #}
-                            <div id="segmentSelector" class="rams-segment-grid" style="{{ (campaign.segmentId is null) ? 'display: none;' : '' }}">
+                            <div id="segmentSelector" class="rams-segment-grid {{ (campaign.segmentId is null) ? 'rams-hidden' : '' }}">
                                 {% for segment in segments %}
                                     <label class="rams-segment-card">
                                         <input type="radio" name="segment_id" value="{{ segment.id }}" {{ (campaign.segmentId == segment.id) ? 'checked' : '' }}>
@@ -186,7 +186,14 @@
 <script>
 document.querySelectorAll('input[name="segment_type"]').forEach(radio => {
     radio.addEventListener('change', function() {
-        document.getElementById('segmentSelector').style.display = this.value === 'segment' ? 'grid' : 'none';
+        const selector = document.getElementById('segmentSelector');
+        if (this.value === 'segment') {
+            selector.classList.remove('rams-hidden');
+            selector.style.display = 'grid';
+        } else {
+            selector.classList.add('rams-hidden');
+            selector.style.display = '';
+        }
     });
 });
 </script>

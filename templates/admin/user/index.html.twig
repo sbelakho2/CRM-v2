@@ -101,10 +101,9 @@
                         <td class="rams-table__cell">
                             <div class="rams-btn-group">
                                 <a href="{{ path('admin_user_edit', {id: user.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</a>
-                                <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" style="display:inline">
+                                <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'admin.users.delete_confirm'|trans }}', {variant: 'danger'})">
                                     <input type="hidden" name="_token" value="{{ csrf_token('delete_user' ~ user.id) }}">
                                     <button type="submit" 
-                                            onclick="return confirm('{{ 'admin.users.delete_confirm'|trans }}')" 
                                             class="rams-btn rams-btn--danger-outline rams-btn--sm">
                                         {{ 'common.delete'|trans }}
                                     </button>

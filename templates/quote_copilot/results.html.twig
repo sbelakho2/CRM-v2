@@ -213,24 +213,24 @@ async function initiatePublish(quoteId) {
         const data = await response.json();
         
         if (!data.success) {
-            alert('{{ 'quote.copilot.error_loading_contacts'|trans|default('Error loading contacts') }}: ' + data.message);
+            ramsAlert('{{ 'quote.copilot.error_loading_contacts'|trans|default('Error loading contacts') }}: ' + data.message, {variant: 'error'});
             return;
         }
         
         if (data.count === 0) {
-            alert('{{ 'quote.copilot.no_contacts'|trans|default('No contacts with email addresses found for this company. Please add a contact first.') }}');
+            ramsAlert('{{ 'quote.copilot.no_contacts'|trans|default('No contacts with email addresses found for this company. Please add a contact first.') }}', {variant: 'warning'});
             return;
         }
         
         if (data.count === 1) {
-            if (confirm(`{{ 'quote.copilot.send_to'|trans|default('Send quote to') }} ${data.contacts[0].name} (${data.contacts[0].email})?`)) {
+            ramsConfirm(`{{ 'quote.copilot.send_to'|trans|default('Send quote to') }} ${data.contacts[0].name} (${data.contacts[0].email})?`, function() {
                 publishQuote(quoteId, data.contacts[0].id);
-            }
+            });
         } else {
             showContactModal(data.contacts);
         }
     } catch (error) {
-        alert('{{ 'quote.copilot.error_loading_contacts'|trans|default('Error loading contacts') }}');
+        ramsAlert('{{ 'quote.copilot.error_loading_contacts'|trans|default('Error loading contacts') }}', {variant: 'error'});
         console.error(error);
     }
 }
@@ -265,10 +265,10 @@ function selectContact(contactId, contactName, contactEmail) {
     const unescapeName = contactName.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
     const unescapeEmail = contactEmail.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
     
-    if (confirm(`{{ 'quote.copilot.send_to'|trans|default('Send quote to') }} ${unescapeName} (${unescapeEmail})?`)) {
+    ramsConfirm(`{{ 'quote.copilot.send_to'|trans|default('Send quote to') }} ${unescapeName} (${unescapeEmail})?`, function() {
         closeContactModal();
         publishQuote(currentQuoteId, contactId);
-    }
+    });
 }
 
 async function publishQuote(quoteId, contactId) {
@@ -284,13 +284,12 @@ async function publishQuote(quoteId, contactId) {
         const data = await response.json();
         
         if (data.success) {
-            alert('{{ 'quote.copilot.publish_success'|trans|default('Quote published successfully!') }}');
-            window.location.reload();
+            ramsAlert('{{ 'quote.copilot.publish_success'|trans|default('Quote published successfully!') }}', {variant: 'success', onClose: function() { window.location.reload(); }});
         } else {
-            alert('{{ 'common.error'|trans }}: ' + data.message);
+            ramsAlert('{{ 'common.error'|trans }}: ' + data.message, {variant: 'error'});
         }
     } catch (error) {
-        alert('{{ 'quote.copilot.publish_error'|trans|default('Error publishing quote') }}');
+        ramsAlert('{{ 'quote.copilot.publish_error'|trans|default('Error publishing quote') }}', {variant: 'error'});
         console.error(error);
     }
 }

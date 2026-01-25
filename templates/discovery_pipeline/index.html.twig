@@ -13,8 +13,8 @@
             </div>
             
             {# Export Dropdown #}
-            <div class="relative inline-block" x-data="{ open: false }">
-                <button @click="open = !open" class="rams-btn rams-btn--primary">
+            <div class="rams-dropdown-container" id="export-dropdown">
+                <button type="button" onclick="toggleExportDropdown()" class="rams-btn rams-btn--primary" aria-expanded="false" aria-haspopup="true">
                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
@@ -23,11 +23,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
-                <div x-show="open" @click.away="open = false" 
-                     x-transition:enter="transition ease-out duration-100"
-                     x-transition:enter-start="transform opacity-0 scale-95"
-                     x-transition:enter-end="transform opacity-100 scale-100"
-                     class="rams-dropdown">
+                <div class="rams-dropdown rams-hidden" id="export-dropdown-menu">
                     <div class="rams-dropdown__content">
                         <p class="rams-dropdown__header">{{ 'discovery_pipeline.export_options'|trans|default('Export Options') }}</p>
                         <a href="{{ path('export_leads') }}" class="rams-dropdown__item">
@@ -93,7 +89,7 @@
     </div>
     
     {# Real-time Progress Bar #}
-    <div id="progress-container" class="hidden">
+    <div id="progress-container" class="rams-hidden">
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-module__header">
@@ -172,7 +168,7 @@
                 </form>
                 
                 {# Results #}
-                <div id="pipeline-results" class="hidden">
+                <div id="pipeline-results" class="rams-hidden">
                     <h3 class="rams-dymo">{{ 'discovery_pipeline.results'|trans|default('Results') }}</h3>
                     <div id="results-content" class="rams-module rams-module--muted"></div>
                 </div>
@@ -206,7 +202,7 @@
                     </button>
                 </form>
                 
-                <div id="enrich-results" class="hidden">
+                <div id="enrich-results" class="rams-hidden">
                     <div class="rams-alert rams-alert--success"></div>
                 </div>
             </div>
@@ -214,19 +210,19 @@
     </div>
 
     {# Preview Results Table #}
-    <div id="preview-table-container" class="mt-8 hidden">
+    <div id="preview-table-container" class="rams-mt-8 rams-hidden">
         <div class="rams-module">
             <div class="rams-module__header">
                 <h3 class="rams-module__title">{{ 'discovery_pipeline.search_preview'|trans|default('Search Preview') }}</h3>
             </div>
-            <div class="rams-module__content overflow-x-auto">
-                <table class="rams-table w-full">
+            <div class="rams-module__content rams-overflow-x-auto">
+                <table class="rams-table rams-w-full">
                     <thead class="rams-table__header">
                         <tr>
                             <th class="rams-table__cell">{{ 'company.title_singular'|trans|default('Company') }}</th>
                             <th class="rams-table__cell">{{ 'company.website'|trans|default('Website') }}</th>
                             <th class="rams-table__cell">{{ 'common.description'|trans }}</th>
-                            <th class="rams-table__cell text-center">{{ 'common.status'|trans }}</th>
+                            <th class="rams-table__cell rams-text-center">{{ 'common.status'|trans }}</th>
                         </tr>
                     </thead>
                     <tbody id="preview-table-body">
@@ -244,6 +240,37 @@
 let progressInterval = null;
 let isPolling = false;
 
+// Export Dropdown Toggle (vanilla JS replacement for Alpine.js)
+function toggleExportDropdown() {
+    const menu = document.getElementById('export-dropdown-menu');
+    const btn = document.querySelector('#export-dropdown button');
+    const isOpen = !menu.classList.contains('rams-hidden');
+    
+    if (isOpen) {
+        closeExportDropdown();
+    } else {
+        menu.classList.remove('rams-hidden');
+        btn.setAttribute('aria-expanded', 'true');
+        // Close when clicking outside
+        document.addEventListener('click', handleExportDropdownOutsideClick);
+    }
+}
+
+function closeExportDropdown() {
+    const menu = document.getElementById('export-dropdown-menu');
+    const btn = document.querySelector('#export-dropdown button');
+    menu.classList.add('rams-hidden');
+    btn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', handleExportDropdownOutsideClick);
+}
+
+function handleExportDropdownOutsideClick(e) {
+    const dropdown = document.getElementById('export-dropdown');
+    if (!dropdown.contains(e.target)) {
+        closeExportDropdown();
+    }
+}
+
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `rams-alert ${type === 'success' ? 'rams-alert--success' : 'rams-alert--error'} rams-alert--toast`;
@@ -257,7 +284,7 @@ function startProgressPolling() {
     if (isPolling) return;
     isPolling = true;
     
-    document.getElementById('progress-container').classList.remove('hidden');
+    document.getElementById('progress-container').classList.remove('rams-hidden');
     
     // Poll every 3 seconds
     progressInterval = setInterval(async () => {
@@ -282,14 +309,14 @@ function startProgressPolling() {
             // Update status text
             if (data.recently_scraped > 0) {
                 progressStatus.textContent = `Processing (${data.recently_scraped} active)...`;
-                progressStatus.className = 'text-sm text-green-600 font-medium';
+                progressStatus.className = 'rams-text--sm rams-text--success';
             } else if (data.pending_enrichment === 0) {
                 progressStatus.textContent = 'Complete ✓';
-                progressStatus.className = 'text-sm text-green-600 font-medium';
+                progressStatus.className = 'rams-text--sm rams-text--success';
                 stopProgressPolling();
             } else {
                 progressStatus.textContent = 'Idle - Waiting for queue';
-                progressStatus.className = 'text-sm text-gray-500';
+                progressStatus.className = 'rams-text--sm rams-text--muted';
             }
             
         } catch (e) {
@@ -340,12 +367,12 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
         
         const resultsDiv = document.getElementById('pipeline-results');
         const contentDiv = document.getElementById('results-content');
-        resultsDiv.classList.remove('hidden');
+        resultsDiv.classList.remove('rams-hidden');
         
         if (result.success) {
             contentDiv.innerHTML = `
-                <div class="text-green-600 font-medium mb-2">✓ ${result.message}</div>
-                <div class="grid grid-cols-2 gap-2 text-gray-600">
+                <div class="rams-text--success rams-mb-2" style="font-weight: 500;">✓ ${result.message}</div>
+                <div class="rams-grid rams-grid--2 rams-gap-2 rams-text--muted">
                     <div>Searched: ${result.stats.searched}</div>
                     <div>Imported: ${result.stats.imported}</div>
                     <div>Duplicates: ${result.stats.duplicates}</div>
@@ -359,7 +386,7 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
                 startProgressPolling();
             }
         } else {
-            contentDiv.innerHTML = `<div class="text-red-600">Error: ${result.error}</div>`;
+            contentDiv.innerHTML = `<div class="rams-text--danger">Error: ${result.error}</div>`;
             showToast(result.error, 'error');
         }
     } catch (e) {
@@ -416,7 +443,7 @@ document.getElementById('preview-btn').addEventListener('click', async () => {
                 </tr>
             `).join('');
             
-            container.classList.remove('hidden');
+            container.classList.remove('rams-hidden');
             showToast(`Found ${result.total} results (${result.new_leads} new, ${result.duplicates} duplicates)`);
         } else {
             showToast(result.error, 'error');
@@ -451,7 +478,7 @@ document.getElementById('enrich-form').addEventListener('submit', async (e) => {
         const result = await response.json();
         
         const resultsDiv = document.getElementById('enrich-results');
-        resultsDiv.classList.remove('hidden');
+        resultsDiv.classList.remove('rams-hidden');
         resultsDiv.querySelector('div').textContent = result.success 
             ? `✓ ${result.message}` 
             : `Error: ${result.error}`;

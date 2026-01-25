@@ -118,7 +118,7 @@ function dismissGuidanceNotification(button) {
 }
 
 function clearAllGuidanceNotifications() {
-    if (confirm('{{ 'guidance.clear_confirm'|trans }}')) {
+    ramsConfirm('{{ 'guidance.clear_confirm'|trans }}', function() {
         fetch('{{ path('guidance_dismiss_all') }}', {
             method: 'POST'
         }).then(response => {
@@ -126,7 +126,7 @@ function clearAllGuidanceNotifications() {
                 location.reload();
             }
         });
-    }
+    }, {title: '{{ 'guidance.clear_all'|trans|default('Clear All') }}', variant: 'warning'});
 }
 </script>
 {% endblock %}

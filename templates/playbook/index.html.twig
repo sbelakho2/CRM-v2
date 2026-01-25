@@ -52,7 +52,7 @@
                                 class="toggle-btn rams-badge {% if playbook.isActive %}rams-badge--success{% else %}rams-badge--neutral{% endif %}"
                                 data-playbook-id="{{ playbook.id }}"
                             >
-                                <span class="status-text">{% if playbook.isActive %}{{ 'playbook.active'|trans }}{% else %}{{ 'playbook.inactive'|trans }}{% endif %}</span>
+                                <span class="rams-status-text">{% if playbook.isActive %}{{ 'playbook.active'|trans }}{% else %}{{ 'playbook.inactive'|trans }}{% endif %}</span>
                             </button>
                         </td>
                         <td class="rams-table__cell">
@@ -78,7 +78,7 @@
                             <div class="rams-btn-group">
                                 <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.view'|trans }}</a>
                                 <a href="{{ path('app_playbook_edit', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.edit'|trans }}</a>
-                                <form action="{{ path('app_playbook_delete', {id: playbook.id}) }}" method="post" class="inline" onsubmit="return confirm('{{ 'playbook.delete_confirm'|trans }}')">
+                                <form action="{{ path('app_playbook_delete', {id: playbook.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'playbook.delete_confirm'|trans }}', {variant: 'danger'})">
                                     <button type="submit" class="rams-btn rams-btn--danger rams-btn--ghost">{{ 'common.delete'|trans }}</button>
                                 </form>
                             </div>
@@ -131,7 +131,7 @@
 <script>
 async function togglePlaybook(id) {
     const btn = document.querySelector(`[data-playbook-id="${id}"]`);
-    const statusText = btn.querySelector('.status-text');
+    const statusText = btn.querySelector('.rams-status-text');
     
     try {
         const response = await fetch(`/playbooks/${id}/toggle`, {

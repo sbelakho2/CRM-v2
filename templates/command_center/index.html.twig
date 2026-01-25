@@ -25,37 +25,37 @@
     <div class="rams-grid rams-grid--6" style="grid-template-columns: repeat(6, 1fr);">
         <div class="rams-module">
             <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value" style="font-size: var(--text-2xl);">{{ data.key_metrics.leads_this_week }}</span>
+                <span class="rams-metric__value rams-text-2xl">{{ data.key_metrics.leads_this_week }}</span>
                 <span class="rams-dymo rams-mt-2">{{ 'lead.title'|trans }} {{ 'dashboard.this_week'|trans }}</span>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value rams-text-success" style="font-size: var(--text-2xl);">{{ data.key_metrics.lead_conversion_rate }}%</span>
+                <span class="rams-metric__value rams-text-success rams-text-2xl">{{ data.key_metrics.lead_conversion_rate }}%</span>
                 <span class="rams-dymo rams-dymo--success rams-mt-2">{{ 'dashboard.conversion_rate'|trans }}</span>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value" style="font-size: var(--text-2xl);">{{ data.key_metrics.quotes_this_week }}</span>
+                <span class="rams-metric__value rams-text-2xl">{{ data.key_metrics.quotes_this_week }}</span>
                 <span class="rams-dymo rams-mt-2">{{ 'quote.title'|trans }} {{ 'dashboard.this_week'|trans }}</span>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value rams-text-warning" style="font-size: var(--text-2xl);">{{ data.key_metrics.quote_win_rate }}%</span>
+                <span class="rams-metric__value rams-text-warning rams-text-2xl">{{ data.key_metrics.quote_win_rate }}%</span>
                 <span class="rams-dymo rams-dymo--warning rams-mt-2">{{ 'dashboard.win_rate'|trans }}</span>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value" style="font-size: var(--text-2xl);">${{ (data.key_metrics.avg_quote_value / 1000)|number_format(1) }}k</span>
+                <span class="rams-metric__value rams-text-2xl">${{ (data.key_metrics.avg_quote_value / 1000)|number_format(1) }}k</span>
                 <span class="rams-dymo rams-mt-2">{{ 'common.value'|trans|upper }}</span>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value {% if data.supply_alerts.summary.critical > 0 %}rams-text-danger{% endif %}" style="font-size: var(--text-2xl);">{{ data.supply_alerts.summary.total_alerts }}</span>
+                <span class="rams-metric__value {% if data.supply_alerts.summary.critical > 0 %}rams-text-danger{% endif %} rams-text-2xl">{{ data.supply_alerts.summary.total_alerts }}</span>
                 <span class="rams-dymo {% if data.supply_alerts.summary.critical > 0 %}rams-dymo--critical{% endif %} rams-mt-2">{{ 'command_center.alerts'|trans }}</span>
             </div>
         </div>
@@ -73,20 +73,20 @@
                 <div class="rams-grid rams-grid--3 rams-mb-4">
                     <div class="rams-module rams-module--inset">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value" style="font-size: var(--text-xl);">{{ data.lead_inflow.summary.today }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'dashboard.today'|trans }}</span>
+                            <span class="rams-metric__value rams-text-xl">{{ data.lead_inflow.summary.today }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'dashboard.today'|trans }}</span>
                         </div>
                     </div>
                     <div class="rams-module rams-module--inset">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value" style="font-size: var(--text-xl);">{{ data.lead_inflow.summary.this_week }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'dashboard.this_week'|trans }}</span>
+                            <span class="rams-metric__value rams-text-xl">{{ data.lead_inflow.summary.this_week }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'dashboard.this_week'|trans }}</span>
                         </div>
                     </div>
                     <div class="rams-module rams-module--inset">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-danger" style="font-size: var(--text-xl);">{{ data.lead_inflow.summary.high_priority_count }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'rfq.priorities.high'|trans }}</span>
+                            <span class="rams-metric__value rams-text-danger rams-text-xl">{{ data.lead_inflow.summary.high_priority_count }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'rfq.priorities.high'|trans }}</span>
                         </div>
                     </div>
                 </div>
@@ -100,11 +100,11 @@
                     {% if data.lead_inflow.high_priority_leads|length > 0 %}
                         <div class="rams-flex rams-flex-col rams-gap-2">
                             {% for lead in data.lead_inflow.high_priority_leads|slice(0, 5) %}
-                                <a href="{{ path('app_lead_show', {id: lead.id}) }}" class="rams-flex rams-justify-between rams-items-center rams-p-2" style="border: 1px solid var(--rams-line); border-radius: var(--radius-sm);">
+                                <a href="{{ path('app_lead_show', {id: lead.id}) }} rams-flex rams-justify-between rams-items-center rams-p-2 rams-bordered">
                                     <div>
-                                        <strong style="font-size: var(--text-sm);">{{ lead.company_name }}</strong>
+                                        <strong class="rams-text-sm">{{ lead.company_name }}</strong>
                                         <div class="rams-flex rams-gap-2 rams-mt-1">
-                                            <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ lead.region }}</span>
+                                            <span class="rams-text-muted rams-text-xs">{{ lead.region }}</span>
                                             {% if lead.defense_flag %}
                                                 <span class="rams-badge rams-badge--danger">Defense</span>
                                             {% endif %}
@@ -128,7 +128,7 @@
                             <svg style="width: 32px; height: 32px; opacity: 0.5;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                             </svg>
-                            <p class="rams-mt-2" style="font-size: var(--text-sm);">{{ 'lead.no_leads'|trans }}</p>
+                            <p class="rams-mt-2 rams-text-sm">{{ 'lead.no_leads'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -142,7 +142,7 @@
                     <div class="rams-flex rams-flex-col rams-gap-1">
                         {% for region, count in data.lead_inflow.by_region %}
                             <div class="rams-flex rams-justify-between">
-                                <span class="rams-text-muted" style="font-size: var(--text-sm);">{{ region|default('common.unknown'|trans) }}</span>
+                                <span class="rams-text-muted rams-text-sm">{{ region|default('common.unknown'|trans) }}</span>
                                 <span class="rams-badge">{{ count }}</span>
                             </div>
                         {% endfor %}
@@ -162,20 +162,20 @@
                 <div class="rams-grid rams-grid--3 rams-mb-4">
                     <div class="rams-module rams-module--inset">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-warning" style="font-size: var(--text-xl);">{{ data.quotes_status.summary.pending_approval }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'common.pending'|trans }}</span>
+                            <span class="rams-metric__value rams-text-warning rams-text-xl">{{ data.quotes_status.summary.pending_approval }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'common.pending'|trans }}</span>
                         </div>
                     </div>
                     <div class="rams-module rams-module--inset">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value" style="font-size: var(--text-xl);">{{ data.quotes_status.summary.active_interactive }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'common.active'|trans }}</span>
+                            <span class="rams-metric__value rams-text-xl">{{ data.quotes_status.summary.active_interactive }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'common.active'|trans }}</span>
                         </div>
                     </div>
                     <div class="rams-module rams-module--inset">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-success" style="font-size: var(--text-xl);">{{ data.quotes_status.summary.high_value_count }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'common.value'|trans|upper }}</span>
+                            <span class="rams-metric__value rams-text-success rams-text-xl">{{ data.quotes_status.summary.high_value_count }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'common.value'|trans|upper }}</span>
                         </div>
                     </div>
                 </div>
@@ -189,14 +189,14 @@
                     {% if data.quotes_status.active_interactive|length > 0 %}
                         <div class="rams-flex rams-flex-col rams-gap-2">
                             {% for quote in data.quotes_status.active_interactive|slice(0, 4) %}
-                                <a href="{{ path('app_quote_copilot_results', {id: quote.id}) }}" class="rams-flex rams-justify-between rams-items-center rams-p-2" style="border: 1px solid var(--rams-line); border-radius: var(--radius-sm);">
+                                <a href="{{ path('app_quote_copilot_results', {id: quote.id}) }} rams-flex rams-justify-between rams-items-center rams-p-2" style="border: 1px solid var(--rams-line); border-radius: var(--radius-sm);">
                                     <div>
-                                        <strong style="font-size: var(--text-sm);">{{ quote.quote_number }}</strong>
-                                        <p class="rams-text-muted" style="font-size: var(--text-xs);">{{ quote.company }}</p>
+                                        <strong class="rams-text-sm">{{ quote.quote_number }}</strong>
+                                        <p class="rams-text-muted rams-text-xs">{{ quote.company }}</p>
                                     </div>
                                     <div class="rams-flex rams-flex-col rams-items-end">
                                         <span class="rams-badge rams-badge--info">{{ quote.view_count }} {{ 'common.view'|trans|lower }}s</span>
-                                        <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ quote.last_viewed }}</span>
+                                        <span class="rams-text-muted rams-text-xs">{{ quote.last_viewed }}</span>
                                     </div>
                                 </a>
                             {% endfor %}
@@ -206,7 +206,7 @@
                             <svg style="width: 32px; height: 32px; opacity: 0.5;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
                             </svg>
-                            <p class="rams-mt-2" style="font-size: var(--text-sm);">{{ 'table.no_data'|trans }}</p>
+                            <p class="rams-mt-2 rams-text-sm">{{ 'table.no_data'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -220,8 +220,8 @@
                     {% for quote in data.quotes_status.high_value_quotes|slice(0, 3) %}
                         <div class="rams-flex rams-justify-between rams-mb-2">
                             <div>
-                                <a href="{{ path('app_quote_copilot_results', {id: quote.id}) }}" style="font-size: var(--text-sm); font-weight: 500;">{{ quote.quote_number }}</a>
-                                <p class="rams-text-muted" style="font-size: var(--text-xs);">{{ quote.company }}</p>
+                                <a href="{{ path('app_quote_copilot_results', {id: quote.id}) }}" class="rams-text-sm rams-font-medium">{{ quote.quote_number }}</a>
+                                <p class="rams-text-muted rams-text-xs">{{ quote.company }}</p>
                             </div>
                             <div class="rams-flex rams-flex-col rams-items-end">
                                 <strong>${{ (quote.total_cost / 1000)|number_format(1) }}k</strong>
@@ -231,7 +231,7 @@
                             </div>
                         </div>
                     {% else %}
-                        <p class="rams-text-muted" style="font-size: var(--text-sm);">{{ 'table.no_data'|trans }}</p>
+                        <p class="rams-text-muted rams-text-sm">{{ 'table.no_data'|trans }}</p>
                     {% endfor %}
                 </div>
             </div>
@@ -250,20 +250,20 @@
                 <div class="rams-grid rams-grid--3 rams-mb-4">
                     <div class="rams-module rams-module--inset" style="{% if data.supply_alerts.summary.critical > 0 %}border-color: var(--rams-red);{% endif %}">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-danger" style="font-size: var(--text-xl);">{{ data.supply_alerts.summary.critical }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'rfq.priorities.urgent'|trans }}</span>
+                            <span class="rams-metric__value rams-text-danger rams-text-xl">{{ data.supply_alerts.summary.critical }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'rfq.priorities.urgent'|trans }}</span>
                         </div>
                     </div>
                     <div class="rams-module rams-module--inset" style="border-color: var(--rams-orange);">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-warning" style="font-size: var(--text-xl);">{{ data.supply_alerts.summary.warning }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'common.warning'|trans }}</span>
+                            <span class="rams-metric__value rams-text-warning rams-text-xl">{{ data.supply_alerts.summary.warning }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'common.warning'|trans }}</span>
                         </div>
                     </div>
                     <div class="rams-module rams-module--inset">
                         <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value" style="font-size: var(--text-xl);">{{ data.supply_alerts.summary.total_alerts }}</span>
-                            <span class="rams-text-muted" style="font-size: var(--text-2xs);">{{ 'common.total'|trans }}</span>
+                            <span class="rams-metric__value rams-text-xl">{{ data.supply_alerts.summary.total_alerts }}</span>
+                            <span class="rams-text-muted rams-text-2xs">{{ 'common.total'|trans }}</span>
                         </div>
                     </div>
                 </div>
@@ -282,7 +282,7 @@
                                         <span class="rams-badge {% if alert.severity == 'critical' %}rams-badge--danger{% else %}rams-badge--warning{% endif %} rams-mb-1">
                                             {{ alert.type|replace({'_': ' '})|title }}
                                         </span>
-                                        <p style="font-size: var(--text-xs);">{{ alert.message }}</p>
+                                        <p class="rams-text-xs">{{ alert.message }}</p>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -293,7 +293,7 @@
                                 <span class="rams-andon__light rams-andon__light--green"></span>
                                 <span class="rams-andon__text rams-andon__text--green">{{ 'status_bar.operational'|trans }}</span>
                             </span>
-                            <p class="rams-text-muted rams-mt-2" style="font-size: var(--text-sm);">{{ 'command_center.supply_alerts'|trans }} - {{ 'common.none'|trans }}</p>
+                            <p class="rams-text-muted rams-mt-2 rams-text-sm">{{ 'command_center.supply_alerts'|trans }} - {{ 'common.none'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -305,7 +305,7 @@
     <div class="rams-module">
         <div class="rams-module__header">
             <span class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</span>
-            <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
+            <a href="{{ path('app_activity_index') }} rams-btn rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
         </div>
         <div class="rams-module__content">
             <div class="rams-grid rams-grid--4">
@@ -314,9 +314,9 @@
                         <span class="rams-badge {% if activity.type == 'CALL' %}rams-badge--info{% elseif activity.type == 'EMAIL' %}rams-badge--info{% elseif activity.type == 'MEETING' %}rams-badge--success{% else %}rams-badge{% endif %}">
                             {{ activity.type }}
                         </span>
-                        <div style="flex: 1; min-width: 0;">
-                            <strong style="font-size: var(--text-sm); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ activity.company_name|default('—') }}</strong>
-                            <span class="rams-text-muted" style="font-size: var(--text-xs); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ activity.subject|slice(0, 30) }}...</span>
+                        <div class="rams-flex-1">
+                            <strong class="rams-text-sm rams-block rams-truncate">{{ activity.company_name|default('—') }}</strong>
+                            <span class="rams-text-muted rams-text-xs rams-block rams-truncate">{{ activity.subject|slice(0, 30) }}...</span>
                         </div>
                     </div>
                 {% endfor %}
@@ -326,11 +326,11 @@
 </div>
 
 {# Lead Analysis Modal #}
-<div class="rams-modal-backdrop" id="leadAnalysisModal" style="display: none;">
-    <div class="rams-modal" style="max-width: 600px;">
+<div class="rams-modal-backdrop rams-hidden" id="leadAnalysisModal">
+    <div class="rams-modal rams-modal--lg">
         <div class="rams-module__header">
             <span class="rams-module__title">{{ 'guidance.title'|trans }}</span>
-            <button type="button" class="rams-btn rams-btn--ghost rams-btn--sm" onclick="closeLeadModal()">×</button>
+            <button type="button rams-btn rams-btn--ghost rams-btn--sm" onclick="closeLeadModal()">×</button>
         </div>
         <div class="rams-module__content" id="leadAnalysisContent">
             <div class="rams-flex rams-flex-col rams-items-center rams-p-6">
@@ -352,7 +352,7 @@
 
 <script>
 function analyzeLeadQuick(leadId) {
-    document.getElementById('leadAnalysisModal').style.display = 'flex';
+    document.getElementById('leadAnalysisModal').classList.remove('rams-hidden');
     document.getElementById('leadAnalysisContent').innerHTML = `
         <div class="rams-flex rams-flex-col rams-items-center rams-p-6">
             <div class="rams-andon">
@@ -367,7 +367,7 @@ function analyzeLeadQuick(leadId) {
         .then(data => {
             let html = `
                 <div class="rams-mb-4">
-                    <h5 style="font-size: var(--text-lg); font-weight: 600;">${data.company_name}</h5>
+                    <h5 class="rams-text-lg rams-font-semibold">${data.company_name}</h5>
                     <div class="rams-flex rams-gap-2 rams-mt-2">
                         <span class="rams-badge ${data.fit_grade === 'A' ? 'rams-badge--success' : data.fit_grade === 'B' ? 'rams-badge--info' : data.fit_grade === 'C' ? 'rams-badge--warning' : ''}">
                             {{ 'lead.score'|trans }}: ${data.fit_grade}
@@ -402,7 +402,7 @@ function analyzeLeadQuick(leadId) {
                 html += `</ol></div>`;
             }
             
-            html += `<div class="rams-mt-4"><a href="/lead/${leadId}" class="rams-btn rams-btn--primary">{{ 'common.view'|trans }} {{ 'common.details'|trans }}</a></div>`;
+            html += `<div class="rams-mt-4"><a href="/lead/${leadId} rams-btn rams-btn--primary">{{ 'common.view'|trans }} {{ 'common.details'|trans }}</a></div>`;
             
             document.getElementById('leadAnalysisContent').innerHTML = html;
         })
@@ -414,7 +414,7 @@ function analyzeLeadQuick(leadId) {
 }
 
 function closeLeadModal() {
-    document.getElementById('leadAnalysisModal').style.display = 'none';
+    document.getElementById('leadAnalysisModal').classList.add('rams-hidden');
 }
 
 document.getElementById('leadAnalysisModal').addEventListener('click', function(e) {

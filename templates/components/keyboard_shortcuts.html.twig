@@ -109,7 +109,7 @@ class KeyboardShortcuts {
     showHelp() {
         const modal = document.getElementById('shortcuts-help-modal');
         if (modal) {
-            modal.classList.remove('hidden');
+            modal.classList.remove('rams-hidden');
             console.log('[Shortcuts] {{ 'shortcuts.help_opened'|trans|default('Help modal opened') }}');
         }
     }

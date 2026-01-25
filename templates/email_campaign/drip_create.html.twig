@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const sequence = buildSequence();
         if (sequence.length < 2) {
             e.preventDefault();
-            alert('{{ 'email_campaign.drip.min_touches_error'|trans|default('Please add at least 2 email touches') }}');
+            ramsAlert('{{ 'email_campaign.drip.min_touches_error'|trans|default('Please add at least 2 email touches') }}', {variant: 'warning'});
             return;
         }
         document.getElementById('sequenceInput').value = JSON.stringify(sequence);

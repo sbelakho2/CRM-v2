@@ -76,13 +76,13 @@
                 </form>
 
                 <!-- Results -->
-                <div id="discovery-results" class="rams-results hidden">
+                <div id="discovery-results" class="rams-results rams-hidden">
                     <h3 class="rams-results__title">{{ 'webcrawler.results'|trans }}</h3>
                     <div id="results-content"></div>
                 </div>
 
                 <!-- Loading -->
-                <div id="discovery-loading" class="rams-loading hidden">
+                <div id="discovery-loading" class="rams-loading rams-hidden">
                     <div class="rams-loading__spinner"></div>
                     <p class="rams-loading__message">{{ 'webcrawler.discovering'|trans|default('Discovering companies... This may take a few minutes.') }}</p>
                 </div>
@@ -161,8 +161,8 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
     const resultsContent = document.getElementById('results-content');
     
     // Show loading
-    resultsDiv.classList.add('hidden');
-    loadingDiv.classList.remove('hidden');
+    resultsDiv.classList.add('rams-hidden');
+    loadingDiv.classList.remove('rams-hidden');
     
     try {
         const response = await fetch('{{ path('app_webcrawler_discover') }}', {
@@ -173,11 +173,11 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
         const data = await response.json();
         
         // Hide loading
-        loadingDiv.classList.add('hidden');
+        loadingDiv.classList.add('rams-hidden');
         
         if (data.success) {
             // Show results
-            resultsDiv.classList.remove('hidden');
+            resultsDiv.classList.remove('rams-hidden');
             resultsContent.innerHTML = `
                 <div class="rams-alert rams-alert--success">
                     <p class="rams-alert__title">${data.message}</p>
@@ -196,7 +196,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
                 ` : ''}
             `;
         } else {
-            resultsDiv.classList.remove('hidden');
+            resultsDiv.classList.remove('rams-hidden');
             resultsContent.innerHTML = `
                 <div class="rams-alert rams-alert--danger">
                     <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
@@ -205,8 +205,8 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
             `;
         }
     } catch (error) {
-        loadingDiv.classList.add('hidden');
-        resultsDiv.classList.remove('hidden');
+        loadingDiv.classList.add('rams-hidden');
+        resultsDiv.classList.remove('rams-hidden');
         resultsContent.innerHTML = `
             <div class="rams-alert rams-alert--danger">
                 <p class="rams-alert__title">{{ 'common.error'|trans }}</p>

@@ -102,7 +102,7 @@
                     </div>
 
                     {# Schedule Details #}
-                    <div class="rams-module" id="scheduleDetails" style="{{ campaign.scheduledAt is null ? 'display: none;' : '' }}">
+                    <div class="rams-module {{ campaign.scheduledAt is null ? 'rams-hidden' : '' }}" id="scheduleDetails">
                         <div class="rams-module__header">
                             <h2 class="rams-module__title">{{ 'email_campaign.wizard.schedule.details'|trans|default('Schedule Details') }}</h2>
                         </div>
@@ -222,7 +222,12 @@
 <script>
 document.querySelectorAll('input[name="send_type"]').forEach(radio => {
     radio.addEventListener('change', function() {
-        document.getElementById('scheduleDetails').style.display = this.value === 'scheduled' ? 'block' : 'none';
+        const details = document.getElementById('scheduleDetails');
+        if (this.value === 'scheduled') {
+            details.classList.remove('rams-hidden');
+        } else {
+            details.classList.add('rams-hidden');
+        }
     });
 });
 </script>

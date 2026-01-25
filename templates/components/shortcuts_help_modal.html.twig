@@ -1,7 +1,7 @@
 {# Keyboard Shortcuts Help Modal - Sensei-Rams Industrial Design #}
 
-<div id="shortcuts-help-modal" class="rams-modal-backdrop hidden">
-    <div class="rams-modal-backdrop__overlay" onclick="document.getElementById('shortcuts-help-modal').classList.add('hidden')"></div>
+<div id="shortcuts-help-modal" class="rams-modal-backdrop rams-hidden">
+    <div class="rams-modal-backdrop__overlay" onclick="document.getElementById('shortcuts-help-modal').classList.add('rams-hidden')"></div>
     
     <div class="rams-module rams-shortcuts-modal">
         {# Modal Header #}
@@ -10,7 +10,7 @@
             <button 
                 type="button"
                 class="rams-btn rams-btn--ghost rams-shortcuts-modal__close"
-                onclick="document.getElementById('shortcuts-help-modal').classList.add('hidden')"
+                onclick="document.getElementById('shortcuts-help-modal').classList.add('rams-hidden')"
                 aria-label="{{ 'common.close'|trans }}"
             >
                 <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,7 +96,7 @@
         padding: 20px;
     }
 
-    .rams-modal-backdrop.hidden {
+    .rams-modal-backdrop.rams-hidden {
         display: none;
     }
 
@@ -233,8 +233,8 @@
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             const modal = document.getElementById('shortcuts-help-modal');
-            if (modal && !modal.classList.contains('hidden')) {
-                modal.classList.add('hidden');
+            if (modal && !modal.classList.contains('rams-hidden')) {
+                modal.classList.add('rams-hidden');
             }
         }
     });
