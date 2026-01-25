@@ -5,18 +5,24 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
 class SecurityController extends AbstractController
 {
+    public function __construct(
+        private LoggerInterface $logger
+    ) {}
+
     #[Route('/login', name: 'app_login')]
     public function login(AuthenticationUtils $authenticationUtils): Response
     {
@@ -49,10 +55,35 @@ class SecurityController extends AbstractController
         Request $request,
         UserRepository $userRepository,
         EntityManagerInterface $entityManager,
-        MailerInterface $mailer
+        MailerInterface $mailer,
+        RateLimiterFactory $passwordResetLimiter,
+        RateLimiterFactory $passwordResetIpLimiter
     ): Response {
         if ($request->isMethod('POST')) {
             $email = $request->request->get('email');
+            $clientIp = $request->getClientIp() ?? 'unknown';
+            
+            // Rate limit by email address (prevents spamming a single target)
+            $emailLimiter = $passwordResetLimiter->create('password_reset_' . md5($email));
+            if (!$emailLimiter->consume()->isAccepted()) {
+                $this->logger->warning('Password reset rate limit exceeded for email', [
+                    'email' => $email,
+                    'ip' => $clientIp
+                ]);
+                $this->addFlash('error', 'Too many password reset requests. Please try again later.');
+                return $this->redirectToRoute('app_forgot_password');
+            }
+            
+            // Rate limit by IP address (prevents mass enumeration attacks)
+            $ipLimiter = $passwordResetIpLimiter->create('password_reset_ip_' . $clientIp);
+            if (!$ipLimiter->consume()->isAccepted()) {
+                $this->logger->warning('Password reset IP rate limit exceeded', [
+                    'ip' => $clientIp
+                ]);
+                $this->addFlash('error', 'Too many password reset requests from your location. Please try again later.');
+                return $this->redirectToRoute('app_forgot_password');
+            }
+            
             $user = $userRepository->findOneBy(['email' => $email]);
 
             // Always show success message for security (don't reveal if email exists)
@@ -85,10 +116,23 @@ class SecurityController extends AbstractController
 
                 try {
                     $mailer->send($emailMessage);
+                    $this->logger->info('Password reset email sent', [
+                        'user_id' => $user->getId(),
+                        'ip' => $clientIp
+                    ]);
                 } catch (\Exception $e) {
                     // Log error but don't reveal to user
-                    $this->container->get('logger')->error('Failed to send password reset email: ' . $e->getMessage());
+                    $this->logger->error('Failed to send password reset email', [
+                        'user_id' => $user->getId(),
+                        'error' => $e->getMessage()
+                    ]);
                 }
+            } else {
+                // Log attempted reset for non-existent email (potential enumeration)
+                $this->logger->info('Password reset attempted for non-existent email', [
+                    'email' => $email,
+                    'ip' => $clientIp
+                ]);
             }
 
             return $this->redirectToRoute('app_login');

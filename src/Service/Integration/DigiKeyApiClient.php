@@ -59,17 +59,23 @@ class DigiKeyApiClient
 
                 $part = $response->toArray();
                 
+                $pricingData = $this->parsePricing($part['StandardPricing'] ?? []);
+                
                 return [
                     'mpn' => $part['ManufacturerPartNumber'] ?? $partNumber,
                     'manufacturer' => $part['Manufacturer']['Name'] ?? null,
                     'description' => $part['ProductDescription'] ?? null,
                     'datasheet' => $part['DatasheetUrl'] ?? null,
-                    'pricing' => $this->parsePricing($part['StandardPricing'] ?? []),
+                    'pricing' => $pricingData['breaks'],
                     'stock' => (int) ($part['QuantityAvailable'] ?? 0),
                     'leadtime_days' => $this->parseLeadTime($part['ManufacturerLeadWeeks'] ?? 0),
                     'digikey_part_number' => $part['DigiKeyPartNumber'] ?? null,
                     'lifecycle' => $part['ProductStatus'] ?? null,
                     'category' => $part['Category']['Name'] ?? null,
+                    // MOQ and packaging info
+                    'moq' => (int) ($part['MinimumOrderQuantity'] ?? $pricingData['moq']),
+                    'pack_quantity' => $pricingData['pack_quantity'],
+                    'multiple_quantity' => (int) ($part['QuantityOnOrder'] ?? null) ?: $pricingData['multiple_quantity'],
                 ];
                 
             } catch (\Exception $e) {
@@ -118,19 +124,72 @@ class DigiKeyApiClient
         });
     }
 
+    /**
+     * Parse pricing with MOQ detection
+     * 
+     * @return array{breaks: array, moq: int, pack_quantity: int|null, multiple_quantity: int|null}
+     */
     private function parsePricing(array $pricing): array
     {
         $result = [];
+        $quantities = [];
         
         foreach ($pricing as $tier) {
+            $qty = (int) ($tier['BreakQuantity'] ?? 0);
+            $quantities[] = $qty;
+            
             $result[] = [
-                'quantity' => (int) ($tier['BreakQuantity'] ?? 0),
+                'quantity' => $qty,
                 'price' => (float) ($tier['UnitPrice'] ?? 0),
                 'currency' => 'USD'
             ];
         }
         
-        return $result;
+        // MOQ from first break
+        $moq = !empty($quantities) ? min($quantities) : 1;
+        
+        // Detect pack quantity from increments
+        $packQuantity = null;
+        $multipleQuantity = null;
+        
+        if (count($quantities) >= 2) {
+            sort($quantities);
+            $diffs = [];
+            for ($i = 1; $i < count($quantities); $i++) {
+                $diff = $quantities[$i] - $quantities[$i - 1];
+                if ($diff > 0) {
+                    $diffs[] = $diff;
+                }
+            }
+            
+            if (!empty($diffs)) {
+                $gcd = array_reduce($diffs, fn($a, $b) => $this->gcd($a, $b), $diffs[0]);
+                if ($gcd > 1 && $moq % $gcd === 0) {
+                    $packQuantity = $gcd;
+                    $multipleQuantity = $gcd;
+                }
+            }
+        }
+        
+        return [
+            'breaks' => $result,
+            'moq' => $moq,
+            'pack_quantity' => $packQuantity,
+            'multiple_quantity' => $multipleQuantity,
+        ];
+    }
+    
+    /**
+     * Calculate Greatest Common Divisor
+     */
+    private function gcd(int $a, int $b): int
+    {
+        while ($b !== 0) {
+            $t = $b;
+            $b = $a % $b;
+            $a = $t;
+        }
+        return $a;
     }
 
     private function parseLeadTime(int $weeks): int

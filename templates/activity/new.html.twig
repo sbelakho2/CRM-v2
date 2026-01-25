@@ -117,69 +117,71 @@ select.form-select {
 document.addEventListener('DOMContentLoaded', function() {
     const companySelect = document.getElementById('activity_company');
     const contactSelect = document.getElementById('activity_contact');
+    const contactSearchUrl = '{{ contactSearchUrl }}';
+    const initialContactData = {{ initialContactData|raw }};
     
     if (!companySelect || !contactSelect) {
         return;
     }
     
-    // Get all contacts data from the server (pre-loaded, no API call needed)
-    const contactsData = {{ contactsData|raw }};
+    // Debounce function to limit API calls
+    let searchTimeout = null;
     
-    // Store all original contact options from the form
-    const allContactOptions = Array.from(contactSelect.options);
-    
-    // Function to filter contacts by company
-    function filterContacts() {
-        const selectedCompanyId = companySelect.value;
-        
-        // Clear current options
-        contactSelect.innerHTML = '';
-        
-        // Add placeholder
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = 'Select contact (optional)';
-        contactSelect.appendChild(placeholder);
-        
-        if (!selectedCompanyId) {
-            // No company selected - show all contacts
-            allContactOptions.forEach(option => {
-                if (option.value) { // Skip the placeholder
-                    contactSelect.appendChild(option.cloneNode(true));
-                }
-            });
-            return;
+    // Function to load contacts via AJAX
+    async function loadContacts(companyId = null) {
+        const url = new URL(contactSearchUrl, window.location.origin);
+        if (companyId) {
+            url.searchParams.set('company', companyId);
         }
+        url.searchParams.set('limit', '50');
         
-        // Filter contacts by company ID (client-side, instant!)
-        const filteredContacts = contactsData.filter(contact => 
-            contact.companyId == selectedCompanyId
-        );
-        
-        // Add filtered contacts to dropdown
-        filteredContacts.forEach(contact => {
-            const option = document.createElement('option');
-            option.value = contact.id;
-            option.textContent = `${contact.firstName} ${contact.lastName}`;
-            contactSelect.appendChild(option);
-        });
-        
-        // If no contacts found, show a message
-        if (filteredContacts.length === 0) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'No contacts for this company';
-            option.disabled = true;
-            contactSelect.appendChild(option);
+        try {
+            const response = await fetch(url);
+            const contacts = await response.json();
+            
+            // Clear current options
+            contactSelect.innerHTML = '';
+            
+            // Add placeholder
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select contact (optional)';
+            contactSelect.appendChild(placeholder);
+            
+            // Add contacts
+            contacts.forEach(contact => {
+                const option = document.createElement('option');
+                option.value = contact.id;
+                option.textContent = `${contact.firstName} ${contact.lastName}`;
+                if (initialContactData && contact.id === initialContactData.id) {
+                    option.selected = true;
+                }
+                contactSelect.appendChild(option);
+            });
+            
+            // If no contacts found
+            if (contacts.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = companyId ? 'No contacts for this company' : 'No contacts found';
+                option.disabled = true;
+                contactSelect.appendChild(option);
+            }
+        } catch (error) {
+            console.error('Failed to load contacts:', error);
         }
     }
     
     // Listen for company selection changes
-    companySelect.addEventListener('change', filterContacts);
+    companySelect.addEventListener('change', function() {
+        loadContacts(this.value || null);
+    });
     
-    // Initial filter on page load if company is pre-selected
+    // Initial load - either filtered by pre-selected company or first 50 contacts
     if (companySelect.value) {
-        filterContacts();
+        loadContacts(companySelect.value);
+    } else {
+        loadContacts(null);
     }
 });
 </script>

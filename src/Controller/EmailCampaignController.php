@@ -205,8 +205,22 @@ class EmailCampaignController extends AbstractController
     public function send(Request $request, EmailCampaign $campaign): Response
     {
         if ($request->isMethod('POST')) {
-            $contactIds = $request->request->all('contacts');
-            $touchNumber = (int) $request->request->get('touch_number', 1);
+            // CSRF validation for mass email send
+            $csrfToken = $request->request->get('_token');
+            if (!$this->isCsrfTokenValid('campaign_send' . $campaign->getId(), $csrfToken)) {
+                throw $this->createAccessDeniedException('Invalid CSRF token');
+            }
+
+            // Handle both form-encoded and JSON payloads
+            $contentType = $request->headers->get('Content-Type', '');
+            if (str_contains($contentType, 'application/json')) {
+                $data = json_decode($request->getContent(), true) ?? [];
+                $contactIds = $data['contacts'] ?? [];
+                $touchNumber = (int) ($data['touch_number'] ?? 1);
+            } else {
+                $contactIds = $request->request->all('contacts');
+                $touchNumber = (int) $request->request->get('touch_number', 1);
+            }
 
             if (empty($contactIds)) {
                 $this->addFlash('error', 'Please select at least one contact.');

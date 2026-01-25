@@ -10,6 +10,7 @@ use App\Repository\ContactRepository;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -24,6 +25,57 @@ class ActivityController extends AbstractController
         private EntityManagerInterface $entityManager,
         private GuidanceNotificationService $guidanceService
     ) {}
+
+    /**
+     * AJAX endpoint for contact autocomplete search
+     * Prevents OOM by loading only matching contacts instead of the entire database
+     */
+    #[Route('/api/contacts/search', name: 'app_activity_contacts_search', methods: ['GET'])]
+    public function searchContacts(Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+        
+        $query = trim($request->query->get('q', ''));
+        $companyId = $request->query->get('company');
+        $limit = min(50, max(1, (int) $request->query->get('limit', 25)));
+        
+        $qb = $this->contactRepository->createQueryBuilder('c')
+            ->leftJoin('c.company', 'co')
+            ->select('c.id', 'c.firstName', 'c.lastName', 'c.email', 'IDENTITY(c.company) as companyId', 'co.name as companyName')
+            ->setMaxResults($limit);
+        
+        // Filter by company if provided
+        if ($companyId) {
+            $qb->andWhere('c.company = :companyId')
+               ->setParameter('companyId', $companyId);
+        }
+        
+        // Search by name or email if query provided
+        if (strlen($query) >= 2) {
+            $qb->andWhere('c.firstName LIKE :query OR c.lastName LIKE :query OR c.email LIKE :query')
+               ->setParameter('query', '%' . $query . '%');
+        }
+        
+        $qb->orderBy('c.lastName', 'ASC')
+           ->addOrderBy('c.firstName', 'ASC');
+        
+        $results = $qb->getQuery()->getResult();
+        
+        $contacts = [];
+        foreach ($results as $row) {
+            $contacts[] = [
+                'id' => $row['id'],
+                'firstName' => $row['firstName'],
+                'lastName' => $row['lastName'],
+                'email' => $row['email'],
+                'companyId' => $row['companyId'],
+                'companyName' => $row['companyName'],
+                'label' => trim($row['firstName'] . ' ' . $row['lastName']) . ($row['companyName'] ? ' (' . $row['companyName'] . ')' : ''),
+            ];
+        }
+        
+        return new JsonResponse($contacts);
+    }
 
     #[Route('', name: 'app_activity_index', methods: ['GET'])]
     public function index(Request $request): Response
@@ -189,22 +241,26 @@ class ActivityController extends AbstractController
             return $this->redirectToRoute('app_activity_index');
         }
 
-        // Get all contacts with their company IDs for client-side filtering
-        $contacts = $this->contactRepository->findAll();
-        $contactsData = [];
-        foreach ($contacts as $contact) {
-            $contactsData[] = [
+        // For pre-selected contact, get just that contact's data for initial display
+        // The AJAX endpoint will handle searching for additional contacts
+        $initialContactData = null;
+        if ($activity->getContact()) {
+            $contact = $activity->getContact();
+            $initialContactData = [
                 'id' => $contact->getId(),
                 'firstName' => $contact->getFirstName(),
                 'lastName' => $contact->getLastName(),
+                'email' => $contact->getEmail(),
                 'companyId' => $contact->getCompany() ? $contact->getCompany()->getId() : null,
+                'companyName' => $contact->getCompany() ? $contact->getCompany()->getName() : null,
             ];
         }
 
         return $this->render('activity/new.html.twig', [
             'activity' => $activity,
             'form' => $form,
-            'contactsData' => json_encode($contactsData),
+            'initialContactData' => $initialContactData ? json_encode($initialContactData) : 'null',
+            'contactSearchUrl' => $this->generateUrl('app_activity_contacts_search'),
         ]);
     }
 
@@ -230,22 +286,26 @@ class ActivityController extends AbstractController
             return $this->redirectToRoute('app_activity_show', ['id' => $activity->getId()]);
         }
 
-        // Get all contacts with their company IDs for client-side filtering
-        $contacts = $this->contactRepository->findAll();
-        $contactsData = [];
-        foreach ($contacts as $contact) {
-            $contactsData[] = [
+        // For the current contact, get just that contact's data for initial display
+        // The AJAX endpoint will handle searching for additional contacts
+        $initialContactData = null;
+        if ($activity->getContact()) {
+            $contact = $activity->getContact();
+            $initialContactData = [
                 'id' => $contact->getId(),
                 'firstName' => $contact->getFirstName(),
                 'lastName' => $contact->getLastName(),
+                'email' => $contact->getEmail(),
                 'companyId' => $contact->getCompany() ? $contact->getCompany()->getId() : null,
+                'companyName' => $contact->getCompany() ? $contact->getCompany()->getName() : null,
             ];
         }
 
         return $this->render('activity/edit.html.twig', [
             'activity' => $activity,
             'form' => $form,
-            'contactsData' => json_encode($contactsData),
+            'initialContactData' => $initialContactData ? json_encode($initialContactData) : 'null',
+            'contactSearchUrl' => $this->generateUrl('app_activity_contacts_search'),
         ]);
     }
 

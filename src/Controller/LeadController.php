@@ -73,8 +73,20 @@ class LeadController extends AbstractController
     }
 
     #[Route('/approve/{id}', name: 'app_lead_approve', methods: ['POST'])]
-    public function approve(Lead $lead, EntityManagerInterface $em): JsonResponse
+    public function approve(Request $request, Lead $lead, EntityManagerInterface $em): JsonResponse
     {
+        // Validate CSRF token from header or body for AJAX requests
+        $token = $request->headers->get('X-CSRF-TOKEN') 
+            ?? $request->request->get('_token')
+            ?? (json_decode($request->getContent(), true)['_token'] ?? null);
+        
+        if (!$this->isCsrfTokenValid('lead_action_' . $lead->getId(), $token)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Invalid CSRF token',
+            ], 403);
+        }
+
         $lead->setReviewStatus('approved');
         $lead->setUpdatedAt(new \DateTime());
         $em->flush();
@@ -89,7 +101,20 @@ class LeadController extends AbstractController
     #[Route('/deny/{id}', name: 'app_lead_deny', methods: ['POST'])]
     public function deny(Request $request, Lead $lead, EntityManagerInterface $em): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
+        $data = json_decode($request->getContent(), true) ?? [];
+        
+        // Validate CSRF token from header or body for AJAX requests
+        $token = $request->headers->get('X-CSRF-TOKEN') 
+            ?? $request->request->get('_token')
+            ?? ($data['_token'] ?? null);
+        
+        if (!$this->isCsrfTokenValid('lead_action_' . $lead->getId(), $token)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Invalid CSRF token',
+            ], 403);
+        }
+
         $reason = $data['reason'] ?? 'Not a good fit';
 
         $lead->setReviewStatus('denied');
@@ -105,8 +130,20 @@ class LeadController extends AbstractController
     }
 
     #[Route('/convert/{id}', name: 'app_lead_convert', methods: ['POST'])]
-    public function convert(Lead $lead, EntityManagerInterface $em): JsonResponse
+    public function convert(Request $request, Lead $lead, EntityManagerInterface $em): JsonResponse
     {
+        // Validate CSRF token from header or body for AJAX requests
+        $token = $request->headers->get('X-CSRF-TOKEN') 
+            ?? $request->request->get('_token')
+            ?? (json_decode($request->getContent(), true)['_token'] ?? null);
+        
+        if (!$this->isCsrfTokenValid('lead_action_' . $lead->getId(), $token)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Invalid CSRF token',
+            ], 403);
+        }
+
         // Check if already converted
         if ($lead->getCompany()) {
             return $this->json([
@@ -221,7 +258,20 @@ class LeadController extends AbstractController
     #[Route('/assign/{id}', name: 'app_lead_assign', methods: ['POST'])]
     public function assign(Request $request, Lead $lead, EntityManagerInterface $em): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
+        $data = json_decode($request->getContent(), true) ?? [];
+        
+        // Validate CSRF token from header or body for AJAX requests
+        $token = $request->headers->get('X-CSRF-TOKEN') 
+            ?? $request->request->get('_token')
+            ?? ($data['_token'] ?? null);
+        
+        if (!$this->isCsrfTokenValid('lead_action_' . $lead->getId(), $token)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Invalid CSRF token',
+            ], 403);
+        }
+
         $owner = $data['owner'] ?? null;
 
         if (!$owner) {

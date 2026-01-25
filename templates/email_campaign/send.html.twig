@@ -21,6 +21,7 @@
     </div>
 
     <form method="post">
+        <input type="hidden" name="_token" value="{{ csrf_token('campaign_send' ~ campaign.id) }}">
         <div class="grid grid-cols-3 gap-6">
             <!-- Contact Selection -->
             <div class="col-span-2">

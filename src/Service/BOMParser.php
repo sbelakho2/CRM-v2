@@ -3,7 +3,37 @@
 namespace App\Service;
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use Psr\Log\LoggerInterface;
+
+/**
+ * Custom read filter for memory-efficient Excel parsing
+ * Reads a chunk of rows at a time to avoid memory exhaustion
+ */
+class ChunkReadFilter implements IReadFilter
+{
+    private int $startRow = 1;
+    private int $endRow = 1;
+    
+    public function setRows(int $startRow, int $chunkSize): void
+    {
+        $this->startRow = $startRow;
+        $this->endRow = $startRow + $chunkSize - 1;
+    }
+    
+    /**
+     * @param mixed $columnAddress
+     * @param mixed $row
+     * @param string $worksheetName
+     * @return bool
+     */
+    public function readCell($columnAddress, $row, $worksheetName = ''): bool
+    {
+        // Read all columns, but only within the chunk range
+        // Row 1 is always read (headers)
+        return $row === 1 || ($row >= $this->startRow && $row <= $this->endRow);
+    }
+}
 
 /**
  * BOM Parser Service
@@ -13,9 +43,13 @@ use Psr\Log\LoggerInterface;
  * - Excel (XLSX, XLS)
  * - Altium exports
  * - KiCad exports
+ * 
+ * Uses memory-efficient chunked reading for large files.
  */
 class BOMParser
 {
+    private const EXCEL_CHUNK_SIZE = 500; // Read 500 rows at a time
+    
     public function __construct(
         private LoggerInterface $logger
     ) {}
@@ -83,39 +117,95 @@ class BOMParser
     }
 
     /**
-     * Parse Excel BOM file
+     * Parse Excel BOM file using memory-efficient chunked reading
+     * 
+     * Uses PhpSpreadsheet's read filter to process large files in chunks,
+     * preventing memory exhaustion for large BOMs (e.g., 5000+ lines).
      */
     private function parseExcel(string $filePath): array
     {
         $lines = [];
         
         try {
-            $spreadsheet = IOFactory::load($filePath);
+            // First, detect file type and get row count
+            $inputFileType = IOFactory::identify($filePath);
+            $reader = IOFactory::createReader($inputFileType);
+            
+            // Create chunk filter for memory-efficient reading
+            $chunkFilter = new ChunkReadFilter();
+            $reader->setReadFilter($chunkFilter);
+            $reader->setReadDataOnly(true); // Skip formatting for performance
+            
+            // First pass: read just the header row
+            $chunkFilter->setRows(1, 1);
+            $spreadsheet = $reader->load($filePath);
             $sheet = $spreadsheet->getActiveSheet();
             
-            $rows = $sheet->toArray();
+            // Get headers from row 1
+            $headerRow = [];
+            $highestColumn = $sheet->getHighestColumn();
+            $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
             
-            if (empty($rows)) {
-                throw new \RuntimeException("Empty BOM file");
+            for ($col = 1; $col <= $highestColumnIndex; $col++) {
+                $headerRow[] = $sheet->getCellByColumnAndRow($col, 1)->getValue();
             }
             
-            // First row is headers
-            $headers = array_shift($rows);
-            $headerMap = $this->mapHeaders($headers);
+            if (empty(array_filter($headerRow))) {
+                throw new \RuntimeException("Empty BOM file - no headers found");
+            }
             
+            $headerMap = $this->mapHeaders($headerRow);
+            
+            // Get total row count
+            $highestRow = $sheet->getHighestRow();
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+            
+            $this->logger->info('Processing Excel BOM', [
+                'file' => basename($filePath),
+                'total_rows' => $highestRow,
+                'chunk_size' => self::EXCEL_CHUNK_SIZE
+            ]);
+            
+            // Process in chunks starting from row 2 (after header)
             $lineNumber = 0;
-            foreach ($rows as $row) {
-                if (empty(array_filter($row))) {
-                    continue; // Skip empty rows
+            for ($startRow = 2; $startRow <= $highestRow; $startRow += self::EXCEL_CHUNK_SIZE) {
+                $chunkFilter->setRows($startRow, self::EXCEL_CHUNK_SIZE);
+                
+                // Reload file with new chunk filter
+                $spreadsheet = $reader->load($filePath);
+                $sheet = $spreadsheet->getActiveSheet();
+                
+                // Calculate end row for this chunk
+                $endRow = min($startRow + self::EXCEL_CHUNK_SIZE - 1, $highestRow);
+                
+                for ($rowNum = $startRow; $rowNum <= $endRow; $rowNum++) {
+                    $row = [];
+                    for ($col = 1; $col <= $highestColumnIndex; $col++) {
+                        $row[] = $sheet->getCellByColumnAndRow($col, $rowNum)->getValue();
+                    }
+                    
+                    if (empty(array_filter($row))) {
+                        continue; // Skip empty rows
+                    }
+                    
+                    $lineNumber++;
+                    $line = $this->extractLine($row, $headerMap, $lineNumber);
+                    
+                    if ($line) {
+                        $lines[] = $line;
+                    }
                 }
                 
-                $lineNumber++;
-                $line = $this->extractLine($row, $headerMap, $lineNumber);
-                
-                if ($line) {
-                    $lines[] = $line;
-                }
+                // Free memory after each chunk
+                $spreadsheet->disconnectWorksheets();
+                unset($spreadsheet);
             }
+            
+            $this->logger->info('Excel BOM parsing complete', [
+                'file' => basename($filePath),
+                'lines_parsed' => count($lines)
+            ]);
             
         } catch (\Exception $e) {
             $this->logger->error('Excel parsing failed', [

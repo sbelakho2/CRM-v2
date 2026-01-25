@@ -1,0 +1,700 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Review Quote {{ quote.quoteNumber }}{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .confidence-high { background-color: #dcfce7; border-color: #22c55e; }
+    .confidence-medium { background-color: #fef9c3; border-color: #eab308; }
+    .confidence-low { background-color: #fed7aa; border-color: #f97316; }
+    .confidence-very-low { background-color: #fecaca; border-color: #ef4444; }
+    .line-verified { opacity: 0.7; }
+    .line-needs-review { background-color: #fef3c7; }
+    
+    /* Lifecycle Warning Indicators */
+    .lifecycle-critical { 
+        background-color: #fecaca; 
+        border-left: 4px solid #dc2626; 
+    }
+    .lifecycle-warning { 
+        background-color: #fef3c3; 
+        border-left: 4px solid #f59e0b; 
+    }
+    .lifecycle-badge-critical {
+        background-color: #dc2626;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+        animation: pulse 2s infinite;
+    }
+    .lifecycle-badge-warning {
+        background-color: #f59e0b;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    /* Alternatives Dropdown */
+    .alternatives-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .alternatives-menu {
+        display: none;
+        position: absolute;
+        left: 0;
+        top: 100%;
+        z-index: 100;
+        min-width: 350px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        padding: 8px 0;
+    }
+    .alternatives-dropdown:hover .alternatives-menu {
+        display: block;
+    }
+    .alt-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f3f4f6;
+        cursor: pointer;
+        transition: background-color 0.15s;
+    }
+    .alt-item:hover {
+        background-color: #f9fafb;
+    }
+    .alt-item:last-child {
+        border-bottom: none;
+    }
+    
+    /* Search URL link */
+    .search-link {
+        color: #6366f1;
+        text-decoration: none;
+        font-size: 11px;
+    }
+    .search-link:hover {
+        text-decoration: underline;
+    }
+    
+    /* Diff highlighting for medium confidence matches */
+    .diff-match { color: #16a34a; font-weight: 500; }
+    .diff-insert { color: #dc2626; background-color: #fee2e2; padding: 0 2px; border-radius: 2px; font-weight: 600; }
+    .diff-delete { color: #dc2626; text-decoration: line-through; opacity: 0.7; }
+    .diff-container { font-family: 'Courier New', Courier, monospace; font-size: 13px; letter-spacing: 0.5px; }
+    .diff-tooltip { 
+        position: relative; 
+        cursor: help; 
+    }
+    .diff-tooltip::after {
+        content: attr(data-diff-explanation);
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        background: #1f2937;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        z-index: 100;
+    }
+    .diff-tooltip:hover::after {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-gray-50 py-6">
+    <div class="container mx-auto px-4">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="mb-6 flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-4">
+                        <a href="{{ path('quote_review_index') }}" class="text-gray-500 hover:text-gray-700">
+                            ← Back to Queue
+                        </a>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900 mt-2">Review: {{ quote.quoteNumber }}</h1>
+                    <p class="text-gray-600">{{ quote.company.name|default('No company') }} • {{ quote.createdAt|date('M j, Y g:i A') }}</p>
+                </div>
+                <div class="flex gap-3">
+                    <a href="{{ path('export_quote_bom', {id: quote.id}) }}" 
+                       class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Export CSV
+                    </a>
+                    <button id="verify-all-high-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                        ✓ Verify All High Confidence
+                    </button>
+                    <button id="approve-quote-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                        {% if not stats.ready_for_approval %}disabled{% endif %}>
+                        Approve Quote
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-xs text-gray-500 uppercase">Total Lines</div>
+                    <div class="text-2xl font-bold">{{ stats.total_lines }}</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-xs text-gray-500 uppercase">Verified</div>
+                    <div class="text-2xl font-bold text-green-600">{{ stats.verified_count }}</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-xs text-gray-500 uppercase">Needs Review</div>
+                    <div class="text-2xl font-bold text-red-600">{{ stats.requires_review_count }}</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-xs text-gray-500 uppercase">No Price</div>
+                    <div class="text-2xl font-bold text-orange-600">{{ stats.no_price_count }}</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-xs text-gray-500 uppercase">Sourced Value</div>
+                    <div class="text-2xl font-bold">${{ stats.sourced_value|number_format(2) }}</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-xs text-gray-500 uppercase">Progress</div>
+                    <div class="text-2xl font-bold">{{ stats.verification_percent }}%</div>
+                </div>
+                {# New lifecycle warning stats #}
+                <div class="bg-white rounded-lg shadow p-4 {% if stats.lifecycle_critical|default(0) > 0 %}border-2 border-red-500{% endif %}">
+                    <div class="text-xs text-gray-500 uppercase">Obsolete/EOL</div>
+                    <div class="text-2xl font-bold text-red-600">{{ stats.lifecycle_critical|default(0) }}</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 {% if stats.lifecycle_warning|default(0) > 0 %}border-2 border-yellow-500{% endif %}">
+                    <div class="text-xs text-gray-500 uppercase">NRND Parts</div>
+                    <div class="text-2xl font-bold text-yellow-600">{{ stats.lifecycle_warning|default(0) }}</div>
+                </div>
+            </div>
+
+            <!-- Confidence Legend -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="flex items-center gap-6 text-sm">
+                    <span class="font-medium">Confidence Levels:</span>
+                    <span class="px-2 py-1 rounded confidence-high border">HIGH (90-100)</span>
+                    <span class="px-2 py-1 rounded confidence-medium border">MEDIUM (70-89)</span>
+                    <span class="px-2 py-1 rounded confidence-low border">LOW (50-69)</span>
+                    <span class="px-2 py-1 rounded confidence-very-low border">VERY LOW (&lt;50)</span>
+                </div>
+            </div>
+
+            <!-- BOM Lines Table -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200" id="bom-lines-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">MPN</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matched</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Manufacturer</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
+                                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Extended</th>
+                                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Confidence</th>
+                                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for line in bomLines %}
+                                <tr id="line-{{ line.id }}" class="hover:bg-gray-50 
+                                    {% if line.lifecycleWarning == 'critical' %}lifecycle-critical{% elseif line.lifecycleWarning == 'warning' %}lifecycle-warning{% endif %}
+                                    {% if line.requiresReview and not line.manuallyVerified %}line-needs-review{% endif %}
+                                    {% if line.manuallyVerified %}line-verified{% endif %}">
+                                    <td class="px-3 py-2 text-sm text-gray-500">{{ line.lineNumber }}</td>
+                                    <td class="px-3 py-2">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {# Make MPN a clickable link to distributor search #}
+                                            {% if line.distributorSearchUrl %}
+                                                <a href="{{ line.distributorSearchUrl }}" target="_blank" 
+                                                   class="text-indigo-600 hover:text-indigo-800 hover:underline"
+                                                   title="Search on distributor site">
+                                                    {{ line.mpn|default('—') }} ↗
+                                                </a>
+                                            {% else %}
+                                                {{ line.mpn|default('—') }}
+                                            {% endif %}
+                                        </div>
+                                        {% if line.originalMpn and line.originalMpn != line.mpn %}
+                                            <div class="text-xs text-gray-500">Original: {{ line.originalMpn }}</div>
+                                        {% endif %}
+                                        {# Lifecycle badge #}
+                                        {% if line.lifecycleWarning == 'critical' %}
+                                            <span class="lifecycle-badge-critical" title="Part is obsolete or end-of-life">⚠ OBSOLETE</span>
+                                        {% elseif line.lifecycleWarning == 'warning' %}
+                                            <span class="lifecycle-badge-warning" title="Not Recommended for New Designs">NRND</span>
+                                        {% endif %}
+                                        {# Lifecycle status text #}
+                                        {% if line.lifecycleStatus %}
+                                            <div class="text-xs text-gray-500 mt-1">Status: {{ line.lifecycleStatus }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        {% if line.matchedMpn %}
+                                            {# Show diff view for medium-confidence matches where MPN differs #}
+                                            {% if line.matchedMpn != line.mpn and line.confidenceLevel == 'MEDIUM' %}
+                                                <div class="diff-container diff-tooltip" 
+                                                     data-diff-explanation="Yellow = difference from original MPN"
+                                                     data-original="{{ line.mpn|e('html_attr') }}"
+                                                     data-matched="{{ line.matchedMpn|e('html_attr') }}">
+                                                    <span class="diff-view text-orange-600"></span>
+                                                </div>
+                                            {% else %}
+                                                <div class="text-sm {% if line.matchedMpn != line.mpn %}text-orange-600{% else %}text-green-600{% endif %}">
+                                                    {{ line.matchedMpn }}
+                                                </div>
+                                            {% endif %}
+                                            {# Alternatives dropdown #}
+                                            {% if line.alternativeParts|default([])|length > 0 %}
+                                                <div class="alternatives-dropdown mt-1">
+                                                    <span class="text-xs text-indigo-600 cursor-pointer hover:underline">
+                                                        +{{ line.alternativeParts|length }} alternatives ▾
+                                                    </span>
+                                                    <div class="alternatives-menu">
+                                                        <div class="px-3 py-2 text-xs font-medium text-gray-500 border-b">
+                                                            Alternative Parts (click to select)
+                                                        </div>
+                                                        {% for alt in line.alternativeParts %}
+                                                            <div class="alt-item" onclick="selectAlternative({{ line.id }}, '{{ alt.mpn|e('js') }}', '{{ alt.source|default('mouser')|e('js') }}')">
+                                                                <div class="flex justify-between items-center">
+                                                                    <div>
+                                                                        <div class="font-medium text-sm">{{ alt.mpn }}</div>
+                                                                        <div class="text-xs text-gray-500">{{ alt.manufacturer|default('') }}</div>
+                                                                    </div>
+                                                                    <div class="text-right">
+                                                                        <div class="text-sm font-medium">${{ alt.price|default(0)|number_format(4) }}</div>
+                                                                        <div class="text-xs text-gray-500">
+                                                                            {% if alt.score is defined %}{{ alt.score }}%{% endif %}
+                                                                            {% if alt.stock is defined %}• {{ alt.stock }} in stock{% endif %}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                {% if alt.lifecycle_warning %}
+                                                                    <span class="text-xs {% if alt.lifecycle_warning == 'critical' %}text-red-600{% else %}text-yellow-600{% endif %}">
+                                                                        ⚠ {{ alt.lifecycle_status|default(alt.lifecycle_warning) }}
+                                                                    </span>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-gray-400">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-2 text-sm text-gray-600">{{ line.manufacturer|default('—') }}</td>
+                                    <td class="px-3 py-2 text-sm text-gray-600 max-w-xs truncate" title="{{ line.description }}">
+                                        {% set desc = line.description|default('—') %}
+                                        {{ desc|length > 50 ? desc|slice(0, 47) ~ '...' : desc }}
+                                    </td>
+                                    <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ line.quantity }}</td>
+                                    <td class="px-3 py-2 text-right">
+                                        {% if line.manualUnitPrice %}
+                                            <div class="text-sm font-medium text-blue-600">${{ line.manualUnitPrice|number_format(4) }}</div>
+                                            <div class="text-xs text-gray-500">Manual</div>
+                                        {% elseif line.unitPrice %}
+                                            <div class="text-sm text-gray-900">${{ line.unitPrice|number_format(4) }}</div>
+                                            <div class="text-xs text-gray-500">{{ line.procurementSource }}</div>
+                                        {% else %}
+                                            <span class="text-red-600 font-medium">No Price</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-2 text-sm text-gray-900 text-right">
+                                        {% set effectivePrice = line.effectiveExtendedPrice %}
+                                        {% if effectivePrice is not null %}
+                                            ${{ effectivePrice|number_format(2) }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-2 text-center">
+                                        {% set confLevel = line.confidenceLevel|default('VERY_LOW') %}
+                                        <div class="inline-flex flex-col items-center">
+                                            <span class="px-2 py-1 text-xs font-medium rounded confidence-{{ confLevel|lower|replace({'_': '-'}) }} border cursor-help"
+                                                  title="{{ line.confidenceReasons|default([])|join(', ') }}">
+                                                {{ line.confidenceScore|default(0) }}%
+                                            </span>
+                                            {% if line.confidenceWarnings|default([])|length > 0 %}
+                                                <span class="text-xs text-red-500 mt-1" title="{{ line.confidenceWarnings|join(', ') }}">
+                                                    ⚠ {{ line.confidenceWarnings|length }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2 text-center">
+                                        {% if line.manuallyVerified %}
+                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                                ✓ Verified
+                                            </span>
+                                        {% elseif line.requiresReview %}
+                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                                                Needs Review
+                                            </span>
+                                        {% else %}
+                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                                                Auto-OK
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-2 text-right">
+                                        <div class="flex items-center justify-end gap-1">
+                                            {% if not line.manuallyVerified %}
+                                                <button onclick="verifyLine({{ line.id }})" 
+                                                        class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                        title="Verify this match is correct">
+                                                    ✓
+                                                </button>
+                                            {% endif %}
+                                            <button onclick="openOverrideModal({{ line.id }}, '{{ line.mpn|default('')|e('js') }}', {{ line.unitPrice|default(0) }})" 
+                                                    class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                                                    title="Enter manual price">
+                                                $
+                                            </button>
+                                            <button onclick="repriceLine({{ line.id }})" 
+                                                    class="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
+                                                    title="Re-run pricing lookup">
+                                                ↻
+                                            </button>
+                                            {% if line.unitPrice and not line.manuallyVerified %}
+                                                <button onclick="rejectLine({{ line.id }})" 
+                                                        class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                                        title="Reject this match">
+                                                    ✗
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Price Override Modal -->
+<div id="override-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-semibold mb-4">Manual Price Override</h3>
+        <form id="override-form">
+            <input type="hidden" id="override-line-id">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Part Number</label>
+                <input type="text" id="override-mpn" class="w-full border rounded px-3 py-2 bg-gray-100" readonly>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price (USD) *</label>
+                <input type="number" id="override-price" step="0.0001" min="0" required
+                       class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Price Source URL
+                    <span class="text-gray-500 font-normal">(where you found this price)</span>
+                </label>
+                <input type="url" id="override-source-url" 
+                       placeholder="https://distributor.com/product/..."
+                       class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-gray-500 mt-1">Link to quote, product page, or email confirmation</p>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+                <textarea id="override-notes" rows="2" class="w-full border rounded px-3 py-2" 
+                          placeholder="e.g., Valid until MM/DD, MOQ requirements, etc."></textarea>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeOverrideModal()" class="px-4 py-2 border rounded hover:bg-gray-100">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Apply Override
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+const quoteId = {{ quote.id }};
+
+/**
+ * Character-level diff for MPN matching
+ * Highlights differences between original and matched MPN
+ */
+function computeCharDiff(original, matched) {
+    if (!original || !matched) return matched || '';
+    
+    // Normalize for comparison
+    const origNorm = original.toUpperCase().replace(/[\s\-]/g, '');
+    const matchNorm = matched.toUpperCase().replace(/[\s\-]/g, '');
+    
+    // If identical after normalization, just return matched
+    if (origNorm === matchNorm) {
+        return `<span class="diff-match">${matched}</span>`;
+    }
+    
+    // Simple character-by-character comparison with LCS approach
+    let result = '';
+    let i = 0, j = 0;
+    
+    while (j < matched.length) {
+        if (i < origNorm.length && origNorm[i] === matchNorm[j]) {
+            // Matching character
+            result += `<span class="diff-match">${matched[j]}</span>`;
+            i++;
+            j++;
+        } else {
+            // Different/extra character - highlight
+            result += `<span class="diff-insert">${matched[j]}</span>`;
+            j++;
+        }
+    }
+    
+    return result;
+}
+
+/**
+ * Initialize diff views on page load
+ */
+function initDiffViews() {
+    document.querySelectorAll('.diff-view').forEach(el => {
+        const container = el.closest('.diff-container');
+        if (!container) return;
+        
+        const original = container.dataset.original;
+        const matched = container.dataset.matched;
+        
+        el.innerHTML = computeCharDiff(original, matched);
+    });
+}
+
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', initDiffViews);
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 px-4 py-2 rounded shadow-lg z-50 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+async function verifyLine(lineId) {
+    try {
+        const response = await fetch(`/quote-review/line/${lineId}/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Part verified');
+            updateLineRow(lineId, data.line);
+        } else {
+            showToast(data.error || 'Failed to verify', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function rejectLine(lineId) {
+    const reason = prompt('Reason for rejection:');
+    if (reason === null) return;
+    
+    try {
+        const response = await fetch(`/quote-review/line/${lineId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Match rejected');
+            updateLineRow(lineId, data.line);
+        } else {
+            showToast(data.error || 'Failed to reject', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function repriceLine(lineId) {
+    try {
+        const response = await fetch(`/quote-review/line/${lineId}/reprice`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message);
+            updateLineRow(lineId, data.line);
+        } else {
+            showToast(data.error || 'Failed to reprice', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+function openOverrideModal(lineId, mpn, currentPrice) {
+    document.getElementById('override-line-id').value = lineId;
+    document.getElementById('override-mpn').value = mpn;
+    document.getElementById('override-price').value = currentPrice || '';
+    document.getElementById('override-notes').value = '';
+    document.getElementById('override-modal').classList.remove('hidden');
+    document.getElementById('override-modal').classList.add('flex');
+}
+
+function closeOverrideModal() {
+    document.getElementById('override-modal').classList.add('hidden');
+    document.getElementById('override-modal').classList.remove('flex');
+}
+
+document.getElementById('override-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const lineId = document.getElementById('override-line-id').value;
+    const price = document.getElementById('override-price').value;
+    const notes = document.getElementById('override-notes').value;
+    const sourceUrl = document.getElementById('override-source-url').value;
+    
+    try {
+        const response = await fetch(`/quote-review/line/${lineId}/override`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                unit_price: price, 
+                notes,
+                source_url: sourceUrl 
+            })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Price override applied');
+            updateLineRow(lineId, data.line);
+            closeOverrideModal();
+        } else {
+            showToast(data.error || 'Failed to apply override', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+});
+
+document.getElementById('verify-all-high-btn').addEventListener('click', async () => {
+    if (!confirm('Verify all high-confidence matches?')) return;
+    
+    try {
+        const response = await fetch(`/quote-review/${quoteId}/verify-all-high`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message);
+            location.reload();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+});
+
+document.getElementById('approve-quote-btn').addEventListener('click', async () => {
+    if (!confirm('Approve this quote for publishing?')) return;
+    
+    try {
+        const response = await fetch(`/quote-review/${quoteId}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message);
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            }
+        } else {
+            let msg = data.error;
+            if (data.unverified_count) msg += ` (${data.unverified_count} unverified)`;
+            if (data.unpriced_count) msg += ` (${data.unpriced_count} unpriced)`;
+            showToast(msg, 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+});
+
+function updateLineRow(lineId, lineData) {
+    // Simplified row update - in production, update individual cells
+    location.reload();
+}
+
+/**
+ * Select an alternative part from the dropdown
+ * This will reprice the line using the selected alternative MPN
+ */
+async function selectAlternative(lineId, altMpn, source) {
+    if (!confirm(`Switch to alternative part?\n\nNew MPN: ${altMpn}\nSource: ${source}`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/quote-review/line/${lineId}/select-alternative`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                mpn: altMpn,
+                source: source 
+            })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`Switched to ${altMpn}`);
+            updateLineRow(lineId, data.line);
+        } else {
+            showToast(data.error || 'Failed to select alternative', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+</script>
+{% endblock %}

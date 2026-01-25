@@ -8,6 +8,7 @@ use App\Entity\Contact;
 use App\Repository\EmailCampaignRepository;
 use App\Repository\EmailSendRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -20,7 +21,8 @@ class EmailCampaignService
         private EmailSendRepository $sendRepository,
         private MailerInterface $mailer,
         private UrlGeneratorInterface $urlGenerator,
-        private EmailTrackingSigner $trackingSigner
+        private EmailTrackingSigner $trackingSigner,
+        private LoggerInterface $logger
     ) {}
 
     /**
@@ -92,7 +94,13 @@ class EmailCampaignService
             $this->mailer->send($email);
         } catch (\Exception $e) {
             // Log error but don't fail the send record creation
-            error_log('Failed to send email: ' . $e->getMessage());
+            // The EmailSend record is already persisted, so we record the failure
+            $this->logger->error('Failed to send email', [
+                'email_send_id' => $send->getId(),
+                'campaign_id' => $campaign->getId(),
+                'contact_email' => $contact->getEmail(),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

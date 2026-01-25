@@ -58,6 +58,10 @@ class Lead
 
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $contactFormUrl = null;
+    
+    // Contact form detection (enhanced scraping)
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $hasContactForm = false;
 
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $supplierPortalUrl = null;
@@ -98,6 +102,9 @@ class Lead
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $crmRecordId = null;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $externalCrmUrl = null; // Direct link to record in external CRM (Salesforce, HubSpot, etc.)
+
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $ownerRep = null;
 
@@ -110,6 +117,16 @@ class Lead
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
+    
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $scrapingMethod = null; // 'static', 'panther', 'static_fallback'
+
+    
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $pagesScraped = null;
+    
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $lastScrapedAt = null;
 
     public function __construct()
     {
@@ -424,6 +441,49 @@ class Lead
         return $this;
     }
 
+    public function getExternalCrmUrl(): ?string
+    {
+        return $this->externalCrmUrl;
+    }
+
+    public function setExternalCrmUrl(?string $externalCrmUrl): self
+    {
+        $this->externalCrmUrl = $externalCrmUrl;
+        return $this;
+    }
+
+    /**
+     * Generate external CRM URL based on CRM record ID and configured CRM type
+     * 
+     * @param string $crmType Type of CRM: 'salesforce', 'hubspot', 'zoho', 'pipedrive', 'dynamics'
+     * @param string|null $instanceUrl Base URL for the CRM instance (required for Salesforce)
+     */
+    public function generateExternalCrmUrl(string $crmType, ?string $instanceUrl = null): self
+    {
+        if (!$this->crmRecordId) {
+            return $this;
+        }
+
+        $url = match (strtolower($crmType)) {
+            'salesforce' => $instanceUrl 
+                ? rtrim($instanceUrl, '/') . '/lightning/r/Lead/' . $this->crmRecordId . '/view'
+                : null,
+            'hubspot' => 'https://app.hubspot.com/contacts/' . $this->crmRecordId,
+            'zoho' => 'https://crm.zoho.com/crm/tab/Leads/' . $this->crmRecordId,
+            'pipedrive' => 'https://app.pipedrive.com/person/' . $this->crmRecordId,
+            'dynamics' => $instanceUrl 
+                ? rtrim($instanceUrl, '/') . '/main.aspx?etn=lead&id=' . $this->crmRecordId . '&pagetype=entityrecord'
+                : null,
+            default => null,
+        };
+
+        if ($url) {
+            $this->externalCrmUrl = $url;
+        }
+
+        return $this;
+    }
+
     public function getOwnerRep(): ?string
     {
         return $this->ownerRep;
@@ -466,5 +526,71 @@ class Lead
     {
         $this->updatedAt = $updatedAt;
         return $this;
+    }
+    
+    // ==================== Contact Form Detection ====================
+    
+    public function hasContactForm(): bool
+    {
+        return $this->hasContactForm;
+    }
+    
+    public function setHasContactForm(bool $hasContactForm): self
+    {
+        $this->hasContactForm = $hasContactForm;
+        return $this;
+    }
+    
+    // ==================== Scraping Metadata ====================
+    
+    public function getScrapingMethod(): ?string
+    {
+        return $this->scrapingMethod;
+    }
+    
+    public function setScrapingMethod(?string $scrapingMethod): self
+    {
+        $this->scrapingMethod = $scrapingMethod;
+        return $this;
+    }
+    
+    public function getPagesScraped(): ?int
+    {
+        return $this->pagesScraped;
+    }
+    
+    public function setPagesScraped(?int $pagesScraped): self
+    {
+        $this->pagesScraped = $pagesScraped;
+        return $this;
+    }
+    
+    public function getLastScrapedAt(): ?\DateTimeInterface
+    {
+        return $this->lastScrapedAt;
+    }
+    
+    public function setLastScrapedAt(?\DateTimeInterface $lastScrapedAt): self
+    {
+        $this->lastScrapedAt = $lastScrapedAt;
+        return $this;
+    }
+    
+    /**
+     * Check if lead was scraped with headless browser
+     */
+    public function wasScrapedWithHeadless(): bool
+    {
+        return $this->scrapingMethod === 'panther';
+    }
+    
+    /**
+     * Check if lead has contact information
+     */
+    public function hasContactInfo(): bool
+    {
+        return !empty($this->contactEmailsPublic) || 
+               !empty($this->contactFormUrl) ||
+               $this->hasContactForm;
     }
 }

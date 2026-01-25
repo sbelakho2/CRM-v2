@@ -165,64 +165,19 @@ class QuoteCoPilotService
     /**
      * Parse BOM file
      * 
+     * Delegates to BOMParser service which handles multiple formats:
+     * - CSV files
+     * - Excel files (XLSX, XLS)
+     * - Altium/KiCad exports
+     * 
      * @param string $bomFilePath Path to the BOM file
-     * @param string|null $extension Optional file extension (for uploaded files)
-     * @return array Array of parsed BOM lines
+     * @param string|null $extension Optional file extension (for uploaded files without extension in temp path)
+     * @return array Array of parsed BOM lines with keys: designator, mpn, manufacturer, qty, description, value
      */
     public function parseBom(string $bomFilePath, ?string $extension = null): array
     {
-        // Delegate to BOMParser service
+        // Delegate to BOMParser service which handles CSV, Excel, and EDA exports
         return $this->bomParser->parse($bomFilePath, $extension);
-
-        // Read header row
-        $headers = fgetcsv($handle);
-        if ($headers === false) {
-            fclose($handle);
-            throw new \RuntimeException('BOM file is empty or invalid');
-        }
-
-        // Normalize headers to lowercase for case-insensitive matching
-        $headers = array_map('strtolower', $headers);
-        $headers = array_map('trim', $headers);
-
-        // Map column indices
-        $columnMap = $this->mapBomColumns($headers);
-
-        // Read data rows
-        $lineNumber = 0;
-        while (($row = fgetcsv($handle)) !== false) {
-            $lineNumber++;
-            
-            // Skip empty rows
-            if (empty(array_filter($row))) {
-                continue;
-            }
-
-            $bomLine = [
-                'lineNumber' => $lineNumber,
-                'designator' => $this->getCellValue($row, $columnMap['designator']),
-                'mpn' => $this->getCellValue($row, $columnMap['mpn']),
-                'manufacturer' => $this->getCellValue($row, $columnMap['manufacturer']),
-                'description' => $this->getCellValue($row, $columnMap['description']),
-                'quantity' => (int)($this->getCellValue($row, $columnMap['quantity']) ?: 1),
-                'value' => $this->getCellValue($row, $columnMap['value']),
-            ];
-
-            // Normalize MPN (uppercase, trim)
-            if ($bomLine['mpn']) {
-                $bomLine['mpn'] = strtoupper(trim($bomLine['mpn']));
-            }
-
-            $bomLines[] = $bomLine;
-        }
-
-        fclose($handle);
-
-        if (empty($bomLines)) {
-            throw new \RuntimeException('No valid BOM lines found in file');
-        }
-
-        return $bomLines;
     }
 
     /**

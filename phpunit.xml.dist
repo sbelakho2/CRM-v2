@@ -18,6 +18,12 @@
         <server name="SYMFONY_PHPUNIT_VERSION" value="9.5" />
         <env name="SYMFONY_DEPRECATIONS_HELPER" value="disabled" />
         <env name="KERNEL_CLASS" value="App\Kernel" />
+
+        <!-- ###+ symfony/lock ### -->
+        <!-- Choose one of the stores below -->
+        <!-- postgresql+advisory://db_user:db_password@localhost/db_name -->
+        <env name="LOCK_DSN" value="flock"/>
+        <!-- ###- symfony/lock ### -->
     </php>
 
     <testsuites>

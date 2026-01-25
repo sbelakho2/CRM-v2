@@ -440,6 +440,9 @@ class QuoteCoPilotController extends AbstractController
         $quote->setAutoPublished(true);
         $this->entityManager->flush();
 
+        // Get company for activity logging
+        $company = $quote->getCompany();
+
         // Send email notification to customer
         try {
             $toEmail = $this->sendQuoteEmail($quote, $contactId);
@@ -457,24 +460,44 @@ class QuoteCoPilotController extends AbstractController
         }
 
         // Create Activity record for quote publication
-        $activity = new \App\Entity\Activity();
-        $activity->setType('QUOTE_PUBLISHED');
-        $activity->setDescription(sprintf('Quote %s published and emailed to %s', 
-            $quote->getQuoteNumber() ?? $quote->getId(), $toEmail));
-        $activity->setCompany($company);
-        $activity->setQuote($quote);
-        $activity->setCreatedAt(new \DateTimeImmutable());
-        $this->entityManager->persist($activity);
+        // Note: Activity requires a User, so we only create if user is authenticated
+        $user = $this->getUser();
+        if ($user && $company) {
+            $activity = new \App\Entity\Activity();
+            $activity->setType('QUOTE_PUBLISHED');
+            $activity->setDescription(sprintf('Quote %s published and emailed to %s', 
+                $quote->getQuoteNumber() ?? $quote->getId(), $toEmail));
+            $activity->setCompany($company);
+            $activity->setUser($user);
+            $activity->setActivityDate(new \DateTime());
+            $activity->setCreatedAt(new \DateTime());
+            $this->entityManager->persist($activity);
+        }
         
         // Create Notification for sales team
-        $notification = new \App\Entity\Notification();
-        $notification->setType('QUOTE_PUBLISHED');
-        $notification->setMessage(sprintf('Quote %s has been published', 
-            $quote->getQuoteNumber() ?? $quote->getId()));
-        $notification->setQuote($quote);
-        $notification->setIsRead(false);
-        $notification->setCreatedAt(new \DateTimeImmutable());
-        $this->entityManager->persist($notification);
+        // Find admin/sales users to notify
+        $userRepository = $this->entityManager->getRepository(\App\Entity\User::class);
+        $adminUsers = $userRepository->findBy(['roles' => 'ROLE_ADMIN']);
+        
+        // If no specific admins, try to notify current user or skip
+        $notifyUsers = !empty($adminUsers) ? $adminUsers : ($user ? [$user] : []);
+        
+        foreach ($notifyUsers as $notifyUser) {
+            $notification = new \App\Entity\Notification();
+            $notification->setUser($notifyUser);
+            $notification->setType('quote_published');
+            $notification->setEntityType('Quote');
+            $notification->setEntityId($quote->getId());
+            $notification->setMessage(sprintf('Quote %s has been published', 
+                $quote->getQuoteNumber() ?? $quote->getId()));
+            $notification->setData([
+                'quote_number' => $quote->getQuoteNumber(),
+                'company_name' => $company?->getName(),
+                'to_email' => $toEmail
+            ]);
+            $notification->setCreatedAt(new \DateTime());
+            $this->entityManager->persist($notification);
+        }
         
         $this->entityManager->flush();
 

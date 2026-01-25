@@ -51,28 +51,25 @@ class QuoteEstimatorController extends AbstractController
     /**
      * Show quote estimator form with country selection
      */
+    /**
+     * Show quote estimator form with country selection
+     * 
+     * Form fields:
+     * - Origin Country (dropdown, default: MA)
+     * - Destination Country (dropdown, REQUIRED - operator selects)
+     * - Weight (kg, numeric input)
+     * - Volume (m³, numeric input)
+     * - HTS Code (text input, optional - can be classified automatically)
+     * - Goods Value (USD, numeric input)
+     * - Incoterm (dropdown: EXW, FOB, CIF, DDP)
+     */
     #[Route('', name: 'quote_estimator_index', methods: ['GET'])]
     public function index(): Response
     {
         return $this->render('quote_estimator/index.html.twig', [
+            'pageTitle' => 'Landed-Cost Estimator',
             'countries' => $this->countryService->getCountryList(),
             'originCountries' => $this->countryService->getCountryList(),
-            'incoterms' => ['EXW', 'FOB', 'CIF', 'DDP'],
-            'defaultOrigin' => 'MA'
-        ]);
-        // 
-        // Form fields:
-        // - Origin Country (dropdown, default: MA)
-        // - Destination Country (dropdown, REQUIRED - operator selects)
-        // - Weight (kg, numeric input)
-        // - Volume (m³, numeric input)
-        // - HTS Code (text input, optional - can be classified automatically)
-        // - Goods Value (USD, numeric input)
-        // - Incoterm (dropdown: EXW, FOB, CIF, DDP)
-        
-        return $this->render('quote_estimator/index.html.twig', [
-            'pageTitle' => 'Landed-Cost Estimator',
-            'countries' => $this->getCountryList(),
             'incoterms' => ['EXW', 'FOB', 'CIF', 'DDP'],
             'defaultOrigin' => 'MA'
         ]);

@@ -2,63 +2,166 @@
 
 namespace App\Service\WebCrawler;
 
+use App\Service\GoogleSearchService;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\DomCrawler\Crawler;
 use Psr\Log\LoggerInterface;
 
 /**
  * Service to use Google Dorks for finding companies and supplier portals
+ * 
+ * Enhanced to actually execute searches through GoogleSearchService API
+ * instead of just logging URLs for manual review.
  */
 class GoogleDorkService
 {
-    public function __construct(private HttpClientInterface $httpClient, private LoggerInterface $logger)
+    public function __construct(
+        private HttpClientInterface $httpClient, 
+        private LoggerInterface $logger,
+        private ?GoogleSearchService $googleSearchService = null
+    )
     {
+    }
+    
+    /**
+     * Set the Google Search Service (allows injection after construction)
+     */
+    public function setGoogleSearchService(GoogleSearchService $service): void
+    {
+        $this->googleSearchService = $service;
     }
 
     /**
      * Search for companies using Google Dorks
+     * 
+     * Now actually executes searches through Google Custom Search API
+     * when GoogleSearchService is available.
+     * 
+     * @param string $sector The industry sector to search
+     * @param string|null $location The geographic location (e.g., "Tanger Free Zone")
+     * @param bool $executeSearch Whether to actually execute via API (costs money)
+     * @return array Search results with company data
      */
-    public function searchCompanies(string $sector, ?string $location = null): array
+    public function searchCompanies(string $sector, ?string $location = null, bool $executeSearch = true): array
     {
         $this->logger->info("Google Dork search for companies", [
             'sector' => $sector,
-            'location' => $location
+            'location' => $location,
+            'execute_search' => $executeSearch
         ]);
 
         $searchQueries = $this->buildGoogleDorkQueries($sector, $location);
         $discovered = [];
+        $allResults = [];
 
-        // Log search URLs for manual review
-        $this->logger->info("=" . str_repeat("=", 70));
-        $this->logger->info("GOOGLE SEARCH URLS - Copy and paste these into your browser:");
-        $this->logger->info("=" . str_repeat("=", 70));
-        
-        foreach ($searchQueries as $query) {
-            $searchUrl = "https://www.google.com/search?q=" . urlencode($query);
-
-            $this->logger->debug('Google search URL', [
-                'query' => $query,
-                'url' => $searchUrl,
+        // If we have GoogleSearchService and should execute, use it
+        if ($executeSearch && $this->googleSearchService !== null) {
+            $this->logger->info("Executing searches via Google Custom Search API");
+            
+            foreach ($searchQueries as $query) {
+                try {
+                    $results = $this->googleSearchService->searchCompanies($query, 10);
+                    
+                    if (!empty($results['results'])) {
+                        foreach ($results['results'] as $result) {
+                            // Deduplicate by domain
+                            $domain = $result['displayLink'] ?? '';
+                            if (!isset($allResults[$domain])) {
+                                $allResults[$domain] = [
+                                    'name' => $this->extractCompanyName($result['title'] ?? ''),
+                                    'website' => $this->extractWebsiteFromResult($result),
+                                    'title' => $result['title'] ?? '',
+                                    'snippet' => $result['snippet'] ?? '',
+                                    'link' => $result['link'] ?? '',
+                                    'displayLink' => $domain,
+                                    'source_query' => $query,
+                                    'sector' => $sector,
+                                    'location' => $location,
+                                ];
+                            }
+                        }
+                        
+                        $this->logger->debug("Query returned results", [
+                            'query' => $query,
+                            'count' => count($results['results'])
+                        ]);
+                    }
+                    
+                    // Respect rate limits
+                    usleep(200000); // 200ms between requests
+                    
+                } catch (\Exception $e) {
+                    $this->logger->warning("Search query failed", [
+                        'query' => $query,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            $discovered = array_values($allResults);
+            
+            $this->logger->info("Google Dork search completed", [
+                'sector' => $sector,
+                'location' => $location,
+                'total_unique_results' => count($discovered)
             ]);
-            $this->logger->info("🔍 " . $searchUrl);
+            
+        } else {
+            // Fallback: Log URLs for manual review (original behavior)
+            $this->logger->info("=" . str_repeat("=", 70));
+            $this->logger->info("GOOGLE SEARCH URLS - Copy and paste these into your browser:");
+            $this->logger->info("=" . str_repeat("=", 70));
+            
+            foreach ($searchQueries as $query) {
+                $searchUrl = "https://www.google.com/search?q=" . urlencode($query);
 
-            $discovered[] = [
-                'query' => $query,
-                'url' => $searchUrl,
-            ];
+                $this->logger->debug('Google search URL', [
+                    'query' => $query,
+                    'url' => $searchUrl,
+                ]);
+                $this->logger->info("🔍 " . $searchUrl);
+
+                $discovered[] = [
+                    'query' => $query,
+                    'url' => $searchUrl,
+                    'manual_only' => true,
+                ];
+            }
+            
+            $this->logger->info("=" . str_repeat("=", 70));
+            $this->logger->info("💡 TIP: Visit these URLs, find companies, then add them manually at /companies/new");
+            $this->logger->info("💡 OR: Configure GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID for automated search");
+            $this->logger->info("=" . str_repeat("=", 70));
         }
-        
-        $this->logger->info("=" . str_repeat("=", 70));
-        $this->logger->info("💡 TIP: Visit these URLs, find companies, then add them manually at /companies/new");
-        $this->logger->info("=" . str_repeat("=", 70));
 
-        // NOTE: To make this automatic, you need to integrate with:
-        // - Google Custom Search API (costs money)
-        // - SerpAPI (costs money)
-        // - Or use a web scraping service like ScraperAPI
-        
-        // Return generated search URLs for manual review.
         return $discovered;
+    }
+    
+    /**
+     * Extract company name from search result title
+     */
+    private function extractCompanyName(string $title): string
+    {
+        // Remove common suffixes
+        $name = preg_replace('/\s*[-|–]\s*.*(LinkedIn|Facebook|Twitter|Homepage|Home|About).*$/i', '', $title);
+        $name = preg_replace('/\s*\|\s*.*$/', '', $name);
+        $name = trim($name);
+        
+        return $name ?: $title;
+    }
+    
+    /**
+     * Extract clean website URL from search result
+     */
+    private function extractWebsiteFromResult(array $result): ?string
+    {
+        if (!empty($result['link'])) {
+            $parsed = parse_url($result['link']);
+            if ($parsed && isset($parsed['host'])) {
+                return sprintf('%s://%s', $parsed['scheme'] ?? 'https', $parsed['host']);
+            }
+        }
+        return null;
     }
 
     /**

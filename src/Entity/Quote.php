@@ -12,6 +12,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_company', columns: ['company_id'])]
 #[ORM\Index(name: 'idx_quote_number', columns: ['quote_number'])]
 #[ORM\Index(name: 'idx_status', columns: ['status'])]
+#[ORM\Index(name: 'idx_public_token', columns: ['public_token'])]
 class Quote
 {
     #[ORM\Id]
@@ -34,6 +35,25 @@ class Quote
 
     #[ORM\Column(length: 10)]
     private ?string $currency = 'USD';
+
+    // Interactive Live Quote fields
+    #[ORM\Column(length: 64, unique: true, nullable: true)]
+    private ?string $publicToken = null; // Secure token for public access
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $tokenExpiresAt = null; // Token expiration
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $interactiveEnabled = false; // Allow quantity adjustments
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $quantityOptions = null; // Available quantity tiers [100, 500, 1000, 5000]
+
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $viewCount = 0; // Track customer views
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $lastViewedAt = null; // Last customer view
 
     #[ORM\Column(type: 'decimal', precision: 5, scale: 2, nullable: true)]
     private ?string $coveragePercent = null; // % of spend from validated sources
@@ -361,6 +381,96 @@ class Quote
                 $bomLine->setQuote(null);
             }
         }
+        return $this;
+    }
+
+    // ==================== Interactive Live Quote Methods ====================
+
+    public function getPublicToken(): ?string
+    {
+        return $this->publicToken;
+    }
+
+    public function setPublicToken(?string $publicToken): self
+    {
+        $this->publicToken = $publicToken;
+        return $this;
+    }
+
+    /**
+     * Generate a secure public token for sharing
+     */
+    public function generatePublicToken(int $expirationDays = 30): self
+    {
+        $this->publicToken = bin2hex(random_bytes(32));
+        $this->tokenExpiresAt = (new \DateTime())->modify("+{$expirationDays} days");
+        return $this;
+    }
+
+    public function getTokenExpiresAt(): ?\DateTimeInterface
+    {
+        return $this->tokenExpiresAt;
+    }
+
+    public function setTokenExpiresAt(?\DateTimeInterface $tokenExpiresAt): self
+    {
+        $this->tokenExpiresAt = $tokenExpiresAt;
+        return $this;
+    }
+
+    /**
+     * Check if the public token is still valid
+     */
+    public function isTokenValid(): bool
+    {
+        if (!$this->publicToken || !$this->tokenExpiresAt) {
+            return false;
+        }
+        return new \DateTime() < $this->tokenExpiresAt;
+    }
+
+    public function isInteractiveEnabled(): bool
+    {
+        return $this->interactiveEnabled;
+    }
+
+    public function setInteractiveEnabled(bool $interactiveEnabled): self
+    {
+        $this->interactiveEnabled = $interactiveEnabled;
+        return $this;
+    }
+
+    public function getQuantityOptions(): ?array
+    {
+        return $this->quantityOptions;
+    }
+
+    public function setQuantityOptions(?array $quantityOptions): self
+    {
+        $this->quantityOptions = $quantityOptions;
+        return $this;
+    }
+
+    public function getViewCount(): ?int
+    {
+        return $this->viewCount;
+    }
+
+    public function incrementViewCount(): self
+    {
+        $this->viewCount = ($this->viewCount ?? 0) + 1;
+        $this->lastViewedAt = new \DateTime();
+        return $this;
+    }
+
+    public function getLastViewedAt(): ?\DateTimeInterface
+    {
+        return $this->lastViewedAt;
+    }
+
+    public function setLastViewedAt(?\DateTimeInterface $lastViewedAt): self
+    {
+        $this->lastViewedAt = $lastViewedAt;
         return $this;
     }
 }

@@ -9,6 +9,7 @@ use App\Service\EmailCampaignService;
 use App\Service\EmailTrackingSigner;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -22,8 +23,9 @@ class EmailCampaignServiceTest extends TestCase
         $mailer = $this->createMock(MailerInterface::class);
         $urlGenerator = $this->createMock(UrlGeneratorInterface::class);
         $trackingSigner = new EmailTrackingSigner('test-secret');
+        $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner);
+        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger);
 
         $campaign = new EmailCampaign();
 
@@ -44,8 +46,9 @@ class EmailCampaignServiceTest extends TestCase
         $mailer = $this->createMock(MailerInterface::class);
         $urlGenerator = $this->createMock(UrlGeneratorInterface::class);
         $trackingSigner = new EmailTrackingSigner('test-secret');
+        $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner);
+        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger);
 
         $campaign = new EmailCampaign();
 
@@ -77,8 +80,9 @@ class EmailCampaignServiceTest extends TestCase
         $mailer = $this->createMock(MailerInterface::class);
         $urlGenerator = $this->createMock(UrlGeneratorInterface::class);
         $trackingSigner = new EmailTrackingSigner('test-secret');
+        $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner);
+        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger);
 
         $send = new EmailSend();
 
@@ -103,8 +107,9 @@ class EmailCampaignServiceTest extends TestCase
         $mailer = $this->createMock(MailerInterface::class);
         $urlGenerator = $this->createMock(UrlGeneratorInterface::class);
         $trackingSigner = new EmailTrackingSigner('test-secret');
+        $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner);
+        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger);
 
         $contact = new Contact();
         $campaign = new EmailCampaign();
