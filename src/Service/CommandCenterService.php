@@ -512,7 +512,7 @@ class CommandCenterService
         return array_map(fn(Activity $a) => [
             'id' => $a->getId(),
             'type' => $a->getType(),
-            'subject' => $a->getSubject(),
+            'subject' => $a->getDescription(),
             'notes' => substr($a->getNotes() ?? '', 0, 100),
             'company_id' => $a->getCompany()?->getId(),
             'company_name' => $a->getCompany()?->getName(),

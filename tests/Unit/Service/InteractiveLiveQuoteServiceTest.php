@@ -6,7 +6,6 @@ use App\Entity\Quote;
 use App\Entity\BomLine;
 use App\Repository\QuoteRepository;
 use App\Service\InteractiveLiveQuoteService;
-use App\Service\PricingEngine;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -25,20 +24,17 @@ class InteractiveLiveQuoteServiceTest extends TestCase
     private InteractiveLiveQuoteService $service;
     private EntityManagerInterface $entityManager;
     private QuoteRepository $quoteRepository;
-    private PricingEngine $pricingEngine;
     private LoggerInterface $logger;
 
     protected function setUp(): void
     {
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->quoteRepository = $this->createMock(QuoteRepository::class);
-        $this->pricingEngine = $this->createMock(PricingEngine::class);
         $this->logger = $this->createMock(LoggerInterface::class);
         
         $this->service = new InteractiveLiveQuoteService(
             $this->entityManager,
             $this->quoteRepository,
-            $this->pricingEngine,
             $this->logger
         );
     }

@@ -42,7 +42,6 @@ class InteractiveLiveQuoteService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private QuoteRepository $quoteRepository,
-        private PricingEngine $pricingEngine,
         private LoggerInterface $logger
     ) {}
     
@@ -350,13 +349,22 @@ class InteractiveLiveQuoteService
         if ($bomLines->count() > 0) {
             $data = [];
             foreach ($bomLines as $line) {
+                // Build pricing from unit price if available
+                $pricing = [];
+                $unitPrice = $line->getUnitPrice();
+                if ($unitPrice !== null) {
+                    $pricing = [
+                        ['quantity' => 1, 'price' => (float) $unitPrice],
+                    ];
+                }
+                
                 $data[] = [
                     'mpn' => $line->getMpn(),
                     'manufacturer' => $line->getManufacturer(),
                     'description' => $line->getDescription(),
                     'quantity_per_unit' => $line->getQuantity(),
-                    'pricing' => $line->getPricing() ?? [],
-                    'stock' => $line->getStock() ?? 0,
+                    'pricing' => $pricing,
+                    'stock' => 0, // BomLine doesn't have stock, will be filled from pricing lookup
                     'leadtime_days' => $line->getLeadTimeDays() ?? 14,
                 ];
             }
