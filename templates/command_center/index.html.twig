@@ -239,7 +239,7 @@
 
         {# Right Column - Supply Alerts #}
         <div class="rams-module">
-            <div class="rams-module__header" style="{% if data.supply_alerts.summary.critical > 0 %}background: rgba(214, 45, 45, 0.1);{% endif %}">
+            <div class="rams-module__header {% if data.supply_alerts.summary.critical > 0 %}rams-bg-danger-subtle{% endif %}">
                 <span class="rams-module__title">{{ 'command_center.supply_alerts'|trans }}</span>
                 <span class="rams-badge {% if data.supply_alerts.summary.critical > 0 %}rams-badge--danger{% else %}rams-badge--warning{% endif %}">
                     {{ data.supply_alerts.summary.critical }} {{ 'compliance.status'|trans|lower }}

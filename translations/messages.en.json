@@ -88,7 +88,8 @@
         "degraded": "Degraded",
         "critical": "Critical",
         "system_status": "System Status",
-        "operational": "Operational"
+        "operational": "Operational",
+        "system_online": "System Online"
     },
     "nav": {
         "dashboard": "Dashboard",
@@ -123,10 +124,17 @@
         "reset_password": "Reset Password",
         "remember_me": "Remember Me",
         "email_address": "Email Address",
+        "email": "Email",
+        "email_placeholder": "Enter your email address",
+        "email_hint": "Use your company email address",
         "password": "Password",
+        "password_placeholder": "Enter your password",
+        "password_requirements": "Minimum 8 characters with at least one number",
         "confirm_password": "Confirm Password",
+        "confirm_password_placeholder": "Re-enter your password",
         "current_password": "Current Password",
         "new_password": "New Password",
+        "new_password_placeholder": "Enter your new password",
         "sign_in": "Sign In",
         "sign_up": "Sign Up",
         "sign_out": "Sign Out",
@@ -143,7 +151,34 @@
         "session_expired": "Your session has expired. Please log in again.",
         "full_name": "Full Name",
         "first_name": "First Name",
-        "last_name": "Last Name"
+        "first_name_placeholder": "Enter your first name",
+        "last_name": "Last Name",
+        "last_name_placeholder": "Enter your last name",
+        "login": {
+            "title": "Login",
+            "subtitle": "Access your control station",
+            "module_title": "Authentication",
+            "submit": "Sign In"
+        },
+        "register": {
+            "title": "Register",
+            "subtitle": "Create your account",
+            "module_title": "New Account",
+            "submit": "Create Account"
+        },
+        "forgot_password": {
+            "title": "Forgot Password",
+            "subtitle": "Reset your credentials",
+            "module_title": "Password Recovery",
+            "instructions": "Enter your email address and we'll send you instructions to reset your password.",
+            "submit": "Send Reset Link"
+        },
+        "reset_password": {
+            "title": "Reset Password",
+            "subtitle": "Set your new password",
+            "module_title": "New Password",
+            "submit": "Reset Password"
+        }
     },
     "dashboard": {
         "title": "Dashboard",
@@ -957,6 +992,7 @@
         "url": "Please enter a valid URL.",
         "date": "Please enter a valid date.",
         "password_match": "Passwords do not match.",
+        "password_mismatch": "Passwords do not match.",
         "unique": "This value is already in use."
     },
     "messages": {

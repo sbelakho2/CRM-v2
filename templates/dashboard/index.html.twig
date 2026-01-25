@@ -39,8 +39,8 @@
                         <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ 'common.total'|trans }}: ${{ (kpis.target_pipeline / 1000000)|number_format(1) }}M</span>
                         <span class="rams-badge rams-badge--info">{{ pipeline_progress }}%</span>
                     </div>
-                    <div style="height: 4px; background: var(--rams-panel); border-radius: 2px; overflow: hidden;">
-                        <div style="width: {{ pipeline_progress }}%; height: 100%; background: var(--rams-steel);"></div>
+                    <div class="rams-progress rams-progress--compact">
+                        <div class="rams-progress__bar rams-progress__bar--info" style="width: {{ pipeline_progress }}%;"></div>
                     </div>
                 </div>
             </div>
@@ -64,8 +64,8 @@
                         <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ 'common.total'|trans }}: {{ kpis.target_rfqs }}</span>
                         <span class="rams-badge rams-badge--success">{{ rfq_progress }}%</span>
                     </div>
-                    <div style="height: 4px; background: var(--rams-panel); border-radius: 2px; overflow: hidden;">
-                        <div style="width: {{ rfq_progress }}%; height: 100%; background: var(--rams-green);"></div>
+                    <div class="rams-progress rams-progress--compact">
+                        <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ rfq_progress }}%;"></div>
                     </div>
                 </div>
             </div>
@@ -89,8 +89,8 @@
                         <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ 'common.total'|trans }}: {{ kpis.target_npis }}</span>
                         <span class="rams-badge rams-badge--primary">{{ npi_progress }}%</span>
                     </div>
-                    <div style="height: 4px; background: var(--rams-panel); border-radius: 2px; overflow: hidden;">
-                        <div style="width: {{ npi_progress }}%; height: 100%; background: var(--rams-orange);"></div>
+                    <div class="rams-progress rams-progress--compact">
+                        <div class="rams-progress__bar rams-progress__bar--primary" style="width: {{ npi_progress }}%;"></div>
                     </div>
                 </div>
             </div>
@@ -114,8 +114,8 @@
                         <span class="rams-text-muted" style="font-size: var(--text-xs);">{{ 'common.total'|trans }}: {{ kpis.target_frameworks }}</span>
                         <span class="rams-badge rams-badge--warning">{{ framework_progress }}%</span>
                     </div>
-                    <div style="height: 4px; background: var(--rams-panel); border-radius: 2px; overflow: hidden;">
-                        <div style="width: {{ framework_progress }}%; height: 100%; background: var(--rams-orange);"></div>
+                    <div class="rams-progress rams-progress--compact">
+                        <div class="rams-progress__bar rams-progress__bar--warning" style="width: {{ framework_progress }}%;"></div>
                     </div>
                 </div>
             </div>

@@ -133,7 +133,7 @@ triggerRules.forEach((rule, index) => {
             <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>contains</option>
         </select>
         <input type="text" class="rams-form__input flex-1" placeholder="Value" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
-        <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost text-red-600">×</button>
+        <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
     `;
     
     document.getElementById('trigger-rules').appendChild(ruleDiv);
@@ -158,7 +158,7 @@ actions.forEach((action, index) => {
                 <option value="">Select action...</option>
                 ${actionOptions}
             </select>
-            <button type="button" onclick="removeAction(${actionId})" class="rams-btn rams-btn--ghost text-red-600">×</button>
+            <button type="button" onclick="removeAction(${actionId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
         </div>
         <div id="action-params-${actionId}" class="space-y-2"></div>
     `;
@@ -197,7 +197,7 @@ function addTriggerRule(existingRule = null) {
             <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>contains</option>
         </select>
         <input type="text" class="rams-form__input flex-1" placeholder="Value" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
-        <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost text-red-600">×</button>
+        <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
     `;
     
     document.getElementById('trigger-rules').appendChild(ruleDiv);
@@ -242,7 +242,7 @@ function addAction(existingAction = null) {
                 <option value="">Select action...</option>
                 ${actionOptions}
             </select>
-            <button type="button" onclick="removeAction(${actionId})" class="rams-btn rams-btn--ghost text-red-600">×</button>
+            <button type="button" onclick="removeAction(${actionId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
         </div>
         <div id="action-params-${actionId}" class="space-y-2"></div>
     `;
@@ -277,7 +277,7 @@ function renderActionParams(actionId, type, existingParams) {
     
     container.innerHTML = actionDef.params.map(p => `
         <div class="rams-form__group">
-            <label class="rams-form__label text-xs">${p.label}</label>
+            <label class="rams-form__label rams-text-xs">${p.label}</label>
             <input type="${p.type || 'text'}" class="rams-form__input" 
                    placeholder="${p.placeholder || ''}" 
                    value="${existingParams[p.name] || ''}"

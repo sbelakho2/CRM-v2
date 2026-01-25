@@ -23,6 +23,17 @@
     --rams-muted: #999999;
     --rams-foreground: #1A1A1A;
     
+    /* Extended Grey Scale (for auth pages and dark backgrounds) */
+    --rams-grey-100: #F2F2F2;
+    --rams-grey-200: #E6E6E6;
+    --rams-grey-300: #D9D9D9;
+    --rams-grey-400: #999999;
+    --rams-grey-500: #666666;
+    --rams-grey-600: #404040;
+    --rams-grey-700: #2D2D2D;
+    --rams-grey-800: #252525;
+    --rams-grey-900: #1A1A1A;
+    
     /* Functional Accents (Semantic ONLY - never decorative) */
     --rams-orange: #FFBE00;    /* Primary action, active state, current position */
     --rams-green: #2D8C3C;     /* Success, operational, healthy, complete */
@@ -32,7 +43,7 @@
     /* User-customizable accent (defaults to orange) */
     --rams-accent: var(--rams-orange);
     
-    /* Typography Scale (4px grid) */
+    /* Typography Scale (4px grid) - with rams- prefix aliases */
     --text-3xs: 8px;
     --text-2xs: 10px;
     --text-xs: 12px;
@@ -43,6 +54,18 @@
     --text-2xl: 24px;
     --text-3xl: 32px;
     --text-4xl: 40px;
+    
+    /* Typography aliases with rams- prefix for template consistency */
+    --rams-text-3xs: var(--text-3xs);
+    --rams-text-2xs: var(--text-2xs);
+    --rams-text-xs: var(--text-xs);
+    --rams-text-sm: var(--text-sm);
+    --rams-text-base: var(--text-base);
+    --rams-text-lg: var(--text-lg);
+    --rams-text-xl: var(--text-xl);
+    --rams-text-2xl: var(--text-2xl);
+    --rams-text-3xl: var(--text-3xl);
+    --rams-text-4xl: var(--text-4xl);
     
     /* Line Heights (4px grid) */
     --leading-3xs: 12px;
@@ -66,6 +89,16 @@
     --space-12: 48px;
     --space-16: 64px;
     
+    /* Spacing aliases with rams- prefix for template consistency */
+    --rams-space-1: var(--space-1);
+    --rams-space-2: var(--space-2);
+    --rams-space-3: var(--space-3);
+    --rams-space-4: var(--space-4);
+    --rams-space-6: var(--space-6);
+    --rams-space-8: var(--space-8);
+    --rams-space-12: var(--space-12);
+    --rams-space-16: var(--space-16);
+    
     /* Border Radius (Industrial - SHARP) */
     --radius-none: 0px;
     --radius-sm: 2px;
@@ -87,6 +120,16 @@
     --sidebar-width: 240px;
     --status-bar-height: 32px;
     --bezel-width: 8px;
+    
+    /* Semantic Background Colors (for alerts, badges, highlights) */
+    --rams-info-bg: rgba(74, 144, 226, 0.1);      /* Steel at 10% opacity */
+    --rams-success-bg: rgba(45, 140, 60, 0.1);    /* Green at 10% opacity */
+    --rams-warning-bg: rgba(255, 190, 0, 0.1);    /* Orange at 10% opacity */
+    --rams-danger-bg: rgba(214, 45, 45, 0.1);     /* Red at 10% opacity */
+    
+    /* Overlay & Backdrop */
+    --rams-overlay: rgba(0, 0, 0, 0.5);           /* Modal/dropdown backdrop */
+    --rams-overlay-light: rgba(0, 0, 0, 0.3);     /* Lighter overlay variant */
     
     /* Font Families */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -521,6 +564,12 @@ body {
     font-size: var(--text-base);
 }
 
+.rams-btn--full {
+    width: 100%;
+    display: block;
+    text-align: center;
+}
+
 .rams-btn__icon {
     width: 16px;
     height: 16px;
@@ -766,6 +815,7 @@ body {
 .rams-andon__text--green { color: var(--rams-green); }
 .rams-andon__text--yellow { color: var(--rams-orange); }
 .rams-andon__text--red { color: var(--rams-red); }
+.rams-andon__text--muted { color: var(--rams-muted); }
 
 /* Andon Stack (vertical lights) */
 .rams-andon-stack {
@@ -1146,6 +1196,128 @@ body {
 .rams-gap-4 { gap: var(--space-4); }
 .rams-gap-6 { gap: var(--space-6); }
 
+/* Text alignment utilities */
+.rams-text-center { text-align: center; }
+.rams-text-left { text-align: left; }
+.rams-text-right { text-align: right; }
+
+/* Link styling */
+.rams-link {
+    color: var(--rams-steel);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    transition: color var(--duration-fast);
+}
+
+.rams-link:hover {
+    color: var(--rams-orange);
+    text-decoration: underline;
+}
+
+.rams-link:focus-visible {
+    outline: 2px solid var(--rams-orange);
+    outline-offset: 2px;
+}
+
+/* ============================================
+   18A. FORM BEM ALIASES (rams-form__*)
+   ============================================ */
+
+/* Form container */
+.rams-form {
+    width: 100%;
+}
+
+/* Form group (BEM alias for rams-form-group) */
+.rams-form__group {
+    margin-bottom: var(--space-4);
+}
+
+/* Form label (BEM alias for rams-label) */
+.rams-form__label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--rams-muted);
+    margin-bottom: var(--space-1);
+}
+
+/* Form input (BEM alias for rams-input) */
+.rams-form__input {
+    width: 100%;
+    height: 40px;
+    padding: 0 var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    background: var(--rams-panel);
+    border: 1px solid var(--rams-line);
+    border-radius: var(--radius-sm);
+    color: var(--rams-foreground);
+    box-shadow: var(--shadow-inset);
+    transition: border-color var(--duration-fast);
+}
+
+.rams-form__input::placeholder {
+    color: var(--rams-muted);
+    opacity: 0.6;
+}
+
+.rams-form__input:focus {
+    outline: none;
+    border-color: var(--rams-orange);
+    box-shadow: var(--shadow-focus);
+}
+
+.rams-form__input--error {
+    border-color: var(--rams-red);
+}
+
+.rams-form__input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Form hint text */
+.rams-form__hint {
+    display: block;
+    margin-top: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--rams-muted);
+}
+
+/* Checkbox styling */
+.rams-form__checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--rams-foreground);
+}
+
+.rams-form__checkbox-input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--rams-orange);
+}
+
+.rams-form__checkbox-input:focus-visible {
+    outline: 2px solid var(--rams-orange);
+    outline-offset: 2px;
+}
+
+.rams-form__checkbox-label {
+    user-select: none;
+}
+
 /* ============================================
    19. PERFORATED GRILLE PATTERNS
    ============================================ */
@@ -1306,6 +1478,24 @@ body {
     background: var(--rams-red);
 }
 
+.rams-progress__bar--info {
+    background: var(--rams-steel);
+}
+
+.rams-progress__bar--warning {
+    background: var(--rams-orange);
+}
+
+.rams-progress__bar--primary {
+    background: var(--rams-orange);
+}
+
+/* Compact progress bar (4px height for KPI cards) */
+.rams-progress--compact {
+    height: 4px;
+    border: none;
+}
+
 /* ============================================
    23. LOADING STATES
    ============================================ */
@@ -1392,7 +1582,592 @@ body {
 }
 
 /* ============================================
-   25. PRINT STYLES
+   25. AUTH PAGE STYLES
+   ============================================ */
+
+/**
+ * Authentication pages (login, register, forgot password, reset password)
+ * Dark-themed centered layout following Industrial Functionalist design
+ */
+
+.rams-auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+    background: var(--rams-grey-900);
+}
+
+.rams-auth-module {
+    width: 100%;
+    max-width: 400px;
+}
+
+.rams-auth-logo {
+    text-align: center;
+    margin-bottom: var(--space-6);
+}
+
+.rams-auth-logo__symbol {
+    width: 48px;
+    height: 48px;
+    background: var(--rams-grey-800);
+    border: 2px solid var(--rams-grey-600);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--space-3);
+    font-size: 24px;
+    color: var(--rams-orange);
+}
+
+.rams-auth-logo__title {
+    font-family: var(--font-mono);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--rams-grey-100);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.rams-auth-logo__subtitle {
+    font-size: var(--text-sm);
+    color: var(--rams-grey-400);
+    margin-top: var(--space-1);
+}
+
+/* Auth module overrides for dark background */
+.rams-auth-container .rams-module {
+    background: var(--rams-grey-800);
+    border-color: var(--rams-grey-600);
+}
+
+.rams-auth-container .rams-module__header {
+    border-bottom-color: var(--rams-grey-600);
+}
+
+.rams-auth-container .rams-module__footer {
+    background: var(--rams-grey-700);
+    border-top-color: var(--rams-grey-600);
+}
+
+.rams-auth-container .rams-form__input {
+    background: var(--rams-grey-700);
+    border-color: var(--rams-grey-600);
+    color: var(--rams-grey-100);
+}
+
+.rams-auth-container .rams-form__input::placeholder {
+    color: var(--rams-grey-400);
+}
+
+.rams-auth-container .rams-form__input:focus {
+    border-color: var(--rams-orange);
+}
+
+.rams-auth-container .rams-form__label {
+    color: var(--rams-grey-400);
+}
+
+.rams-auth-container .rams-form__hint {
+    color: var(--rams-grey-500);
+}
+
+.rams-auth-container .rams-form__checkbox-label {
+    color: var(--rams-grey-300);
+}
+
+.rams-auth-container .rams-text-muted {
+    color: var(--rams-grey-400);
+}
+
+.rams-auth-container .rams-link {
+    color: var(--rams-steel);
+}
+
+.rams-auth-container .rams-link:hover {
+    color: var(--rams-orange);
+}
+
+/* ============================================
+   26. TYPOGRAPHY UTILITY CLASSES
+   ============================================ */
+
+/* Font Size Utilities */
+.rams-text-3xs { font-size: var(--text-3xs); line-height: var(--leading-3xs); }
+.rams-text-2xs { font-size: var(--text-2xs); line-height: var(--leading-2xs); }
+.rams-text-xs { font-size: var(--text-xs); line-height: var(--leading-xs); }
+.rams-text-sm { font-size: var(--text-sm); line-height: var(--leading-sm); }
+.rams-text-base { font-size: var(--text-base); line-height: var(--leading-base); }
+.rams-text-lg { font-size: var(--text-lg); line-height: var(--leading-lg); }
+.rams-text-xl { font-size: var(--text-xl); line-height: var(--leading-xl); }
+.rams-text-2xl { font-size: var(--text-2xl); line-height: var(--leading-2xl); }
+.rams-text-3xl { font-size: var(--text-3xl); line-height: var(--leading-3xl); }
+.rams-text-4xl { font-size: var(--text-4xl); line-height: var(--leading-4xl); }
+
+/* Font Weight Utilities */
+.rams-font-normal { font-weight: 400; }
+.rams-font-medium { font-weight: 500; }
+.rams-font-semibold { font-weight: 600; }
+.rams-font-bold { font-weight: 700; }
+
+/* Text Color Utilities */
+.rams-text-foreground { color: var(--rams-foreground); }
+.rams-text-danger { color: var(--rams-red); }
+.rams-text-info { color: var(--rams-steel); }
+
+/* ============================================
+   27. ADDITIONAL UTILITY CLASSES
+   ============================================ */
+
+/* Link Variants */
+.rams-link--plain {
+    text-decoration: none;
+    color: inherit;
+}
+
+.rams-link--plain:hover {
+    color: var(--rams-orange);
+}
+
+/* Module Width Modifiers */
+.rams-module--narrow {
+    max-width: 800px;
+}
+
+.rams-module--medium {
+    max-width: 1000px;
+}
+
+.rams-module--wide {
+    max-width: 1200px;
+}
+
+/* Border Utilities */
+.rams-bordered {
+    border: 1px solid var(--rams-line);
+    border-radius: var(--radius-sm);
+}
+
+.rams-bordered:hover {
+    border-color: var(--rams-muted);
+}
+
+/* Display Utilities */
+.rams-inline-form {
+    display: inline;
+}
+
+.rams-inline-block {
+    display: inline-block;
+}
+
+/* Overflow Utilities */
+.rams-overflow-auto {
+    overflow: auto;
+}
+
+.rams-overflow-hidden {
+    overflow: hidden;
+}
+
+.rams-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Max Height Utilities */
+.rams-max-h-350 {
+    max-height: 350px;
+}
+
+.rams-max-h-400 {
+    max-height: 400px;
+}
+
+/* Background Color Utilities */
+.rams-bg-info-subtle {
+    background: var(--rams-info-bg);
+}
+
+.rams-bg-success-subtle {
+    background: var(--rams-success-bg);
+}
+
+.rams-bg-warning-subtle {
+    background: var(--rams-warning-bg);
+}
+
+.rams-bg-danger-subtle {
+    background: var(--rams-danger-bg);
+}
+
+/* ============================================
+   28. BREADCRUMB COMPONENT
+   ============================================ */
+
+.rams-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.rams-breadcrumb__item {
+    color: var(--rams-muted);
+    text-decoration: none;
+}
+
+.rams-breadcrumb__item:hover {
+    color: var(--rams-orange);
+}
+
+.rams-breadcrumb__separator {
+    color: var(--rams-line);
+    font-size: var(--text-xs);
+}
+
+.rams-breadcrumb__current {
+    font-weight: 500;
+    color: var(--rams-foreground);
+}
+
+/* ============================================
+   29. ICON CONTAINER COMPONENT
+   ============================================ */
+
+.rams-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--rams-panel);
+    border: 1px solid var(--rams-line);
+    border-radius: var(--radius-sm);
+}
+
+.rams-icon-container--sm {
+    width: 32px;
+    height: 32px;
+}
+
+.rams-icon-container--info {
+    background: var(--rams-info-bg);
+}
+
+.rams-icon-container--success {
+    background: var(--rams-success-bg);
+}
+
+.rams-icon-container--warning {
+    background: var(--rams-warning-bg);
+}
+
+.rams-icon-container--danger {
+    background: var(--rams-danger-bg);
+}
+
+.rams-icon-container--round {
+    border-radius: 50%;
+}
+
+/* ============================================
+   30. CARD ITEM COMPONENT
+   ============================================ */
+
+.rams-card-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--rams-line);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color var(--duration-fast);
+}
+
+.rams-card-item:hover {
+    border-color: var(--rams-muted);
+}
+
+.rams-card-item__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.rams-card-item__title {
+    font-size: var(--text-sm);
+    font-weight: 500;
+}
+
+.rams-card-item__subtitle {
+    font-size: var(--text-xs);
+    color: var(--rams-muted);
+}
+
+/* ============================================
+   31. COMMAND CENTER SPECIFIC COMPONENTS
+   ============================================ */
+
+.rams-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--space-4);
+}
+
+@media (max-width: 1200px) {
+    .rams-stat-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .rams-stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.rams-stat-card {
+    padding: var(--space-4);
+}
+
+.rams-stat-card__value {
+    font-size: var(--text-2xl);
+}
+
+.rams-stat-card__label {
+    font-size: var(--text-2xs);
+    color: var(--rams-muted);
+}
+
+.rams-feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.rams-feed-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2);
+    border: 1px solid var(--rams-line);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: inherit;
+}
+
+.rams-feed-item:hover {
+    border-color: var(--rams-muted);
+}
+
+.rams-feed-item__title {
+    font-size: var(--text-sm);
+    font-weight: 500;
+}
+
+.rams-feed-item__subtitle {
+    font-size: var(--text-xs);
+    color: var(--rams-muted);
+}
+
+.rams-empty-state {
+    text-align: center;
+    padding: var(--space-6);
+    color: var(--rams-muted);
+}
+
+.rams-empty-state__icon {
+    width: 32px;
+    height: 32px;
+    opacity: 0.5;
+    margin: 0 auto var(--space-2);
+}
+
+.rams-empty-state__text {
+    font-size: var(--text-sm);
+}
+
+/* Alert Header Variant */
+.rams-module__header--alert {
+    background: var(--rams-danger-bg);
+}
+
+/* Border Color Modifiers */
+.rams-border-danger {
+    border-color: var(--rams-red) !important;
+}
+
+.rams-border-warning {
+    border-color: var(--rams-orange) !important;
+}
+
+/* ============================================
+   32. TOOLTIP COMPONENT (for heat maps etc.)
+   ============================================ */
+
+.rams-tooltip {
+    position: absolute;
+    z-index: 1000;
+    background: var(--rams-grey-900);
+    color: var(--rams-grey-100);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-xs);
+    pointer-events: none;
+    box-shadow: var(--shadow-inset);
+}
+
+.rams-tooltip__score {
+    font-weight: 600;
+    margin-bottom: var(--space-1);
+}
+
+.rams-tooltip__details {
+    color: var(--rams-grey-400);
+}
+
+/* ============================================
+   33. LEGEND COMPONENT
+   ============================================ */
+
+.rams-legend {
+    display: flex;
+    gap: var(--space-4);
+    padding: var(--space-3);
+    border-top: 1px solid var(--rams-line);
+}
+
+.rams-legend__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+}
+
+.rams-legend__swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-sm);
+}
+
+/* ============================================
+   34. SHORTCUTS MODAL COMPONENT
+   ============================================ */
+
+.rams-shortcuts__section {
+    margin-bottom: var(--space-4);
+}
+
+.rams-shortcuts__title {
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.rams-shortcuts__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.rams-shortcuts__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.rams-shortcuts__desc {
+    color: var(--rams-muted);
+    font-size: var(--text-sm);
+}
+
+.rams-shortcuts__keys {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.rams-shortcuts__key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 var(--space-2);
+    background: var(--rams-panel);
+    border: 1px solid var(--rams-line);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    box-shadow: var(--shadow-inset);
+}
+
+.rams-shortcuts__plus {
+    color: var(--rams-muted);
+    font-size: var(--text-xs);
+}
+
+/* ============================================
+   35. CONFIDENCE BADGES (for quote review)
+   ============================================ */
+
+.rams-confidence--high {
+    background-color: var(--rams-success-bg);
+    border-color: var(--rams-green);
+}
+
+.rams-confidence--medium {
+    background-color: var(--rams-warning-bg);
+    border-color: var(--rams-orange);
+}
+
+.rams-confidence--low {
+    background-color: var(--rams-danger-bg);
+    border-color: var(--rams-red);
+}
+
+.rams-review-highlight {
+    background-color: var(--rams-warning-bg);
+}
+
+.rams-lifecycle-warning {
+    background-color: var(--rams-warning-bg);
+    border-left: 4px solid var(--rams-orange);
+    padding: var(--space-3);
+}
+
+.rams-diff-insert {
+    color: var(--rams-red);
+    background-color: var(--rams-danger-bg);
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: 600;
+}
+
+/* ============================================
+   36. ANIMATIONS
+   ============================================ */
+
+@keyframes rams-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.rams-pulse {
+    animation: rams-pulse 1s infinite;
+}
+
+/* ============================================
+   37. PRINT STYLES
    ============================================ */
 
 @media print {

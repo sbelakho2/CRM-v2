@@ -5,49 +5,53 @@
 {% block stylesheets %}
 {{ parent() }}
 <style>
-    .confidence-high { background-color: var(--rams-success-bg, #dcfce7); border-color: var(--rams-success, #22c55e); }
-    .confidence-medium { background-color: var(--rams-warning-bg, #fef9c3); border-color: var(--rams-warning, #eab308); }
-    .confidence-low { background-color: var(--rams-caution-bg, #fed7aa); border-color: var(--rams-caution, #f97316); }
-    .confidence-very-low { background-color: var(--rams-danger-bg, #fecaca); border-color: var(--rams-danger, #ef4444); }
-    .line-verified { opacity: 0.7; }
-    .line-needs-review { background-color: var(--rams-warning-bg, #fef3c7); }
+    /* Confidence Badge Variants - Sensei-Rams BEM Naming */
+    .rams-confidence--high { background-color: var(--rams-success-bg); border-color: var(--rams-green); }
+    .rams-confidence--medium { background-color: var(--rams-warning-bg); border-color: var(--rams-orange); }
+    .rams-confidence--low { background-color: var(--rams-warning-bg); border-color: var(--rams-orange); }
+    .rams-confidence--very-low { background-color: var(--rams-danger-bg); border-color: var(--rams-red); }
     
-    .lifecycle-critical { background-color: var(--rams-danger-bg); border-left: 4px solid var(--rams-danger); }
-    .lifecycle-warning { background-color: var(--rams-warning-bg); border-left: 4px solid var(--rams-warning); }
-    .lifecycle-badge-critical {
-        background-color: var(--rams-danger);
+    /* Row State Modifiers */
+    .rams-line--verified { opacity: 0.7; }
+    .rams-line--needs-review { background-color: var(--rams-warning-bg); }
+    
+    /* Lifecycle Indicators */
+    .rams-lifecycle--critical { background-color: var(--rams-danger-bg); border-left: 4px solid var(--rams-red); }
+    .rams-lifecycle--warning { background-color: var(--rams-warning-bg); border-left: 4px solid var(--rams-orange); }
+    .rams-lifecycle-badge--critical {
+        background-color: var(--rams-red);
         color: white;
         padding: 2px 6px;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
         font-size: 10px;
         font-weight: bold;
-        animation: pulse 2s infinite;
+        animation: rams-pulse 2s infinite;
     }
-    .lifecycle-badge-warning {
-        background-color: var(--rams-warning);
+    .rams-lifecycle-badge--warning {
+        background-color: var(--rams-orange);
         color: white;
         padding: 2px 6px;
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
         font-size: 10px;
         font-weight: bold;
     }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    @keyframes rams-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
     
-    .alternatives-dropdown { position: relative; display: inline-block; }
-    .alternatives-menu {
+    .rams-alternatives-dropdown { position: relative; display: inline-block; }
+    .rams-alternatives-menu {
         display: none;
         position: absolute;
         left: 0;
         top: 100%;
         z-index: 100;
         min-width: 350px;
-        background: var(--rams-bg-primary, white);
-        border: 1px solid var(--rams-border, #e5e7eb);
-        border-radius: 8px;
-        box-shadow: var(--rams-shadow-lg);
+        background: var(--rams-panel);
+        border: 1px solid var(--rams-line);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-inset);
         padding: 8px 0;
     }
-    .alternatives-dropdown:hover .alternatives-menu { display: block; }
+    .rams-alternatives-dropdown:hover .rams-alternatives-menu { display: block; }
     .alt-item {
         padding: 8px 12px;
         border-bottom: 1px solid var(--rams-border-light, #f3f4f6);
@@ -150,10 +154,10 @@
         <div class="rams-module__content">
             <div class="rams-inline-list rams-inline-list--gap-md">
                 <span class="rams-text rams-text--bold">{{ 'quote.review.confidence_levels'|trans|default('Confidence Levels') }}:</span>
-                <span class="rams-badge confidence-high">{{ 'quote.review.high'|trans|default('HIGH') }} (90-100)</span>
-                <span class="rams-badge confidence-medium">{{ 'quote.review.medium'|trans|default('MEDIUM') }} (70-89)</span>
-                <span class="rams-badge confidence-low">{{ 'quote.review.low'|trans|default('LOW') }} (50-69)</span>
-                <span class="rams-badge confidence-very-low">{{ 'quote.review.very_low'|trans|default('VERY LOW') }} (&lt;50)</span>
+                <span class="rams-badge rams-confidence--high">{{ 'quote.review.high'|trans|default('HIGH') }} (90-100)</span>
+                <span class="rams-badge rams-confidence--medium">{{ 'quote.review.medium'|trans|default('MEDIUM') }} (70-89)</span>
+                <span class="rams-badge rams-confidence--low">{{ 'quote.review.low'|trans|default('LOW') }} (50-69)</span>
+                <span class="rams-badge rams-confidence--very-low">{{ 'quote.review.very_low'|trans|default('VERY LOW') }} (&lt;50)</span>
             </div>
         </div>
     </div>
@@ -199,9 +203,9 @@
                                         <span class="rams-text rams-text--xs rams-text--muted rams-block">{{ 'quote.review.original'|trans|default('Original') }}: {{ line.originalMpn }}</span>
                                     {% endif %}
                                     {% if line.lifecycleWarning == 'critical' %}
-                                        <span class="lifecycle-badge-critical" title="{{ 'quote.review.part_obsolete'|trans|default('Part is obsolete or end-of-life') }}">⚠ {{ 'quote.review.obsolete'|trans|default('OBSOLETE') }}</span>
+                                        <span class="rams-lifecycle-badge--critical" title="{{ 'quote.review.part_obsolete'|trans|default('Part is obsolete or end-of-life') }}">⚠ {{ 'quote.review.obsolete'|trans|default('OBSOLETE') }}</span>
                                     {% elseif line.lifecycleWarning == 'warning' %}
-                                        <span class="lifecycle-badge-warning" title="{{ 'quote.review.nrnd'|trans|default('Not Recommended for New Designs') }}">{{ 'quote.review.nrnd_short'|trans|default('NRND') }}</span>
+                                        <span class="rams-lifecycle-badge--warning" title="{{ 'quote.review.nrnd'|trans|default('Not Recommended for New Designs') }}">{{ 'quote.review.nrnd_short'|trans|default('NRND') }}</span>
                                     {% endif %}
                                     {% if line.lifecycleStatus %}
                                         <span class="rams-text rams-text--xs rams-text--muted rams-block">{{ 'common.status'|trans }}: {{ line.lifecycleStatus }}</span>
@@ -219,11 +223,11 @@
                                             </span>
                                         {% endif %}
                                         {% if line.alternativeParts|default([])|length > 0 %}
-                                            <div class="alternatives-dropdown rams-mt-xs">
+                                            <div class="rams-alternatives-dropdown rams-mt-xs">
                                                 <span class="rams-text rams-text--xs rams-link">
                                                     +{{ line.alternativeParts|length }} {{ 'quote.review.alternatives'|trans|default('alternatives') }} ▾
                                                 </span>
-                                                <div class="alternatives-menu">
+                                                <div class="rams-alternatives-menu">
                                                     <div class="rams-text rams-text--xs rams-text--bold rams-text--muted rams-px-sm rams-py-xs rams-border-bottom">
                                                         {{ 'quote.review.alternative_parts'|trans|default('Alternative Parts (click to select)') }}
                                                     </div>
@@ -283,7 +287,7 @@
                                 </td>
                                 <td class="rams-table__cell rams-text--center">
                                     {% set confLevel = line.confidenceLevel|default('VERY_LOW') %}
-                                    <span class="rams-badge confidence-{{ confLevel|lower|replace({'_': '-'}) }}" title="{{ line.confidenceReasons|default([])|join(', ') }}">
+                                    <span class="rams-badge rams-confidence--{{ confLevel|lower|replace({'_': '-'}) }}" title="{{ line.confidenceReasons|default([])|join(', ') }}">
                                         {{ line.confidenceScore|default(0) }}%
                                     </span>
                                     {% if line.confidenceWarnings|default([])|length > 0 %}

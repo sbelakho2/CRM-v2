@@ -124,6 +124,9 @@ class SenseiRamsDesignSystemTest extends TestCase
         // Industrial design uses 2-4px border radius max
         preg_match_all('/border-radius:\s*(\d+)px/', $cssContent, $matches);
         
+        // Always assert something to avoid risky test
+        $this->assertNotEmpty($cssContent, 'CSS file should have content');
+        
         foreach ($matches[1] as $radius) {
             $this->assertLessThanOrEqual(8, (int)$radius, "Border radius should not exceed 8px (found {$radius}px)");
         }

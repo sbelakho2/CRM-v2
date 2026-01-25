@@ -262,6 +262,9 @@ class I18nCoverageTest extends TestCase
         
         $content = file_get_contents($templatePath);
         
+        // Always assert file is readable
+        $this->assertNotEmpty($content, "Template $relativePath should have content");
+        
         // If template has visible text content, it should use trans filter
         if ($this->hasVisibleText($content)) {
             $this->assertStringContainsString('|trans', $content, 

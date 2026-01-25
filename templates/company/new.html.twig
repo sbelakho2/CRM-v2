@@ -5,12 +5,12 @@
 {% block body %}
 <div class="rams-flex rams-flex-col rams-gap-6">
     {# Breadcrumb #}
-    <nav class="rams-flex rams-items-center rams-gap-2" style="font-size: var(--text-sm);">
-        <a href="{{ path('app_dashboard') }}" class="rams-text-muted" style="text-decoration: none;">{{ 'nav.dashboard'|trans }}</a>
-        <span class="rams-text-muted">/</span>
-        <a href="{{ path('app_company_index') }}" class="rams-text-muted" style="text-decoration: none;">{{ 'company.title'|trans }}</a>
-        <span class="rams-text-muted">/</span>
-        <span style="font-weight: 500;">{{ 'common.new'|trans }}</span>
+    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+        <a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__item">{{ 'nav.dashboard'|trans }}</a>
+        <span class="rams-breadcrumb__separator">/</span>
+        <a href="{{ path('app_company_index') }}" class="rams-breadcrumb__item">{{ 'company.title'|trans }}</a>
+        <span class="rams-breadcrumb__separator">/</span>
+        <span class="rams-breadcrumb__item rams-breadcrumb__item--current" aria-current="page">{{ 'common.new'|trans }}</span>
     </nav>
 
     {# Page Header #}
