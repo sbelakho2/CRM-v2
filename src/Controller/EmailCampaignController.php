@@ -10,6 +10,7 @@ use App\Repository\EmailCampaignRepository;
 use App\Repository\EmailSendRepository;
 use App\Repository\ContactRepository;
 use App\Service\EmailCampaignService;
+use App\Service\EmailTrackingSigner;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,6 +27,7 @@ class EmailCampaignController extends AbstractController
         private EmailSendRepository $sendRepository,
         private ContactRepository $contactRepository,
         private EmailCampaignService $campaignService,
+        private EmailTrackingSigner $trackingSigner,
         private GuidanceNotificationService $guidanceService
     ) {}
 
@@ -277,9 +279,11 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/track/{id}/open', name: 'app_email_send_track_open', methods: ['GET'])]
-    public function trackOpen(EmailSend $send): Response
+    public function trackOpen(Request $request, EmailSend $send): Response
     {
-        if (!$send->isOpened()) {
+        $sig = $request->query->get('sig');
+
+        if (!$send->isOpened() && $send->getId() && $this->trackingSigner->verifyOpen($send->getId(), $sig)) {
             $this->campaignService->markOpened($send);
         }
 
@@ -291,16 +295,51 @@ class EmailCampaignController extends AbstractController
     #[Route('/track/{id}/click', name: 'app_email_send_track_click', methods: ['GET'])]
     public function trackClick(Request $request, EmailSend $send): Response
     {
-        $this->campaignService->markClicked($send);
-
         // Redirect to the actual URL
-        $url = $request->query->get('url', '/');
+        $url = (string)$request->query->get('url', '/');
+        $sig = $request->query->get('sig');
+
+        $isSigned = $send->getId() && $this->trackingSigner->verifyClick($send->getId(), $url, $sig);
+
+        // Without a valid signature, allow only relative URLs or same-host absolute URLs.
+        // This prevents using this endpoint as an open redirect.
+        if (!$isSigned) {
+            $parsed = parse_url($url);
+            $hasScheme = isset($parsed['scheme']);
+            $hasHost = isset($parsed['host']);
+
+            if ($hasScheme || $hasHost) {
+                $scheme = $parsed['scheme'] ?? null;
+                $host = $parsed['host'] ?? null;
+
+                $requestHost = $request->getHost();
+
+                $isSameHostHttp = in_array($scheme, ['http', 'https'], true) && $host === $requestHost;
+                if (!$isSameHostHttp) {
+                    $url = '/';
+                }
+            } else {
+                // Must be a safe absolute-path reference.
+                if (!str_starts_with($url, '/') || str_starts_with($url, '//')) {
+                    $url = '/';
+                }
+            }
+        }
+
+        if (!$send->isClicked() && ($isSigned || $url !== '/')) {
+            $this->campaignService->markClicked($send);
+        }
+
         return $this->redirect($url);
     }
 
     #[Route('/send/{id}/mark-replied', name: 'app_email_send_mark_replied', methods: ['POST'])]
     public function markReplied(EmailSend $send, Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('mark_replied' . $send->getId(), $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
         $this->campaignService->markReplied($send);
         
         $this->addFlash('success', 'Email marked as replied.');
@@ -312,6 +351,10 @@ class EmailCampaignController extends AbstractController
     #[Route('/send/{id}/mark-bounced', name: 'app_email_send_mark_bounced', methods: ['POST'])]
     public function markBounced(EmailSend $send, Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('mark_bounced' . $send->getId(), $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
         $this->campaignService->markBounced($send);
         
         $this->addFlash('success', 'Email marked as bounced.');

@@ -26,38 +26,26 @@ class GoogleDorkServiceTest extends TestCase
         $sector = 'Automotive';
         $location = 'Tanger Free Zone';
 
-        $this->logger->expects($this->atLeastOnce())
-            ->method('info')
-            ->with(
-                $this->logicalOr(
-                    'Google Dork search for companies',
-                    'Google search URL'
-                ),
-                $this->anything()
-            );
+        $captured = [];
+        $this->logger->method('info')->willReturnCallback(function ($message) use (&$captured) {
+            $captured[] = $message;
+        });
 
         $result = $this->service->searchCompanies($sector, $location);
 
         $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
+        $this->assertNotEmpty($captured);
     }
 
     public function testSearchCompaniesWithoutLocation(): void
     {
         $sector = 'Aerospace';
 
-        $this->logger->expects($this->atLeastOnce())
-            ->method('info')
-            ->with(
-                $this->logicalOr(
-                    'Google Dork search for companies',
-                    'Google search URL'
-                ),
-                $this->anything()
-            );
-
         $result = $this->service->searchCompanies($sector);
 
         $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
     }
 
     public function testFindCompanyWebsiteLogsSearch(): void
@@ -140,17 +128,12 @@ class GoogleDorkServiceTest extends TestCase
         $automotiveSector = 'Automotive';
         $aerospaceSector = 'Aerospace';
 
-        // Test that different sectors generate different queries by checking logs
-        $callCount = 0;
-        $this->logger->expects($this->atLeastOnce())
-            ->method('debug')
-            ->willReturnCallback(function($message, $context) use (&$callCount) {
-                $callCount++;
-            });
+        $auto = $this->service->searchCompanies($automotiveSector, 'Morocco');
+        $aero = $this->service->searchCompanies($aerospaceSector, 'Morocco');
 
-        $this->service->searchCompanies($automotiveSector, 'Morocco');
-        
-        $this->assertGreaterThan(0, $callCount);
+        $this->assertNotEmpty($auto);
+        $this->assertNotEmpty($aero);
+        $this->assertNotEquals($auto, $aero);
     }
 
     public function testSearchCompaniesHandlesAllTargetSectors(): void

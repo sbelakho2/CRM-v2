@@ -21,7 +21,7 @@ class PlaybookRun
     private ?Playbook $playbook = null;
 
     #[ORM\ManyToOne(targetEntity: AbmHit::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?AbmHit $abmHit = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]

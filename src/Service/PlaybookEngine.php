@@ -77,12 +77,12 @@ class PlaybookEngine
                 // Check cooldown period to avoid re-triggering
                 $lastRun = $this->playbookRunRepository->findOneBy(
                     ['playbook' => $playbook],
-                    ['executedAt' => 'DESC']
+                    ['triggeredAt' => 'DESC']
                 );
                 
                 if ($lastRun) {
                     $cooldownHours = $playbook->getCooldownHours() ?? 24;
-                    $cooldownEnd = (clone $lastRun->getExecutedAt())->modify("+{$cooldownHours} hours");
+                    $cooldownEnd = (clone $lastRun->getTriggeredAt())->modify("+{$cooldownHours} hours");
                     
                     if (new \DateTime() < $cooldownEnd) {
                         // Still in cooldown period, skip this playbook
@@ -173,8 +173,10 @@ class PlaybookEngine
         // Create PlaybookRun record
         $run = new PlaybookRun();
         $run->setPlaybook($playbook);
-        $run->setExecutedAt(new \DateTime());
-        $run->setSuccess(false);
+        if ($context instanceof \App\Entity\AbmHit) {
+            $run->setAbmHit($context);
+        }
+        $run->setStatus('in_progress');
         $this->entityManager->persist($run);
         $this->entityManager->flush(); // Get run ID
         
@@ -182,7 +184,9 @@ class PlaybookEngine
         $actionsJson = $playbook->getActions();
         
         if (!$actionsJson) {
-            $run->setSuccess(false);
+            $run->setStatus('failed');
+            $run->setErrorMessage('No actions configured');
+            $run->setCompletedAt(new \DateTime());
             $this->entityManager->flush();
             return [];
         }
@@ -190,7 +194,9 @@ class PlaybookEngine
         $actions = json_decode($actionsJson, true);
         
         if (!$actions || !is_array($actions)) {
-            $run->setSuccess(false);
+            $run->setStatus('failed');
+            $run->setErrorMessage('Invalid actions JSON');
+            $run->setCompletedAt(new \DateTime());
             $this->entityManager->flush();
             return [];
         }
@@ -198,6 +204,7 @@ class PlaybookEngine
         // Execute each action in sequence
         $results = [];
         $allSuccessful = true;
+        $firstError = null;
         
         foreach ($actions as $action) {
             try {
@@ -215,11 +222,18 @@ class PlaybookEngine
                     'error' => $e->getMessage()
                 ];
                 $allSuccessful = false;
+                $firstError ??= $e->getMessage();
             }
         }
         
         // Update run status
-        $run->setSuccess($allSuccessful);
+        $run->setExecutionLog(json_encode(['results' => $results]));
+        $run->setTasksCreated(count(array_filter($results, static fn(array $r): bool => (bool)($r['success'] ?? false))));
+        $run->setStatus($allSuccessful ? 'completed' : 'failed');
+        $run->setCompletedAt(new \DateTime());
+        if (!$allSuccessful) {
+            $run->setErrorMessage($firstError);
+        }
         $this->entityManager->flush();
         
         return $results;
@@ -396,8 +410,24 @@ class PlaybookEngine
         
         $run = new PlaybookRun();
         $run->setPlaybook($playbook);
-        $run->setExecutedAt(new \DateTime());
-        $run->setSuccess($status === 'COMPLETED');
+
+        $normalizedStatus = strtolower($status);
+        $normalizedStatus = match ($normalizedStatus) {
+            'running', 'in_progress' => 'in_progress',
+            'completed', 'success' => 'completed',
+            'failed', 'error' => 'failed',
+            default => 'pending',
+        };
+        $run->setStatus($normalizedStatus);
+        if ($results !== null) {
+            $run->setExecutionLog(json_encode(['results' => $results]));
+        }
+        if ($errorMessage !== null) {
+            $run->setErrorMessage($errorMessage);
+        }
+        if (in_array($normalizedStatus, ['completed', 'failed'], true)) {
+            $run->setCompletedAt(new \DateTime());
+        }
         
         $this->entityManager->persist($run);
         $this->entityManager->flush();
@@ -423,7 +453,7 @@ class PlaybookEngine
         
         return $this->playbookRunRepository->findBy(
             ['playbook' => $playbook],
-            ['executedAt' => 'DESC'],
+            ['triggeredAt' => 'DESC'],
             $limit
         );
     }

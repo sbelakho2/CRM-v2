@@ -23,30 +23,29 @@ class LinkedInScraperServiceTest extends TestCase
         $sector = 'Automotive';
         $location = 'Tanger Free Zone';
 
-        $this->logger->expects($this->atLeast(1))
-            ->method('info')
-            ->withConsecutive(
-                [
-                    'LinkedIn search for companies',
-                    ['sector' => $sector, 'location' => $location]
-                ]
-            );
+        $captured = [];
+        $this->logger->method('info')->willReturnCallback(function ($message, $context = []) use (&$captured) {
+            $captured[] = ['message' => $message, 'context' => $context];
+        });
 
         $result = $this->service->searchCompanies($sector, $location);
 
         $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
+
+        $messages = array_column($captured, 'message');
+        $this->assertContains('LinkedIn search for companies', $messages);
+        $this->assertContains('Generated LinkedIn search URLs', $messages);
     }
 
     public function testSearchCompaniesWithoutLocation(): void
     {
         $sector = 'Industrial';
 
-        $this->logger->expects($this->atLeast(1))
-            ->method('info');
-
         $result = $this->service->searchCompanies($sector);
 
         $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
     }
 
     public function testFindCompanyProfileLogsSearch(): void

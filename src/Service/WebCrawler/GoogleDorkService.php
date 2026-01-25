@@ -35,7 +35,17 @@ class GoogleDorkService
         
         foreach ($searchQueries as $query) {
             $searchUrl = "https://www.google.com/search?q=" . urlencode($query);
+
+            $this->logger->debug('Google search URL', [
+                'query' => $query,
+                'url' => $searchUrl,
+            ]);
             $this->logger->info("🔍 " . $searchUrl);
+
+            $discovered[] = [
+                'query' => $query,
+                'url' => $searchUrl,
+            ];
         }
         
         $this->logger->info("=" . str_repeat("=", 70));
@@ -47,7 +57,7 @@ class GoogleDorkService
         // - SerpAPI (costs money)
         // - Or use a web scraping service like ScraperAPI
         
-        // For now, return empty - requires manual data entry
+        // Return generated search URLs for manual review.
         return $discovered;
     }
 

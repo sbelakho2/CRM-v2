@@ -13,3 +13,9 @@ if (file_exists(dirname(__DIR__).'/config/bootstrap.php')) {
 if ($_SERVER['APP_DEBUG']) {
     umask(0000);
 }
+
+// Ensure the test database schema exists before running tests.
+// We cannot rely on SQLite here because the runtime environment may not have pdo_sqlite/sqlite3.
+if (($_SERVER['APP_ENV'] ?? null) === 'test') {
+    \App\Tests\Bootstrap\DoctrineSchemaBootstrap::ensureSchema();
+}

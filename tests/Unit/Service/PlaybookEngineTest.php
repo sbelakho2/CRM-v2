@@ -72,10 +72,8 @@ class PlaybookEngineTest extends TestCase
         $context = $this->createMock(AbmAccount::class);
         $event = $this->createMock(WebEvent::class);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Feature not yet implemented');
-
-        $this->engine->evaluateTriggers($playbook, $context, $event);
+        $playbook->method('getTriggerRules')->willReturn(null);
+        $this->assertTrue($this->engine->evaluateTriggers($playbook, $context, $event));
     }
 
     public function testEvaluateTriggersAcceptsNullEvent()
@@ -83,10 +81,8 @@ class PlaybookEngineTest extends TestCase
         $playbook = $this->createMock(Playbook::class);
         $context = $this->createMock(AbmAccount::class);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Feature not yet implemented');
-
-        $this->engine->evaluateTriggers($playbook, $context, null);
+        $playbook->method('getTriggerRules')->willReturn('not json');
+        $this->assertFalse($this->engine->evaluateTriggers($playbook, $context, null));
     }
 
     public function testExecuteActionsThrowsNotImplementedException()
@@ -95,10 +91,12 @@ class PlaybookEngineTest extends TestCase
         $context = $this->createMock(AbmAccount::class);
         $event = $this->createMock(WebEvent::class);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Feature not yet implemented');
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->atLeastOnce())->method('flush');
+        $playbook->method('getActions')->willReturn(null);
 
-        $this->engine->executeActions($playbook, $context, $event);
+        $result = $this->engine->executeActions($playbook, $context, $event);
+        $this->assertSame([], $result);
     }
 
     public function testExecuteActionsAcceptsNullEvent()
@@ -106,47 +104,60 @@ class PlaybookEngineTest extends TestCase
         $playbook = $this->createMock(Playbook::class);
         $context = $this->createMock(AbmAccount::class);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Feature not yet implemented');
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->atLeastOnce())->method('flush');
+        $playbook->method('getActions')->willReturn('[]');
 
-        $this->engine->executeActions($playbook, $context, null);
+        $result = $this->engine->executeActions($playbook, $context, null);
+        $this->assertIsArray($result);
     }
 
     public function testLogRunThrowsNotImplementedException()
     {
+        $this->playbookRepo->method('find')->willReturn(null);
+
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Feature not yet implemented');
+        $this->expectExceptionMessage('Playbook not found');
 
         $this->engine->logRun(1, 'RUNNING');
     }
 
     public function testLogRunAcceptsOptionalParameters()
     {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Feature not yet implemented');
+        $playbook = $this->createMock(Playbook::class);
+        $this->playbookRepo->method('find')->willReturn($playbook);
+        $this->entityManager->expects($this->once())->method('persist');
+        $this->entityManager->expects($this->once())->method('flush');
 
-        $this->engine->logRun(
+        $run = $this->engine->logRun(
             1,
             'COMPLETED',
             ['result1' => 'success'],
             null
         );
+
+        $this->assertInstanceOf(PlaybookRun::class, $run);
     }
 
     public function testGetRunHistoryThrowsNotImplementedException()
     {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Feature not yet implemented');
-
-        $this->engine->getRunHistory(1);
+        $this->playbookRepo->method('find')->willReturn(null);
+        $this->assertSame([], $this->engine->getRunHistory(1));
     }
 
     public function testGetRunHistoryAcceptsLimitParameter()
     {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Feature not yet implemented');
+        $playbook = $this->createMock(Playbook::class);
+        $this->playbookRepo->method('find')->willReturn($playbook);
 
-        $this->engine->getRunHistory(1, 100);
+        $run = $this->createMock(PlaybookRun::class);
+        $this->playbookRunRepo->expects($this->once())
+            ->method('findBy')
+            ->with(['playbook' => $playbook], ['triggeredAt' => 'DESC'], 100)
+            ->willReturn([$run]);
+
+        $history = $this->engine->getRunHistory(1, 100);
+        $this->assertCount(1, $history);
     }
 
     /**

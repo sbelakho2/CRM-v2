@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\EmailSend;
+use App\Entity\EmailUnsubscribe;
 use App\Service\EmailCampaignService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -28,9 +29,11 @@ class EmailWebhookController extends AbstractController
     #[Route('/mailgun', name: 'webhook_mailgun', methods: ['POST'])]
     public function mailgun(Request $request): Response
     {
+        if ($response = $this->enforceWebhookSecret($request)) {
+            return $response;
+        }
+
         $data = $request->request->all();
-        
-        $this->logger->info('Mailgun webhook received', ['data' => $data]);
         
         // Mailgun sends event-data as nested array
         $eventData = $data['event-data'] ?? $data;
@@ -57,6 +60,12 @@ class EmailWebhookController extends AbstractController
             return new Response('Email send not found', 404);
         }
         
+        $this->logger->info('Mailgun webhook event received', [
+            'event' => $event,
+            'send_id' => $sendId,
+            'message_id' => $messageId,
+        ]);
+
         // Handle different event types
         switch ($event) {
             case 'delivered':
@@ -84,17 +93,34 @@ class EmailWebhookController extends AbstractController
                 // User unsubscribed
                 $this->logger->info('User unsubscribed', ['send_id' => $sendId]);
                 
-                // Mark contact as unsubscribed if we can identify them
-                if (isset($data['email'])) {
-                    $email = $data['email'];
-                    $contactRepo = $this->entityManager->getRepository(\App\Entity\Contact::class);
-                    $contact = $contactRepo->findOneBy(['email' => $email]);
-                    
-                    if ($contact) {
-                        $contact->setEmailOptOut(true);
-                        $contact->setEmailOptOutDate(new \DateTimeImmutable());
+                // Persist to global suppression list
+                $email = $eventData['recipient']
+                    ?? $eventData['recipient-email']
+                    ?? $eventData['email']
+                    ?? $data['email']
+                    ?? null;
+
+                if (is_string($email) && $email !== '') {
+                    $existing = $this->entityManager
+                        ->getRepository(EmailUnsubscribe::class)
+                        ->findOneBy(['email' => $email]);
+
+                    if (!$existing) {
+                        $unsubscribe = new EmailUnsubscribe();
+                        $unsubscribe->setEmail($email);
+
+                        $contact = $this->entityManager
+                            ->getRepository(\App\Entity\Contact::class)
+                            ->findOneBy(['email' => $email]);
+
+                        if ($contact) {
+                            $unsubscribe->setContact($contact);
+                        }
+
+                        $unsubscribe->setReason('unsubscribed');
+                        $this->entityManager->persist($unsubscribe);
                         $this->entityManager->flush();
-                        $this->logger->info('Contact marked as unsubscribed', ['contact_id' => $contact->getId()]);
+                        $this->logger->info('Email added to unsubscribe list', ['email' => $email]);
                     }
                 }
                 break;
@@ -125,6 +151,10 @@ class EmailWebhookController extends AbstractController
     #[Route('/sendgrid', name: 'webhook_sendgrid', methods: ['POST'])]
     public function sendgrid(Request $request): Response
     {
+        if ($response = $this->enforceWebhookSecret($request)) {
+            return $response;
+        }
+
         $events = json_decode($request->getContent(), true);
         
         if (!is_array($events)) {
@@ -132,10 +162,13 @@ class EmailWebhookController extends AbstractController
         }
         
         foreach ($events as $data) {
-            $this->logger->info('SendGrid webhook received', ['data' => $data]);
-            
             $event = $data['event'] ?? '';
             $sendId = $data['email_send_id'] ?? null; // Custom argument we'll add
+
+            $this->logger->info('SendGrid webhook event received', [
+                'event' => $event,
+                'send_id' => $sendId,
+            ]);
             
             if (!$sendId) {
                 continue;
@@ -190,13 +223,20 @@ class EmailWebhookController extends AbstractController
     #[Route('/postmark', name: 'webhook_postmark', methods: ['POST'])]
     public function postmark(Request $request): Response
     {
+        if ($response = $this->enforceWebhookSecret($request)) {
+            return $response;
+        }
+
         $data = json_decode($request->getContent(), true);
-        
-        $this->logger->info('Postmark webhook received', ['data' => $data]);
         
         $recordType = $data['RecordType'] ?? '';
         $metadata = $data['Metadata'] ?? [];
         $sendId = $metadata['email_send_id'] ?? null;
+
+        $this->logger->info('Postmark webhook event received', [
+            'record_type' => $recordType,
+            'send_id' => $sendId,
+        ]);
         
         if (!$sendId) {
             return new Response('No email send ID', 400);
@@ -252,12 +292,19 @@ class EmailWebhookController extends AbstractController
     #[Route('/generic', name: 'webhook_generic', methods: ['POST'])]
     public function generic(Request $request): Response
     {
+        if ($response = $this->enforceWebhookSecret($request)) {
+            return $response;
+        }
+
         $data = json_decode($request->getContent(), true) ?? $request->request->all();
-        
-        $this->logger->info('Generic webhook received', ['data' => $data]);
         
         $sendId = $data['email_send_id'] ?? null;
         $event = $data['event'] ?? null;
+
+        $this->logger->info('Generic webhook event received', [
+            'event' => $event,
+            'send_id' => $sendId,
+        ]);
         
         if (!$sendId || !$event) {
             return new Response('Missing email_send_id or event', 400);
@@ -285,5 +332,24 @@ class EmailWebhookController extends AbstractController
         }
         
         return new Response('OK', 200);
+    }
+
+    private function enforceWebhookSecret(Request $request): ?Response
+    {
+        $configuredSecret = $_SERVER['EMAIL_WEBHOOK_SECRET']
+            ?? $_ENV['EMAIL_WEBHOOK_SECRET']
+            ?? getenv('EMAIL_WEBHOOK_SECRET')
+            ?: null;
+
+        if (!$configuredSecret) {
+            return null;
+        }
+
+        $provided = $request->headers->get('X-Webhook-Secret');
+        if (!$provided || !hash_equals((string)$configuredSecret, (string)$provided)) {
+            return new Response('Unauthorized', 401);
+        }
+
+        return null;
     }
 }

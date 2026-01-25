@@ -52,5 +52,9 @@ services:
       $apiKey: '%env(GOOGLE_API_KEY)%'
       $searchEngineId: '%env(GOOGLE_SEARCH_ENGINE_ID)%'
 
+  App\Service\EmailTrackingSigner:
+    arguments:
+      $secret: '%kernel.secret%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

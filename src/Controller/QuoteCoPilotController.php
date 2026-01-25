@@ -442,7 +442,7 @@ class QuoteCoPilotController extends AbstractController
 
         // Send email notification to customer
         try {
-            $this->sendQuoteEmail($quote, $contactId);
+            $toEmail = $this->sendQuoteEmail($quote, $contactId);
         } catch (\Exception $e) {
             // Log error but don't fail the request - Quote is already marked as sent
             $this->logger->error('Email sending failed for Quote ' . $quote->getId(), [
@@ -487,7 +487,7 @@ class QuoteCoPilotController extends AbstractController
     /**
      * Send quote email to customer
      */
-    private function sendQuoteEmail(Quote $quote, ?int $contactId = null): void
+    private function sendQuoteEmail(Quote $quote, ?int $contactId = null): string
     {
         $company = $quote->getCompany();
         
@@ -541,6 +541,8 @@ class QuoteCoPilotController extends AbstractController
 
         // Send email
         $this->mailer->send($email);
+
+        return $toEmail;
     }
 
     /**

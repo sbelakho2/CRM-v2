@@ -80,7 +80,10 @@
                 <div class="space-y-3">
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <span class="text-gray-700">Compliance Required</span>
-                        <span class="font-semibold">{{ supplier.compliance_required | default('Not specified') | truncate(50) }}</span>
+                        {% set complianceRequired = supplier.compliance_required | default('Not specified') %}
+                        <span class="font-semibold">
+                            {{ complianceRequired | slice(0, 50) }}{% if complianceRequired|length > 50 %}…{% endif %}
+                        </span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <span class="text-gray-700">Compliance Provided</span>

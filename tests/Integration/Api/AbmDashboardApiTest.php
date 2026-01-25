@@ -57,6 +57,8 @@ class AbmDashboardApiTest extends WebTestCase
             
             // Should have error key (since feature not implemented)
             $this->assertArrayHasKey('error', $data);
+        } else {
+            $this->assertSame(302, $response->getStatusCode());
         }
     }
 

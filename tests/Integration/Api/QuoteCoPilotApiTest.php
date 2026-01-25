@@ -2,6 +2,7 @@
 
 namespace App\Tests\Integration\Api;
 
+use App\Entity\Company;
 use App\Entity\Quote;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -47,10 +48,14 @@ class QuoteCoPilotApiTest extends WebTestCase
         $client = static::createClient();
         $entityManager = $this->getEntityManager();
         
+        $company = new Company();
+        $company->setName('Test Company Low Coverage');
+        $entityManager->persist($company);
+
         // Create a quote with low coverage (<60%)
         $quote = new Quote();
         $quote->setQuoteNumber('TEST-' . time());
-        $quote->setCompanyName('Test Company Low Coverage');
+        $quote->setCompany($company);
         $quote->setStatus('draft');
         $quote->setCoveragePercent('45.5'); // Below 60% threshold
         $quote->setCreatedAt(new \DateTime());
@@ -68,6 +73,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
         // Clean up
         $entityManager->remove($quote);
+        $entityManager->remove($company);
         $entityManager->flush();
     }
 
@@ -76,10 +82,14 @@ class QuoteCoPilotApiTest extends WebTestCase
         $client = static::createClient();
         $entityManager = $this->getEntityManager();
         
+        $company = new Company();
+        $company->setName('Test Company High Coverage');
+        $entityManager->persist($company);
+
         // Create a quote with high coverage (>=60%)
         $quote = new Quote();
         $quote->setQuoteNumber('TEST-HIGH-' . time());
-        $quote->setCompanyName('Test Company High Coverage');
+        $quote->setCompany($company);
         $quote->setStatus('draft');
         $quote->setCoveragePercent('85.0'); // Above 60% threshold
         $quote->setCreatedAt(new \DateTime());
@@ -97,6 +107,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
         // Clean up
         $entityManager->remove($quote);
+        $entityManager->remove($company);
         $entityManager->flush();
     }
 
@@ -105,10 +116,14 @@ class QuoteCoPilotApiTest extends WebTestCase
         $client = static::createClient();
         $entityManager = $this->getEntityManager();
         
+        $company = new Company();
+        $company->setName('Test JSON Response');
+        $entityManager->persist($company);
+
         // Create a valid quote
         $quote = new Quote();
         $quote->setQuoteNumber('TEST-JSON-' . time());
-        $quote->setCompanyName('Test JSON Response');
+        $quote->setCompany($company);
         $quote->setStatus('draft');
         $quote->setCoveragePercent('75.0');
         $quote->setCreatedAt(new \DateTime());
@@ -121,6 +136,12 @@ class QuoteCoPilotApiTest extends WebTestCase
         $client->request('POST', "/quote-copilot/{$quoteId}/publish");
         
         $response = $client->getResponse();
+
+        $this->assertContains(
+            $response->getStatusCode(),
+            [200, 302],
+            'Publish endpoint should either return JSON (200) or redirect (302)'
+        );
         
         // If successful (200), should have JSON content type or be a redirect
         if ($response->getStatusCode() === 200) {
@@ -135,6 +156,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
         // Clean up
         $entityManager->remove($quote);
+        $entityManager->remove($company);
         $entityManager->flush();
     }
 

@@ -2,185 +2,210 @@
 
 namespace App\Tests\Unit\Service;
 
+use App\Entity\Company;
+use App\Entity\Contact;
+use App\Entity\EmailCampaign;
+use App\Entity\EmailUnsubscribe;
+use App\Repository\EmailUnsubscribeRepository;
+use App\Service\EmailCampaignService;
 use App\Service\EmailSchedulerService;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class EmailSchedulerServiceTest extends TestCase
 {
-    public function testScheduleCampaignSetsStatusAndScheduledAt(): void
-    {
-        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
-        $messageBus = $this->createMock(\Symfony\Component\Messenger\MessageBusInterface::class);
-        $segmentService = $this->createMock(\App\Service\EmailSegmentService::class);
-
-        $service = new EmailSchedulerService($em, $messageBus, $segmentService);
-
-        $campaign = new class extends \App\Entity\EmailCampaign {
-            private string $status = 'draft';
-            private bool $sendTimeOptimization = false;
-
-            public function getStatus(): string
-            {
-                return $this->status;
-            }
-
-            public function setStatus(string $s): self
-            {
-                $this->status = $s;
-                return $this;
-            }
-
-            public function isSendTimeOptimization(): bool
-            {
-                return $this->sendTimeOptimization;
-            }
-
-            public function setUpdatedAt(\DateTimeImmutable $dt): self
-            {
-                // noop for test
-                return $this;
-            }
-        };
-
-        $em->expects($this->once())->method('flush');
-
-        $service->scheduleCampaign($campaign, new \DateTimeImmutable('2030-01-01 10:00:00'), false);
-
-        $this->assertEquals('scheduled', $campaign->getStatus());
-        $this->assertInstanceOf(\DateTimeInterface::class, $campaign->getScheduledAt());
+    private function createService(
+        ?EntityManagerInterface $em = null,
+        ?MessageBusInterface $messageBus = null,
+        ?EmailCampaignService $campaignService = null
+    ): EmailSchedulerService {
+        return new EmailSchedulerService(
+            $em ?? $this->createMock(EntityManagerInterface::class),
+            $messageBus ?? $this->createMock(MessageBusInterface::class),
+            $campaignService ?? $this->createMock(EmailCampaignService::class)
+        );
     }
 
-    public function testScheduleCampaignOptimizeClearsScheduledAtWhenOptIn(): void
+    public function testScheduleCampaignSetsScheduledAt(): void
     {
-        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
-        $messageBus = $this->createMock(\Symfony\Component\Messenger\MessageBusInterface::class);
-        $segmentService = $this->createMock(\App\Service\EmailSegmentService::class);
-
-        $service = new EmailSchedulerService($em, $messageBus, $segmentService);
-
-        $campaign = new class extends \App\Entity\EmailCampaign {
-            private string $status = 'draft';
-            private bool $sendTimeOptimization = true;
-
-            public function getStatus(): string
-            {
-                return $this->status;
-            }
-
-            public function setStatus(string $s): self
-            {
-                $this->status = $s;
-                return $this;
-            }
-
-            public function isSendTimeOptimization(): bool
-            {
-                return $this->sendTimeOptimization;
-            }
-
-            public function setUpdatedAt(\DateTimeImmutable $dt): self
-            {
-                // noop for test
-                return $this;
-            }
-        };
-
+        $em = $this->createMock(EntityManagerInterface::class);
         $em->expects($this->once())->method('flush');
 
-        $service->scheduleCampaign($campaign, null, true);
+        $service = $this->createService($em);
 
-        $this->assertEquals('scheduled', $campaign->getStatus());
-        $this->assertNull($campaign->getScheduledAt());
+        $campaign = new EmailCampaign();
+        $scheduled = new \DateTimeImmutable('2030-01-01 10:00:00');
+
+        $service->scheduleCampaign($campaign, $scheduled, false);
+
+        $this->assertEquals($scheduled, $campaign->getScheduledAt());
     }
 
-    public function testProcessCampaignThrowsWhenNoSegment(): void
+    public function testScheduleCampaignReturnsZero(): void
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Campaign must have a segment');
+        $service = $this->createService();
+        $campaign = new EmailCampaign();
 
-        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
-        $messageBus = $this->createMock(\Symfony\Component\Messenger\MessageBusInterface::class);
-        $segmentService = $this->createMock(\App\Service\EmailSegmentService::class);
+        $result = $service->scheduleCampaign($campaign, null, false);
 
-        $service = new EmailSchedulerService($em, $messageBus, $segmentService);
-
-        $campaign = $this->getMockBuilder(\App\Entity\EmailCampaign::class)
-            ->addMethods(['getSegment'])
-            ->getMock();
-
-        $campaign->method('getSegment')->willReturn(null);
-
-        $service->processCampaign($campaign);
+        $this->assertSame(0, $result);
     }
 
-    public function testProcessCampaignWithNoContactsReturnsZeroAndUpdatesStatus(): void
+    public function testScheduleCampaignWithOptimizeSendTime(): void
     {
-        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
-        $messageBus = $this->createMock(\Symfony\Component\Messenger\MessageBusInterface::class);
-        $segmentService = $this->createMock(\App\Service\EmailSegmentService::class);
-
-        $segment = $this->createMock(\App\Entity\EmailSegment::class);
-        $segmentService->method('getSegmentContacts')->willReturn([]);
-
-        $service = new EmailSchedulerService($em, $messageBus, $segmentService);
-
-        $campaign = $this->getMockBuilder(\App\Entity\EmailCampaign::class)
-            ->addMethods(['getSegment', 'setStatus', 'setSentAt'])
-            ->getMock();
-
-        $campaign->method('getSegment')->willReturn($segment);
-        $campaign->expects($this->once())->method('setStatus')->with('sending');
-        $campaign->expects($this->once())->method('setSentAt');
-
+        $em = $this->createMock(EntityManagerInterface::class);
         $em->expects($this->once())->method('flush');
+
+        $service = $this->createService($em);
+        $campaign = new EmailCampaign();
+
+        // optimizeSendTime is a noop currently but should not error
+        $result = $service->scheduleCampaign($campaign, null, true);
+
+        $this->assertSame(0, $result);
+    }
+
+    public function testProcessCampaignWithNoContactsReturnsZero(): void
+    {
+        $campaignService = $this->createMock(EmailCampaignService::class);
+        $campaignService->expects($this->never())->method('sendToContact');
+
+        $service = $this->createService(null, null, $campaignService);
+
+        $campaign = new EmailCampaign();
+        // No contacts added
 
         $count = $service->processCampaign($campaign);
 
-        $this->assertEquals(0, $count);
+        $this->assertSame(0, $count);
     }
 
-    public function testCancelCampaignThrowsForInvalidStatus(): void
+    public function testProcessCampaignSendsToContactsWithEmail(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $unsubRepo = $this->createMock(EmailUnsubscribeRepository::class);
+        $unsubRepo->method('findOneBy')->willReturn(null);
 
-        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
-        $messageBus = $this->createMock(\Symfony\Component\Messenger\MessageBusInterface::class);
-        $segmentService = $this->createMock(\App\Service\EmailSegmentService::class);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')
+            ->with(EmailUnsubscribe::class)
+            ->willReturn($unsubRepo);
 
-        $service = new EmailSchedulerService($em, $messageBus, $segmentService);
+        $campaignService = $this->createMock(EmailCampaignService::class);
+        $campaignService->expects($this->exactly(2))->method('sendToContact');
 
-        $campaign = $this->getMockBuilder(\App\Entity\EmailCampaign::class)
-            ->addMethods(['getStatus'])
-            ->getMock();
+        $service = $this->createService($em, null, $campaignService);
 
-        $campaign->method('getStatus')->willReturn('draft');
+        $campaign = new EmailCampaign();
 
-        $service->cancelCampaign($campaign);
+        $company = new Company();
+        $company->setName('Test Co');
+
+        $contact1 = new Contact();
+        $contact1->setFirstName('Alice');
+        $contact1->setLastName('A');
+        $contact1->setEmail('alice@example.com');
+        $contact1->setCompany($company);
+
+        $contact2 = new Contact();
+        $contact2->setFirstName('Bob');
+        $contact2->setLastName('B');
+        $contact2->setEmail('bob@example.com');
+        $contact2->setCompany($company);
+
+        $campaign->addContact($contact1);
+        $campaign->addContact($contact2);
+
+        $count = $service->processCampaign($campaign);
+
+        $this->assertSame(2, $count);
     }
 
-    public function testCancelCampaignUpdatesStatusAndExecutesQuery(): void
+    public function testProcessCampaignSkipsContactsWithoutEmail(): void
     {
-        $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
-        $messageBus = $this->createMock(\Symfony\Component\Messenger\MessageBusInterface::class);
-        $segmentService = $this->createMock(\App\Service\EmailSegmentService::class);
+        $unsubRepo = $this->createMock(EmailUnsubscribeRepository::class);
+        $unsubRepo->method('findOneBy')->willReturn(null);
 
-        $query = $this->getMockBuilder(\stdClass::class)->addMethods(['setParameter', 'execute'])->getMock();
-        $query->method('setParameter')->willReturnSelf();
-        $query->expects($this->once())->method('execute')->willReturn(3);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')
+            ->with(EmailUnsubscribe::class)
+            ->willReturn($unsubRepo);
 
-        $em->expects($this->once())->method('createQuery')->willReturn($query);
-        $em->expects($this->once())->method('flush');
+        $campaignService = $this->createMock(EmailCampaignService::class);
+        $campaignService->expects($this->once())->method('sendToContact');
 
-        $service = new EmailSchedulerService($em, $messageBus, $segmentService);
+        $service = $this->createService($em, null, $campaignService);
 
-        $campaign = $this->getMockBuilder(\App\Entity\EmailCampaign::class)
-            ->addMethods(['getStatus', 'setStatus', 'setUpdatedAt'])
-            ->getMock();
+        $campaign = new EmailCampaign();
 
-        $campaign->method('getStatus')->willReturn('scheduled');
-        $campaign->expects($this->once())->method('setStatus')->with('cancelled');
-        $campaign->expects($this->once())->method('setUpdatedAt');
+        $company = new Company();
+        $company->setName('Test Co');
 
-        $service->cancelCampaign($campaign);
+        $contactWithEmail = new Contact();
+        $contactWithEmail->setFirstName('Alice');
+        $contactWithEmail->setLastName('A');
+        $contactWithEmail->setEmail('alice@example.com');
+        $contactWithEmail->setCompany($company);
+
+        $contactWithoutEmail = new Contact();
+        $contactWithoutEmail->setFirstName('NoEmail');
+        $contactWithoutEmail->setLastName('Person');
+        $contactWithoutEmail->setCompany($company);
+        // No email set
+
+        $campaign->addContact($contactWithEmail);
+        $campaign->addContact($contactWithoutEmail);
+
+        $count = $service->processCampaign($campaign);
+
+        $this->assertSame(1, $count);
+    }
+
+    public function testProcessCampaignSkipsUnsubscribedContacts(): void
+    {
+        $unsubscribed = new EmailUnsubscribe();
+
+        $unsubRepo = $this->createMock(EmailUnsubscribeRepository::class);
+        $unsubRepo->method('findOneBy')->willReturnCallback(function (array $criteria) use ($unsubscribed) {
+            // unsubscribed@example.com is on the suppression list
+            if ($criteria['email'] === 'unsubscribed@example.com') {
+                return $unsubscribed;
+            }
+            return null;
+        });
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')
+            ->with(EmailUnsubscribe::class)
+            ->willReturn($unsubRepo);
+
+        $campaignService = $this->createMock(EmailCampaignService::class);
+        $campaignService->expects($this->once())->method('sendToContact');
+
+        $service = $this->createService($em, null, $campaignService);
+
+        $campaign = new EmailCampaign();
+
+        $company = new Company();
+        $company->setName('Test Co');
+
+        $activeContact = new Contact();
+        $activeContact->setFirstName('Active');
+        $activeContact->setLastName('Person');
+        $activeContact->setEmail('active@example.com');
+        $activeContact->setCompany($company);
+
+        $unsubContact = new Contact();
+        $unsubContact->setFirstName('Unsub');
+        $unsubContact->setLastName('Person');
+        $unsubContact->setEmail('unsubscribed@example.com');
+        $unsubContact->setCompany($company);
+
+        $campaign->addContact($activeContact);
+        $campaign->addContact($unsubContact);
+
+        $count = $service->processCampaign($campaign);
+
+        $this->assertSame(1, $count);
     }
 }

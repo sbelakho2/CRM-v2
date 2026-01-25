@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\WebEvent;
 use App\Entity\AbmHit;
 use App\Entity\AbmAccount;
+use App\Entity\IpMap;
 use App\Repository\WebEventRepository;
 use App\Repository\AbmHitRepository;
 use App\Repository\AbmAccountRepository;
@@ -66,8 +67,31 @@ class AbmResolverService
      */
     public function processWebEvent(array $eventData): array
     {
+        $ipAddress = (string)($eventData['ip'] ?? '');
+        if ($ipAddress === '') {
+            throw new \InvalidArgumentException('Missing required field: ip');
+        }
+
+        $url = (string)($eventData['url'] ?? '/');
+        $timestamp = (string)($eventData['timestamp'] ?? 'now');
+        $userAgent = $eventData['user_agent'] ?? $eventData['userAgent'] ?? null;
+        $referer = $eventData['referer'] ?? null;
+        $method = (string)($eventData['method'] ?? 'GET');
+        $statusCode = $eventData['status_code'] ?? $eventData['statusCode'] ?? null;
+
+        $webEvent = new WebEvent();
+        $webEvent->setIpAddress($ipAddress);
+        $webEvent->setUrl($url);
+        $webEvent->setTimestamp(new \DateTime($timestamp));
+        $webEvent->setMethod($method);
+        $webEvent->setStatusCode(is_numeric($statusCode) ? (int)$statusCode : null);
+        $webEvent->setUserAgent(is_string($userAgent) ? $userAgent : null);
+        $webEvent->setReferer(is_string($referer) ? $referer : null);
+
+        $this->entityManager->persist($webEvent);
+
         // Resolve IP address
-        $resolvedData = $this->resolveIp($eventData['ip']);
+        $resolvedData = $this->resolveIp($ipAddress);
         
         // Check if resolved to a company and if it's an ABM target
         $abmHitId = null;
@@ -87,15 +111,7 @@ class AbmResolverService
             }
             
             if ($abmAccount) {
-                // Create ABM hit
-                $abmHit = new AbmHit();
-                $abmHit->setAbmAccount($abmAccount);
-                $abmHit->setHitAt(new \DateTime($eventData['timestamp'] ?? 'now'));
-                $abmHit->setPage($eventData['url']);
-                $abmHit->setIpAddress($eventData['ip']);
-                $abmHit->setUserAgent($eventData['user_agent'] ?? '');
-                $abmHit->setReferer($eventData['referer'] ?? '');
-                
+                $abmHit = $this->createAbmHit($webEvent, $abmAccount, $resolvedData);
                 $this->entityManager->persist($abmHit);
                 
                 // Update account metrics
@@ -110,15 +126,13 @@ class AbmResolverService
                 
                 $abmHitId = $abmHit->getId();
                 
-                // Trigger playbooks (will implement in next step)
-                try {
-                    $playbookTriggered = $this->playbookEngine->evaluatePlaybooks($abmAccount);
-                } catch (\Exception $e) {
-                    // Playbook engine not fully implemented yet, continue
-                    $playbookTriggered = false;
-                }
+                $playbookTriggered = $this->triggerPlaybooks($abmAccount, $webEvent);
             }
         }
+
+        $webEvent->setIsProcessed(true);
+        $webEvent->setProcessedAt(new \DateTime());
+        $this->entityManager->flush();
         
         return [
             'resolved' => $resolvedData['resolved'],
@@ -147,11 +161,17 @@ class AbmResolverService
         $ipMap = $this->ipMapRepository->findOneBy(['ipAddress' => $ipAddress]);
         
         if ($ipMap) {
+            if ($ipMap->getExpiresAt() && $ipMap->getExpiresAt() < new \DateTime()) {
+                $ipMap = null;
+            }
+        }
+
+        if ($ipMap) {
             // Found in cache
             return [
                 'resolved' => true,
-                'companyName' => $ipMap->getOrganization(),
-                'isp' => $ipMap->getIsp(),
+                'companyName' => $ipMap->getOrganizationName(),
+                'isp' => null,
                 'country' => $ipMap->getCountry(),
                 'city' => $ipMap->getCity()
             ];
@@ -160,7 +180,6 @@ class AbmResolverService
         // 2. Basic IP resolution using reverse DNS lookup
         // For now, use a simple approach - in production, integrate GeoIP2 or similar
         $organization = null;
-        $isp = null;
         $country = null;
         $city = null;
         
@@ -181,7 +200,6 @@ class AbmResolverService
                 $residentialPatterns = ['comcast', 'verizon', 'att', 'cox', 'charter', 'spectrum'];
                 foreach ($residentialPatterns as $pattern) {
                     if (stripos($hostname, $pattern) !== false) {
-                        $isp = ucfirst($pattern);
                         $organization = null; // Don't track residential IPs
                         break;
                     }
@@ -205,17 +223,14 @@ class AbmResolverService
         
         // 3. Cache result in IpMap (even if unresolved, to avoid repeated lookups)
         try {
-            $newIpMap = $this->entityManager->getRepository(\App\Entity\IpMap::class)->findOneBy(['ipAddress' => $ipAddress]);
-            if (!$newIpMap) {
-                $newIpMap = new \App\Entity\IpMap();
-                $newIpMap->setIpAddress($ipAddress);
-            }
-            $newIpMap->setOrganization($organization);
-            $newIpMap->setIsp($isp);
+            $newIpMap = new IpMap();
+            $newIpMap->setIpAddress($ipAddress);
+            $newIpMap->setOrganizationName($organization);
             $newIpMap->setCountry($country);
             $newIpMap->setCity($city);
-            $newIpMap->setLookedUpAt(new \DateTime());
-            
+            $newIpMap->setAsof(new \DateTime());
+            $newIpMap->setExpiresAt(new \DateTime('+30 days'));
+
             $this->entityManager->persist($newIpMap);
             $this->entityManager->flush();
         } catch (\Exception $e) {
@@ -226,10 +241,32 @@ class AbmResolverService
         return [
             'resolved' => $organization !== null,
             'companyName' => $organization,
-            'isp' => $isp,
+            'isp' => null,
             'country' => $country,
             'city' => $city
         ];
+    }
+
+    public function createAbmHit(WebEvent $webEvent, AbmAccount $abmAccount, array $resolvedData): AbmHit
+    {
+        $abmHit = new AbmHit();
+        $abmHit->setTimestamp($webEvent->getTimestamp() ?? new \DateTime());
+        $abmHit->setIpAddress($webEvent->getIpAddress() ?? '');
+        $abmHit->setUrlVisited($webEvent->getUrl());
+        $abmHit->setOrganizationName($abmAccount->getAccountName() ?? ($resolvedData['companyName'] ?? null));
+        $abmHit->setIsIdentified(true);
+        $abmHit->setPageViews(1);
+        $abmHit->setFirmographicData(is_array($abmAccount->getMetadata()) ? json_encode($abmAccount->getMetadata()) : null);
+        return $abmHit;
+    }
+
+    public function triggerPlaybooks(AbmAccount $abmAccount, WebEvent $webEvent): bool
+    {
+        try {
+            return (bool)$this->playbookEngine->evaluatePlaybooks($abmAccount);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
@@ -242,17 +279,29 @@ class AbmResolverService
      */
     public function getRecentHits(int $accountId, int $days = 30): array
     {
+        $account = $this->abmAccountRepository->find($accountId);
+        if (!$account || !$account->getAccountName()) {
+            return [];
+        }
+
         $cutoffDate = new \DateTime("-$days days");
-        
-        $qb = $this->abmHitRepository->createQueryBuilder('ah');
-        return $qb
-            ->where('ah.abmAccount = :accountId')
-            ->andWhere('ah.hitAt >= :cutoff')
-            ->setParameter('accountId', $accountId)
-            ->setParameter('cutoff', $cutoffDate)
-            ->orderBy('ah.hitAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+        $hits = $this->abmHitRepository->findBy(['organizationName' => $account->getAccountName()]);
+
+        $hits = array_values(array_filter($hits, static function (AbmHit $hit) use ($cutoffDate): bool {
+            $ts = $hit->getTimestamp();
+            return $ts instanceof \DateTimeInterface && $ts >= $cutoffDate;
+        }));
+
+        usort($hits, static function (AbmHit $a, AbmHit $b): int {
+            $ta = $a->getTimestamp();
+            $tb = $b->getTimestamp();
+            if (!$ta || !$tb) {
+                return 0;
+            }
+            return $tb <=> $ta;
+        });
+
+        return $hits;
     }
 
     /**
@@ -284,7 +333,10 @@ class AbmResolverService
             ];
         }
         
-        $hits = $this->abmHitRepository->findBy(['abmAccount' => $account]);
+        $hits = [];
+        if ($account->getAccountName()) {
+            $hits = $this->abmHitRepository->findBy(['organizationName' => $account->getAccountName()]);
+        }
         
         $stats = [
             'totalHits' => count($hits),
@@ -297,8 +349,8 @@ class AbmResolverService
         
         foreach ($hits as $hit) {
             // Last hit timestamp
-            if (!$stats['lastHitAt'] || $hit->getHitAt() > $stats['lastHitAt']) {
-                $stats['lastHitAt'] = $hit->getHitAt();
+            if (!$stats['lastHitAt'] || $hit->getTimestamp() > $stats['lastHitAt']) {
+                $stats['lastHitAt'] = $hit->getTimestamp();
             }
             
             // Count all as pageviews for now (can be enhanced later)

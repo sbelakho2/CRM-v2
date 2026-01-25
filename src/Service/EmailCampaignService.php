@@ -19,7 +19,8 @@ class EmailCampaignService
         private EmailCampaignRepository $campaignRepository,
         private EmailSendRepository $sendRepository,
         private MailerInterface $mailer,
-        private UrlGeneratorInterface $urlGenerator
+        private UrlGeneratorInterface $urlGenerator,
+        private EmailTrackingSigner $trackingSigner
     ) {}
 
     /**
@@ -103,9 +104,10 @@ class EmailCampaignService
         $companyName = $contact->getCompany() ? $contact->getCompany()->getName() : '';
         
         // Generate tracking URLs
+        $trackingPixelSig = $send->getId() ? $this->trackingSigner->signOpen($send->getId()) : null;
         $trackingPixelUrl = $this->urlGenerator->generate(
             'app_email_send_track_open',
-            ['id' => $send->getId()],
+            ['id' => $send->getId(), 'sig' => $trackingPixelSig],
             UrlGeneratorInterface::ABSOLUTE_URL
         );
         
@@ -113,9 +115,10 @@ class EmailCampaignService
             ? $contact->getCompany()->getWebsite() 
             : 'https://starzelectronics.site';
             
+        $trackingLinkSig = $send->getId() ? $this->trackingSigner->signClick($send->getId(), $websiteUrl) : null;
         $trackingLinkUrl = $this->urlGenerator->generate(
             'app_email_send_track_click',
-            ['id' => $send->getId(), 'url' => $websiteUrl],
+            ['id' => $send->getId(), 'url' => $websiteUrl, 'sig' => $trackingLinkSig],
             UrlGeneratorInterface::ABSOLUTE_URL
         );
         
