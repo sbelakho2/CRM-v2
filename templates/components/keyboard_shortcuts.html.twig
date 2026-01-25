@@ -1,4 +1,4 @@
-{# Keyboard Shortcuts System #}
+{# Keyboard Shortcuts System - Sensei-Rams Industrial Design #}
 
 <script>
 /**
@@ -12,18 +12,18 @@ class KeyboardShortcuts {
         this.shortcuts = {
             '/': {
                 action: () => this.focusSearch(),
-                description: 'Focus search',
-                category: 'Navigation'
+                description: '{{ 'shortcuts.focus_search'|trans|default('Focus search') }}',
+                category: '{{ 'shortcuts.navigation'|trans|default('Navigation') }}'
             },
             'l': {
                 action: () => this.navigateTo('{{ path('app_activity_new') }}'),
-                description: 'Log activity',
-                category: 'Quick Actions'
+                description: '{{ 'shortcuts.log_activity'|trans|default('Log activity') }}',
+                category: '{{ 'shortcuts.quick_actions'|trans|default('Quick Actions') }}'
             },
             '?': {
                 action: () => this.showHelp(),
-                description: 'Show keyboard shortcuts',
-                category: 'Help'
+                description: '{{ 'shortcuts.show_shortcuts'|trans|default('Show keyboard shortcuts') }}',
+                category: '{{ 'shortcuts.help'|trans|default('Help') }}'
             }
         };
 
@@ -31,15 +31,15 @@ class KeyboardShortcuts {
         this.comboShortcuts = {
             'a+c': {
                 action: () => this.navigateTo('{{ path('app_company_new') }}'),
-                description: 'Add company',
+                description: '{{ 'shortcuts.add_company'|trans|default('Add company') }}',
                 display: 'A + C',
-                category: 'Quick Actions'
+                category: '{{ 'shortcuts.quick_actions'|trans|default('Quick Actions') }}'
             },
             'a+e': {
                 action: () => this.navigateTo('{{ path('app_contact_new') }}'),
-                description: 'Add contact',
+                description: '{{ 'shortcuts.add_contact'|trans|default('Add contact') }}',
                 display: 'A + E',
-                category: 'Quick Actions'
+                category: '{{ 'shortcuts.quick_actions'|trans|default('Quick Actions') }}'
             }
         };
 
@@ -49,7 +49,7 @@ class KeyboardShortcuts {
     init() {
         document.addEventListener('keydown', (e) => this.handleKeyDown(e));
         document.addEventListener('keyup', (e) => this.handleKeyUp(e));
-        console.log('[Keyboard Shortcuts] Initialized');
+        console.log('[Keyboard Shortcuts] {{ 'common.initialized'|trans|default('Initialized') }}');
     }
 
     handleKeyDown(e) {
@@ -97,12 +97,12 @@ class KeyboardShortcuts {
         if (searchInput) {
             searchInput.focus();
             searchInput.select();
-            console.log('[Shortcuts] Focused search');
+            console.log('[Shortcuts] {{ 'shortcuts.focused_search'|trans|default('Focused search') }}');
         }
     }
 
     navigateTo(url) {
-        console.log('[Shortcuts] Navigating to:', url);
+        console.log('[Shortcuts] {{ 'shortcuts.navigating_to'|trans|default('Navigating to') }}:', url);
         window.location.href = url;
     }
 
@@ -110,7 +110,7 @@ class KeyboardShortcuts {
         const modal = document.getElementById('shortcuts-help-modal');
         if (modal) {
             modal.classList.remove('hidden');
-            console.log('[Shortcuts] Help modal opened');
+            console.log('[Shortcuts] {{ 'shortcuts.help_opened'|trans|default('Help modal opened') }}');
         }
     }
 

@@ -1,120 +1,89 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}All Guidance Notifications{% endblock %}
+{% block title %}{{ 'guidance.all_notifications'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    {# Header #}
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Guidance Notifications</h1>
-            <p class="mt-1 text-sm text-neutral-600">All your workflow reminders and guidance</p>
-        </div>
-        <div class="flex items-center gap-3">
-            {% if notifications|length > 0 %}
-                <button type="button" onclick="clearAllGuidanceNotifications()" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+<div class="rams-stack rams-gap-4">
+    {# Header Module #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <div>
+                <h1 class="rams-page-title">{{ 'guidance.notifications'|trans }}</h1>
+                <p class="rams-dymo">{{ 'guidance.subtitle'|trans }}</p>
+            </div>
+            <div class="rams-btn-group">
+                {% if notifications|length > 0 %}
+                    <button type="button" onclick="clearAllGuidanceNotifications()" class="rams-btn rams-btn--secondary">
+                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 4l-1 10H5L4 4M3 4h10M6 4V2h4v2"/>
+                        </svg>
+                        {{ 'guidance.clear_all'|trans }}
+                    </button>
+                {% endif %}
+                <a href="{{ path('app_dashboard') }}" class="rams-btn rams-btn--primary">
+                    <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 12l-6-4 6-4"/>
                     </svg>
-                    Clear All
-                </button>
-            {% endif %}
-            <a href="{{ path('app_dashboard') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                Back to Dashboard
-            </a>
+                    {{ 'nav.dashboard'|trans }}
+                </a>
+            </div>
         </div>
     </div>
 
     {% if notifications|length == 0 %}
         {# Empty State #}
-        <div class="bg-white rounded-xl border border-neutral-200/60 p-12 text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
-                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+        <div class="rams-module">
+            <div class="rams-module__content rams-text-center rams-py-8">
+                <div class="rams-andon rams-andon--success rams-mb-4">
+                    <span class="rams-andon__light rams-andon__light--green"></span>
+                </div>
+                <h3 class="rams-text-lg rams-text-bold rams-mb-2">{{ 'guidance.all_caught_up'|trans }}</h3>
+                <p class="rams-dymo">{{ 'guidance.no_pending'|trans }}</p>
             </div>
-            <h3 class="text-lg font-medium text-neutral-900 mb-2">All Caught Up!</h3>
-            <p class="text-sm text-neutral-600">You have no pending guidance notifications.</p>
         </div>
     {% else %}
         {# Notifications List #}
-        <div class="bg-white rounded-xl border border-neutral-200/60 p-6">
-            <div class="space-y-3">
-                {% for notification in notifications %}
-                    <div class="rounded-xl border p-4 flex items-start gap-3 guidance-notification {{ 
-                        notification.type == 'success' ? 'bg-green-50 border-green-200' :
-                        notification.type == 'warning' ? 'bg-amber-50 border-amber-200' :
-                        notification.type == 'tip' ? 'bg-blue-50 border-blue-200' :
-                        'bg-neutral-50 border-neutral-200'
-                    }}" data-notification-index="{{ loop.index0 }}">
-                        {# Icon #}
-                        <div class="flex-shrink-0 mt-0.5">
-                            {% if notification.type == 'success' %}
-                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                            {% elseif notification.type == 'warning' %}
-                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                                </svg>
-                            {% elseif notification.type == 'tip' %}
-                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                                </svg>
-                            {% else %}
-                                <svg class="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                            {% endif %}
-                        </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-stack rams-gap-3">
+                    {% for notification in notifications %}
+                        <div class="rams-notification guidance-notification rams-notification--{{ notification.type|default('info') }}" data-notification-index="{{ loop.index0 }}">
+                            {# Icon with Andon indicator #}
+                            <div class="rams-notification__indicator">
+                                <span class="rams-andon__light 
+                                    {% if notification.type == 'success' %}rams-andon__light--green
+                                    {% elseif notification.type == 'warning' %}rams-andon__light--yellow
+                                    {% elseif notification.type == 'tip' %}rams-andon__light--blue
+                                    {% else %}rams-andon__light--off{% endif %}">
+                                </span>
+                            </div>
 
-                        {# Content #}
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm {{ 
-                                notification.type == 'success' ? 'text-green-800' :
-                                notification.type == 'warning' ? 'text-amber-800' :
-                                notification.type == 'tip' ? 'text-blue-800' :
-                                'text-neutral-800'
-                            }}">
-                                {{ notification.message|raw }}
-                            </p>
-                            <p class="text-xs text-neutral-500 mt-1">
-                                {{ notification.timestamp|date('M d, Y g:i A') }}
-                            </p>
-                        </div>
+                            {# Content #}
+                            <div class="rams-notification__content">
+                                <p class="rams-notification__message">{{ notification.message|raw }}</p>
+                                <p class="rams-dymo rams-mt-1">{{ notification.timestamp|date('M d, Y g:i A') }}</p>
+                            </div>
 
-                        {# Action Buttons #}
-                        <div class="flex-shrink-0 flex items-center gap-2">
-                            {% if notification.actionUrl and notification.actionLabel %}
-                                <a href="{{ notification.actionUrl }}" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors {{
-                                    notification.type == 'success' ? 'bg-green-600 text-white hover:bg-green-700' :
-                                    notification.type == 'warning' ? 'bg-amber-600 text-white hover:bg-amber-700' :
-                                    notification.type == 'tip' ? 'bg-blue-600 text-white hover:bg-blue-700' :
-                                    'bg-neutral-600 text-white hover:bg-neutral-700'
-                                }}">
-                                    {{ notification.actionLabel }}
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            {# Action Buttons #}
+                            <div class="rams-notification__actions">
+                                {% if notification.actionUrl and notification.actionLabel %}
+                                    <a href="{{ notification.actionUrl }}" class="rams-btn rams-btn--primary rams-btn--sm">
+                                        {{ notification.actionLabel }}
+                                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M6 4l4 4-4 4"/>
+                                        </svg>
+                                    </a>
+                                {% endif %}
+                                {# Dismiss Button #}
+                                <button type="button" onclick="dismissGuidanceNotification(this)" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.close'|trans }}">
+                                    <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 4l8 8M4 12l8-8"/>
                                     </svg>
-                                </a>
-                            {% endif %}
-                            {# Dismiss Button #}
-                            <button type="button" onclick="dismissGuidanceNotification(this)" class="p-1.5 rounded-lg transition-colors {{ 
-                                notification.type == 'success' ? 'text-green-600 hover:bg-green-100' :
-                                notification.type == 'warning' ? 'text-amber-600 hover:bg-amber-100' :
-                                notification.type == 'tip' ? 'text-blue-600 hover:bg-blue-100' :
-                                'text-neutral-600 hover:bg-neutral-100'
-                            }}" title="Dismiss">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                {% endfor %}
+                    {% endfor %}
+                </div>
             </div>
         </div>
     {% endif %}
@@ -125,12 +94,10 @@ function dismissGuidanceNotification(button) {
     const notification = button.closest('.guidance-notification');
     const index = notification.getAttribute('data-notification-index');
     
-    // Animate out
     notification.style.transition = 'opacity 0.3s, transform 0.3s';
     notification.style.opacity = '0';
     notification.style.transform = 'translateX(100%)';
     
-    // Send dismiss request to server to permanently remove
     fetch('{{ path('guidance_dismiss') }}', {
         method: 'POST',
         headers: {
@@ -141,8 +108,6 @@ function dismissGuidanceNotification(button) {
         if (response.ok) {
             setTimeout(() => {
                 notification.remove();
-                
-                // Reload if no more notifications
                 const remaining = document.querySelectorAll('.guidance-notification').length;
                 if (remaining === 0) {
                     location.reload();
@@ -153,7 +118,7 @@ function dismissGuidanceNotification(button) {
 }
 
 function clearAllGuidanceNotifications() {
-    if (confirm('Are you sure you want to clear all guidance notifications?')) {
+    if (confirm('{{ 'guidance.clear_confirm'|trans }}')) {
         fetch('{{ path('guidance_dismiss_all') }}', {
             method: 'POST'
         }).then(response => {
@@ -164,5 +129,4 @@ function clearAllGuidanceNotifications() {
     }
 }
 </script>
-
 {% endblock %}

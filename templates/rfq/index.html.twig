@@ -1,231 +1,229 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}RFQs - CRM{% endblock %}
+{% block title %}{{ 'rfq.index.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="flex items-center justify-between mb-6">
+<div class="rams-container">
+    {# Header #}
+    <div class="rams-page-header">
         <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">RFQs</h1>
-            <p class="mt-1 text-sm text-neutral-600">Manage all request for quotations</p>
+            <h1 class="rams-page-title">{{ 'rfq.index.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'rfq.index.subtitle'|trans }}</p>
         </div>
-        <div class="flex items-center gap-3">
-            <a href="{{ path('app_rfq_pipeline') }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
+        <div class="rams-btn-group">
+            <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-btn--secondary">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
                 </svg>
-                Pipeline View
+                {{ 'rfq.actions.pipeline_view'|trans }}
             </a>
-            <a href="{{ path('app_rfq_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+            <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                New RFQ
+                {{ 'rfq.actions.new'|trans }}
             </a>
         </div>
     </div>
 
-    {# Filters #}
-    <div class="bg-white rounded-xl border border-neutral-200/60 p-5 mb-6">
-    <form method="get" class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div>
-            <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Type</label>
-            <select name="type" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                <option value="">All Types</option>
-                <option value="Standard RFQ" {% if app.request.get('type') == 'Standard RFQ' %}selected{% endif %}>Standard RFQ</option>
-                <option value="NPI" {% if app.request.get('type') == 'NPI' %}selected{% endif %}>NPI</option>
-                <option value="Framework Agreement" {% if app.request.get('type') == 'Framework Agreement' %}selected{% endif %}>Framework Agreement</option>
-            </select>
-        </div>
-        
-        <div>
-            <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Status</label>
-            <select name="status" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                <option value="">All Statuses</option>
-                <option value="Pending" {% if app.request.get('status') == 'Pending' %}selected{% endif %}>Pending</option>
-                <option value="In Review" {% if app.request.get('status') == 'In Review' %}selected{% endif %}>In Review</option>
-                <option value="Submitted" {% if app.request.get('status') == 'Submitted' %}selected{% endif %}>Submitted</option>
-                <option value="Won" {% if app.request.get('status') == 'Won' %}selected{% endif %}>Won</option>
-                <option value="Lost" {% if app.request.get('status') == 'Lost' %}selected{% endif %}>Lost</option>
-            </select>
-        </div>
-        
-        <div>
-            <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Company</label>
-            <select name="company" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                <option value="">All Companies</option>
-                {# Companies will be populated dynamically #}
-            </select>
-        </div>
+    {# Filters Module #}
+    <div class="rams-module rams-module--filters">
+        <div class="rams-module__content">
+            <form method="get" class="rams-grid rams-grid--5">
+                <div class="rams-form__group">
+                    <label class="rams-dymo">{{ 'rfq.fields.type'|trans }}</label>
+                    <select name="type" class="rams-form__select">
+                        <option value="">{{ 'rfq.filters.all_types'|trans }}</option>
+                        <option value="Standard RFQ" {% if app.request.get('type') == 'Standard RFQ' %}selected{% endif %}>{{ 'rfq.type.standard'|trans }}</option>
+                        <option value="NPI" {% if app.request.get('type') == 'NPI' %}selected{% endif %}>{{ 'rfq.type.npi'|trans }}</option>
+                        <option value="Framework Agreement" {% if app.request.get('type') == 'Framework Agreement' %}selected{% endif %}>{{ 'rfq.type.framework'|trans }}</option>
+                    </select>
+                </div>
+                
+                <div class="rams-form__group">
+                    <label class="rams-dymo">{{ 'rfq.fields.status'|trans }}</label>
+                    <select name="status" class="rams-form__select">
+                        <option value="">{{ 'rfq.filters.all_statuses'|trans }}</option>
+                        <option value="Pending" {% if app.request.get('status') == 'Pending' %}selected{% endif %}>{{ 'rfq.status.pending'|trans }}</option>
+                        <option value="In Review" {% if app.request.get('status') == 'In Review' %}selected{% endif %}>{{ 'rfq.status.in_review'|trans }}</option>
+                        <option value="Submitted" {% if app.request.get('status') == 'Submitted' %}selected{% endif %}>{{ 'rfq.status.submitted'|trans }}</option>
+                        <option value="Won" {% if app.request.get('status') == 'Won' %}selected{% endif %}>{{ 'rfq.status.won'|trans }}</option>
+                        <option value="Lost" {% if app.request.get('status') == 'Lost' %}selected{% endif %}>{{ 'rfq.status.lost'|trans }}</option>
+                    </select>
+                </div>
+                
+                <div class="rams-form__group">
+                    <label class="rams-dymo">{{ 'rfq.fields.company'|trans }}</label>
+                    <select name="company" class="rams-form__select">
+                        <option value="">{{ 'rfq.filters.all_companies'|trans }}</option>
+                        {# Companies will be populated dynamically #}
+                    </select>
+                </div>
 
-        <div>
-            <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">NDA Status</label>
-            <select name="nda_status" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                <option value="">All</option>
-                <option value="pending" {% if app.request.get('nda_status') == 'pending' %}selected{% endif %}>Pending</option>
-                <option value="sent" {% if app.request.get('nda_status') == 'sent' %}selected{% endif %}>Sent</option>
-                <option value="executed" {% if app.request.get('nda_status') == 'executed' %}selected{% endif %}>Executed</option>
-            </select>
-        </div>
+                <div class="rams-form__group">
+                    <label class="rams-dymo">{{ 'rfq.fields.nda_status'|trans }}</label>
+                    <select name="nda_status" class="rams-form__select">
+                        <option value="">{{ 'common.all'|trans }}</option>
+                        <option value="pending" {% if app.request.get('nda_status') == 'pending' %}selected{% endif %}>{{ 'rfq.nda.pending'|trans }}</option>
+                        <option value="sent" {% if app.request.get('nda_status') == 'sent' %}selected{% endif %}>{{ 'rfq.nda.sent'|trans }}</option>
+                        <option value="executed" {% if app.request.get('nda_status') == 'executed' %}selected{% endif %}>{{ 'rfq.nda.executed'|trans }}</option>
+                    </select>
+                </div>
 
-        <div class="flex items-end gap-2">
-            <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">Apply</button>
-            <a href="{{ path('app_rfq_index') }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">Clear</a>
+                <div class="rams-form__group rams-form__group--actions">
+                    <label class="rams-dymo">&nbsp;</label>
+                    <div class="rams-btn-group">
+                        <button type="submit" class="rams-btn rams-btn--primary">{{ 'common.apply'|trans }}</button>
+                        <a href="{{ path('app_rfq_index') }}" class="rams-btn rams-btn--secondary">{{ 'common.clear'|trans }}</a>
+                    </div>
+                </div>
+            </form>
         </div>
-        </form>
     </div>
 
     {# RFQ List #}
     {% if rfqs|length > 0 %}
-        <div class="space-y-3">
+        <div class="rams-card-list">
             {% for rfq in rfqs %}
-                <div class="bg-white rounded-xl border border-neutral-200/60 p-6 hover:border-neutral-300 hover:shadow-sm transition-all">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-3 mb-2">
-                            <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="text-lg font-semibold text-neutral-900 hover:text-blue-600">
-                                {{ rfq.company.name }}
-                            </a>
-                            
-                            {# Type Badge #}
-                            {% if rfq.type == 'NPI' %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-purple-100 text-purple-700">
-                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="mr-1">
-                                        <path d="M8 2L9.5 6.5L14 8L9.5 9.5L8 14L6.5 9.5L2 8L6.5 6.5L8 2Z"/>
-                                    </svg>
-                                    NPI
-                                </span>
-                            {% elseif rfq.type == 'Framework Agreement' %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-700">
-                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
-                                        <rect x="3" y="3" width="10" height="10" rx="1"/>
-                                    </svg>
-                                    Framework
-                                </span>
-                            {% else %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-700">
-                                    Standard
-                                </span>
-                            {% endif %}
+                <div class="rams-module rams-module--hoverable">
+                    <div class="rams-module__content">
+                        <div class="rams-rfq-card">
+                            <div class="rams-rfq-card__main">
+                                <div class="rams-rfq-card__header">
+                                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-rfq-card__title">
+                                        {{ rfq.company.name }}
+                                    </a>
+                                    
+                                    {# Type Badge #}
+                                    {% if rfq.type == 'NPI' %}
+                                        <span class="rams-badge rams-badge--npi">
+                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="mr-1">
+                                                <path d="M8 2L9.5 6.5L14 8L9.5 9.5L8 14L6.5 9.5L2 8L6.5 6.5L8 2Z"/>
+                                            </svg>
+                                            {{ 'rfq.type.npi'|trans }}
+                                        </span>
+                                    {% elseif rfq.type == 'Framework Agreement' %}
+                                        <span class="rams-badge rams-badge--framework">
+                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                                <rect x="3" y="3" width="10" height="10" rx="1"/>
+                                            </svg>
+                                            {{ 'rfq.type.framework'|trans }}
+                                        </span>
+                                    {% else %}
+                                        <span class="rams-badge">{{ 'rfq.type.standard'|trans }}</span>
+                                    {% endif %}
 
-                            {# Status Badge #}
-                            {% if rfq.status == 'Won' %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700">
-                                    {{ rfq.status }}
-                                </span>
-                            {% elseif rfq.status == 'Lost' %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-red-100 text-red-700">
-                                    {{ rfq.status }}
-                                </span>
-                            {% elseif rfq.status == 'Submitted' %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-700">
-                                    {{ rfq.status }}
-                                </span>
-                            {% elseif rfq.status == 'In Review' %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-700">
-                                    {{ rfq.status }}
-                                </span>
-                            {% else %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-neutral-100 text-neutral-700">
-                                    {{ rfq.status }}
-                                </span>
-                            {% endif %}
-                        </div>
-
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            {% if rfq.rfqNumber %}
-                                <div>
-                                    <span class="text-neutral-500">RFQ #:</span>
-                                    <span class="font-medium text-neutral-900 ml-1">{{ rfq.rfqNumber }}</span>
+                                    {# Status Badge #}
+                                    {% if rfq.status == 'Won' %}
+                                        <span class="rams-badge rams-badge--success">{{ rfq.status }}</span>
+                                    {% elseif rfq.status == 'Lost' %}
+                                        <span class="rams-badge rams-badge--error">{{ rfq.status }}</span>
+                                    {% elseif rfq.status == 'Submitted' %}
+                                        <span class="rams-badge rams-badge--warning">{{ rfq.status }}</span>
+                                    {% elseif rfq.status == 'In Review' %}
+                                        <span class="rams-badge rams-badge--info">{{ rfq.status }}</span>
+                                    {% else %}
+                                        <span class="rams-badge">{{ rfq.status }}</span>
+                                    {% endif %}
                                 </div>
-                            {% endif %}
 
-                            {% if rfq.estimatedValue %}
-                                <div>
-                                    <span class="text-neutral-500">Value:</span>
-                                    <span class="font-semibold text-emerald-600 ml-1">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</span>
+                                <div class="rams-rfq-card__details">
+                                    {% if rfq.rfqNumber %}
+                                        <div class="rams-rfq-card__detail">
+                                            <span class="rams-text--muted">{{ 'rfq.fields.rfq_number'|trans }}:</span>
+                                            <span class="rams-text--strong">{{ rfq.rfqNumber }}</span>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if rfq.estimatedValue %}
+                                        <div class="rams-rfq-card__detail">
+                                            <span class="rams-text--muted">{{ 'rfq.fields.value'|trans }}:</span>
+                                            <span class="rams-metric rams-metric--currency">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</span>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if rfq.volumeAnnual %}
+                                        <div class="rams-rfq-card__detail">
+                                            <span class="rams-text--muted">{{ 'rfq.fields.volume'|trans }}:</span>
+                                            <span class="rams-text--strong">{{ rfq.volumeAnnual|number_format(0, '.', ',') }}/{{ 'common.year'|trans }}</span>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if rfq.sopDate %}
+                                        <div class="rams-rfq-card__detail">
+                                            <span class="rams-text--muted">{{ 'rfq.fields.sop'|trans }}:</span>
+                                            <span class="rams-text--strong">{{ rfq.sopDate|date('M Y') }}</span>
+                                        </div>
+                                    {% endif %}
                                 </div>
-                            {% endif %}
 
-                            {% if rfq.volumeAnnual %}
-                                <div>
-                                    <span class="text-neutral-500">Volume:</span>
-                                    <span class="font-medium text-neutral-900 ml-1">{{ rfq.volumeAnnual|number_format(0, '.', ',') }}/year</span>
+                                {# NDA Status #}
+                                <div class="rams-rfq-card__nda">
+                                    {% if rfq.ndaExecuted %}
+                                        <span class="rams-badge rams-badge--success rams-badge--small">
+                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                                <path d="M3 8L6 11L13 4"/>
+                                            </svg>
+                                            {{ 'rfq.nda.executed'|trans }}
+                                        </span>
+                                    {% elseif rfq.ndaSent %}
+                                        <span class="rams-badge rams-badge--warning rams-badge--small">
+                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                                <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
+                                            </svg>
+                                            {{ 'rfq.nda.sent'|trans }} ({{ rfq.ndaDate|date('d/m/Y') }})
+                                        </span>
+                                    {% else %}
+                                        <span class="rams-badge rams-badge--small">
+                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
+                                                <circle cx="8" cy="8" r="6"/>
+                                                <path d="M8 5V8"/>
+                                                <circle cx="8" cy="11" r="0.5" fill="currentColor"/>
+                                            </svg>
+                                            {{ 'rfq.nda.pending'|trans }}
+                                        </span>
+                                    {% endif %}
                                 </div>
-                            {% endif %}
+                            </div>
 
-                            {% if rfq.sopDate %}
-                                <div>
-                                    <span class="text-neutral-500">SOP:</span>
-                                    <span class="font-medium text-neutral-900 ml-1">{{ rfq.sopDate|date('M Y') }}</span>
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        {# NDA Status #}
-                        <div class="flex gap-2 mt-3">
-                            {% if rfq.ndaExecuted %}
-                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-100 text-emerald-700">
-                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
-                                        <path d="M3 8L6 11L13 4"/>
+                            <div class="rams-rfq-card__actions">
+                                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}">
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M2 8C2 8 4 4 8 4C12 4 14 8 14 8C14 8 12 12 8 12C4 12 2 8 2 8Z"/>
+                                        <circle cx="8" cy="8" r="2"/>
                                     </svg>
-                                    NDA Executed
-                                </span>
-                            {% elseif rfq.ndaSent %}
-                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
-                                        <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
+                                </a>
+                                <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                                     </svg>
-                                    NDA Sent ({{ rfq.ndaDate|date('d/m/Y') }})
-                                </span>
-                            {% else %}
-                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-neutral-100 text-neutral-600">
-                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-1">
-                                        <circle cx="8" cy="8" r="6"/>
-                                        <path d="M8 5V8"/>
-                                        <circle cx="8" cy="11" r="0.5" fill="currentColor"/>
-                                    </svg>
-                                    NDA Pending
-                                </span>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="flex gap-2">
-                        <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M2 8C2 8 4 4 8 4C12 4 14 8 14 8C14 8 12 12 8 12C4 12 2 8 2 8Z"/>
-                                <circle cx="8" cy="8" r="2"/>
-                            </svg>
-                        </a>
-                        <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
-                            </svg>
-                        </a>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <div class="bg-white rounded-xl border border-neutral-200/60 p-12 text-center">
-        <div class="flex justify-center mb-4">
-            <div class="w-16 h-16 bg-neutral-100 rounded-xl flex items-center justify-center">
-                <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="text-neutral-400">
-                    <rect x="3" y="3" width="10" height="10" rx="1"/>
-                    <path d="M6 7H10M6 10H8"/>
-                </svg>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-empty-state">
+                    <div class="rams-empty-state__icon-wrapper">
+                        <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="rams-empty-state__icon">
+                            <rect x="3" y="3" width="10" height="10" rx="1"/>
+                            <path d="M6 7H10M6 10H8"/>
+                        </svg>
+                    </div>
+                    <h3 class="rams-empty-state__title">{{ 'rfq.empty.title'|trans }}</h3>
+                    <p class="rams-empty-state__description">{{ 'rfq.empty.description'|trans }}</p>
+                    <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3V13M3 8H13"/>
+                        </svg>
+                        {{ 'rfq.actions.new'|trans }}
+                    </a>
+                </div>
             </div>
-        </div>
-            <h3 class="text-lg font-semibold text-neutral-900 mb-2">No RFQs found</h3>
-            <p class="text-neutral-600 mb-6">Get started by creating your first RFQ.</p>
-            <a href="{{ path('app_rfq_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M8 3V13M3 8H13"/>
-                </svg>
-                New RFQ
-            </a>
         </div>
     {% endif %}
 </div>

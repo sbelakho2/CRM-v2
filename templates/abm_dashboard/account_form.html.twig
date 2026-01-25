@@ -3,96 +3,95 @@
 {% block title %}{{ pageTitle }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <div class="border-b border-neutral-200/80 pb-5">
-        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">{{ pageTitle }}</h1>
-        <p class="text-sm text-neutral-600 mt-1">{{ account ? 'Update' : 'Create new' }} ABM target account</p>
+<div class="rams-stack">
+    <div class="rams-page-header">
+        <h1 class="rams-page-title">{{ pageTitle }}</h1>
+        <p class="rams-page-subtitle">{{ account ? 'abm_dashboard.update_account'|trans : 'abm_dashboard.create_account'|trans }} ABM target account</p>
     </div>
 
-    <div class="rounded-xl border border-neutral-200/60 bg-white p-6" style="max-width: 800px;">
-        <form method="POST">
-            <div class="space-y-4">
+    <div class="rams-module" style="max-width: 800px;">
+        <div class="rams-module__content">
+            <form method="POST" class="rams-form">
                 <!-- Account Name -->
-                <div>
-                    <label class="block text-sm font-medium text-neutral-900 mb-2">Account Name *</label>
+                <div class="rams-form-group">
+                    <label class="rams-label">{{ 'abm_dashboard.account_name'|trans }} *</label>
                     <input type="text" name="account_name" required
                            value="{{ account ? account.accountName : '' }}"
-                           class="w-full rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 placeholder-neutral-500 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                           class="rams-input"
                            placeholder="e.g., Acme Corporation">
                 </div>
 
                 <!-- Domain -->
-                <div>
-                    <label class="block text-sm font-medium text-neutral-900 mb-2">Domain *</label>
+                <div class="rams-form-group">
+                    <label class="rams-label">{{ 'abm_dashboard.domain'|trans }} *</label>
                     <input type="text" name="domain" required
                            value="{{ account ? account.domain : '' }}"
-                           class="w-full rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 placeholder-neutral-500 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                           class="rams-input"
                            placeholder="e.g., acme.com">
-                    <p class="text-xs text-neutral-500 mt-1">Company website domain (without http://)</p>
+                    <p class="rams-text-muted">{{ 'abm_dashboard.domain_hint'|trans }}</p>
                 </div>
 
                 <!-- ICP Tier -->
-                <div>
-                    <label class="block text-sm font-medium text-neutral-900 mb-2">ICP Tier</label>
-                    <select name="icp_tier"
-                            class="w-full rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400">
-                        <option value="">Select tier...</option>
-                        <option value="Tier1" {{ account and account.icpTier == 'Tier1' ? 'selected' : '' }}>Tier 1 - High Priority</option>
-                        <option value="Tier2" {{ account and account.icpTier == 'Tier2' ? 'selected' : '' }}>Tier 2 - Medium Priority</option>
-                        <option value="Tier3" {{ account and account.icpTier == 'Tier3' ? 'selected' : '' }}>Tier 3 - Low Priority</option>
+                <div class="rams-form-group">
+                    <label class="rams-label">{{ 'abm_dashboard.icp_tier'|trans }}</label>
+                    <select name="icp_tier" class="rams-select">
+                        <option value="">{{ 'abm_dashboard.select_tier'|trans }}</option>
+                        <option value="Tier1" {{ account and account.icpTier == 'Tier1' ? 'selected' : '' }}>{{ 'abm_dashboard.tier1'|trans }}</option>
+                        <option value="Tier2" {{ account and account.icpTier == 'Tier2' ? 'selected' : '' }}>{{ 'abm_dashboard.tier2'|trans }}</option>
+                        <option value="Tier3" {{ account and account.icpTier == 'Tier3' ? 'selected' : '' }}>{{ 'abm_dashboard.tier3'|trans }}</option>
                     </select>
                 </div>
 
                 <!-- Industry -->
-                <div>
-                    <label class="block text-sm font-medium text-neutral-900 mb-2">Industry</label>
+                <div class="rams-form-group">
+                    <label class="rams-label">{{ 'company.industry'|trans }}</label>
                     <input type="text" name="industry"
                            value="{{ account and account.metadata ? account.metadata.industry|default('') : '' }}"
-                           class="w-full rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 placeholder-neutral-500 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                           class="rams-input"
                            placeholder="e.g., Technology, Manufacturing">
                 </div>
 
                 <!-- Country -->
-                <div>
-                    <label class="block text-sm font-medium text-neutral-900 mb-2">Country</label>
+                <div class="rams-form-group">
+                    <label class="rams-label">{{ 'company.country'|trans }}</label>
                     <input type="text" name="country"
                            value="{{ account and account.metadata ? account.metadata.country|default('') : '' }}"
-                           class="w-full rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 placeholder-neutral-500 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                           class="rams-input"
                            placeholder="e.g., Morocco, USA">
                 </div>
 
                 <!-- Company Size -->
-                <div>
-                    <label class="block text-sm font-medium text-neutral-900 mb-2">Company Size</label>
+                <div class="rams-form-group">
+                    <label class="rams-label">{{ 'abm_dashboard.company_size'|trans }}</label>
                     <input type="text" name="company_size"
                            value="{{ account and account.metadata ? account.metadata.company_size|default('') : '' }}"
-                           class="w-full rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 placeholder-neutral-500 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                           class="rams-input"
                            placeholder="e.g., 50-200, 1000+">
                 </div>
 
                 <!-- Revenue -->
-                <div>
-                    <label class="block text-sm font-medium text-neutral-900 mb-2">Annual Revenue</label>
+                <div class="rams-form-group">
+                    <label class="rams-label">{{ 'abm_dashboard.annual_revenue'|trans }}</label>
                     <input type="text" name="revenue"
                            value="{{ account and account.metadata ? account.metadata.revenue|default('') : '' }}"
-                           class="w-full rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 placeholder-neutral-500 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                           class="rams-input"
                            placeholder="e.g., $1M-$10M">
                 </div>
-            </div>
 
-            <!-- Form Actions -->
-            <div class="flex gap-3 mt-6 pt-6 border-t border-neutral-200">
-                <button type="submit" class="inline-flex items-center rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-2">
-                        <path d="M13 3L6 13L3 9"/>
-                    </svg>
-                    {{ account ? 'Update' : 'Create' }} Account
-                </button>
-                <a href="{{ path('abm_dashboard_accounts') }}" class="inline-flex items-center rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                    Cancel
-                </a>
-            </div>
-        </form>
+                <!-- Form Actions -->
+                <div class="rams-module__footer">
+                    <button type="submit" class="rams-btn rams-btn--primary">
+                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 3L6 13L3 9"/>
+                        </svg>
+                        {{ account ? 'abm_dashboard.update_account'|trans : 'abm_dashboard.create_account'|trans }}
+                    </button>
+                    <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--ghost">
+                        {{ 'common.cancel'|trans }}
+                    </a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

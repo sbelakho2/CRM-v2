@@ -1,270 +1,249 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}A/B Test Results - {{ campaign.name }}{% endblock %}
+{% block title %}{{ 'email_campaign.ab_test.results'|trans }} - {{ campaign.name }}{% endblock %}
 
 {% block body %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4>
-                    <i class="bi bi-bar-chart-line"></i> A/B Test Results
-                </h4>
-                <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Campaign
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Breadcrumb #}
+        <nav class="rams-breadcrumb">
+            <ol class="rams-breadcrumb__list">
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_index') }}" class="rams-breadcrumb__link">{{ 'email_campaign.title'|trans }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-breadcrumb__link">{{ campaign.name }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'email_campaign.ab_test.results'|trans }}</li>
+            </ol>
+        </nav>
+
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.ab_test.results'|trans }}</h1>
+            </div>
+            <div class="rams-page__actions">
+                <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn rams-btn--secondary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    {{ 'common.back'|trans }}
                 </a>
             </div>
         </div>
-    </div>
 
-    {% if results is empty %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i> No A/B test configured for this campaign.
-    </div>
-    {% else %}
-
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h6 class="mb-2">Testing: {{ results.test_type|replace({'_': ' '})|title }}</h6>
-                            <p class="text-muted mb-0">
-                                Started {{ results.created_at|date('M d, Y g:i A') }} • 
-                                Duration: {{ results.test_duration_hours }} hours • 
-                                Test Size: {{ results.test_percentage }}%
+        {% if results is empty %}
+            <div class="rams-andon rams-andon--info">
+                <svg class="rams-andon__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                {{ 'email_campaign.ab_test.no_test'|trans|default('No A/B test configured for this campaign.') }}
+            </div>
+        {% else %}
+            {# Test Summary #}
+            <div class="rams-module">
+                <div class="rams-module__content">
+                    <div class="rams-test-summary">
+                        <div class="rams-test-summary__info">
+                            <h3 class="rams-test-summary__title">{{ 'email_campaign.ab_test.testing'|trans|default('Testing') }}: {{ results.test_type|replace({'_': ' '})|title }}</h3>
+                            <p class="rams-test-summary__meta">
+                                {{ 'email_campaign.ab_test.started'|trans|default('Started') }} {{ results.created_at|date('M d, Y g:i A') }} • 
+                                {{ 'email_campaign.ab_test.duration'|trans|default('Duration') }}: {{ results.test_duration_hours }} {{ 'common.hours'|trans|default('hours') }} • 
+                                {{ 'email_campaign.ab_test.test_size'|trans|default('Test Size') }}: {{ results.test_percentage }}%
                             </p>
                         </div>
-                        <div class="col-md-4 text-md-end">
+                        <div class="rams-test-summary__actions">
                             {% if results.winner_declared_at %}
-                            <span class="badge bg-success" style="font-size: 14px;">
-                                <i class="bi bi-trophy-fill"></i> Winner Declared
-                            </span>
+                                <span class="rams-badge rams-badge--success rams-badge--lg">
+                                    <svg class="rams-badge__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                                    </svg>
+                                    {{ 'email_campaign.ab_test.winner_declared'|trans|default('Winner Declared') }}
+                                </span>
                             {% else %}
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#declareWinnerModal">
-                                <i class="bi bi-flag-fill"></i> Declare Winner
-                            </button>
+                                <button type="button" class="rams-btn rams-btn--primary" data-modal="declareWinnerModal">
+                                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/>
+                                    </svg>
+                                    {{ 'email_campaign.ab_test.declare_winner'|trans|default('Declare Winner') }}
+                                </button>
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <div class="row">
-        {% for variant in results.variants %}
-        <div class="col-md-6 col-lg-3 mb-4">
-            <div class="card h-100 {{ variant.is_winner ? 'border-success' : '' }}">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <h5 class="mb-0">Variant {{ variant.id }}</h5>
-                            {% if variant.is_winner %}
-                            <span class="badge bg-success mt-2">
-                                <i class="bi bi-trophy-fill"></i> Winner
-                            </span>
-                            {% endif %}
-                        </div>
-                        <i class="bi bi-{{ variant.id == 'A' ? 'circle-fill' : variant.id == 'B' ? 'square-fill' : variant.id == 'C' ? 'triangle-fill' : 'diamond-fill' }} text-primary" style="font-size: 24px;"></i>
-                    </div>
-
-                    <div class="variant-config mb-3">
-                        <small class="text-muted">Configuration:</small>
-                        <div class="fw-bold">{{ variant.configuration.value ?? 'N/A' }}</div>
-                    </div>
-
-                    <div class="metrics">
-                        <div class="metric-row">
-                            <span class="metric-label">Sent</span>
-                            <span class="metric-value">{{ variant.sends|number_format }}</span>
-                        </div>
-                        <div class="metric-row">
-                            <span class="metric-label">Opens</span>
-                            <span class="metric-value">{{ variant.opens|number_format }}</span>
-                        </div>
-                        <div class="metric-row">
-                            <span class="metric-label">Clicks</span>
-                            <span class="metric-value">{{ variant.clicks|number_format }}</span>
-                        </div>
-                        <div class="metric-row">
-                            <span class="metric-label">Replies</span>
-                            <span class="metric-value">{{ variant.replies|number_format }}</span>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <div class="performance-metrics">
-                        <div class="perf-item mb-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="small">Open Rate</span>
-                                <strong class="text-primary">{{ variant.open_rate }}%</strong>
+            {# Variant Results #}
+            <div class="rams-grid rams-grid--4">
+                {% for variant in results.variants %}
+                    <div class="rams-module {{ variant.is_winner ? 'rams-module--success' : '' }}">
+                        <div class="rams-module__content">
+                            <div class="rams-variant-header">
+                                <h3 class="rams-variant-header__title">{{ 'email_campaign.ab_test.variant'|trans|default('Variant') }} {{ variant.id }}</h3>
+                                {% if variant.is_winner %}
+                                    <span class="rams-badge rams-badge--success">
+                                        <svg class="rams-badge__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                                        </svg>
+                                        {{ 'email_campaign.ab_test.winner'|trans }}
+                                    </span>
+                                {% endif %}
                             </div>
-                            <div class="progress" style="height: 4px;">
-                                <div class="progress-bar bg-primary" style="width: {{ variant.open_rate }}%"></div>
-                            </div>
-                        </div>
 
-                        <div class="perf-item mb-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="small">Click Rate</span>
-                                <strong class="text-success">{{ variant.click_rate }}%</strong>
+                            <div class="rams-variant-config">
+                                <span class="rams-dymo">{{ 'email_campaign.ab_test.configuration'|trans|default('Configuration') }}:</span>
+                                <span class="rams-variant-config__value">{{ variant.configuration.value ?? 'N/A' }}</span>
                             </div>
-                            <div class="progress" style="height: 4px;">
-                                <div class="progress-bar bg-success" style="width: {{ variant.click_rate }}%"></div>
-                            </div>
-                        </div>
 
-                        <div class="perf-item">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="small">CTOR</span>
-                                <strong class="text-info">{{ variant.ctor }}%</strong>
+                            <div class="rams-variant-metrics">
+                                <div class="rams-variant-metric">
+                                    <span class="rams-variant-metric__label">{{ 'email_campaign.sent'|trans|default('Sent') }}</span>
+                                    <span class="rams-variant-metric__value">{{ variant.sends|number_format }}</span>
+                                </div>
+                                <div class="rams-variant-metric">
+                                    <span class="rams-variant-metric__label">{{ 'email_campaign.opens'|trans|default('Opens') }}</span>
+                                    <span class="rams-variant-metric__value">{{ variant.opens|number_format }}</span>
+                                </div>
+                                <div class="rams-variant-metric">
+                                    <span class="rams-variant-metric__label">{{ 'email_campaign.clicks'|trans|default('Clicks') }}</span>
+                                    <span class="rams-variant-metric__value">{{ variant.clicks|number_format }}</span>
+                                </div>
+                                <div class="rams-variant-metric">
+                                    <span class="rams-variant-metric__label">{{ 'email_campaign.replies'|trans|default('Replies') }}</span>
+                                    <span class="rams-variant-metric__value">{{ variant.replies|number_format }}</span>
+                                </div>
                             </div>
-                            <div class="progress" style="height: 4px;">
-                                <div class="progress-bar bg-info" style="width: {{ variant.ctor }}%"></div>
+
+                            <div class="rams-divider"></div>
+
+                            <div class="rams-variant-rates">
+                                <div class="rams-progress-bar">
+                                    <div class="rams-progress-bar__header">
+                                        <span class="rams-progress-bar__label">{{ 'email_campaign.open_rate'|trans }}</span>
+                                        <span class="rams-progress-bar__value rams-progress-bar__value--info">{{ variant.open_rate }}%</span>
+                                    </div>
+                                    <div class="rams-progress-bar__track">
+                                        <div class="rams-progress-bar__fill rams-progress-bar__fill--info" style="width: {{ variant.open_rate }}%"></div>
+                                    </div>
+                                </div>
+                                <div class="rams-progress-bar">
+                                    <div class="rams-progress-bar__header">
+                                        <span class="rams-progress-bar__label">{{ 'email_campaign.click_rate'|trans }}</span>
+                                        <span class="rams-progress-bar__value rams-progress-bar__value--success">{{ variant.click_rate }}%</span>
+                                    </div>
+                                    <div class="rams-progress-bar__track">
+                                        <div class="rams-progress-bar__fill rams-progress-bar__fill--success" style="width: {{ variant.click_rate }}%"></div>
+                                    </div>
+                                </div>
+                                <div class="rams-progress-bar">
+                                    <div class="rams-progress-bar__header">
+                                        <span class="rams-progress-bar__label">{{ 'email_campaign.ab_test.ctor'|trans|default('CTOR') }}</span>
+                                        <span class="rams-progress-bar__value rams-progress-bar__value--primary">{{ variant.ctor }}%</span>
+                                    </div>
+                                    <div class="rams-progress-bar__track">
+                                        <div class="rams-progress-bar__fill rams-progress-bar__fill--primary" style="width: {{ variant.ctor }}%"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                {% endfor %}
             </div>
-        </div>
-        {% endfor %}
-    </div>
 
-    {% if results.statistical_analysis is defined %}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card {{ results.statistical_analysis.significant ? 'border-success' : 'border-warning' }}">
-                <div class="card-header {{ results.statistical_analysis.significant ? 'bg-success text-white' : 'bg-warning' }}">
-                    <h6 class="mb-0">
-                        <i class="bi bi-graph-up"></i> Statistical Analysis
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-3 text-center">
-                            <div class="stat-big">{{ results.statistical_analysis.confidence }}%</div>
-                            <div class="stat-label">Confidence Level</div>
+            {# Statistical Analysis #}
+            {% if results.statistical_analysis is defined %}
+                <div class="rams-module {{ results.statistical_analysis.significant ? 'rams-module--success' : 'rams-module--warning' }}">
+                    <div class="rams-module__header">
+                        <h2 class="rams-module__title">{{ 'email_campaign.ab_test.statistical_analysis'|trans|default('Statistical Analysis') }}</h2>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-stats-grid">
+                            <div class="rams-stat-item">
+                                <span class="rams-stat-item__value">{{ results.statistical_analysis.confidence }}%</span>
+                                <span class="rams-stat-item__label">{{ 'email_campaign.ab_test.confidence_level'|trans|default('Confidence Level') }}</span>
+                            </div>
+                            <div class="rams-stat-item">
+                                <span class="rams-stat-item__value">{{ results.statistical_analysis.improvement }}%</span>
+                                <span class="rams-stat-item__label">{{ 'email_campaign.ab_test.improvement'|trans|default('Improvement') }}</span>
+                            </div>
+                            <div class="rams-stat-item">
+                                <span class="rams-stat-item__value">{{ results.statistical_analysis.z_score }}</span>
+                                <span class="rams-stat-item__label">{{ 'email_campaign.ab_test.z_score'|trans|default('Z-Score') }}</span>
+                            </div>
+                            <div class="rams-stat-item">
+                                {% if results.statistical_analysis.significant %}
+                                    <span class="rams-andon rams-andon--success rams-andon--lg"></span>
+                                    <span class="rams-stat-item__label">{{ 'email_campaign.ab_test.significant'|trans|default('Statistically Significant') }}</span>
+                                {% else %}
+                                    <span class="rams-andon rams-andon--warning rams-andon--lg"></span>
+                                    <span class="rams-stat-item__label">{{ 'email_campaign.ab_test.not_significant'|trans|default('Not Yet Significant') }}</span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="col-md-3 text-center">
-                            <div class="stat-big">{{ results.statistical_analysis.improvement }}%</div>
-                            <div class="stat-label">Improvement</div>
-                        </div>
-                        <div class="col-md-3 text-center">
-                            <div class="stat-big">{{ results.statistical_analysis.z_score }}</div>
-                            <div class="stat-label">Z-Score</div>
-                        </div>
-                        <div class="col-md-3 text-center">
+
+                        <div class="rams-divider"></div>
+
+                        <div class="rams-andon {{ results.statistical_analysis.significant ? 'rams-andon--success' : 'rams-andon--warning' }}">
                             {% if results.statistical_analysis.significant %}
-                            <i class="bi bi-check-circle-fill text-success" style="font-size: 48px;"></i>
-                            <div class="stat-label mt-2">Statistically Significant</div>
+                                {{ 'email_campaign.ab_test.significant_msg'|trans|default('The results are statistically significant with') }} {{ results.statistical_analysis.confidence }}% {{ 'email_campaign.ab_test.confidence'|trans|default('confidence') }}. 
+                                {{ 'email_campaign.ab_test.winner_improvement'|trans|default('The winning variant shows a') }} {{ results.statistical_analysis.improvement }}% {{ 'email_campaign.ab_test.improvement_over'|trans|default('improvement over the control') }}.
                             {% else %}
-                            <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 48px;"></i>
-                            <div class="stat-label mt-2">Not Yet Significant</div>
+                                {{ 'email_campaign.ab_test.not_significant_msg'|trans|default('The test needs more data to reach statistical significance (95% confidence). Consider waiting longer or increasing the test audience size.') }}
                             {% endif %}
                         </div>
                     </div>
-
-                    <hr>
-
-                    <div class="alert {{ results.statistical_analysis.significant ? 'alert-success' : 'alert-warning' }} mb-0">
-                        {% if results.statistical_analysis.significant %}
-                        <i class="bi bi-check-circle-fill"></i>
-                        The results are statistically significant with {{ results.statistical_analysis.confidence }}% confidence. 
-                        The winning variant shows a {{ results.statistical_analysis.improvement }}% improvement over the control.
-                        {% else %}
-                        <i class="bi bi-info-circle"></i>
-                        The test needs more data to reach statistical significance (95% confidence). 
-                        Consider waiting longer or increasing the test audience size.
-                        {% endif %}
-                    </div>
                 </div>
-            </div>
-        </div>
+            {% endif %}
+        {% endif %}
     </div>
-    {% endif %}
-
-    {% endif %}
 </div>
 
 {# Declare Winner Modal #}
-<div class="modal fade" id="declareWinnerModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Declare Winner</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{{ path('app_email_campaign_ab_test_declare_winner', {id: campaign.id}) }}">
-                <div class="modal-body">
-                    <p>Select the metric to determine the winner:</p>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="radio" name="metric_type" value="open_rate" id="metricOpen" checked>
-                        <label class="form-check-label" for="metricOpen">
-                            Open Rate
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="radio" name="metric_type" value="click_rate" id="metricClick">
-                        <label class="form-check-label" for="metricClick">
-                            Click Rate
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="metric_type" value="reply_rate" id="metricReply">
-                        <label class="form-check-label" for="metricReply">
-                            Reply Rate
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-trophy-fill"></i> Declare Winner
-                    </button>
-                </div>
-            </form>
+<div class="rams-modal" id="declareWinnerModal">
+    <div class="rams-modal__backdrop"></div>
+    <div class="rams-modal__container">
+        <div class="rams-modal__header">
+            <h3 class="rams-modal__title">{{ 'email_campaign.ab_test.declare_winner'|trans|default('Declare Winner') }}</h3>
+            <button type="button" class="rams-btn rams-btn--ghost rams-btn--sm" onclick="closeModal('declareWinnerModal')">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
+        <form method="post" action="{{ path('app_email_campaign_ab_test_declare_winner', {id: campaign.id}) }}">
+            <div class="rams-modal__content">
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'email_campaign.ab_test.select_winner'|trans|default('Select Winning Variant') }}</label>
+                    <select name="winner_variant" class="rams-form__select" required>
+                        <option value="">{{ 'email_campaign.ab_test.choose_variant'|trans|default('Choose a variant...') }}</option>
+                        {% for variant in results.variants|default([]) %}
+                            <option value="{{ variant.id }}">{{ 'email_campaign.ab_test.variant'|trans|default('Variant') }} {{ variant.id }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="rams-modal__footer">
+                <button type="button" class="rams-btn rams-btn--secondary" onclick="closeModal('declareWinnerModal')">
+                    {{ 'common.cancel'|trans }}
+                </button>
+                <button type="submit" class="rams-btn rams-btn--primary">
+                    {{ 'email_campaign.ab_test.declare_winner'|trans|default('Declare Winner') }}
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
-<style>
-.metric-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid #f0f0f0;
+<script>
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('rams-modal--open');
 }
 
-.metric-label {
-    color: #6c757d;
-    font-size: 14px;
-}
-
-.metric-value {
-    font-weight: 600;
-    font-size: 16px;
-}
-
-.stat-big {
-    font-size: 42px;
-    font-weight: 700;
-    color: #0d6efd;
-}
-
-.stat-label {
-    color: #6c757d;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.variant-config {
-    background: #f8f9fa;
-    padding: 12px;
-    border-radius: 6px;
-}
-</style>
+document.querySelectorAll('[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const modalId = btn.getAttribute('data-modal');
+        document.getElementById(modalId).classList.add('rams-modal--open');
+    });
+});
+</script>
 {% endblock %}

@@ -1,145 +1,151 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Email Campaigns{% endblock %}
+{% block title %}{{ 'email_campaign.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="border-b border-neutral-200/80 pb-5 flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Email Campaigns</h1>
-            <p class="mt-1 text-sm text-neutral-600">Multi-touch email sequences with tracking</p>
-        </div>
-        <a href="{{ path('app_email_campaign_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            New Campaign
-        </a>
-    </div>
-
-    <!-- Filters -->
-    <div class="flex items-center gap-3 mb-6">
-        <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
-            <a href="{{ path('app_email_campaign_index', {status: 'all', language: currentLanguage}) }}" 
-               class="px-3 py-1.5 text-sm rounded-md transition-colors {{ currentStatus == 'all' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white' }}">
-                All
-            </a>
-            <a href="{{ path('app_email_campaign_index', {status: 'active', language: currentLanguage}) }}" 
-               class="px-3 py-1.5 text-sm rounded-md transition-colors {{ currentStatus == 'active' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white' }}">
-                Active
-            </a>
-            <a href="{{ path('app_email_campaign_index', {status: 'inactive', language: currentLanguage}) }}" 
-               class="px-3 py-1.5 text-sm rounded-md transition-colors {{ currentStatus == 'inactive' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white' }}">
-                Inactive
-            </a>
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.title'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.subtitle'|trans|default('Multi-touch email sequences with tracking') }}</p>
+            </div>
+            <div class="rams-page__actions">
+                <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    {{ 'email_campaign.new_campaign'|trans }}
+                </a>
+            </div>
         </div>
 
-        <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
-            <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'all'}) }}" 
-               class="px-3 py-1.5 text-sm rounded-md transition-colors {{ currentLanguage == 'all' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white' }}">
-                All Languages
-            </a>
-            <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'EN'}) }}" 
-               class="px-3 py-1.5 text-sm rounded-md transition-colors {{ currentLanguage == 'EN' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white' }}">
-                EN
-            </a>
-            <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'FR'}) }}" 
-               class="px-3 py-1.5 text-sm rounded-md transition-colors {{ currentLanguage == 'FR' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white' }}">
-                FR
-            </a>
+        {# Filters #}
+        <div class="rams-filter-bar">
+            <div class="rams-segmented-control">
+                <a href="{{ path('app_email_campaign_index', {status: 'all', language: currentLanguage}) }}" 
+                   class="rams-segmented-control__item {{ currentStatus == 'all' ? 'rams-segmented-control__item--active' : '' }}">
+                    {{ 'common.all'|trans }}
+                </a>
+                <a href="{{ path('app_email_campaign_index', {status: 'active', language: currentLanguage}) }}" 
+                   class="rams-segmented-control__item {{ currentStatus == 'active' ? 'rams-segmented-control__item--active' : '' }}">
+                    {{ 'common.active'|trans }}
+                </a>
+                <a href="{{ path('app_email_campaign_index', {status: 'inactive', language: currentLanguage}) }}" 
+                   class="rams-segmented-control__item {{ currentStatus == 'inactive' ? 'rams-segmented-control__item--active' : '' }}">
+                    {{ 'common.inactive'|trans }}
+                </a>
+            </div>
+
+            <div class="rams-segmented-control">
+                <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'all'}) }}" 
+                   class="rams-segmented-control__item {{ currentLanguage == 'all' ? 'rams-segmented-control__item--active' : '' }}">
+                    {{ 'email_campaign.all_languages'|trans|default('All Languages') }}
+                </a>
+                <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'EN'}) }}" 
+                   class="rams-segmented-control__item {{ currentLanguage == 'EN' ? 'rams-segmented-control__item--active' : '' }}">
+                    EN
+                </a>
+                <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'FR'}) }}" 
+                   class="rams-segmented-control__item {{ currentLanguage == 'FR' ? 'rams-segmented-control__item--active' : '' }}">
+                    FR
+                </a>
+            </div>
         </div>
-    </div>
 
-    <!-- Campaigns Grid -->
-    {% if campaigns is empty %}
-        <div class="text-center py-16 bg-zinc-900 border border-zinc-800 rounded-lg">
-            <svg class="mx-auto h-12 w-12 text-zinc-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-            </svg>
-            <h3 class="text-lg font-medium text-zinc-300 mb-1">No campaigns yet</h3>
-            <p class="text-sm text-zinc-500 mb-4">Get started by creating your first email campaign.</p>
-            <a href="{{ path('app_email_campaign_new') }}" class="geist-button inline-flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M8 3v10M3 8h10"/>
-                </svg>
-                Create Campaign
-            </a>
-        </div>
-    {% else %}
-        <div class="grid grid-cols-1 gap-4">
-            {% for campaign in campaigns %}
-                {% set metrics = campaignMetrics[campaign.id] %}
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 hover:border-zinc-700 transition-colors">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex-1">
-                            <div class="flex items-center gap-3 mb-2">
-                                <h3 class="text-lg font-medium text-white">
-                                    <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="hover:text-zinc-300 transition-colors">
-                                        {{ campaign.name }}
-                                    </a>
-                                </h3>
-                                <span class="px-2 py-0.5 text-xs font-medium rounded-full {{ campaign.active ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-zinc-700 text-zinc-400 border border-zinc-600' }}">
-                                    {{ campaign.active ? 'Active' : 'Inactive' }}
-                                </span>
-                                <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                    {{ campaign.language }}
-                                </span>
-                            </div>
-                            {% if campaign.description %}
-                                <p class="text-sm text-zinc-400 mb-4">{{ campaign.description }}</p>
-                            {% endif %}
-                            <div class="text-xs text-zinc-500">
-                                {{ campaign.touchCount }}-touch sequence
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Metrics Grid -->
-                    <div class="grid grid-cols-5 gap-4 pt-4 border-t border-zinc-800">
-                        <div>
-                            <div class="text-2xl font-semibold text-white">{{ metrics.total_sent }}</div>
-                            <div class="text-xs text-zinc-400">Sent</div>
-                        </div>
-                        <div>
-                            <div class="text-2xl font-semibold text-green-400">{{ metrics.open_rate|number_format(1) }}%</div>
-                            <div class="text-xs text-zinc-400">Open Rate</div>
-                        </div>
-                        <div>
-                            <div class="text-2xl font-semibold text-blue-400">{{ metrics.click_rate|number_format(1) }}%</div>
-                            <div class="text-xs text-zinc-400">Click Rate</div>
-                        </div>
-                        <div>
-                            <div class="text-2xl font-semibold text-purple-400">{{ metrics.reply_rate|number_format(1) }}%</div>
-                            <div class="text-xs text-zinc-400">Reply Rate</div>
-                        </div>
-                        <div>
-                            <div class="text-2xl font-semibold text-red-400">{{ metrics.bounce_rate|number_format(1) }}%</div>
-                            <div class="text-xs text-zinc-400">Bounce Rate</div>
-                        </div>
-                    </div>
-
-                    <!-- Actions -->
-                    <div class="flex items-center gap-2 mt-4 pt-4 border-t border-zinc-800">
-                        <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="text-sm text-zinc-400 hover:text-white transition-colors">
-                            View Details
-                        </a>
-                        <span class="text-zinc-700">•</span>
-                        <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="text-sm text-zinc-400 hover:text-white transition-colors">
-                            Send Emails
-                        </a>
-                        <span class="text-zinc-700">•</span>
-                        <a href="{{ path('app_email_campaign_analytics', {id: campaign.id}) }}" class="text-sm text-zinc-400 hover:text-white transition-colors">
-                            Analytics
-                        </a>
-                        <span class="text-zinc-700">•</span>
-                        <a href="{{ path('app_email_campaign_edit', {id: campaign.id}) }}" class="text-sm text-zinc-400 hover:text-white transition-colors">
-                            Edit
-                        </a>
-                    </div>
+        {# Campaigns List #}
+        {% if campaigns is empty %}
+            <div class="rams-module">
+                <div class="rams-module__content rams-empty-state">
+                    <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    <h3 class="rams-empty-state__title">{{ 'email_campaign.no_campaigns'|trans }}</h3>
+                    <p class="rams-empty-state__description">{{ 'email_campaign.create_first'|trans }}</p>
+                    <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        {{ 'email_campaign.create_campaign'|trans|default('Create Campaign') }}
+                    </a>
                 </div>
-            {% endfor %}
-        </div>
-    {% endif %}
+            </div>
+        {% else %}
+            <div class="rams-grid rams-grid--1">
+                {% for campaign in campaigns %}
+                    {% set metrics = campaignMetrics[campaign.id] %}
+                    <div class="rams-module rams-module--interactive">
+                        <div class="rams-module__content">
+                            <div class="rams-module__header-row">
+                                <div class="rams-module__header-content">
+                                    <div class="rams-module__title-row">
+                                        <h3 class="rams-module__title">
+                                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-link">
+                                                {{ campaign.name }}
+                                            </a>
+                                        </h3>
+                                        <span class="rams-badge {{ campaign.active ? 'rams-badge--success' : 'rams-badge--neutral' }}">
+                                            {{ campaign.active ? 'common.active'|trans : 'common.inactive'|trans }}
+                                        </span>
+                                        <span class="rams-badge rams-badge--info">
+                                            {{ campaign.language }}
+                                        </span>
+                                    </div>
+                                    {% if campaign.description %}
+                                        <p class="rams-module__description">{{ campaign.description }}</p>
+                                    {% endif %}
+                                    <span class="rams-dymo">{{ campaign.touchCount }}-{{ 'email_campaign.touch_sequence'|trans|default('touch sequence') }}</span>
+                                </div>
+                            </div>
+
+                            {# Metrics Grid #}
+                            <div class="rams-metrics-row">
+                                <div class="rams-metric">
+                                    <span class="rams-metric__value">{{ metrics.total_sent }}</span>
+                                    <span class="rams-metric__label">{{ 'email_campaign.total_sent'|trans }}</span>
+                                </div>
+                                <div class="rams-metric rams-metric--success">
+                                    <span class="rams-metric__value">{{ metrics.open_rate|number_format(1) }}%</span>
+                                    <span class="rams-metric__label">{{ 'email_campaign.open_rate'|trans }}</span>
+                                </div>
+                                <div class="rams-metric rams-metric--info">
+                                    <span class="rams-metric__value">{{ metrics.click_rate|number_format(1) }}%</span>
+                                    <span class="rams-metric__label">{{ 'email_campaign.click_rate'|trans }}</span>
+                                </div>
+                                <div class="rams-metric rams-metric--primary">
+                                    <span class="rams-metric__value">{{ metrics.reply_rate|number_format(1) }}%</span>
+                                    <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans|default('Reply Rate') }}</span>
+                                </div>
+                                <div class="rams-metric rams-metric--danger">
+                                    <span class="rams-metric__value">{{ metrics.bounce_rate|number_format(1) }}%</span>
+                                    <span class="rams-metric__label">{{ 'email_campaign.bounce_rate'|trans }}</span>
+                                </div>
+                            </div>
+
+                            {# Actions #}
+                            <div class="rams-module__footer">
+                                <div class="rams-action-links">
+                                    <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-action-link">
+                                        {{ 'common.view'|trans }} {{ 'common.details'|trans }}
+                                    </a>
+                                    <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-action-link">
+                                        {{ 'email_campaign.send_emails'|trans|default('Send Emails') }}
+                                    </a>
+                                    <a href="{{ path('app_email_campaign_analytics', {id: campaign.id}) }}" class="rams-action-link">
+                                        {{ 'email_campaign.analytics.title'|trans }}
+                                    </a>
+                                    <a href="{{ path('app_email_campaign_edit', {id: campaign.id}) }}" class="rams-action-link">
+                                        {{ 'common.edit'|trans }}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

@@ -1,94 +1,87 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Activity Timeline{% endblock %}
+{% block title %}{{ 'activity.timeline_view'|trans }}{% endblock %}
 
 {% block body %}
-<div class="min-h-screen bg-neutral-50">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="rams-page">
+    <div class="rams-page__container rams-page__container--narrow">
         
         {# Header #}
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Activity Timeline</h1>
-                <p class="mt-1 text-sm text-neutral-600">Chronological view of all activities</p>
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'activity.timeline_title'|trans|default('Activity Timeline') }}</h1>
+                <p class="rams-page__subtitle">{{ 'activity.timeline_subtitle'|trans|default('Chronological view of all activities') }}</p>
             </div>
-            <div class="flex items-center gap-3">
-                <a href="{{ path('app_activity_index') }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="rams-page__actions">
+                <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--secondary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                     </svg>
-                    List View
+                    {{ 'activity.list_view'|trans|default('List View') }}
                 </a>
-                <a href="{{ path('app_activity_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{{ path('app_activity_new') }}" class="rams-btn rams-btn--primary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Log Activity
+                    {{ 'activity.log_activity'|trans|default('Log Activity') }}
                 </a>
             </div>
         </div>
 
         {# Timeline #}
-        <div class="relative">
+        <div class="rams-timeline">
             {# Vertical Line #}
-            <div class="absolute left-5 top-0 bottom-0 w-px bg-neutral-200"></div>
+            <div class="rams-timeline__line"></div>
 
-            <div class="space-y-8">
+            <div class="rams-timeline__content">
                 {% for date, dayActivities in groupedActivities %}
                     {# Date Header #}
-                    <div class="relative">
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="w-10 h-10 rounded-full bg-white border-2 border-neutral-200 flex items-center justify-center z-10">
-                                <svg class="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="rams-timeline__section">
+                        <div class="rams-timeline__date">
+                            <div class="rams-timeline__date-marker">
+                                <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                 </svg>
                             </div>
-                            <h2 class="text-sm font-semibold text-neutral-900">{{ date|date('F d, Y') }}</h2>
+                            <h2 class="rams-timeline__date-label">{{ date|date('F d, Y') }}</h2>
                         </div>
 
                         {# Activities for this date #}
-                        <div class="ml-14 space-y-3">
+                        <div class="rams-timeline__items">
                             {% for activity in dayActivities %}
-                                <div class="bg-white rounded-xl border border-neutral-200/60 p-4 hover:border-neutral-300 hover:shadow-sm transition-all">
-                                    <div class="flex items-start gap-3">
-                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
-                                            {% if activity.type == 'Call' %}bg-blue-50 text-blue-600
-                                            {% elseif activity.type == 'Email' %}bg-purple-50 text-purple-600
-                                            {% elseif activity.type == 'Meeting' %}bg-emerald-50 text-emerald-600
-                                            {% elseif activity.type starts with 'LinkedIn' %}bg-blue-100 text-blue-700
-                                            {% elseif activity.type == 'Follow-up' %}bg-amber-50 text-amber-600
-                                            {% else %}bg-neutral-50 text-neutral-600{% endif %}">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                                            </svg>
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2 mb-1">
-                                                <span class="text-sm font-medium text-neutral-900">{{ activity.type }}</span>
-                                                {% if activity.outcome %}
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                                        {% if activity.outcome == 'Successful' %}bg-emerald-100 text-emerald-700
-                                                        {% elseif activity.outcome == 'Follow-up Required' %}bg-amber-100 text-amber-700
-                                                        {% else %}bg-neutral-100 text-neutral-700{% endif %}">
-                                                        {{ activity.outcome }}
-                                                    </span>
-                                                {% endif %}
+                                <div class="rams-module rams-module--compact rams-module--interactive">
+                                    <div class="rams-module__content">
+                                        <div class="rams-timeline__item">
+                                            <div class="rams-timeline__item-icon rams-timeline__item-icon--{{ activity.type|lower|replace({' ': '-', '-': '-'}) }}">
+                                                <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                                </svg>
                                             </div>
-                                            <p class="text-sm text-neutral-600">
-                                                {% if activity.company %}
-                                                    <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="text-blue-600 hover:text-blue-700">{{ activity.company.name }}</a>
+                                            <div class="rams-timeline__item-content">
+                                                <div class="rams-timeline__item-header">
+                                                    <span class="rams-timeline__item-type">{{ activity.type }}</span>
+                                                    {% if activity.outcome %}
+                                                        <span class="rams-badge rams-badge--sm rams-badge--{{ activity.outcome|lower|replace({' ': '-'}) }}">
+                                                            {{ activity.outcome }}
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                                <p class="rams-timeline__item-detail">
+                                                    {% if activity.company %}
+                                                        <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="rams-link">{{ activity.company.name }}</a>
+                                                    {% endif %}
+                                                    {% if activity.contact %}
+                                                        <span class="rams-timeline__separator">·</span>
+                                                        <a href="{{ path('app_contact_show', {id: activity.contact.id}) }}" class="rams-link">{{ activity.contact.firstName }} {{ activity.contact.lastName }}</a>
+                                                    {% endif %}
+                                                </p>
+                                                {% if activity.notes %}
+                                                    <p class="rams-timeline__item-notes">{{ activity.notes|slice(0, 120) }}{% if activity.notes|length > 120 %}...{% endif %}</p>
                                                 {% endif %}
-                                                {% if activity.contact %}
-                                                    <span class="text-neutral-400">·</span>
-                                                    <a href="{{ path('app_contact_show', {id: activity.contact.id}) }}" class="text-blue-600 hover:text-blue-700">{{ activity.contact.firstName }} {{ activity.contact.lastName }}</a>
-                                                {% endif %}
-                                            </p>
-                                            {% if activity.notes %}
-                                                <p class="mt-1 text-xs text-neutral-500">{{ activity.notes|slice(0, 120) }}...</p>
-                                            {% endif %}
-                                            <div class="mt-2 flex items-center gap-2">
-                                                <span class="text-xs text-neutral-400">{{ activity.user.firstName }} {{ activity.user.lastName }}</span>
-                                                <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="text-xs text-blue-600 hover:text-blue-700">View details</a>
+                                                <div class="rams-timeline__item-footer">
+                                                    <span class="rams-timeline__item-user">{{ activity.user.firstName }} {{ activity.user.lastName }}</span>
+                                                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-link rams-link--sm">{{ 'common.view'|trans }} {{ 'common.details'|trans|lower }}</a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -97,13 +90,15 @@
                         </div>
                     </div>
                 {% else %}
-                    <div class="text-center py-12">
-                        <svg class="mx-auto h-12 w-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <circle cx="8" cy="8" r="6" stroke-width="2"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4V8L11 11"/>
-                        </svg>
-                        <h3 class="mt-4 text-sm font-medium text-neutral-900">No activities in timeline</h3>
-                        <p class="mt-1 text-sm text-neutral-500">Start logging activities to see them here.</p>
+                    <div class="rams-module">
+                        <div class="rams-module__content rams-empty-state">
+                            <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle cx="8" cy="8" r="6" stroke-width="2"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4V8L11 11"/>
+                            </svg>
+                            <h3 class="rams-empty-state__title">{{ 'activity.no_timeline'|trans|default('No activities in timeline') }}</h3>
+                            <p class="rams-empty-state__description">{{ 'activity.timeline_empty'|trans|default('Start logging activities to see them here.') }}</p>
+                        </div>
                     </div>
                 {% endfor %}
             </div>

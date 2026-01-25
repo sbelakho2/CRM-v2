@@ -1,23 +1,82 @@
-{% extends 'base.html.twig' %}
+{% extends 'base_login.html.twig' %}
 
-{% block title %}Register{% endblock %}
+{% block title %}{{ 'auth.register.title'|trans }}{% endblock %}
 
 {% block body %}
-    <div class="max-w-md mx-auto">
-        <h1 class="text-2xl font-semibold mb-4">Create an account</h1>
-
-        {{ form_start(registrationForm) }}
-            <div class="space-y-4">
-                {{ form_row(registrationForm.email) }}
-                {{ form_row(registrationForm.firstName) }}
-                {{ form_row(registrationForm.lastName) }}
-                {{ form_row(registrationForm.plainPassword.first) }}
-                {{ form_row(registrationForm.plainPassword.second) }}
-            </div>
-
-            <div class="mt-6">
-                <button class="btn btn-primary" type="submit">Sign up</button>
-            </div>
-        {{ form_end(registrationForm) }}
+<div class="rams-auth-module">
+    {# Logo Section #}
+    <div class="rams-auth-logo">
+        <div class="rams-auth-logo__symbol">▣</div>
+        <div class="rams-auth-logo__title">{{ 'app.name'|trans }}</div>
+        <div class="rams-auth-logo__subtitle">{{ 'auth.register.subtitle'|trans }}</div>
     </div>
+    
+    {# Registration Module #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <span class="rams-dymo">{{ 'auth.register.module_title'|trans }}</span>
+        </div>
+        
+        <div class="rams-module__content">
+            {{ form_start(registrationForm, {'attr': {'class': 'rams-form'}}) }}
+                
+                {# Email Field #}
+                <div class="rams-form__group">
+                    <label for="{{ registrationForm.email.vars.id }}" class="rams-form__label">{{ 'auth.email'|trans }}</label>
+                    {{ form_widget(registrationForm.email, {'attr': {'class': 'rams-form__input', 'placeholder': 'auth.email_placeholder'|trans}}) }}
+                    {{ form_errors(registrationForm.email) }}
+                </div>
+                
+                {# First Name Field #}
+                <div class="rams-form__group">
+                    <label for="{{ registrationForm.firstName.vars.id }}" class="rams-form__label">{{ 'auth.first_name'|trans }}</label>
+                    {{ form_widget(registrationForm.firstName, {'attr': {'class': 'rams-form__input', 'placeholder': 'auth.first_name_placeholder'|trans}}) }}
+                    {{ form_errors(registrationForm.firstName) }}
+                </div>
+                
+                {# Last Name Field #}
+                <div class="rams-form__group">
+                    <label for="{{ registrationForm.lastName.vars.id }}" class="rams-form__label">{{ 'auth.last_name'|trans }}</label>
+                    {{ form_widget(registrationForm.lastName, {'attr': {'class': 'rams-form__input', 'placeholder': 'auth.last_name_placeholder'|trans}}) }}
+                    {{ form_errors(registrationForm.lastName) }}
+                </div>
+                
+                {# Password Field #}
+                <div class="rams-form__group">
+                    <label for="{{ registrationForm.plainPassword.first.vars.id }}" class="rams-form__label">{{ 'auth.password'|trans }}</label>
+                    {{ form_widget(registrationForm.plainPassword.first, {'attr': {'class': 'rams-form__input', 'placeholder': 'auth.password_placeholder'|trans}}) }}
+                    <span class="rams-form__hint">{{ 'auth.password_requirements'|trans }}</span>
+                    {{ form_errors(registrationForm.plainPassword.first) }}
+                </div>
+                
+                {# Confirm Password Field #}
+                <div class="rams-form__group">
+                    <label for="{{ registrationForm.plainPassword.second.vars.id }}" class="rams-form__label">{{ 'auth.confirm_password'|trans }}</label>
+                    {{ form_widget(registrationForm.plainPassword.second, {'attr': {'class': 'rams-form__input', 'placeholder': 'auth.confirm_password_placeholder'|trans}}) }}
+                    {{ form_errors(registrationForm.plainPassword.second) }}
+                </div>
+                
+                {# Submit Button #}
+                <div class="rams-form__group rams-mt-4">
+                    <button type="submit" class="rams-btn rams-btn--primary rams-btn--full">
+                        {{ 'auth.register.submit'|trans }}
+                    </button>
+                </div>
+            {{ form_end(registrationForm) }}
+        </div>
+        
+        <div class="rams-module__footer">
+            <span class="rams-text-muted">{{ 'auth.already_have_account'|trans }}</span>
+            <a href="{{ path('app_login') }}" class="rams-link">{{ 'auth.login.title'|trans }}</a>
+        </div>
+    </div>
+    
+    {# System Status #}
+    <div class="rams-text-center rams-mt-4">
+        <div class="rams-andon">
+            <span class="rams-andon__light rams-andon__light--green"></span>
+            <span class="rams-andon__text rams-andon__text--muted">{{ 'status_bar.system_online'|trans }}</span>
+        </div>
+    </div>
+</div>
 {% endblock %}

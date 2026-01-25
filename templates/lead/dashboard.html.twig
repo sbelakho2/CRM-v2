@@ -1,213 +1,205 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Lead Dashboard - Starz Morocco CRM{% endblock %}
+{% block title %}{{ 'lead.dashboard'|trans }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="container-fluid mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">Lead Dashboard</h2>
-        <a href="{{ path('app_lead_review') }}" class="btn btn-primary">
-            <i class="fas fa-list"></i> Review Leads
-        </a>
-    </div>
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'lead.dashboard'|trans }}</h1>
+            </div>
+            <div class="rams-page__actions">
+                <a href="{{ path('app_lead_review') }}" class="rams-btn rams-btn--primary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    {{ 'lead.review_leads_title'|trans|default('Review Leads') }}
+                </a>
+            </div>
+        </div>
 
-    {# Key Metrics #}
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card" style="background-color: #f5f0e8; border: none;">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Total Leads</h6>
-                    <h3 class="mb-0">{{ total_leads }}</h3>
+        {# Key Metrics #}
+        <div class="rams-metrics-grid rams-metrics-grid--4col">
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.total_leads'|trans }}</span>
+                    <span class="rams-metric">{{ total_leads }}</span>
+                </div>
+            </div>
+
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.pending_review'|trans }}</span>
+                    <span class="rams-metric rams-metric--warning">{{ pending_leads }}</span>
+                </div>
+            </div>
+
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.approved_leads'|trans }}</span>
+                    <span class="rams-metric rams-metric--success">{{ approved_leads }}</span>
+                </div>
+            </div>
+
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.denied_leads'|trans }}</span>
+                    <span class="rams-metric rams-metric--danger">{{ denied_leads }}</span>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3 mb-3">
-            <div class="card" style="background-color: #fff3cd; border: none;">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Pending Review</h6>
-                    <h3 class="mb-0 text-warning">{{ pending_leads }}</h3>
+        {# Performance Metrics #}
+        <div class="rams-grid rams-grid--2col">
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">{{ 'lead.weekly_performance'|trans|default('Weekly Performance (Last 7 Days)') }}</h3>
                 </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card" style="background-color: #d1e7dd; border: none;">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Approved</h6>
-                    <h3 class="mb-0 text-success">{{ approved_leads }}</h3>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card" style="background-color: #f8d7da; border: none;">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Denied</h6>
-                    <h3 class="mb-0 text-danger">{{ denied_leads }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {# Performance Metrics #}
-    <div class="row mb-4">
-        <div class="col-md-6 mb-3">
-            <div class="card" style="background-color: #f5f0e8; border: none;">
-                <div class="card-header" style="background-color: transparent; border-bottom: 1px solid #ddd;">
-                    <h5 class="mb-0">Weekly Performance (Last 7 Days)</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="text-muted">Total Reviewed</h6>
-                            <h4>{{ weekly_stats.total ?? 0 }}</h4>
+                <div class="rams-module__content">
+                    <div class="rams-metrics-grid rams-metrics-grid--2col">
+                        <div>
+                            <span class="rams-dymo">{{ 'lead.total_reviewed'|trans|default('Total Reviewed') }}</span>
+                            <span class="rams-metric">{{ weekly_stats.total ?? 0 }}</span>
                         </div>
-                        <div class="col-md-6">
-                            <h6 class="text-muted">Approval Rate</h6>
-                            <h4 class="text-success">
+                        <div>
+                            <span class="rams-dymo">{{ 'lead.approval_rate'|trans|default('Approval Rate') }}</span>
+                            <span class="rams-metric rams-metric--success">
                                 {% if weekly_stats.total > 0 %}
                                     {{ ((weekly_stats.approved / weekly_stats.total) * 100)|number_format(1) }}%
                                 {% else %}
-                                    N/A
+                                    {{ 'common.n_a'|trans }}
                                 {% endif %}
-                            </h4>
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-6 mb-3">
-            <div class="card" style="background-color: #f5f0e8; border: none;">
-                <div class="card-header" style="background-color: transparent; border-bottom: 1px solid #ddd;">
-                    <h5 class="mb-0">Quality Metrics</h5>
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">{{ 'lead.quality_metrics'|trans|default('Quality Metrics') }}</h3>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <h6 class="text-muted">Precision @ Top-50</h6>
-                            <h4 class="{% if precision_top50 >= 75 %}text-success{% elseif precision_top50 >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                                {{ precision_top50 }}%
-                            </h4>
-                            <small class="text-muted">Target: ≥75%</small>
-                        </div>
-                    </div>
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.precision_top50'|trans|default('Precision @ Top-50') }}</span>
+                    <span class="rams-metric rams-metric--{% if precision_top50 >= 75 %}success{% elseif precision_top50 >= 50 %}warning{% else %}danger{% endif %}">
+                        {{ precision_top50 }}%
+                    </span>
+                    <p class="rams-metric__label">{{ 'lead.target'|trans|default('Target') }}: ≥75%</p>
                 </div>
             </div>
         </div>
-    </div>
 
-    {# Regional Breakdown #}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card" style="background-color: #f5f0e8; border: none;">
-                <div class="card-header" style="background-color: transparent; border-bottom: 1px solid #ddd;">
-                    <h5 class="mb-0">Leads by Region</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Region</th>
-                                    <th>Total Leads</th>
-                                    <th>Average Score</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stat in region_stats %}
-                                <tr>
-                                    <td>
-                                        <span class="badge bg-info">{{ stat.regionTag|upper }}</span>
-                                    </td>
-                                    <td>{{ stat.total }}</td>
-                                    <td>
-                                        <span class="badge {% if stat.avg_score >= 70 %}bg-success{% elseif stat.avg_score >= 55 %}bg-warning{% else %}bg-secondary{% endif %} rounded-pill">
-                                            {{ stat.avg_score|number_format(1) }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="{{ path('app_lead_review', {region: stat.regionTag}) }}" class="btn btn-sm btn-outline-primary">
-                                            Review <i class="fas fa-arrow-right"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="4" class="text-center text-muted">No regional data available</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+        {# Regional Breakdown #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3 class="rams-module__title">{{ 'lead.leads_by_region'|trans|default('Leads by Region') }}</h3>
+            </div>
+            <div class="rams-module__content rams-module__content--flush">
+                <div class="rams-table-wrapper">
+                    <table class="rams-table">
+                        <thead class="rams-table__header">
+                            <tr>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.region'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.total_leads'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.avg_score'|trans|default('Average Score') }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in region_stats %}
+                            <tr class="rams-table__row">
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--info">{{ stat.regionTag|upper }}</span>
+                                </td>
+                                <td class="rams-table__cell">{{ stat.total }}</td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--{% if stat.avg_score >= 70 %}success{% elseif stat.avg_score >= 55 %}warning{% else %}neutral{% endif %}">
+                                        {{ stat.avg_score|number_format(1) }}
+                                    </span>
+                                </td>
+                                <td class="rams-table__cell">
+                                    <a href="{{ path('app_lead_review', {region: stat.regionTag}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                        {{ 'lead.review'|trans }}
+                                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="rams-table__cell rams-table__cell--empty">
+                                    {{ 'lead.no_regional_data'|trans|default('No regional data available') }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
-    </div>
 
-    {# Top Leads #}
-    <div class="row">
-        <div class="col-12">
-            <div class="card" style="background-color: #f5f0e8; border: none;">
-                <div class="card-header" style="background-color: transparent; border-bottom: 1px solid #ddd;">
-                    <h5 class="mb-0">Top 20 Leads by Score</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Score</th>
-                                    <th>Company</th>
-                                    <th>Region</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for lead in top_leads %}
-                                <tr>
-                                    <td>
-                                        <span class="badge {% if lead.leadScore >= 70 %}bg-success{% elseif lead.leadScore >= 55 %}bg-warning{% else %}bg-secondary{% endif %} rounded-pill">
-                                            {{ lead.leadScore }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <strong>{{ lead.companyName }}</strong>
-                                        {% if lead.websiteRoot %}
-                                        <br><small class="text-muted">
-                                            <a href="{{ lead.websiteRoot }}" target="_blank">{{ lead.websiteRoot }}</a>
-                                        </small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info">{{ lead.regionTag|upper }}</span>
-                                    </td>
-                                    <td>
-                                        {% if lead.reviewStatus == 'approved' %}
-                                            <span class="badge bg-success">Approved</span>
-                                        {% elseif lead.reviewStatus == 'denied' %}
-                                            <span class="badge bg-danger">Denied</span>
-                                        {% else %}
-                                            <span class="badge bg-warning">Pending</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <a href="{{ path('app_lead_review', {region: lead.regionTag}) }}" class="btn btn-sm btn-outline-primary">
-                                            View
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted">No leads available</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+        {# Top Leads #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3 class="rams-module__title">{{ 'lead.top_leads'|trans|default('Top 20 Leads by Score') }}</h3>
+            </div>
+            <div class="rams-module__content rams-module__content--flush">
+                <div class="rams-table-wrapper">
+                    <table class="rams-table">
+                        <thead class="rams-table__header">
+                            <tr>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.title_singular'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.region'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lead in top_leads %}
+                            <tr class="rams-table__row">
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--{% if lead.leadScore >= 70 %}success{% elseif lead.leadScore >= 55 %}warning{% else %}neutral{% endif %}">
+                                        {{ lead.leadScore }}
+                                    </span>
+                                </td>
+                                <td class="rams-table__cell">
+                                    <strong>{{ lead.companyName }}</strong>
+                                    {% if lead.websiteRoot %}
+                                    <br><a href="{{ lead.websiteRoot }}" target="_blank" class="rams-link rams-link--sm">{{ lead.websiteRoot }}</a>
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--info">{{ lead.regionTag|upper }}</span>
+                                </td>
+                                <td class="rams-table__cell">
+                                    {% if lead.reviewStatus == 'approved' %}
+                                        <span class="rams-andon rams-andon--success rams-andon--inline">{{ 'lead.approved_leads'|trans }}</span>
+                                    {% elseif lead.reviewStatus == 'denied' %}
+                                        <span class="rams-andon rams-andon--danger rams-andon--inline">{{ 'lead.denied_leads'|trans }}</span>
+                                    {% else %}
+                                        <span class="rams-andon rams-andon--warning rams-andon--inline">{{ 'common.pending'|trans }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell">
+                                    <a href="{{ path('app_lead_review', {region: lead.regionTag}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                        {{ 'common.view'|trans }}
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="rams-table__cell rams-table__cell--empty">
+                                    {{ 'lead.no_leads'|trans }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

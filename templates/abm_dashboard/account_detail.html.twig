@@ -1,150 +1,177 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Account Detail{% endblock %}
+{% block title %}{{ 'abm_dashboard.account_detail'|trans }}{% endblock %}
 
 {% block body %}
-<div class="container mx-auto px-4 py-8">
-    <a href="{{ path('abm_dashboard_accounts') }}" class="text-neutral-700 hover:text-neutral-900 font-medium mb-6 inline-block">
-        ← Back to Accounts
-    </a>
+<div class="rams-stack">
+    <nav class="rams-breadcrumb">
+        <a href="{{ path('abm_dashboard_accounts') }}" class="rams-breadcrumb__link">
+            ← {{ 'abm_dashboard.back_to_accounts'|trans }}
+        </a>
+    </nav>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="rams-grid rams-grid--3">
         <!-- Main Content -->
-        <div class="lg:col-span-2 space-y-6">
+        <div class="rams-stack" style="grid-column: span 2;">
             <!-- Account Header -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h1 class="text-3xl font-bold text-gray-900">{{ account.name | default('Account') }}</h1>
-                        <p class="text-gray-600">{{ account.industry | default('Industry') }}</p>
+            <div class="rams-module">
+                <div class="rams-module__content">
+                    <div class="rams-module__header">
+                        <div>
+                            <h1 class="rams-page-title">{{ account.name | default('Account') }}</h1>
+                            <p class="rams-text-muted">{{ account.industry | default('Industry') }}</p>
+                        </div>
+                        <span class="rams-badge rams-badge--success">
+                            {{ account.status | default('active') | capitalize }}
+                        </span>
                     </div>
-                    <span class="px-4 py-2 text-sm font-semibold rounded-full bg-green-100 text-green-800">
-                        {{ account.status | default('active') | capitalize }}
-                    </span>
-                </div>
-                
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                        <p class="text-sm text-gray-600">Location</p>
-                        <p class="font-semibold">{{ account.location | default('N/A') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Company Size</p>
-                        <p class="font-semibold">{{ account.company_size | default('N/A') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Annual Revenue</p>
-                        <p class="font-semibold">{{ account.revenue | default('N/A') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Added</p>
-                        <p class="font-semibold">{{ account.created_at | date('M d, Y') | default('N/A') }}</p>
+                    
+                    <div class="rams-grid rams-grid--4">
+                        <div>
+                            <span class="rams-dymo">{{ 'abm_dashboard.location'|trans }}</span>
+                            <p class="rams-metric__value">{{ account.location | default('common.n_a'|trans) }}</p>
+                        </div>
+                        <div>
+                            <span class="rams-dymo">{{ 'abm_dashboard.company_size'|trans }}</span>
+                            <p class="rams-metric__value">{{ account.company_size | default('common.n_a'|trans) }}</p>
+                        </div>
+                        <div>
+                            <span class="rams-dymo">{{ 'abm_dashboard.annual_revenue'|trans }}</span>
+                            <p class="rams-metric__value">{{ account.revenue | default('common.n_a'|trans) }}</p>
+                        </div>
+                        <div>
+                            <span class="rams-dymo">{{ 'abm_dashboard.added'|trans }}</span>
+                            <p class="rams-metric__value">{{ account.created_at | date('M d, Y') | default('common.n_a'|trans) }}</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Contacts -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Contacts</h2>
-                <div class="space-y-3">
-                    {% if account.contacts | default([]) %}
-                        {% for contact in account.contacts %}
-                            <div class="flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
-                                <div>
-                                    <p class="font-medium text-gray-900">{{ contact.name | default('Contact') }}</p>
-                                    <p class="text-sm text-gray-600">{{ contact.email | default('N/A') }}</p>
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h2 class="rams-module__title">{{ 'abm_dashboard.contacts'|trans }}</h2>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-stack">
+                        {% if account.contacts | default([]) %}
+                            {% for contact in account.contacts %}
+                                <div class="rams-list-item rams-list-item--interactive">
+                                    <div>
+                                        <p class="rams-list-item__title">{{ contact.name | default('Contact') }}</p>
+                                        <p class="rams-text-muted">{{ contact.email | default('common.n_a'|trans) }}</p>
+                                    </div>
+                                    <span class="rams-badge">{{ contact.title | default('Title') }}</span>
                                 </div>
-                                <span class="text-sm text-gray-500">{{ contact.title | default('Title') }}</span>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-gray-500 text-center py-4">No contacts added</p>
-                    {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="rams-empty-state">{{ 'abm_dashboard.no_contacts'|trans }}</div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
             <!-- Engagement History -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Engagement History</h2>
-                <div class="space-y-3">
-                    {% if activities | default([]) %}
-                        {% for activity in activities %}
-                            <div class="flex gap-4 pb-4 border-b border-gray-200 last:border-0">
-                                <div class="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                                <div>
-                                    <p class="font-medium text-gray-900">{{ activity.title | default('Activity') }}</p>
-                                    <p class="text-sm text-gray-600">{{ activity.description | default('') }}</p>
-                                    <p class="text-xs text-gray-500 mt-1">{{ activity.timestamp | date('M d, Y H:i') | default('Unknown') }}</p>
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h2 class="rams-module__title">{{ 'abm_dashboard.engagement_history'|trans }}</h2>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-timeline">
+                        {% if activities | default([]) %}
+                            {% for activity in activities %}
+                                <div class="rams-timeline__item">
+                                    <div class="rams-timeline__marker"></div>
+                                    <div class="rams-timeline__content">
+                                        <p class="rams-timeline__title">{{ activity.title | default('Activity') }}</p>
+                                        <p class="rams-text-muted">{{ activity.description | default('') }}</p>
+                                        <p class="rams-timeline__date">{{ activity.timestamp | date('M d, Y H:i') | default('Unknown') }}</p>
+                                    </div>
                                 </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-gray-500 text-center py-8">No engagement history</p>
-                    {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="rams-empty-state">{{ 'abm_dashboard.no_engagement_history'|trans }}</div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Sidebar -->
-        <div class="space-y-6">
+        <div class="rams-stack">
             <!-- Engagement Metrics -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Engagement</h2>
-                <div class="space-y-4">
-                    <div>
-                        <div class="flex justify-between text-sm mb-1">
-                            <span class="text-gray-600">Engagement Score</span>
-                            <span class="font-semibold">{{ account.engagement_score | default(0) }}/100</span>
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h2 class="rams-module__title">{{ 'abm_dashboard.engagement'|trans }}</h2>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-stack">
+                        <div>
+                            <div class="rams-metric">
+                                <span class="rams-dymo">{{ 'abm_dashboard.engagement_score'|trans }}</span>
+                                <span class="rams-metric__value">{{ account.engagement_score | default(0) }}/100</span>
+                            </div>
+                            <div class="rams-progress">
+                                <div class="rams-progress__bar" style="width: {{ account.engagement_score | default(0) }}%"></div>
+                            </div>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ account.engagement_score | default(0) }}%"></div>
+                        <div class="rams-metric">
+                            <span class="rams-dymo">{{ 'abm_dashboard.page_views'|trans }}:</span> 
+                            <span class="rams-metric__value">{{ account.page_views | default(0) }}</span>
                         </div>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Page Views: <span class="font-semibold">{{ account.page_views | default(0) }}</span></p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Emails Sent: <span class="font-semibold">{{ account.emails_sent | default(0) }}</span></p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Opens: <span class="font-semibold">{{ account.email_opens | default(0) }}</span></p>
+                        <div class="rams-metric">
+                            <span class="rams-dymo">{{ 'abm_dashboard.emails_sent'|trans }}:</span> 
+                            <span class="rams-metric__value">{{ account.emails_sent | default(0) }}</span>
+                        </div>
+                        <div class="rams-metric">
+                            <span class="rams-dymo">{{ 'abm_dashboard.email_opens'|trans }}:</span> 
+                            <span class="rams-metric__value">{{ account.email_opens | default(0) }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Active Playbooks -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Active Playbooks</h2>
-                <div class="space-y-2">
-                    {% if account.playbooks | default([]) %}
-                        {% for playbook in account.playbooks %}
-                            <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p class="font-medium text-blue-900 text-sm">{{ playbook.name | default('Playbook') }}</p>
-                                <p class="text-xs text-blue-700 mt-1">Status: Active</p>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-gray-500 text-sm text-center py-4">No active playbooks</p>
-                    {% endif %}
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h2 class="rams-module__title">{{ 'abm_dashboard.active_playbooks_sidebar'|trans }}</h2>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-stack">
+                        {% if account.playbooks | default([]) %}
+                            {% for playbook in account.playbooks %}
+                                <div class="rams-alert rams-alert--info">
+                                    <p class="rams-alert__title">{{ playbook.name | default('Playbook') }}</p>
+                                    <p class="rams-alert__text">{{ 'common.status'|trans }}: {{ 'common.active'|trans }}</p>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="rams-empty-state">{{ 'abm_dashboard.no_active_playbooks'|trans }}</div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
             <!-- Quick Actions -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                <div class="space-y-2">
-                    <a href="{{ path('abm_dashboard_account_edit', {'id': accountId}) }}" class="w-full px-4 py-2 bg-neutral-900 text-white font-medium rounded-lg hover:bg-neutral-800 text-sm block text-center">
-                        Edit Account
-                    </a>
-                    <a href="{{ path('app_contact_new') }}?account_name={{ account.name|url_encode }}" class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200 text-sm block text-center">
-                        Add Contact
-                    </a>
-                    <a href="{{ path('abm_dashboard_playbooks') }}" class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200 text-sm block text-center">
-                        Launch Playbook
-                    </a>
-                    <button onclick="if(confirm('Are you sure you want to remove this account?')) { window.location.href='{{ path('abm_dashboard_accounts') }}'; }" class="w-full px-4 py-2 border border-red-200 text-red-700 font-medium rounded-lg hover:bg-red-50 text-sm">
-                        Remove Account
-                    </button>
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h2 class="rams-module__title">{{ 'abm_dashboard.quick_actions'|trans }}</h2>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-stack">
+                        <a href="{{ path('abm_dashboard_account_edit', {'id': accountId}) }}" class="rams-btn rams-btn--primary">
+                            {{ 'abm_dashboard.edit_account'|trans }}
+                        </a>
+                        <a href="{{ path('app_contact_new') }}?account_name={{ account.name|url_encode }}" class="rams-btn rams-btn--secondary">
+                            {{ 'abm_dashboard.add_contact'|trans }}
+                        </a>
+                        <a href="{{ path('abm_dashboard_playbooks') }}" class="rams-btn rams-btn--secondary">
+                            {{ 'abm_dashboard.launch_playbook'|trans }}
+                        </a>
+                        <button onclick="if(confirm('{{ 'abm_dashboard.remove_confirm'|trans }}')) { window.location.href='{{ path('abm_dashboard_accounts') }}'; }" class="rams-btn rams-btn--danger">
+                            {{ 'abm_dashboard.remove_account'|trans }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

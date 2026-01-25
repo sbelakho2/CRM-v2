@@ -1,110 +1,125 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Dataset Administration{% endblock %}
+{% block title %}{{ 'admin.datasets.title_full'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <div class="flex items-center justify-between border-b border-neutral-200/80 pb-5">
+<div class="rams-stack">
+    <div class="rams-page-header">
         <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Dataset Administration</h1>
-            <p class="mt-1 text-sm text-neutral-600">Manage and import system datasets</p>
+            <h1 class="rams-page-title">{{ 'admin.datasets.title_full'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'admin.datasets.subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('admin_dataset_import_form') }}" class="inline-flex items-center rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
-            ➕ Import Dataset
+        <a href="{{ path('admin_dataset_import_form') }}" class="rams-btn rams-btn--primary">
+            ➕ {{ 'admin.datasets.import_dataset'|trans }}
         </a>
     </div>
 
     {% if message is defined and message %}
-        <div class="rounded-lg border border-green-200/60 bg-green-50/50 p-4 text-sm text-green-800">
+        <div class="rams-alert rams-alert--success">
             {{ message }}
         </div>
     {% endif %}
 
     <!-- Statistics -->
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Total Datasets</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">12</p>
+    <div class="rams-grid rams-grid--4">
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <span class="rams-dymo">{{ 'admin.datasets.total_datasets'|trans }}</span>
+                <p class="rams-metric__value">12</p>
+            </div>
         </div>
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Active Versions</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">8</p>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <span class="rams-dymo">{{ 'admin.datasets.active_versions'|trans }}</span>
+                <p class="rams-metric__value">8</p>
+            </div>
         </div>
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Last Updated</p>
-            <p class="mt-2 text-lg font-semibold text-neutral-900">Oct 22, 2025</p>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <span class="rams-dymo">{{ 'admin.datasets.last_updated'|trans }}</span>
+                <p class="rams-metric__value">Oct 22, 2025</p>
+            </div>
         </div>
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Storage Used</p>
-            <p class="mt-2 text-lg font-semibold text-neutral-900">2.4 GB</p>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <span class="rams-dymo">{{ 'admin.datasets.storage_used'|trans }}</span>
+                <p class="rams-metric__value">2.4 GB</p>
+            </div>
         </div>
     </div>
 
     <!-- Datasets Table -->
-    <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white">
-        <div class="border-b border-neutral-200 px-6 py-4">
-            <h2 class="text-lg font-semibold tracking-tight text-neutral-900">Active Datasets</h2>
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'admin.datasets.active_datasets'|trans }}</h2>
         </div>
 
-        <table class="w-full">
-            <thead class="border-b border-neutral-200 bg-neutral-50">
+        <table class="rams-table">
+            <thead>
                 <tr>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Dataset Name</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Version</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Records</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Last Updated</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Status</th>
-                        <th class="px-6 py-3 text-center text-sm font-semibold text-neutral-900">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-neutral-200">
-                    {% if datasets | default([]) %}
-                        {% for dataset in datasets %}
-                            <tr class="transition-colors hover:bg-neutral-50">
-                                <td class="px-6 py-4 text-sm font-medium text-neutral-900">{{ dataset.name }}</td>
-                                <td class="px-6 py-4 text-sm text-neutral-700">{{ dataset.version }}</td>
-                                <td class="px-6 py-4 text-sm text-neutral-700">{{ dataset.records | number_format }}</td>
-                                <td class="px-6 py-4 text-sm text-neutral-700">{{ dataset.updated_at }}</td>
-                                <td class="px-6 py-4 text-sm">
-                                    <span class="inline-flex rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold leading-5 text-neutral-800">
-                                        {{ dataset.status }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex justify-center gap-2">
-                                        <a href="#" class="text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900">View</a>
-                                        <a href="#" class="text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900">Export</a>
-                                        <a href="#" class="text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900">Delete</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    {% else %}
+                    <th>{{ 'admin.datasets.dataset_name'|trans }}</th>
+                    <th>{{ 'admin.datasets.version'|trans }}</th>
+                    <th>{{ 'admin.datasets.records'|trans }}</th>
+                    <th>{{ 'admin.datasets.last_updated'|trans }}</th>
+                    <th>{{ 'admin.datasets.status'|trans }}</th>
+                    <th>{{ 'common.actions'|trans }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if datasets | default([]) %}
+                    {% for dataset in datasets %}
                         <tr>
-                            <td colspan="6" class="px-6 py-8 text-center text-neutral-700">
-                                No datasets available. <a href="{{ path('admin_dataset_import_form') }}" class="font-medium text-neutral-900 hover:underline">Import one now</a>
+                            <td>{{ dataset.name }}</td>
+                            <td>{{ dataset.version }}</td>
+                            <td>
+                                <span class="rams-metric__value">{{ dataset.records | number_format }}</span>
+                            </td>
+                            <td>{{ dataset.updated_at }}</td>
+                            <td>
+                                <span class="rams-badge">
+                                    {{ dataset.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="rams-btn-group">
+                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
+                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.export'|trans }}</a>
+                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text-danger">{{ 'common.delete'|trans }}</a>
+                                </div>
                             </td>
                         </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="rams-empty-state">
+                            {{ 'admin.datasets.no_datasets'|trans }} <a href="{{ path('admin_dataset_import_form') }}">{{ 'admin.datasets.import_one_now'|trans }}</a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
 
-        <!-- Quick Actions -->
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <a href="{{ path('admin_dataset_history') }}" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
-                <h3 class="mb-2 text-lg font-semibold text-neutral-900">📋 Version History</h3>
-                <p class="text-sm text-neutral-600">View all dataset versions and changes</p>
-            </a>
-            <a href="{{ path('admin_dataset_import_form') }}" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
-                <h3 class="mb-2 text-lg font-semibold text-neutral-900">⬆️ Import Data</h3>
-                <p class="text-sm text-neutral-600">Upload new datasets or updates</p>
-            </a>
-            <a href="#" class="rounded-lg border border-neutral-200/60 bg-white p-6 transition-all hover:shadow-sm">
-                <h3 class="mb-2 text-lg font-semibold text-neutral-900">🔄 Sync Datasets</h3>
-                <p class="text-sm text-neutral-600">Synchronize with external sources</p>
-            </a>
-        </div>
+    <!-- Quick Actions -->
+    <div class="rams-grid rams-grid--3">
+        <a href="{{ path('admin_dataset_history') }}" class="rams-module rams-module--clickable">
+            <div class="rams-module__content">
+                <h3 class="rams-module__title">📋 {{ 'admin.datasets.version_history'|trans }}</h3>
+                <p class="rams-text-muted">{{ 'admin.datasets.version_history_desc'|trans }}</p>
+            </div>
+        </a>
+        <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--clickable">
+            <div class="rams-module__content">
+                <h3 class="rams-module__title">⬆️ {{ 'admin.datasets.import'|trans }}</h3>
+                <p class="rams-text-muted">Upload new datasets or updates</p>
+            </div>
+        </a>
+        <a href="#" class="rams-module rams-module--clickable">
+            <div class="rams-module__content">
+                <h3 class="rams-module__title">🔄 {{ 'admin.datasets.sync_datasets'|trans }}</h3>
+                <p class="rams-text-muted">{{ 'admin.datasets.sync_desc'|trans }}</p>
+            </div>
+        </a>
     </div>
 </div>
 {% endblock %}

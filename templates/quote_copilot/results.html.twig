@@ -1,187 +1,202 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Quote {{ quote.quoteNumber }} - Results{% endblock %}
+{% block title %}{{ 'quote.copilot.results'|trans }} {{ quote.quoteNumber }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <!-- Header with Back Link -->
-    <div class="border-b border-neutral-200/80 pb-5">
-        <a href="{{ path('quote_copilot_index') }}" class="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center mb-3">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="rams-stack rams-stack--lg">
+    {# Header with Back Link #}
+    <header class="rams-module__header rams-module__header--border-bottom">
+        <a href="{{ path('quote_copilot_index') }}" class="rams-link rams-link--back">
+            <svg class="rams-link__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            Back to Quote Co-Pilot
+            {{ 'quote.copilot.back'|trans|default('Back to Quote Co-Pilot') }}
         </a>
-        <div class="flex items-start justify-between">
+        <div class="rams-module__header--row">
             <div>
-                <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Quote {{ quote.quoteNumber }}</h1>
-                <p class="mt-1.5 text-sm text-neutral-600">{{ quote.company.name }} • Created {{ quote.createdAt|date('M d, Y') }}</p>
+                <h1 class="rams-heading rams-heading--1">{{ 'quote.title_singular'|trans }} {{ quote.quoteNumber }}</h1>
+                <p class="rams-text rams-text--muted">{{ quote.company.name }} • {{ 'quote.created_at'|trans }} {{ quote.createdAt|date('M d, Y') }}</p>
             </div>
-            <div class="flex gap-2">
+            <div class="rams-badge-group">
                 {% if quote.coveragePercent >= 90 %}
-                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">High Coverage</span>
+                    <span class="rams-badge rams-badge--green">{{ 'quote.copilot.coverage_high_label'|trans|default('High Coverage') }}</span>
                 {% elseif quote.coveragePercent >= 60 %}
-                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Medium Coverage</span>
+                    <span class="rams-badge rams-badge--yellow">{{ 'quote.copilot.coverage_medium_label'|trans|default('Medium Coverage') }}</span>
                 {% else %}
-                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Low Coverage</span>
+                    <span class="rams-badge rams-badge--red">{{ 'quote.copilot.coverage_low_label'|trans|default('Low Coverage') }}</span>
                 {% endif %}
-                <span class="px-3 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">{{ quote.status|upper }}</span>
+                <span class="rams-badge rams-badge--gray">{{ quote.status|upper }}</span>
+            </div>
+        </div>
+    </header>
+
+    {# Coverage Metrics #}
+    <div class="rams-grid rams-grid--cols-4 rams-grid--gap-md">
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <span class="rams-dymo">{{ 'quote.copilot.coverage'|trans }}</span>
+                <p class="rams-metric rams-metric--xl">{{ quote.coveragePercent|number_format(1) }}%</p>
+                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.parts_sourced'|trans|default('Parts sourced with pricing') }}</p>
+            </div>
+        </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <span class="rams-dymo">{{ 'quote.copilot.total_cost'|trans }}</span>
+                <p class="rams-metric rams-metric--xl">${{ quote.totalCost|number_format(2) }}</p>
+                <p class="rams-text rams-text--sm rams-text--muted">{{ quote.currency }}</p>
+            </div>
+        </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <span class="rams-dymo">{{ 'quote.copilot.bom_lines'|trans|default('BOM Lines') }}</span>
+                <p class="rams-metric rams-metric--xl">{{ quote.bomLines|length }}</p>
+                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.component_types'|trans|default('Component types') }}</p>
+            </div>
+        </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <span class="rams-dymo">{{ 'quote.quantity'|trans }}</span>
+                <p class="rams-metric rams-metric--xl">{{ quote.quantity }}</p>
+                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.units_to_produce'|trans|default('Units to produce') }}</p>
             </div>
         </div>
     </div>
 
-    <!-- Coverage Metrics -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <div class="text-sm font-medium text-neutral-600 mb-1">Coverage</div>
-            <div class="text-3xl font-semibold text-neutral-900">{{ quote.coveragePercent|number_format(1) }}%</div>
-            <div class="text-xs text-neutral-500 mt-1">Parts sourced with pricing</div>
+    {# BOM Lines Table #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-heading rams-heading--3">{{ 'quote.copilot.bill_of_materials'|trans|default('Bill of Materials') }}</h2>
         </div>
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <div class="text-sm font-medium text-neutral-600 mb-1">Total Cost</div>
-            <div class="text-3xl font-semibold text-neutral-900">${{ quote.totalCost|number_format(2) }}</div>
-            <div class="text-xs text-neutral-500 mt-1">{{ quote.currency }}</div>
-        </div>
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <div class="text-sm font-medium text-neutral-600 mb-1">BOM Lines</div>
-            <div class="text-3xl font-semibold text-neutral-900">{{ quote.bomLines|length }}</div>
-            <div class="text-xs text-neutral-500 mt-1">Component types</div>
-        </div>
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <div class="text-sm font-medium text-neutral-600 mb-1">Quantity</div>
-            <div class="text-3xl font-semibold text-neutral-900">{{ quote.quantity }}</div>
-            <div class="text-xs text-neutral-500 mt-1">Units to produce</div>
-        </div>
-    </div>
-
-    <!-- BOM Lines Table -->
-    <div class="rounded-xl border border-neutral-200/60 bg-white overflow-hidden">
-        <div class="px-6 py-4 border-b border-neutral-200/60">
-            <h2 class="text-lg font-semibold tracking-tight text-neutral-900">Bill of Materials</h2>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-neutral-50 border-b border-neutral-200">
+        <div class="rams-table-container">
+            <table class="rams-table">
+                <thead class="rams-table__header">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Line</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">MPN</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Manufacturer</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Description</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider">Qty</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider">Unit Price</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-neutral-600 uppercase tracking-wider">Ext. Price</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase tracking-wider">Source</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.line'|trans|default('Line') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.mpn'|trans|default('MPN') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.manufacturer'|trans|default('Manufacturer') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'common.description'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'common.quantity'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'quote.copilot.unit_price'|trans|default('Unit Price') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'quote.copilot.ext_price'|trans|default('Ext. Price') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.source'|trans|default('Source') }}</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-neutral-200">
+                <tbody class="rams-table__body">
                     {% for line in quote.bomLines %}
-                        <tr class="hover:bg-neutral-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">{{ line.lineNumber }}</td>
-                            <td class="px-6 py-4 text-sm font-mono text-neutral-900">{{ line.mpn }}</td>
-                            <td class="px-6 py-4 text-sm text-neutral-700">{{ line.manufacturer }}</td>
-                            <td class="px-6 py-4 text-sm text-neutral-700">{{ line.description|length > 40 ? line.description|slice(0, 40) ~ '...' : line.description }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-neutral-900">{{ line.quantity }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-neutral-900">
+                        <tr class="rams-table__row">
+                            <td class="rams-table__cell">{{ line.lineNumber }}</td>
+                            <td class="rams-table__cell"><code class="rams-code">{{ line.mpn }}</code></td>
+                            <td class="rams-table__cell">{{ line.manufacturer }}</td>
+                            <td class="rams-table__cell rams-table__cell--truncate" title="{{ line.description }}">{{ line.description|length > 40 ? line.description|slice(0, 40) ~ '...' : line.description }}</td>
+                            <td class="rams-table__cell rams-table__cell--right">{{ line.quantity }}</td>
+                            <td class="rams-table__cell rams-table__cell--right">
                                 {% if line.unitPrice %}
                                     ${{ line.unitPrice|number_format(4) }}
                                 {% else %}
-                                    <span class="text-red-600">—</span>
+                                    <span class="rams-text rams-text--danger">—</span>
                                 {% endif %}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-neutral-900">
+                            <td class="rams-table__cell rams-table__cell--right rams-text--bold">
                                 {% if line.extendedPrice %}
                                     ${{ line.extendedPrice|number_format(2) }}
                                 {% else %}
-                                    <span class="text-red-600">—</span>
+                                    <span class="rams-text rams-text--danger">—</span>
                                 {% endif %}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-xs">
+                            <td class="rams-table__cell">
                                 {% if line.hasException %}
-                                    <span class="px-2 py-1 rounded-full bg-red-100 text-red-700">{{ line.exceptionReason }}</span>
+                                    <span class="rams-badge rams-badge--red">{{ line.exceptionReason }}</span>
                                 {% else %}
-                                    <span class="px-2 py-1 rounded-full bg-green-100 text-green-700">{{ line.procurementSource }}</span>
+                                    <span class="rams-badge rams-badge--green">{{ line.procurementSource }}</span>
                                 {% endif %}
                             </td>
                         </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="bg-neutral-50 border-t border-neutral-200">
+                <tfoot class="rams-table__footer">
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-right text-sm font-semibold text-neutral-900">Total:</td>
-                        <td class="px-6 py-4 text-right text-sm font-bold text-neutral-900">${{ quote.totalCost|number_format(2) }}</td>
-                        <td></td>
+                        <td colspan="6" class="rams-table__cell rams-table__cell--right rams-text--bold">{{ 'common.total'|trans }}:</td>
+                        <td class="rams-table__cell rams-table__cell--right rams-text--bold">${{ quote.totalCost|number_format(2) }}</td>
+                        <td class="rams-table__cell"></td>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </div>
 
-    <!-- Quote Details -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <h3 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Shipment Details</h3>
-            <dl class="space-y-3">
-                <div>
-                    <dt class="text-sm text-neutral-600">Destination</dt>
-                    <dd class="text-sm font-medium text-neutral-900">{{ quote.shipToCountry }}</dd>
-                </div>
-                <div>
-                    <dt class="text-sm text-neutral-600">Incoterms</dt>
-                    <dd class="text-sm font-medium text-neutral-900">{{ quote.incoterms }}</dd>
-                </div>
-                {% if quote.notes %}
-                    <div>
-                        <dt class="text-sm text-neutral-600">Notes</dt>
-                        <dd class="text-sm font-medium text-neutral-900">{{ quote.notes }}</dd>
+    {# Quote Details #}
+    <div class="rams-grid rams-grid--cols-2 rams-grid--gap-lg">
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-dymo">{{ 'quote.copilot.shipment_details'|trans|default('Shipment Details') }}</span>
+            </div>
+            <div class="rams-module__content">
+                <dl class="rams-definition-list">
+                    <div class="rams-definition-list__item">
+                        <dt class="rams-definition-list__term">{{ 'quote.copilot.destination'|trans|default('Destination') }}</dt>
+                        <dd class="rams-definition-list__desc">{{ quote.shipToCountry }}</dd>
                     </div>
-                {% endif %}
-            </dl>
+                    <div class="rams-definition-list__item">
+                        <dt class="rams-definition-list__term">{{ 'quote.copilot.incoterms'|trans|default('Incoterms') }}</dt>
+                        <dd class="rams-definition-list__desc">{{ quote.incoterms }}</dd>
+                    </div>
+                    {% if quote.notes %}
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.notes'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ quote.notes }}</dd>
+                        </div>
+                    {% endif %}
+                </dl>
+            </div>
         </div>
 
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <h3 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Actions</h3>
-            <div class="space-y-3">
-                <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" 
-                   class="block w-full inline-flex items-center justify-center rounded-lg bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    Download PDF
-                </a>
-                
-                {% if quote.coveragePercent >= 60 %}
-                    <button onclick="initiatePublish({{ quote.id }})" 
-                            class="block w-full inline-flex items-center justify-center rounded-lg border border-neutral-200/60 bg-white px-6 py-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-dymo">{{ 'common.actions'|trans }}</span>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-stack rams-stack--sm">
+                    <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" class="rams-btn rams-btn--primary rams-btn--block">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
-                        Publish to Customer
-                    </button>
-                {% else %}
-                    <div class="rounded-lg bg-yellow-50 border border-yellow-200 p-4">
-                        <p class="text-sm text-yellow-800">
-                            <strong>⚠ Coverage too low:</strong> Requires ≥60% to publish. Manual pricing needed for missing parts.
-                        </p>
-                    </div>
-                {% endif %}
+                        {{ 'quote.copilot.download_pdf'|trans|default('Download PDF') }}
+                    </a>
+                    
+                    {% if quote.coveragePercent >= 60 %}
+                        <button onclick="initiatePublish({{ quote.id }})" class="rams-btn rams-btn--secondary rams-btn--block">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                            {{ 'quote.copilot.publish'|trans }}
+                        </button>
+                    {% else %}
+                        <div class="rams-andon rams-andon--yellow">
+                            <p class="rams-text rams-text--sm">
+                                <strong>⚠ {{ 'quote.copilot.coverage_too_low'|trans|default('Coverage too low:') }}</strong> {{ 'quote.copilot.coverage_requirement'|trans|default('Requires ≥60% to publish. Manual pricing needed for missing parts.') }}
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Contact Selection Modal -->
-<div id="contactModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
-        <div class="px-6 py-4 border-b border-neutral-200">
-            <h3 class="text-lg font-semibold text-neutral-900">Select Contact</h3>
-            <p class="text-sm text-neutral-600 mt-1">Choose who should receive this quote</p>
+{# Contact Selection Modal #}
+<div id="contactModal" class="rams-modal rams-modal--hidden">
+    <div class="rams-modal__backdrop" onclick="closeContactModal()"></div>
+    <div class="rams-modal__content">
+        <div class="rams-modal__header">
+            <h3 class="rams-heading rams-heading--3">{{ 'quote.copilot.select_contact'|trans|default('Select Contact') }}</h3>
+            <p class="rams-text rams-text--muted">{{ 'quote.copilot.select_contact_hint'|trans|default('Choose who should receive this quote') }}</p>
         </div>
-        <div id="contactList" class="px-6 py-4 max-h-96 overflow-y-auto">
-            <!-- Contacts will be loaded here -->
+        <div id="contactList" class="rams-modal__body">
+            {# Contacts will be loaded here #}
         </div>
-        <div class="px-6 py-4 border-t border-neutral-200 flex gap-3">
-            <button onclick="closeContactModal()" class="flex-1 px-4 py-2 border border-neutral-300 text-neutral-700 rounded-lg hover:bg-neutral-50 font-medium">
-                Cancel
+        <div class="rams-modal__footer">
+            <button onclick="closeContactModal()" class="rams-btn rams-btn--secondary">
+                {{ 'common.cancel'|trans }}
             </button>
         </div>
     </div>
@@ -193,32 +208,29 @@ let currentQuoteId = null;
 async function initiatePublish(quoteId) {
     currentQuoteId = quoteId;
     
-    // Fetch contacts for this quote
     try {
         const response = await fetch(`/quote-copilot/${quoteId}/contacts`);
         const data = await response.json();
         
         if (!data.success) {
-            alert('Error loading contacts: ' + data.message);
+            alert('{{ 'quote.copilot.error_loading_contacts'|trans|default('Error loading contacts') }}: ' + data.message);
             return;
         }
         
         if (data.count === 0) {
-            alert('No contacts with email addresses found for this company. Please add a contact first.');
+            alert('{{ 'quote.copilot.no_contacts'|trans|default('No contacts with email addresses found for this company. Please add a contact first.') }}');
             return;
         }
         
         if (data.count === 1) {
-            // Only one contact, publish directly
-            if (confirm(`Send quote to ${data.contacts[0].name} (${data.contacts[0].email})?`)) {
+            if (confirm(`{{ 'quote.copilot.send_to'|trans|default('Send quote to') }} ${data.contacts[0].name} (${data.contacts[0].email})?`)) {
                 publishQuote(quoteId, data.contacts[0].id);
             }
         } else {
-            // Multiple contacts, show selection modal
             showContactModal(data.contacts);
         }
     } catch (error) {
-        alert('Error loading contacts');
+        alert('{{ 'quote.copilot.error_loading_contacts'|trans|default('Error loading contacts') }}');
         console.error(error);
     }
 }
@@ -229,34 +241,31 @@ function showContactModal(contacts) {
         const escapedName = contact.name.replace(/'/g, '&apos;').replace(/"/g, '&quot;');
         const escapedEmail = contact.email.replace(/'/g, '&apos;').replace(/"/g, '&quot;');
         return `
-        <div class="mb-3 p-4 border border-neutral-200 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors" onclick="selectContact(${contact.id}, '${escapedName}', '${escapedEmail}')">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="font-medium text-neutral-900">${contact.name}</p>
-                    <p class="text-sm text-neutral-600">${contact.email}</p>
-                    ${contact.role ? `<p class="text-xs text-neutral-500 mt-1">${contact.role}</p>` : ''}
-                </div>
-                <svg class="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
+        <div class="rams-list-item rams-list-item--clickable" onclick="selectContact(${contact.id}, '${escapedName}', '${escapedEmail}')">
+            <div class="rams-list-item__content">
+                <p class="rams-text rams-text--bold">${contact.name}</p>
+                <p class="rams-text rams-text--sm rams-text--muted">${contact.email}</p>
+                ${contact.role ? `<p class="rams-text rams-text--xs rams-text--muted">${contact.role}</p>` : ''}
             </div>
+            <svg class="rams-list-item__chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
         </div>
     `}).join('');
     
-    document.getElementById('contactModal').classList.remove('hidden');
+    document.getElementById('contactModal').classList.remove('rams-modal--hidden');
 }
 
 function closeContactModal() {
-    document.getElementById('contactModal').classList.add('hidden');
+    document.getElementById('contactModal').classList.add('rams-modal--hidden');
     currentQuoteId = null;
 }
 
 function selectContact(contactId, contactName, contactEmail) {
-    // Unescape HTML entities
     const unescapeName = contactName.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
     const unescapeEmail = contactEmail.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
     
-    if (confirm(`Send quote to ${unescapeName} (${unescapeEmail})?`)) {
+    if (confirm(`{{ 'quote.copilot.send_to'|trans|default('Send quote to') }} ${unescapeName} (${unescapeEmail})?`)) {
         closeContactModal();
         publishQuote(currentQuoteId, contactId);
     }
@@ -275,86 +284,15 @@ async function publishQuote(quoteId, contactId) {
         const data = await response.json();
         
         if (data.success) {
-            alert('Quote published successfully!');
+            alert('{{ 'quote.copilot.publish_success'|trans|default('Quote published successfully!') }}');
             window.location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('{{ 'common.error'|trans }}: ' + data.message);
         }
     } catch (error) {
-        alert('Error publishing quote');
+        alert('{{ 'quote.copilot.publish_error'|trans|default('Error publishing quote') }}');
         console.error(error);
     }
 }
 </script>
-
-                        <p class="font-semibold text-gray-900">{{ quote.shipping_method | default('Standard Shipping') }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div class="space-y-6">
-            <!-- Actions -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
-                <div class="space-y-2">
-                    <a href="{{ path('quote_copilot_pdf', {'id': quote.id}) }}" class="w-full px-4 py-2 bg-neutral-900 text-white font-medium rounded-lg hover:bg-neutral-800 block text-center">
-                        Download PDF
-                    </a>
-                    <button onclick="publishQuote({{ quote.id }})" class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200">
-                        Send Quote
-                    </button>
-                    <a href="{{ path('quote_copilot_excel', {'id': quote.id}) }}" class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200 block text-center">
-                        Export to Excel
-                    </a>
-                    <a href="{{ path('app_rfq_new') }}" class="w-full px-4 py-2 bg-neutral-100 text-neutral-700 font-medium rounded-lg hover:bg-neutral-200 block text-center">
-                        Create Order
-                    </a>
-                </div>
-            </div>
-
-            <!-- Quote Details -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Quote Details</h2>
-                <div class="space-y-3 text-sm">
-                    <div>
-                        <p class="text-gray-600">Quote ID</p>
-                        <p class="font-semibold text-gray-900">{{ quote.id | default('Q-2025-001') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-600">Valid Until</p>
-                        <p class="font-semibold text-gray-900">
-                            {% if quote.createdAt %}
-                                {{ quote.createdAt|date_modify('+30 days')|date('M d, Y') }}
-                            {% else %}
-                                30 days from creation
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div>
-                        <p class="text-gray-600">Source Files</p>
-                        <p class="font-semibold text-gray-900">1 BOM file</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-600">Generated By</p>
-                        <p class="font-semibold text-gray-900">Quote Co-Pilot AI</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Save Quote -->
-            <div class="rounded-lg border border-neutral-200/60 bg-neutral-50/50 p-6">
-                <h3 class="mb-3 text-lg font-semibold text-neutral-900">Quote Information</h3>
-                <p class="mb-4 text-sm text-neutral-700">This quote is automatically saved and can be accessed anytime</p>
-                <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
-                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    <span class="text-sm font-medium text-green-700">Quote Saved</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}

@@ -1,17 +1,17 @@
-{# Keyboard Shortcuts Help Modal #}
+{# Keyboard Shortcuts Help Modal - Sensei-Rams Industrial Design #}
 
 <div id="shortcuts-help-modal" class="shortcuts-modal hidden">
     <div class="shortcuts-modal-overlay" onclick="document.getElementById('shortcuts-help-modal').classList.add('hidden')"></div>
     
-    <div class="shortcuts-modal-content">
+    <div class="rams-module shortcuts-modal-content">
         {# Modal Header #}
-        <div class="shortcuts-modal-header">
-            <h2 class="shortcuts-modal-title">Keyboard Shortcuts</h2>
+        <div class="rams-module__header shortcuts-modal-header">
+            <h2 class="rams-module__title">{{ 'shortcuts.title'|trans|default('Keyboard Shortcuts') }}</h2>
             <button 
                 type="button"
-                class="shortcuts-modal-close"
+                class="rams-btn rams-btn--ghost shortcuts-modal-close"
                 onclick="document.getElementById('shortcuts-help-modal').classList.add('hidden')"
-                aria-label="Close"
+                aria-label="{{ 'common.close'|trans }}"
             >
                 <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -20,68 +20,68 @@
         </div>
 
         {# Modal Body #}
-        <div class="shortcuts-modal-body">
+        <div class="rams-module__content shortcuts-modal-body">
             {# Navigation Shortcuts #}
             <div class="shortcuts-section">
-                <h3 class="shortcuts-section-title">Navigation</h3>
+                <h3 class="rams-dymo shortcuts-section-title">{{ 'shortcuts.navigation'|trans|default('Navigation') }}</h3>
                 <div class="shortcuts-list">
                     <div class="shortcut-item">
-                        <kbd class="shortcut-key">/</kbd>
-                        <span class="shortcut-desc">Focus search</span>
+                        <kbd class="rams-kbd">/</kbd>
+                        <span class="shortcut-desc">{{ 'shortcuts.focus_search'|trans|default('Focus search') }}</span>
                     </div>
                 </div>
             </div>
 
             {# Quick Actions #}
             <div class="shortcuts-section">
-                <h3 class="shortcuts-section-title">Quick Actions</h3>
+                <h3 class="rams-dymo shortcuts-section-title">{{ 'shortcuts.quick_actions'|trans|default('Quick Actions') }}</h3>
                 <div class="shortcuts-list">
                     <div class="shortcut-item">
-                        <kbd class="shortcut-key">L</kbd>
-                        <span class="shortcut-desc">Log activity</span>
+                        <kbd class="rams-kbd">L</kbd>
+                        <span class="shortcut-desc">{{ 'shortcuts.log_activity'|trans|default('Log activity') }}</span>
                     </div>
                     <div class="shortcut-item">
-                        <kbd class="shortcut-key">A</kbd>
+                        <kbd class="rams-kbd">A</kbd>
                         <span class="shortcut-plus">+</span>
-                        <kbd class="shortcut-key">C</kbd>
-                        <span class="shortcut-desc">Add company</span>
+                        <kbd class="rams-kbd">C</kbd>
+                        <span class="shortcut-desc">{{ 'shortcuts.add_company'|trans|default('Add company') }}</span>
                     </div>
                     <div class="shortcut-item">
-                        <kbd class="shortcut-key">A</kbd>
+                        <kbd class="rams-kbd">A</kbd>
                         <span class="shortcut-plus">+</span>
-                        <kbd class="shortcut-key">E</kbd>
-                        <span class="shortcut-desc">Add contact</span>
+                        <kbd class="rams-kbd">E</kbd>
+                        <span class="shortcut-desc">{{ 'shortcuts.add_contact'|trans|default('Add contact') }}</span>
                     </div>
                 </div>
             </div>
 
             {# Help #}
             <div class="shortcuts-section">
-                <h3 class="shortcuts-section-title">Help</h3>
+                <h3 class="rams-dymo shortcuts-section-title">{{ 'common.help'|trans|default('Help') }}</h3>
                 <div class="shortcuts-list">
                     <div class="shortcut-item">
-                        <kbd class="shortcut-key">?</kbd>
-                        <span class="shortcut-desc">Show this dialog</span>
+                        <kbd class="rams-kbd">?</kbd>
+                        <span class="shortcut-desc">{{ 'shortcuts.show_dialog'|trans|default('Show this dialog') }}</span>
                     </div>
                     <div class="shortcut-item">
-                        <kbd class="shortcut-key">ESC</kbd>
-                        <span class="shortcut-desc">Close dialogs</span>
+                        <kbd class="rams-kbd">ESC</kbd>
+                        <span class="shortcut-desc">{{ 'shortcuts.close_dialogs'|trans|default('Close dialogs') }}</span>
                     </div>
                 </div>
             </div>
         </div>
 
         {# Modal Footer #}
-        <div class="shortcuts-modal-footer">
-            <p class="text-sm text-neutral-600">
-                Note: Shortcuts are disabled when typing in text fields
+        <div class="rams-module__footer shortcuts-modal-footer">
+            <p class="rams-dymo">
+                {{ 'shortcuts.note_disabled_in_text'|trans|default('Note: Shortcuts are disabled when typing in text fields') }}
             </p>
         </div>
     </div>
 </div>
 
 <style>
-    /* Modal Overlay */
+    /* Modal Overlay - Sensei-Rams Industrial Design */
     .shortcuts-modal {
         position: fixed;
         top: 0;
@@ -105,16 +105,13 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(44, 36, 22, 0.5);
+        background: rgba(0, 0, 0, 0.5);
         backdrop-filter: blur(4px);
     }
 
-    /* Modal Content */
+    /* Modal Content - Rams Module */
     .shortcuts-modal-content {
         position: relative;
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(44, 36, 22, 0.3);
         max-width: 600px;
         width: 100%;
         max-height: 80vh;
@@ -140,37 +137,16 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 24px;
-        border-bottom: 1px solid var(--claude-border, #DDD8CC);
-    }
-
-    .shortcuts-modal-title {
-        font-size: 24px;
-        font-weight: 600;
-        color: var(--claude-text, #2C2416);
-        margin: 0;
     }
 
     .shortcuts-modal-close {
-        background: none;
-        border: none;
-        cursor: pointer;
-        color: var(--claude-text-secondary, #5C5041);
         padding: 8px;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-    }
-
-    .shortcuts-modal-close:hover {
-        background: var(--claude-hover, #EDE9E0);
-        color: var(--claude-text, #2C2416);
     }
 
     /* Modal Body */
     .shortcuts-modal-body {
         flex: 1;
         overflow-y: auto;
-        padding: 24px;
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 32px;
@@ -191,9 +167,6 @@
     }
 
     .shortcuts-section-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--claude-purple, #9B6B9E);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin: 0 0 8px 0;
@@ -212,25 +185,26 @@
         gap: 12px;
     }
 
-    .shortcut-key {
+    /* Keyboard Key Style - Rams Industrial */
+    .rams-kbd {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         min-width: 32px;
         height: 32px;
         padding: 0 8px;
-        background: var(--claude-tan, #E8E3D8);
-        border: 1px solid var(--claude-border, #DDD8CC);
-        border-radius: 6px;
-        font-family: 'Courier New', monospace;
+        background: var(--rams-surface, #f5f5f5);
+        border: 1px solid var(--rams-border, #e5e5e5);
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
         font-size: 14px;
         font-weight: 600;
-        color: var(--claude-text, #2C2416);
-        box-shadow: 0 2px 4px rgba(44, 36, 22, 0.1);
+        color: var(--rams-text, #1a1a1a);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .shortcut-plus {
-        color: var(--claude-text-secondary, #5C5041);
+        color: var(--rams-text-muted, #6b7280);
         font-size: 12px;
         font-weight: 500;
     }
@@ -238,19 +212,17 @@
     .shortcut-desc {
         flex: 1;
         font-size: 14px;
-        color: var(--claude-text, #2C2416);
+        color: var(--rams-text, #1a1a1a);
     }
 
     /* Modal Footer */
     .shortcuts-modal-footer {
-        padding: 16px 24px;
-        border-top: 1px solid var(--claude-border, #DDD8CC);
-        background: var(--claude-tan, #E8E3D8);
+        text-align: center;
     }
 
     /* Accessibility */
     .shortcuts-modal-close:focus-visible {
-        outline: 3px solid var(--claude-purple, #9B6B9E);
+        outline: 3px solid var(--rams-primary, #3b82f6);
         outline-offset: 2px;
     }
 </style>

@@ -1,8 +1,8 @@
-{# Engagement Heat Map Component #}
-<div class="engagement-heat-map-container">
-    <div class="heat-map-header">
-        <h3 class="heat-map-title">Engagement Heat Map</h3>
-        <button onclick="refreshHeatMap()" class="heat-map-refresh-btn" aria-label="Refresh heat map">
+{# Engagement Heat Map Component - Sensei-Rams Industrial Design #}
+<div class="rams-module engagement-heat-map-container">
+    <div class="rams-module__header heat-map-header">
+        <h3 class="rams-module__title">{{ 'dashboard.engagement_heat_map'|trans|default('Engagement Heat Map') }}</h3>
+        <button onclick="refreshHeatMap()" class="rams-btn rams-btn--ghost rams-btn--sm" aria-label="{{ 'common.refresh'|trans }}">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C10.7614 2 13 4.23858 13 7"/>
                 <path d="M10 7L13 7L13 4"/>
@@ -10,66 +10,64 @@
         </button>
     </div>
     
-    <div class="heat-map-grid">
-        {% for company in companies %}
-            <div class="heat-map-cell" 
-                 data-company-id="{{ company.id }}"
-                 data-company-name="{{ company.name }}"
-                 data-score="{{ company.score }}"
-                 data-activities="{{ company.activities_count }}"
-                 data-email-opens="{{ company.email_opens }}"
-                 data-recent-days="{{ company.recent_activity_days ?? 'N/A' }}"
-                 style="background-color: {{ company.color }};"
-                 onclick="navigateToCompany({{ company.id }})"
-                 role="button"
-                 tabindex="0"
-                 aria-label="Company: {{ company.name }}, Engagement score: {{ company.score }}">
-                
-                {# Tooltip #}
-                <div class="heat-map-tooltip">
-                    <div class="tooltip-company-name">{{ company.name }}</div>
-                    <div class="tooltip-score">Score: {{ company.score }}/100</div>
-                    <div class="tooltip-details">
-                        <div>🎯 {{ company.activities_count }} activities</div>
-                        <div>📧 {{ company.email_opens }} email opens</div>
-                        {% if company.recent_activity_days is not null %}
-                            <div>⏱️ Last activity: {{ company.recent_activity_days }}d ago</div>
-                        {% else %}
-                            <div>⏱️ No recent activity</div>
-                        {% endif %}
+    <div class="rams-module__content">
+        <div class="heat-map-grid">
+            {% for company in companies %}
+                <div class="heat-map-cell" 
+                     data-company-id="{{ company.id }}"
+                     data-company-name="{{ company.name }}"
+                     data-score="{{ company.score }}"
+                     data-activities="{{ company.activities_count }}"
+                     data-email-opens="{{ company.email_opens }}"
+                     data-recent-days="{{ company.recent_activity_days ?? 'N/A' }}"
+                     style="background-color: {{ company.color }};"
+                     onclick="navigateToCompany({{ company.id }})"
+                     role="button"
+                     tabindex="0"
+                     aria-label="{{ 'company.title_singular'|trans }}: {{ company.name }}, {{ 'dashboard.engagement_score'|trans|default('Engagement score') }}: {{ company.score }}">
+                    
+                    {# Tooltip #}
+                    <div class="heat-map-tooltip">
+                        <div class="tooltip-company-name">{{ company.name }}</div>
+                        <div class="tooltip-score">{{ 'dashboard.score'|trans|default('Score') }}: {{ company.score }}/100</div>
+                        <div class="tooltip-details">
+                            <div>🎯 {{ company.activities_count }} {{ 'activity.title'|trans|default('activities') }}</div>
+                            <div>📧 {{ company.email_opens }} {{ 'email.opens'|trans|default('email opens') }}</div>
+                            {% if company.recent_activity_days is not null %}
+                                <div>⏱️ {{ 'dashboard.last_activity'|trans|default('Last activity') }}: {{ company.recent_activity_days }}{{ 'common.days_ago'|trans|default('d ago') }}</div>
+                            {% else %}
+                                <div>⏱️ {{ 'dashboard.no_recent_activity'|trans|default('No recent activity') }}</div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-            </div>
-        {% endfor %}
+            {% endfor %}
+            
+            {# Fill remaining cells if less than 20 companies #}
+            {% for i in 1..(20 - companies|length) %}
+                <div class="heat-map-cell heat-map-cell-empty"></div>
+            {% endfor %}
+        </div>
         
-        {# Fill remaining cells if less than 20 companies #}
-        {% for i in 1..(20 - companies|length) %}
-            <div class="heat-map-cell heat-map-cell-empty" style="background-color: #F3F4F6;"></div>
-        {% endfor %}
-    </div>
-    
-    <div class="heat-map-legend">
-        <div class="legend-item">
-            <span class="legend-color" style="background-color: #10B981;"></span>
-            <span class="legend-label">High (60-100)</span>
-        </div>
-        <div class="legend-item">
-            <span class="legend-color" style="background-color: #FBBF24;"></span>
-            <span class="legend-label">Medium (30-59)</span>
-        </div>
-        <div class="legend-item">
-            <span class="legend-color" style="background-color: #EF4444;"></span>
-            <span class="legend-label">Low (0-29)</span>
+        <div class="heat-map-legend">
+            <div class="legend-item">
+                <span class="rams-andon rams-andon--success"></span>
+                <span class="rams-dymo">{{ 'common.high'|trans|default('High') }} (60-100)</span>
+            </div>
+            <div class="legend-item">
+                <span class="rams-andon rams-andon--warning"></span>
+                <span class="rams-dymo">{{ 'common.medium'|trans|default('Medium') }} (30-59)</span>
+            </div>
+            <div class="legend-item">
+                <span class="rams-andon rams-andon--danger"></span>
+                <span class="rams-dymo">{{ 'common.low'|trans|default('Low') }} (0-29)</span>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
     .engagement-heat-map-container {
-        background: white;
-        border: 1px solid var(--claude-border);
-        border-radius: 12px;
-        padding: 20px;
         margin-bottom: 24px;
     }
     
@@ -77,32 +75,6 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 16px;
-    }
-    
-    .heat-map-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--claude-text);
-        margin: 0;
-    }
-    
-    .heat-map-refresh-btn {
-        background: var(--claude-purple);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        padding: 6px 10px;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-    
-    .heat-map-refresh-btn:hover {
-        background: var(--claude-dark-purple);
-        transform: translateY(-1px);
     }
     
     .heat-map-grid {
@@ -125,13 +97,14 @@
     .heat-map-cell:not(.heat-map-cell-empty):hover {
         transform: scale(1.1);
         z-index: 10;
-        border-color: var(--claude-text);
+        border-color: var(--rams-border-strong, #333);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     
     .heat-map-cell-empty {
         cursor: default;
         opacity: 0.3;
+        background-color: #F3F4F6;
     }
     
     .heat-map-tooltip {
@@ -139,7 +112,7 @@
         bottom: calc(100% + 10px);
         left: 50%;
         transform: translateX(-50%);
-        background: var(--claude-text);
+        background: var(--rams-surface-dark, #1a1a1a);
         color: white;
         padding: 12px 14px;
         border-radius: 8px;
@@ -160,7 +133,7 @@
         left: 50%;
         transform: translateX(-50%);
         border: 6px solid transparent;
-        border-top-color: var(--claude-text);
+        border-top-color: var(--rams-surface-dark, #1a1a1a);
     }
     
     .heat-map-cell:hover .heat-map-tooltip {
@@ -199,31 +172,18 @@
         gap: 16px;
         justify-content: center;
         padding-top: 12px;
-        border-top: 1px solid var(--claude-border);
+        border-top: 1px solid var(--rams-border, #e5e5e5);
     }
     
     .legend-item {
         display: flex;
         align-items: center;
         gap: 6px;
-        font-size: 12px;
-        color: var(--claude-text-secondary);
-    }
-    
-    .legend-color {
-        width: 14px;
-        height: 14px;
-        border-radius: 3px;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-    }
-    
-    .legend-label {
-        font-size: 11px;
     }
     
     /* Keyboard focus styles */
     .heat-map-cell:focus {
-        outline: 2px solid var(--claude-purple);
+        outline: 2px solid var(--rams-primary, #3b82f6);
         outline-offset: 2px;
     }
     
@@ -248,7 +208,6 @@
     }
     
     function refreshHeatMap() {
-        // Reload the page to refresh data
         window.location.reload();
     }
     

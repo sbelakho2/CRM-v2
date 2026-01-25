@@ -1,113 +1,124 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Google Dork Generator{% endblock %}
+{% block title %}{{ 'webcrawler.dork_generator'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <!-- Breadcrumb -->
-    <nav class="text-sm">
-        <a href="{{ path('app_webcrawler_index') }}" class="text-neutral-600 hover:text-neutral-900">LeadBot WebCrawler</a>
-        <span class="text-neutral-400 mx-2">/</span>
-        <span class="text-neutral-900">Google Dork Generator</span>
-    </nav>
-    
-    <!-- Header -->
-    <div class="border-b border-neutral-200/80 pb-5">
-        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Google Dork Generator</h1>
-        <p class="mt-1 text-sm text-neutral-600">Generate custom Google search queries for company discovery</p>
+<div class="rams-module">
+    <div class="rams-module__header">
+        <div class="rams-breadcrumb">
+            <a href="{{ path('app_webcrawler_index') }}" class="rams-breadcrumb__link">{{ 'webcrawler.title'|trans }}</a>
+            <span class="rams-breadcrumb__separator">/</span>
+            <span class="rams-breadcrumb__current">{{ 'webcrawler.dork_generator'|trans }}</span>
+        </div>
+        
+        <div class="rams-module__header-content">
+            <h1 class="rams-module__title">{{ 'webcrawler.dork_generator'|trans }}</h1>
+            <p class="rams-module__subtitle">{{ 'webcrawler.dork_generator_subtitle'|trans|default('Generate custom Google search queries for company discovery') }}</p>
+        </div>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md p-6">
-
+    <div class="rams-module__content">
         <!-- Quick Generator -->
-        <div class="mb-8">
-            <h2 class="text-lg font-semibold mb-4">Quick Generator</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Company/Domain</label>
-                    <input type="text" id="domain-input" placeholder="example.com" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Sector</label>
-                    <select id="sector-input" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                        <option value="">Select sector...</option>
-                        {% for sector in sectors %}
-                            <option value="{{ sector }}">{{ sector }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+        <div class="rams-module rams-module--nested">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'webcrawler.quick_generator'|trans|default('Quick Generator') }}</h2>
             </div>
+            
+            <div class="rams-module__content">
+                <div class="rams-form__row rams-form__row--2">
+                    <div class="rams-form__group">
+                        <label class="rams-form__label">{{ 'webcrawler.company_domain'|trans|default('Company/Domain') }}</label>
+                        <input type="text" id="domain-input" placeholder="example.com" class="rams-form__input">
+                    </div>
+                    
+                    <div class="rams-form__group">
+                        <label class="rams-form__label">{{ 'company.sector'|trans }}</label>
+                        <select id="sector-input" class="rams-form__select">
+                            <option value="">{{ 'common.select'|trans }}...</option>
+                            {% for sector in sectors %}
+                                <option value="{{ sector }}">{{ sector }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
 
-            <div id="generated-dorks" class="space-y-2"></div>
+                <div id="generated-dorks" class="rams-dork-list"></div>
+            </div>
         </div>
 
         <!-- Dork Templates -->
-        <div class="mb-8">
-            <h2 class="text-lg font-semibold mb-4">Dork Templates</h2>
+        <div class="rams-module rams-module--nested">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'webcrawler.dork_templates'|trans|default('Dork Templates') }}</h2>
+            </div>
             
-            {% for category, templates in dork_templates %}
-                <div class="mb-6">
-                    <h3 class="font-medium text-gray-900 mb-3">{{ category }}</h3>
-                    <div class="space-y-2">
-                        {% for template in templates %}
-                            <div class="flex items-center gap-2 bg-gray-50 rounded p-3">
-                                <code class="flex-1 text-sm text-gray-700">{{ template }}</code>
-                                <button onclick="copyDork('{{ template|escape('js') }}')" class="text-blue-600 hover:text-blue-800 text-sm">Copy</button>
-                            </div>
-                        {% endfor %}
+            <div class="rams-module__content">
+                {% for category, templates in dork_templates %}
+                    <div class="rams-template-group">
+                        <h3 class="rams-template-group__title">{{ category }}</h3>
+                        <div class="rams-template-list">
+                            {% for template in templates %}
+                                <div class="rams-template-item">
+                                    <code class="rams-template-item__code">{{ template }}</code>
+                                    <button onclick="copyDork('{{ template|escape('js') }}')" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.copy'|trans }}</button>
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
         </div>
 
         <!-- Advanced Tips -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 class="font-semibold text-blue-900 mb-2">Google Dork Tips</h3>
-            <ul class="text-sm text-blue-800 space-y-1">
-                <li>• <code>site:</code> - Search within a specific domain</li>
-                <li>• <code>inurl:</code> - Search for text in URL</li>
-                <li>• <code>intitle:</code> - Search for text in page title</li>
-                <li>• <code>"exact phrase"</code> - Search for exact phrase match</li>
-                <li>• <code>OR</code> - Search for either term (must be uppercase)</li>
-                <li>• <code>-keyword</code> - Exclude results with keyword</li>
-                <li>• <code>filetype:pdf</code> - Search for specific file types</li>
+        <div class="rams-alert rams-alert--info">
+            <h3 class="rams-alert__title">{{ 'webcrawler.dork_tips_title'|trans|default('Google Dork Tips') }}</h3>
+            <ul class="rams-alert__list">
+                <li>• <code>site:</code> - {{ 'webcrawler.tip_site'|trans|default('Search within a specific domain') }}</li>
+                <li>• <code>inurl:</code> - {{ 'webcrawler.tip_inurl'|trans|default('Search for text in URL') }}</li>
+                <li>• <code>intitle:</code> - {{ 'webcrawler.tip_intitle'|trans|default('Search for text in page title') }}</li>
+                <li>• <code>"exact phrase"</code> - {{ 'webcrawler.tip_exact'|trans|default('Search for exact phrase match') }}</li>
+                <li>• <code>OR</code> - {{ 'webcrawler.tip_or'|trans|default('Search for either term (must be uppercase)') }}</li>
+                <li>• <code>-keyword</code> - {{ 'webcrawler.tip_exclude'|trans|default('Exclude results with keyword') }}</li>
+                <li>• <code>filetype:pdf</code> - {{ 'webcrawler.tip_filetype'|trans|default('Search for specific file types') }}</li>
             </ul>
         </div>
-    </div>
 
-    <!-- Example Searches -->
-    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold mb-4">Example Searches</h2>
-        
-        <div class="space-y-4">
-            <div>
-                <div class="font-medium text-gray-900 mb-1">Find Automotive Suppliers in Morocco</div>
-                <code class="block bg-gray-100 p-3 rounded text-sm">
-                    "automotive" "morocco" ("tier 1" OR "tier 2" OR "supplier") -jobs -careers
-                </code>
+        <!-- Example Searches -->
+        <div class="rams-module rams-module--nested">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'webcrawler.example_searches'|trans|default('Example Searches') }}</h2>
             </div>
             
-            <div>
-                <div class="font-medium text-gray-900 mb-1">Find Companies with Supplier Portals</div>
-                <code class="block bg-gray-100 p-3 rounded text-sm">
-                    site:*.ma inurl:supplier OR inurl:vendor "portal" OR "registration"
-                </code>
-            </div>
-            
-            <div>
-                <div class="font-medium text-gray-900 mb-1">Find Aerospace Companies in Free Zones</div>
-                <code class="block bg-gray-100 p-3 rounded text-sm">
-                    "aerospace" ("tanger free zone" OR "atlantic free zone") manufacturer OR supplier
-                </code>
-            </div>
-            
-            <div>
-                <div class="font-medium text-gray-900 mb-1">Find Electronics Manufacturing Services</div>
-                <code class="block bg-gray-100 p-3 rounded text-sm">
-                    "morocco" ("EMS" OR "PCBA" OR "PCB assembly") contract manufacturer
-                </code>
+            <div class="rams-module__content">
+                <div class="rams-example-list">
+                    <div class="rams-example-item">
+                        <div class="rams-example-item__label">{{ 'webcrawler.example_automotive'|trans|default('Find Automotive Suppliers in Morocco') }}</div>
+                        <code class="rams-example-item__code">
+                            "automotive" "morocco" ("tier 1" OR "tier 2" OR "supplier") -jobs -careers
+                        </code>
+                    </div>
+                    
+                    <div class="rams-example-item">
+                        <div class="rams-example-item__label">{{ 'webcrawler.example_supplier_portals'|trans|default('Find Companies with Supplier Portals') }}</div>
+                        <code class="rams-example-item__code">
+                            site:*.ma inurl:supplier OR inurl:vendor "portal" OR "registration"
+                        </code>
+                    </div>
+                    
+                    <div class="rams-example-item">
+                        <div class="rams-example-item__label">{{ 'webcrawler.example_aerospace'|trans|default('Find Aerospace Companies in Free Zones') }}</div>
+                        <code class="rams-example-item__code">
+                            "aerospace" ("tanger free zone" OR "atlantic free zone") manufacturer OR supplier
+                        </code>
+                    </div>
+                    
+                    <div class="rams-example-item">
+                        <div class="rams-example-item__label">{{ 'webcrawler.example_electronics'|trans|default('Find Electronics Manufacturing Services') }}</div>
+                        <code class="rams-example-item__code">
+                            "morocco" ("EMS" OR "PCBA" OR "PCB assembly") contract manufacturer
+                        </code>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -117,8 +128,8 @@
 function copyDork(template) {
     navigator.clipboard.writeText(template).then(() => {
         // Show temporary feedback
-        event.target.textContent = '✓ Copied';
-        setTimeout(() => event.target.textContent = 'Copy', 2000);
+        event.target.textContent = '✓ {{ 'common.copied'|trans|default('Copied') }}';
+        setTimeout(() => event.target.textContent = '{{ 'common.copy'|trans }}', 2000);
     });
 }
 
@@ -155,10 +166,12 @@ function generateDorks() {
     }
     
     generatedDorks.innerHTML = dorks.map(dork => `
-        <div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded p-3">
-            <code class="flex-1 text-sm text-gray-700">${dork}</code>
-            <button onclick="copyDork('${dork.replace(/'/g, "\\'")}')" class="text-blue-600 hover:text-blue-800 text-sm">Copy</button>
-            <a href="https://www.google.com/search?q=${encodeURIComponent(dork)}" target="_blank" class="text-green-600 hover:text-green-800 text-sm">Search</a>
+        <div class="rams-dork-item">
+            <code class="rams-dork-item__code">${dork}</code>
+            <div class="rams-dork-item__actions">
+                <button onclick="copyDork('${dork.replace(/'/g, "\\'")}')" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.copy'|trans }}</button>
+                <a href="https://www.google.com/search?q=${encodeURIComponent(dork)}" target="_blank" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.search'|trans }}</a>
+            </div>
         </div>
     `).join('');
 }

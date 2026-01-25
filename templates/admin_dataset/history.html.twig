@@ -1,105 +1,111 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Dataset Version History{% endblock %}
+{% block title %}{{ 'admin.datasets.history_title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-4xl font-bold text-gray-900 mb-8">Dataset Version History</h1>
+<div class="rams-stack">
+    <div class="rams-page-header">
+        <h1 class="rams-page-title">{{ 'admin.datasets.history_title'|trans }}</h1>
+    </div>
 
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h2 class="text-xl font-semibold text-gray-900">All Versions</h2>
-            </div>
-
-            <table class="w-full">
-                <thead class="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Version</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Dataset</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Uploaded By</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Date</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Records</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                        <th class="px-6 py-3 text-center text-sm font-semibold text-gray-900">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    {% if versions | default([]) %}
-                        {% for version in versions %}
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 text-sm font-medium text-gray-900">v{{ version.version | default('1.0') }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-700">{{ version.dataset_name | default('Unknown') }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-600">{{ version.uploaded_by | default('System') }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-600">{{ version.created_at | date('M d, Y H:i') | default('N/A') }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-600">{{ version.record_count | default('0') }}</td>
-                                <td class="px-6 py-4 text-sm">
-                                    {% if version.is_active %}
-                                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>
-                                    {% else %}
-                                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Archived</span>
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex gap-2 justify-center">
-                                        <a href="#" class="text-blue-600 hover:text-blue-900 text-sm font-medium">View</a>
-                                        {% if not version.is_active %}
-                                            <a href="#" class="text-green-600 hover:text-green-900 text-sm font-medium">Restore</a>
-                                        {% endif %}
-                                        <a href="#" class="text-red-600 hover:text-red-900 text-sm font-medium">Delete</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">
-                                No dataset versions found
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'admin.datasets.all_versions'|trans }}</h2>
         </div>
 
-        <!-- Version Timeline -->
-        <div class="mt-12">
-            <h2 class="text-2xl font-semibold text-gray-900 mb-6">Timeline</h2>
-            <div class="space-y-4">
+        <table class="rams-table">
+            <thead>
+                <tr>
+                    <th>{{ 'admin.datasets.version'|trans }}</th>
+                    <th>{{ 'admin.datasets.dataset_name'|trans }}</th>
+                    <th>{{ 'admin.datasets.uploaded_by'|trans }}</th>
+                    <th>{{ 'common.date'|trans }}</th>
+                    <th>{{ 'admin.datasets.records'|trans }}</th>
+                    <th>{{ 'admin.datasets.status'|trans }}</th>
+                    <th>{{ 'common.actions'|trans }}</th>
+                </tr>
+            </thead>
+            <tbody>
                 {% if versions | default([]) %}
                     {% for version in versions %}
-                        <div class="flex gap-4">
-                            <div class="flex flex-col items-center">
-                                <div class="w-3 h-3 bg-blue-600 rounded-full mt-2"></div>
+                        <tr>
+                            <td>v{{ version.version | default('1.0') }}</td>
+                            <td>{{ version.dataset_name | default('Unknown') }}</td>
+                            <td class="rams-text-muted">{{ version.uploaded_by | default('System') }}</td>
+                            <td class="rams-text-muted">{{ version.created_at | date('M d, Y H:i') | default('common.n_a'|trans) }}</td>
+                            <td>
+                                <span class="rams-metric__value">{{ version.record_count | default('0') }}</span>
+                            </td>
+                            <td>
+                                {% if version.is_active %}
+                                    <span class="rams-badge rams-badge--success">{{ 'common.active'|trans }}</span>
+                                {% else %}
+                                    <span class="rams-badge">{{ 'admin.datasets.archived'|trans }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="rams-btn-group">
+                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
+                                    {% if not version.is_active %}
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text-success">{{ 'admin.datasets.restore'|trans }}</a>
+                                    {% endif %}
+                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text-danger">{{ 'common.delete'|trans }}</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="rams-empty-state">
+                            {{ 'admin.datasets.no_versions'|trans }}
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Version Timeline -->
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'admin.datasets.timeline'|trans }}</h2>
+        </div>
+        <div class="rams-module__content">
+            <div class="rams-timeline">
+                {% if versions | default([]) %}
+                    {% for version in versions %}
+                        <div class="rams-timeline__item">
+                            <div class="rams-timeline__marker">
+                                <div class="rams-andon__light rams-andon__light--green"></div>
                                 {% if not loop.last %}
-                                    <div class="w-0.5 h-12 bg-gray-300 my-2"></div>
+                                    <div class="rams-timeline__line"></div>
                                 {% endif %}
                             </div>
-                            <div class="pb-4">
-                                <p class="font-semibold text-gray-900">{{ version.dataset_name | default('Dataset Update') }}</p>
-                                <p class="text-sm text-gray-600">{{ version.created_at | date('F j, Y \a\t H:i') | default('Unknown date') }}</p>
+                            <div class="rams-timeline__content">
+                                <p class="rams-timeline__title">{{ version.dataset_name | default('Dataset Update') }}</p>
+                                <p class="rams-text-muted">{{ version.created_at | date('F j, Y \\a\\t H:i') | default('Unknown date') }}</p>
                                 {% if version.description %}
-                                    <p class="text-sm text-gray-700 mt-1">{{ version.description }}</p>
+                                    <p class="rams-timeline__description">{{ version.description }}</p>
                                 {% endif %}
-                                <p class="text-xs text-gray-500 mt-1">
-                                    Uploaded by {{ version.uploaded_by | default('System') }} • 
-                                    {{ version.record_count | default('0') }} records
+                                <p class="rams-dymo">
+                                    {{ 'admin.datasets.uploaded_by'|trans }} {{ version.uploaded_by | default('System') }} • 
+                                    {{ version.record_count | default('0') }} {{ 'admin.datasets.records'|trans|lower }}
                                 </p>
                             </div>
                         </div>
                     {% endfor %}
                 {% else %}
-                    <p class="text-gray-500">No version history available</p>
+                    <p class="rams-text-muted">{{ 'admin.datasets.no_version_history'|trans }}</p>
                 {% endif %}
             </div>
         </div>
+    </div>
 
-        <!-- Return Link -->
-        <div class="mt-8">
-            <a href="{{ path('admin_dataset_index') }}" class="text-blue-600 hover:text-blue-900 font-medium">
-                ← Back to Dataset Administration
-            </a>
-        </div>
+    <!-- Return Link -->
+    <div class="rams-module__footer">
+        <a href="{{ path('admin_dataset_index') }}" class="rams-btn rams-btn--ghost">
+            ← {{ 'common.back'|trans }} {{ 'admin.datasets.title_full'|trans|lower }}
+        </a>
     </div>
 </div>
 {% endblock %}

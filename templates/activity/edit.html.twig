@@ -1,119 +1,99 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Edit Activity{% endblock %}
+{% block title %}{{ 'activity.edit_activity'|trans }}{% endblock %}
 
 {% block body %}
-{# Reusable class variables #}
-{% set label_class = 'block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2' %}
-{% set input_class = 'w-full px-4 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors' %}
-{% set error_class = 'mt-1 text-xs text-red-600' %}
-
-<div class="min-h-screen bg-neutral-50">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="rams-page">
+    <div class="rams-page__container rams-page__container--narrow">
         
         {# Breadcrumb #}
-        <nav class="mb-6">
-            <ol class="flex items-center gap-2 text-sm">
-                <li><a href="{{ path('app_dashboard') }}" class="text-neutral-600 hover:text-neutral-900">Dashboard</a></li>
-                <li class="text-neutral-400">/</li>
-                <li><a href="{{ path('app_activity_index') }}" class="text-neutral-600 hover:text-neutral-900">Activities</a></li>
-                <li class="text-neutral-400">/</li>
-                <li><a href="{{ path('app_activity_show', {id: activity.id}) }}" class="text-neutral-600 hover:text-neutral-900">{{ activity.type }}</a></li>
-                <li class="text-neutral-400">/</li>
-                <li class="text-neutral-900 font-medium">Edit</li>
+        <nav class="rams-breadcrumb">
+            <ol class="rams-breadcrumb__list">
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_activity_index') }}" class="rams-breadcrumb__link">{{ 'activity.title'|trans }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-breadcrumb__link">{{ activity.type }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'common.edit'|trans }}</li>
             </ol>
         </nav>
 
         {# Header #}
-        <div class="mb-6">
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Edit Activity</h1>
-            <p class="mt-1 text-sm text-neutral-600">Update activity information</p>
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'activity.edit_activity'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'activity.edit_subtitle'|trans|default('Update activity information') }}</p>
+            </div>
         </div>
 
-        {# Form Card #}
-        <div class="bg-white rounded-xl border border-neutral-200/60 p-6">
-            {{ form_start(form, {'attr': {'class': 'space-y-6'}}) }}
+        {# Form Module #}
+        <div class="rams-module">
+            <div class="rams-module__content">
+                {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
 
-                {# Activity Type and Date Row #}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        {{ form_label(form.type, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.type, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.type, {'attr': {'class': error_class}}) }}
+                    {# Activity Type and Date Row #}
+                    <div class="rams-form__grid rams-form__grid--2col">
+                        <div class="rams-form__group">
+                            <label class="rams-dymo" for="{{ form.type.vars.id }}">{{ 'activity.type'|trans }}</label>
+                            {{ form_widget(form.type, {'attr': {'class': 'rams-form__select'}}) }}
+                            {{ form_errors(form.type) }}
+                        </div>
+                        <div class="rams-form__group">
+                            <label class="rams-dymo" for="{{ form.activityDate.vars.id }}">{{ 'activity.activity_date'|trans }}</label>
+                            {{ form_widget(form.activityDate, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.activityDate) }}
+                        </div>
                     </div>
-                    <div>
-                        {{ form_label(form.activityDate, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.activityDate, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.activityDate, {'attr': {'class': error_class}}) }}
+
+                    {# Company and Contact Row #}
+                    <div class="rams-form__grid rams-form__grid--2col">
+                        <div class="rams-form__group">
+                            <label class="rams-dymo" for="{{ form.company.vars.id }}">{{ 'activity.company'|trans }}</label>
+                            {{ form_widget(form.company, {'attr': {'class': 'rams-form__select', 'id': 'activity_company'}}) }}
+                            {{ form_errors(form.company) }}
+                        </div>
+                        <div class="rams-form__group">
+                            <label class="rams-dymo" for="{{ form.contact.vars.id }}">{{ 'activity.contact'|trans }}</label>
+                            {{ form_widget(form.contact, {'attr': {'class': 'rams-form__select', 'id': 'activity_contact'}}) }}
+                            {{ form_errors(form.contact) }}
+                        </div>
                     </div>
-                </div>
 
-                {# Company and Contact Row #}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        {{ form_label(form.company, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.company, {'attr': {'class': input_class, 'id': 'activity_company'}}) }}
-                        {{ form_errors(form.company, {'attr': {'class': error_class}}) }}
+                    {# Outcome #}
+                    <div class="rams-form__group">
+                        <label class="rams-dymo" for="{{ form.outcome.vars.id }}">{{ 'activity.outcome'|trans }}</label>
+                        {{ form_widget(form.outcome, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.outcome) }}
                     </div>
-                    <div>
-                        {{ form_label(form.contact, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.contact, {'attr': {'class': input_class, 'id': 'activity_contact'}}) }}
-                        {{ form_errors(form.contact, {'attr': {'class': error_class}}) }}
+
+                    {# Notes #}
+                    <div class="rams-form__group">
+                        <label class="rams-dymo" for="{{ form.notes.vars.id }}">{{ 'common.notes'|trans }}</label>
+                        {{ form_widget(form.notes, {'attr': {'class': 'rams-form__input rams-form__input--textarea'}}) }}
+                        {{ form_errors(form.notes) }}
+                        <p class="rams-form__hint">{{ 'activity.notes_hint'|trans|default('Include key discussion points, outcomes, and next steps') }}</p>
                     </div>
-                </div>
 
-                {# Outcome #}
-                <div>
-                    {{ form_label(form.outcome, null, {'label_attr': {'class': label_class}}) }}
-                    {{ form_widget(form.outcome, {'attr': {'class': input_class}}) }}
-                    {{ form_errors(form.outcome, {'attr': {'class': error_class}}) }}
-                </div>
+                    {# Action Buttons #}
+                    <div class="rams-module__footer">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            {{ 'activity.update_button'|trans|default('Update Activity') }}
+                        </button>
+                        <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-btn rams-btn--secondary">
+                            {{ 'common.cancel'|trans }}
+                        </a>
+                    </div>
 
-                {# Notes #}
-                <div>
-                    {{ form_label(form.notes, null, {'label_attr': {'class': label_class}}) }}
-                    {{ form_widget(form.notes, {'attr': {'class': input_class}}) }}
-                    {{ form_errors(form.notes, {'attr': {'class': error_class}}) }}
-                    <p class="mt-1 text-xs text-neutral-500">Include key discussion points, outcomes, and next steps</p>
-                </div>
-
-                {# Action Buttons #}
-                <div class="flex items-center gap-3 pt-4 border-t border-neutral-200">
-                    <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                        </svg>
-                        Update Activity
-                    </button>
-                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="inline-flex items-center gap-2 px-5 py-2.5 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
-                        Cancel
-                    </a>
-                </div>
-
-            {{ form_end(form) }}
+                {{ form_end(form) }}
+            </div>
         </div>
 
     </div>
 </div>
-
-<style>
-/* Custom styles for Symfony form elements */
-.form-input,
-.form-select {
-    @apply w-full px-4 py-2.5 border border-neutral-200 rounded-lg text-sm;
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500;
-    @apply transition-colors;
-}
-
-select.form-select {
-    @apply bg-white;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.5rem center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-    padding-right: 2.5rem;
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -147,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add placeholder
             const placeholder = document.createElement('option');
             placeholder.value = '';
-            placeholder.textContent = 'Select contact (optional)';
+            placeholder.textContent = '{{ 'activity.select_contact'|trans|default('Select contact (optional)') }}';
             contactSelect.appendChild(placeholder);
             
             // Add contacts
@@ -161,9 +141,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 contactSelect.appendChild(option);
             });
             
-            // If initial contact not in list (e.g., company changed), add it separately
+            // If initial contact not in list, add it separately
             if (initialContactData && initialContactId && !contacts.some(c => c.id == initialContactId)) {
-                // Only add if no company filter or contact was from different company
                 if (!companyId) {
                     const option = document.createElement('option');
                     option.value = initialContactData.id;
@@ -177,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (contacts.length === 0) {
                 const option = document.createElement('option');
                 option.value = '';
-                option.textContent = companyId ? 'No contacts for this company' : 'No contacts found';
+                option.textContent = companyId ? '{{ 'activity.no_contacts_company'|trans|default('No contacts for this company') }}' : '{{ 'activity.no_contacts'|trans|default('No contacts found') }}';
                 option.disabled = true;
                 contactSelect.appendChild(option);
             }
@@ -191,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadContacts(this.value || null);
     });
     
-    // Initial load - either filtered by pre-selected company or first 50 contacts
+    // Initial load
     if (companySelect.value) {
         loadContacts(companySelect.value);
     } else {

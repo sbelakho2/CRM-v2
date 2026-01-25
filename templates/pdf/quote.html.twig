@@ -1,74 +1,205 @@
+{# PDF Quote Template - Sensei-Rams Industrial Functionalist Design System #}
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Quote #{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</title>
+    <title>{{ 'pdf.quote_title'|trans }} #{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</title>
     <style>
-        body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 10pt; color: #333; }
-        .header { border-bottom: 3px solid #9B6B9E; padding-bottom: 10pt; margin-bottom: 15pt; }
-        .header h2 { margin: 0; color: #9B6B9E; }
-        .doc-info { float: right; text-align: right; font-size: 9pt; }
-        table { width: 100%; border-collapse: collapse; margin: 10pt 0; }
-        th { background: #9B6B9E; color: white; padding: 8pt 5pt; text-align: left; }
-        td { padding: 6pt 5pt; border: 1px solid #ddd; }
+        /* Sensei-Rams Industrial Functionalist - Standalone PDF Styles */
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 10pt;
+            color: #1a1a1a;
+            line-height: 1.5;
+            background: #ffffff;
+            margin: 0;
+            padding: 15pt;
+        }
+        .header {
+            border-bottom: 3px solid #FFBE00;
+            padding-bottom: 12pt;
+            margin-bottom: 18pt;
+        }
+        .header h2 {
+            margin: 0;
+            color: #1a1a1a;
+            font-size: 18pt;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+        .header p {
+            margin: 3pt 0 0 0;
+            font-size: 9pt;
+            color: #4a4a4a;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .doc-info {
+            float: right;
+            text-align: right;
+            font-size: 9pt;
+            color: #3a3a3a;
+        }
+        .doc-info strong {
+            font-size: 14pt;
+            color: #1a1a1a;
+            display: block;
+            margin-bottom: 5pt;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid #FFBE00;
+            padding-bottom: 3pt;
+        }
+        h3 {
+            font-size: 12pt;
+            color: #1a1a1a;
+            margin: 15pt 0 8pt 0;
+            padding-bottom: 4pt;
+            border-bottom: 1px solid #3a3a3a;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10pt 0;
+        }
+        th {
+            background: #2a2a2a;
+            color: #ffffff;
+            padding: 8pt 5pt;
+            text-align: left;
+            font-size: 8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 1px solid #3a3a3a;
+        }
+        td {
+            padding: 6pt 5pt;
+            border: 1px solid #d0d0d0;
+            font-size: 9pt;
+        }
+        tr:nth-child(even) td {
+            background: #f9f9f9;
+        }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
-        .total-row { background: #f0f0f0; font-weight: bold; }
-        .footer { margin-top: 20pt; padding-top: 10pt; border-top: 1px solid #ddd; font-size: 8pt; color: #666; }
+        .total-row {
+            background: #1a1a1a !important;
+        }
+        .total-row td {
+            color: #FFBE00;
+            font-weight: bold;
+            border-color: #2a2a2a;
+        }
+        .info-table {
+            border: none;
+            background: #f5f5f5;
+            margin-bottom: 15pt;
+        }
+        .info-table td {
+            border: none;
+            padding: 8pt 12pt;
+            vertical-align: top;
+        }
+        .info-label {
+            color: #4a4a4a;
+            font-size: 8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .info-value {
+            color: #1a1a1a;
+            font-weight: 600;
+        }
+        .terms-section {
+            font-size: 9pt;
+            color: #3a3a3a;
+            background: #f5f5f5;
+            padding: 12pt;
+            margin-top: 15pt;
+            border-left: 3px solid #FFBE00;
+        }
+        .terms-section strong {
+            color: #1a1a1a;
+        }
+        .footer {
+            margin-top: 25pt;
+            padding-top: 10pt;
+            border-top: 2px solid #FFBE00;
+            font-size: 8pt;
+            color: #4a4a4a;
+            text-align: center;
+        }
+        .footer strong {
+            color: #1a1a1a;
+        }
+        .clearfix::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        .accent { color: #FFBE00; }
     </style>
 </head>
 <body>
     <div class="header clearfix">
         <div style="float: left;">
-            <h2 style="margin: 0; border: none; color: #9B6B9E;">CRM Starz Morocco</h2>
-            <p style="margin: 2pt 0; font-size: 9pt; color: #666;">Electronics Manufacturing & Sourcing</p>
+            <h2>{{ 'app.company'|trans }}</h2>
+            <p>{{ 'pdf.quote.electronics_sourcing'|trans }}</p>
         </div>
         
         <div class="doc-info">
-            <strong>QUOTATION</strong><br>
-            Quote #: {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}<br>
-            Date: {{ quote.createdAt|date('Y-m-d') }}<br>
-            Valid Until: {{ quote.createdAt|date_modify('+30 days')|date('Y-m-d') }}
+            <strong>{{ 'pdf.quote_title'|trans|upper }}</strong>
+            {{ 'pdf.quote.quote_number'|trans }}: {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}<br>
+            {{ 'common.date'|trans }}: {{ quote.createdAt|date('Y-m-d') }}<br>
+            {{ 'pdf.quote.valid_until'|trans }}: {{ quote.createdAt|date_modify('+30 days')|date('Y-m-d') }}
         </div>
         <div style="clear: both;"></div>
     </div>
     
-    <h3>Quote for {{ quote.company.name }}</h3>
+    <h3>{{ 'pdf.quote.quote_for'|trans }} {{ quote.company.name }}</h3>
     
-    <table style="margin-bottom: 15pt; border: none;">
+    <table class="info-table">
         <tr>
-            <td style="width: 50%; border: none; vertical-align: top;">
-                <strong>Company:</strong> {{ quote.company.name }}<br>
-                <strong>Quantity:</strong> {{ quote.quantity ?? 'N/A' }}<br>
-                <strong>Ship To:</strong> {{ quote.shipToCountry ?? 'N/A' }}
+            <td style="width: 50%;">
+                <div class="info-label">{{ 'company.title_singular'|trans }}</div>
+                <div class="info-value">{{ quote.company.name }}</div>
+                <div class="info-label" style="margin-top: 8pt;">{{ 'common.quantity'|trans }}</div>
+                <div class="info-value">{{ quote.quantity ?? ('common.n_a'|trans) }}</div>
+                <div class="info-label" style="margin-top: 8pt;">{{ 'pdf.quote.ship_to'|trans }}</div>
+                <div class="info-value">{{ quote.shipToCountry ?? ('common.n_a'|trans) }}</div>
             </td>
-            <td style="width: 50%; border: none; vertical-align: top;">
-                <strong>Incoterms:</strong> {{ quote.incoterms ?? 'FCA' }}<br>
-                <strong>Coverage:</strong> {{ quote.coveragePercent|default(0)|number_format(1) }}%<br>
-                <strong>Status:</strong> {{ quote.status|upper }}
+            <td style="width: 50%;">
+                <div class="info-label">{{ 'pdf.quote.incoterms'|trans }}</div>
+                <div class="info-value">{{ quote.incoterms ?? 'FCA' }}</div>
+                <div class="info-label" style="margin-top: 8pt;">{{ 'pdf.quote.coverage'|trans }}</div>
+                <div class="info-value">{{ quote.coveragePercent|default(0)|number_format(1) }}%</div>
+                <div class="info-label" style="margin-top: 8pt;">{{ 'common.status'|trans }}</div>
+                <div class="info-value">{{ quote.status|upper }}</div>
             </td>
         </tr>
     </table>
     
-    <h3>Bill of Materials</h3>
+    <h3>{{ 'pdf.quote.bill_of_materials'|trans }}</h3>
     <table>
         <thead>
             <tr>
-                <th style="width: 5%;">Line</th>
-                <th style="width: 18%;">MPN</th>
-                <th style="width: 15%;">Manufacturer</th>
-                <th style="width: 32%;">Description</th>
-                <th style="width: 8%;">Qty</th>
-                <th style="width: 11%;">Unit Price</th>
-                <th style="width: 11%;">Ext. Price</th>
+                <th style="width: 5%;">{{ 'pdf.quote.line'|trans }}</th>
+                <th style="width: 18%;">{{ 'pdf.quote.mpn'|trans }}</th>
+                <th style="width: 15%;">{{ 'pdf.quote.manufacturer'|trans }}</th>
+                <th style="width: 32%;">{{ 'common.description'|trans }}</th>
+                <th style="width: 8%;">{{ 'pdf.quote.qty'|trans }}</th>
+                <th style="width: 11%;">{{ 'pdf.quote.unit_price'|trans }}</th>
+                <th style="width: 11%;">{{ 'pdf.quote.ext_price'|trans }}</th>
             </tr>
         </thead>
         <tbody>
             {% for line in quote.bomLines %}
             <tr>
                 <td class="text-center">{{ line.lineNumber ?? loop.index }}</td>
-                <td>{{ line.mpn ?? 'N/A' }}</td>
-                <td>{{ line.manufacturer ?? 'N/A' }}</td>
+                <td>{{ line.mpn ?? ('common.n_a'|trans) }}</td>
+                <td>{{ line.manufacturer ?? ('common.n_a'|trans) }}</td>
                 <td>{{ line.description ?? '' }}</td>
                 <td class="text-right">{{ line.quantity ?? '' }}</td>
                 <td class="text-right">
@@ -80,34 +211,34 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" style="text-align: center; padding: 15pt;">No BOM lines available</td>
+                <td colspan="7" style="text-align: center; padding: 15pt; color: #4a4a4a;">{{ 'pdf.quote.no_bom_lines'|trans }}</td>
             </tr>
             {% endfor %}
             
             <tr class="total-row">
-                <td colspan="6" class="text-right"><strong>TOTAL</strong></td>
-                <td class="text-right"><strong>${{ quote.totalCost|default(0)|number_format(2) }}</strong></td>
+                <td colspan="6" class="text-right">{{ 'common.total'|trans|upper }}</td>
+                <td class="text-right">${{ quote.totalCost|default(0)|number_format(2) }}</td>
             </tr>
         </tbody>
     </table>
     
     {% if quote.notes %}
-    <h3>Notes</h3>
-    <p>{{ quote.notes }}</p>
+    <h3>{{ 'common.notes'|trans }}</h3>
+    <p style="background: #f5f5f5; padding: 10pt; border-left: 3px solid #3a3a3a;">{{ quote.notes }}</p>
     {% endif %}
     
-    <h3>Payment & Delivery Terms</h3>
-    <p style="font-size: 9pt;">
-        • Payment: Net 30 days from invoice date<br>
-        • Delivery: 2-4 weeks from order confirmation<br>
-        • This quote is valid for 30 days from the date of issue<br>
-        • Prices are in USD and subject to change based on currency fluctuations<br>
-        • Minimum order value: $500 USD
-    </p>
+    <div class="terms-section">
+        <strong>{{ 'pdf.quote.payment_delivery_terms'|trans }}</strong><br><br>
+        • {{ 'pdf.quote.term_payment'|trans }}<br>
+        • {{ 'pdf.quote.term_delivery'|trans }}<br>
+        • {{ 'pdf.quote.term_validity'|trans }}<br>
+        • {{ 'pdf.quote.term_currency'|trans }}<br>
+        • {{ 'pdf.quote.term_minimum'|trans }}
+    </div>
     
     <div class="footer">
-        <strong>CRM Starz Morocco</strong> | Casablanca, Morocco | sales@crm-starz.ma<br>
-        Generated on {{ "now"|date('Y-m-d H:i:s') }}
+        <strong>{{ 'app.company'|trans }}</strong> | Casablanca, Morocco | sales@starzelectronics.site<br>
+        {{ 'pdf.generated_on'|trans }} {{ "now"|date('Y-m-d H:i:s') }}
     </div>
 </body>
 </html>

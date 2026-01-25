@@ -1,113 +1,129 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Send - {{ campaign.name }}{% endblock %}
+{% block title %}{{ 'email_campaign.send_emails'|trans|default('Send Emails') }} - {{ campaign.name }}{% endblock %}
 
 {% block body %}
-<div class="p-8">
-    <div class="mb-8">
-        <div class="flex items-center gap-3 text-sm text-zinc-400 mb-4">
-            <a href="{{ path('app_email_campaign_index') }}" class="hover:text-white transition-colors">Email Campaigns</a>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 4l4 4-4 4"/>
-            </svg>
-            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="hover:text-white transition-colors">{{ campaign.name }}</a>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 4l4 4-4 4"/>
-            </svg>
-            <span class="text-white">Send Emails</span>
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Breadcrumb #}
+        <nav class="rams-breadcrumb">
+            <ol class="rams-breadcrumb__list">
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_index') }}" class="rams-breadcrumb__link">{{ 'email_campaign.title'|trans }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-breadcrumb__link">{{ campaign.name }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'email_campaign.send_emails'|trans|default('Send Emails') }}</li>
+            </ol>
+        </nav>
+
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.send_campaign_emails'|trans|default('Send Campaign Emails') }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.select_contacts_touch'|trans|default('Select contacts and touch number for') }} {{ campaign.name }}</p>
+            </div>
         </div>
-        <h1 class="text-2xl font-semibold text-white mb-2">Send Campaign Emails</h1>
-        <p class="text-sm text-zinc-400">Select contacts and touch number for {{ campaign.name }}</p>
-    </div>
 
-    <form method="post">
-        <input type="hidden" name="_token" value="{{ csrf_token('campaign_send' ~ campaign.id) }}">
-        <div class="grid grid-cols-3 gap-6">
-            <!-- Contact Selection -->
-            <div class="col-span-2">
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-white">Select Contacts</h2>
-                        <div class="flex items-center gap-2">
-                            <button type="button" onclick="selectAll()" class="text-sm text-zinc-400 hover:text-white transition-colors">
-                                Select All
-                            </button>
-                            <span class="text-zinc-700">•</span>
-                            <button type="button" onclick="deselectAll()" class="text-sm text-zinc-400 hover:text-white transition-colors">
-                                Deselect All
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="space-y-2 max-h-96 overflow-y-auto">
-                        {% if contacts is empty %}
-                            <div class="text-center py-8 text-zinc-500">
-                                No contacts found
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token('campaign_send' ~ campaign.id) }}">
+            
+            <div class="rams-layout rams-layout--sidebar-right">
+                {# Contact Selection #}
+                <div class="rams-layout__main">
+                    <div class="rams-module">
+                        <div class="rams-module__header">
+                            <h2 class="rams-module__title">{{ 'email_campaign.select_contacts'|trans|default('Select Contacts') }}</h2>
+                            <div class="rams-module__actions">
+                                <button type="button" onclick="selectAll()" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                    {{ 'common.select'|trans }} {{ 'common.all'|trans }}
+                                </button>
+                                <button type="button" onclick="deselectAll()" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                    {{ 'email_campaign.deselect_all'|trans|default('Deselect All') }}
+                                </button>
                             </div>
-                        {% else %}
-                            {% for contact in contacts %}
-                                <label class="flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800/50 cursor-pointer transition-colors">
-                                    <input type="checkbox" name="contacts[]" value="{{ contact.id }}" class="contact-checkbox w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-900">
-                                    <div class="flex-1">
-                                        <div class="text-sm text-white">{{ contact.firstName }} {{ contact.lastName }}</div>
-                                        <div class="text-xs text-zinc-500">{{ contact.email }}</div>
+                        </div>
+                        <div class="rams-module__content">
+                            {% if contacts is empty %}
+                                <div class="rams-empty-state rams-empty-state--compact">
+                                    <p class="rams-empty-state__description">{{ 'email_campaign.no_contacts_found'|trans|default('No contacts found') }}</p>
+                                </div>
+                            {% else %}
+                                <div class="rams-contact-list">
+                                    {% for contact in contacts %}
+                                        <label class="rams-contact-item">
+                                            <input type="checkbox" name="contacts[]" value="{{ contact.id }}" class="rams-form__checkbox contact-checkbox">
+                                            <div class="rams-contact-item__content">
+                                                <div class="rams-contact-item__info">
+                                                    <span class="rams-contact-item__name">{{ contact.firstName }} {{ contact.lastName }}</span>
+                                                    <span class="rams-contact-item__email">{{ contact.email }}</span>
+                                                </div>
+                                                {% if contact.company %}
+                                                    <span class="rams-dymo">{{ contact.company.name }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {# Send Options Sidebar #}
+                <div class="rams-layout__sidebar">
+                    <div class="rams-module rams-module--sticky">
+                        <div class="rams-module__header">
+                            <h2 class="rams-module__title">{{ 'email_campaign.send_options'|trans|default('Send Options') }}</h2>
+                        </div>
+                        <div class="rams-module__content">
+                            <div class="rams-form">
+                                <div class="rams-form__group">
+                                    <label class="rams-form__label rams-dymo">{{ 'email_campaign.touch_number'|trans|default('Touch Number') }}</label>
+                                    <select name="touch_number" class="rams-form__select">
+                                        {% for i in 1..campaign.touchCount %}
+                                            <option value="{{ i }}">{{ 'email_campaign.touch'|trans|default('Touch') }} {{ i }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <span class="rams-form__hint">{{ 'email_campaign.select_touch_hint'|trans|default('Select which touch in the sequence to send') }}</span>
+                                </div>
+
+                                <div class="rams-divider"></div>
+
+                                <div class="rams-detail-list">
+                                    <div class="rams-detail-list__item">
+                                        <span class="rams-dymo">{{ 'email_campaign.campaign'|trans|default('Campaign') }}</span>
+                                        <span class="rams-detail-list__value">{{ campaign.name }}</span>
                                     </div>
-                                    {% if contact.company %}
-                                        <div class="text-xs text-zinc-400">{{ contact.company.name }}</div>
-                                    {% endif %}
-                                </label>
-                            {% endfor %}
-                        {% endif %}
+                                    <div class="rams-detail-list__item">
+                                        <span class="rams-dymo">{{ 'email_campaign.language'|trans }}</span>
+                                        <span class="rams-detail-list__value">{{ campaign.language }}</span>
+                                    </div>
+                                    <div class="rams-detail-list__item">
+                                        <span class="rams-dymo">{{ 'email_campaign.selected_contacts'|trans|default('Selected Contacts') }}</span>
+                                        <span class="rams-metric__value" id="selected-count">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rams-module__footer">
+                            <button type="submit" class="rams-btn rams-btn--primary rams-btn--full">
+                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                </svg>
+                                {{ 'email_campaign.send_emails'|trans|default('Send Emails') }}
+                            </button>
+                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn rams-btn--secondary rams-btn--full">
+                                {{ 'common.cancel'|trans }}
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Send Options -->
-            <div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 sticky top-8">
-                    <h2 class="text-lg font-semibold text-white mb-4">Send Options</h2>
-                    
-                    <div class="space-y-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-medium text-zinc-300 mb-2">Touch Number</label>
-                            <select name="touch_number" class="geist-select w-full">
-                                {% for i in 1..campaign.touchCount %}
-                                    <option value="{{ i }}">Touch {{ i }}</option>
-                                {% endfor %}
-                            </select>
-                            <p class="text-xs text-zinc-500 mt-1">Select which touch in the sequence to send</p>
-                        </div>
-
-                        <div class="pt-4 border-t border-zinc-800">
-                            <div class="text-sm text-zinc-400 mb-1">Campaign</div>
-                            <div class="text-sm font-medium text-white">{{ campaign.name }}</div>
-                        </div>
-
-                        <div class="pt-4 border-t border-zinc-800">
-                            <div class="text-sm text-zinc-400 mb-1">Language</div>
-                            <div class="text-sm font-medium text-white">{{ campaign.language }}</div>
-                        </div>
-
-                        <div class="pt-4 border-t border-zinc-800">
-                            <div class="text-sm text-zinc-400 mb-1">Selected Contacts</div>
-                            <div class="text-2xl font-semibold text-white" id="selected-count">0</div>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="geist-button w-full">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" class="mr-2">
-                            <path d="M2 3l12 5-12 5V3z"/>
-                        </svg>
-                        Send Emails
-                    </button>
-                    
-                    <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="geist-button-secondary w-full mt-2">
-                        Cancel
-                    </a>
-                </div>
-            </div>
-        </div>
-    </form>
+        </form>
+    </div>
 </div>
 
 <script>

@@ -1,117 +1,114 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Edit RFQ - CRM{% endblock %}
+{% block title %}{{ 'rfq.edit.title'|trans }} - {{ rfq.company.name }}{% endblock %}
 
 {% block body %}
-{# Define reusable class variables for maintainability #}
-{% set label_class = 'block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2' %}
-{% set input_class = 'w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500' %}
-{% set error_class = 'mt-1 text-xs text-red-600' %}
-{% set help_class = 'text-xs text-neutral-500 mt-1' %}
-
-<div class="min-h-screen bg-neutral-50">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="mb-6">
-            <nav class="text-sm mb-2">
-                <a href="{{ path('app_dashboard') }}" class="text-neutral-600 hover:text-neutral-900">Dashboard</a>
-                <span class="text-neutral-400 mx-2">/</span>
-                <a href="{{ path('app_rfq_index') }}" class="text-neutral-600 hover:text-neutral-900">RFQs</a>
-                <span class="text-neutral-400 mx-2">/</span>
-                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="text-neutral-600 hover:text-neutral-900">{{ rfq.company.name }}</a>
-                <span class="text-neutral-400 mx-2">/</span>
-                <span class="text-neutral-900">Edit</span>
+<div class="rams-container rams-container--narrow">
+    {# Header #}
+    <div class="rams-page-header">
+        <div>
+            <nav class="rams-breadcrumb rams-breadcrumb--inline">
+                <a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a>
+                <span class="rams-breadcrumb__separator">/</span>
+                <a href="{{ path('app_rfq_index') }}" class="rams-breadcrumb__link">{{ 'rfq.index.title'|trans }}</a>
+                <span class="rams-breadcrumb__separator">/</span>
+                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-breadcrumb__link">{{ rfq.company.name }}</a>
+                <span class="rams-breadcrumb__separator">/</span>
+                <span class="rams-breadcrumb__current">{{ 'common.edit'|trans }}</span>
             </nav>
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Edit RFQ - {{ rfq.company.name }}</h1>
+            <h1 class="rams-page-title">{{ 'rfq.edit.title'|trans }} - {{ rfq.company.name }}</h1>
         </div>
+    </div>
 
-        <div class="bg-white rounded-xl border border-neutral-200/60 p-6">
-            {{ form_start(form) }}
+    {# Form Module #}
+    <div class="rams-module">
+        <div class="rams-module__content">
+            {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
             
-            <div class="space-y-6">
                 {# Company & Basic Info #}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2">
-                        {{ form_label(form.company, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.company, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.company, {'attr': {'class': error_class}}) }}
+                <div class="rams-grid rams-grid--2">
+                    <div class="rams-form__group rams-form__group--full">
+                        {{ form_label(form.company, 'rfq.fields.company'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_widget(form.company, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.company) }}
                     </div>
 
-                    <div>
-                        {{ form_label(form.rfqNumber, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.rfqNumber, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.rfqNumber, {'attr': {'class': error_class}}) }}
+                    <div class="rams-form__group">
+                        {{ form_label(form.rfqNumber, 'rfq.fields.rfq_number'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_widget(form.rfqNumber, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.rfqNumber) }}
                     </div>
 
-                    <div>
-                        {{ form_label(form.rfqDate, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.rfqDate, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.rfqDate, {'attr': {'class': error_class}}) }}
+                    <div class="rams-form__group">
+                        {{ form_label(form.rfqDate, 'rfq.fields.rfq_date'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_widget(form.rfqDate, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.rfqDate) }}
                     </div>
                 </div>
 
                 {# Type & Status #}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        {{ form_label(form.type, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.type, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.type, {'attr': {'class': error_class}}) }}
-                        <p class="{{ help_class }}">Select NPI for new product introduction or Framework for long-term agreements</p>
+                <div class="rams-grid rams-grid--2">
+                    <div class="rams-form__group">
+                        {{ form_label(form.type, 'rfq.fields.type'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_widget(form.type, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.type) }}
+                        <p class="rams-form__help">{{ 'rfq.help.type'|trans }}</p>
                     </div>
 
-                    <div>
-                        {{ form_label(form.status, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.status, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.status, {'attr': {'class': error_class}}) }}
+                    <div class="rams-form__group">
+                        {{ form_label(form.status, 'rfq.fields.status'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_widget(form.status, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.status) }}
                     </div>
                 </div>
 
                 {# Financial Details #}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        {{ form_label(form.estimatedValue, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.estimatedValue, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.estimatedValue, {'attr': {'class': error_class}}) }}
+                <div class="rams-grid rams-grid--2">
+                    <div class="rams-form__group">
+                        {{ form_label(form.estimatedValue, 'rfq.fields.estimated_value'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_widget(form.estimatedValue, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.estimatedValue) }}
                     </div>
 
-                    <div>
-                        {{ form_label(form.volumeAnnual, null, {'label_attr': {'class': label_class}}) }}
-                        {{ form_widget(form.volumeAnnual, {'attr': {'class': input_class}}) }}
-                        {{ form_errors(form.volumeAnnual, {'attr': {'class': error_class}}) }}
+                    <div class="rams-form__group">
+                        {{ form_label(form.volumeAnnual, 'rfq.fields.annual_volume'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_widget(form.volumeAnnual, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.volumeAnnual) }}
                     </div>
                 </div>
 
                 {# SOP Date #}
-                <div>
-                    {{ form_label(form.sopDate, null, {'label_attr': {'class': label_class}}) }}
-                    {{ form_widget(form.sopDate, {'attr': {'class': input_class}}) }}
-                    {{ form_errors(form.sopDate, {'attr': {'class': error_class}}) }}
-                    <p class="{{ help_class }}">Expected Start of Production date</p>
+                <div class="rams-form__group">
+                    {{ form_label(form.sopDate, 'rfq.fields.sop_date'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                    {{ form_widget(form.sopDate, {'attr': {'class': 'rams-form__input'}}) }}
+                    {{ form_errors(form.sopDate) }}
+                    <p class="rams-form__help">{{ 'rfq.help.sop_date'|trans }}</p>
                 </div>
 
                 {# Technical Scope #}
-                <div>
-                    {{ form_label(form.technicalScope, null, {'label_attr': {'class': label_class}}) }}
-                    {{ form_widget(form.technicalScope, {'attr': {'class': input_class, 'rows': 4}}) }}
-                    {{ form_errors(form.technicalScope, {'attr': {'class': error_class}}) }}
-                    <p class="{{ help_class }}">Describe technical requirements, specifications, and scope of work</p>
+                <div class="rams-form__group">
+                    {{ form_label(form.technicalScope, 'rfq.fields.technical_scope'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                    {{ form_widget(form.technicalScope, {'attr': {'class': 'rams-form__input rams-form__input--textarea', 'rows': 4}}) }}
+                    {{ form_errors(form.technicalScope) }}
+                    <p class="rams-form__help">{{ 'rfq.help.technical_scope'|trans }}</p>
                 </div>
 
                 {# Notes #}
-                <div>
-                    {{ form_label(form.notes, null, {'label_attr': {'class': label_class}}) }}
-                    {{ form_widget(form.notes, {'attr': {'class': input_class, 'rows': 3}}) }}
-                    {{ form_errors(form.notes, {'attr': {'class': error_class}}) }}
+                <div class="rams-form__group">
+                    {{ form_label(form.notes, 'common.notes'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
+                    {{ form_widget(form.notes, {'attr': {'class': 'rams-form__input rams-form__input--textarea', 'rows': 3}}) }}
+                    {{ form_errors(form.notes) }}
                 </div>
 
-                {# Form Actions #}
-                <div class="flex items-center gap-3 pt-6 border-t border-neutral-200">
-                    <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+            <div class="rams-module__footer">
+                <div class="rams-btn-group">
+                    <button type="submit" class="rams-btn rams-btn--primary">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                         </svg>
-                        Save Changes
+                        {{ 'rfq.actions.save_changes'|trans }}
                     </button>
-                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">Cancel</a>
+                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn rams-btn--secondary">{{ 'common.cancel'|trans }}</a>
                 </div>
             </div>
 

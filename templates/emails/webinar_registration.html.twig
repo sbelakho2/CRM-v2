@@ -1,68 +1,108 @@
-{% apply inline_css %}
-<style>
-    .email-container { 
-        max-width: 600px; 
-        margin: 0 auto; 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        line-height: 1.5;
-        color: #333;
-    }
-    .header {
-        background: #8B7355;
-        color: white;
-        padding: 20px;
-        text-align: center;
-    }
-    .content {
-        padding: 20px;
-        background: #ffffff;
-    }
-    .details {
-        margin: 20px 0;
-        padding: 15px;
-        background: #f5f5f5;
-        border-radius: 5px;
-    }
-    .button {
-        display: inline-block;
-        padding: 10px 20px;
-        background: #8B7355;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        margin: 20px 0;
-    }
-</style>
+{# Email Webinar Registration Template - Sensei-Rams Industrial Functionalist Design System #}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'emails.webinar_registration.subject'|trans }}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5; color: #1a1a1a;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 600; letter-spacing: -0.02em;">{{ 'emails.webinar_registration.subject'|trans }}</h1>
+                            <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ 'app.company'|trans }}</p>
+                        </td>
+                    </tr>
 
-<div class="email-container">
-    <div class="header">
-        <h1>Webinar Registration Confirmation</h1>
-    </div>
-    
-    <div class="content">
-        <p>Dear {{ attendee.name }},</p>
-        
-        <p>Thank you for registering for our upcoming webinar:</p>
-        
-        <div class="details">
-            <h2>{{ webinar.title }}</h2>
-            <p><strong>Date & Time:</strong> {{ webinar.scheduledDate|date('F d, Y - H:i') }}</p>
-            {% if webinar.meetingUrl %}
-                <p><strong>Meeting Link:</strong> <a href="{{ webinar.meetingUrl }}">{{ webinar.meetingUrl }}</a></p>
-            {% endif %}
-            {% if webinar.description %}
-                <p><strong>Description:</strong><br>{{ webinar.description }}</p>
-            {% endif %}
-        </div>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <p style="margin: 0 0 20px; color: #1a1a1a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.webinar_registration.dear'|trans }} {{ attendee.name }},
+                            </p>
+                            
+                            <p style="margin: 0 0 25px; color: #3a3a3a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.webinar_registration.greeting'|trans }}
+                            </p>
+                            
+                            <!-- Webinar Details Box -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-left: 4px solid #FFBE00; margin: 25px 0;">
+                                <tr>
+                                    <td style="padding: 25px;">
+                                        <h2 style="margin: 0 0 15px; color: #1a1a1a; font-size: 18px; font-weight: 600;">{{ webinar.title }}</h2>
+                                        
+                                        <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; width: 35%;">{{ 'emails.webinar_registration.date_time'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">{{ webinar.scheduledDate|date('F d, Y - H:i') }}</td>
+                                            </tr>
+                                            {% if webinar.meetingUrl %}
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.webinar_registration.meeting_link'|trans }}:</td>
+                                                <td style="padding: 8px 0; border-top: 1px solid #e0e0e0;"><a href="{{ webinar.meetingUrl }}" style="color: #FFBE00; text-decoration: none; font-size: 13px; word-break: break-all;">{{ webinar.meetingUrl }}</a></td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if webinar.description %}
+                                            <tr>
+                                                <td colspan="2" style="padding: 15px 0 0; border-top: 1px solid #e0e0e0;">
+                                                    <p style="margin: 0 0 5px; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">{{ 'common.description'|trans }}:</p>
+                                                    <p style="margin: 0; color: #3a3a3a; font-size: 14px; line-height: 1.6;">{{ webinar.description }}</p>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
 
-        {% if webinar.meetingUrl %}
-            <a href="{{ webinar.meetingUrl }}" class="button">Join Webinar</a>
-        {% endif %}
-        
-        <p>Please add this event to your calendar. We look forward to your participation!</p>
-        
-        <p>Best regards,<br>
-        The {{ webinar.organization|default('Starz Morocco') }} Team</p>
-    </div>
-</div>
-{% endapply %}
+                            {% if webinar.meetingUrl %}
+                            <!-- CTA Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding: 10px 0 25px;">
+                                        <a href="{{ webinar.meetingUrl }}" style="display: inline-block; background-color: #FFBE00; color: #1a1a1a; padding: 14px 32px; text-decoration: none; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">{{ 'emails.webinar_registration.join_webinar'|trans }}</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            {% endif %}
+                            
+                            <!-- Calendar Reminder -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #2a2a2a; margin: 20px 0;">
+                                <tr>
+                                    <td style="padding: 15px 20px;">
+                                        <p style="margin: 0; color: #e0e0e0; font-size: 14px;">
+                                            📅 {{ 'emails.webinar_registration.add_calendar'|trans }}
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="margin: 25px 0 0; color: #1a1a1a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.common.best_regards'|trans }},<br>
+                                <strong>{{ 'emails.webinar_registration.team'|trans({'%org%': webinar.organization|default('Starz Morocco')}) }}</strong>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #1a1a1a; border-top: 4px solid #FFBE00;">
+                            <p style="margin: 0 0 10px; color: #ffffff; font-size: 14px; text-align: center; font-weight: 600;">
+                                {{ 'app.company'|trans }}
+                            </p>
+                            <p style="margin: 0; color: #5a5a5a; font-size: 12px; text-align: center;">
+                                &copy; {{ "now"|date("Y") }} {{ 'app.company'|trans }}. {{ 'emails.common.all_rights_reserved'|trans }}
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

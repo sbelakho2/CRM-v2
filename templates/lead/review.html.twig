@@ -1,183 +1,216 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Lead Review - Starz Morocco CRM{% endblock %}
+{% block title %}{{ 'lead.review'|trans }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="border-b border-neutral-200/80 pb-5 flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Lead Review</h1>
-            <p class="mt-1 text-sm text-neutral-600">Review and approve discovered leads</p>
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'lead.review'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'lead.review_subtitle'|trans|default('Review and approve discovered leads') }}</p>
+            </div>
+            <div class="rams-page__actions">
+                <a href="{{ path('app_lead_dashboard') }}" class="rams-btn rams-btn--secondary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    {{ 'lead.dashboard'|trans }}
+                </a>
+                <a href="{{ path('app_lead_export', {region: region_filter, status: status_filter}) }}" class="rams-btn rams-btn--primary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    {{ 'common.export'|trans }} CSV
+                </a>
+            </div>
         </div>
-        <div class="flex gap-2">
-            <a href="{{ path('app_lead_dashboard') }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
-                <i class="fas fa-chart-line"></i> Dashboard
-            </a>
-            <a href="{{ path('app_lead_export', {region: region_filter, status: status_filter}) }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                <i class="fas fa-download"></i> Export CSV
-            </a>
+
+        {# Filters #}
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <form method="get" class="rams-form rams-form--inline">
+                    <div class="rams-form__group">
+                        <label class="rams-dymo">{{ 'lead.region'|trans }}</label>
+                        <select name="region" class="rams-form__select">
+                            <option value="all" {% if region_filter == 'all' %}selected{% endif %}>{{ 'lead.all_regions'|trans|default('All Regions') }}</option>
+                            <option value="morocco" {% if region_filter == 'morocco' %}selected{% endif %}>{{ 'lead.region_morocco'|trans|default('Morocco') }}</option>
+                            <option value="us_east" {% if region_filter == 'us_east' %}selected{% endif %}>{{ 'lead.region_us_east'|trans|default('US East Coast') }}</option>
+                            <option value="us_texas" {% if region_filter == 'us_texas' %}selected{% endif %}>{{ 'lead.region_us_texas'|trans|default('US Texas') }}</option>
+                            <option value="eu_core" {% if region_filter == 'eu_core' %}selected{% endif %}>{{ 'lead.region_eu_core'|trans|default('EU Core') }}</option>
+                            <option value="eu_nordics" {% if region_filter == 'eu_nordics' %}selected{% endif %}>{{ 'lead.region_eu_nordics'|trans|default('EU Nordics') }}</option>
+                            <option value="eu_cee" {% if region_filter == 'eu_cee' %}selected{% endif %}>{{ 'lead.region_eu_cee'|trans|default('EU CEE') }}</option>
+                            <option value="uk" {% if region_filter == 'uk' %}selected{% endif %}>{{ 'lead.region_uk'|trans|default('UK') }}</option>
+                        </select>
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-dymo">{{ 'common.status'|trans }}</label>
+                        <select name="status" class="rams-form__select">
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{{ 'lead.all_statuses'|trans|default('All Statuses') }}</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>{{ 'lead.pending_review'|trans }}</option>
+                            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>{{ 'lead.approved_leads'|trans }}</option>
+                            <option value="denied" {% if status_filter == 'denied' %}selected{% endif %}>{{ 'lead.denied_leads'|trans }}</option>
+                        </select>
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-dymo">{{ 'lead.min_score'|trans }}</label>
+                        <input type="number" name="score_min" class="rams-form__input" value="{{ score_min }}" min="0" max="100">
+                    </div>
+
+                    <div class="rams-form__group rams-form__group--action">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                            {{ 'common.apply'|trans }}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
 
-    {# Filters #}
-    <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-        <form method="get" class="flex gap-4 items-end">
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Region</label>
-                <select name="region" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                    <option value="all" {% if region_filter == 'all' %}selected{% endif %}>All Regions</option>
-                    <option value="morocco" {% if region_filter == 'morocco' %}selected{% endif %}>Morocco</option>
-                    <option value="us_east" {% if region_filter == 'us_east' %}selected{% endif %}>US East Coast</option>
-                    <option value="us_texas" {% if region_filter == 'us_texas' %}selected{% endif %}>US Texas</option>
-                    <option value="eu_core" {% if region_filter == 'eu_core' %}selected{% endif %}>EU Core</option>
-                    <option value="eu_nordics" {% if region_filter == 'eu_nordics' %}selected{% endif %}>EU Nordics</option>
-                    <option value="eu_cee" {% if region_filter == 'eu_cee' %}selected{% endif %}>EU CEE</option>
-                    <option value="uk" {% if region_filter == 'uk' %}selected{% endif %}>UK</option>
-                </select>
+        {# Regional Stats Summary #}
+        {% if region_stats|length > 0 %}
+        <div class="rams-metrics-grid rams-metrics-grid--4col">
+            {% for stat in region_stats %}
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ stat.regionTag|upper|default('Unknown') }}</span>
+                    <span class="rams-metric">{{ stat.total }}</span>
+                    <span class="rams-metric__label">{{ 'lead.avg_score'|trans|default('Avg Score') }}: {{ stat.avg_score|number_format(1) }}</span>
+                </div>
             </div>
-
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Status</label>
-                <select name="status" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
-                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Review</option>
-                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
-                    <option value="denied" {% if status_filter == 'denied' %}selected{% endif %}>Denied</option>
-                </select>
-            </div>
-
-            <div class="flex-1">
-                <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Minimum Score</label>
-                <input type="number" name="score_min" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" value="{{ score_min }}" min="0" max="100">
-            </div>
-
-            <div>
-                <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-6 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                    <i class="fas fa-filter"></i> Apply
-                </button>
-            </div>
-        </form>
-    </div>
-
-    {# Regional Stats Summary #}
-    {% if region_stats|length > 0 %}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {% for stat in region_stats %}
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">{{ stat.regionTag|upper|default('Unknown') }}</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{{ stat.total }}</p>
-            <p class="mt-1 text-sm text-neutral-600">Avg Score: {{ stat.avg_score|number_format(1) }}</p>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
-    {% endif %}
+        {% endif %}
 
-    {# Leads Table #}
-    <div class="rounded-xl border border-neutral-200/60 bg-white overflow-hidden">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Score</th>
-                            <th>Company</th>
-                            <th>Region</th>
-                            <th>Location</th>
-                            <th>Sectors</th>
-                            <th>Contact</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for lead in leads %}
-                        <tr id="lead-{{ lead.id }}">
-                            <td>
-                                <span class="badge {% if lead.leadScore >= 70 %}bg-success{% elseif lead.leadScore >= 55 %}bg-warning{% else %}bg-secondary{% endif %} rounded-pill">
-                                    {{ lead.leadScore }}
-                                </span>
-                            </td>
-                            <td>
-                                <strong>{{ lead.companyName }}</strong>
-                                {% if lead.websiteRoot %}
-                                <br><small class="text-muted">
-                                    <a href="{{ lead.websiteRoot }}" target="_blank">{{ lead.websiteRoot }}</a>
-                                </small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="badge bg-info">{{ lead.regionTag|upper }}</span>
-                            </td>
-                            <td>
-                                <small>{{ lead.siteLocation ?? lead.usCityMetro ?? 'N/A' }}</small>
-                            </td>
-                            <td>
-                                {% if lead.sectorTags %}
-                                    {% for sector in lead.sectorTags|slice(0, 2) %}
-                                        <span class="badge bg-secondary">{{ sector }}</span>
-                                    {% endfor %}
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if lead.supplierPortalUrl %}
-                                    <a href="{{ lead.supplierPortalUrl }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Supplier Portal">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
-                                {% endif %}
-                                {% if lead.contactEmailsPublic %}
-                                    <span class="badge bg-success" title="{{ lead.contactEmailsPublic|join(', ') }}">
-                                        <i class="fas fa-envelope"></i> {{ lead.contactEmailsPublic|length }}
+        {# Leads Table #}
+        <div class="rams-module">
+            <div class="rams-module__content rams-module__content--flush">
+                <div class="rams-table-wrapper">
+                    <table class="rams-table">
+                        <thead class="rams-table__header">
+                            <tr>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.title_singular'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.region'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.location'|trans|default('Location') }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.sectors'|trans|default('Sectors') }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.contact_info'|trans|default('Contact') }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lead in leads %}
+                            <tr class="rams-table__row" id="lead-{{ lead.id }}">
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--{% if lead.leadScore >= 70 %}success{% elseif lead.leadScore >= 55 %}warning{% else %}neutral{% endif %}">
+                                        {{ lead.leadScore }}
                                     </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if lead.reviewStatus == 'approved' %}
-                                    <span class="badge bg-success">Approved</span>
-                                {% elseif lead.reviewStatus == 'denied' %}
-                                    <span class="badge bg-danger">Denied</span>
-                                {% else %}
-                                    <span class="badge bg-warning">Pending</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if lead.reviewStatus == 'pending' %}
-                                    <button class="btn btn-sm btn-success me-1" onclick="approveLead({{ lead.id }})" title="Approve this lead">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger me-1" onclick="denyLead({{ lead.id }})" title="Deny this lead">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                {% endif %}
-                                {% if lead.reviewStatus == 'approved' and not lead.company %}
-                                    <button class="btn btn-sm btn-primary me-1" onclick="convertLead({{ lead.id }})" title="Add to Companies list">
-                                        <i class="fas fa-plus-circle"></i> Add to Companies
-                                    </button>
-                                {% elseif lead.company %}
-                                    <span class="badge bg-success me-1">
-                                        <i class="fas fa-check-circle"></i> In CRM
-                                    </span>
-                                    <a href="{{ path('app_company_show', {id: lead.company.id}) }}" class="btn btn-sm btn-outline-primary" title="View company record">
-                                        <i class="fas fa-arrow-right"></i> View Company
-                                    </a>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
-                                No leads found matching the current filters.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                </td>
+                                <td class="rams-table__cell">
+                                    <strong>{{ lead.companyName }}</strong>
+                                    {% if lead.websiteRoot %}
+                                    <br><a href="{{ lead.websiteRoot }}" target="_blank" class="rams-link rams-link--sm">{{ lead.websiteRoot }}</a>
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--info">{{ lead.regionTag|upper }}</span>
+                                </td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-text--sm">{{ lead.siteLocation ?? lead.usCityMetro ?? 'common.n_a'|trans }}</span>
+                                </td>
+                                <td class="rams-table__cell">
+                                    {% if lead.sectorTags %}
+                                        {% for sector in lead.sectorTags|slice(0, 2) %}
+                                            <span class="rams-badge rams-badge--neutral rams-badge--sm">{{ sector }}</span>
+                                        {% endfor %}
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell">
+                                    {% if lead.supplierPortalUrl %}
+                                        <a href="{{ lead.supplierPortalUrl }}" target="_blank" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.supplier_portal'|trans|default('Supplier Portal') }}">
+                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                            </svg>
+                                        </a>
+                                    {% endif %}
+                                    {% if lead.contactEmailsPublic %}
+                                        <span class="rams-badge rams-badge--success rams-badge--sm" title="{{ lead.contactEmailsPublic|join(', ') }}">
+                                            <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                            </svg>
+                                            {{ lead.contactEmailsPublic|length }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell">
+                                    {% if lead.reviewStatus == 'approved' %}
+                                        <span class="rams-andon rams-andon--success rams-andon--inline">{{ 'lead.approved_leads'|trans }}</span>
+                                    {% elseif lead.reviewStatus == 'denied' %}
+                                        <span class="rams-andon rams-andon--danger rams-andon--inline">{{ 'lead.denied_leads'|trans }}</span>
+                                    {% else %}
+                                        <span class="rams-andon rams-andon--warning rams-andon--inline">{{ 'common.pending'|trans }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell">
+                                    {% if lead.reviewStatus == 'pending' %}
+                                        <button class="rams-btn rams-btn--success rams-btn--sm" onclick="approveLead({{ lead.id }})" title="{{ 'lead.approve'|trans }}">
+                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </button>
+                                        <button class="rams-btn rams-btn--danger rams-btn--sm" onclick="denyLead({{ lead.id }})" title="{{ 'lead.deny'|trans }}">
+                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
+                                        </button>
+                                    {% endif %}
+                                    {% if lead.reviewStatus == 'approved' and not lead.company %}
+                                        <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="convertLead({{ lead.id }})" title="{{ 'lead.convert'|trans }}">
+                                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                            </svg>
+                                            {{ 'lead.add_to_companies'|trans|default('Add to Companies') }}
+                                        </button>
+                                    {% elseif lead.company %}
+                                        <span class="rams-badge rams-badge--success">
+                                            <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                            {{ 'lead.in_crm'|trans|default('In CRM') }}
+                                        </span>
+                                        <a href="{{ path('app_company_show', {id: lead.company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.view_company'|trans|default('View Company') }}">
+                                            <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                            </svg>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="rams-table__cell rams-table__cell--empty">
+                                    {{ 'lead.no_leads'|trans }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+        </div>
     </div>
 </div>
 
 <script>
 function approveLead(leadId) {
-    if (!confirm('Approve this lead?')) return;
+    if (!confirm('{{ 'lead.confirm_approve'|trans|default('Approve this lead?') }}')) return;
     
     fetch(`/leads/approve/${leadId}`, {
         method: 'POST',
@@ -188,31 +221,31 @@ function approveLead(leadId) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('{{ 'common.error'|trans }}: ' + data.message);
         }
     });
 }
 
 function denyLead(leadId) {
-    const reason = prompt('Reason for denial (optional):');
+    const reason = prompt('{{ 'lead.deny_reason_prompt'|trans|default('Reason for denial (optional):') }}');
     
     fetch(`/leads/deny/${leadId}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({reason: reason || 'Not a good fit'})
+        body: JSON.stringify({reason: reason || '{{ 'lead.not_good_fit'|trans|default('Not a good fit') }}'})
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('{{ 'common.error'|trans }}: ' + data.message);
         }
     });
 }
 
 function convertLead(leadId) {
-    if (!confirm('Add this approved lead to the Companies list?\n\nThis will create a new company record with all lead information.')) return;
+    if (!confirm('{{ 'lead.confirm_convert'|trans|default('Add this approved lead to the Companies list?') }}')) return;
     
     fetch(`/leads/convert/${leadId}`, {
         method: 'POST',
@@ -221,14 +254,14 @@ function convertLead(leadId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✓ Lead successfully added to Companies!\n\nCompany ID: ' + data.company_id + '\n\nYou can now view it in the Companies section.');
+            alert('{{ 'lead.convert_success'|trans|default('Lead successfully added to Companies!') }}');
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            alert('{{ 'common.error'|trans }}: ' + data.message);
         }
     })
     .catch(error => {
-        alert('Error converting lead: ' + error.message);
+        alert('{{ 'lead.convert_error'|trans|default('Error converting lead:') }} ' + error.message);
     });
 }
 </script>

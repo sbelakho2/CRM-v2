@@ -1,249 +1,179 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Segment Builder{% endblock %}
+{% block title %}{{ 'email_campaign.segments.segment_builder'|trans }}{% endblock %}
 
 {% block body %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-funnel"></i> Build Contact Segment
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form method="post" id="segmentForm">
-                        <div class="row">
-                            <div class="col-lg-8">
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.segments.segment_builder'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.segments.build_subtitle'|trans|default('Build custom contact segments with filter rules') }}</p>
+            </div>
+        </div>
+
+        <form method="post" id="segmentForm">
+            <div class="rams-layout rams-layout--sidebar-right">
+                {# Main Form #}
+                <div class="rams-layout__main">
+                    <div class="rams-module">
+                        <div class="rams-module__content">
+                            <div class="rams-form">
                                 {# Segment Name #}
-                                <div class="mb-4">
-                                    <label for="segmentName" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Segment Name *</label>
-                                    <input type="text" class="form-control" id="segmentName" name="name" required
-                                           placeholder="e.g., Active Customers in Tech Industry">
+                                <div class="rams-form__group">
+                                    <label for="segmentName" class="rams-form__label rams-dymo">{{ 'email_campaign.segments.name'|trans|default('Segment Name') }} *</label>
+                                    <input type="text" class="rams-form__input" id="segmentName" name="name" required
+                                           placeholder="{{ 'email_campaign.segments.name_placeholder'|trans|default('e.g., Active Customers in Tech Industry') }}">
                                 </div>
 
                                 {# Description #}
-                                <div class="mb-4">
-                                    <label for="segmentDescription" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Description</label>
-                                    <textarea class="form-control" id="segmentDescription" name="description" rows="2"
-                                              placeholder="Describe the purpose of this segment"></textarea>
+                                <div class="rams-form__group">
+                                    <label for="segmentDescription" class="rams-form__label rams-dymo">{{ 'common.description'|trans }}</label>
+                                    <textarea class="rams-form__textarea" id="segmentDescription" name="description" rows="2"
+                                              placeholder="{{ 'email_campaign.segments.description_placeholder'|trans|default('Describe the purpose of this segment') }}"></textarea>
                                 </div>
 
                                 {# Filter Builder #}
-                                <div class="mb-4">
-                                    <label class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Filter Rules *</label>
+                                <div class="rams-form__group">
+                                    <label class="rams-form__label rams-dymo">{{ 'email_campaign.segments.filter_rules'|trans|default('Filter Rules') }} *</label>
                                     
-                                    <div class="filter-builder" id="filterBuilder">
+                                    <div class="rams-filter-builder" id="filterBuilder">
                                         {# Main operator selector #}
-                                        <div class="operator-selector mb-3">
-                                            <label class="me-2">Match:</label>
-                                            <div class="btn-group" role="group">
-                                                <input type="radio" class="btn-check" name="mainOperator" id="opAnd" value="AND" checked>
-                                                <label class="btn btn-outline-primary" for="opAnd">ALL</label>
-                                                
-                                                <input type="radio" class="btn-check" name="mainOperator" id="opOr" value="OR">
-                                                <label class="btn btn-outline-primary" for="opOr">ANY</label>
+                                        <div class="rams-filter-builder__operator">
+                                            <span class="rams-filter-builder__operator-label">{{ 'email_campaign.segments.match'|trans|default('Match') }}:</span>
+                                            <div class="rams-segmented-control rams-segmented-control--compact">
+                                                <label class="rams-segmented-control__item">
+                                                    <input type="radio" name="mainOperator" value="AND" checked>
+                                                    <span>{{ 'email_campaign.segments.match_all'|trans|default('ALL') }}</span>
+                                                </label>
+                                                <label class="rams-segmented-control__item">
+                                                    <input type="radio" name="mainOperator" value="OR">
+                                                    <span>{{ 'email_campaign.segments.match_any'|trans|default('ANY') }}</span>
+                                                </label>
                                             </div>
-                                            <small class="text-muted ms-2">of the following rules</small>
+                                            <span class="rams-filter-builder__operator-hint">{{ 'email_campaign.segments.of_rules'|trans|default('of the following rules') }}</span>
                                         </div>
 
                                         {# Rules container #}
-                                        <div id="rulesContainer" class="rules-container">
+                                        <div id="rulesContainer" class="rams-filter-builder__rules">
                                             {# Rules will be added here dynamically #}
                                         </div>
 
-                                        <button type="button" class="btn btn-outline-primary btn-sm" id="addRuleBtn">
-                                            <i class="bi bi-plus-circle"></i> Add Rule
+                                        <button type="button" class="rams-btn rams-btn--secondary rams-btn--sm" id="addRuleBtn">
+                                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                            </svg>
+                                            {{ 'email_campaign.segments.add_rule'|trans|default('Add Rule') }}
                                         </button>
                                     </div>
                                 </div>
 
                                 <input type="hidden" name="filter_rules" id="filterRulesInput">
                             </div>
+                        </div>
+                        <div class="rams-module__footer">
+                            <div class="rams-btn-group">
+                                {% if campaignId %}
+                                    <a href="{{ path('app_email_campaign_wizard_segment', {id: campaignId}) }}" class="rams-btn rams-btn--secondary">
+                                        {{ 'common.cancel'|trans }}
+                                    </a>
+                                {% else %}
+                                    <a href="{{ path('app_email_campaign_segments') }}" class="rams-btn rams-btn--secondary">
+                                        {{ 'common.cancel'|trans }}
+                                    </a>
+                                {% endif %}
+                                
+                                <button type="submit" class="rams-btn rams-btn--primary">
+                                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    {{ 'email_campaign.segments.save_segment'|trans|default('Save Segment') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                            <div class="col-lg-4">
-                                {# Available Fields #}
-                                <div class="card bg-light border-0 mb-4">
-                                    <div class="card-body">
-                                        <h6 class="mb-3">
-                                            <i class="bi bi-list-check"></i> Available Fields
-                                        </h6>
-                                        
-                                        {% for fieldGroup, fields in availableFields %}
-                                        <div class="field-group mb-3">
-                                            <div class="field-group-label">{{ fieldGroup }}</div>
-                                            <div class="field-list">
-                                                {% for field in fields %}
-                                                <div class="field-item">
-                                                    <code>{{ field.name }}</code>
-                                                    <span class="badge bg-secondary">{{ field.type }}</span>
-                                                </div>
-                                                {% endfor %}
+                {# Sidebar #}
+                <div class="rams-layout__sidebar">
+                    {# Available Fields #}
+                    <div class="rams-module">
+                        <div class="rams-module__header">
+                            <h3 class="rams-module__title">{{ 'email_campaign.segments.available_fields'|trans|default('Available Fields') }}</h3>
+                        </div>
+                        <div class="rams-module__content">
+                            {% for fieldGroup, fields in availableFields %}
+                                <div class="rams-field-group">
+                                    <span class="rams-dymo">{{ fieldGroup }}</span>
+                                    <div class="rams-field-list">
+                                        {% for field in fields %}
+                                            <div class="rams-field-item">
+                                                <code class="rams-field-item__name">{{ field.name }}</code>
+                                                <span class="rams-badge rams-badge--neutral rams-badge--sm">{{ field.type }}</span>
                                             </div>
-                                        </div>
                                         {% endfor %}
                                     </div>
                                 </div>
-
-                                {# Live Count #}
-                                <div class="card bg-primary text-white mb-4">
-                                    <div class="card-body text-center">
-                                        <div class="count-label mb-2">Matching Contacts</div>
-                                        <div class="count-value" id="contactCount">
-                                            <div class="spinner-border" role="status">
-                                                <span class="visually-hidden">Loading...</span>
-                                            </div>
-                                        </div>
-                                        <button type="button" class="btn btn-light btn-sm mt-3" id="refreshCountBtn">
-                                            <i class="bi bi-arrow-clockwise"></i> Refresh
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                            {% endfor %}
                         </div>
+                    </div>
 
-                        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
-                            {% if campaignId %}
-                            <a href="{{ path('app_email_campaign_wizard_segment', {id: campaignId}) }}" class="btn btn-outline-secondary">
-                                Cancel
-                            </a>
-                            {% else %}
-                            <a href="{{ path('app_email_campaign_segments') }}" class="btn btn-outline-secondary">
-                                Cancel
-                            </a>
-                            {% endif %}
-                            
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save"></i> Save Segment
+                    {# Live Count #}
+                    <div class="rams-module rams-module--primary">
+                        <div class="rams-module__content">
+                            <div class="rams-metric rams-metric--centered rams-metric--large">
+                                <span class="rams-metric__label">{{ 'email_campaign.segments.matching_contacts'|trans|default('Matching Contacts') }}</span>
+                                <span class="rams-metric__value" id="contactCount">
+                                    <span class="rams-spinner"></span>
+                                </span>
+                            </div>
+                            <button type="button" class="rams-btn rams-btn--secondary rams-btn--full rams-btn--sm" id="refreshCountBtn">
+                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                {{ 'common.refresh'|trans }}
                             </button>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
-        </div>
+        </form>
     </div>
 </div>
-
-<style>
-.operator-selector {
-    background: #f8f9fa;
-    padding: 16px;
-    border-radius: 6px;
-}
-
-.rules-container {
-    border: 2px dashed #dee2e6;
-    border-radius: 6px;
-    padding: 16px;
-    min-height: 100px;
-    margin-bottom: 12px;
-}
-
-.rule-item {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    padding: 16px;
-    margin-bottom: 12px;
-    position: relative;
-}
-
-.rule-item:last-child {
-    margin-bottom: 0;
-}
-
-.rule-remove-btn {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.field-group-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-}
-
-.field-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.field-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: white;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 13px;
-}
-
-.field-item code {
-    color: #0d6efd;
-}
-
-.count-label {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    opacity: 0.9;
-}
-
-.count-value {
-    font-size: 48px;
-    font-weight: 700;
-}
-
-.empty-rules {
-    text-align: center;
-    padding: 32px;
-    color: #6c757d;
-}
-</style>
 
 <script>
 const availableFields = {{ availableFields|json_encode|raw }};
 const operatorsByType = {
     'string': [
-        { value: '=', label: 'equals' },
-        { value: '!=', label: 'not equals' },
-        { value: 'contains', label: 'contains' },
-        { value: 'not_contains', label: 'does not contain' },
-        { value: 'starts_with', label: 'starts with' },
-        { value: 'ends_with', label: 'ends with' },
-        { value: 'is_empty', label: 'is empty' },
-        { value: 'is_not_empty', label: 'is not empty' }
+        { value: '=', label: '{{ 'email_campaign.segments.op_equals'|trans|default('equals') }}' },
+        { value: '!=', label: '{{ 'email_campaign.segments.op_not_equals'|trans|default('not equals') }}' },
+        { value: 'contains', label: '{{ 'email_campaign.segments.op_contains'|trans|default('contains') }}' },
+        { value: 'not_contains', label: '{{ 'email_campaign.segments.op_not_contains'|trans|default('does not contain') }}' },
+        { value: 'starts_with', label: '{{ 'email_campaign.segments.op_starts_with'|trans|default('starts with') }}' },
+        { value: 'ends_with', label: '{{ 'email_campaign.segments.op_ends_with'|trans|default('ends with') }}' },
+        { value: 'is_empty', label: '{{ 'email_campaign.segments.op_is_empty'|trans|default('is empty') }}' },
+        { value: 'is_not_empty', label: '{{ 'email_campaign.segments.op_is_not_empty'|trans|default('is not empty') }}' }
     ],
     'integer': [
-        { value: '=', label: 'equals' },
-        { value: '!=', label: 'not equals' },
-        { value: '>', label: 'greater than' },
-        { value: '>=', label: 'greater than or equal' },
-        { value: '<', label: 'less than' },
-        { value: '<=', label: 'less than or equal' },
-        { value: 'is_empty', label: 'is empty' },
-        { value: 'is_not_empty', label: 'is not empty' }
+        { value: '=', label: '{{ 'email_campaign.segments.op_equals'|trans|default('equals') }}' },
+        { value: '!=', label: '{{ 'email_campaign.segments.op_not_equals'|trans|default('not equals') }}' },
+        { value: '>', label: '{{ 'email_campaign.segments.op_greater'|trans|default('greater than') }}' },
+        { value: '>=', label: '{{ 'email_campaign.segments.op_greater_eq'|trans|default('greater than or equal') }}' },
+        { value: '<', label: '{{ 'email_campaign.segments.op_less'|trans|default('less than') }}' },
+        { value: '<=', label: '{{ 'email_campaign.segments.op_less_eq'|trans|default('less than or equal') }}' },
+        { value: 'is_empty', label: '{{ 'email_campaign.segments.op_is_empty'|trans|default('is empty') }}' },
+        { value: 'is_not_empty', label: '{{ 'email_campaign.segments.op_is_not_empty'|trans|default('is not empty') }}' }
     ],
     'boolean': [
-        { value: '=', label: 'is' }
+        { value: '=', label: '{{ 'email_campaign.segments.op_is'|trans|default('is') }}' }
     ],
     'datetime': [
-        { value: '>', label: 'after' },
-        { value: '<', label: 'before' },
-        { value: 'is_empty', label: 'is empty' },
-        { value: 'is_not_empty', label: 'is not empty' }
+        { value: '>', label: '{{ 'email_campaign.segments.op_after'|trans|default('after') }}' },
+        { value: '<', label: '{{ 'email_campaign.segments.op_before'|trans|default('before') }}' },
+        { value: 'is_empty', label: '{{ 'email_campaign.segments.op_is_empty'|trans|default('is empty') }}' },
+        { value: 'is_not_empty', label: '{{ 'email_campaign.segments.op_is_not_empty'|trans|default('is not empty') }}' }
     ]
 };
 
@@ -251,169 +181,57 @@ let ruleIdCounter = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
     const addRuleBtn = document.getElementById('addRuleBtn');
-    const rulesContainer = document.getElementById('rulesContainer');
-    const refreshCountBtn = document.getElementById('refreshCountBtn');
-    const segmentForm = document.getElementById('segmentForm');
-
+    addRuleBtn.addEventListener('click', addRule);
+    
     // Add initial rule
     addRule();
-
-    // Add rule button
-    addRuleBtn.addEventListener('click', addRule);
-
-    // Refresh count button
-    refreshCountBtn.addEventListener('click', updateContactCount);
-
-    // Form submit
-    segmentForm.addEventListener('submit', function(e) {
-        const filterRules = buildFilterRules();
-        document.getElementById('filterRulesInput').value = JSON.stringify(filterRules);
-    });
-
-    // Auto-update count on rule changes (debounced)
-    let countTimeout;
-    rulesContainer.addEventListener('change', function() {
-        clearTimeout(countTimeout);
-        countTimeout = setTimeout(updateContactCount, 1000);
-    });
 });
 
 function addRule() {
-    const ruleId = ++ruleIdCounter;
+    ruleIdCounter++;
     const rulesContainer = document.getElementById('rulesContainer');
     
     const ruleDiv = document.createElement('div');
-    ruleDiv.className = 'rule-item';
-    ruleDiv.dataset.ruleId = ruleId;
+    ruleDiv.className = 'rams-filter-rule';
+    ruleDiv.dataset.ruleId = ruleIdCounter;
     
     ruleDiv.innerHTML = `
-        <button type="button" class="btn btn-sm btn-outline-danger rule-remove-btn" onclick="removeRule(${ruleId})">
-            <i class="bi bi-x-lg"></i>
+        <select class="rams-form__select rams-filter-rule__field" onchange="updateOperators(${ruleIdCounter})">
+            <option value="">{{ 'email_campaign.segments.select_field'|trans|default('Select field...') }}</option>
+            ${Object.entries(availableFields).map(([group, fields]) => 
+                `<optgroup label="${group}">${fields.map(f => `<option value="${f.name}" data-type="${f.type}">${f.name}</option>`).join('')}</optgroup>`
+            ).join('')}
+        </select>
+        <select class="rams-form__select rams-filter-rule__operator" data-rule-id="${ruleIdCounter}">
+            <option value="">{{ 'email_campaign.segments.select_operator'|trans|default('Select operator...') }}</option>
+        </select>
+        <input type="text" class="rams-form__input rams-filter-rule__value" placeholder="{{ 'common.value'|trans }}">
+        <button type="button" class="rams-btn rams-btn--ghost rams-btn--sm rams-filter-rule__remove" onclick="removeRule(${ruleIdCounter})">
+            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
         </button>
-        
-        <div class="row">
-            <div class="col-md-4 mb-2">
-                <label class="form-label small">Field</label>
-                <select class="form-select form-select-sm" data-role="field" onchange="onFieldChange(${ruleId})">
-                    <option value="">Select field...</option>
-                    ${generateFieldOptions()}
-                </select>
-            </div>
-            
-            <div class="col-md-3 mb-2">
-                <label class="form-label small">Operator</label>
-                <select class="form-select form-select-sm" data-role="operator">
-                    <option value="">-</option>
-                </select>
-            </div>
-            
-            <div class="col-md-5 mb-2">
-                <label class="form-label small">Value</label>
-                <input type="text" class="form-control form-control-sm" data-role="value" placeholder="Enter value...">
-            </div>
-        </div>
     `;
     
     rulesContainer.appendChild(ruleDiv);
 }
 
-function generateFieldOptions() {
-    let options = '';
-    for (const [groupName, fields] of Object.entries(availableFields)) {
-        options += `<optgroup label="${groupName}">`;
-        for (const field of fields) {
-            options += `<option value="${field.name}" data-type="${field.type}">${field.name}</option>`;
-        }
-        options += `</optgroup>`;
-    }
-    return options;
-}
-
-function onFieldChange(ruleId) {
-    const ruleDiv = document.querySelector(`[data-rule-id="${ruleId}"]`);
-    const fieldSelect = ruleDiv.querySelector('[data-role="field"]');
-    const operatorSelect = ruleDiv.querySelector('[data-role="operator"]');
-    const valueInput = ruleDiv.querySelector('[data-role="value"]');
-    
+function updateOperators(ruleId) {
+    const ruleDiv = document.querySelector(`[data-rule-id="${ruleId}"]`).closest('.rams-filter-rule');
+    const fieldSelect = ruleDiv.querySelector('.rams-filter-rule__field');
+    const operatorSelect = ruleDiv.querySelector('.rams-filter-rule__operator');
     const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
     const fieldType = selectedOption.dataset.type || 'string';
     
-    // Update operators based on field type
     const operators = operatorsByType[fieldType] || operatorsByType['string'];
-    operatorSelect.innerHTML = operators.map(op => 
-        `<option value="${op.value}">${op.label}</option>`
-    ).join('');
     
-    // Update value input type
-    if (fieldType === 'integer') {
-        valueInput.type = 'number';
-    } else if (fieldType === 'datetime') {
-        valueInput.type = 'date';
-    } else if (fieldType === 'boolean') {
-        valueInput.type = 'checkbox';
-    } else {
-        valueInput.type = 'text';
-    }
+    operatorSelect.innerHTML = '<option value="">{{ 'email_campaign.segments.select_operator'|trans|default('Select operator...') }}</option>' +
+        operators.map(op => `<option value="${op.value}">${op.label}</option>`).join('');
 }
 
 function removeRule(ruleId) {
-    const ruleDiv = document.querySelector(`[data-rule-id="${ruleId}"]`);
-    if (ruleDiv) {
-        ruleDiv.remove();
-        updateContactCount();
-    }
-}
-
-function buildFilterRules() {
-    const mainOperator = document.querySelector('input[name="mainOperator"]:checked').value;
-    const rules = [];
-    
-    document.querySelectorAll('.rule-item').forEach(ruleDiv => {
-        const field = ruleDiv.querySelector('[data-role="field"]').value;
-        const operator = ruleDiv.querySelector('[data-role="operator"]').value;
-        const value = ruleDiv.querySelector('[data-role="value"]').value;
-        
-        if (field && operator) {
-            rules.push({ field, operator, value });
-        }
-    });
-    
-    return {
-        operator: mainOperator,
-        rules: rules
-    };
-}
-
-function updateContactCount() {
-    const countEl = document.getElementById('contactCount');
-    const filterRules = buildFilterRules();
-    
-    if (filterRules.rules.length === 0) {
-        countEl.innerHTML = '<span style="font-size: 20px;">Add rules to see count</span>';
-        return;
-    }
-    
-    countEl.innerHTML = '<div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>';
-    
-    fetch('{{ path('app_api_segment_calculate') }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(filterRules)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            countEl.innerHTML = '<span style="font-size: 16px; color: #dc3545;">Error</span>';
-        } else {
-            countEl.textContent = data.count.toLocaleString();
-        }
-    })
-    .catch(error => {
-        countEl.innerHTML = '<span style="font-size: 16px; color: #dc3545;">Error</span>';
-        console.error('Error:', error);
-    });
+    const ruleDiv = document.querySelector(`[data-rule-id="${ruleId}"]`).closest('.rams-filter-rule');
+    ruleDiv.remove();
 }
 </script>
 {% endblock %}

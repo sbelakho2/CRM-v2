@@ -1,99 +1,107 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Supplier Portal{% endblock %}
+{% block title %}{{ 'supplier.portal.title'|trans|default('Supplier Portal') }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <div class="flex items-center justify-between border-b border-neutral-200/80 pb-5">
-        <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Supplier Portal</h1>
-            <p class="mt-1 text-sm text-neutral-600">Manage your supplier relationships and compliance</p>
-        </div>
-        <a href="#" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Add Supplier
-        </a>
-    </div>
-
-    <!-- Search and Filter -->
-    <div class="rounded-xl border border-neutral-200/60 bg-white p-4">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <input 
-                type="text" 
-                placeholder="Search suppliers..." 
-                class="rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 placeholder-neutral-500 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
-            >
-            <select class="rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-neutral-900 transition-colors hover:border-neutral-300 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400">
-                <option value="">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="pending">Pending Approval</option>
-            </select>
-            <button class="inline-flex items-center justify-center rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                Filter
-            </button>
+<div class="rams-stack rams-stack--lg">
+    {# Header #}
+    <div class="rams-page-header">
+        <div class="rams-page-header__row">
+            <div>
+                <h1 class="rams-heading rams-heading--1">{{ 'supplier.portal.title'|trans|default('Supplier Portal') }}</h1>
+                <p class="rams-text rams-text--muted">{{ 'supplier.portal.subtitle'|trans|default('Manage your supplier relationships and compliance') }}</p>
+            </div>
+            <a href="#" class="rams-btn rams-btn--secondary">
+                + {{ 'supplier.portal.add_supplier'|trans|default('Add Supplier') }}
+            </a>
         </div>
     </div>
 
-    <!-- Suppliers Table -->
-    <div class="overflow-hidden rounded-xl border border-neutral-200/60 bg-white">
-        <table class="w-full">
-            <thead class="border-b border-neutral-200 bg-neutral-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Supplier Name</th>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Contact</th>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Email</th>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Status</th>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Joined</th>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-neutral-900">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-neutral-200">
-                {% if suppliers | default([]) %}
-                    {% for supplier in suppliers %}
-                        <tr class="transition-colors hover:bg-neutral-50">
-                            <td class="px-6 py-4 font-medium text-neutral-900">{{ supplier.name }}</td>
-                            <td class="px-6 py-4 text-sm text-neutral-700">{{ supplier.contact_name | default('Contact') }}</td>
-                            <td class="px-6 py-4 text-sm text-neutral-700">{{ supplier.email | default('N/A') }}</td>
-                            <td class="px-6 py-4 text-sm">
-                                {% if supplier.status == 'Active' %}
-                                    <span class="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold leading-5 text-green-800">{{ supplier.status }}</span>
-                                {% elseif supplier.status == 'Pending' %}
-                                    <span class="inline-flex rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold leading-5 text-neutral-800">{{ supplier.status }}</span>
-                                {% else %}
-                                    <span class="inline-flex rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold leading-5 text-neutral-800">{{ supplier.status }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-sm text-neutral-700">{{ supplier.region | default('N/A') }}</td>
-                            <td class="px-6 py-4 text-sm space-x-2">
-                                <a href="{{ path('supplier_portal_detail', {id: supplier.id}) }}" class="font-medium text-neutral-600 transition-colors hover:text-neutral-900">View</a>
-                                <button class="font-medium text-neutral-600 transition-colors hover:text-neutral-900">Edit</button>
-                                <button class="font-medium text-neutral-600 transition-colors hover:text-neutral-900">Remove</button>
+    {# Search and Filter #}
+    <div class="rams-module rams-module--compact">
+        <div class="rams-module__content">
+            <form class="rams-form--inline rams-grid rams-grid--cols-3 rams-grid--gap-md">
+                <div class="rams-form__group">
+                    <input type="text" placeholder="{{ 'supplier.portal.search_placeholder'|trans|default('Search suppliers...') }}" class="rams-form__input">
+                </div>
+                <div class="rams-form__group">
+                    <select class="rams-form__select">
+                        <option value="">{{ 'supplier.portal.all_statuses'|trans|default('All Statuses') }}</option>
+                        <option value="active">{{ 'common.active'|trans|default('Active') }}</option>
+                        <option value="inactive">{{ 'common.inactive'|trans|default('Inactive') }}</option>
+                        <option value="pending">{{ 'supplier.portal.pending_approval'|trans|default('Pending Approval') }}</option>
+                    </select>
+                </div>
+                <button type="submit" class="rams-btn rams-btn--secondary">
+                    {{ 'common.filter'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {# Suppliers Table #}
+    <div class="rams-module">
+        <div class="rams-module__content rams-module__content--flush">
+            <table class="rams-table">
+                <thead class="rams-table__header">
+                    <tr>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'supplier.portal.name'|trans|default('Supplier Name') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'common.contact'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'common.email'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'supplier.portal.region'|trans|default('Region') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-text--right">{{ 'common.actions'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if suppliers | default([]) %}
+                        {% for supplier in suppliers %}
+                            <tr class="rams-table__row">
+                                <td class="rams-table__cell rams-text--bold">{{ supplier.name }}</td>
+                                <td class="rams-table__cell">{{ supplier.contact_name | default('Contact') }}</td>
+                                <td class="rams-table__cell">{{ supplier.email | default('N/A') }}</td>
+                                <td class="rams-table__cell">
+                                    {% if supplier.status == 'Active' %}
+                                        <span class="rams-badge rams-badge--green">{{ supplier.status }}</span>
+                                    {% elseif supplier.status == 'Pending' %}
+                                        <span class="rams-badge rams-badge--yellow">{{ supplier.status }}</span>
+                                    {% else %}
+                                        <span class="rams-badge rams-badge--gray">{{ supplier.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell">{{ supplier.region | default('N/A') }}</td>
+                                <td class="rams-table__cell rams-text--right">
+                                    <div class="rams-btn-group rams-btn-group--compact">
+                                        <a href="{{ path('supplier_portal_detail', {id: supplier.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
+                                        <button class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</button>
+                                        <button class="rams-btn rams-btn--ghost rams-btn--sm rams-text--danger">{{ 'common.remove'|trans|default('Remove') }}</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="rams-table__cell">
+                                <div class="rams-empty-state">
+                                    <div class="rams-empty-state__icon">📦</div>
+                                    <p class="rams-text rams-text--muted">{{ 'supplier.portal.no_suppliers'|trans|default('No suppliers found. Add your first supplier to get started.') }}</p>
+                                </div>
                             </td>
                         </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="6" class="px-6 py-8 text-center">
-                            <svg class="mx-auto mb-4 h-12 w-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
-                            </svg>
-                            <p class="text-neutral-600">No suppliers found. Add your first supplier to get started.</p>
-                        </td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- Pagination -->
-    <div class="flex items-center justify-between">
-        <p class="text-sm text-neutral-700">Showing {{ suppliers | length }} of 100+ suppliers</p>
-        <div class="space-x-2">
-            <button class="inline-flex items-center rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">Previous</button>
-            <button class="inline-flex items-center rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">Next</button>
+    {# Pagination #}
+    <div class="rams-pagination">
+        <p class="rams-text rams-text--sm rams-text--muted">
+            {{ 'common.showing'|trans|default('Showing') }} {{ suppliers | length }} {{ 'common.of'|trans|default('of') }} 100+ {{ 'supplier.portal.suppliers'|trans|default('suppliers') }}
+        </p>
+        <div class="rams-btn-group">
+            <button class="rams-btn rams-btn--secondary rams-btn--sm">{{ 'common.previous'|trans }}</button>
+            <button class="rams-btn rams-btn--secondary rams-btn--sm">{{ 'common.next'|trans }}</button>
         </div>
     </div>
 </div>

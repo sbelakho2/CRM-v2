@@ -1,162 +1,142 @@
+{# Email Quote Notification Template - Sensei-Rams Industrial Functionalist Design System #}
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .header {
-            background: linear-gradient(135deg, #9B6B9E 0%, #7C5380 100%);
-            color: white;
-            padding: 30px 20px;
-            text-align: center;
-            border-radius: 8px 8px 0 0;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-        .content {
-            background: #f5f5f5;
-            padding: 30px 20px;
-        }
-        .quote-info {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .quote-info table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .quote-info td {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .quote-info td:first-child {
-            font-weight: bold;
-            color: #666;
-            width: 40%;
-        }
-        .cta-button {
-            display: inline-block;
-            background: #9B6B9E;
-            color: white;
-            padding: 14px 30px;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-        .cta-button:hover {
-            background: #7C5380;
-        }
-        .footer {
-            background: #333;
-            color: #999;
-            text-align: center;
-            padding: 20px;
-            font-size: 12px;
-            border-radius: 0 0 8px 8px;
-        }
-        .footer a {
-            color: #9B6B9E;
-            text-decoration: none;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'emails.quote_notification.subject'|trans }}</title>
 </head>
-<body>
-    <div class="header">
-        <h1>📋 New Quote Available</h1>
-        <p style="margin: 10px 0 0 0; opacity: 0.9;">CRM Starz Morocco</p>
-    </div>
-    
-    <div class="content">
-        <p>Dear {{ company.name }} Team,</p>
-        
-        <p>We're pleased to provide you with a detailed quote for your electronic components requirements.</p>
-        
-        <div class="quote-info">
-            <h2 style="margin-top: 0; color: #9B6B9E;">Quote Summary</h2>
-            <table>
-                <tr>
-                    <td>Quote Number:</td>
-                    <td><strong>{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</strong></td>
-                </tr>
-                <tr>
-                    <td>Date:</td>
-                    <td>{{ quote.createdAt|date('F d, Y') }}</td>
-                </tr>
-                <tr>
-                    <td>Valid Until:</td>
-                    <td>{{ quote.createdAt|date_modify('+30 days')|date('F d, Y') }}</td>
-                </tr>
-                <tr>
-                    <td>Quantity:</td>
-                    <td>{{ quote.quantity ?? 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <td>Ship To:</td>
-                    <td>{{ quote.shipToCountry ?? 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <td>Total Amount:</td>
-                    <td><strong style="color: #9B6B9E; font-size: 18px;">${{ quote.totalCost|default(0)|number_format(2) }}</strong></td>
-                </tr>
-                <tr>
-                    <td>Coverage:</td>
-                    <td>{{ quote.coveragePercent|default(0)|number_format(1) }}% of components sourced</td>
-                </tr>
-            </table>
-        </div>
-        
-        <p>The detailed quote with full Bill of Materials breakdown is attached as a PDF to this email.</p>
-        
-        <div style="text-align: center;">
-            <a href="#" class="cta-button">Review Quote Details</a>
-        </div>
-        
-        <h3 style="color: #9B6B9E;">What's Next?</h3>
-        <ul>
-            <li>Review the attached PDF for complete BOM breakdown</li>
-            <li>Verify component specifications and quantities</li>
-            <li>Reply to this email with any questions or modifications</li>
-            <li>Approve the quote to proceed with your order</li>
-        </ul>
-        
-        <p><strong>Important Notes:</strong></p>
-        <ul>
-            <li>This quote is valid for 30 days from the issue date</li>
-            <li>Prices are in USD and subject to component availability</li>
-            <li>Lead times may vary based on component stock levels</li>
-            <li>Shipping terms: {{ quote.incoterms ?? 'FCA' }}</li>
-        </ul>
-        
-        <p>If you have any questions or need modifications to this quote, please don't hesitate to contact us.</p>
-        
-        <p>Best regards,<br>
-        <strong>CRM Starz Morocco</strong><br>
-        Electronics Manufacturing & Sourcing</p>
-    </div>
-    
-    <div class="footer">
-        <p>
-            <strong>CRM Starz Morocco</strong><br>
-            Casablanca, Morocco<br>
-            Email: <a href="mailto:quotes@starzelectronics.site">quotes@starzelectronics.site</a><br>
-            Web: <a href="https://starzelectronics.site">starzelectronics.site</a>
-        </p>
-        <p style="margin-top: 15px; font-size: 11px;">
-            This email was sent regarding Quote {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}
-        </p>
-    </div>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5; color: #1a1a1a;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.02em;">📋 {{ 'emails.quote_notification.subject'|trans }}</h1>
+                            <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ 'app.company'|trans }}</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <p style="margin: 0 0 20px; color: #1a1a1a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.quote_notification.dear_team'|trans({'%company%': company.name}) }},
+                            </p>
+                            
+                            <p style="margin: 0 0 25px; color: #3a3a3a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.quote_notification.intro'|trans }}
+                            </p>
+                            
+                            <!-- Quote Summary Box -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-left: 4px solid #FFBE00; margin: 25px 0;">
+                                <tr>
+                                    <td style="padding: 25px;">
+                                        <h2 style="margin: 0 0 20px; color: #1a1a1a; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #3a3a3a; padding-bottom: 10px;">{{ 'emails.quote_notification.quote_summary'|trans }}</h2>
+                                        <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; width: 40%;">{{ 'emails.quote_notification.quote_number'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.date'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.createdAt|date('F d, Y') }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.valid_until'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.createdAt|date_modify('+30 days')|date('F d, Y') }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.quantity'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.quantity ?? ('common.n_a'|trans) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.ship_to'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.shipToCountry ?? ('common.n_a'|trans) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.total'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #FFBE00; font-size: 20px; font-weight: 700; border-top: 1px solid #e0e0e0;">${{ quote.totalCost|default(0)|number_format(2) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.coverage'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.coveragePercent|default(0)|number_format(1) }}% {{ 'emails.quote_notification.components_sourced'|trans }}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="margin: 0 0 25px; color: #3a3a3a; font-size: 15px; line-height: 1.6;">
+                                {{ 'emails.quote_notification.pdf_attached'|trans }}
+                            </p>
+                            
+                            <!-- CTA Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding: 10px 0 30px;">
+                                        <a href="#" style="display: inline-block; background-color: #FFBE00; color: #1a1a1a; padding: 14px 32px; text-decoration: none; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">{{ 'emails.quote_notification.review_details'|trans }}</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- What's Next Section -->
+                            <h3 style="margin: 0 0 15px; color: #1a1a1a; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #FFBE00; padding-bottom: 8px; display: inline-block;">{{ 'emails.quote_notification.whats_next'|trans }}</h3>
+                            <ul style="margin: 0 0 25px; padding-left: 20px; color: #3a3a3a; font-size: 14px; line-height: 1.8;">
+                                <li>{{ 'emails.quote_notification.step_review'|trans }}</li>
+                                <li>{{ 'emails.quote_notification.step_verify'|trans }}</li>
+                                <li>{{ 'emails.quote_notification.step_reply'|trans }}</li>
+                                <li>{{ 'emails.quote_notification.step_approve'|trans }}</li>
+                            </ul>
+                            
+                            <!-- Important Notes -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #2a2a2a; margin: 25px 0;">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <p style="margin: 0 0 12px; color: #FFBE00; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">{{ 'emails.quote_notification.important_notes'|trans }}:</p>
+                                        <ul style="margin: 0; padding-left: 18px; color: #e0e0e0; font-size: 13px; line-height: 1.8;">
+                                            <li>{{ 'emails.quote_notification.note_validity'|trans }}</li>
+                                            <li>{{ 'emails.quote_notification.note_currency'|trans }}</li>
+                                            <li>{{ 'emails.quote_notification.note_lead_times'|trans }}</li>
+                                            <li>{{ 'emails.quote_notification.note_shipping'|trans({'%terms%': quote.incoterms ?? 'FCA'}) }}</li>
+                                        </ul>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="margin: 0 0 20px; color: #3a3a3a; font-size: 15px; line-height: 1.6;">
+                                {{ 'emails.quote_notification.contact_us'|trans }}
+                            </p>
+                            
+                            <p style="margin: 25px 0 0; color: #1a1a1a; font-size: 15px; line-height: 1.6;">
+                                {{ 'emails.common.best_regards'|trans }},<br>
+                                <strong>{{ 'app.company'|trans }}</strong><br>
+                                <span style="color: #4a4a4a; font-size: 13px;">{{ 'emails.quote_notification.tagline'|trans }}</span>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #1a1a1a; border-top: 4px solid #FFBE00;">
+                            <p style="margin: 0 0 10px; color: #ffffff; font-size: 14px; text-align: center; font-weight: 600;">
+                                {{ 'app.company'|trans }}
+                            </p>
+                            <p style="margin: 0 0 15px; color: #888888; font-size: 12px; text-align: center; line-height: 1.6;">
+                                Casablanca, Morocco<br>
+                                {{ 'common.email'|trans }}: <a href="mailto:quotes@starzelectronics.site" style="color: #FFBE00; text-decoration: none;">quotes@starzelectronics.site</a><br>
+                                Web: <a href="https://starzelectronics.site" style="color: #FFBE00; text-decoration: none;">starzelectronics.site</a>
+                            </p>
+                            <p style="margin: 0; color: #5a5a5a; font-size: 11px; text-align: center;">
+                                {{ 'emails.quote_notification.email_sent_for'|trans({'%quote%': quote.quoteNumber ?? ('Q-' ~ quote.id)}) }}
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

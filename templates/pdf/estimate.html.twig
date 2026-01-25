@@ -1,61 +1,244 @@
+{# PDF Estimate Template - Sensei-Rams Industrial Functionalist Design System #}
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Landed-Cost Estimate #{{ estimate.id }}</title>
-    {% include 'pdf/base.css.twig' %}
+    <title>{{ 'pdf.estimate.landed_cost_estimate'|trans }} #{{ estimate.id }}</title>
+    <style>
+        /* Sensei-Rams Industrial Functionalist - Standalone PDF Styles */
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 10pt;
+            color: #1a1a1a;
+            line-height: 1.5;
+            background: #ffffff;
+            margin: 0;
+            padding: 15pt;
+        }
+        .header {
+            border-bottom: 3px solid #FFBE00;
+            padding-bottom: 12pt;
+            margin-bottom: 18pt;
+        }
+        .header h2 {
+            margin: 0;
+            color: #1a1a1a;
+            font-size: 18pt;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+        .header p {
+            margin: 3pt 0 0 0;
+            font-size: 9pt;
+            color: #4a4a4a;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .doc-info {
+            float: right;
+            text-align: right;
+            font-size: 9pt;
+            color: #3a3a3a;
+        }
+        .doc-info strong {
+            font-size: 12pt;
+            color: #1a1a1a;
+            display: block;
+            margin-bottom: 5pt;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 2px solid #FFBE00;
+            padding-bottom: 3pt;
+        }
+        h1 {
+            font-size: 18pt;
+            color: #1a1a1a;
+            margin: 0 0 15pt 0;
+            padding-bottom: 6pt;
+            border-bottom: 3px solid #FFBE00;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        h2 {
+            font-size: 13pt;
+            color: #1a1a1a;
+            margin: 18pt 0 10pt 0;
+            padding-bottom: 4pt;
+            border-bottom: 2px solid #3a3a3a;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        h4 {
+            font-size: 10pt;
+            color: #4a4a4a;
+            margin: 0 0 5pt 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10pt 0;
+        }
+        th {
+            background: #2a2a2a;
+            color: #ffffff;
+            padding: 8pt;
+            text-align: left;
+            font-size: 8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 1px solid #3a3a3a;
+        }
+        td {
+            padding: 6pt 8pt;
+            border: 1px solid #d0d0d0;
+            font-size: 9pt;
+            vertical-align: top;
+        }
+        tr:nth-child(even) td {
+            background: #f9f9f9;
+        }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .text-muted { color: #5a5a5a; }
+        .small { font-size: 8pt; }
+        .total-row {
+            background: #1a1a1a !important;
+        }
+        .total-row td {
+            color: #FFBE00 !important;
+            font-weight: bold;
+            border-color: #2a2a2a;
+        }
+        .subtotal-row {
+            background: #3a3a3a !important;
+        }
+        .subtotal-row td {
+            color: #ffffff !important;
+            font-weight: 600;
+            border-color: #4a4a4a;
+        }
+        .info-table {
+            border: none;
+            background: #f5f5f5;
+            margin-bottom: 15pt;
+        }
+        .info-table td {
+            border: none;
+            padding: 10pt 12pt;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2pt 6pt;
+            border-radius: 2pt;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .badge-success {
+            background: #4caf50;
+            color: white;
+        }
+        .badge-warning {
+            background: #FFBE00;
+            color: #1a1a1a;
+        }
+        .badge-info {
+            background: #3a3a3a;
+            color: white;
+        }
+        .warning-box {
+            background: #fef9e7;
+            border-left: 4px solid #FFBE00;
+            padding: 12pt;
+            margin: 15pt 0;
+            font-size: 9pt;
+        }
+        .warning-box strong {
+            color: #1a1a1a;
+            display: block;
+            margin-bottom: 6pt;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        ul {
+            margin: 8pt 0;
+            padding-left: 18pt;
+        }
+        li {
+            margin-bottom: 5pt;
+        }
+        .footer {
+            margin-top: 25pt;
+            padding-top: 10pt;
+            border-top: 2px solid #FFBE00;
+            font-size: 8pt;
+            color: #4a4a4a;
+            text-align: center;
+        }
+        .footer strong {
+            color: #1a1a1a;
+        }
+        .clearfix::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+    </style>
 </head>
 <body>
     <div class="header clearfix">
         <div style="float: left;">
-            <h2 style="margin: 0; border: none; color: #9B6B9E;">CRM Starz Morocco</h2>
-            <p class="text-muted small" style="margin: 2pt 0;">Landed-Cost Calculator</p>
+            <h2>{{ 'app.company'|trans }}</h2>
+            <p>{{ 'pdf.estimate.calculator'|trans }}</p>
         </div>
         
         <div class="doc-info">
-            <strong>LANDED-COST ESTIMATE</strong>
-            Estimate #: EST-{{ estimate.id }}<br>
-            Date: {{ estimate.createdAt|date('Y-m-d') }}<br>
-            Incoterm: <span class="badge badge-info">{{ estimate.incoterm }}</span>
+            <strong>{{ 'pdf.estimate.landed_cost_estimate'|trans }}</strong>
+            {{ 'pdf.estimate.estimate_number'|trans }}: EST-{{ estimate.id }}<br>
+            {{ 'common.date'|trans }}: {{ estimate.createdAt|date('Y-m-d') }}<br>
+            {{ 'pdf.estimate.incoterm'|trans }}: <span class="badge badge-info">{{ estimate.incoterm }}</span>
         </div>
     </div>
     
-    <h1>Landed-Cost Estimate</h1>
+    <h1>{{ 'pdf.estimate.landed_cost_estimate'|trans }}</h1>
     
-    <table style="margin-bottom: 15pt; border: none;">
+    <table class="info-table">
         <tr>
-            <td style="width: 33%; border: none;">
-                <h4>Origin:</h4>
+            <td style="width: 33%;">
+                <h4>{{ 'pdf.estimate.origin'|trans }}:</h4>
                 <strong>{{ estimate.originCountry }}</strong><br>
-                Port: {{ estimate.originPort ?? 'CAS (Casablanca)' }}
+                {{ 'pdf.estimate.port'|trans }}: {{ estimate.originPort ?? 'CAS (Casablanca)' }}
             </td>
-            <td style="width: 33%; border: none;">
-                <h4>Destination:</h4>
+            <td style="width: 33%;">
+                <h4>{{ 'pdf.estimate.destination'|trans }}:</h4>
                 <strong>{{ estimate.destCountry }}</strong><br>
-                Port: {{ estimate.destPort ?? 'Auto-selected' }}
+                {{ 'pdf.estimate.port'|trans }}: {{ estimate.destPort ?? ('pdf.estimate.auto_selected'|trans) }}
             </td>
-            <td style="width: 34%; border: none;">
-                <h4>Shipment Details:</h4>
-                Weight: {{ estimate.weightKg|number_format(2) }} kg<br>
-                {% if estimate.volumeM3 %}Volume: {{ estimate.volumeM3|number_format(3) }} m³{% endif %}
+            <td style="width: 34%;">
+                <h4>{{ 'pdf.estimate.shipment_details'|trans }}:</h4>
+                {{ 'pdf.estimate.weight'|trans }}: {{ estimate.weightKg|number_format(2) }} kg<br>
+                {% if estimate.volumeM3 %}{{ 'pdf.estimate.volume'|trans }}: {{ estimate.volumeM3|number_format(3) }} m³{% endif %}
             </td>
         </tr>
     </table>
     
-    <h2>Cost Breakdown</h2>
+    <h2>{{ 'pdf.estimate.cost_breakdown'|trans }}</h2>
     
     <table>
         <thead>
             <tr>
-                <th style="width: 60%;">Description</th>
-                <th style="width: 20%;">Details</th>
-                <th style="width: 20%;">Amount (USD)</th>
+                <th style="width: 60%;">{{ 'common.description'|trans }}</th>
+                <th style="width: 20%;">{{ 'common.details'|trans }}</th>
+                <th style="width: 20%;">{{ 'pdf.estimate.amount_usd'|trans }}</th>
             </tr>
         </thead>
         <tbody>
             {# Goods Value #}
             <tr>
-                <td><strong>Goods Value (FOB)</strong></td>
+                <td><strong>{{ 'pdf.estimate.goods_value_fob'|trans }}</strong></td>
                 <td class="text-center">-</td>
                 <td class="text-right">${{ estimate.goodsValue|number_format(2) }}</td>
             </tr>
@@ -63,10 +246,10 @@
             {# Freight Cost #}
             {% if freightCost is defined and freightCost > 0 %}
             <tr>
-                <td>Freight Cost</td>
+                <td>{{ 'pdf.estimate.freight_cost'|trans }}</td>
                 <td class="text-center">
                     {{ freightMode ?? 'AIR' }}<br>
-                    <span class="small text-muted">{{ transitDays ?? 5 }} days</span>
+                    <span class="small text-muted">{{ transitDays ?? 5 }} {{ 'pdf.estimate.days'|trans }}</span>
                 </td>
                 <td class="text-right">${{ freightCost|number_format(2) }}</td>
             </tr>
@@ -75,7 +258,7 @@
             {# Insurance #}
             {% if insuranceCost is defined and insuranceCost > 0 %}
             <tr>
-                <td>Insurance (0.5% of CIF value)</td>
+                <td>{{ 'pdf.estimate.insurance'|trans }}</td>
                 <td class="text-center">-</td>
                 <td class="text-right">${{ insuranceCost|number_format(2) }}</td>
             </tr>
@@ -84,7 +267,7 @@
             {# CIF Value Subtotal #}
             {% if estimate.incoterm in ['CIF', 'DDP'] %}
             <tr class="subtotal-row">
-                <td colspan="2"><strong>CIF Value</strong></td>
+                <td colspan="2"><strong>{{ 'pdf.estimate.cif_value'|trans }}</strong></td>
                 <td class="text-right"><strong>${{ cifValue|number_format(2) }}</strong></td>
             </tr>
             {% endif %}
@@ -92,7 +275,7 @@
             {# Duty #}
             {% if dutyCost is defined and dutyCost > 0 %}
             <tr>
-                <td>Import Duty</td>
+                <td>{{ 'pdf.estimate.import_duty'|trans }}</td>
                 <td class="text-center">
                     {{ dutyRate|number_format(1) }}%<br>
                     {% if ftaApplied %}
@@ -108,7 +291,7 @@
             {# VAT/Tax #}
             {% if vatCost is defined and vatCost > 0 %}
             <tr>
-                <td>VAT / Sales Tax</td>
+                <td>{{ 'pdf.estimate.vat_tax'|trans }}</td>
                 <td class="text-center">{{ vatRate|number_format(1) }}%</td>
                 <td class="text-right">${{ vatCost|number_format(2) }}</td>
             </tr>
@@ -117,7 +300,7 @@
             {# Broker Fees #}
             {% if brokerFee is defined and brokerFee > 0 %}
             <tr>
-                <td>Customs Broker Fee</td>
+                <td>{{ 'pdf.estimate.broker_fee'|trans }}</td>
                 <td class="text-center">-</td>
                 <td class="text-right">${{ brokerFee|number_format(2) }}</td>
             </tr>
@@ -125,63 +308,63 @@
             
             {# Total Landed Cost #}
             <tr class="total-row">
-                <td colspan="2"><strong>TOTAL LANDED COST</strong></td>
-                <td class="text-right"><strong>${{ totals.total|number_format(2) }}</strong></td>
+                <td colspan="2">{{ 'pdf.estimate.total_landed_cost'|trans }}</td>
+                <td class="text-right">${{ totals.total|number_format(2) }}</td>
             </tr>
         </tbody>
     </table>
     
     {% if htsCode %}
-    <h2>HS Classification</h2>
+    <h2>{{ 'pdf.estimate.hs_classification'|trans }}</h2>
     <table>
         <tr>
-            <td style="width: 30%;"><strong>HTS Code:</strong></td>
+            <td style="width: 30%; background: #f5f5f5;"><strong>{{ 'pdf.estimate.hts_code'|trans }}:</strong></td>
             <td>{{ htsCode }}</td>
         </tr>
         <tr>
-            <td><strong>Description:</strong></td>
-            <td>{{ htsDescription ?? 'Electronic components, NEC' }}</td>
+            <td style="background: #f5f5f5;"><strong>{{ 'common.description'|trans }}:</strong></td>
+            <td>{{ htsDescription ?? ('pdf.estimate.electronic_components'|trans) }}</td>
         </tr>
         <tr>
-            <td><strong>Duty Type:</strong></td>
+            <td style="background: #f5f5f5;"><strong>{{ 'pdf.estimate.duty_type'|trans }}:</strong></td>
             <td>{{ dutyType ?? 'Ad Valorem' }}</td>
         </tr>
         <tr>
-            <td><strong>Trade Agreement:</strong></td>
+            <td style="background: #f5f5f5;"><strong>{{ 'pdf.estimate.trade_agreement'|trans }}:</strong></td>
             <td>
                 {% if ftaApplied %}
-                    {{ ftaName ?? 'Morocco-US FTA' }} (0% duty)
+                    {{ ftaName ?? 'Morocco-US FTA' }} (0% {{ 'pdf.estimate.duty'|trans|lower }})
                 {% else %}
-                    MFN (Most Favored Nation)
+                    MFN ({{ 'pdf.estimate.mfn_full'|trans }})
                 {% endif %}
             </td>
         </tr>
     </table>
     {% endif %}
     
-    <h2>Assumptions</h2>
+    <h2>{{ 'pdf.estimate.assumptions'|trans }}</h2>
     <ul>
-        <li><strong>Incoterm:</strong> {{ estimate.incoterm }} - {{ incoterms[estimate.incoterm].description ?? 'Standard delivery terms' }}</li>
-        <li><strong>Currency:</strong> All amounts are in USD. Exchange rate: 1 MAD = {{ fxRate|number_format(4) }} USD (as of {{ fxDate|date('Y-m-d') }})</li>
-        <li><strong>Freight Mode:</strong> {{ freightMode ?? 'AIR' }} - Estimated transit time: {{ transitDays ?? 5 }} days</li>
-        <li><strong>Insurance:</strong> 0.5% of CIF value (standard marine insurance)</li>
+        <li><strong>{{ 'pdf.estimate.incoterm'|trans }}:</strong> {{ estimate.incoterm }} - {{ incoterms[estimate.incoterm].description ?? ('pdf.estimate.standard_terms'|trans) }}</li>
+        <li><strong>{{ 'pdf.estimate.currency'|trans }}:</strong> {{ 'pdf.estimate.currency_note'|trans({'%rate%': fxRate|number_format(4), '%date%': fxDate|date('Y-m-d')}) }}</li>
+        <li><strong>{{ 'pdf.estimate.freight_mode'|trans }}:</strong> {{ freightMode ?? 'AIR' }} - {{ 'pdf.estimate.transit_time'|trans }}: {{ transitDays ?? 5 }} {{ 'pdf.estimate.days'|trans }}</li>
+        <li><strong>{{ 'pdf.estimate.insurance_label'|trans }}:</strong> {{ 'pdf.estimate.insurance_rate'|trans }}</li>
         {% if ftaApplied %}
-        <li><strong>FTA Eligibility:</strong> Products qualify for {{ ftaName ?? 'Morocco-US FTA' }} preferential duty rate</li>
+        <li><strong>{{ 'pdf.estimate.fta_eligibility'|trans }}:</strong> {{ 'pdf.estimate.fta_note'|trans({'%fta%': ftaName ?? 'Morocco-US FTA'}) }}</li>
         {% endif %}
     </ul>
     
     <div class="warning-box">
-        <strong>Important Notes:</strong><br>
-        • This estimate is for planning purposes only and not a binding quote.<br>
-        • Actual costs may vary based on current exchange rates, freight rates, and customs assessments.<br>
-        • FTA benefits require proper documentation (Certificate of Origin).<br>
-        • Additional fees may apply (terminal handling, port charges, etc.)
+        <strong>{{ 'pdf.estimate.important_notes'|trans }}:</strong>
+        • {{ 'pdf.estimate.note_planning'|trans }}<br>
+        • {{ 'pdf.estimate.note_actual_costs'|trans }}<br>
+        • {{ 'pdf.estimate.note_fta_docs'|trans }}<br>
+        • {{ 'pdf.estimate.note_additional_fees'|trans }}
     </div>
     
     <div class="footer">
         <p>
-            <strong>CRM Starz Morocco</strong> | Casablanca, Morocco<br>
-            Generated on {{ "now"|date('Y-m-d H:i:s') }}
+            <strong>{{ 'app.company'|trans }}</strong> | Casablanca, Morocco<br>
+            {{ 'pdf.generated_on'|trans }} {{ "now"|date('Y-m-d H:i:s') }}
         </p>
     </div>
 </body>

@@ -3,86 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quote Expired - Link Invalid</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <title>{{ 'quote.live.expired.title'|trans|default('Quote Expired - Link Invalid') }}</title>
+    <link rel="stylesheet" href="{{ asset('build/app.css') }}">
     <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        body { 
+            background: var(--rams-bg-tertiary, #f5f5f5); 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
         }
-        .expired-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 500px;
-            width: 90%;
-            text-align: center;
-            overflow: hidden;
-        }
-        .expired-header {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
-            padding: 40px 30px;
-            color: white;
-        }
-        .expired-icon {
-            font-size: 4rem;
-            margin-bottom: 15px;
-        }
-        .expired-body {
-            padding: 40px 30px;
-        }
-        .help-link {
-            color: #667eea;
-            text-decoration: none;
-        }
-        .help-link:hover {
-            text-decoration: underline;
-        }
+        .rams-expired-card { max-width: 500px; width: 90%; text-align: center; }
+        .rams-expired-icon { font-size: 4rem; margin-bottom: 1rem; }
     </style>
 </head>
 <body>
-    <div class="expired-card">
-        <div class="expired-header">
-            <div class="expired-icon">
-                <i class="bi bi-exclamation-triangle"></i>
-            </div>
-            <h2 class="mb-0">Quote Link Expired</h2>
+    <div class="rams-expired-card rams-module">
+        <div class="rams-module__header rams-module__header--danger">
+            <div class="rams-expired-icon">⚠️</div>
+            <h2 class="rams-heading rams-heading--2 rams-text--white">{{ 'quote.live.expired.heading'|trans|default('Quote Link Expired') }}</h2>
         </div>
         
-        <div class="expired-body">
-            <p class="lead text-muted mb-4">
-                {{ message|default('This quote link has expired or is no longer valid.') }}
+        <div class="rams-module__content">
+            <p class="rams-text rams-text--lg rams-text--muted rams-mb-lg">
+                {{ message|default('quote.live.expired.message'|trans|default('This quote link has expired or is no longer valid.')) }}
             </p>
             
-            <div class="bg-light rounded p-3 mb-4">
-                <p class="mb-2"><strong>What happened?</strong></p>
-                <ul class="list-unstyled text-muted text-start mb-0">
-                    <li><i class="bi bi-clock text-warning me-2"></i> The quote may have expired</li>
-                    <li><i class="bi bi-link-45deg text-info me-2"></i> The link may have been deactivated</li>
-                    <li><i class="bi bi-check-circle text-success me-2"></i> The quote may have been accepted</li>
-                </ul>
+            <div class="rams-module rams-module--nested rams-module--muted rams-mb-lg rams-text--left">
+                <div class="rams-module__content">
+                    <p class="rams-text rams-text--bold rams-mb-sm">{{ 'quote.live.expired.what_happened'|trans|default('What happened?') }}</p>
+                    <ul class="rams-list">
+                        <li class="rams-list__item">
+                            <span class="rams-text--warning">🕐</span> {{ 'quote.live.expired.reason_expired'|trans|default('The quote may have expired') }}
+                        </li>
+                        <li class="rams-list__item">
+                            <span class="rams-text--info">🔗</span> {{ 'quote.live.expired.reason_deactivated'|trans|default('The link may have been deactivated') }}
+                        </li>
+                        <li class="rams-list__item">
+                            <span class="rams-text--success">✓</span> {{ 'quote.live.expired.reason_accepted'|trans|default('The quote may have been accepted') }}
+                        </li>
+                    </ul>
+                </div>
             </div>
             
-            <p class="text-muted small mb-4">
-                If you believe this is an error or need an updated quote, 
-                please contact your sales representative.
+            <p class="rams-text rams-text--sm rams-text--muted rams-mb-lg">
+                {{ 'quote.live.expired.contact_hint'|trans|default('If you believe this is an error or need an updated quote, please contact your sales representative.') }}
             </p>
             
-            <div class="d-grid gap-2">
-                <a href="mailto:sales@yourcompany.com" class="btn btn-primary btn-lg">
-                    <i class="bi bi-envelope me-2"></i>Contact Sales
-                </a>
-            </div>
+            <a href="mailto:sales@starzcrm.com" class="rams-btn rams-btn--primary rams-btn--lg rams-btn--block">
+                ✉️ {{ 'quote.live.contact_sales'|trans|default('Contact Sales') }}
+            </a>
         </div>
         
-        <div class="border-top p-3 bg-light">
-            <small class="text-muted">
-                <i class="bi bi-shield-check me-1"></i>
-                Quote reference links are secured and expire for your protection.
+        <div class="rams-module__footer rams-module__footer--muted">
+            <small class="rams-text rams-text--sm rams-text--muted">
+                🔒 {{ 'quote.live.expired.security_note'|trans|default('Quote reference links are secured and expire for your protection.') }}
             </small>
         </div>
     </div>

@@ -1,68 +1,77 @@
+{# Email Webinar Followup Template - Sensei-Rams Industrial Functionalist Design System #}
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thank you for attending</title>
+    <title>{{ 'emails.webinar_followup.subject'|trans }}</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5; color: #1a1a1a;">
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
         <tr>
             <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; overflow: hidden;">
                     <!-- Header -->
                     <tr>
-                        <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Thank You!</h1>
+                        <td style="padding: 35px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
+                            <h1 style="margin: 0; color: #FFBE00; font-size: 28px; font-weight: 600; letter-spacing: -0.02em;">{{ 'emails.webinar_followup.greeting'|trans }}</h1>
+                            <p style="margin: 10px 0 0 0; color: #888888; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;">{{ 'app.company'|trans }}</p>
                         </td>
                     </tr>
 
                     <!-- Content -->
                     <tr>
                         <td style="padding: 40px;">
-                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
-                                Hi {{ attendee.name }},
+                            <p style="margin: 0 0 20px; color: #1a1a1a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.webinar_followup.hi'|trans }} {{ attendee.name }},
                             </p>
 
-                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
-                                Thank you for attending <strong>{{ webinar.title }}</strong> on {{ webinar.scheduledDate|date('F d, Y') }}.
+                            <p style="margin: 0 0 20px; color: #3a3a3a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.webinar_followup.thank_you_attending'|trans }} <strong>{{ webinar.title }}</strong> {{ 'emails.webinar_followup.on_date'|trans }} {{ webinar.scheduledDate|date('F d, Y') }}.
                             </p>
 
-                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
-                                We hope you found the session valuable and informative.
+                            <p style="margin: 0 0 25px; color: #3a3a3a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.webinar_followup.hope_valuable'|trans }}
                             </p>
 
                             {% if webinar.recordingUrl %}
-                            <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #667eea; border-radius: 4px;">
-                                <p style="margin: 0 0 10px; color: #333333; font-size: 14px; font-weight: 600;">
-                                    📹 Webinar Recording
-                                </p>
-                                <p style="margin: 0 0 10px; color: #666666; font-size: 14px; line-height: 1.5;">
-                                    In case you missed anything or want to review the content:
-                                </p>
-                                <a href="{{ webinar.recordingUrl }}" style="display: inline-block; margin-top: 10px; padding: 12px 24px; background-color: #667eea; color: #ffffff; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 600;">
-                                    Watch Recording
-                                </a>
-                            </div>
+                            <!-- Recording Section -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-left: 4px solid #FFBE00; margin: 25px 0;">
+                                <tr>
+                                    <td style="padding: 25px;">
+                                        <p style="margin: 0 0 10px; color: #1a1a1a; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                                            📹 {{ 'emails.webinar_followup.recording'|trans }}
+                                        </p>
+                                        <p style="margin: 0 0 15px; color: #4a4a4a; font-size: 14px; line-height: 1.5;">
+                                            {{ 'emails.webinar_followup.recording_description'|trans }}
+                                        </p>
+                                        <a href="{{ webinar.recordingUrl }}" style="display: inline-block; padding: 12px 28px; background-color: #FFBE00; color: #1a1a1a; text-decoration: none; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                                            {{ 'emails.webinar_followup.watch_recording'|trans }}
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
                             {% endif %}
 
-                            <p style="margin: 30px 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
-                                If you have any questions or would like to discuss how we can help your business, please don't hesitate to reach out.
+                            <p style="margin: 30px 0 20px; color: #3a3a3a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.webinar_followup.questions_help'|trans }}
                             </p>
 
-                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; line-height: 1.6;">
-                                Best regards,<br>
-                                <strong>{{ webinar.presenter|default('Starz Electronics Team') }}</strong>
+                            <p style="margin: 25px 0 0; color: #1a1a1a; font-size: 16px; line-height: 1.6;">
+                                {{ 'emails.common.best_regards'|trans }},<br>
+                                <strong>{{ webinar.presenter|default('emails.webinar_followup.default_presenter'|trans) }}</strong>
                             </p>
                         </td>
                     </tr>
 
                     <!-- Footer -->
                     <tr>
-                        <td style="padding: 30px 40px; background-color: #f8f9fa; border-top: 1px solid #e9ecef;">
-                            <p style="margin: 0; color: #666666; font-size: 13px; text-align: center; line-height: 1.5;">
-                                Starz Electronics<br>
-                                This email was sent to {{ attendee.email }}
+                        <td style="padding: 30px 40px; background-color: #1a1a1a; border-top: 4px solid #FFBE00;">
+                            <p style="margin: 0 0 10px; color: #ffffff; font-size: 14px; text-align: center; font-weight: 600;">
+                                {{ 'app.company'|trans }}
+                            </p>
+                            <p style="margin: 0; color: #5a5a5a; font-size: 12px; text-align: center; line-height: 1.5;">
+                                {{ 'emails.common.email_sent_to'|trans }} {{ attendee.email }}
                             </p>
                         </td>
                     </tr>

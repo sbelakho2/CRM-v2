@@ -1,73 +1,93 @@
-{% extends 'base.html.twig' %}
+{% extends 'base_login.html.twig' %}
 
-{% block title %}Login - STARZ Morocco CRM{% endblock %}
+{% block title %}{{ 'auth.login.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="min-h-screen flex items-center justify-center bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-        <div>
-            <h2 class="mt-6 text-center text-3xl font-bold text-neutral-900">
-                STARZ Morocco CRM
-            </h2>
-            <p class="mt-2 text-center text-sm text-neutral-600">
-                Sign in to your account
-            </p>
+<div class="rams-auth-module">
+    {# Logo Section #}
+    <div class="rams-auth-logo">
+        <div class="rams-auth-logo__symbol">▣</div>
+        <div class="rams-auth-logo__title">{{ 'app.name'|trans }}</div>
+        <div class="rams-auth-logo__subtitle">{{ 'auth.login.subtitle'|trans }}</div>
+    </div>
+    
+    {# Login Module #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <span class="rams-dymo">{{ 'auth.login.module_title'|trans }}</span>
         </div>
         
-        <form class="mt-8 space-y-6" action="{{ path('app_login') }}" method="post">
+        <div class="rams-module__content">
+            {# Error Alert #}
             {% if error %}
-                <div class="rounded-md bg-red-50 p-4">
-                    <div class="flex">
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">
-                                {{ error.messageKey|trans(error.messageData, 'security') }}
-                            </h3>
-                        </div>
+                <div class="rams-alert rams-alert--error rams-mb-4" role="alert">
+                    <svg class="rams-alert__icon" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <div class="rams-alert__content">
+                        {{ error.messageKey|trans(error.messageData, 'security') }}
                     </div>
                 </div>
             {% endif %}
-
-            <div class="rounded-md shadow-sm -space-y-px">
-                <div>
-                    <label for="email" class="sr-only">Email address</label>
-                    <input id="email" 
+            
+            <form action="{{ path('app_login') }}" method="post" class="rams-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+                
+                {# Email Field #}
+                <div class="rams-form__group">
+                    <label for="email" class="rams-form__label">{{ 'auth.email'|trans }}</label>
+                    <input type="email" 
+                           id="email" 
                            name="_username" 
-                           type="email" 
-                           autocomplete="email" 
-                           required 
-                           class="appearance-none rounded-t-md relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
-                           placeholder="Email address"
-                           value="{{ last_username }}">
+                           class="rams-form__input" 
+                           value="{{ last_username }}"
+                           autocomplete="email"
+                           required
+                           placeholder="{{ 'auth.email_placeholder'|trans }}"
+                           aria-describedby="email-hint">
+                    <span id="email-hint" class="rams-form__hint">{{ 'auth.email_hint'|trans }}</span>
                 </div>
-                <div>
-                    <label for="password" class="sr-only">Password</label>
-                    <input id="password" 
+                
+                {# Password Field #}
+                <div class="rams-form__group">
+                    <label for="password" class="rams-form__label">{{ 'auth.password'|trans }}</label>
+                    <input type="password" 
+                           id="password" 
                            name="_password" 
-                           type="password" 
-                           autocomplete="current-password" 
-                           required 
-                           class="appearance-none rounded-b-md relative block w-full px-3 py-2 border border-neutral-300 placeholder-neutral-500 text-neutral-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" 
-                           placeholder="Password">
+                           class="rams-form__input" 
+                           autocomplete="current-password"
+                           required
+                           placeholder="{{ 'auth.password_placeholder'|trans }}">
                 </div>
-            </div>
-
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
-
-            <div class="flex items-center justify-between">
-                <div class="text-sm">
-                    <a href="{{ path('app_forgot_password') }}" class="font-medium text-blue-600 hover:text-blue-500">
-                        Forgot your password?
-                    </a>
+                
+                {# Remember Me #}
+                <div class="rams-form__group">
+                    <label class="rams-form__checkbox">
+                        <input type="checkbox" name="_remember_me" class="rams-form__checkbox-input">
+                        <span class="rams-form__checkbox-label">{{ 'auth.remember_me'|trans }}</span>
+                    </label>
                 </div>
-            </div>
-
-            <div>
-                <button type="submit" 
-                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                    Sign in
-                </button>
-            </div>
-        </form>
+                
+                {# Submit Button #}
+                <div class="rams-form__group rams-mt-4">
+                    <button type="submit" class="rams-btn rams-btn--primary rams-btn--full">
+                        {{ 'auth.login.submit'|trans }}
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="rams-module__footer">
+            <a href="{{ path('app_forgot_password') }}" class="rams-link">{{ 'auth.forgot_password'|trans }}</a>
+        </div>
+    </div>
+    
+    {# System Status #}
+    <div class="rams-text-center rams-mt-4">
+        <div class="rams-andon">
+            <span class="rams-andon__light rams-andon__light--green"></span>
+            <span class="rams-andon__text rams-andon__text--muted">{{ 'status_bar.system_online'|trans }}</span>
+        </div>
     </div>
 </div>
 {% endblock %}

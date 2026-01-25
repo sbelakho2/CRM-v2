@@ -1,157 +1,120 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Create Drip Campaign{% endblock %}
+{% block title %}{{ 'email_campaign.drip.create'|trans }}{% endblock %}
 
 {% block body %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4>
-                    <i class="bi bi-droplet-fill"></i> Create Drip Campaign
-                </h4>
-                <a href="{{ path('app_email_campaign_index') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.drip.create'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.drip.create_subtitle'|trans|default('Build an automated email sequence') }}</p>
+            </div>
+            <div class="rams-page__actions">
+                <a href="{{ path('app_email_campaign_index') }}" class="rams-btn rams-btn--secondary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    {{ 'common.back'|trans }}
                 </a>
             </div>
         </div>
-    </div>
 
-    <div class="row">
-        <div class="col-lg-9">
-            <div class="card">
-                <div class="card-body">
-                    <form method="post" id="dripForm">
-                        {# Basic Info #}
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label for="campaignName" class="form-label">Campaign Name *</label>
-                                <input type="text" class="form-control" id="campaignName" name="name" required
-                                       placeholder="e.g., Welcome Series">
+        <div class="rams-layout rams-layout--sidebar-right">
+            {# Main Form #}
+            <div class="rams-layout__main">
+                <div class="rams-module">
+                    <div class="rams-module__content">
+                        <form method="post" id="dripForm">
+                            <div class="rams-form">
+                                {# Basic Info #}
+                                <div class="rams-form__row rams-form__row--2">
+                                    <div class="rams-form__group">
+                                        <label for="campaignName" class="rams-form__label rams-dymo">{{ 'email_campaign.campaign_name'|trans }} *</label>
+                                        <input type="text" class="rams-form__input" id="campaignName" name="name" required
+                                               placeholder="{{ 'email_campaign.drip.name_placeholder'|trans|default('e.g., Welcome Series') }}">
+                                    </div>
+                                    <div class="rams-form__group">
+                                        <label for="segment" class="rams-form__label rams-dymo">{{ 'email_campaign.drip.target_segment'|trans|default('Target Segment') }}</label>
+                                        <select class="rams-form__select" id="segment" name="segment_id">
+                                            <option value="">{{ 'email_campaign.drip.all_contacts'|trans|default('All Contacts') }}</option>
+                                            {% for segment in segments %}
+                                                <option value="{{ segment.id }}">{{ segment.name }} ({{ segment.contactCount }} {{ 'contact.title'|trans|lower }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="rams-form__group">
+                                    <label for="description" class="rams-form__label rams-dymo">{{ 'common.description'|trans }}</label>
+                                    <textarea class="rams-form__textarea" id="description" name="description" rows="2"
+                                              placeholder="{{ 'email_campaign.drip.description_placeholder'|trans|default('Describe the purpose of this drip campaign') }}"></textarea>
+                                </div>
+
+                                {# Drip Sequence Builder #}
+                                <div class="rams-form__group">
+                                    <div class="rams-form__header">
+                                        <label class="rams-form__label rams-dymo">{{ 'email_campaign.drip.sequence'|trans }} *</label>
+                                        <button type="button" class="rams-btn rams-btn--primary rams-btn--sm" id="addTouchBtn">
+                                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                            </svg>
+                                            {{ 'email_campaign.drip.add_touch'|trans|default('Add Touch') }}
+                                        </button>
+                                    </div>
+
+                                    <div id="touchesContainer" class="rams-drip-sequence">
+                                        {# Touches will be added here #}
+                                    </div>
+                                </div>
+
+                                <input type="hidden" name="sequence" id="sequenceInput">
                             </div>
-                            <div class="col-md-6">
-                                <label for="segment" class="form-label">Target Segment</label>
-                                <select class="form-select" id="segment" name="segment_id">
-                                    <option value="">All Contacts</option>
-                                    {% for segment in segments %}
-                                    <option value="{{ segment.id }}">{{ segment.name }} ({{ segment.contactCount }} contacts)</option>
-                                    {% endfor %}
-                                </select>
+
+                            <div class="rams-module__footer">
+                                <div class="rams-btn-group">
+                                    <a href="{{ path('app_email_campaign_index') }}" class="rams-btn rams-btn--secondary">
+                                        {{ 'common.cancel'|trans }}
+                                    </a>
+                                    <button type="submit" class="rams-btn rams-btn--success">
+                                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                        {{ 'email_campaign.drip.create'|trans }}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="2"
-                                      placeholder="Describe the purpose of this drip campaign"></textarea>
-                        </div>
-
-                        {# Drip Sequence Builder #}
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <label class="form-label mb-0">Email Sequence *</label>
-                                <button type="button" class="btn btn-primary btn-sm" id="addTouchBtn">
-                                    <i class="bi bi-plus-circle"></i> Add Touch
-                                </button>
-                            </div>
-
-                            <div id="touchesContainer" class="drip-sequence">
-                                {# Touches will be added here #}
-                            </div>
-                        </div>
-
-                        <input type="hidden" name="sequence" id="sequenceInput">
-
-                        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
-                            <a href="{{ path('app_email_campaign_index') }}" class="btn btn-outline-secondary">
-                                Cancel
-                            </a>
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-check-circle"></i> Create Drip Campaign
-                            </button>
-                        </div>
-                    </form>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-lg-3">
-            <div class="card bg-light border-0">
-                <div class="card-body">
-                    <h6 class="mb-3">
-                        <i class="bi bi-info-circle-fill text-info"></i> Drip Campaigns
-                    </h6>
-                    <p class="small">Drip campaigns automatically send a series of emails over time to nurture leads and engage customers.</p>
-                    
-                    <hr>
-                    
-                    <h6 class="small fw-bold">Tips:</h6>
-                    <ul class="small mb-0">
-                        <li>Start with 3-5 touches</li>
-                        <li>Space emails 1-3 days apart</li>
-                        <li>Provide value in each email</li>
-                        <li>Use conditional logic for engagement</li>
-                    </ul>
+            {# Sidebar #}
+            <div class="rams-layout__sidebar">
+                <div class="rams-module rams-module--info">
+                    <div class="rams-module__header">
+                        <h3 class="rams-module__title">{{ 'email_campaign.drip.about'|trans|default('Drip Campaigns') }}</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <p class="rams-module__description">{{ 'email_campaign.drip.about_text'|trans|default('Drip campaigns automatically send a series of emails over time to nurture leads and engage customers.') }}</p>
+                        
+                        <div class="rams-divider"></div>
+                        
+                        <span class="rams-dymo">{{ 'email_campaign.drip.tips_title'|trans|default('Tips') }}:</span>
+                        <ul class="rams-list rams-list--compact">
+                            <li>{{ 'email_campaign.drip.tip_1'|trans|default('Start with 3-5 touches') }}</li>
+                            <li>{{ 'email_campaign.drip.tip_2'|trans|default('Space emails 1-3 days apart') }}</li>
+                            <li>{{ 'email_campaign.drip.tip_3'|trans|default('Provide value in each email') }}</li>
+                            <li>{{ 'email_campaign.drip.tip_4'|trans|default('Use conditional logic for engagement') }}</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.drip-sequence {
-    position: relative;
-    padding-left: 40px;
-}
-
-.drip-sequence::before {
-    content: '';
-    position: absolute;
-    left: 19px;
-    top: 30px;
-    bottom: 30px;
-    width: 2px;
-    background: linear-gradient(to bottom, #0d6efd 0%, #0d6efd 100%);
-    background-size: 2px 20px;
-}
-
-.touch-item {
-    position: relative;
-    background: white;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-.touch-number {
-    position: absolute;
-    left: -40px;
-    top: 20px;
-    width: 38px;
-    height: 38px;
-    background: #0d6efd;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 16px;
-}
-
-.touch-remove-btn {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-}
-
-.delay-input-group {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-</style>
 
 <script>
 let touchCount = 0;
@@ -162,19 +125,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const touchesContainer = document.getElementById('touchesContainer');
     const dripForm = document.getElementById('dripForm');
 
-    // Add initial touch
+    // Add initial touches
     addTouch();
     addTouch();
 
-    // Add touch button
     addTouchBtn.addEventListener('click', addTouch);
 
-    // Form submit
     dripForm.addEventListener('submit', function(e) {
         const sequence = buildSequence();
         if (sequence.length < 2) {
             e.preventDefault();
-            alert('Please add at least 2 email touches');
+            alert('{{ 'email_campaign.drip.min_touches_error'|trans|default('Please add at least 2 email touches') }}');
             return;
         }
         document.getElementById('sequenceInput').value = JSON.stringify(sequence);
@@ -187,35 +148,47 @@ function addTouch() {
     const touchesContainer = document.getElementById('touchesContainer');
     
     const touchDiv = document.createElement('div');
-    touchDiv.className = 'touch-item';
+    touchDiv.className = 'rams-drip-touch';
     touchDiv.dataset.touchNum = touchNum;
     
     touchDiv.innerHTML = `
-        <div class="touch-number">${touchNum}</div>
-        
-        ${touchNum > 1 ? `<button type="button" class="btn btn-sm btn-outline-danger touch-remove-btn" onclick="removeTouch(${touchNum})">
-            <i class="bi bi-trash"></i>
-        </button>` : ''}
-        
-        ${touchNum > 1 ? `<div class="mb-3">
-            <label class="form-label small">Delay after previous email</label>
-            <div class="delay-input-group">
-                <input type="number" class="form-control form-control-sm" data-role="delay-value" value="1" min="1" style="width: 80px;">
-                <select class="form-select form-select-sm" data-role="delay-unit" style="width: 120px;">
-                    <option value="hours">hours</option>
-                    <option value="days" selected>days</option>
-                    <option value="weeks">weeks</option>
+        <div class="rams-drip-touch__number">
+            <span class="rams-badge rams-badge--info rams-badge--circle">${touchNum}</span>
+        </div>
+        <div class="rams-drip-touch__content">
+            ${touchNum > 1 ? `
+                <button type="button" class="rams-btn rams-btn--ghost rams-btn--sm rams-drip-touch__remove" onclick="removeTouch(${touchNum})">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
+            ` : ''}
+            
+            ${touchNum > 1 ? `
+                <div class="rams-form__group rams-drip-touch__delay">
+                    <label class="rams-form__label rams-dymo">{{ 'email_campaign.drip.delay'|trans }}</label>
+                    <div class="rams-input-group">
+                        <input type="number" class="rams-form__input" name="delay_${touchNum}" value="${touchNum === 2 ? 3 : (touchNum - 1) * 3}" min="1" max="30">
+                        <select class="rams-form__select" name="delay_unit_${touchNum}">
+                            <option value="days">{{ 'common.days'|trans|default('days') }}</option>
+                            <option value="hours">{{ 'common.hours'|trans|default('hours') }}</option>
+                        </select>
+                    </div>
+                </div>
+            ` : ''}
+            
+            <div class="rams-form__group">
+                <label class="rams-form__label rams-dymo">{{ 'email_campaign.template'|trans }}</label>
+                <select class="rams-form__select" name="template_${touchNum}">
+                    <option value="">{{ 'email_campaign.drip.select_template'|trans|default('Select template...') }}</option>
+                    ${templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
                 </select>
-                <span class="text-muted small">after previous email</span>
             </div>
-        </div>` : '<div class="mb-3"><div class="alert alert-info alert-sm mb-0"><i class="bi bi-info-circle"></i> Sent immediately when contact is enrolled</div></div>'}
-        
-        <div class="mb-2">
-            <label class="form-label small">Select Email Template</label>
-            <select class="form-select form-select-sm" data-role="template" required>
-                <option value="">Choose template...</option>
-                ${generateTemplateOptions()}
-            </select>
+            
+            <div class="rams-form__group">
+                <label class="rams-form__label rams-dymo">{{ 'email_campaign.subject'|trans }}</label>
+                <input type="text" class="rams-form__input" name="subject_${touchNum}" placeholder="{{ 'email_campaign.drip.subject_placeholder'|trans|default('Email subject for this touch') }}">
+            </div>
         </div>
     `;
     
@@ -224,44 +197,28 @@ function addTouch() {
 
 function removeTouch(touchNum) {
     const touchDiv = document.querySelector(`[data-touch-num="${touchNum}"]`);
-    if (touchDiv && touchCount > 2) {
-        touchDiv.remove();
-        renumberTouches();
-    } else {
-        alert('Drip campaign must have at least 2 touches');
-    }
+    touchDiv.remove();
+    renumberTouches();
 }
 
 function renumberTouches() {
-    const touches = document.querySelectorAll('.touch-item');
+    const touches = document.querySelectorAll('.rams-drip-touch');
     touches.forEach((touch, index) => {
-        const newNum = index + 1;
-        touch.dataset.touchNum = newNum;
-        touch.querySelector('.touch-number').textContent = newNum;
+        const num = index + 1;
+        touch.dataset.touchNum = num;
+        touch.querySelector('.rams-badge').textContent = num;
     });
-    touchCount = touches.length;
 }
 
 function buildSequence() {
-    const sequence = [];
-    document.querySelectorAll('.touch-item').forEach(touchDiv => {
-        const templateId = touchDiv.querySelector('[data-role="template"]')?.value;
-        const delayValue = touchDiv.querySelector('[data-role="delay-value"]')?.value || 0;
-        const delayUnit = touchDiv.querySelector('[data-role="delay-unit"]')?.value || 'days';
-        
-        if (templateId) {
-            sequence.push({
-                template_id: parseInt(templateId),
-                delay_value: parseInt(delayValue),
-                delay_unit: delayUnit
-            });
-        }
-    });
-    return sequence;
-}
-
-function generateTemplateOptions() {
-    return templates.map(t => `<option value="${t.id}">${t.name} - ${t.subjectLine}</option>`).join('');
+    const touches = document.querySelectorAll('.rams-drip-touch');
+    return Array.from(touches).map((touch, index) => ({
+        touchNumber: index + 1,
+        delay: touch.querySelector(`[name^="delay_"]`)?.value || 0,
+        delayUnit: touch.querySelector(`[name^="delay_unit_"]`)?.value || 'days',
+        templateId: touch.querySelector(`[name^="template_"]`)?.value || '',
+        subject: touch.querySelector(`[name^="subject_"]`)?.value || ''
+    }));
 }
 </script>
 {% endblock %}

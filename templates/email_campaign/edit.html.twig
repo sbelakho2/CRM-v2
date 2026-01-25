@@ -1,74 +1,87 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Edit {{ campaign.name }}{% endblock %}
+{% block title %}{{ 'email_campaign.edit_campaign'|trans }} - {{ campaign.name }}{% endblock %}
 
 {% block body %}
-<div class="p-8 max-w-2xl">
-    <div class="mb-8">
-        <div class="flex items-center gap-3 text-sm text-zinc-400 mb-4">
-            <a href="{{ path('app_email_campaign_index') }}" class="hover:text-white transition-colors">Email Campaigns</a>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 4l4 4-4 4"/>
-            </svg>
-            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="hover:text-white transition-colors">{{ campaign.name }}</a>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 4l4 4-4 4"/>
-            </svg>
-            <span class="text-white">Edit</span>
-        </div>
-        <h1 class="text-2xl font-semibold text-white mb-2">Edit Campaign</h1>
-        <p class="text-sm text-zinc-400">Update campaign settings</p>
-    </div>
-
-    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-        {{ form_start(form) }}
+<div class="rams-page">
+    <div class="rams-page__container rams-page__container--narrow">
         
-        <div class="space-y-6">
-            <div>
-                {{ form_label(form.name, null, {'label_attr': {'class': 'block text-sm font-medium text-zinc-300 mb-2'}}) }}
-                {{ form_widget(form.name) }}
-                {{ form_errors(form.name) }}
-            </div>
+        {# Breadcrumb #}
+        <nav class="rams-breadcrumb">
+            <ol class="rams-breadcrumb__list">
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_index') }}" class="rams-breadcrumb__link">{{ 'email_campaign.title'|trans }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-breadcrumb__link">{{ campaign.name }}</a></li>
+                <li class="rams-breadcrumb__separator">/</li>
+                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'common.edit'|trans }}</li>
+            </ol>
+        </nav>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    {{ form_label(form.language, null, {'label_attr': {'class': 'block text-sm font-medium text-zinc-300 mb-2'}}) }}
-                    {{ form_widget(form.language) }}
-                    {{ form_errors(form.language) }}
-                </div>
-
-                <div>
-                    {{ form_label(form.touchCount, null, {'label_attr': {'class': 'block text-sm font-medium text-zinc-300 mb-2'}}) }}
-                    {{ form_widget(form.touchCount) }}
-                    {{ form_errors(form.touchCount) }}
-                </div>
-            </div>
-
-            <div>
-                {{ form_label(form.description, null, {'label_attr': {'class': 'block text-sm font-medium text-zinc-300 mb-2'}}) }}
-                {{ form_widget(form.description) }}
-                {{ form_errors(form.description) }}
-            </div>
-
-            <div class="flex items-center gap-2">
-                {{ form_widget(form.active, {'attr': {'class': 'w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-900'}}) }}
-                {{ form_label(form.active, null, {'label_attr': {'class': 'text-sm text-zinc-300'}}) }}
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.edit_campaign'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.update_settings'|trans|default('Update campaign settings') }}</p>
             </div>
         </div>
 
-        <div class="flex items-center gap-3 mt-8 pt-6 border-t border-zinc-800">
-            <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
-                Save Changes
-            </button>
-            <a href="{{ path('app_email_campaign_show', {id: emailCampaign.id}) }}" class="inline-flex items-center gap-2 px-5 py-2.5 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
-                Cancel
-            </a>
-        </div>
+        {# Form #}
+        <div class="rams-module">
+            <div class="rams-module__content">
+                {{ form_start(form) }}
+                
+                <div class="rams-form">
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'email_campaign.campaign_name'|trans }}</label>
+                        {{ form_widget(form.name, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.name) }}
+                    </div>
 
-        {{ form_end(form) }}
+                    <div class="rams-form__row rams-form__row--2">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.language'|trans }}</label>
+                            {{ form_widget(form.language, {'attr': {'class': 'rams-form__select'}}) }}
+                            {{ form_errors(form.language) }}
+                        </div>
+
+                        <div class="rams-form__group">
+                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.touch_count'|trans|default('Touch Count') }}</label>
+                            {{ form_widget(form.touchCount, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.touchCount) }}
+                        </div>
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'common.description'|trans }}</label>
+                        {{ form_widget(form.description, {'attr': {'class': 'rams-form__textarea'}}) }}
+                        {{ form_errors(form.description) }}
+                    </div>
+
+                    <div class="rams-form__group rams-form__group--checkbox">
+                        {{ form_widget(form.active, {'attr': {'class': 'rams-form__checkbox'}}) }}
+                        <label class="rams-form__label rams-form__label--inline">{{ 'common.active'|trans }}</label>
+                    </div>
+                </div>
+
+                <div class="rams-module__footer">
+                    <div class="rams-btn-group">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            {{ 'common.save'|trans }}
+                        </button>
+                        <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn rams-btn--secondary">
+                            {{ 'common.cancel'|trans }}
+                        </a>
+                    </div>
+                </div>
+
+                {{ form_end(form) }}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

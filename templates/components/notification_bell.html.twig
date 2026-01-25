@@ -1,12 +1,12 @@
-{# Notification Bell Component - Added to sidebar nav #}
+{# Notification Bell Component - Sensei-Rams Industrial Design #}
 
 {# Notification Bell Button #}
 <button 
     id="notification-bell"
     type="button"
     class="sidebar-nav-link notification-bell-button"
-    aria-label="Notifications"
-    title="Notifications"
+    aria-label="{{ 'notifications.title'|trans|default('Notifications') }}"
+    title="{{ 'notifications.title'|trans|default('Notifications') }}"
     style="width: 100%; justify-content: flex-start; position: relative;"
 >
     {# Bell Icon #}
@@ -14,12 +14,12 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
     </svg>
     
-    <span style="flex: 1;">Notifications</span>
+    <span style="flex: 1;">{{ 'notifications.title'|trans|default('Notifications') }}</span>
 
     {# Unread Badge #}
     <span 
         id="notification-badge"
-        class="notification-badge-sidebar hidden"
+        class="rams-badge rams-badge--danger notification-badge-sidebar hidden"
     >
         <span id="notification-count">0</span>
     </span>
@@ -30,48 +30,48 @@
     id="notification-modal"
     class="notification-modal-sidebar hidden"
 >
-            {# Modal Header #}
-            <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
-                <h3 class="text-sm font-semibold text-neutral-900">Notifications</h3>
-                <button 
-                    type="button"
-                    id="notification-close"
-                    class="text-neutral-400 hover:text-neutral-600"
-                    aria-label="Close"
-                >
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-            </div>
+    {# Modal Header #}
+    <div class="rams-module__header flex items-center justify-between px-4 py-3">
+        <h3 class="rams-module__title text-sm">{{ 'notifications.title'|trans|default('Notifications') }}</h3>
+        <button 
+            type="button"
+            id="notification-close"
+            class="rams-btn rams-btn--ghost rams-btn--sm"
+            aria-label="{{ 'common.close'|trans }}"
+        >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+        </button>
+    </div>
 
-            {# Modal Content (Scrollable) #}
-            <div id="notification-list" class="flex-1 overflow-y-auto">
-                {# Notifications will be populated here by JavaScript #}
-                <div class="px-4 py-8 text-center text-neutral-500">
-                    <p class="text-sm">No notifications</p>
-                </div>
-            </div>
+    {# Modal Content (Scrollable) #}
+    <div id="notification-list" class="rams-module__content flex-1 overflow-y-auto">
+        {# Notifications will be populated here by JavaScript #}
+        <div class="px-4 py-8 text-center">
+            <p class="rams-dymo">{{ 'notifications.no_notifications'|trans|default('No notifications') }}</p>
+        </div>
+    </div>
 
-            {# Modal Footer #}
-            <div class="px-4 py-3 border-t border-neutral-200 flex items-center justify-between bg-neutral-50">
-                <button 
-                    type="button"
-                    id="notification-mark-all"
-                    class="text-xs text-neutral-600 hover:text-neutral-900 font-medium"
-                >
-                    Mark all as read
-                </button>
-                <a 
-                    href="#" 
-                    class="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                >
-                    View all
-                </a>
-            </div>
+    {# Modal Footer #}
+    <div class="rams-module__footer px-4 py-3 flex items-center justify-between">
+        <button 
+            type="button"
+            id="notification-mark-all"
+            class="rams-btn rams-btn--ghost rams-btn--sm"
+        >
+            {{ 'notifications.mark_all_read'|trans|default('Mark all as read') }}
+        </button>
+        <a 
+            href="#" 
+            class="rams-btn rams-btn--ghost rams-btn--sm"
+        >
+            {{ 'common.view'|trans }} {{ 'common.all'|trans }}
+        </a>
+    </div>
 </div>
 
-{# Styles (add to your CSS file) #}
+{# Styles #}
 <style>
     /* Notification Bell Button */
     .notification-bell-button {
@@ -86,14 +86,9 @@
         min-width: 20px;
         height: 20px;
         padding: 0 6px;
-        background-color: #DC2626;
-        color: white;
-        border-radius: 10px;
-        font-size: 11px;
-        font-weight: 600;
     }
     
-    /* Modal positioned from sidebar */
+    /* Modal positioned from sidebar - Sensei-Rams Module Style */
     .notification-modal-sidebar {
         position: fixed;
         left: calc(var(--sidebar-width) + 10px);
@@ -101,9 +96,9 @@
         width: 400px;
         max-width: calc(100vw - var(--sidebar-width) - 30px);
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 40px rgba(44, 36, 22, 0.15);
-        border: 1px solid var(--claude-border);
+        border-radius: 8px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        border: 1px solid var(--rams-border, #e5e5e5);
         z-index: 1000;
         max-height: 500px;
         display: flex;
@@ -132,13 +127,13 @@
     /* Notification Item */
     .notification-item {
         padding: 12px 16px;
-        border-bottom: 1px solid #f3f4f6;
+        border-bottom: 1px solid var(--rams-border, #e5e5e5);
         cursor: pointer;
         transition: background-color 0.2s ease;
     }
 
     .notification-item:hover {
-        background-color: #f9fafb;
+        background-color: var(--rams-surface-hover, #f5f5f5);
     }
 
     .notification-item.read {
@@ -163,19 +158,18 @@
     .notification-message {
         font-size: 14px;
         font-weight: 500;
-        color: #111827;
         margin: 0 0 4px 0;
     }
 
     .notification-timestamp {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--rams-text-muted, #6b7280);
     }
 
     .notification-unread-indicator {
         width: 8px;
         height: 8px;
-        background-color: #3b82f6;
+        background-color: var(--rams-primary, #3b82f6);
         border-radius: 50%;
         flex-shrink: 0;
     }
@@ -186,7 +180,7 @@
         top: 20px;
         right: 20px;
         background-color: white;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--rams-border, #e5e5e5);
         border-radius: 8px;
         padding: 16px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
@@ -235,13 +229,12 @@
 
     .toast-title {
         font-weight: 600;
-        color: #111827;
         font-size: 14px;
     }
 
     .toast-message {
         font-size: 13px;
-        color: #4b5563;
+        color: var(--rams-text-muted, #6b7280);
         margin-left: 36px;
     }
 

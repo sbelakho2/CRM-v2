@@ -1,235 +1,193 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Choose Audience - {{ campaign.name }}{% endblock %}
+{% block title %}{{ 'email_campaign.wizard.segment.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            {# Wizard Progress #}
-            <div class="card mb-4">
-                <div class="card-body">
-                    <div class="wizard-progress">
-                        <div class="wizard-step completed">
-                            <div class="step-number">1</div>
-                            <div class="step-label">Basic Info</div>
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Wizard Progress #}
+        <div class="rams-wizard-progress">
+            <div class="rams-wizard-step rams-wizard-step--complete">
+                <span class="rams-wizard-step__number">1</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.template.title'|trans }}</span>
+            </div>
+            <div class="rams-wizard-step__connector rams-wizard-step__connector--complete"></div>
+            <div class="rams-wizard-step rams-wizard-step--complete">
+                <span class="rams-wizard-step__number">2</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.content'|trans|default('Content') }}</span>
+            </div>
+            <div class="rams-wizard-step__connector rams-wizard-step__connector--complete"></div>
+            <div class="rams-wizard-step rams-wizard-step--active">
+                <span class="rams-wizard-step__number">3</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.segment.title'|trans }}</span>
+            </div>
+            <div class="rams-wizard-step__connector"></div>
+            <div class="rams-wizard-step">
+                <span class="rams-wizard-step__number">4</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.schedule.title'|trans }}</span>
+            </div>
+            <div class="rams-wizard-step__connector"></div>
+            <div class="rams-wizard-step">
+                <span class="rams-wizard-step__number">5</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.review.title'|trans }}</span>
+            </div>
+        </div>
+
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.wizard.segment.title'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.wizard.segment.subtitle'|trans|default('Choose which contacts will receive this campaign') }}</p>
+            </div>
+        </div>
+
+        <div class="rams-layout rams-layout--sidebar-right">
+            {# Main Content #}
+            <div class="rams-layout__main">
+                <form method="post" action="{{ path('app_email_campaign_wizard_segment', {id: campaign.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('wizard_segment') }}">
+
+                    {# Segment Selection #}
+                    <div class="rams-module">
+                        <div class="rams-module__header">
+                            <h2 class="rams-module__title">{{ 'email_campaign.wizard.segment.select'|trans|default('Select Audience') }}</h2>
                         </div>
-                        <div class="wizard-connector"></div>
-                        <div class="wizard-step completed">
-                            <div class="step-number">2</div>
-                            <div class="step-label">Template</div>
-                        </div>
-                        <div class="wizard-connector"></div>
-                        <div class="wizard-step active">
-                            <div class="step-number">3</div>
-                            <div class="step-label">Audience</div>
-                        </div>
-                        <div class="wizard-connector"></div>
-                        <div class="wizard-step">
-                            <div class="step-number">4</div>
-                            <div class="step-label">Schedule</div>
-                        </div>
-                        <div class="wizard-connector"></div>
-                        <div class="wizard-step">
-                            <div class="step-number">5</div>
-                            <div class="step-label">Review</div>
+                        <div class="rams-module__content">
+                            <div class="rams-segment-options">
+                                {# All Contacts Option #}
+                                <label class="rams-segment-option">
+                                    <input type="radio" name="segment_type" value="all" {{ (campaign.segmentId is null) ? 'checked' : '' }}>
+                                    <div class="rams-segment-option__content">
+                                        <svg class="rams-segment-option__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                        </svg>
+                                        <div class="rams-segment-option__text">
+                                            <h3 class="rams-segment-option__title">{{ 'email_campaign.wizard.segment.all_contacts'|trans|default('All Contacts') }}</h3>
+                                            <p class="rams-segment-option__description">{{ 'email_campaign.wizard.segment.all_contacts_desc'|trans|default('Send to all contacts in your database') }}</p>
+                                        </div>
+                                        <span class="rams-badge rams-badge--info">{{ totalContacts|number_format }} {{ 'contact.title'|trans|lower }}</span>
+                                    </div>
+                                </label>
+
+                                {# Existing Segment Option #}
+                                <label class="rams-segment-option">
+                                    <input type="radio" name="segment_type" value="segment" {{ (campaign.segmentId is not null) ? 'checked' : '' }}>
+                                    <div class="rams-segment-option__content">
+                                        <svg class="rams-segment-option__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                        </svg>
+                                        <div class="rams-segment-option__text">
+                                            <h3 class="rams-segment-option__title">{{ 'email_campaign.wizard.segment.use_segment'|trans|default('Use Existing Segment') }}</h3>
+                                            <p class="rams-segment-option__description">{{ 'email_campaign.wizard.segment.use_segment_desc'|trans|default('Select a pre-defined segment') }}</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            {# Segment Selection Grid #}
+                            <div id="segmentSelector" class="rams-segment-grid" style="{{ (campaign.segmentId is null) ? 'display: none;' : '' }}">
+                                {% for segment in segments %}
+                                    <label class="rams-segment-card">
+                                        <input type="radio" name="segment_id" value="{{ segment.id }}" {{ (campaign.segmentId == segment.id) ? 'checked' : '' }}>
+                                        <div class="rams-segment-card__content">
+                                            <h4 class="rams-segment-card__title">{{ segment.name }}</h4>
+                                            {% if segment.description %}
+                                                <p class="rams-segment-card__description">{{ segment.description }}</p>
+                                            {% endif %}
+                                            <div class="rams-segment-card__meta">
+                                                <span class="rams-metric rams-metric--sm">
+                                                    <span class="rams-metric__value">{{ segment.contactCount|number_format }}</span>
+                                                    <span class="rams-metric__label">{{ 'contact.title'|trans|lower }}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                {% else %}
+                                    <div class="rams-andon rams-andon--warning">
+                                        {{ 'email_campaign.wizard.segment.no_segments'|trans|default('No segments created yet.') }}
+                                        <a href="{{ path('app_email_campaign_segment_builder') }}" class="rams-link">{{ 'email_campaign.wizard.segment.create_segment'|trans|default('Create a segment') }}</a>
+                                    </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
-                </div>
+
+                    {# Exclusions #}
+                    <div class="rams-module">
+                        <div class="rams-module__header">
+                            <h2 class="rams-module__title">{{ 'email_campaign.wizard.segment.exclusions'|trans|default('Exclusions') }}</h2>
+                        </div>
+                        <div class="rams-module__content">
+                            <div class="rams-form__group">
+                                <label class="rams-form__checkbox">
+                                    <input type="checkbox" name="exclude_bounced" checked>
+                                    <span class="rams-form__checkbox-label">{{ 'email_campaign.wizard.segment.exclude_bounced'|trans|default('Exclude bounced emails') }}</span>
+                                </label>
+                            </div>
+                            <div class="rams-form__group">
+                                <label class="rams-form__checkbox">
+                                    <input type="checkbox" name="exclude_unsubscribed" checked>
+                                    <span class="rams-form__checkbox-label">{{ 'email_campaign.wizard.segment.exclude_unsubscribed'|trans|default('Exclude unsubscribed contacts') }}</span>
+                                </label>
+                            </div>
+                            <div class="rams-form__group">
+                                <label class="rams-form__checkbox">
+                                    <input type="checkbox" name="exclude_recent" checked>
+                                    <span class="rams-form__checkbox-label">{{ 'email_campaign.wizard.segment.exclude_recent'|trans|default('Exclude contacts emailed in the last 7 days') }}</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Navigation #}
+                    <div class="rams-wizard-nav">
+                        <a href="{{ path('app_email_campaign_wizard_template', {id: campaign.id}) }}" class="rams-btn rams-btn--secondary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                            {{ 'common.back'|trans }}
+                        </a>
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            {{ 'common.next'|trans }}
+                            <svg class="rams-btn__icon rams-btn__icon--right" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
             </div>
 
-            {# Segment Selection #}
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Choose Your Audience</h5>
-                </div>
-                <div class="card-body">
-                    <form method="post">
-                        <div class="row">
-                            {# Create New Segment Option #}
-                            <div class="col-md-6 col-lg-4 mb-4">
-                                <label class="segment-card create-new">
-                                    <input type="radio" name="segment_id" value="new" required>
-                                    <div class="segment-preview">
-                                        <div class="create-new-icon">
-                                            <i class="bi bi-funnel" style="font-size: 48px;"></i>
-                                        </div>
-                                        <h6 class="mt-3">Build Custom Segment</h6>
-                                        <p class="text-muted small">Filter contacts by criteria</p>
-                                    </div>
-                                </label>
-                            </div>
-
-                            {# Existing Segments #}
-                            {% for segment in segments %}
-                            <div class="col-md-6 col-lg-4 mb-4">
-                                <label class="segment-card">
-                                    <input type="radio" name="segment_id" value="{{ segment.id }}" required>
-                                    <div class="segment-info p-4">
-                                        <div class="d-flex align-items-start justify-content-between mb-3">
-                                            <div>
-                                                <h6 class="mb-1">{{ segment.name }}</h6>
-                                                <p class="text-muted small mb-0">{{ segment.description }}</p>
-                                            </div>
-                                            <i class="bi bi-people-fill text-primary" style="font-size: 24px;"></i>
-                                        </div>
-                                        
-                                        <div class="segment-stats">
-                                            <div class="stat-item">
-                                                <div class="stat-value">{{ segment.contactCount|number_format }}</div>
-                                                <div class="stat-label">Contacts</div>
-                                            </div>
-                                        </div>
-
-                                        {% if segment.lastCalculatedAt %}
-                                        <div class="text-muted small mt-3">
-                                            <i class="bi bi-clock"></i> Updated {{ segment.lastCalculatedAt|date('M d, Y') }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        {% if segments is empty %}
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> No saved segments yet. Create your first segment to get started!
-                        </div>
-                        {% endif %}
-
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ path('app_email_campaign_wizard_template', {id: campaign.id}) }}" class="btn btn-outline-secondary">
-                                <i class="bi bi-arrow-left"></i> Back
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                Continue <i class="bi bi-arrow-right"></i>
-                            </button>
-                        </div>
-                    </form>
+            {# Sidebar #}
+            <div class="rams-layout__sidebar">
+                {# Campaign Summary #}
+                <div class="rams-module">
+                    <div class="rams-module__header">
+                        <h3 class="rams-module__title">{{ 'email_campaign.wizard.summary'|trans|default('Campaign Summary') }}</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <dl class="rams-definition-list">
+                            <dt class="rams-dymo">{{ 'email_campaign.campaign_name'|trans }}</dt>
+                            <dd>{{ campaign.name }}</dd>
+                            
+                            <dt class="rams-dymo">{{ 'email_campaign.subject'|trans }}</dt>
+                            <dd>{{ campaign.subject }}</dd>
+                            
+                            <dt class="rams-dymo">{{ 'email_campaign.template'|trans }}</dt>
+                            <dd>{{ campaign.template.name|default('—') }}</dd>
+                        </dl>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-.wizard-progress {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 0;
-}
-
-.wizard-step {
-    text-align: center;
-    min-width: 100px;
-}
-
-.step-number {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #e9ecef;
-    color: #6c757d;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 8px;
-    font-weight: 600;
-    transition: all 0.3s;
-}
-
-.wizard-step.active .step-number {
-    background: #0d6efd;
-    color: white;
-}
-
-.wizard-step.completed .step-number {
-    background: #198754;
-    color: white;
-}
-
-.step-label {
-    font-size: 13px;
-    color: #6c757d;
-    font-weight: 500;
-}
-
-.wizard-connector {
-    flex: 1;
-    height: 2px;
-    background: #e9ecef;
-    margin: 0 10px;
-    max-width: 100px;
-}
-
-.segment-card {
-    display: block;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s;
-    height: 100%;
-    overflow: hidden;
-}
-
-.segment-card:hover {
-    border-color: #0d6efd;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.segment-card input[type="radio"] {
-    display: none;
-}
-
-.segment-card input[type="radio"]:checked + .segment-preview,
-.segment-card input[type="radio"]:checked + .segment-info {
-    border: 2px solid #0d6efd;
-    background: #f8f9fa;
-}
-
-.segment-card.create-new .segment-preview {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 250px;
-    background: #f8f9fa;
-    border: 2px dashed #dee2e6;
-}
-
-.create-new-icon {
-    color: #0d6efd;
-}
-
-.segment-info {
-    min-height: 250px;
-    border-radius: 6px;
-    background: white;
-}
-
-.segment-stats {
-    background: #f8f9fa;
-    padding: 16px;
-    border-radius: 6px;
-}
-
-.stat-item {
-    text-align: center;
-}
-
-.stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: #0d6efd;
-}
-
-.stat-label {
-    font-size: 13px;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-</style>
+<script>
+document.querySelectorAll('input[name="segment_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        document.getElementById('segmentSelector').style.display = this.value === 'segment' ? 'grid' : 'none';
+    });
+});
+</script>
 {% endblock %}

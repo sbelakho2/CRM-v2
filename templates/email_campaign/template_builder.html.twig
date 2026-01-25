@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Email Template Builder{% endblock %}
+{% block title %}{{ 'email_campaign.templates.template_builder'|trans }}{% endblock %}
 
 {% block head %}
     {{ parent() }}
@@ -8,228 +8,183 @@
 {% endblock %}
 
 {% block body %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-envelope-paper"></i> Create Email Template
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form method="post" id="templateForm">
-                        <div class="row">
-                            <div class="col-lg-8">
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.templates.create_template'|trans|default('Create Email Template') }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.templates.build_subtitle'|trans|default('Design a custom email template') }}</p>
+            </div>
+        </div>
+
+        <form method="post" id="templateForm">
+            <div class="rams-layout rams-layout--sidebar-right">
+                {# Main Form #}
+                <div class="rams-layout__main">
+                    <div class="rams-module">
+                        <div class="rams-module__content">
+                            <div class="rams-form">
                                 {# Template Name #}
-                                <div class="mb-4">
-                                    <label for="templateName" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Template Name *</label>
-                                    <input type="text" class="form-control" id="templateName" name="name" required>
+                                <div class="rams-form__group">
+                                    <label for="templateName" class="rams-form__label rams-dymo">{{ 'email_campaign.templates.name'|trans|default('Template Name') }} *</label>
+                                    <input type="text" class="rams-form__input" id="templateName" name="name" required>
                                 </div>
 
                                 {# Subject Line #}
-                                <div class="mb-4">
-                                    <label for="subjectLine" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Subject Line *</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" id="subjectLine" name="subject_line" required 
-                                               placeholder="e.g., Hello {{contact.firstName}}, check this out!">
-                                        <button class="btn btn-outline-secondary" type="button" id="insertTokenBtn">
-                                            <i class="bi bi-code-square"></i> Insert Token
+                                <div class="rams-form__group">
+                                    <label for="subjectLine" class="rams-form__label rams-dymo">{{ 'email_campaign.subject'|trans }} *</label>
+                                    <div class="rams-input-group">
+                                        <input type="text" class="rams-form__input" id="subjectLine" name="subject_line" required 
+                                               placeholder="{{ 'email_campaign.templates.subject_placeholder'|trans|default('e.g., Hello {{contact.firstName}}, check this out!') }}">
+                                        <button class="rams-btn rams-btn--secondary" type="button" id="insertTokenBtn">
+                                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                                            </svg>
+                                            {{ 'email_campaign.templates.insert_token'|trans|default('Insert Token') }}
                                         </button>
                                     </div>
-                                    <small class="text-muted">
-                                        Use personalization tokens like {{contact.firstName}}, {{company.name}}, etc.
-                                    </small>
+                                    <span class="rams-form__hint">{{ 'email_campaign.templates.subject_hint'|trans|default('Use personalization tokens like {{contact.firstName}}, {{company.name}}, etc.') }}</span>
                                 </div>
 
                                 {# Preview Text #}
-                                <div class="mb-4">
-                                    <label for="previewText" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Preview Text</label>
-                                    <input type="text" class="form-control" id="previewText" name="preview_text"
-                                           placeholder="Text shown in inbox preview">
-                                    <small class="text-muted">
-                                        This appears in the inbox next to the subject line (50-100 characters recommended)
-                                    </small>
+                                <div class="rams-form__group">
+                                    <label for="previewText" class="rams-form__label rams-dymo">{{ 'email_campaign.templates.preview_text'|trans|default('Preview Text') }}</label>
+                                    <input type="text" class="rams-form__input" id="previewText" name="preview_text"
+                                           placeholder="{{ 'email_campaign.templates.preview_placeholder'|trans|default('Text shown in inbox preview') }}">
+                                    <span class="rams-form__hint">{{ 'email_campaign.templates.preview_hint'|trans|default('This appears in the inbox next to the subject line (50-100 characters recommended)') }}</span>
                                 </div>
 
-                                {# Email Body - WYSIWYG Editor #}
-                                <div class="mb-4">
-                                    <label for="bodyHtml" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Email Body *</label>
+                                {# Email Body #}
+                                <div class="rams-form__group">
+                                    <label for="bodyHtml" class="rams-form__label rams-dymo">{{ 'email_campaign.templates.body'|trans|default('Email Body') }} *</label>
                                     <textarea id="bodyHtml" name="body_html" required></textarea>
                                 </div>
 
                                 {# Plain Text Version #}
-                                <div class="mb-4">
-                                    <label for="bodyText" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Plain Text Version</label>
-                                    <textarea class="form-control" id="bodyText" name="body_text" rows="8"
-                                              placeholder="Auto-generated from HTML (you can customize)"></textarea>
-                                    <small class="text-muted">
-                                        Fallback for email clients that don't support HTML
-                                    </small>
-                                </div>
-                            </div>
-
-                            <div class="col-lg-4">
-                                {# Sidebar - Personalization Tokens #}
-                                <div class="card bg-light border-0 mb-4">
-                                    <div class="card-body">
-                                        <h6 class="mb-3">
-                                            <i class="bi bi-code-square"></i> Personalization Tokens
-                                        </h6>
-                                        
-                                        <div class="token-group mb-3">
-                                            <div class="token-group-label">Contact Fields</div>
-                                            <div class="token-list">
-                                                <button type="button" class="token-btn" data-token="{{contact.firstName}}">
-                                                    {{contact.firstName}}
-                                                </button>
-                                                <button type="button" class="token-btn" data-token="{{contact.lastName}}">
-                                                    {{contact.lastName}}
-                                                </button>
-                                                <button type="button" class="token-btn" data-token="{{contact.email}}">
-                                                    {{contact.email}}
-                                                </button>
-                                                <button type="button" class="token-btn" data-token="{{contact.phone}}">
-                                                    {{contact.phone}}
-                                                </button>
-                                                <button type="button" class="token-btn" data-token="{{contact.title}}">
-                                                    {{contact.title}}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div class="token-group mb-3">
-                                            <div class="token-group-label">Company Fields</div>
-                                            <div class="token-list">
-                                                <button type="button" class="token-btn" data-token="{{company.name}}">
-                                                    {{company.name}}
-                                                </button>
-                                                <button type="button" class="token-btn" data-token="{{company.industry}}">
-                                                    {{company.industry}}
-                                                </button>
-                                                <button type="button" class="token-btn" data-token="{{company.website}}">
-                                                    {{company.website}}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div class="token-group">
-                                            <div class="token-group-label">System</div>
-                                            <div class="token-list">
-                                                <button type="button" class="token-btn" data-token="{{unsubscribe_url}}">
-                                                    {{unsubscribe_url}}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {# Category #}
-                                <div class="card bg-light border-0 mb-4">
-                                    <div class="card-body">
-                                        <label for="category" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Category</label>
-                                        <select class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" id="category" name="category">
-                                            <option value="general">General</option>
-                                            <option value="welcome">Welcome</option>
-                                            <option value="newsletter">Newsletter</option>
-                                            <option value="promotional">Promotional</option>
-                                            <option value="transactional">Transactional</option>
-                                            <option value="followup">Follow-up</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {# Preview Button #}
-                                <div class="d-grid gap-2">
-                                    <button type="button" class="btn btn-outline-primary" id="previewBtn">
-                                        <i class="bi bi-eye"></i> Preview
-                                    </button>
+                                <div class="rams-form__group">
+                                    <label for="bodyText" class="rams-form__label rams-dymo">{{ 'email_campaign.templates.plain_text'|trans|default('Plain Text Version') }}</label>
+                                    <textarea class="rams-form__textarea" id="bodyText" name="body_text" rows="8"
+                                              placeholder="{{ 'email_campaign.templates.plain_text_placeholder'|trans|default('Auto-generated from HTML (you can customize)') }}"></textarea>
+                                    <span class="rams-form__hint">{{ 'email_campaign.templates.plain_text_hint'|trans|default('Fallback for email clients that don\'t support HTML') }}</span>
                                 </div>
                             </div>
                         </div>
-
-                        <input type="hidden" name="tokens" id="tokensInput" value="[]">
-
-                        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
-                            {% if campaignId %}
-                            <a href="{{ path('app_email_campaign_wizard_template', {id: campaignId}) }}" class="btn btn-outline-secondary">
-                                Cancel
-                            </a>
-                            {% else %}
-                            <a href="{{ path('app_email_campaign_templates') }}" class="btn btn-outline-secondary">
-                                Cancel
-                            </a>
-                            {% endif %}
-                            
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save"></i> Save Template
-                            </button>
+                        <div class="rams-module__footer">
+                            <div class="rams-btn-group">
+                                {% if campaignId %}
+                                    <a href="{{ path('app_email_campaign_wizard_template', {id: campaignId}) }}" class="rams-btn rams-btn--secondary">
+                                        {{ 'common.cancel'|trans }}
+                                    </a>
+                                {% else %}
+                                    <a href="{{ path('app_email_campaign_templates') }}" class="rams-btn rams-btn--secondary">
+                                        {{ 'common.cancel'|trans }}
+                                    </a>
+                                {% endif %}
+                                
+                                <button type="submit" class="rams-btn rams-btn--primary">
+                                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    {{ 'email_campaign.templates.save_template'|trans|default('Save Template') }}
+                                </button>
+                            </div>
                         </div>
-                    </form>
+                    </div>
+                </div>
+
+                {# Sidebar #}
+                <div class="rams-layout__sidebar">
+                    {# Personalization Tokens #}
+                    <div class="rams-module">
+                        <div class="rams-module__header">
+                            <h3 class="rams-module__title">{{ 'email_campaign.templates.tokens'|trans|default('Personalization Tokens') }}</h3>
+                        </div>
+                        <div class="rams-module__content">
+                            <div class="rams-token-group">
+                                <span class="rams-dymo">{{ 'contact.fields'|trans|default('Contact Fields') }}</span>
+                                <div class="rams-token-list">
+                                    <button type="button" class="rams-token-btn" data-token="{{contact.firstName}}">{% verbatim %}{{contact.firstName}}{% endverbatim %}</button>
+                                    <button type="button" class="rams-token-btn" data-token="{{contact.lastName}}">{% verbatim %}{{contact.lastName}}{% endverbatim %}</button>
+                                    <button type="button" class="rams-token-btn" data-token="{{contact.email}}">{% verbatim %}{{contact.email}}{% endverbatim %}</button>
+                                    <button type="button" class="rams-token-btn" data-token="{{contact.phone}}">{% verbatim %}{{contact.phone}}{% endverbatim %}</button>
+                                    <button type="button" class="rams-token-btn" data-token="{{contact.title}}">{% verbatim %}{{contact.title}}{% endverbatim %}</button>
+                                </div>
+                            </div>
+
+                            <div class="rams-token-group">
+                                <span class="rams-dymo">{{ 'company.fields'|trans|default('Company Fields') }}</span>
+                                <div class="rams-token-list">
+                                    <button type="button" class="rams-token-btn" data-token="{{company.name}}">{% verbatim %}{{company.name}}{% endverbatim %}</button>
+                                    <button type="button" class="rams-token-btn" data-token="{{company.industry}}">{% verbatim %}{{company.industry}}{% endverbatim %}</button>
+                                    <button type="button" class="rams-token-btn" data-token="{{company.website}}">{% verbatim %}{{company.website}}{% endverbatim %}</button>
+                                </div>
+                            </div>
+
+                            <div class="rams-token-group">
+                                <span class="rams-dymo">{{ 'email_campaign.templates.system_tokens'|trans|default('System') }}</span>
+                                <div class="rams-token-list">
+                                    <button type="button" class="rams-token-btn" data-token="{{unsubscribe_url}}">{% verbatim %}{{unsubscribe_url}}{% endverbatim %}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Category #}
+                    <div class="rams-module">
+                        <div class="rams-module__content">
+                            <div class="rams-form__group">
+                                <label for="category" class="rams-form__label rams-dymo">{{ 'email_campaign.templates.category'|trans|default('Category') }}</label>
+                                <select class="rams-form__select" id="category" name="category">
+                                    <option value="general">{{ 'email_campaign.templates.cat_general'|trans|default('General') }}</option>
+                                    <option value="welcome">{{ 'email_campaign.templates.cat_welcome'|trans|default('Welcome') }}</option>
+                                    <option value="newsletter">{{ 'email_campaign.templates.cat_newsletter'|trans|default('Newsletter') }}</option>
+                                    <option value="promotional">{{ 'email_campaign.templates.cat_promotional'|trans|default('Promotional') }}</option>
+                                    <option value="transactional">{{ 'email_campaign.templates.cat_transactional'|trans|default('Transactional') }}</option>
+                                    <option value="followup">{{ 'email_campaign.templates.cat_followup'|trans|default('Follow-up') }}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Preview Button #}
+                    <button type="button" class="rams-btn rams-btn--secondary rams-btn--full" id="previewBtn">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        {{ 'email_campaign.templates.preview'|trans|default('Preview') }}
+                    </button>
                 </div>
             </div>
-        </div>
+
+            <input type="hidden" name="tokens" id="tokensInput" value="[]">
+        </form>
     </div>
 </div>
 
 {# Preview Modal #}
-<div class="modal fade" id="previewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Email Preview</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="rams-modal" id="previewModal">
+    <div class="rams-modal__backdrop" onclick="closePreviewModal()"></div>
+    <div class="rams-modal__container rams-modal__container--lg">
+        <div class="rams-modal__header">
+            <h3 class="rams-modal__title">{{ 'email_campaign.templates.preview'|trans|default('Email Preview') }}</h3>
+            <button type="button" class="rams-btn rams-btn--ghost rams-btn--sm" onclick="closePreviewModal()">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="rams-modal__content">
+            <div class="rams-preview-subject">
+                <span class="rams-dymo">{{ 'email_campaign.subject'|trans }}:</span>
+                <span id="previewSubject"></span>
             </div>
-            <div class="modal-body">
-                <div class="preview-subject mb-3">
-                    <strong>Subject:</strong> <span id="previewSubject"></span>
-                </div>
-                <div class="preview-content border rounded p-3" id="previewContent"></div>
-            </div>
+            <div class="rams-preview-content" id="previewContent"></div>
         </div>
     </div>
 </div>
-
-<style>
-.token-group-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-}
-
-.token-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.token-btn {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 4px 10px;
-    font-size: 13px;
-    font-family: 'Courier New', monospace;
-    color: #0d6efd;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.token-btn:hover {
-    background: #0d6efd;
-    color: white;
-    border-color: #0d6efd;
-}
-
-.preview-subject {
-    background: #f8f9fa;
-    padding: 12px;
-    border-radius: 6px;
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -249,7 +204,6 @@ document.addEventListener('DOMContentLoaded', function() {
         content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }',
         setup: function(editor) {
             editor.on('change', function() {
-                // Auto-generate plain text version
                 const htmlContent = editor.getContent();
                 const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
                 document.getElementById('bodyText').value = textContent;
@@ -258,14 +212,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Token insertion
-    const tokenBtns = document.querySelectorAll('.token-btn');
+    const tokenBtns = document.querySelectorAll('.rams-token-btn');
     tokenBtns.forEach(btn => {
         btn.addEventListener('click', function() {
             const token = this.dataset.token;
             const activeElement = document.activeElement;
             
             if (activeElement.id === 'subjectLine' || activeElement.id === 'previewText') {
-                // Insert into text input
                 const start = activeElement.selectionStart;
                 const end = activeElement.selectionEnd;
                 const text = activeElement.value;
@@ -273,7 +226,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 activeElement.focus();
                 activeElement.setSelectionRange(start + token.length, start + token.length);
             } else {
-                // Insert into TinyMCE
                 tinymce.activeEditor.insertContent(token);
             }
         });
@@ -281,10 +233,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Preview
     document.getElementById('previewBtn').addEventListener('click', function() {
-        const subject = document.getElementById('subjectLine').value || 'No subject';
+        const subject = document.getElementById('subjectLine').value || '{{ 'email_campaign.templates.no_subject'|trans|default('No subject') }}';
         const body = tinymce.get('bodyHtml').getContent();
         
-        // Replace tokens with sample data
         const sampleData = {
             '{{contact.firstName}}': 'John',
             '{{contact.lastName}}': 'Doe',
@@ -300,36 +251,19 @@ document.addEventListener('DOMContentLoaded', function() {
         let previewSubject = subject;
         let previewBody = body;
         
-        for (const [token, value] of Object.entries(sampleData)) {
+        Object.entries(sampleData).forEach(([token, value]) => {
             previewSubject = previewSubject.replace(new RegExp(token.replace(/[{}]/g, '\\$&'), 'g'), value);
             previewBody = previewBody.replace(new RegExp(token.replace(/[{}]/g, '\\$&'), 'g'), value);
-        }
+        });
         
         document.getElementById('previewSubject').textContent = previewSubject;
         document.getElementById('previewContent').innerHTML = previewBody;
-        
-        new bootstrap.Modal(document.getElementById('previewModal')).show();
-    });
-
-    // Extract and save tokens before form submit
-    document.getElementById('templateForm').addEventListener('submit', function(e) {
-        const subject = document.getElementById('subjectLine').value;
-        const body = tinymce.get('bodyHtml').getContent();
-        
-        // Extract all tokens from subject and body
-        const tokenRegex = /\{\{([^}]+)\}\}/g;
-        const tokens = new Set();
-        
-        let match;
-        while ((match = tokenRegex.exec(subject)) !== null) {
-            tokens.add(match[1]);
-        }
-        while ((match = tokenRegex.exec(body)) !== null) {
-            tokens.add(match[1]);
-        }
-        
-        document.getElementById('tokensInput').value = JSON.stringify(Array.from(tokens));
+        document.getElementById('previewModal').classList.add('rams-modal--open');
     });
 });
+
+function closePreviewModal() {
+    document.getElementById('previewModal').classList.remove('rams-modal--open');
+}
 </script>
 {% endblock %}

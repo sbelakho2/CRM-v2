@@ -1,205 +1,198 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Activities{% endblock %}
+{% block title %}{{ 'activity.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="min-h-screen bg-neutral-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="rams-page">
+    <div class="rams-page__container">
         
         {# Header with Actions #}
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Activities</h1>
-                <p class="mt-1 text-sm text-neutral-600">Track all interactions and touchpoints</p>
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'activity.title'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'activity.subtitle'|trans|default('Track all interactions and touchpoints') }}</p>
             </div>
-            <div class="flex items-center gap-3">
-                <a href="{{ path('app_activity_timeline') }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="rams-page__actions">
+                <a href="{{ path('app_activity_timeline') }}" class="rams-btn rams-btn--secondary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    Timeline View
+                    {{ 'activity.timeline_view'|trans }}
                 </a>
-                <a href="{{ path('app_activity_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{{ path('app_activity_new') }}" class="rams-btn rams-btn--primary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Log Activity
+                    {{ 'activity.log_activity'|trans|default('Log Activity') }}
                 </a>
             </div>
         </div>
 
-        {# Filters Card #}
-        <div class="bg-white rounded-xl border border-neutral-200/60 p-5 mb-6">
-            <form method="get" action="{{ path('app_activity_index') }}" class="space-y-4">
-                
-                {# Filter Grid #}
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    {# Type Filter #}
-                    <div>
-                        <label for="type" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Activity Type</label>
-                        <select name="type" id="type" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                            <option value="">All Types</option>
-                            {% for type in types %}
-                                <option value="{{ type }}" {% if current_type == type %}selected{% endif %}>{{ type }}</option>
-                            {% endfor %}
-                        </select>
+        {# Filters Module #}
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <form method="get" action="{{ path('app_activity_index') }}" class="rams-form">
+                    
+                    {# Filter Grid #}
+                    <div class="rams-form__grid rams-form__grid--5col">
+                        {# Type Filter #}
+                        <div class="rams-form__group">
+                            <label for="type" class="rams-dymo">{{ 'activity.type'|trans }}</label>
+                            <select name="type" id="type" class="rams-form__select">
+                                <option value="">{{ 'common.all'|trans }} {{ 'activity.types_label'|trans|default('Types') }}</option>
+                                {% for type in types %}
+                                    <option value="{{ type }}" {% if current_type == type %}selected{% endif %}>{{ type }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        {# Company Filter #}
+                        <div class="rams-form__group">
+                            <label for="company" class="rams-dymo">{{ 'activity.company'|trans }}</label>
+                            <select name="company" id="company" class="rams-form__select">
+                                <option value="">{{ 'common.all'|trans }} {{ 'company.title'|trans }}</option>
+                                {% for company in companies %}
+                                    <option value="{{ company.id }}" {% if current_company == company.id %}selected{% endif %}>{{ company.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        {# User Filter #}
+                        <div class="rams-form__group">
+                            <label for="user" class="rams-dymo">{{ 'activity.team_member'|trans|default('Team Member') }}</label>
+                            <select name="user" id="user" class="rams-form__select">
+                                <option value="">{{ 'common.all'|trans }} {{ 'activity.users_label'|trans|default('Users') }}</option>
+                                {% for user in users %}
+                                    <option value="{{ user.id }}" {% if current_user == user.id %}selected{% endif %}>{{ user.firstName }} {{ user.lastName }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        {# Date From #}
+                        <div class="rams-form__group">
+                            <label for="date_from" class="rams-dymo">{{ 'common.from_date'|trans|default('From Date') }}</label>
+                            <input type="date" name="date_from" id="date_from" value="{{ current_date_from }}" class="rams-form__input"/>
+                        </div>
+
+                        {# Date To #}
+                        <div class="rams-form__group">
+                            <label for="date_to" class="rams-dymo">{{ 'common.to_date'|trans|default('To Date') }}</label>
+                            <input type="date" name="date_to" id="date_to" value="{{ current_date_to }}" class="rams-form__input"/>
+                        </div>
                     </div>
 
-                    {# Company Filter #}
-                    <div>
-                        <label for="company" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Company</label>
-                        <select name="company" id="company" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                            <option value="">All Companies</option>
-                            {% for company in companies %}
-                                <option value="{{ company.id }}" {% if current_company == company.id %}selected{% endif %}>{{ company.name }}</option>
-                            {% endfor %}
-                        </select>
+                    {# Filter Actions #}
+                    <div class="rams-form__actions">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            </svg>
+                            {{ 'common.apply'|trans }}
+                        </button>
+                        <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            {{ 'common.clear'|trans }}
+                        </a>
                     </div>
-
-                    {# User Filter #}
-                    <div>
-                        <label for="user" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Team Member</label>
-                        <select name="user" id="user" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                            <option value="">All Users</option>
-                            {% for user in users %}
-                                <option value="{{ user.id }}" {% if current_user == user.id %}selected{% endif %}>{{ user.firstName }} {{ user.lastName }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    {# Date From #}
-                    <div>
-                        <label for="date_from" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">From Date</label>
-                        <input type="date" name="date_from" id="date_from" value="{{ current_date_from }}" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"/>
-                    </div>
-
-                    {# Date To #}
-                    <div>
-                        <label for="date_to" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">To Date</label>
-                        <input type="date" name="date_to" id="date_to" value="{{ current_date_to }}" class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"/>
-                    </div>
-                </div>
-
-                {# Filter Actions #}
-                <div class="flex items-center gap-3 pt-2">
-                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                        Apply Filters
-                    </button>
-                    <a href="{{ path('app_activity_index') }}" class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                        Clear
-                    </a>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
 
         {# Flash Messages #}
         {% for label, messages in app.flashes %}
             {% for message in messages %}
-                <div class="mb-4 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+                <div class="rams-andon rams-andon--{{ label == 'success' ? 'success' : 'info' }}">
                     {{ message }}
                 </div>
             {% endfor %}
         {% endfor %}
 
         {# Results Count #}
-        <div class="mb-4 text-sm text-neutral-600">
-            Showing <span class="font-medium text-neutral-900">{{ activities|length }}</span> activities
+        <div class="rams-results-count">
+            {{ 'common.showing'|trans|default('Showing') }} <span class="rams-results-count__value">{{ activities|length }}</span> {{ 'activity.title'|trans|lower }}
         </div>
 
         {# Activities List #}
-        <div class="space-y-3">
+        <div class="rams-list">
             {% for activity in activities %}
-                <div class="bg-white rounded-xl border border-neutral-200/60 p-5 hover:border-neutral-300 hover:shadow-sm transition-all">
-                    <div class="flex items-start gap-4">
-                        {# Activity Icon #}
-                        <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
-                            {% if activity.type == 'Call' %}bg-blue-50 text-blue-600
-                            {% elseif activity.type == 'Email' %}bg-purple-50 text-purple-600
-                            {% elseif activity.type == 'Meeting' %}bg-emerald-50 text-emerald-600
-                            {% elseif activity.type starts with 'LinkedIn' %}bg-blue-100 text-blue-700
-                            {% elseif activity.type == 'Follow-up' %}bg-amber-50 text-amber-600
-                            {% else %}bg-neutral-50 text-neutral-600{% endif %}">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                            </svg>
-                        </div>
+                <div class="rams-module rams-module--interactive">
+                    <div class="rams-module__content">
+                        <div class="rams-list__item">
+                            {# Activity Icon #}
+                            <div class="rams-list__icon rams-list__icon--{{ activity.type|lower|replace({' ': '-', '-': '-'}) }}">
+                                <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                            </div>
 
-                        {# Activity Details #}
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-start justify-between gap-4">
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            {% if activity.type == 'Call' %}bg-blue-100 text-blue-700
-                                            {% elseif activity.type == 'Email' %}bg-purple-100 text-purple-700
-                                            {% elseif activity.type == 'Meeting' %}bg-emerald-100 text-emerald-700
-                                            {% elseif activity.type starts with 'LinkedIn' %}bg-blue-100 text-blue-700
-                                            {% elseif activity.type == 'Follow-up' %}bg-amber-100 text-amber-700
-                                            {% else %}bg-neutral-100 text-neutral-700{% endif %}">
+                            {# Activity Details #}
+                            <div class="rams-list__content">
+                                <div class="rams-list__header">
+                                    <div class="rams-list__meta">
+                                        <span class="rams-badge rams-badge--{{ activity.type|lower|replace({' ': '-', '-': '-'}) }}">
                                             {{ activity.type }}
                                         </span>
                                         {% if activity.outcome %}
-                                            <span class="text-xs text-neutral-500">· {{ activity.outcome }}</span>
+                                            <span class="rams-list__separator">·</span>
+                                            <span class="rams-list__outcome">{{ activity.outcome }}</span>
                                         {% endif %}
                                     </div>
-                                    <p class="text-sm font-medium text-neutral-900">
-                                        {% if activity.company %}
-                                            <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="text-blue-600 hover:text-blue-700">{{ activity.company.name }}</a>
-                                        {% endif %}
-                                        {% if activity.contact %}
-                                            <span class="text-neutral-400">·</span>
-                                            <a href="{{ path('app_contact_show', {id: activity.contact.id}) }}" class="text-blue-600 hover:text-blue-700">{{ activity.contact.firstName }} {{ activity.contact.lastName }}</a>
-                                        {% endif %}
-                                    </p>
-                                    {% if activity.notes %}
-                                        <p class="mt-1 text-sm text-neutral-600 line-clamp-2">{{ activity.notes }}</p>
+                                </div>
+                                <p class="rams-list__title">
+                                    {% if activity.company %}
+                                        <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="rams-link">{{ activity.company.name }}</a>
                                     {% endif %}
-                                    <div class="mt-2 flex items-center gap-3 text-xs text-neutral-500">
-                                        <span>{{ activity.activityDate|date('M d, Y') }}</span>
-                                        <span>·</span>
-                                        <span>{{ activity.user.firstName }} {{ activity.user.lastName }}</span>
-                                    </div>
+                                    {% if activity.contact %}
+                                        <span class="rams-list__separator">·</span>
+                                        <a href="{{ path('app_contact_show', {id: activity.contact.id}) }}" class="rams-link">{{ activity.contact.firstName }} {{ activity.contact.lastName }}</a>
+                                    {% endif %}
+                                </p>
+                                {% if activity.notes %}
+                                    <p class="rams-list__description">{{ activity.notes }}</p>
+                                {% endif %}
+                                <div class="rams-list__footer">
+                                    <span>{{ activity.activityDate|date('M d, Y') }}</span>
+                                    <span class="rams-list__separator">·</span>
+                                    <span>{{ activity.user.firstName }} {{ activity.user.lastName }}</span>
                                 </div>
+                            </div>
 
-                                {# Actions #}
-                                <div class="flex items-center gap-2 flex-shrink-0">
-                                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="text-neutral-400 hover:text-neutral-600">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                        </svg>
-                                    </a>
-                                    <a href="{{ path('app_activity_edit', {id: activity.id}) }}" class="text-neutral-400 hover:text-neutral-600">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                        </svg>
-                                    </a>
-                                </div>
+                            {# Actions #}
+                            <div class="rams-list__actions">
+                                <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}">
+                                    <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </a>
+                                <a href="{{ path('app_activity_edit', {id: activity.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
+                                    <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                </a>
                             </div>
                         </div>
                     </div>
                 </div>
             {% else %}
-                <div class="bg-white rounded-xl border border-neutral-200/60 p-12 text-center">
-                    <svg class="mx-auto h-12 w-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <circle cx="8" cy="8" r="6" stroke-width="2"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4V8L11 11"/>
-                    </svg>
-                    <h3 class="mt-4 text-sm font-medium text-neutral-900">No activities found</h3>
-                    <p class="mt-1 text-sm text-neutral-500">Start tracking by logging your first activity.</p>
-                    <div class="mt-6">
-                        <a href="{{ path('app_activity_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            Create First Activity
-                        </a>
+                <div class="rams-module">
+                    <div class="rams-module__content rams-empty-state">
+                        <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="8" cy="8" r="6" stroke-width="2"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4V8L11 11"/>
+                        </svg>
+                        <h3 class="rams-empty-state__title">{{ 'activity.no_activities'|trans }}</h3>
+                        <p class="rams-empty-state__description">{{ 'activity.create_first'|trans }}</p>
+                        <div class="rams-empty-state__actions">
+                            <a href="{{ path('app_activity_new') }}" class="rams-btn rams-btn--primary">
+                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                {{ 'activity.create_first_button'|trans|default('Create First Activity') }}
+                            </a>
+                        </div>
                     </div>
                 </div>
             {% endfor %}

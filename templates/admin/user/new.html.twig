@@ -1,73 +1,75 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}New User - Admin{% endblock %}
+{% block title %}{{ 'admin.users.new_user'|trans }} - {{ 'admin.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
+<div class="rams-stack">
     <!-- Header -->
-    <div class="border-b border-neutral-200/80 pb-5">
-        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Create New User</h1>
-        <p class="mt-1 text-sm text-neutral-600">Add a new user to the system</p>
+    <div class="rams-page-header">
+        <h1 class="rams-page-title">{{ 'admin.users.new_user'|trans }}</h1>
+        <p class="rams-page-subtitle">{{ 'admin.users.new_user_subtitle'|trans }}</p>
     </div>
 
     <!-- Form Card -->
-    <div class="rounded-xl border border-neutral-200/60 bg-white p-6" style="max-width: 800px;">
-    {{ form_start(form) }}
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div class="form-group">
-            {{ form_label(form.firstName, null, {'label_attr': {'class': 'block text-sm font-medium text-neutral-700 mb-2'}}) }}
-            {{ form_widget(form.firstName, {'attr': {'class': 'w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'}}) }}
-            {{ form_errors(form.firstName) }}
+    <div class="rams-module" style="max-width: 800px;">
+        <div class="rams-module__content">
+            {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
+            
+            <div class="rams-grid rams-grid--2">
+                <div class="rams-form-group">
+                    {{ form_label(form.firstName, 'admin.users.first_name'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                    {{ form_widget(form.firstName, {'attr': {'class': 'rams-input'}}) }}
+                    {{ form_errors(form.firstName) }}
+                </div>
+
+                <div class="rams-form-group">
+                    {{ form_label(form.lastName, 'admin.users.last_name'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                    {{ form_widget(form.lastName, {'attr': {'class': 'rams-input'}}) }}
+                    {{ form_errors(form.lastName) }}
+                </div>
+            </div>
+
+            <div class="rams-form-group">
+                {{ form_label(form.email, 'admin.users.email'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                {{ form_widget(form.email, {'attr': {'class': 'rams-input'}}) }}
+                {{ form_errors(form.email) }}
+            </div>
+
+            {% if form.plainPassword is defined %}
+            <div class="rams-form-group">
+                {{ form_label(form.plainPassword, 'admin.users.password'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                {{ form_widget(form.plainPassword, {'attr': {'class': 'rams-input'}}) }}
+                {{ form_errors(form.plainPassword) }}
+                <small class="rams-text-muted">{{ 'admin.users.password_hint'|trans }}</small>
+            </div>
+            {% endif %}
+
+            <div class="rams-form-group">
+                {{ form_label(form.roles, 'admin.users.role'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                {{ form_widget(form.roles, {'attr': {'class': 'rams-select'}}) }}
+                {{ form_errors(form.roles) }}
+            </div>
+
+            <div class="rams-form-group">
+                <label class="rams-checkbox">
+                    {{ form_widget(form.active, {'attr': {'class': 'rams-checkbox__input'}}) }}
+                    <span class="rams-checkbox__label">{{ 'admin.users.active'|trans }}</span>
+                </label>
+                {{ form_errors(form.active) }}
+            </div>
+
+            <div class="rams-module__footer">
+                <button type="submit" class="rams-btn rams-btn--primary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {{ 'admin.users.create_user'|trans }}
+                </button>
+                <a href="{{ path('admin_user_index') }}" class="rams-btn rams-btn--ghost">{{ 'common.cancel'|trans }}</a>
+            </div>
+
+            {{ form_end(form) }}
         </div>
-
-        <div class="form-group">
-            {{ form_label(form.lastName, null, {'label_attr': {'class': 'block text-sm font-medium text-neutral-700 mb-2'}}) }}
-            {{ form_widget(form.lastName, {'attr': {'class': 'w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'}}) }}
-            {{ form_errors(form.lastName) }}
-        </div>
-    </div>
-
-    <div class="form-group">
-        {{ form_label(form.email, null, {'label_attr': {'class': 'block text-sm font-medium text-neutral-700 mb-2'}}) }}
-        {{ form_widget(form.email, {'attr': {'class': 'w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'}}) }}
-        {{ form_errors(form.email) }}
-    </div>
-
-    {% if form.plainPassword is defined %}
-    <div class="form-group">
-        {{ form_label(form.plainPassword, 'Password', {'label_attr': {'class': 'block text-sm font-medium text-neutral-700 mb-2'}}) }}
-        {{ form_widget(form.plainPassword, {'attr': {'class': 'w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'}}) }}
-        {{ form_errors(form.plainPassword) }}
-        <small class="text-sm text-neutral-600">Minimum 6 characters</small>
-    </div>
-    {% endif %}
-
-    <div class="form-group">
-        {{ form_label(form.roles, null, {'label_attr': {'class': 'block text-sm font-medium text-neutral-700 mb-2'}}) }}
-        {{ form_widget(form.roles, {'attr': {'class': 'w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'}}) }}
-        {{ form_errors(form.roles) }}
-    </div>
-
-    <div class="form-group">
-        <label class="flex items-center gap-2">
-            {{ form_widget(form.active) }}
-            <span>Active</span>
-        </label>
-        {{ form_errors(form.active) }}
-    </div>
-
-    <div class="flex items-center gap-3 mt-6">
-        <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            Create User
-        </button>
-        <a href="{{ path('admin_user_index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">Cancel</a>
-    </div>
-
-    {{ form_end(form) }}
     </div>
 </div>
 {% endblock %}

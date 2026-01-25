@@ -1,148 +1,153 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}LeadBot WebCrawler{% endblock %}
+{% block title %}{{ 'webcrawler.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="border-b border-neutral-200/80 pb-5">
-        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">LeadBot WebCrawler</h1>
-        <p class="mt-1 text-sm text-neutral-600">Discover companies using Google Dorks and LinkedIn search</p>
-    </div>
-
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <div class="text-sm font-medium text-gray-500 mb-1">Total Discovered</div>
-            <div class="text-3xl font-bold text-gray-900">{{ stats.total_leads }}</div>
-        </div>
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <div class="text-sm font-medium text-gray-500 mb-1">Pending Review</div>
-            <div class="text-3xl font-bold text-yellow-600">{{ stats.pending }}</div>
-        </div>
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-            <div class="text-sm font-medium text-gray-500 mb-1">Approved</div>
-            <div class="text-3xl font-bold text-green-600">{{ stats.approved }}</div>
+<div class="rams-module">
+    <div class="rams-module__header">
+        <div class="rams-module__header-content">
+            <h1 class="rams-module__title">{{ 'webcrawler.title'|trans }}</h1>
+            <p class="rams-module__subtitle">{{ 'webcrawler.subtitle'|trans|default('Discover companies using Google Dorks and LinkedIn search') }}</p>
         </div>
     </div>
 
-    <!-- Discovery Form -->
-    <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-        <h2 class="text-xl font-semibold mb-4">Start New Discovery</h2>
-        
-        <form id="discovery-form" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Sector *</label>
-                    <select name="sector" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Select sector...</option>
-                        {% for sector in sectors %}
-                            <option value="{{ sector }}">{{ sector }}</option>
-                        {% endfor %}
-                    </select>
+    <div class="rams-module__content">
+        <!-- Stats -->
+        <div class="rams-metrics-grid rams-metrics-grid--3">
+            <div class="rams-metric">
+                <span class="rams-metric__label">{{ 'lead.total_leads'|trans }}</span>
+                <span class="rams-metric__value">{{ stats.total_leads }}</span>
+            </div>
+            <div class="rams-metric rams-metric--warning">
+                <span class="rams-metric__label">{{ 'lead.pending_review'|trans }}</span>
+                <span class="rams-metric__value">{{ stats.pending }}</span>
+            </div>
+            <div class="rams-metric rams-metric--success">
+                <span class="rams-metric__label">{{ 'lead.approved_leads'|trans }}</span>
+                <span class="rams-metric__value">{{ stats.approved }}</span>
+            </div>
+        </div>
+
+        <!-- Discovery Form -->
+        <div class="rams-module rams-module--nested">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'webcrawler.start_discovery'|trans|default('Start New Discovery') }}</h2>
+            </div>
+            
+            <div class="rams-module__content">
+                <form id="discovery-form" class="rams-form">
+                    <div class="rams-form__row rams-form__row--2">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">{{ 'company.sector'|trans }} *</label>
+                            <select name="sector" required class="rams-form__select">
+                                <option value="">{{ 'common.select'|trans }}...</option>
+                                {% for sector in sectors %}
+                                    <option value="{{ sector }}">{{ sector }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">{{ 'company.region'|trans }}</label>
+                            <select name="location" class="rams-form__select">
+                                <option value="">{{ 'webcrawler.all_locations'|trans|default('All locations') }}</option>
+                                {% for code, name in locations %}
+                                    <option value="{{ name }}">{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-form__label">{{ 'webcrawler.additional_keywords'|trans|default('Additional Keywords') }} ({{ 'webcrawler.comma_separated'|trans|default('comma-separated') }})</label>
+                        <input type="text" name="keywords" placeholder="{{ 'webcrawler.keywords_placeholder'|trans|default('e.g., tier 1, supplier, PCBA') }}" class="rams-form__input">
+                    </div>
+
+                    <div class="rams-form__actions">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            {{ 'webcrawler.start_discovery'|trans|default('Start Discovery') }}
+                        </button>
+                        <a href="{{ path('app_webcrawler_keyword_expansion') }}" class="rams-btn rams-btn--secondary">{{ 'webcrawler.keyword_expansion'|trans }}</a>
+                        <a href="{{ path('app_webcrawler_dork_generator') }}" class="rams-btn rams-btn--secondary">{{ 'webcrawler.dork_generator'|trans }}</a>
+                    </div>
+                </form>
+
+                <!-- Results -->
+                <div id="discovery-results" class="rams-results hidden">
+                    <h3 class="rams-results__title">{{ 'webcrawler.results'|trans }}</h3>
+                    <div id="results-content"></div>
                 </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                    <select name="location" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">All locations</option>
-                        {% for code, name in locations %}
-                            <option value="{{ name }}">{{ name }}</option>
-                        {% endfor %}
-                    </select>
+
+                <!-- Loading -->
+                <div id="discovery-loading" class="rams-loading hidden">
+                    <div class="rams-loading__spinner"></div>
+                    <p class="rams-loading__message">{{ 'webcrawler.discovering'|trans|default('Discovering companies... This may take a few minutes.') }}</p>
                 </div>
             </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Additional Keywords (comma-separated)</label>
-                <input type="text" name="keywords" placeholder="e.g., tier 1, supplier, PCBA" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div class="flex gap-4">
-                <button type="submit" class="btn btn-primary">
-                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
-                    Start Discovery
-                </button>
-                <a href="{{ path('app_webcrawler_keyword_expansion') }}" class="btn btn-secondary">Keyword Expansion Tool</a>
-                <a href="{{ path('app_webcrawler_dork_generator') }}" class="btn btn-secondary">Dork Generator</a>
-            </div>
-        </form>
-
-        <!-- Results -->
-        <div id="discovery-results" class="mt-6 hidden">
-            <h3 class="text-lg font-semibold mb-3">Discovery Results</h3>
-            <div id="results-content"></div>
         </div>
 
-        <!-- Loading -->
-        <div id="discovery-loading" class="mt-6 hidden text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p class="text-gray-600 mt-4">Discovering companies... This may take a few minutes.</p>
-        </div>
-    </div>
-
-    <!-- Recent Discoveries -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold mb-4">Recent Discoveries</h2>
-        
-        {% if recent_leads|length > 0 %}
-            <div class="overflow-x-auto">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Company</th>
-                            <th>Website</th>
-                            <th>Region</th>
-                            <th>Score</th>
-                            <th>Status</th>
-                            <th>Discovered</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for lead in recent_leads %}
+        <!-- Recent Discoveries -->
+        <div class="rams-module rams-module--nested">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'webcrawler.recent_discoveries'|trans|default('Recent Discoveries') }}</h2>
+            </div>
+            
+            <div class="rams-module__content">
+                {% if recent_leads|length > 0 %}
+                    <table class="rams-table">
+                        <thead class="rams-table__header">
                             <tr>
-                                <td class="font-medium">{{ lead.companyName }}</td>
-                                <td>
-                                    {% if lead.websiteRoot %}
-                                        <a href="{{ lead.websiteRoot }}" target="_blank" class="text-blue-600 hover:text-blue-800">
-                                            {{ lead.websiteRoot|replace({'https://': '', 'http://': '', 'www.': ''}) }}
-                                        </a>
-                                    {% else %}
-                                        <span class="text-gray-400">N/A</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ lead.regionTag ?? 'Unknown' }}</td>
-                                <td>
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
-                                        {% if lead.leadScore >= 80 %}bg-green-100 text-green-800
-                                        {% elseif lead.leadScore >= 60 %}bg-yellow-100 text-yellow-800
-                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                        {{ lead.leadScore }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
-                                        {% if lead.reviewStatus == 'approved' %}bg-green-100 text-green-800
-                                        {% elseif lead.reviewStatus == 'pending' %}bg-yellow-100 text-yellow-800
-                                        {% else %}bg-red-100 text-red-800{% endif %}">
-                                        {{ lead.reviewStatus|upper }}
-                                    </span>
-                                </td>
-                                <td>{{ lead.createdAt|date('M d, Y') }}</td>
-                                <td>
-                                    <a href="{{ path('app_lead_review') }}?id={{ lead.id }}" class="text-blue-600 hover:text-blue-800 text-sm">Review</a>
-                                </td>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.company_name'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.website'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.region'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'webcrawler.discovered'|trans|default('Discovered') }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {% for lead in recent_leads %}
+                                <tr class="rams-table__row">
+                                    <td class="rams-table__cell rams-table__cell--strong">{{ lead.companyName }}</td>
+                                    <td class="rams-table__cell">
+                                        {% if lead.websiteRoot %}
+                                            <a href="{{ lead.websiteRoot }}" target="_blank" class="rams-link rams-link--external">
+                                                {{ lead.websiteRoot|replace({'https://': '', 'http://': '', 'www.': ''}) }}
+                                            </a>
+                                        {% else %}
+                                            <span class="rams-table__cell--muted">{{ 'common.n_a'|trans }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="rams-table__cell">{{ lead.regionTag ?? 'common.unknown'|trans }}</td>
+                                    <td class="rams-table__cell">
+                                        <span class="rams-badge rams-badge--score rams-badge--score-{{ lead.leadScore >= 80 ? 'high' : (lead.leadScore >= 60 ? 'medium' : 'low') }}">
+                                            {{ lead.leadScore }}
+                                        </span>
+                                    </td>
+                                    <td class="rams-table__cell">
+                                        <span class="rams-andon rams-andon--{{ lead.reviewStatus == 'approved' ? 'success' : (lead.reviewStatus == 'pending' ? 'warning' : 'danger') }}">
+                                            {{ ('lead.statuses.' ~ lead.reviewStatus)|trans|upper }}
+                                        </span>
+                                    </td>
+                                    <td class="rams-table__cell rams-table__cell--muted">{{ lead.createdAt|date('M d, Y') }}</td>
+                                    <td class="rams-table__cell">
+                                        <a href="{{ path('app_lead_review') }}?id={{ lead.id }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'lead.review'|trans }}</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="rams-empty-state">
+                        <p class="rams-empty-state__message">{{ 'webcrawler.no_discoveries'|trans|default('No discoveries yet. Start a new discovery above.') }}</p>
+                    </div>
+                {% endif %}
             </div>
-        {% else %}
-            <p class="text-gray-500">No discoveries yet. Start a new discovery above.</p>
-        {% endif %}
+        </div>
     </div>
 </div>
 
@@ -174,17 +179,17 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
             // Show results
             resultsDiv.classList.remove('hidden');
             resultsContent.innerHTML = `
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                    <p class="text-green-800 font-semibold">${data.message}</p>
-                    <p class="text-green-600 text-sm mt-1">Found ${data.discovered} companies</p>
+                <div class="rams-alert rams-alert--success">
+                    <p class="rams-alert__title">${data.message}</p>
+                    <p class="rams-alert__message">{{ 'webcrawler.found_companies'|trans|default('Found') }} ${data.discovered} {{ 'company.title'|trans|lower }}</p>
                 </div>
                 ${data.companies.length > 0 ? `
-                    <div class="space-y-2">
+                    <div class="rams-discovery-list">
                         ${data.companies.slice(0, 10).map(c => `
-                            <div class="border border-gray-200 rounded p-3">
-                                <div class="font-medium">${c.name}</div>
-                                ${c.website ? `<div class="text-sm text-gray-600">${c.website}</div>` : ''}
-                                ${c.linkedin ? `<div class="text-sm text-blue-600"><a href="${c.linkedin}" target="_blank">LinkedIn</a></div>` : ''}
+                            <div class="rams-discovery-item">
+                                <div class="rams-discovery-item__name">${c.name}</div>
+                                ${c.website ? `<div class="rams-discovery-item__website">${c.website}</div>` : ''}
+                                ${c.linkedin ? `<a href="${c.linkedin}" target="_blank" class="rams-link rams-link--external">LinkedIn</a>` : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -193,9 +198,9 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
         } else {
             resultsDiv.classList.remove('hidden');
             resultsContent.innerHTML = `
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p class="text-red-800 font-semibold">Error</p>
-                    <p class="text-red-600 text-sm mt-1">${data.error}</p>
+                <div class="rams-alert rams-alert--danger">
+                    <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
+                    <p class="rams-alert__message">${data.error}</p>
                 </div>
             `;
         }
@@ -203,9 +208,9 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
         loadingDiv.classList.add('hidden');
         resultsDiv.classList.remove('hidden');
         resultsContent.innerHTML = `
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p class="text-red-800 font-semibold">Error</p>
-                <p class="text-red-600 text-sm mt-1">Failed to start discovery: ${error.message}</p>
+            <div class="rams-alert rams-alert--danger">
+                <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
+                <p class="rams-alert__message">{{ 'webcrawler.discovery_failed'|trans|default('Failed to start discovery:') }} ${error.message}</p>
             </div>
         `;
     }

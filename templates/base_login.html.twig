@@ -1,152 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app.request.locale|default('en') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Login - CRM Starz Morocco{% endblock %}</title>
+    <title>{% block title %}{{ 'auth.login.title'|trans }}{% endblock %} - {{ 'app.company'|trans }}</title>
     
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    {# Sensei-Rams Design System CSS #}
+    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}">
+    
+    {# Font preloading for performance #}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        /* Claude AI Color Scheme */
-        :root {
-            --claude-cream: #F5F3EE;
-            --claude-tan: #E8E3D8;
-            --claude-brown: #8B7355;
-            --claude-purple: #9B6B9E;
-            --claude-dark-purple: #7C5380;
-            --claude-text: #2C2416;
-            --claude-text-secondary: #5C5041;
-            --claude-border: #DDD8CC;
-            --claude-hover: #EDE9E0;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, var(--claude-cream) 0%, var(--claude-tan) 100%);
-            color: var(--claude-text);
-            min-height: 100vh;
-            line-height: 1.6;
-        }
-        
-        .login-container {
+        /* Auth-specific overrides */
+        .rams-auth-container {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem 1rem;
+            padding: var(--rams-space-6);
+            background: var(--rams-grey-900);
         }
         
-        .login-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            padding: 3rem 2.5rem;
-            max-width: 420px;
+        .rams-auth-module {
             width: 100%;
+            max-width: 400px;
         }
         
-        .login-header {
+        .rams-auth-logo {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: var(--rams-space-6);
         }
         
-        .login-title {
-            font-size: 1.875rem;
-            font-weight: 700;
-            color: var(--claude-text);
-            margin-bottom: 0.5rem;
+        .rams-auth-logo__symbol {
+            width: 48px;
+            height: 48px;
+            background: var(--rams-grey-800);
+            border: 2px solid var(--rams-grey-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--rams-space-3);
+            font-size: 24px;
+            color: var(--rams-orange);
         }
         
-        .login-subtitle {
-            color: var(--claude-text-secondary);
-            font-size: 0.95rem;
-        }
-        
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-        
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: var(--claude-text);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-        
-        .form-input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 2px solid var(--claude-border);
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.2s;
-            background: white;
-        }
-        
-        .form-input:focus {
-            outline: none;
-            border-color: var(--claude-purple);
-            box-shadow: 0 0 0 3px rgba(155, 107, 158, 0.1);
-        }
-        
-        .btn-primary {
-            width: 100%;
-            padding: 0.875rem 1.5rem;
-            background: var(--claude-purple);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
+        .rams-auth-logo__title {
+            font-family: var(--rams-font-mono);
+            font-size: var(--rams-text-xl);
             font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 0.5rem;
+            color: var(--rams-grey-100);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         
-        .btn-primary:hover {
-            background: var(--claude-dark-purple);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(155, 107, 158, 0.3);
-        }
-        
-        .btn-primary:active {
-            transform: translateY(0);
-        }
-        
-        .error-message {
-            background: #FEE2E2;
-            border: 1px solid #FCA5A5;
-            color: #991B1B;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-        }
-        
-        .logo-text {
-            font-size: 2.25rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--claude-purple) 0%, var(--claude-dark-purple) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 0.5rem;
+        .rams-auth-logo__subtitle {
+            font-size: var(--rams-text-sm);
+            color: var(--rams-grey-400);
+            margin-top: var(--rams-space-1);
         }
     </style>
     
     {% block stylesheets %}{% endblock %}
 </head>
 <body>
-    {% block body %}{% endblock %}
+    {# Skip Link for Accessibility #}
+    <a href="#main-content" class="rams-skip-link">{{ 'accessibility.skip_to_content'|trans }}</a>
+    
+    <main id="main-content" class="rams-auth-container" role="main">
+        {% block body %}{% endblock %}
+    </main>
     
     {% block javascripts %}{% endblock %}
 </body>

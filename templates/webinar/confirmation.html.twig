@@ -1,53 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app.request.locale }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registration Confirmed - {{ webinar.title }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>{{ 'webinar.registration.confirmation'|trans }} - {{ webinar.title }}</title>
+    <link rel="stylesheet" href="{{ asset('css/rams.css') }}">
 </head>
-<body class="min-h-screen bg-black text-white flex items-center justify-center">
-    <div class="max-w-md mx-auto px-6 text-center">
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 border border-green-500/20 mb-6">
-            <svg class="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-        </div>
-
-        <h1 class="text-3xl font-light tracking-tight mb-4">Registration Confirmed!</h1>
-        
-        <p class="text-zinc-400 mb-8">
-            You're all set for <strong class="text-white">{{ webinar.title }}</strong>.
-        </p>
-
-        <div class="border border-zinc-800 rounded-lg p-6 bg-zinc-950/50 mb-8 text-left">
-            <div class="flex items-center gap-3 mb-3">
-                <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+<body class="rams-page rams-page--public rams-page--centered">
+    <div class="rams-public-container rams-public-container--narrow">
+        <div class="rams-confirmation">
+            <div class="rams-confirmation__icon rams-confirmation__icon--success">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
-                <div>
-                    <div class="text-sm text-zinc-400">Date & Time</div>
-                    <div class="font-medium">{{ webinar.scheduledDate|date('F d, Y - H:i') }}</div>
+            </div>
+
+            <h1 class="rams-confirmation__title">{{ 'webinar.registration.confirmation'|trans }}!</h1>
+            
+            <p class="rams-confirmation__message">
+                {{ 'webinar.registration_confirmed_message'|trans|default("You're all set for") }} <strong>{{ webinar.title }}</strong>.
+            </p>
+
+            <div class="rams-module rams-module--nested">
+                <div class="rams-module__content">
+                    <div class="rams-detail-row">
+                        <svg class="rams-detail-row__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <div class="rams-detail-row__content">
+                            <span class="rams-dymo">{{ 'webinar.date'|trans }} & {{ 'webinar.start_time'|trans }}</span>
+                            <span class="rams-detail-row__value">{{ webinar.scheduledDate|date('F d, Y - H:i') }}</span>
+                        </div>
+                    </div>
+                    
+                    {% if webinar.meetingUrl %}
+                        <div class="rams-detail-row rams-detail-row--separated">
+                            <span class="rams-dymo">{{ 'webinar.link'|trans }}</span>
+                            <a href="{{ webinar.meetingUrl }}" target="_blank" class="rams-link rams-link--external">
+                                {{ webinar.meetingUrl }}
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
-            
-            {% if webinar.meetingUrl %}
-                <div class="mt-4 pt-4 border-t border-zinc-800">
-                    <div class="text-sm text-zinc-400 mb-2">Meeting Link</div>
-                    <a href="{{ webinar.meetingUrl }}" target="_blank" class="text-blue-400 hover:underline text-sm break-all">
-                        {{ webinar.meetingUrl }}
-                    </a>
-                </div>
-            {% endif %}
-        </div>
 
-        <div class="space-y-3">
-            <p class="text-sm text-zinc-400">
-                📧 Check your email for a confirmation message with all the details.
-            </p>
-            <p class="text-sm text-zinc-400">
-                We'll send you a reminder 24 hours before the webinar.
-            </p>
+            <div class="rams-confirmation__notes">
+                <p class="rams-note">
+                    📧 {{ 'webinar.check_email'|trans|default('Check your email for a confirmation message with all the details.') }}
+                </p>
+                <p class="rams-note">
+                    {{ 'webinar.reminder_notice'|trans|default("We'll send you a reminder 24 hours before the webinar.") }}
+                </p>
+            </div>
         </div>
     </div>
 </body>

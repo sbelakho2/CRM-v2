@@ -1,52 +1,52 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Companies{% endblock %}
+{% block title %}{{ 'company.title'|trans }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-        
-        {# Header with Create Button #}
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Companies</h1>
-                <p class="mt-1 text-sm text-neutral-600">Manage your company database with filters</p>
-            </div>
-            <a href="{{ path('app_company_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="rams-flex rams-flex-col rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'company.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'common.filter'|trans }} {{ 'company.title'|trans|lower }}</p>
+        </div>
+        <div class="rams-page-actions">
+            <a href="{{ path('app_company_new') }}" class="rams-btn rams-btn--primary">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                New Company
+                {{ 'company.new_company'|trans }}
             </a>
         </div>
+    </div>
 
-        {# Filters Card #}
-        <div class="bg-white rounded-xl border border-neutral-200/60 p-5 mb-6">
-            <form method="get" action="{{ path('app_company_index') }}" class="space-y-4">
-                
+    {# Filters Module #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <span class="rams-module__title">{{ 'filters.title'|trans }}</span>
+        </div>
+        <div class="rams-module__content">
+            <form method="get" action="{{ path('app_company_index') }}">
                 {# Search Bar #}
-                <div>
-                    <label for="search" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Search</label>
+                <div class="rams-form-group">
+                    <label for="search" class="rams-label">{{ 'common.search'|trans }}</label>
                     <input 
                         type="text" 
                         name="search" 
                         id="search" 
                         value="{{ current_search }}" 
-                        placeholder="Search by company name..." 
-                        class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        placeholder="{{ 'table.search_placeholder'|trans }}" 
+                        class="rams-input"
                     />
                 </div>
 
                 {# Filter Grid #}
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="rams-grid rams-grid--4 rams-mb-4">
                     {# Sector Filter #}
-                    <div>
-                        <label for="sector" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Sector</label>
-                        <select 
-                            name="sector" 
-                            id="sector" 
-                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        >
-                            <option value="">All Sectors</option>
+                    <div class="rams-form-group rams-mb-0">
+                        <label for="sector" class="rams-label">{{ 'company.sector'|trans }}</label>
+                        <select name="sector" id="sector" class="rams-select">
+                            <option value="">{{ 'common.all'|trans }} {{ 'company.sector'|trans|lower }}s</option>
                             {% for sector in sectors %}
                                 <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>{{ sector }}</option>
                             {% endfor %}
@@ -54,29 +54,21 @@
                     </div>
 
                     {# Tier Filter #}
-                    <div>
-                        <label for="tier" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Tier</label>
-                        <select 
-                            name="tier" 
-                            id="tier" 
-                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        >
-                            <option value="">All Tiers</option>
+                    <div class="rams-form-group rams-mb-0">
+                        <label for="tier" class="rams-label">{{ 'company.account_tier'|trans }}</label>
+                        <select name="tier" id="tier" class="rams-select">
+                            <option value="">{{ 'common.all'|trans }} {{ 'company.account_tier'|trans|lower }}s</option>
                             {% for tier in tiers %}
-                                <option value="{{ tier }}" {% if current_tier == tier %}selected{% endif %}>Tier {{ tier }}</option>
+                                <option value="{{ tier }}" {% if current_tier == tier %}selected{% endif %}>{{ 'company.tiers.standard'|trans }} {{ tier }}</option>
                             {% endfor %}
                         </select>
                     </div>
 
                     {# Stage Filter #}
-                    <div>
-                        <label for="stage" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Pipeline Stage</label>
-                        <select 
-                            name="stage" 
-                            id="stage" 
-                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        >
-                            <option value="">All Stages</option>
+                    <div class="rams-form-group rams-mb-0">
+                        <label for="stage" class="rams-label">{{ 'company.pipeline_stage'|trans }}</label>
+                        <select name="stage" id="stage" class="rams-select">
+                            <option value="">{{ 'common.all'|trans }} {{ 'company.pipeline_stage'|trans|lower }}s</option>
                             {% for stage in stages %}
                                 <option value="{{ stage }}" {% if current_stage == stage %}selected{% endif %}>{{ stage }}</option>
                             {% endfor %}
@@ -84,14 +76,10 @@
                     </div>
 
                     {# Region Filter #}
-                    <div>
-                        <label for="region" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Region</label>
-                        <select 
-                            name="region" 
-                            id="region" 
-                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        >
-                            <option value="">All Regions</option>
+                    <div class="rams-form-group rams-mb-0">
+                        <label for="region" class="rams-label">{{ 'company.region'|trans }}</label>
+                        <select name="region" id="region" class="rams-select">
+                            <option value="">{{ 'common.all'|trans }} {{ 'company.region'|trans|lower }}s</option>
                             {% for region in regions %}
                                 <option value="{{ region }}" {% if current_region == region %}selected{% endif %}>{{ region }}</option>
                             {% endfor %}
@@ -100,129 +88,130 @@
                 </div>
 
                 {# Filter Actions #}
-                <div class="flex items-center gap-3 pt-2">
-                    <button 
-                        type="submit" 
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors"
-                    >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="rams-flex rams-gap-2">
+                    <button type="submit" class="rams-btn rams-btn--primary">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                         </svg>
-                        Apply Filters
+                        {{ 'filters.apply'|trans }}
                     </button>
-                    <a 
-                        href="{{ path('app_company_index') }}" 
-                        class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors"
-                    >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="{{ path('app_company_index') }}" class="rams-btn">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
-                        Clear
+                        {{ 'filters.clear'|trans }}
                     </a>
                 </div>
             </form>
         </div>
+    </div>
 
-        {# Flash Messages #}
-        {% for label, messages in app.flashes %}
-            {% for message in messages %}
-                <div class="mb-4 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
+    {# Flash Messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="rams-alert {% if label == 'success' %}rams-alert--success{% elseif label == 'error' %}rams-alert--error{% else %}rams-alert--info{% endif %}">
+                <div class="rams-alert__content">{{ message }}</div>
+            </div>
         {% endfor %}
+    {% endfor %}
 
-        {# Results Count #}
-        <div class="mb-4 text-sm text-neutral-600">
-            Showing <span class="font-medium text-neutral-900">{{ companies|length }}</span> companies
-        </div>
+    {# Results Count #}
+    <div class="rams-flex rams-justify-between rams-items-center">
+        <span class="rams-text-muted">
+            {{ 'pagination.showing'|trans }} <span class="rams-badge">{{ companies|length }}</span> {{ 'company.title'|trans|lower }}
+        </span>
+    </div>
 
-        {# Companies Grid #}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {% for company in companies %}
-                <a href="{{ path('app_company_show', {id: company.id}) }}" class="block bg-white rounded-xl border border-neutral-200/60 p-5 hover:border-neutral-300 hover:shadow-sm transition-all group">
-                    
-                    {# Company Header #}
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex-1 min-w-0">
-                            <h3 class="text-base font-semibold text-neutral-900 truncate group-hover:text-blue-600 transition-colors">
-                                {{ company.name }}
-                            </h3>
-                            <p class="mt-1 text-xs text-neutral-500">{{ company.sector }}</p>
+    {# Companies Grid #}
+    <div class="rams-grid rams-grid--3">
+        {% for company in companies %}
+            <a href="{{ path('app_company_show', {id: company.id}) }}" class="rams-module" style="text-decoration: none; transition: border-color var(--duration-fast);">
+                <div class="rams-module__header">
+                    <span class="rams-module__title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">
+                        {{ company.name }}
+                    </span>
+                    {% if company.accountTier %}
+                        <span class="rams-badge rams-badge--primary">{{ company.accountTier }}</span>
+                    {% endif %}
+                </div>
+                <div class="rams-module__content">
+                    {# Sector #}
+                    <div class="rams-flex rams-items-center rams-gap-2 rams-mb-2">
+                        <span class="rams-dymo">{{ company.sector|default('N/A') }}</span>
+                    </div>
+
+                    {# Pipeline Stage #}
+                    {% if company.pipelineStage %}
+                        <div class="rams-flex rams-items-center rams-gap-2 rams-mb-2">
+                            <span class="rams-andon">
+                                {% if company.pipelineStage == 'Award' %}
+                                    <span class="rams-andon__light rams-andon__light--green"></span>
+                                {% elseif company.pipelineStage == 'Proposal' %}
+                                    <span class="rams-andon__light rams-andon__light--yellow"></span>
+                                {% else %}
+                                    <span class="rams-andon__light rams-andon__light--off"></span>
+                                {% endif %}
+                                <span class="rams-andon__text">{{ company.pipelineStage }}</span>
+                            </span>
                         </div>
-                        {% if company.accountTier %}
-                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-neutral-100 text-neutral-700 text-xs font-semibold flex-shrink-0 ml-3">
-                                {{ company.accountTier }}
+                    {% endif %}
+
+                    {# Region #}
+                    {% if company.region %}
+                        <div class="rams-flex rams-items-center rams-gap-2 rams-text-muted" style="font-size: var(--text-xs);">
+                            <svg style="width: 12px; height: 12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            {{ company.region }}
+                        </div>
+                    {% endif %}
+
+                    {# Quick Links Icons #}
+                    <div class="rams-flex rams-gap-2 rams-mt-3">
+                        {% if company.website %}
+                            <span class="rams-badge" title="{{ 'company.website'|trans }}">
+                                <svg style="width: 10px; height: 10px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                                </svg>
+                            </span>
+                        {% endif %}
+                        {% if company.linkedInUrl %}
+                            <span class="rams-badge rams-badge--info" title="{{ 'company.linkedin'|trans }}">
+                                <svg style="width: 10px; height: 10px;" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                </svg>
+                            </span>
+                        {% endif %}
+                        {% if company.googleDriveLink %}
+                            <span class="rams-badge rams-badge--warning" title="{{ 'company.google_drive_link'|trans }}">
+                                <svg style="width: 10px; height: 10px;" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M7.71 3.5L1.15 15l3.18 5.5L11.88 9zm4.58 0l-6.56 11.5 3.18 5.5 6.56-11.5zM8.3 20.5l-3.18-5.5H21l-3.18 5.5z"/>
+                                </svg>
                             </span>
                         {% endif %}
                     </div>
-
-                    {# Company Details #}
-                    <div class="space-y-2">
-                        {# Pipeline Stage #}
-                        {% if company.pipelineStage %}
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 rounded-full {% if company.pipelineStage == 'Award' %}bg-emerald-500{% elseif company.pipelineStage == 'Proposal' %}bg-blue-500{% else %}bg-neutral-400{% endif %}"></div>
-                                <span class="text-xs text-neutral-500">{{ company.pipelineStage }}</span>
-                            </div>
-                        {% endif %}
-
-                        {# Region #}
-                        {% if company.region %}
-                            <div class="flex items-center gap-2 text-xs text-neutral-500">
-                                <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                </svg>
-                                {{ company.region }}
-                            </div>
-                        {% endif %}
-
-                        {# Quick Links #}
-                        <div class="flex items-center gap-3 pt-2">
-                            {% if company.website %}
-                                <div class="w-5 h-5 rounded bg-neutral-100 flex items-center justify-center">
-                                    <svg class="w-3 h-3 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-                                    </svg>
-                                </div>
-                            {% endif %}
-                            {% if company.linkedInUrl %}
-                                <div class="w-5 h-5 rounded bg-blue-50 flex items-center justify-center">
-                                    <svg class="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                                    </svg>
-                                </div>
-                            {% endif %}
-                            {% if company.googleDriveLink %}
-                                <div class="w-5 h-5 rounded bg-yellow-50 flex items-center justify-center">
-                                    <svg class="w-3 h-3 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M7.71 3.5L1.15 15l3.18 5.5L11.88 9zm4.58 0l-6.56 11.5 3.18 5.5 6.56-11.5zM8.3 20.5l-3.18-5.5H21l-3.18 5.5z"/>
-                                    </svg>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </a>
-            {% else %}
-                <div class="col-span-full text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                </div>
+            </a>
+        {% else %}
+            <div class="rams-module" style="grid-column: span 3;">
+                <div class="rams-module__content rams-flex rams-flex-col rams-items-center rams-p-8">
+                    <svg style="width: 48px; height: 48px;" class="rams-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                     </svg>
-                    <h3 class="mt-4 text-sm font-medium text-neutral-900">No companies found</h3>
-                    <p class="mt-1 text-sm text-neutral-500">Get started by creating a new company.</p>
-                    <div class="mt-6">
-                        <a href="{{ path('app_company_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <h3 class="rams-mt-4" style="font-size: var(--text-base); font-weight: 600;">{{ 'company.no_companies'|trans }}</h3>
+                    <p class="rams-text-muted rams-mt-1" style="font-size: var(--text-sm);">{{ 'company.create_first'|trans }}</p>
+                    <div class="rams-mt-4">
+                        <a href="{{ path('app_company_new') }}" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
-                            Create First Company
+                            {{ 'company.new_company'|trans }}
                         </a>
                     </div>
                 </div>
-            {% endfor %}
-        </div>
-
+            </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

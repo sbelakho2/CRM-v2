@@ -1,128 +1,115 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Lead Discovery - Google Search{% endblock %}
+{% block title %}{{ 'lead_discovery.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="min-h-screen bg-gray-50 py-8">
-    <div class="container mx-auto px-4">
-        <div class="max-w-4xl mx-auto">
-            <!-- Header -->
-            <div class="mb-8">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Lead Discovery</h1>
-                <p class="text-gray-600">Search for potential leads using Google Custom Search API</p>
+<div class="rams-page">
+    <div class="rams-page__container rams-page__container--narrow">
+        
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'lead_discovery.title'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'lead_discovery.subtitle'|trans|default('Search for potential leads using Google Custom Search API') }}</p>
             </div>
+        </div>
 
-            <!-- Search Form -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <form method="post" action="{{ path('lead_discovery_search') }}" class="space-y-4">
-                    <div>
-                        <label for="query" class="block text-sm font-medium text-gray-700 mb-2">
-                            Search Query
+        {# Search Form Module #}
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <form method="post" action="{{ path('lead_discovery_search') }}" class="rams-form">
+                    <div class="rams-form__group">
+                        <label for="query" class="rams-dymo">
+                            {{ 'lead_discovery.search_query'|trans|default('Search Query') }}
                         </label>
                         <input 
                             type="text" 
                             name="query" 
                             id="query" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="e.g., aerospace manufacturing morocco"
+                            class="rams-form__input"
+                            placeholder="{{ 'lead_discovery.query_placeholder'|trans|default('e.g., aerospace manufacturing morocco') }}"
                             required
                         >
-                        <p class="mt-1 text-sm text-gray-500">
-                            Enter keywords to search for potential leads
+                        <p class="rams-form__hint">
+                            {{ 'lead_discovery.query_hint'|trans|default('Enter keywords to search for potential leads') }}
                         </p>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="sector" class="block text-sm font-medium text-gray-700 mb-2">
-                                Sector (Optional)
+                    <div class="rams-form__grid rams-form__grid--2col">
+                        <div class="rams-form__group">
+                            <label for="sector" class="rams-dymo">
+                                {{ 'lead_discovery.sector'|trans|default('Sector') }} <span class="rams-form__optional">({{ 'common.optional'|trans }})</span>
                             </label>
-                            <select 
-                                name="sector" 
-                                id="sector" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                                <option value="all">All Sectors</option>
-                                <option value="aerospace">Aerospace</option>
-                                <option value="automotive">Automotive</option>
-                                <option value="electronics">Electronics</option>
-                                <option value="manufacturing">General Manufacturing</option>
-                                <option value="energy">Energy & Renewables</option>
-                                <option value="pharmaceutical">Pharmaceutical</option>
+                            <select name="sector" id="sector" class="rams-form__select">
+                                <option value="all">{{ 'lead_discovery.all_sectors'|trans|default('All Sectors') }}</option>
+                                <option value="aerospace">{{ 'lead_discovery.sector_aerospace'|trans|default('Aerospace') }}</option>
+                                <option value="automotive">{{ 'lead_discovery.sector_automotive'|trans|default('Automotive') }}</option>
+                                <option value="electronics">{{ 'lead_discovery.sector_electronics'|trans|default('Electronics') }}</option>
+                                <option value="manufacturing">{{ 'lead_discovery.sector_manufacturing'|trans|default('General Manufacturing') }}</option>
+                                <option value="energy">{{ 'lead_discovery.sector_energy'|trans|default('Energy & Renewables') }}</option>
+                                <option value="pharmaceutical">{{ 'lead_discovery.sector_pharmaceutical'|trans|default('Pharmaceutical') }}</option>
                             </select>
                         </div>
 
-                        <div>
-                            <label for="limit" class="block text-sm font-medium text-gray-700 mb-2">
-                                Number of Results
+                        <div class="rams-form__group">
+                            <label for="limit" class="rams-dymo">
+                                {{ 'lead_discovery.num_results'|trans|default('Number of Results') }}
                             </label>
-                            <select 
-                                name="limit" 
-                                id="limit" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                                <option value="5">5 results</option>
-                                <option value="10" selected>10 results</option>
-                                <option value="20">20 results</option>
-                                <option value="50">50 results</option>
+                            <select name="limit" id="limit" class="rams-form__select">
+                                <option value="5">5 {{ 'lead_discovery.results_label'|trans|default('results') }}</option>
+                                <option value="10" selected>10 {{ 'lead_discovery.results_label'|trans|default('results') }}</option>
+                                <option value="20">20 {{ 'lead_discovery.results_label'|trans|default('results') }}</option>
+                                <option value="50">50 {{ 'lead_discovery.results_label'|trans|default('results') }}</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between pt-4">
-                        <button 
-                            type="submit" 
-                            class="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            <svg class="inline-block w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    <div class="rams-module__footer">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                             </svg>
-                            Search Companies
+                            {{ 'lead_discovery.search_companies'|trans|default('Search Companies') }}
                         </button>
 
-                        <a href="{{ path('app_lead_index') }}" class="text-gray-600 hover:text-gray-900">
-                            Back to Leads
+                        <a href="{{ path('app_lead_index') }}" class="rams-btn rams-btn--ghost">
+                            {{ 'lead_discovery.back_to_leads'|trans|default('Back to Leads') }}
                         </a>
                     </div>
                 </form>
             </div>
+        </div>
 
-            <!-- Info Box -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-blue-800">About API Usage</h3>
-                        <div class="mt-2 text-sm text-blue-700">
-                            <ul class="list-disc list-inside space-y-1">
-                                <li>Free tier: 100 queries per day</li>
-                                <li>Paid tier: $5 per 1,000 queries</li>
-                                <li>Results are automatically filtered for duplicates</li>
-                                <li>You can preview results before importing</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+        {# Info Box #}
+        <div class="rams-andon rams-andon--info">
+            <div class="rams-andon__content">
+                <h3 class="rams-andon__title">{{ 'lead_discovery.about_api'|trans|default('About API Usage') }}</h3>
+                <ul class="rams-andon__list">
+                    <li>{{ 'lead_discovery.api_free_tier'|trans|default('Free tier: 100 queries per day') }}</li>
+                    <li>{{ 'lead_discovery.api_paid_tier'|trans|default('Paid tier: $5 per 1,000 queries') }}</li>
+                    <li>{{ 'lead_discovery.api_dedup'|trans|default('Results are automatically filtered for duplicates') }}</li>
+                    <li>{{ 'lead_discovery.api_preview'|trans|default('You can preview results before importing') }}</li>
+                </ul>
             </div>
+        </div>
 
-            <!-- Example Searches -->
-            <div class="mt-6 bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Example Searches</h3>
-                <div class="space-y-2">
-                    <button onclick="document.getElementById('query').value = this.textContent" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+        {# Example Searches #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3 class="rams-module__title">{{ 'lead_discovery.example_searches'|trans|default('Example Searches') }}</h3>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-example-list">
+                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-example-list__item">
                         aerospace manufacturers morocco
                     </button>
-                    <button onclick="document.getElementById('query').value = this.textContent" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-example-list__item">
                         automotive parts suppliers casablanca
                     </button>
-                    <button onclick="document.getElementById('query').value = this.textContent" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-example-list__item">
                         electronic components distributors morocco
                     </button>
-                    <button onclick="document.getElementById('query').value = this.textContent" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-example-list__item">
                         industrial manufacturing companies tangier
                     </button>
                 </div>

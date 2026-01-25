@@ -1,104 +1,126 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Leads - Starz Morocco CRM{% endblock %}
+{% block title %}{{ 'lead.title'|trans }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="border-b border-neutral-200/80 pb-5">
-        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Provisional Leads</h1>
-        <p class="mt-1 text-sm text-neutral-600">Review and manage discovered leads from LeadBot</p>
-    </div>
-
-    {# Quick Stats #}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Total Leads</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">{{ total_leads }}</p>
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'lead.provisional_leads'|trans|default('Provisional Leads') }}</h1>
+                <p class="rams-page__subtitle">{{ 'lead.subtitle'|trans|default('Review and manage discovered leads from LeadBot') }}</p>
+            </div>
         </div>
 
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Pending Review</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-yellow-600">{{ pending_count }}</p>
-        </div>
+        {# Quick Stats #}
+        <div class="rams-metrics-grid rams-metrics-grid--4col">
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.total_leads'|trans }}</span>
+                    <span class="rams-metric">{{ total_leads }}</span>
+                </div>
+            </div>
 
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Approved</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-green-600">{{ approved_count }}</p>
-        </div>
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.pending_review'|trans }}</span>
+                    <span class="rams-metric rams-metric--warning">{{ pending_count }}</span>
+                </div>
+            </div>
 
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Denied</p>
-            <p class="mt-2 text-3xl font-semibold tracking-tight text-red-600">{{ denied_count }}</p>
-        </div>
-    </div>
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.approved_leads'|trans }}</span>
+                    <span class="rams-metric rams-metric--success">{{ approved_count }}</span>
+                </div>
+            </div>
 
-    {# Action Cards #}
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-                <div class="card-body text-center py-5">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9B6B9E" stroke-width="2" class="mb-3">
-                        <path d="M9 11l3 3L22 4"/>
-                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-                    </svg>
-                    <h4 class="mb-3">Review Leads</h4>
-                    <p class="text-muted mb-4">
-                        Review and approve provisional leads from the daily crawler runs.
-                        Filter by region, score, and status.
-                    </p>
-                    <a href="{{ path('app_lead_review') }}" class="btn btn-primary">
-                        <i class="fas fa-tasks"></i> Start Reviewing
-                    </a>
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <span class="rams-dymo">{{ 'lead.denied_leads'|trans }}</span>
+                    <span class="rams-metric rams-metric--danger">{{ denied_count }}</span>
                 </div>
             </div>
         </div>
 
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-                <div class="card-body text-center py-5">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9B6B9E" stroke-width="2" class="mb-3">
+        {# Action Cards #}
+        <div class="rams-grid rams-grid--2col">
+            <div class="rams-module">
+                <div class="rams-module__content rams-module__content--centered">
+                    <svg class="rams-module__icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4"/>
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                    </svg>
+                    <h4 class="rams-module__subtitle">{{ 'lead.review_leads_title'|trans|default('Review Leads') }}</h4>
+                    <p class="rams-module__description">
+                        {{ 'lead.review_leads_description'|trans|default('Review and approve provisional leads from the daily crawler runs. Filter by region, score, and status.') }}
+                    </p>
+                    <a href="{{ path('app_lead_review') }}" class="rams-btn rams-btn--primary">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
+                        {{ 'lead.start_reviewing'|trans|default('Start Reviewing') }}
+                    </a>
+                </div>
+            </div>
+
+            <div class="rams-module">
+                <div class="rams-module__content rams-module__content--centered">
+                    <svg class="rams-module__icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="20" x2="12" y2="10"/>
                         <line x1="18" y1="20" x2="18" y2="4"/>
                         <line x1="6" y1="20" x2="6" y2="16"/>
                     </svg>
-                    <h4 class="mb-3">Dashboard & KPIs</h4>
-                    <p class="text-muted mb-4">
-                        View lead statistics, regional breakdown, approval rates, and precision metrics.
-                        Track weekly performance.
+                    <h4 class="rams-module__subtitle">{{ 'lead.dashboard_kpis'|trans|default('Dashboard & KPIs') }}</h4>
+                    <p class="rams-module__description">
+                        {{ 'lead.dashboard_description'|trans|default('View lead statistics, regional breakdown, approval rates, and precision metrics. Track weekly performance.') }}
                     </p>
-                    <a href="{{ path('app_lead_dashboard') }}" class="btn btn-primary">
-                        <i class="fas fa-chart-bar"></i> View Dashboard
+                    <a href="{{ path('app_lead_dashboard') }}" class="rams-btn rams-btn--primary">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        {{ 'lead.view_dashboard'|trans|default('View Dashboard') }}
                     </a>
                 </div>
             </div>
         </div>
-    </div>
 
-    {# Information Card #}
-    <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-                <div class="card-body">
-                    <h5 class="mb-3">About Provisional Leads</h5>
-                    <p class="mb-2">
-                        <strong>What are provisional leads?</strong> These are potential PCBA/EMS buyers discovered by our 
-                        intelligent webcrawler across Morocco, US East Coast, Texas, EU, and UK regions.
+        {# Information Module #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3 class="rams-module__title">{{ 'lead.about_provisional'|trans|default('About Provisional Leads') }}</h3>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-prose">
+                    <p>
+                        <strong>{{ 'lead.what_are_leads'|trans|default('What are provisional leads?') }}</strong> 
+                        {{ 'lead.what_are_leads_desc'|trans|default('These are potential PCBA/EMS buyers discovered by our intelligent webcrawler across Morocco, US East Coast, Texas, EU, and UK regions.') }}
                     </p>
-                    <p class="mb-2">
-                        <strong>Daily Drops:</strong> Leads are delivered daily at 08:00 Africa/Tunis (Morocco primary) 
-                        and 08:30 for regional batches (US-East, US-TX, UK, EU).
+                    <p>
+                        <strong>{{ 'lead.daily_drops'|trans|default('Daily Drops:') }}</strong> 
+                        {{ 'lead.daily_drops_desc'|trans|default('Leads are delivered daily at 08:00 Africa/Tunis (Morocco primary) and 08:30 for regional batches (US-East, US-TX, UK, EU).') }}
                     </p>
-                    <p class="mb-2">
-                        <strong>Scoring:</strong> Each lead is scored 0-100 based on 13 weighted signals including geographic fit, 
-                        manufacturing capabilities, procurement readiness, quality standards, and contactability.
+                    <p>
+                        <strong>{{ 'lead.scoring_label'|trans|default('Scoring:') }}</strong> 
+                        {{ 'lead.scoring_desc'|trans|default('Each lead is scored 0-100 based on 13 weighted signals including geographic fit, manufacturing capabilities, procurement readiness, quality standards, and contactability.') }}
                     </p>
-                    <p class="mb-3">
-                        <strong>Workflow:</strong> Review → Approve → <span class="badge bg-primary">Add to Companies</span> → Assign Owner → Begin Outreach
+                    <p>
+                        <strong>{{ 'lead.workflow_label'|trans|default('Workflow:') }}</strong> 
+                        {{ 'lead.workflow_desc'|trans|default('Review → Approve → Add to Companies → Assign Owner → Begin Outreach') }}
                     </p>
-                    <div class="rounded-lg border border-blue-200/60 bg-blue-50/50 p-4 text-sm">
-                        <strong><i class="fas fa-info-circle"></i> How to Add Leads to Companies:</strong><br>
-                        1. Go to "Review Leads"<br>
-                        2. Approve good leads by clicking the green checkmark<br>
-                        3. Click "<i class="fas fa-plus-circle"></i> Add to Companies" button on approved leads<br>
-                        4. Lead is instantly added to your Companies list with all details
-                    </div>
+                </div>
+                
+                <div class="rams-andon rams-andon--info">
+                    <strong>{{ 'lead.how_to_add'|trans|default('How to Add Leads to Companies:') }}</strong><br>
+                    1. {{ 'lead.step_1'|trans|default('Go to "Review Leads"') }}<br>
+                    2. {{ 'lead.step_2'|trans|default('Approve good leads by clicking the green checkmark') }}<br>
+                    3. {{ 'lead.step_3'|trans|default('Click "Add to Companies" button on approved leads') }}<br>
+                    4. {{ 'lead.step_4'|trans|default('Lead is instantly added to your Companies list with all details') }}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,52 +1,49 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Contacts{% endblock %}
+{% block title %}{{ 'contact.index.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
+<div class="rams-container">
         
-        {# Header with Create Button #}
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Contacts</h1>
-                <p class="mt-1 text-sm text-neutral-600">Manage your contact database with role-based filtering</p>
-            </div>
-            <a href="{{ path('app_contact_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                New Contact
-            </a>
+    {# Header with Create Button #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'contact.index.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'contact.index.subtitle'|trans }}</p>
         </div>
+        <a href="{{ path('app_contact_new') }}" class="rams-btn rams-btn--primary">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            {{ 'contact.actions.new'|trans }}
+        </a>
+    </div>
 
-        {# Filters Card #}
-        <div class="bg-white rounded-xl border border-neutral-200/60 p-5 mb-6">
-            <form method="get" action="{{ path('app_contact_index') }}" class="space-y-4">
+    {# Filters Module #}
+    <div class="rams-module rams-module--filters">
+        <div class="rams-module__content">
+            <form method="get" action="{{ path('app_contact_index') }}">
                 
                 {# Search Bar #}
-                <div>
-                    <label for="search" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Search</label>
+                <div class="rams-form__group">
+                    <label for="search" class="rams-dymo">{{ 'common.search'|trans }}</label>
                     <input 
                         type="text" 
                         name="search" 
                         id="search" 
                         value="{{ current_search }}" 
-                        placeholder="Search by name or email..." 
-                        class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        placeholder="{{ 'contact.filters.search_placeholder'|trans }}" 
+                        class="rams-form__input"
                     />
                 </div>
 
                 {# Filter Grid #}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="rams-grid rams-grid--2">
                     {# Role Filter #}
-                    <div>
-                        <label for="role" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Role</label>
-                        <select 
-                            name="role" 
-                            id="role" 
-                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        >
-                            <option value="">All Roles</option>
+                    <div class="rams-form__group">
+                        <label for="role" class="rams-dymo">{{ 'contact.fields.role'|trans }}</label>
+                        <select name="role" id="role" class="rams-form__select">
+                            <option value="">{{ 'contact.filters.all_roles'|trans }}</option>
                             {% for role in roles %}
                                 <option value="{{ role }}" {% if current_role == role %}selected{% endif %}>{{ role }}</option>
                             {% endfor %}
@@ -54,14 +51,10 @@
                     </div>
 
                     {# Company Filter #}
-                    <div>
-                        <label for="company" class="block text-xs font-medium text-neutral-700 uppercase tracking-wide mb-2">Company</label>
-                        <select 
-                            name="company" 
-                            id="company" 
-                            class="w-full px-4 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        >
-                            <option value="">All Companies</option>
+                    <div class="rams-form__group">
+                        <label for="company" class="rams-dymo">{{ 'contact.fields.company'|trans }}</label>
+                        <select name="company" id="company" class="rams-form__select">
+                            <option value="">{{ 'contact.filters.all_companies'|trans }}</option>
                             {% for company in companies %}
                                 <option value="{{ company.id }}" {% if current_company == company.id %}selected{% endif %}>{{ company.name }}</option>
                             {% endfor %}
@@ -70,109 +63,103 @@
                 </div>
 
                 {# Filter Actions #}
-                <div class="flex items-center gap-3 pt-2">
-                    <button 
-                        type="submit" 
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-800 transition-colors"
-                    >
+                <div class="rams-btn-group">
+                    <button type="submit" class="rams-btn rams-btn--primary">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                         </svg>
-                        Apply Filters
+                        {{ 'common.apply_filters'|trans }}
                     </button>
-                    <a 
-                        href="{{ path('app_contact_index') }}" 
-                        class="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors"
-                    >
+                    <a href="{{ path('app_contact_index') }}" class="rams-btn rams-btn--secondary">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
-                        Clear
+                        {{ 'common.clear'|trans }}
                     </a>
                 </div>
             </form>
         </div>
+    </div>
 
-        {# Flash Messages #}
-        {% for label, messages in app.flashes %}
-            {% for message in messages %}
-                <div class="mb-4 px-4 py-3 rounded-lg {% if label == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
+    {# Flash Messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="rams-alert rams-alert--{{ label == 'success' ? 'success' : 'info' }}">
+                {{ message }}
+            </div>
         {% endfor %}
+    {% endfor %}
 
-        {# Results Count #}
-        <div class="mb-4 text-sm text-neutral-600">
-            Showing <span class="font-medium text-neutral-900">{{ contacts|length }}</span> contacts
-        </div>
+    {# Results Count #}
+    <div class="rams-results-count">
+        {{ 'common.showing'|trans }} <span class="rams-metric">{{ contacts|length }}</span> {{ 'contact.index.contacts'|trans }}
+    </div>
 
-        {# Contacts Table #}
-        <div class="bg-white rounded-xl border border-neutral-200/60 overflow-hidden">
-            <table class="min-w-full divide-y divide-neutral-200">
-                <thead class="bg-neutral-50">
+    {# Contacts Table Module #}
+    <div class="rams-module">
+        <div class="rams-module__content rams-module__content--flush">
+            <table class="rams-table">
+                <thead class="rams-table__header">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Contact</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Company</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Role</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wide">Contact Info</th>
-                        <th scope="col" class="relative px-6 py-3">
-                            <span class="sr-only">Actions</span>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'contact.table.contact'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'contact.fields.company'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'contact.fields.role'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'contact.table.contact_info'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">
+                            <span class="sr-only">{{ 'common.actions'|trans }}</span>
                         </th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-neutral-200">
+                <tbody>
                     {% for contact in contacts %}
-                        <tr class="hover:bg-neutral-50 transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-medium text-sm">
+                        <tr class="rams-table__row">
+                            <td class="rams-table__cell">
+                                <div class="rams-contact-avatar">
+                                    <div class="rams-contact-avatar__icon">
                                         {{ contact.firstName|slice(0, 1) }}{{ contact.lastName|slice(0, 1) }}
                                     </div>
-                                    <div>
-                                        <div class="text-sm font-medium text-neutral-900">{{ contact.firstName }} {{ contact.lastName }}</div>
+                                    <div class="rams-contact-avatar__details">
+                                        <div class="rams-contact-avatar__name">{{ contact.firstName }} {{ contact.lastName }}</div>
                                         {% if contact.jobTitle %}
-                                            <div class="text-xs text-neutral-500">{{ contact.jobTitle }}</div>
+                                            <div class="rams-contact-avatar__subtitle">{{ contact.jobTitle }}</div>
                                         {% endif %}
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="rams-table__cell">
                                 {% if contact.company %}
-                                    <a href="{{ path('app_company_show', {id: contact.company.id}) }}" class="text-sm text-blue-600 hover:text-blue-700">
+                                    <a href="{{ path('app_company_show', {id: contact.company.id}) }}" class="rams-link">
                                         {{ contact.company.name }}
                                     </a>
                                 {% else %}
-                                    <span class="text-sm text-neutral-400">—</span>
+                                    <span class="rams-text--muted">—</span>
                                 {% endif %}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="rams-table__cell">
                                 {% if contact.role %}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-700">
-                                        {{ contact.role }}
-                                    </span>
+                                    <span class="rams-badge">{{ contact.role }}</span>
                                 {% else %}
-                                    <span class="text-sm text-neutral-400">—</span>
+                                    <span class="rams-text--muted">—</span>
                                 {% endif %}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center gap-3">
+                            <td class="rams-table__cell">
+                                <div class="rams-contact-icons">
                                     {% if contact.email %}
-                                        <a href="mailto:{{ contact.email }}" class="text-neutral-400 hover:text-neutral-600" title="{{ contact.email }}">
+                                        <a href="mailto:{{ contact.email }}" class="rams-icon-link" title="{{ contact.email }}">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                             </svg>
                                         </a>
                                     {% endif %}
                                     {% if contact.phone %}
-                                        <a href="tel:{{ contact.phone }}" class="text-neutral-400 hover:text-neutral-600" title="{{ contact.phone }}">
+                                        <a href="tel:{{ contact.phone }}" class="rams-icon-link" title="{{ contact.phone }}">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                                             </svg>
                                         </a>
                                     {% endif %}
                                     {% if contact.linkedInUrl %}
-                                        <a href="{{ contact.linkedInUrl }}" target="_blank" class="text-blue-600 hover:text-blue-700" title="LinkedIn Profile">
+                                        <a href="{{ contact.linkedInUrl }}" target="_blank" class="rams-icon-link rams-icon-link--linkedin" title="{{ 'contact.actions.linkedin_profile'|trans }}">
                                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                                 <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                                             </svg>
@@ -180,25 +167,25 @@
                                     {% endif %}
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="text-blue-600 hover:text-blue-700">View</a>
+                            <td class="rams-table__cell rams-table__cell--actions">
+                                <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.view'|trans }}</a>
                             </td>
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center">
-                                <svg class="mx-auto h-12 w-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <circle cx="8" cy="5" r="3" stroke-width="2"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
-                                </svg>
-                                <h3 class="mt-4 text-sm font-medium text-neutral-900">No contacts found</h3>
-                                <p class="mt-1 text-sm text-neutral-500">Get started by creating a new contact.</p>
-                                <div class="mt-6">
-                                    <a href="{{ path('app_contact_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+                            <td colspan="5" class="rams-table__cell rams-table__cell--empty">
+                                <div class="rams-empty-state">
+                                    <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <circle cx="8" cy="5" r="3" stroke-width="2"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
+                                    </svg>
+                                    <h3 class="rams-empty-state__title">{{ 'contact.empty.title'|trans }}</h3>
+                                    <p class="rams-empty-state__description">{{ 'contact.empty.description'|trans }}</p>
+                                    <a href="{{ path('app_contact_new') }}" class="rams-btn rams-btn--primary">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                         </svg>
-                                        Create First Contact
+                                        {{ 'contact.actions.create_first'|trans }}
                                     </a>
                                 </div>
                             </td>
@@ -207,7 +194,7 @@
                 </tbody>
             </table>
         </div>
-
     </div>
+
 </div>
 {% endblock %}

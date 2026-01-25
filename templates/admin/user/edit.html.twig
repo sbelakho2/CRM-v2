@@ -1,64 +1,66 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Edit User - Admin{% endblock %}
+{% block title %}{{ 'admin.users.edit_user'|trans }} - {{ 'admin.title'|trans }}{% endblock %}
 
 {% block body %}
-<!-- Page Header -->
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Edit User</h1>
-        <p class="text-muted">Update user information and permissions</p>
+<div class="rams-stack">
+    <!-- Header -->
+    <div class="rams-page-header">
+        <h1 class="rams-page-title">{{ 'admin.users.edit_user'|trans }}</h1>
+        <p class="rams-page-subtitle">{{ 'admin.users.edit_user_subtitle'|trans }}</p>
     </div>
-</div>
 
-<!-- Form Card -->
-<div class="card" style="max-width: 800px;">
-    {{ form_start(form) }}
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div class="form-group">
-            {{ form_label(form.firstName) }}
-            {{ form_widget(form.firstName, {'attr': {'class': 'geist-input'}}) }}
-            {{ form_errors(form.firstName) }}
+    <!-- Form Card -->
+    <div class="rams-module" style="max-width: 800px;">
+        <div class="rams-module__content">
+            {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
+            
+            <div class="rams-grid rams-grid--2">
+                <div class="rams-form-group">
+                    {{ form_label(form.firstName, 'admin.users.first_name'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                    {{ form_widget(form.firstName, {'attr': {'class': 'rams-input'}}) }}
+                    {{ form_errors(form.firstName) }}
+                </div>
+
+                <div class="rams-form-group">
+                    {{ form_label(form.lastName, 'admin.users.last_name'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                    {{ form_widget(form.lastName, {'attr': {'class': 'rams-input'}}) }}
+                    {{ form_errors(form.lastName) }}
+                </div>
+            </div>
+
+            <div class="rams-form-group">
+                {{ form_label(form.email, 'admin.users.email'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                {{ form_widget(form.email, {'attr': {'class': 'rams-input'}}) }}
+                {{ form_errors(form.email) }}
+            </div>
+
+            <div class="rams-form-group">
+                {{ form_label(form.roles, 'admin.users.role'|trans, {'label_attr': {'class': 'rams-label'}}) }}
+                {{ form_widget(form.roles, {'attr': {'class': 'rams-select'}}) }}
+                {{ form_errors(form.roles) }}
+            </div>
+
+            <div class="rams-form-group">
+                <label class="rams-checkbox">
+                    {{ form_widget(form.active, {'attr': {'class': 'rams-checkbox__input'}}) }}
+                    <span class="rams-checkbox__label">{{ 'admin.users.active'|trans }}</span>
+                </label>
+                {{ form_errors(form.active) }}
+            </div>
+
+            <div class="rams-module__footer">
+                <button type="submit" class="rams-btn rams-btn--primary">
+                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    {{ 'admin.users.save_changes'|trans }}
+                </button>
+                <a href="{{ path('admin_user_index') }}" class="rams-btn rams-btn--ghost">{{ 'common.cancel'|trans }}</a>
+            </div>
+
+            {{ form_end(form) }}
         </div>
-
-        <div class="form-group">
-            {{ form_label(form.lastName) }}
-            {{ form_widget(form.lastName, {'attr': {'class': 'geist-input'}}) }}
-            {{ form_errors(form.lastName) }}
-        </div>
     </div>
-
-    <div class="form-group">
-        {{ form_label(form.email) }}
-        {{ form_widget(form.email, {'attr': {'class': 'geist-input'}}) }}
-        {{ form_errors(form.email) }}
-    </div>
-
-    <div class="form-group">
-        {{ form_label(form.roles) }}
-        {{ form_widget(form.roles, {'attr': {'class': 'geist-select'}}) }}
-        {{ form_errors(form.roles) }}
-    </div>
-
-    <div class="form-group">
-        <label class="flex items-center gap-2">
-            {{ form_widget(form.active) }}
-            <span>Active</span>
-        </label>
-        {{ form_errors(form.active) }}
-    </div>
-
-    <div class="flex items-center gap-3 mt-6">
-        <button type="submit" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-            </svg>
-            Save Changes
-        </button>
-        <a href="{{ path('admin_user_index') }}" class="inline-flex items-center gap-2 px-5 py-2.5 border border-neutral-200 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors">Cancel</a>
-    </div>
-
-    {{ form_end(form) }}
 </div>
 {% endblock %}

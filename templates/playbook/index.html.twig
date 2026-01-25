@@ -1,91 +1,95 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}ABM Playbooks{% endblock %}
+{% block title %}{{ 'playbook.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
+<div class="rams-stack">
     <!-- Header -->
-    <div class="border-b border-neutral-200/80 pb-5 flex items-center justify-between">
+    <div class="rams-page-header">
         <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">ABM Playbooks</h1>
-            <p class="mt-1 text-sm text-neutral-600">Automated workflows for account-based marketing</p>
+            <h1 class="rams-page-title">{{ 'playbook.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'playbook.subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('app_playbook_new') }}" class="inline-flex items-center gap-2 rounded-lg border border-neutral-200/60 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <a href="{{ path('app_playbook_new') }}" class="rams-btn rams-btn--primary">
+            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
-            Create Playbook
+            {{ 'playbook.create_playbook'|trans }}
         </a>
     </div>
 
     {% for message in app.flashes('success') %}
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{{ message }}</div>
+        <div class="rams-alert rams-alert--success">{{ message }}</div>
     {% endfor %}
 
-    <div class="rounded-xl border border-neutral-200/60 bg-white overflow-hidden">
-        <table class="min-w-full divide-y divide-neutral-200">
-            <thead class="bg-neutral-50">
+    <div class="rams-module">
+        <table class="rams-table">
+            <thead class="rams-table__header">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-neutral-600 uppercase">Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Runs</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Success Rate</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Run</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th class="rams-table__cell">{{ 'common.name'|trans }}</th>
+                    <th class="rams-table__cell">{{ 'playbook.priority'|trans }}</th>
+                    <th class="rams-table__cell">{{ 'common.status'|trans }}</th>
+                    <th class="rams-table__cell">{{ 'playbook.runs'|trans }}</th>
+                    <th class="rams-table__cell">{{ 'playbook.success_rate'|trans }}</th>
+                    <th class="rams-table__cell">{{ 'playbook.last_run'|trans }}</th>
+                    <th class="rams-table__cell">{{ 'common.actions'|trans }}</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody>
                 {% for playbook in playbooks %}
                     {% set stats = playbookStats[playbook.id] %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">{{ playbook.name }}</div>
-                            <div class="text-sm text-gray-500">{{ playbook.description|slice(0, 60) }}...</div>
+                    <tr class="rams-table__row">
+                        <td class="rams-table__cell">
+                            <div class="rams-list-item__title">{{ playbook.name }}</div>
+                            <div class="rams-text-muted">{{ playbook.description|slice(0, 60) }}...</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="text-sm text-gray-900">{{ playbook.priority }}</span>
+                        <td class="rams-table__cell">
+                            <span class="rams-metric__value">{{ playbook.priority }}</span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="rams-table__cell">
                             <button 
                                 onclick="togglePlaybook({{ playbook.id }})" 
-                                class="toggle-btn px-3 py-1 rounded-full text-xs font-medium {% if playbook.isActive %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}"
+                                class="toggle-btn rams-badge {% if playbook.isActive %}rams-badge--success{% else %}rams-badge--neutral{% endif %}"
                                 data-playbook-id="{{ playbook.id }}"
                             >
-                                <span class="status-text">{% if playbook.isActive %}Active{% else %}Inactive{% endif %}</span>
+                                <span class="status-text">{% if playbook.isActive %}{{ 'playbook.active'|trans }}{% else %}{{ 'playbook.inactive'|trans }}{% endif %}</span>
                             </button>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ stats.total_runs }}
+                        <td class="rams-table__cell">
+                            <span class="rams-metric__value">{{ stats.total_runs }}</span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="rams-table__cell">
                             {% set success_rate = stats.success_rate %}
-                            <div class="flex items-center">
-                                <span class="text-sm {% if success_rate >= 80 %}text-green-600{% elseif success_rate >= 50 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                            <div class="rams-metric">
+                                <span class="rams-metric__value {% if success_rate >= 80 %}rams-text-success{% elseif success_rate >= 50 %}rams-text-warning{% else %}rams-text-danger{% endif %}">
                                     {{ success_rate|number_format(0) }}%
                                 </span>
-                                <span class="text-xs text-gray-500 ml-1">({{ stats.successful_runs }}/{{ stats.total_runs }})</span>
+                                <span class="rams-text-muted">({{ stats.successful_runs }}/{{ stats.total_runs }})</span>
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td class="rams-table__cell rams-text-muted">
                             {% if stats.last_run %}
                                 {{ stats.last_run.triggeredAt|date('M d, H:i') }}
                             {% else %}
-                                Never
+                                {{ 'playbook.never'|trans }}
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
-                            <a href="{{ path('app_playbook_edit', {id: playbook.id}) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
-                            <form action="{{ path('app_playbook_delete', {id: playbook.id}) }}" method="post" class="inline" onsubmit="return confirm('Are you sure?')">
-                                <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
-                            </form>
+                        <td class="rams-table__cell">
+                            <div class="rams-btn-group">
+                                <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.view'|trans }}</a>
+                                <a href="{{ path('app_playbook_edit', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.edit'|trans }}</a>
+                                <form action="{{ path('app_playbook_delete', {id: playbook.id}) }}" method="post" class="inline" onsubmit="return confirm('{{ 'playbook.delete_confirm'|trans }}')">
+                                    <button type="submit" class="rams-btn rams-btn--danger rams-btn--ghost">{{ 'common.delete'|trans }}</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
-                            No playbooks yet. <a href="{{ path('app_playbook_new') }}" class="text-blue-600 hover:underline">Create your first playbook</a>
+                        <td colspan="7" class="rams-table__cell">
+                            <div class="rams-empty-state">
+                                {{ 'playbook.no_playbooks'|trans }} <a href="{{ path('app_playbook_new') }}" class="rams-link">{{ 'playbook.create_first'|trans }}</a>
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}
@@ -94,29 +98,31 @@
     </div>
 
     <!-- Documentation -->
-    <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h2 class="text-xl font-semibold text-blue-900 mb-4">What are ABM Playbooks?</h2>
-        <p class="text-blue-800 mb-4">
-            Playbooks are automated workflows that trigger actions based on visitor behavior, lead scoring, email engagement, or quote status.
-        </p>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-            <div>
-                <h3 class="font-semibold mb-2">Example Triggers:</h3>
-                <ul class="list-disc list-inside space-y-1">
-                    <li>Visitor views pricing page 3+ times</li>
-                    <li>Lead score increases above 80</li>
-                    <li>Email link clicked in campaign</li>
-                    <li>Quote pending for >48 hours</li>
-                </ul>
-            </div>
-            <div>
-                <h3 class="font-semibold mb-2">Example Actions:</h3>
-                <ul class="list-disc list-inside space-y-1">
-                    <li>Create high-priority call task</li>
-                    <li>Send automated follow-up email</li>
-                    <li>Assign lead to sales rep</li>
-                    <li>Update lead score +10 points</li>
-                </ul>
+    <div class="rams-module rams-module--info">
+        <div class="rams-module__content">
+            <h2 class="rams-module__title">{{ 'playbook.what_are_playbooks'|trans }}</h2>
+            <p class="rams-text-muted">
+                {{ 'playbook.playbooks_description'|trans }}
+            </p>
+            <div class="rams-grid rams-grid--2">
+                <div>
+                    <h3 class="rams-dymo">{{ 'playbook.example_triggers'|trans }}:</h3>
+                    <ul class="rams-list rams-list--bullet">
+                        <li>Visitor views pricing page 3+ times</li>
+                        <li>Lead score increases above 80</li>
+                        <li>Email link clicked in campaign</li>
+                        <li>Quote pending for >48 hours</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="rams-dymo">{{ 'playbook.example_actions'|trans }}:</h3>
+                    <ul class="rams-list rams-list--bullet">
+                        <li>Create high-priority call task</li>
+                        <li>Send automated follow-up email</li>
+                        <li>Assign lead to sales rep</li>
+                        <li>Update lead score +10 points</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -139,17 +145,17 @@ async function togglePlaybook(id) {
         
         if (data.success) {
             if (data.is_active) {
-                btn.classList.remove('bg-gray-100', 'text-gray-800');
-                btn.classList.add('bg-green-100', 'text-green-800');
-                statusText.textContent = 'Active';
+                btn.classList.remove('rams-badge--neutral');
+                btn.classList.add('rams-badge--success');
+                statusText.textContent = '{{ 'playbook.active'|trans }}';
             } else {
-                btn.classList.remove('bg-green-100', 'text-green-800');
-                btn.classList.add('bg-gray-100', 'text-gray-800');
-                statusText.textContent = 'Inactive';
+                btn.classList.remove('rams-badge--success');
+                btn.classList.add('rams-badge--neutral');
+                statusText.textContent = '{{ 'playbook.inactive'|trans }}';
             }
         }
     } catch (error) {
-        alert('Error toggling playbook: ' + error.message);
+        console.error('Error toggling playbook:', error);
     }
 }
 </script>

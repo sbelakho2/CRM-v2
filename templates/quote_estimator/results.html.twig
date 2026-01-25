@@ -1,88 +1,111 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Quote Results{% endblock %}
+{% block title %}{{ 'quote.estimator.estimate_results'|trans }}{% endblock %}
 
 {% block body %}
-<div class="space-y-6">
-    <!-- Header with Geist-style typography -->
-    <div class="border-b border-neutral-200/80 pb-5">
-        <a href="{{ path('quote_estimator_list') }}" class="text-sm text-neutral-600 hover:text-neutral-900 inline-flex items-center mb-3">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="rams-stack rams-stack--lg">
+    {# Page Header #}
+    <header class="rams-module__header rams-module__header--border-bottom">
+        <a href="{{ path('quote_estimator_list') }}" class="rams-link rams-link--back">
+            <svg class="rams-link__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            Back to Estimates
+            {{ 'quote.estimator.back_to_estimates'|trans|default('Back to Estimates') }}
         </a>
-        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900">Quote Results</h1>
-        <p class="mt-1.5 text-sm text-neutral-600">Estimate #{{ estimate.estimateNumber }}</p>
-    </div>
+        <h1 class="rams-heading rams-heading--1">{{ 'quote.estimator.estimate_results'|trans }}</h1>
+        <p class="rams-text rams-text--muted">{{ 'quote.estimator.estimate_number'|trans|default('Estimate') }} #{{ estimate.estimateNumber }}</p>
+    </header>
     
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <!-- Customer Info -->
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <h2 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Customer</h2>
-            <p class="text-neutral-700">
-                <span class="font-medium text-neutral-900">{{ quoteData.customer_name | default('N/A') }}</span>
-            </p>
+    <div class="rams-grid rams-grid--cols-3 rams-grid--gap-md">
+        {# Customer Info #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-dymo">{{ 'quote.estimator.customer'|trans|default('Customer') }}</span>
+            </div>
+            <div class="rams-module__content">
+                <p class="rams-text rams-text--bold">{{ quoteData.customer_name | default('common.n_a'|trans) }}</p>
+            </div>
         </div>
 
-        <!-- Part Info -->
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <h2 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Part Details</h2>
-            <p class="text-sm text-neutral-700">
-                <span class="font-medium">Part #:</span> 
-                <span class="text-neutral-900">{{ quoteData.part_number | default('N/A') }}</span>
-            </p>
-            <p class="text-sm text-neutral-700 mt-2">
-                <span class="font-medium">Qty:</span> 
-                <span class="text-neutral-900">{{ quoteData.quantity | default('N/A') }}</span>
-            </p>
-            {% if quoteData.delivery_date %}
-            <p class="text-sm text-neutral-700 mt-2">
-                <span class="font-medium">Required Date:</span> 
-                <span class="text-neutral-900">{{ quoteData.delivery_date }}</span>
-            </p>
+        {# Part Info #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-dymo">{{ 'quote.estimator.part_details'|trans|default('Part Details') }}</span>
+            </div>
+            <div class="rams-module__content">
+                <dl class="rams-definition-list rams-definition-list--compact">
+                    <div class="rams-definition-list__item">
+                        <dt class="rams-definition-list__term">{{ 'quote.estimator.part_number'|trans|default('Part #') }}:</dt>
+                        <dd class="rams-definition-list__desc"><code class="rams-code">{{ quoteData.part_number | default('common.n_a'|trans) }}</code></dd>
+                    </div>
+                    <div class="rams-definition-list__item">
+                        <dt class="rams-definition-list__term">{{ 'common.quantity'|trans }}:</dt>
+                        <dd class="rams-definition-list__desc rams-text--bold">{{ quoteData.quantity | default('common.n_a'|trans) }}</dd>
+                    </div>
+                    {% if quoteData.delivery_date %}
+                    <div class="rams-definition-list__item">
+                        <dt class="rams-definition-list__term">{{ 'quote.estimator.required_date'|trans|default('Required Date') }}:</dt>
+                        <dd class="rams-definition-list__desc">{{ quoteData.delivery_date }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        {# Pricing Summary #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-dymo">{{ 'quote.estimator.quote_summary'|trans|default('Quote Summary') }}</span>
+            </div>
+            <div class="rams-module__content">
+                <dl class="rams-definition-list rams-definition-list--compact">
+                    <div class="rams-definition-list__item">
+                        <dt class="rams-definition-list__term">{{ 'common.status'|trans }}:</dt>
+                        <dd class="rams-definition-list__desc">
+                            <span class="rams-badge rams-badge--yellow">{{ 'quote.estimator.pending_pricing'|trans|default('Pending Pricing') }}</span>
+                        </dd>
+                    </div>
+                    <div class="rams-definition-list__item">
+                        <dt class="rams-definition-list__term">{{ 'quote.created_at'|trans }}:</dt>
+                        <dd class="rams-definition-list__desc">{{ estimate.createdAt|date('M d, Y') }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    {# Quote Details #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-heading rams-heading--3">{{ 'quote.estimator.quote_details'|trans|default('Quote Details') }}</h2>
+        </div>
+        <div class="rams-module__content">
+            <div class="rams-andon rams-andon--yellow">
+                <p class="rams-text">
+                    ⏳ <strong>{{ 'quote.estimator.pricing_in_progress'|trans|default('Pricing in Progress:') }}</strong> {{ 'quote.estimator.pricing_message'|trans|default('Your quote request has been saved. Our team will review and provide pricing shortly.') }}
+                </p>
+            </div>
+
+            {% if quoteData.special_requirements %}
+            <div class="rams-module rams-module--nested rams-module--muted">
+                <div class="rams-module__header">
+                    <h3 class="rams-heading rams-heading--4">{{ 'quote.estimator.special_requirements'|trans|default('Special Requirements') }}:</h3>
+                </div>
+                <div class="rams-module__content">
+                    <p class="rams-text">{{ quoteData.special_requirements }}</p>
+                </div>
+            </div>
             {% endif %}
         </div>
-
-        <!-- Pricing Summary -->
-        <div class="rounded-xl border border-neutral-200/60 bg-white p-5">
-            <h2 class="text-sm font-medium uppercase tracking-wide text-neutral-600 mb-4">Quote Summary</h2>
-            <p class="text-sm text-neutral-700">
-                <span class="font-medium">Status:</span> 
-                <span class="ml-2 text-sm font-semibold text-amber-600">Pending Pricing</span>
-            </p>
-            <p class="text-sm text-neutral-700 mt-2">
-                <span class="font-medium">Created:</span> 
-                <span class="ml-2 text-sm text-neutral-900">{{ estimate.createdAt|date('M d, Y') }}</span>
-            </p>
-        </div>
     </div>
 
-    <!-- Quote Details -->
-    <div class="rounded-xl border border-neutral-200/60 bg-white p-6">
-        <h2 class="text-lg font-semibold tracking-tight text-neutral-900 mb-4">Quote Details</h2>
-        
-        <div class="rounded-lg border border-amber-200/60 bg-amber-50/50 p-4 mb-4">
-            <p class="text-sm text-amber-800">
-                ⏳ <strong>Pricing in Progress:</strong> Your quote request has been saved. Our team will review and provide pricing shortly.
-            </p>
-        </div>
-
-        {% if quoteData.special_requirements %}
-        <div class="mt-4 rounded-lg border border-neutral-200/60 bg-neutral-50/50 p-4">
-            <h3 class="font-medium text-neutral-900 mb-2">Special Requirements:</h3>
-            <p class="text-sm text-neutral-700">{{ quoteData.special_requirements }}</p>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Actions -->
-    <div class="flex flex-wrap gap-4 justify-center">
-        <a href="{{ path('quote_estimator_index') }}" class="inline-flex items-center rounded-lg border border-neutral-200/60 bg-white px-6 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
-            ← New Quote Request
+    {# Actions #}
+    <div class="rams-form__actions rams-form__actions--center">
+        <a href="{{ path('quote_estimator_index') }}" class="rams-btn rams-btn--secondary">
+            ← {{ 'quote.estimator.new_quote_request'|trans|default('New Quote Request') }}
         </a>
-        <button onclick="window.print()" class="inline-flex items-center rounded-lg bg-neutral-900 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
-            🖨️ Print
+        <button onclick="window.print()" class="rams-btn rams-btn--primary">
+            🖨️ {{ 'common.print'|trans|default('Print') }}
         </button>
     </div>
 </div>

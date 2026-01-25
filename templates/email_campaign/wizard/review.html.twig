@@ -1,174 +1,273 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Review & Launch - {{ campaign.name }}{% endblock %}
+{% block title %}{{ 'email_campaign.wizard.review.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            {# Wizard Progress #}
-            <div class="card mb-4">
-                <div class="card-body">
-                    <div class="wizard-progress">
-                        <div class="wizard-step completed">
-                            <div class="step-number">1</div>
-                            <div class="step-label">Basic Info</div>
+<div class="rams-page">
+    <div class="rams-page__container">
+        
+        {# Wizard Progress #}
+        <div class="rams-wizard-progress">
+            <div class="rams-wizard-step rams-wizard-step--complete">
+                <span class="rams-wizard-step__number">1</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.template.title'|trans }}</span>
+            </div>
+            <div class="rams-wizard-step__connector rams-wizard-step__connector--complete"></div>
+            <div class="rams-wizard-step rams-wizard-step--complete">
+                <span class="rams-wizard-step__number">2</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.content'|trans|default('Content') }}</span>
+            </div>
+            <div class="rams-wizard-step__connector rams-wizard-step__connector--complete"></div>
+            <div class="rams-wizard-step rams-wizard-step--complete">
+                <span class="rams-wizard-step__number">3</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.segment.title'|trans }}</span>
+            </div>
+            <div class="rams-wizard-step__connector rams-wizard-step__connector--complete"></div>
+            <div class="rams-wizard-step rams-wizard-step--complete">
+                <span class="rams-wizard-step__number">4</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.schedule.title'|trans }}</span>
+            </div>
+            <div class="rams-wizard-step__connector rams-wizard-step__connector--complete"></div>
+            <div class="rams-wizard-step rams-wizard-step--active">
+                <span class="rams-wizard-step__number">5</span>
+                <span class="rams-wizard-step__label">{{ 'email_campaign.wizard.review.title'|trans }}</span>
+            </div>
+        </div>
+
+        {# Header #}
+        <div class="rams-page__header">
+            <div class="rams-page__header-content">
+                <h1 class="rams-page__title">{{ 'email_campaign.wizard.review.title'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.wizard.review.subtitle'|trans|default('Review your campaign before launching') }}</p>
+            </div>
+        </div>
+
+        <div class="rams-layout rams-layout--sidebar-right">
+            {# Main Content #}
+            <div class="rams-layout__main">
+                {# Pre-flight Checklist #}
+                <div class="rams-module {{ preflight.all_passed ? 'rams-module--success' : 'rams-module--warning' }}">
+                    <div class="rams-module__header">
+                        <h2 class="rams-module__title">{{ 'email_campaign.wizard.review.preflight'|trans|default('Pre-flight Checklist') }}</h2>
+                        {% if preflight.all_passed %}
+                            <span class="rams-badge rams-badge--success">
+                                <svg class="rams-badge__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                {{ 'email_campaign.wizard.review.ready'|trans|default('Ready to Send') }}
+                            </span>
+                        {% else %}
+                            <span class="rams-badge rams-badge--warning">
+                                {{ 'email_campaign.wizard.review.issues'|trans|default('Issues Found') }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="rams-module__content">
+                        <ul class="rams-checklist">
+                            <li class="rams-checklist__item {{ preflight.subject ? 'rams-checklist__item--pass' : 'rams-checklist__item--fail' }}">
+                                {% if preflight.subject %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                {% else %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                {% endif %}
+                                <span class="rams-checklist__text">{{ 'email_campaign.wizard.review.check_subject'|trans|default('Subject line is set') }}</span>
+                            </li>
+                            <li class="rams-checklist__item {{ preflight.content ? 'rams-checklist__item--pass' : 'rams-checklist__item--fail' }}">
+                                {% if preflight.content %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                {% else %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                {% endif %}
+                                <span class="rams-checklist__text">{{ 'email_campaign.wizard.review.check_content'|trans|default('Email content is configured') }}</span>
+                            </li>
+                            <li class="rams-checklist__item {{ preflight.audience ? 'rams-checklist__item--pass' : 'rams-checklist__item--fail' }}">
+                                {% if preflight.audience %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                {% else %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                {% endif %}
+                                <span class="rams-checklist__text">{{ 'email_campaign.wizard.review.check_audience'|trans|default('Audience has at least one contact') }}</span>
+                            </li>
+                            <li class="rams-checklist__item {{ preflight.sender ? 'rams-checklist__item--pass' : 'rams-checklist__item--fail' }}">
+                                {% if preflight.sender %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                {% else %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                {% endif %}
+                                <span class="rams-checklist__text">{{ 'email_campaign.wizard.review.check_sender'|trans|default('Sender information is configured') }}</span>
+                            </li>
+                            <li class="rams-checklist__item {{ preflight.unsubscribe ? 'rams-checklist__item--pass' : 'rams-checklist__item--fail' }}">
+                                {% if preflight.unsubscribe %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                {% else %}
+                                    <svg class="rams-checklist__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                {% endif %}
+                                <span class="rams-checklist__text">{{ 'email_campaign.wizard.review.check_unsubscribe'|trans|default('Unsubscribe link is present') }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                {# Campaign Details #}
+                <div class="rams-module">
+                    <div class="rams-module__header">
+                        <h2 class="rams-module__title">{{ 'email_campaign.wizard.review.details'|trans|default('Campaign Details') }}</h2>
+                        <a href="{{ path('app_email_campaign_edit', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            {{ 'common.edit'|trans }}
+                        </a>
+                    </div>
+                    <div class="rams-module__content">
+                        <dl class="rams-definition-list rams-definition-list--horizontal">
+                            <dt class="rams-dymo">{{ 'email_campaign.campaign_name'|trans }}</dt>
+                            <dd>{{ campaign.name }}</dd>
+                            
+                            <dt class="rams-dymo">{{ 'email_campaign.subject'|trans }}</dt>
+                            <dd>{{ campaign.subject }}</dd>
+                            
+                            <dt class="rams-dymo">{{ 'email_campaign.from_name'|trans|default('From Name') }}</dt>
+                            <dd>{{ campaign.fromName|default('—') }}</dd>
+                            
+                            <dt class="rams-dymo">{{ 'email_campaign.from_email'|trans|default('From Email') }}</dt>
+                            <dd>{{ campaign.fromEmail|default('—') }}</dd>
+                            
+                            <dt class="rams-dymo">{{ 'email_campaign.template'|trans }}</dt>
+                            <dd>{{ campaign.template.name|default('Custom Content') }}</dd>
+                            
+                            <dt class="rams-dymo">{{ 'email_campaign.audience'|trans|default('Audience') }}</dt>
+                            <dd>
+                                {% if campaign.segment %}
+                                    {{ campaign.segment.name }} ({{ audienceCount|number_format }} {{ 'contact.title'|trans|lower }})
+                                {% else %}
+                                    {{ 'email_campaign.wizard.segment.all_contacts'|trans|default('All Contacts') }} ({{ audienceCount|number_format }})
+                                {% endif %}
+                            </dd>
+                            
+                            <dt class="rams-dymo">{{ 'email_campaign.wizard.schedule.title'|trans }}</dt>
+                            <dd>
+                                {% if campaign.scheduledAt %}
+                                    {{ campaign.scheduledAt|date('M d, Y \\a\\t g:i A') }}
+                                {% else %}
+                                    {{ 'email_campaign.wizard.schedule.send_now'|trans|default('Send Immediately') }}
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                {# Email Preview #}
+                <div class="rams-module">
+                    <div class="rams-module__header">
+                        <h2 class="rams-module__title">{{ 'email_campaign.wizard.review.preview'|trans|default('Email Preview') }}</h2>
+                        <div class="rams-btn-group">
+                            <button type="button" class="rams-btn rams-btn--secondary rams-btn--sm" data-modal="sendTestModal">
+                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                </svg>
+                                {{ 'email_campaign.wizard.review.send_test'|trans|default('Send Test') }}
+                            </button>
                         </div>
-                        <div class="wizard-connector"></div>
-                        <div class="wizard-step completed">
-                            <div class="step-number">2</div>
-                            <div class="step-label">Template</div>
-                        </div>
-                        <div class="wizard-connector"></div>
-                        <div class="wizard-step completed">
-                            <div class="step-number">3</div>
-                            <div class="step-label">Audience</div>
-                        </div>
-                        <div class="wizard-connector"></div>
-                        <div class="wizard-step completed">
-                            <div class="step-number">4</div>
-                            <div class="step-label">Schedule</div>
-                        </div>
-                        <div class="wizard-connector"></div>
-                        <div class="wizard-step active">
-                            <div class="step-number">5</div>
-                            <div class="step-label">Review</div>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-email-preview">
+                            <div class="rams-email-preview__header">
+                                <span class="rams-dymo">{{ 'email_campaign.subject'|trans }}:</span>
+                                <span>{{ campaign.subject }}</span>
+                            </div>
+                            <div class="rams-email-preview__frame">
+                                <iframe src="{{ path('app_email_campaign_preview', {id: campaign.id}) }}" class="rams-email-preview__iframe"></iframe>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                {# Navigation #}
+                <form method="post" action="{{ path('app_email_campaign_wizard_review', {id: campaign.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('wizard_review') }}">
+
+                    <div class="rams-wizard-nav">
+                        <a href="{{ path('app_email_campaign_wizard_schedule', {id: campaign.id}) }}" class="rams-btn rams-btn--secondary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                            {{ 'common.back'|trans }}
+                        </a>
+                        
+                        {% if preflight.all_passed %}
+                            <button type="submit" class="rams-btn rams-btn--success rams-btn--lg">
+                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                                {% if campaign.scheduledAt %}
+                                    {{ 'email_campaign.wizard.review.schedule_campaign'|trans|default('Schedule Campaign') }}
+                                {% else %}
+                                    {{ 'email_campaign.wizard.review.launch_campaign'|trans|default('Launch Campaign') }}
+                                {% endif %}
+                            </button>
+                        {% else %}
+                            <button type="button" class="rams-btn rams-btn--primary rams-btn--lg" disabled title="{{ 'email_campaign.wizard.review.fix_issues'|trans|default('Fix issues before launching') }}">
+                                {{ 'email_campaign.wizard.review.launch_campaign'|trans|default('Launch Campaign') }}
+                            </button>
+                        {% endif %}
+                    </div>
+                </form>
             </div>
 
-            <div class="row">
-                <div class="col-lg-8 mx-auto">
-                    {# Campaign Summary #}
-                    <div class="card mb-4">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">
-                                <i class="bi bi-check-circle-fill"></i> Ready to Launch
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="campaign-summary">
-                                <div class="summary-item">
-                                    <div class="summary-label">Campaign Name</div>
-                                    <div class="summary-value">{{ campaign.name }}</div>
-                                </div>
-
-                                {% if campaign.description %}
-                                <div class="summary-item">
-                                    <div class="summary-label">Description</div>
-                                    <div class="summary-value">{{ campaign.description }}</div>
-                                </div>
-                                {% endif %}
-
-                                <div class="summary-item">
-                                    <div class="summary-label">Template</div>
-                                    <div class="summary-value">
-                                        {% if campaign.template %}
-                                            <strong>{{ campaign.template.name }}</strong>
-                                            <p class="text-muted small mb-0">{{ campaign.template.subjectLine }}</p>
-                                        {% else %}
-                                            <span class="text-muted">No template selected</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <div class="summary-item">
-                                    <div class="summary-label">Audience</div>
-                                    <div class="summary-value">
-                                        {% if campaign.segment %}
-                                            <strong>{{ campaign.segment.name }}</strong>
-                                            <div class="recipient-count">
-                                                <i class="bi bi-people-fill text-primary"></i>
-                                                <span class="count-number">{{ recipientCount|number_format }}</span>
-                                                <span class="count-label">recipients</span>
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">No segment selected</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <div class="summary-item">
-                                    <div class="summary-label">Schedule</div>
-                                    <div class="summary-value">
-                                        {% if campaign.scheduledAt %}
-                                            <i class="bi bi-calendar-event text-primary"></i>
-                                            <strong>{{ campaign.scheduledAt|date('F j, Y') }}</strong> at
-                                            <strong>{{ campaign.scheduledAt|date('g:i A') }}</strong>
-                                        {% else %}
-                                            <i class="bi bi-send-fill text-primary"></i>
-                                            <strong>Send immediately</strong>
-                                        {% endif %}
-
-                                        {% if campaign.sendTimeOptimization %}
-                                            <div class="mt-2">
-                                                <span class="badge bg-warning text-dark">
-                                                    <i class="bi bi-lightbulb-fill"></i> Send time optimization enabled
-                                                </span>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
+            {# Sidebar #}
+            <div class="rams-layout__sidebar">
+                {# Campaign Stats #}
+                <div class="rams-module">
+                    <div class="rams-module__header">
+                        <h3 class="rams-module__title">{{ 'email_campaign.wizard.review.stats'|trans|default('Campaign Stats') }}</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-stat-list">
+                            <div class="rams-stat-item">
+                                <span class="rams-stat-item__value">{{ audienceCount|number_format }}</span>
+                                <span class="rams-stat-item__label">{{ 'email_campaign.wizard.review.recipients'|trans|default('Recipients') }}</span>
+                            </div>
+                            <div class="rams-stat-item">
+                                <span class="rams-stat-item__value">{{ estimatedDelivery|default('~5 min') }}</span>
+                                <span class="rams-stat-item__label">{{ 'email_campaign.wizard.review.estimated_delivery'|trans|default('Estimated Delivery') }}</span>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {# Pre-flight Checklist #}
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h6 class="mb-0">Pre-flight Checklist</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="checklist">
-                                <div class="checklist-item {{ campaign.template ? 'checked' : 'unchecked' }}">
-                                    <i class="bi {{ campaign.template ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger' }}"></i>
-                                    <span>Email template selected</span>
-                                </div>
-                                <div class="checklist-item {{ campaign.segment ? 'checked' : 'unchecked' }}">
-                                    <i class="bi {{ campaign.segment ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger' }}"></i>
-                                    <span>Target audience defined</span>
-                                </div>
-                                <div class="checklist-item {{ recipientCount > 0 ? 'checked' : 'unchecked' }}">
-                                    <i class="bi {{ recipientCount > 0 ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger' }}"></i>
-                                    <span>Recipients available ({{ recipientCount }})</span>
-                                </div>
-                                <div class="checklist-item {{ campaign.scheduledAt ? 'checked' : 'unchecked' }}">
-                                    <i class="bi {{ campaign.scheduledAt ? 'bi-check-circle-fill text-success' : 'bi-exclamation-circle-fill text-warning' }}"></i>
-                                    <span>Send time configured</span>
-                                </div>
-                            </div>
-                        </div>
+                {# Tips #}
+                <div class="rams-module rams-module--info">
+                    <div class="rams-module__header">
+                        <h3 class="rams-module__title">{{ 'email_campaign.wizard.review.tips'|trans|default('Before You Launch') }}</h3>
                     </div>
-
-                    {# Actions #}
-                    <div class="card">
-                        <div class="card-body">
-                            <form method="post">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <a href="{{ path('app_email_campaign_wizard_schedule', {id: campaign.id}) }}" class="btn btn-outline-secondary">
-                                        <i class="bi bi-arrow-left"></i> Back
-                                    </a>
-
-                                    <div class="action-buttons">
-                                        <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary me-2">
-                                            <i class="bi bi-save"></i> Save as Draft
-                                        </button>
-                                        <button type="submit" name="action" value="launch" class="btn btn-success btn-lg" 
-                                                {% if not campaign.template or not campaign.segment or recipientCount == 0 %}disabled{% endif %}>
-                                            <i class="bi bi-rocket-takeoff-fill"></i> Launch Campaign
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {% if not campaign.template or not campaign.segment or recipientCount == 0 %}
-                                <div class="alert alert-warning mt-3 mb-0">
-                                    <i class="bi bi-exclamation-triangle-fill"></i>
-                                    Please complete all required steps before launching the campaign.
-                                </div>
-                                {% endif %}
-                            </form>
-                        </div>
+                    <div class="rams-module__content">
+                        <ul class="rams-list rams-list--compact">
+                            <li>{{ 'email_campaign.wizard.review.tip_1'|trans|default('Send a test email to yourself first') }}</li>
+                            <li>{{ 'email_campaign.wizard.review.tip_2'|trans|default('Double-check your subject line') }}</li>
+                            <li>{{ 'email_campaign.wizard.review.tip_3'|trans|default('Verify all links work correctly') }}</li>
+                            <li>{{ 'email_campaign.wizard.review.tip_4'|trans|default('Preview on mobile and desktop') }}</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -176,128 +275,48 @@
     </div>
 </div>
 
-<style>
-.wizard-progress {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 0;
+{# Send Test Email Modal #}
+<div class="rams-modal" id="sendTestModal">
+    <div class="rams-modal__backdrop"></div>
+    <div class="rams-modal__container">
+        <div class="rams-modal__header">
+            <h3 class="rams-modal__title">{{ 'email_campaign.wizard.review.send_test'|trans|default('Send Test Email') }}</h3>
+            <button type="button" class="rams-btn rams-btn--ghost rams-btn--sm" onclick="closeModal('sendTestModal')">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form method="post" action="{{ path('app_email_campaign_send_test', {id: campaign.id}) }}">
+            <div class="rams-modal__content">
+                <div class="rams-form__group">
+                    <label for="testEmail" class="rams-form__label rams-dymo">{{ 'email_campaign.wizard.review.test_email'|trans|default('Send test to') }}</label>
+                    <input type="email" class="rams-form__input" id="testEmail" name="test_email" required
+                           placeholder="your@email.com" value="{{ app.user.email|default('') }}">
+                </div>
+            </div>
+            <div class="rams-modal__footer">
+                <button type="button" class="rams-btn rams-btn--secondary" onclick="closeModal('sendTestModal')">
+                    {{ 'common.cancel'|trans }}
+                </button>
+                <button type="submit" class="rams-btn rams-btn--primary">
+                    {{ 'email_campaign.wizard.review.send_test'|trans|default('Send Test') }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('rams-modal--open');
 }
 
-.wizard-step {
-    text-align: center;
-    min-width: 100px;
-}
-
-.step-number {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #e9ecef;
-    color: #6c757d;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 8px;
-    font-weight: 600;
-    transition: all 0.3s;
-}
-
-.wizard-step.active .step-number {
-    background: #0d6efd;
-    color: white;
-}
-
-.wizard-step.completed .step-number {
-    background: #198754;
-    color: white;
-}
-
-.step-label {
-    font-size: 13px;
-    color: #6c757d;
-    font-weight: 500;
-}
-
-.wizard-connector {
-    flex: 1;
-    height: 2px;
-    background: #e9ecef;
-    margin: 0 10px;
-    max-width: 100px;
-}
-
-.campaign-summary {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
-.summary-item {
-    padding-bottom: 24px;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.summary-item:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.summary-label {
-    font-size: 13px;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-.summary-value {
-    font-size: 16px;
-    color: #212529;
-}
-
-.recipient-count {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: #f8f9fa;
-    padding: 8px 16px;
-    border-radius: 6px;
-    margin-top: 8px;
-}
-
-.count-number {
-    font-size: 24px;
-    font-weight: 700;
-    color: #0d6efd;
-}
-
-.count-label {
-    color: #6c757d;
-    font-size: 14px;
-}
-
-.checklist {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.checklist-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 15px;
-}
-
-.checklist-item i {
-    font-size: 20px;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 8px;
-}
-</style>
+document.querySelectorAll('[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const modalId = btn.getAttribute('data-modal');
+        document.getElementById(modalId).classList.add('rams-modal--open');
+    });
+});
+</script>
 {% endblock %}
