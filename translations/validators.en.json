@@ -1,0 +1,7 @@
+{
+  "validation.required": "This field is required.",
+  "validation.email": "Please enter a valid email address.",
+  "validation.url": "Please enter a valid URL.",
+  "validation.min_length": "Your password should be at least {{ limit }} characters.",
+  "validation.password_mismatch": "The password fields must match."
+}
