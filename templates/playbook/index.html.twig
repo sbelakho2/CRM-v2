@@ -49,7 +49,7 @@
                         <td class="rams-table__cell">
                             <button 
                                 onclick="togglePlaybook({{ playbook.id }})" 
-                                class="toggle-btn rams-badge {% if playbook.isActive %}rams-badge--success{% else %}rams-badge--neutral{% endif %}"
+                                class="rams-toggle-btn {% if playbook.isActive %}rams-toggle-btn--active{% else %}rams-toggle-btn--inactive{% endif %}"
                                 data-playbook-id="{{ playbook.id }}"
                             >
                                 <span class="rams-status-text">{% if playbook.isActive %}{{ 'playbook.active'|trans }}{% else %}{{ 'playbook.inactive'|trans }}{% endif %}</span>

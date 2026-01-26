@@ -63,7 +63,13 @@
                 </div>
 
                 {# Financial Details #}
-                <div class="rams-grid rams-grid--2">
+                <div class="rams-grid rams-grid--3">
+                    <div class="rams-form__group">
+                        {{ form_label(form.currency, 'rfq.fields.currency'|trans|default('Currency'), {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_widget(form.currency, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.currency) }}
+                    </div>
+
                     <div class="rams-form__group">
                         {{ form_label(form.estimatedValue, 'rfq.fields.estimated_value'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
                         {{ form_widget(form.estimatedValue, {'attr': {'class': 'rams-form__input'}}) }}
@@ -103,7 +109,7 @@
             <div class="rams-module__footer">
                 <div class="rams-btn-group">
                     <button type="submit" class="rams-btn rams-btn--primary">
-                        <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                         </svg>
                         {{ 'rfq.actions.save_changes'|trans }}

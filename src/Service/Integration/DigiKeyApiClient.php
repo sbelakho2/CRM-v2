@@ -138,10 +138,12 @@ class DigiKeyApiClient
             $qty = (int) ($tier['BreakQuantity'] ?? 0);
             $quantities[] = $qty;
             
+            $currency = $tier['Currency'] ?? $tier['CurrencyCode'] ?? null;
+
             $result[] = [
                 'quantity' => $qty,
                 'price' => (float) ($tier['UnitPrice'] ?? 0),
-                'currency' => 'USD'
+                'currency' => $currency
             ];
         }
         

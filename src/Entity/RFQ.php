@@ -42,6 +42,9 @@ class RFQ
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2, nullable: true)]
     private ?string $estimatedValue = null;
 
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $currency = 'EUR';
+
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $volumeAnnual = null;
 
@@ -163,6 +166,17 @@ class RFQ
     public function setEstimatedValue(?string $estimatedValue): self
     {
         $this->estimatedValue = $estimatedValue;
+        return $this;
+    }
+
+    public function getCurrency(): ?string
+    {
+        return $this->currency;
+    }
+
+    public function setCurrency(?string $currency): self
+    {
+        $this->currency = $currency ? strtoupper($currency) : null;
         return $this;
     }
 

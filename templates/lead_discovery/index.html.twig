@@ -86,7 +86,7 @@
                 <h3 class="rams-andon__title">{{ 'lead_discovery.about_api'|trans|default('About API Usage') }}</h3>
                 <ul class="rams-andon__list">
                     <li>{{ 'lead_discovery.api_free_tier'|trans|default('Free tier: 100 queries per day') }}</li>
-                    <li>{{ 'lead_discovery.api_paid_tier'|trans|default('Paid tier: $5 per 1,000 queries') }}</li>
+                    <li>{{ 'lead_discovery.api_paid_tier'|trans|default('Paid tier:') }} {{ paid_tier_cost|format_currency(paid_tier_currency) }} {{ 'lead_discovery.api_paid_tier_suffix'|trans|default('per 1,000 queries') }}</li>
                     <li>{{ 'lead_discovery.api_dedup'|trans|default('Results are automatically filtered for duplicates') }}</li>
                     <li>{{ 'lead_discovery.api_preview'|trans|default('You can preview results before importing') }}</li>
                 </ul>

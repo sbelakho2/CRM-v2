@@ -13,7 +13,8 @@ class KPITrackingService
         private CompanyRepository $companyRepository,
         private RFQRepository $rfqRepository,
         private ActivityRepository $activityRepository,
-        private WebinarRepository $webinarRepository
+        private WebinarRepository $webinarRepository,
+        private CurrencyConverter $currencyConverter
     ) {}
 
     /**
@@ -23,15 +24,27 @@ class KPITrackingService
     {
         $start = new \DateTime('-90 days');
         $end = new \DateTime();
+        $displayCurrency = $this->currencyConverter->getDisplayCurrency();
+        $targetPipelineSource = 3500000;
+        $targetPipelineSourceCurrency = 'USD';
+        $targetPipeline = $this->currencyConverter->convert(
+            $targetPipelineSource,
+            $targetPipelineSourceCurrency,
+            $displayCurrency
+        );
 
         return [
-            'pipeline_value' => $this->calculatePipelineValue($start, $end),
+            'pipeline_value' => $this->calculatePipelineValue($start, $end, $displayCurrency),
+            'pipeline_value_currency' => $displayCurrency,
             'rfq_count' => $this->getRFQCount($start, $end),
             'npi_awards' => $this->getNPIAwards($start, $end),
             'framework_agreements' => $this->getFrameworkAgreements($start, $end),
             'portal_signups' => $this->getPortalSignups($start, $end),
             'webinar_attendees' => $this->getWebinarAttendees($start, $end),
-            'target_pipeline' => 3500000, // $3.5M
+            'target_pipeline' => $targetPipeline,
+            'target_pipeline_currency' => $displayCurrency,
+            'target_pipeline_source' => $targetPipelineSource,
+            'target_pipeline_source_currency' => $targetPipelineSourceCurrency,
             'target_rfqs' => 12,
             'target_npis' => 2,
             'target_frameworks' => 1,
@@ -41,11 +54,25 @@ class KPITrackingService
     /**
      * Calculate total pipeline value for active opportunities
      */
-    private function calculatePipelineValue(\DateTime $start, \DateTime $end): float
+    private function calculatePipelineValue(\DateTime $start, \DateTime $end, string $displayCurrency): float
     {
-        // In real implementation, sum estimatedValue from RFQs in pipeline stages
-        // For now, return mock data structure
-        return 0; // Will be calculated from RFQ repository
+        $rfqs = $this->rfqRepository->createQueryBuilder('r')
+            ->where('r.status IN (:statuses)')
+            ->setParameter('statuses', ['Submitted', 'In Review'])
+            ->getQuery()
+            ->getResult();
+
+        $total = 0.0;
+        foreach ($rfqs as $rfq) {
+            $amount = (float) $rfq->getEstimatedValue();
+            if ($amount <= 0) {
+                continue;
+            }
+            $sourceCurrency = $rfq->getCurrency() ?: $displayCurrency;
+            $total += $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
+        }
+
+        return round($total, 2);
     }
 
     /**

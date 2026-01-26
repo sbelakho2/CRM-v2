@@ -21,7 +21,10 @@ class LeadDiscoveryController extends AbstractController
     #[Route('/', name: 'lead_discovery_index', methods: ['GET'])]
     public function index(): Response
     {
-        return $this->render('lead_discovery/index.html.twig');
+        return $this->render('lead_discovery/index.html.twig', [
+            'paid_tier_cost' => 5,
+            'paid_tier_currency' => 'USD',
+        ]);
     }
 
     #[Route('/search', name: 'lead_discovery_search', methods: ['POST'])]

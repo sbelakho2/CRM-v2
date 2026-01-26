@@ -48,6 +48,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $resetTokenExpiresAt = null;
 
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $displayCurrency = 'USD';
+
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Activity::class)]
     private Collection $activities;
 
@@ -147,6 +150,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getFullName(): string
     {
         return $this->firstName . ' ' . $this->lastName;
+    }
+
+    public function getDisplayCurrency(): ?string
+    {
+        return $this->displayCurrency;
+    }
+
+    public function setDisplayCurrency(?string $displayCurrency): self
+    {
+        $this->displayCurrency = $displayCurrency ? strtoupper($displayCurrency) : null;
+        return $this;
     }
 
     public function getRole(): ?string

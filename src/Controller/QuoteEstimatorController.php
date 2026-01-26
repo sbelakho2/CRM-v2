@@ -10,6 +10,7 @@ use App\Service\DutyCalculationService;
 use App\Service\FreightPricingService;
 use App\Service\UnifiedPdfGeneratorService;
 use App\Service\CountryService;
+use App\Service\CurrencyPreferenceService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -45,7 +46,8 @@ class QuoteEstimatorController extends AbstractController
         private DutyCalculationService $dutyCalculationService,
         private FreightPricingService $freightPricingService,
         private UnifiedPdfGeneratorService $pdfGenerator,
-        private CountryService $countryService
+        private CountryService $countryService,
+        private CurrencyPreferenceService $currencyPreferenceService
     ) {}
 
     /**
@@ -164,7 +166,7 @@ class QuoteEstimatorController extends AbstractController
         }
         $estimate->setOriginCountry('MA'); // Morocco default
         $estimate->setDestinationCountry('US'); // Default
-        $estimate->setCurrency('USD');
+        $estimate->setCurrency($this->currencyPreferenceService->getDisplayCurrency('USD'));
         $estimate->setNotes(json_encode($estimateData));
         
         // Set placeholder costs (will be calculated later)

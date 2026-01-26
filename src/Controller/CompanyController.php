@@ -7,6 +7,7 @@ use App\Form\CompanyType;
 use App\Repository\CompanyRepository;
 use App\Service\ExportService;
 use App\Service\GuidanceNotificationService;
+use App\Service\CountryService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,7 +23,8 @@ class CompanyController extends AbstractController
         private CompanyRepository $companyRepository,
         private EntityManagerInterface $entityManager,
         private ExportService $exportService,
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private CountryService $countryService
     ) {}
 
     #[Route('', name: 'app_company_index', methods: ['GET'])]
@@ -71,7 +73,17 @@ class CompanyController extends AbstractController
         $sectors = ['Automotive', 'Industrial', 'Aerospace', 'Rail', 'Renewables', 'Power Electronics'];
         $tiers = ['A', 'B', 'C'];
         $stages = ['Prospect', 'MQL', 'SQL', 'SQO', 'Proposal', 'Award'];
-        $regions = ['Morocco - TAC', 'Morocco - TFZ', 'Morocco - AFZ Kenitra', 'Morocco - Casablanca', 'Morocco - Bouskoura', 'EU - Germany', 'EU - France', 'EU - Spain', 'EU - Italy'];
+        $regions = $this->countryService->getRegionOptions([
+            'Morocco - TAC' => 'Morocco - TAC',
+            'Morocco - TFZ' => 'Morocco - TFZ',
+            'Morocco - AFZ Kenitra' => 'Morocco - AFZ Kenitra',
+            'Morocco - Casablanca' => 'Morocco - Casablanca',
+            'Morocco - Bouskoura' => 'Morocco - Bouskoura',
+            'EU - Germany' => 'EU - Germany',
+            'EU - France' => 'EU - France',
+            'EU - Spain' => 'EU - Spain',
+            'EU - Italy' => 'EU - Italy',
+        ]);
 
         return $this->render('company/index.html.twig', [
             'companies' => $companies,
@@ -79,6 +91,7 @@ class CompanyController extends AbstractController
             'tiers' => $tiers,
             'stages' => $stages,
             'regions' => $regions,
+            'region_labels' => $regions,
             'current_sector' => $sector,
             'current_tier' => $tier,
             'current_stage' => $stage,

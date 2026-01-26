@@ -29,7 +29,8 @@ class RouteSelectionService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private RoutePreferenceRepository $routePreferenceRepository,
-        private FreightTableRepository $freightTableRepository
+        private FreightTableRepository $freightTableRepository,
+        private CurrencyPreferenceService $currencyPreferenceService
     ) {}
 
     /**
@@ -39,7 +40,7 @@ class RouteSelectionService
      * @param float $weightKg Total weight in kilograms
      * @param float $volumeM3 Total volume in cubic meters
      * @param string|null $origin Origin country code (default: 'MA' for Morocco)
-     * @return array Route details: ['route_code' => 'MA-US-AIR-001', 'mode' => 'AIR', 'origin_port' => 'CMN', 'destination_port' => 'JFK', 'transit_days' => 5, 'freight_cost' => 1250.00, 'currency' => 'USD']
+    * @return array Route details: ['route_code' => 'MA-US-AIR-001', 'mode' => 'AIR', 'origin_port' => 'CMN', 'destination_port' => 'JFK', 'transit_days' => 5, 'freight_cost' => 1250.00, 'currency' => 'EUR']
      * 
      * TODO Implementation:
      * 1. Get ranked routes from route_preferences table:
@@ -110,7 +111,7 @@ class RouteSelectionService
                     'destination_port' => $laneDetails['destination_port'],
                     'transit_days' => $route->getTransitDays() ?? 7,
                     'freight_cost' => $freightCost['cost'],
-                    'currency' => $freightCost['currency'] ?? 'USD',
+                    'currency' => $freightCost['currency'] ?? $this->currencyPreferenceService->getDisplayCurrency(),
                     'surcharges' => $freightCost['surcharges'] ?? []
                 ];
             } catch (\Exception $e) {
@@ -199,7 +200,7 @@ class RouteSelectionService
      * @param string $mode Freight mode (AIR|LCL|FCL)
      * @param float $weightKg Chargeable weight in kg
      * @param float $volumeM3 Volume in cubic meters
-     * @return array Freight details: ['cost' => 1250.00, 'currency' => 'USD', 'transit_days' => 5, 'surcharges' => [...]]
+    * @return array Freight details: ['cost' => 1250.00, 'currency' => 'EUR', 'transit_days' => 5, 'surcharges' => [...]]
      * 
      * TODO Implementation:
      * 1. Query freight_tables table:
@@ -270,7 +271,7 @@ class RouteSelectionService
         return [
             'cost' => round($totalCost, 2),
             'base_cost' => round($cost, 2),
-            'currency' => $freightRate->getCurrency() ?? 'USD',
+            'currency' => $freightRate->getCurrency() ?? $this->currencyPreferenceService->getDisplayCurrency(),
             'transit_days' => $freightRate->getTransitDays() ?? 7,
             'surcharges' => $surcharges
         ];

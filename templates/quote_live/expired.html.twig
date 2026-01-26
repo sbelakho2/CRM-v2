@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ 'quote.live.expired.title'|trans|default('Quote Expired - Link Invalid') }}</title>
     <link rel="stylesheet" href="{{ asset('build/app.css') }}">
+    {# Page-specific layout - component styles are in sensei-rams.css (Section 45) #}
     <style>
         body { 
             background: var(--rams-bg-tertiary, #f5f5f5); 
@@ -13,8 +14,6 @@
             align-items: center; 
             justify-content: center; 
         }
-        .rams-expired-card { max-width: 500px; width: 90%; text-align: center; }
-        .rams-expired-icon { font-size: 4rem; margin-bottom: 1rem; }
     </style>
 </head>
 <body>

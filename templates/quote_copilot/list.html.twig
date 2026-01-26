@@ -61,7 +61,7 @@
                                 </div>
                             </td>
                             <td class="rams-table__cell rams-table__cell--bold">
-                                ${{ quote.totalCost|number_format(2) }}
+                                {{ quote.totalCost|format_currency(quote.currency, null, 2) }}
                             </td>
                             <td class="rams-table__cell">
                                 {% if quote.status == 'sent' %}

@@ -42,7 +42,7 @@
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
                     <span class="rams-dymo">{{ 'lead_discovery.estimated_cost'|trans|default('Estimated Cost') }}</span>
-                    <span class="rams-metric">${{ quota.estimated_cost|number_format(2) }}</span>
+                            <span class="rams-metric">{{ quota.estimated_cost|format_currency(quota.currency|default(display_currency()), null, 2) }}</span>
                 </div>
             </div>
         </div>

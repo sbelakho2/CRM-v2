@@ -2,6 +2,9 @@
 
 namespace App\Service;
 
+use Symfony\Component\Intl\Countries;
+use Symfony\Component\Intl\Subdivisions;
+
 /**
  * Country Service - Manages country data for quotes, freight, and compliance
  * 
@@ -21,79 +24,46 @@ class CountryService
      */
     public function getCountryList(): array
     {
-        return [
-            // North America
-            'US' => 'United States',
-            'CA' => 'Canada',
-            'MX' => 'Mexico',
-            
-            // Europe
-            'FR' => 'France',
-            'DE' => 'Germany',
-            'GB' => 'United Kingdom',
-            'IT' => 'Italy',
-            'ES' => 'Spain',
-            'NL' => 'Netherlands',
-            'BE' => 'Belgium',
-            'PL' => 'Poland',
-            'SE' => 'Sweden',
-            'NO' => 'Norway',
-            'CH' => 'Switzerland',
-            'AT' => 'Austria',
-            'IE' => 'Ireland',
-            'DK' => 'Denmark',
-            'FI' => 'Finland',
-            'PT' => 'Portugal',
-            'CZ' => 'Czech Republic',
-            'GR' => 'Greece',
-            'HU' => 'Hungary',
-            'RO' => 'Romania',
-            
-            // Middle East
-            'AE' => 'United Arab Emirates',
-            'SA' => 'Saudi Arabia',
-            'IL' => 'Israel',
-            'TR' => 'Turkey',
-            'QA' => 'Qatar',
-            'KW' => 'Kuwait',
-            'OM' => 'Oman',
-            'JO' => 'Jordan',
-            'LB' => 'Lebanon',
-            'BH' => 'Bahrain',
-            
-            // Asia Pacific
-            'CN' => 'China',
-            'JP' => 'Japan',
-            'KR' => 'South Korea',
-            'IN' => 'India',
-            'SG' => 'Singapore',
-            'MY' => 'Malaysia',
-            'TH' => 'Thailand',
-            'VN' => 'Vietnam',
-            'ID' => 'Indonesia',
-            'PH' => 'Philippines',
-            'TW' => 'Taiwan',
-            'HK' => 'Hong Kong',
-            'AU' => 'Australia',
-            'NZ' => 'New Zealand',
-            
-            // Africa
-            'MA' => 'Morocco',
-            'ZA' => 'South Africa',
-            'EG' => 'Egypt',
-            'NG' => 'Nigeria',
-            'KE' => 'Kenya',
-            'TN' => 'Tunisia',
-            'DZ' => 'Algeria',
-            
-            // South America
-            'BR' => 'Brazil',
-            'AR' => 'Argentina',
-            'CL' => 'Chile',
-            'CO' => 'Colombia',
-            'PE' => 'Peru',
-            'VE' => 'Venezuela',
-        ];
+        $countries = Countries::getNames('en');
+        ksort($countries);
+
+        return $countries;
+    }
+
+    /**
+     * Get US subdivisions (states and territories)
+     *
+     * @return array Associative array of subdivision codes => names
+     */
+    public function getUsRegionList(): array
+    {
+        $regions = Subdivisions::getNames('US', 'en');
+        ksort($regions);
+
+        return $regions;
+    }
+
+    /**
+     * Get combined region options for UI selectors
+     *
+     * @param array<string, string> $extraOptions
+     * @return array<string, string>
+     */
+    public function getRegionOptions(array $extraOptions = []): array
+    {
+        $options = $this->getCountryList();
+
+        foreach ($this->getUsRegionList() as $code => $name) {
+            $options[$code] = 'United States - ' . $name;
+        }
+
+        foreach ($extraOptions as $code => $label) {
+            $options[$code] = $label;
+        }
+
+        ksort($options);
+
+        return $options;
     }
     
     /**
@@ -107,6 +77,34 @@ class CountryService
         $countries = $this->getCountryList();
         return $countries[strtoupper($code)] ?? null;
     }
+
+    /**
+     * Get region name by ISO country code or US subdivision code
+     */
+    public function getRegionName(?string $codeOrName): ?string
+    {
+        if ($codeOrName === null) {
+            return null;
+        }
+
+        $trimmed = trim($codeOrName);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $upper = strtoupper($trimmed);
+        $countries = $this->getCountryList();
+        if (isset($countries[$upper])) {
+            return $countries[$upper];
+        }
+
+        $usRegions = $this->getUsRegionList();
+        if (isset($usRegions[$upper])) {
+            return 'United States - ' . $usRegions[$upper];
+        }
+
+        return $trimmed;
+    }
     
     /**
      * Check if country code is valid
@@ -117,6 +115,75 @@ class CountryService
     public function isValidCountry(string $code): bool
     {
         return isset($this->getCountryList()[strtoupper($code)]);
+    }
+
+    /**
+     * Check if US subdivision code is valid
+     */
+    public function isValidUsRegion(string $code): bool
+    {
+        return isset($this->getUsRegionList()[strtoupper($code)]);
+    }
+
+    /**
+     * Normalize a region input to ISO country code or US subdivision code
+     */
+    public function normalizeRegionCode(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $upper = strtoupper($trimmed);
+        if ($this->isValidCountry($upper)) {
+            return $upper;
+        }
+
+        if ($this->isValidUsRegion($upper)) {
+            return $upper;
+        }
+
+        $normalized = strtolower($trimmed);
+        $normalized = str_replace(['.', ','], '', $normalized);
+
+        $aliases = [
+            'usa' => 'US',
+            'us' => 'US',
+            'u s a' => 'US',
+            'u s' => 'US',
+            'united states' => 'US',
+            'united states of america' => 'US',
+            'uk' => 'GB',
+            'u k' => 'GB',
+            'united kingdom' => 'GB',
+        ];
+
+        if (isset($aliases[$normalized])) {
+            return $aliases[$normalized];
+        }
+
+        foreach ($this->getCountryList() as $code => $name) {
+            if (strtolower($name) === $normalized) {
+                return $code;
+            }
+        }
+
+        foreach ($this->getUsRegionList() as $code => $name) {
+            if (strtolower($name) === $normalized) {
+                return $code;
+            }
+
+            if (strtolower('United States - ' . $name) === $normalized) {
+                return $code;
+            }
+        }
+
+        return null;
     }
     
     /**

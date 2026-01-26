@@ -6,6 +6,7 @@ use App\Entity\Lead;
 use App\Entity\Company;
 use App\Repository\LeadRepository;
 use App\Service\GuidanceNotificationService;
+use App\Service\CountryService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,7 +18,8 @@ use Symfony\Component\Routing\Annotation\Route;
 class LeadController extends AbstractController
 {
     public function __construct(
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private CountryService $countryService
     ) {}
 
     #[Route('/', name: 'app_lead_index')]
@@ -62,6 +64,13 @@ class LeadController extends AbstractController
 
         // Get regional statistics
         $regionStats = $leadRepo->getStatsByRegion();
+        $regionOptions = $this->countryService->getRegionOptions();
+        foreach ($regionStats as $stat) {
+            $tag = $stat['regionTag'] ?? null;
+            if ($tag && !isset($regionOptions[$tag])) {
+                $regionOptions[$tag] = strtoupper((string) $tag);
+            }
+        }
 
         return $this->render('lead/review.html.twig', [
             'leads' => $leads,
@@ -69,6 +78,7 @@ class LeadController extends AbstractController
             'status_filter' => $statusFilter,
             'score_min' => $scoreMin,
             'region_stats' => $regionStats,
+            'region_options' => $regionOptions,
         ]);
     }
 

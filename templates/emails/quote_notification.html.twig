@@ -58,7 +58,7 @@
                                             </tr>
                                             <tr>
                                                 <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.total'|trans }}:</td>
-                                                <td style="padding: 8px 0; color: #FFBE00; font-size: 20px; font-weight: 700; border-top: 1px solid #e0e0e0;">${{ quote.totalCost|default(0)|number_format(2) }}</td>
+                                                <td style="padding: 8px 0; color: #FFBE00; font-size: 20px; font-weight: 700; border-top: 1px solid #e0e0e0;">{{ quote.totalCost|default(0)|format_currency(quote.currency, quote.currency, 2) }}</td>
                                             </tr>
                                             <tr>
                                                 <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.coverage'|trans }}:</td>

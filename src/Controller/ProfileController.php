@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Form\ChangePasswordType;
+use App\Form\CurrencyPreferenceType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,6 +25,15 @@ class ProfileController extends AbstractController
 
         $form = $this->createForm(ChangePasswordType::class);
         $form->handleRequest($request);
+
+        $preferenceForm = $this->createForm(CurrencyPreferenceType::class, $user);
+        $preferenceForm->handleRequest($request);
+
+        if ($preferenceForm->isSubmitted() && $preferenceForm->isValid()) {
+            $em->flush();
+            $this->addFlash('success', 'Currency preferences updated successfully!');
+            return $this->redirectToRoute('profile_index');
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
             // Verify current password
@@ -48,6 +58,7 @@ class ProfileController extends AbstractController
         return $this->render('profile/index.html.twig', [
             'user' => $user,
             'form' => $form->createView(),
+            'preferenceForm' => $preferenceForm->createView(),
         ]);
     }
 }

@@ -210,6 +210,7 @@ class GoogleSearchService
             'free_quota' => min($totalQueries, $freeQueries),
             'billable_queries' => max(0, $totalQueries - $freeQueries),
             'estimated_cost' => max(0, $totalQueries - $freeQueries) * $costPerQuery,
+            'currency' => 'USD',
         ];
     }
 }

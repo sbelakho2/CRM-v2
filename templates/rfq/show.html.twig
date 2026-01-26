@@ -101,7 +101,7 @@
                         {% if rfq.estimatedValue %}
                             <div class="rams-detail-list__item">
                                 <dt class="rams-dymo">{{ 'rfq.fields.estimated_value'|trans }}</dt>
-                                <dd><span class="rams-metric rams-metric--currency rams-metric--large">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</span></dd>
+                                <dd><span class="rams-metric rams-metric--currency rams-metric--large">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</span></dd>
                             </div>
                         {% endif %}
 

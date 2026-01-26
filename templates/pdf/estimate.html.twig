@@ -232,7 +232,7 @@
             <tr>
                 <th style="width: 60%;">{{ 'common.description'|trans }}</th>
                 <th style="width: 20%;">{{ 'common.details'|trans }}</th>
-                <th style="width: 20%;">{{ 'pdf.estimate.amount_usd'|trans }}</th>
+                    <th style="width: 20%;">{{ 'pdf.estimate.amount'|trans|default('Amount') }} ({{ estimate.currency|default(display_currency()) }})</th>
             </tr>
         </thead>
         <tbody>
@@ -240,7 +240,7 @@
             <tr>
                 <td><strong>{{ 'pdf.estimate.goods_value_fob'|trans }}</strong></td>
                 <td class="text-center">-</td>
-                <td class="text-right">${{ estimate.goodsValue|number_format(2) }}</td>
+                    <td class="text-right">{{ estimate.goodsValue|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             
             {# Freight Cost #}
@@ -251,7 +251,7 @@
                     {{ freightMode ?? 'AIR' }}<br>
                     <span class="small text-muted">{{ transitDays ?? 5 }} {{ 'pdf.estimate.days'|trans }}</span>
                 </td>
-                <td class="text-right">${{ freightCost|number_format(2) }}</td>
+                    <td class="text-right">{{ freightCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
@@ -260,7 +260,7 @@
             <tr>
                 <td>{{ 'pdf.estimate.insurance'|trans }}</td>
                 <td class="text-center">-</td>
-                <td class="text-right">${{ insuranceCost|number_format(2) }}</td>
+                    <td class="text-right">{{ insuranceCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
@@ -268,7 +268,7 @@
             {% if estimate.incoterm in ['CIF', 'DDP'] %}
             <tr class="subtotal-row">
                 <td colspan="2"><strong>{{ 'pdf.estimate.cif_value'|trans }}</strong></td>
-                <td class="text-right"><strong>${{ cifValue|number_format(2) }}</strong></td>
+                    <td class="text-right"><strong>{{ cifValue|format_currency(estimate.currency, estimate.currency, 2) }}</strong></td>
             </tr>
             {% endif %}
             
@@ -284,7 +284,7 @@
                     <span class="badge badge-warning">MFN</span>
                     {% endif %}
                 </td>
-                <td class="text-right">${{ dutyCost|number_format(2) }}</td>
+                    <td class="text-right">{{ dutyCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
@@ -293,7 +293,7 @@
             <tr>
                 <td>{{ 'pdf.estimate.vat_tax'|trans }}</td>
                 <td class="text-center">{{ vatRate|number_format(1) }}%</td>
-                <td class="text-right">${{ vatCost|number_format(2) }}</td>
+                    <td class="text-right">{{ vatCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
@@ -302,14 +302,14 @@
             <tr>
                 <td>{{ 'pdf.estimate.broker_fee'|trans }}</td>
                 <td class="text-center">-</td>
-                <td class="text-right">${{ brokerFee|number_format(2) }}</td>
+                    <td class="text-right">{{ brokerFee|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
             {# Total Landed Cost #}
             <tr class="total-row">
                 <td colspan="2">{{ 'pdf.estimate.total_landed_cost'|trans }}</td>
-                <td class="text-right">${{ totals.total|number_format(2) }}</td>
+                <td class="text-right"><strong>{{ estimate.totalLandedCost|default(totalCost|default(totals.total|default(0)))|format_currency(estimate.currency, estimate.currency, 2) }}</strong></td>
             </tr>
         </tbody>
     </table>

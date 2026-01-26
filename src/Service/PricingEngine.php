@@ -36,6 +36,7 @@ class PricingEngine
         private DigiKeyApiClient $digikeyClient,
         private NexarApiClient $nexarClient,
         private MultiDistributorSourcingService $multiDistributor,
+        private CurrencyConverter $currencyConverter,
         private LoggerInterface $logger
     ) {}
 
@@ -225,6 +226,7 @@ class PricingEngine
                 $unitPrice = $this->calculateUnitPrice($pricing['pricing'], $effectiveQty);
                 $processedLine['unit_price'] = $unitPrice;
                 $processedLine['extended_price'] = $unitPrice * $effectiveQty;
+                $processedLine['currency'] = $this->resolveCurrencyFromPriceBreaks($pricing['pricing'] ?? []);
                 
                 // Add warning if quantity was adjusted
                 if ($quantityResult['adjusted']) {
@@ -565,6 +567,9 @@ class PricingEngine
         
         // Only recommend if savings > 5%
         if ($savingsPercent > 5) {
+            $currency = $this->resolveCurrencyFromPriceBreaks($priceBreaks);
+            $formattedSavings = $this->currencyConverter->format($savings, $currency, $currency, 2);
+
             return [
                 'recommended_quantity' => $nextBreakQty,
                 'additional_quantity' => $additionalQty,
@@ -574,11 +579,12 @@ class PricingEngine
                 'recommended_total' => round($nextBreakCost, 2),
                 'savings' => round($savings, 2),
                 'savings_percent' => round($savingsPercent, 1),
+                'currency' => $currency ?? $this->currencyConverter->getDisplayCurrency(),
                 'message' => sprintf(
-                    'Order %d more (total %d) and save $%.2f (%.1f%% savings)',
+                    'Order %d more (total %d) and save %s (%.1f%% savings)',
                     $additionalQty,
                     $nextBreakQty,
-                    $savings,
+                    $formattedSavings,
                     $savingsPercent
                 ),
             ];
@@ -590,9 +596,12 @@ class PricingEngine
     /**
      * Calculate quote totals with margins
      */
-    public function calculateQuoteTotals(array $processedLines, float $marginPercent = 25.0): array
+    public function calculateQuoteTotals(array $processedLines, float $marginPercent = 25.0, ?string $currency = null): array
     {
         $subtotal = 0.0;
+        $currency = $currency
+            ?? $this->resolveCurrencyFromLines($processedLines)
+            ?? $this->currencyConverter->getDisplayCurrency();
         
         foreach ($processedLines as $line) {
             $subtotal += $line['extended_price'] ?? 0;
@@ -606,8 +615,45 @@ class PricingEngine
             'margin_percent' => $marginPercent,
             'margin_amount' => round($margin, 2),
             'total' => round($total, 2),
-            'currency' => 'USD',
+            'currency' => $currency,
         ];
+    }
+
+    private function resolveCurrencyFromLines(array $processedLines): ?string
+    {
+        $counts = [];
+
+        foreach ($processedLines as $line) {
+            $currency = $line['currency'] ?? null;
+
+            if (!$currency && isset($line['pricing']) && is_array($line['pricing'])) {
+                $currency = $this->resolveCurrencyFromPriceBreaks($line['pricing']);
+            }
+
+            if ($currency) {
+                $currency = strtoupper($currency);
+                $counts[$currency] = ($counts[$currency] ?? 0) + 1;
+            }
+        }
+
+        if (empty($counts)) {
+            return null;
+        }
+
+        arsort($counts);
+
+        return array_key_first($counts);
+    }
+
+    private function resolveCurrencyFromPriceBreaks(array $priceBreaks): ?string
+    {
+        foreach ($priceBreaks as $break) {
+            if (!empty($break['currency'])) {
+                return strtoupper($break['currency']);
+            }
+        }
+
+        return null;
     }
 
     /**

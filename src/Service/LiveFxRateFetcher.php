@@ -32,6 +32,9 @@ class LiveFxRateFetcher
     private const ECB_API_URL = 'https://data-api.ecb.europa.eu/service/data/EXR/D.{currency}.EUR.SP00.A?format=jsondata&lastNObservations=1';
     private const FRANKFURTER_API_URL = 'https://api.frankfurter.app/latest?from={base}&to={targets}';
     private const EXCHANGERATE_API_URL = 'https://open.er-api.com/v6/latest/{base}';
+
+    // Banque Centrale de Tunisie (BCT) daily rates (TND base)
+    private const BCT_API_URL = 'https://www.bct.gov.tn/bct/siteprod/documents/tauxchange.xml';
     
     // BOE Statistical Interactive Database (SIAD)
     private const BOE_API_URL = 'https://www.bankofengland.co.uk/boeapps/iadb/fromshowcolumns.asp?csv.x=yes&Datefrom=01/Jan/2024&Dateto=now&SeriesCodes=XUDLGBD,XUDLUSS,XUDLERS,XUDLJYS,XUDLCAS,XUDLAUS,XUDLSFS,XUDLHKS,XUDLSGS,XUDLNDS&UsingCodes=Y&CSVF=TN&VPD=Y';
@@ -79,6 +82,20 @@ class LiveFxRateFetcher
                     $results['success'][] = "EUR/{$currency}";
                 } catch (\Exception $e) {
                     $results['failed'][] = "EUR/{$currency}: " . $e->getMessage();
+                }
+            }
+        }
+
+        // Fetch TND rates from Banque Centrale de Tunisie (TND base)
+        $bctRates = $this->fetchFromBCT();
+        if (!empty($bctRates)) {
+            foreach ($bctRates as $currency => $rate) {
+                try {
+                    $this->storeRate($currency, 'TND', $rate, 'bct');
+                    $this->storeRate('TND', $currency, 1 / $rate, 'bct_inverse');
+                    $results['success'][] = "{$currency}/TND (BCT)";
+                } catch (\Exception $e) {
+                    $results['failed'][] = "{$currency}/TND: " . $e->getMessage();
                 }
             }
         }
@@ -220,6 +237,56 @@ class LiveFxRateFetcher
             });
         } catch (\Exception $e) {
             $this->logger->error('Failed to fetch from ExchangeRate-API', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Fetch TND rates from Banque Centrale de Tunisie (BCT)
+     *
+     * @return array<string, float> Currency code => TND rate (1 unit foreign currency in TND)
+     */
+    public function fetchFromBCT(): array
+    {
+        $cacheKey = 'fx_bct_latest';
+
+        try {
+            return $this->cache->get($cacheKey, function (ItemInterface $item) {
+                $item->expiresAfter(self::CACHE_TTL_SECONDS);
+
+                $response = $this->httpClient->request('GET', self::BCT_API_URL, [
+                    'timeout' => 15,
+                    'headers' => [
+                        'User-Agent' => 'QuoteBuddy-CRM/1.0',
+                    ],
+                ]);
+
+                if ($response->getStatusCode() !== 200) {
+                    throw new \RuntimeException('BCT API returned ' . $response->getStatusCode());
+                }
+
+                $xml = @simplexml_load_string($response->getContent());
+                if (!$xml) {
+                    throw new \RuntimeException('Invalid BCT XML response');
+                }
+
+                $rates = [];
+                foreach ($xml->taux as $rateNode) {
+                    $currency = strtoupper((string) ($rateNode->devise ?? ''));
+                    $value = (float) str_replace(',', '.', (string) ($rateNode->cours ?? 0));
+                    if ($currency && $value > 0) {
+                        $rates[$currency] = $value;
+                    }
+                }
+
+                $this->logger->info('Fetched rates from BCT', [
+                    'currencies' => count($rates),
+                ]);
+
+                return $rates;
+            });
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to fetch from BCT (non-critical)', ['error' => $e->getMessage()]);
             return [];
         }
     }
@@ -503,13 +570,14 @@ class LiveFxRateFetcher
     public function getSupportedCurrencies(): array
     {
         return [
-            'primary' => ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD'],
+            'primary' => ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'TND'],
             'secondary' => ['CNY', 'HKD', 'SGD', 'KRW', 'INR', 'TWD'],
-            'regional' => ['MAD'], // Moroccan Dirham - important for this CRM
+            'regional' => ['MAD', 'TND'], // Moroccan Dirham and Tunisian Dinar
             'sources' => [
                 'ecb' => self::ECB_CURRENCIES,
                 'frankfurter' => self::FRANKFURTER_CURRENCIES,
                 'boe' => ['USD', 'EUR', 'JPY', 'CAD', 'AUD', 'CHF', 'HKD', 'SGD'],
+                'bct' => ['USD', 'EUR', 'GBP'],
             ],
         ];
     }

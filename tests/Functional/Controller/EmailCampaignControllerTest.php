@@ -53,7 +53,7 @@ class EmailCampaignControllerTest extends WebTestCase
         
         $this->assertResponseIsSuccessful();
         
-        $form = $crawler->selectButton('Create Campaign')->form([
+        $form = $crawler->filter('form')->form([
             'email_campaign[name]' => 'Test Campaign',
             'email_campaign[language]' => 'EN',
         ]);

@@ -71,11 +71,11 @@
 
                 <!-- Revenue -->
                 <div class="rams-form-group">
-                    <label class="rams-label">{{ 'abm_dashboard.annual_revenue'|trans }}</label>
-                    <input type="text" name="revenue"
-                           value="{{ account and account.metadata ? account.metadata.revenue|default('') : '' }}"
-                           class="rams-input"
-                           placeholder="e.g., $1M-$10M">
+                          <label class="rams-label">{{ 'abm_dashboard.annual_revenue'|trans }}</label>
+                          <input type="text" name="revenue"
+                              value="{{ account and account.metadata ? account.metadata.revenue|default('') : '' }}"
+                              class="rams-input"
+                              placeholder="e.g., 1M-10M ({{ display_currency() }})">
                 </div>
 
                 <!-- Form Actions -->

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="{{ block('meta_description')|default('messages.meta_description'|trans) }}">
+    <meta name="description" content="{% block meta_description %}{{ 'messages.meta_description'|trans }}{% endblock %}">
     <title>{% block title %}{{ 'app.name'|trans }}{% endblock %} - {{ 'app.company'|trans }}</title>
     
     {# Sensei-Rams Design System CSS #}

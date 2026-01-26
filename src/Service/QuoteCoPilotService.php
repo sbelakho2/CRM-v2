@@ -6,6 +6,7 @@ use App\Entity\Quote;
 use App\Entity\BomLine;
 use App\Entity\ProcurementException;
 use App\Repository\QuoteRepository;
+use App\Entity\RFQ;
 use App\Repository\BomLineRepository;
 use App\Repository\ProcurementExceptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,7 +23,8 @@ use Doctrine\ORM\EntityManagerInterface;
  *    - DigiKey API (fallback)
  *    - Nexar API (electronics search engine)
  *    - Alibaba API (for non-electronic components)
- *    - Internal pricebook (historical pricing)
+        private PricingEngine $pricingEngine,
+        private CurrencyPreferenceService $currencyPreferenceService
  *    - Price imputation (ML-based estimation for unmapped parts)
  * 3. Calculate coverage % (sourced vs total line items)
  * 4. Generate procurement exceptions report
@@ -48,7 +50,8 @@ class QuoteCoPilotService
         private ProcurementExceptionRepository $procurementExceptionRepository,
         private HtsClassificationService $htsClassificationService,
         private BOMParser $bomParser,
-        private PricingEngine $pricingEngine
+        private PricingEngine $pricingEngine,
+        private CurrencyPreferenceService $currencyPreferenceService
     ) {}
 
     /**
@@ -89,6 +92,15 @@ class QuoteCoPilotService
         $quote->setContactId($contactId);
         $quote->setStatus('DRAFT');
         $quote->setCreatedAt(new \DateTime());
+
+        $quoteCurrency = $metadata['currency'] ?? null;
+
+        if (!$quoteCurrency && isset($metadata['rfq_id'])) {
+            $rfq = $this->entityManager->getRepository(RFQ::class)->find($metadata['rfq_id']);
+            $quoteCurrency = $rfq?->getCurrency();
+        }
+
+        $quote->setCurrency($quoteCurrency ?: $this->currencyPreferenceService->getDisplayCurrency());
         $quote->setRfqId($metadata['rfq_id'] ?? null);
         $this->entityManager->persist($quote);
         $this->entityManager->flush(); // Get quote ID
@@ -128,7 +140,7 @@ class QuoteCoPilotService
         }
         
         // 5. Calculate quote totals
-        $totals = $this->pricingEngine->calculateQuoteTotals($processedLines, 25.0);
+        $totals = $this->pricingEngine->calculateQuoteTotals($processedLines, 25.0, $quote->getCurrency());
         $quote->setSubtotal($totals['subtotal']);
         $quote->setTotal($totals['total']);
         

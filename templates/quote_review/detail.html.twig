@@ -126,7 +126,7 @@
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
                 <span class="rams-dymo">{{ 'quote.review.sourced_value'|trans|default('Sourced Value') }}</span>
-                <p class="rams-metric rams-metric--md">${{ stats.sourced_value|number_format(2) }}</p>
+                    <p class="rams-metric rams-metric--md">{{ stats.sourced_value|format_currency(quote.currency, null, 2) }}</p>
             </div>
         </div>
         <div class="rams-module rams-module--compact">
@@ -239,7 +239,7 @@
                                                                     <span class="rams-text rams-text--xs rams-text--muted rams-block">{{ alt.manufacturer|default('') }}</span>
                                                                 </div>
                                                                 <div class="rams-text--right">
-                                                                    <span class="rams-text rams-text--bold">${{ alt.price|default(0)|number_format(4) }}</span>
+                                                                    <span class="rams-text rams-text--bold">{{ alt.price|default(0)|format_currency(quote.currency, null, 4) }}</span>
                                                                     <span class="rams-text rams-text--xs rams-text--muted rams-block">
                                                                         {% if alt.score is defined %}{{ alt.score }}%{% endif %}
                                                                         {% if alt.stock is defined %}• {{ alt.stock }} {{ 'quote.review.in_stock'|trans|default('in stock') }}{% endif %}
@@ -268,10 +268,10 @@
                                 <td class="rams-table__cell rams-text--right">{{ line.quantity }}</td>
                                 <td class="rams-table__cell rams-text--right">
                                     {% if line.manualUnitPrice %}
-                                        <span class="rams-text rams-text--bold rams-text--info">${{ line.manualUnitPrice|number_format(4) }}</span>
+                                        <span class="rams-text rams-text--bold rams-text--info">{{ line.manualUnitPrice|format_currency(quote.currency, null, 4) }}</span>
                                         <span class="rams-text rams-text--xs rams-text--muted rams-block">{{ 'quote.review.manual'|trans|default('Manual') }}</span>
                                     {% elseif line.unitPrice %}
-                                        <span class="rams-text">${{ line.unitPrice|number_format(4) }}</span>
+                                        <span class="rams-text">{{ line.unitPrice|format_currency(quote.currency, null, 4) }}</span>
                                         <span class="rams-text rams-text--xs rams-text--muted rams-block">{{ line.procurementSource }}</span>
                                     {% else %}
                                         <span class="rams-text rams-text--danger rams-text--bold">{{ 'quote.review.no_price'|trans|default('No Price') }}</span>
@@ -280,7 +280,7 @@
                                 <td class="rams-table__cell rams-text--right">
                                     {% set effectivePrice = line.effectiveExtendedPrice %}
                                     {% if effectivePrice is not null %}
-                                        ${{ effectivePrice|number_format(2) }}
+                                        {{ effectivePrice|format_currency(quote.currency, null, 2) }}
                                     {% else %}
                                         —
                                     {% endif %}
@@ -310,7 +310,7 @@
                                         {% if not line.manuallyVerified %}
                                             <button onclick="verifyLine({{ line.id }})" class="rams-btn rams-btn--icon rams-btn--success-ghost" title="{{ 'quote.review.verify_match'|trans|default('Verify this match is correct') }}">✓</button>
                                         {% endif %}
-                                        <button onclick="openOverrideModal({{ line.id }}, '{{ line.mpn|default('')|e('js') }}', {{ line.unitPrice|default(0) }})" class="rams-btn rams-btn--icon rams-btn--ghost" title="{{ 'quote.review.enter_manual_price'|trans|default('Enter manual price') }}">$</button>
+                                        <button onclick="openOverrideModal({{ line.id }}, '{{ line.mpn|default('')|e('js') }}', {{ line.unitPrice|default(0) }})" class="rams-btn rams-btn--icon rams-btn--ghost" title="{{ 'quote.review.enter_manual_price'|trans|default('Enter manual price') }}">{{ quote.currency|default(display_currency()) }}</button>
                                         <button onclick="repriceLine({{ line.id }})" class="rams-btn rams-btn--icon rams-btn--warning-ghost" title="{{ 'quote.review.reprice'|trans|default('Re-run pricing lookup') }}">↻</button>
                                         {% if line.unitPrice and not line.manuallyVerified %}
                                             <button onclick="rejectLine({{ line.id }})" class="rams-btn rams-btn--icon rams-btn--danger-ghost" title="{{ 'quote.review.reject_match'|trans|default('Reject this match') }}">✗</button>
@@ -341,7 +341,7 @@
                     <input type="text" id="override-mpn" class="rams-form__input rams-form__input--readonly" readonly>
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label rams-dymo">{{ 'quote.review.unit_price_usd'|trans|default('Unit Price (USD)') }} *</label>
+                    <label class="rams-form__label rams-dymo">{{ 'quote.review.unit_price'|trans|default('Unit Price') }} ({{ quote.currency|default(display_currency()) }}) *</label>
                     <input type="number" id="override-price" step="0.0001" min="0" required class="rams-form__input">
                 </div>
                 <div class="rams-form__group">

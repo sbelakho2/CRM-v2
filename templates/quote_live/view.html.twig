@@ -5,19 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ 'quote.live.title'|trans }} {{ quote.quoteNumber }}</title>
     <link rel="stylesheet" href="{{ asset('build/app.css') }}">
+    {# Page-specific overrides - component styles are in sensei-rams.css (Sections 44-45) #}
     <style>
         body { background: var(--rams-bg-tertiary, #f5f5f5); min-height: 100vh; }
         .rams-quote-card { max-width: 1000px; margin: 0 auto; }
-        .rams-tier-card { cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent; }
-        .rams-tier-card:hover { transform: translateY(-2px); }
-        .rams-tier-card--selected { border-color: var(--rams-primary, #171717); background: var(--rams-bg-secondary); }
-        .rams-savings-badge { position: absolute; top: -8px; right: -8px; }
-        .rams-price-highlight { font-size: 2rem; font-weight: 700; color: var(--rams-primary); }
-        .rams-lead-time-bar { height: 6px; border-radius: 3px; background: var(--rams-bg-tertiary); overflow: hidden; }
-        .rams-lead-time-fill { height: 100%; border-radius: 3px; }
-        .rams-lead-time-fill--fast { background: var(--rams-success); width: 30%; }
-        .rams-lead-time-fill--medium { background: var(--rams-warning); width: 60%; }
-        .rams-lead-time-fill--slow { background: var(--rams-danger); width: 90%; }
     </style>
 </head>
 <body>
@@ -71,10 +62,10 @@
                             <div class="rams-module__content rams-text--center">
                                 <p class="rams-metric rams-metric--md">{{ tier.quantity|number_format }}</p>
                                 <span class="rams-text rams-text--xs rams-text--muted">{{ 'quote.live.units'|trans|default('units') }}</span>
-                                <div class="rams-price-highlight">${{ tier.unit_price|number_format(4) }}</div>
+                                <div class="rams-price-highlight">{{ tier.unit_price|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</div>
                                 <span class="rams-text rams-text--xs rams-text--muted">{{ 'quote.live.per_unit'|trans|default('per unit') }}</span>
                                 <hr class="rams-divider">
-                                <p class="rams-text rams-text--bold rams-text--success">${{ tier.extended_price|number_format(2) }}</p>
+                                <p class="rams-text rams-text--bold rams-text--success">{{ tier.extended_price|format_currency(tierPricing.currency, tierPricing.currency, 2) }}</p>
                                 <span class="rams-text rams-text--xs rams-text--muted">{{ 'common.total'|trans|lower }}</span>
                             </div>
                         </div>
@@ -90,11 +81,11 @@
                                 <dl class="rams-definition-list rams-definition-list--compact">
                                     <div class="rams-definition-list__item">
                                         <dt class="rams-definition-list__term">{{ 'quote.live.unit_price'|trans }}:</dt>
-                                        <dd class="rams-definition-list__desc rams-text--bold" id="selectedUnitPrice">${{ tierPricing.tiers[0].unit_price|number_format(4) }}</dd>
+                                        <dd class="rams-definition-list__desc rams-text--bold" id="selectedUnitPrice">{{ tierPricing.tiers[0].unit_price|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</dd>
                                     </div>
                                     <div class="rams-definition-list__item">
                                         <dt class="rams-definition-list__term">{{ 'quote.live.extended_price'|trans }}:</dt>
-                                        <dd class="rams-definition-list__desc rams-text--bold rams-text--success" id="selectedExtended">${{ tierPricing.tiers[0].extended_price|number_format(2) }}</dd>
+                                        <dd class="rams-definition-list__desc rams-text--bold rams-text--success" id="selectedExtended">{{ tierPricing.tiers[0].extended_price|format_currency(tierPricing.currency, tierPricing.currency, 2) }}</dd>
                                     </div>
                                     <div class="rams-definition-list__item">
                                         <dt class="rams-definition-list__term">{{ 'quote.live.stock_status'|trans|default('Stock Status') }}:</dt>
@@ -130,7 +121,7 @@
                                 <strong>💡 {{ 'quote.live.tip'|trans|default('Tip') }}:</strong>
                                 {{ 'quote.live.order'|trans|default('Order') }} <span id="additionalQty">{{ tierPricing.tiers[0].next_break.additional_qty }}</span> {{ 'quote.live.more_units'|trans|default('more units') }} 
                                 ({{ 'common.total'|trans|lower }} <span id="nextBreakQty">{{ tierPricing.tiers[0].next_break.quantity }}</span>) 
-                                {{ 'quote.live.and_save'|trans|default('and save') }} <span id="savingsPerUnit">${{ tierPricing.tiers[0].next_break.savings_per_unit|number_format(4) }}</span>/{{ 'quote.live.unit'|trans|default('unit') }}!
+                                {{ 'quote.live.and_save'|trans|default('and save') }} <span id="savingsPerUnit">{{ tierPricing.tiers[0].next_break.savings_per_unit|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</span>/{{ 'quote.live.unit'|trans|default('unit') }}!
                             </div>
                         {% endif %}
                     </div>
@@ -226,7 +217,17 @@
     <script>
         const token = '{{ token }}';
         const tierData = {{ tierPricing.tiers|json_encode|raw }};
+        const currencySymbol = '{{ currency_symbol(tierPricing.currency)|e('js') }}';
+        const currencyNeedsSpace = {{ tierPricing.currency in ['MAD', 'TND'] ? 'true' : 'false' }};
         let selectedQuantity = tierData[0].quantity;
+
+        function formatCurrency(value, decimals) {
+            const formatted = value.toLocaleString(undefined, {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            });
+            return currencyNeedsSpace ? `${currencySymbol} ${formatted}` : `${currencySymbol}${formatted}`;
+        }
         
         function selectTier(element, quantity) {
             document.querySelectorAll('.rams-tier-card').forEach(card => card.classList.remove('rams-tier-card--selected'));
@@ -238,8 +239,8 @@
             selectedQuantity = quantity;
             
             document.getElementById('selectedQty').textContent = quantity.toLocaleString();
-            document.getElementById('selectedUnitPrice').textContent = '$' + tier.unit_price.toFixed(4);
-            document.getElementById('selectedExtended').textContent = '$' + tier.extended_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('selectedUnitPrice').textContent = formatCurrency(tier.unit_price, 4);
+            document.getElementById('selectedExtended').textContent = formatCurrency(tier.extended_price, 2);
             
             const stockBadge = tier.stock_status === 'all_in_stock' 
                 ? '<span class="rams-badge rams-badge--green">All In Stock</span>'
@@ -264,7 +265,7 @@
                 tipEl.style.display = 'block';
                 document.getElementById('additionalQty').textContent = tier.next_break.additional_qty;
                 document.getElementById('nextBreakQty').textContent = tier.next_break.quantity;
-                document.getElementById('savingsPerUnit').textContent = '$' + tier.next_break.savings_per_unit.toFixed(4);
+                document.getElementById('savingsPerUnit').textContent = formatCurrency(tier.next_break.savings_per_unit, 4);
             } else if (tipEl) {
                 tipEl.style.display = 'none';
             }
@@ -282,7 +283,7 @@
         function acceptQuote() {
             const tier = tierData.find(t => t.quantity === selectedQuantity);
             document.getElementById('acceptQtyDisplay').textContent = selectedQuantity.toLocaleString() + ' units';
-            document.getElementById('acceptPriceDisplay').textContent = '$' + tier.extended_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('acceptPriceDisplay').textContent = formatCurrency(tier.extended_price, 2);
             document.getElementById('acceptModal').classList.remove('rams-modal--hidden');
         }
         

@@ -172,13 +172,13 @@
                         <div class="rams-module rams-module--nested rams-bg-success-subtle">
                             <div class="rams-module__content">
                                 <span class="rams-text rams-text--sm rams-text--success">{{ 'supplier.portal.total_spent'|trans|default('Total Spent') }}</span>
-                                <p class="rams-metric rams-metric--lg rams-text--success">${{ supplier.total_spent | default(0) }}</p>
+                                <p class="rams-metric rams-metric--lg rams-text--success">{{ supplier.total_spent|default(0)|format_currency(supplier.total_spent_currency|default(supplier.currency|default(display_currency())), null, 2) }}</p>
                             </div>
                         </div>
                         <div class="rams-module rams-module--nested rams-bg-warning-subtle">
                             <div class="rams-module__content">
                                 <span class="rams-text rams-text--sm rams-text--warning">{{ 'supplier.portal.avg_order_value'|trans|default('Avg Order Value') }}</span>
-                                <p class="rams-metric rams-metric--lg rams-text--warning">${{ supplier.avg_order_value | default(0) }}</p>
+                                <p class="rams-metric rams-metric--lg rams-text--warning">{{ supplier.avg_order_value|default(0)|format_currency(supplier.avg_order_value_currency|default(supplier.currency|default(display_currency())), null, 2) }}</p>
                             </div>
                         </div>
                     </div>

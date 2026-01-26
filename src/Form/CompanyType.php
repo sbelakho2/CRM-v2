@@ -20,7 +20,7 @@ class CompanyType extends AbstractType
             ->add('name', TextType::class, [
                 'label' => 'Company Name',
                 'attr' => [
-                    'class' => 'form-input',
+                        'class' => 'rams-form__input',
                     'placeholder' => 'Enter company name'
                 ],
                 'constraints' => [
@@ -37,7 +37,7 @@ class CompanyType extends AbstractType
                     'Renewables' => 'Renewables',
                     'Power Electronics' => 'Power Electronics',
                 ],
-                'attr' => ['class' => 'form-select'],
+                'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'Select sector',
                 'constraints' => [
                     new NotBlank(['message' => 'Sector is required'])
@@ -50,7 +50,7 @@ class CompanyType extends AbstractType
                     'Tier B' => 'B',
                     'Tier C' => 'C',
                 ],
-                'attr' => ['class' => 'form-select'],
+                'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'Select tier'
             ])
             ->add('pipelineStage', ChoiceType::class, [
@@ -63,13 +63,13 @@ class CompanyType extends AbstractType
                     'Proposal' => 'Proposal',
                     'Award' => 'Award',
                 ],
-                'attr' => ['class' => 'form-select'],
+                'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'Select stage'
             ])
             ->add('region', TextType::class, [
                 'label' => 'Region',
                 'attr' => [
-                    'class' => 'form-input',
+                        'class' => 'rams-form__input',
                     'placeholder' => 'e.g., Morocco - TAC, EU - Germany'
                 ],
                 'required' => false
@@ -77,7 +77,7 @@ class CompanyType extends AbstractType
             ->add('website', UrlType::class, [
                 'label' => 'Website',
                 'attr' => [
-                    'class' => 'form-input',
+                        'class' => 'rams-form__input',
                     'placeholder' => 'https://example.com'
                 ],
                 'required' => false,
@@ -88,7 +88,7 @@ class CompanyType extends AbstractType
             ->add('linkedInUrl', UrlType::class, [
                 'label' => 'LinkedIn URL',
                 'attr' => [
-                    'class' => 'form-input',
+                        'class' => 'rams-form__input',
                     'placeholder' => 'https://linkedin.com/company/example'
                 ],
                 'required' => false,
@@ -99,7 +99,7 @@ class CompanyType extends AbstractType
             ->add('googleDriveLink', UrlType::class, [
                 'label' => 'Google Drive Link',
                 'attr' => [
-                    'class' => 'form-input',
+                        'class' => 'rams-form__input',
                     'placeholder' => 'https://drive.google.com/...'
                 ],
                 'required' => false,

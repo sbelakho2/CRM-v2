@@ -29,7 +29,8 @@ class FreightPricingService
         private EntityManagerInterface $entityManager,
         private FreightTableRepository $freightTableRepository,
         private RoutePreferenceRepository $routePreferenceRepository,
-        private RouteSelectionService $routeSelectionService
+        private RouteSelectionService $routeSelectionService,
+        private CurrencyPreferenceService $currencyPreferenceService
     ) {}
 
     /**
@@ -426,7 +427,7 @@ class FreightPricingService
                 'mode' => $mode,
                 'routeCode' => 'GENERIC',
                 'transitDays' => 14,
-                'currency' => 'USD',
+                'currency' => $this->currencyPreferenceService->getDisplayCurrency(),
                 'note' => 'Generic estimate - no specific route found'
             ];
         }

@@ -85,7 +85,7 @@
                         {% endif %}
                         
                         {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--currency rams-metric--small">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                            <p class="rams-metric rams-metric--currency rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
                         {% endif %}
                         
                         {# NDA Status #}
@@ -127,7 +127,7 @@
                         {% endif %}
                         
                         {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--currency rams-metric--small">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                            <p class="rams-metric rams-metric--currency rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
                         {% endif %}
                         
                         <div class="rams-kanban__card-badges">
@@ -168,7 +168,7 @@
                         {% endif %}
                         
                         {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--currency rams-metric--small">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                            <p class="rams-metric rams-metric--currency rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
                         {% endif %}
                         
                         <div class="rams-kanban__card-badges">
@@ -209,7 +209,7 @@
                         {% endif %}
                         
                         {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--currency rams-metric--small">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                            <p class="rams-metric rams-metric--currency rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
                         {% endif %}
                         
                         {% if rfq.sopDate %}
@@ -246,7 +246,7 @@
                         {% endif %}
                         
                         {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--muted rams-metric--small">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</p>
+                            <p class="rams-metric rams-metric--muted rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
                         {% endif %}
                     </a>
                 {% else %}

@@ -52,7 +52,8 @@ class CommandCenterService
         private LeadRepository $leadRepository,
         private QuoteRepository $quoteRepository,
         private ActivityRepository $activityRepository,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private CurrencyConverter $currencyConverter
     ) {}
     
     /**
@@ -170,6 +171,7 @@ class CommandCenterService
     {
         $now = new \DateTime();
         $weekFromNow = (new \DateTime())->modify('+7 days');
+        $displayCurrency = $this->currencyConverter->getDisplayCurrency();
         
         // Quotes by status
         $quotesByStatus = $this->quoteRepository->createQueryBuilder('q')
@@ -198,24 +200,54 @@ class CommandCenterService
             ->getQuery()
             ->getResult();
         
-        // High-value quotes
-        $highValueQuotes = $this->quoteRepository->createQueryBuilder('q')
-            ->where('q.totalCost >= :minValue')
-            ->andWhere('q.status IN (:statuses)')
-            ->setParameter('minValue', 50000)
-            ->setParameter('statuses', ['sent', 'pending_review', 'approved'])
-            ->orderBy('q.totalCost', 'DESC')
-            ->setMaxResults(5)
+        // Total quote value in pipeline (converted to display currency)
+        $pipelineStatuses = ['draft', 'pending_review', 'approved', 'sent'];
+        $pipelineQuotes = $this->quoteRepository->createQueryBuilder('q')
+            ->where('q.status IN (:statuses)')
+            ->setParameter('statuses', $pipelineStatuses)
             ->getQuery()
             ->getResult();
-        
-        // Total quote value in pipeline
-        $pipelineValue = $this->quoteRepository->createQueryBuilder('q')
-            ->select('SUM(q.totalCost)')
-            ->where('q.status IN (:statuses)')
-            ->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
-            ->getQuery()
-            ->getSingleScalarResult() ?? 0;
+
+        $pipelineValue = 0.0;
+        foreach ($pipelineQuotes as $quote) {
+            $amount = (float) $quote->getTotalCost();
+            if ($amount <= 0) {
+                continue;
+            }
+            $sourceCurrency = $quote->getCurrency() ?: $displayCurrency;
+            $pipelineValue += $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
+        }
+
+        // High-value quotes (threshold in display currency)
+        $highValueThreshold = 50000;
+        $highValueStatuses = ['sent', 'pending_review', 'approved'];
+        $highValueCandidates = array_filter(
+            $pipelineQuotes,
+            fn(Quote $q) => in_array($q->getStatus(), $highValueStatuses, true)
+        );
+
+        $highValueQuotes = [];
+        foreach ($highValueCandidates as $quote) {
+            $amount = (float) $quote->getTotalCost();
+            if ($amount <= 0) {
+                continue;
+            }
+            $sourceCurrency = $quote->getCurrency() ?: $displayCurrency;
+            $converted = $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
+            if ($converted >= $highValueThreshold) {
+                $highValueQuotes[] = $quote;
+            }
+        }
+
+        usort($highValueQuotes, function (Quote $a, Quote $b) use ($displayCurrency) {
+            $aCurrency = $a->getCurrency() ?: $displayCurrency;
+            $bCurrency = $b->getCurrency() ?: $displayCurrency;
+            $aValue = $this->currencyConverter->convert((float) $a->getTotalCost(), $aCurrency, $displayCurrency);
+            $bValue = $this->currencyConverter->convert((float) $b->getTotalCost(), $bCurrency, $displayCurrency);
+            return $bValue <=> $aValue;
+        });
+
+        $highValueQuotes = array_slice($highValueQuotes, 0, 5);
         
         return [
             'summary' => [
@@ -223,6 +255,7 @@ class CommandCenterService
                 'active_interactive' => count($activeInteractive),
                 'high_value_count' => count($highValueQuotes),
                 'pipeline_value' => round((float) $pipelineValue, 2),
+                'pipeline_currency' => $displayCurrency,
             ],
             'by_status' => array_column($quotesByStatus, 'count', 'status'),
             'pending_approval' => array_map(fn(Quote $q) => [
@@ -230,6 +263,7 @@ class CommandCenterService
                 'quote_number' => $q->getQuoteNumber(),
                 'company' => $q->getCompany()?->getName(),
                 'total_cost' => $q->getTotalCost(),
+                'currency' => $q->getCurrency() ?: $displayCurrency,
                 'coverage' => $q->getCoveragePercent(),
                 'status' => $q->getStatus(),
                 'created_at' => $q->getCreatedAt()?->format('Y-m-d'),
@@ -241,12 +275,14 @@ class CommandCenterService
                 'view_count' => $q->getViewCount(),
                 'last_viewed' => $q->getLastViewedAt()?->format('Y-m-d H:i'),
                 'total_cost' => $q->getTotalCost(),
+                'currency' => $q->getCurrency() ?: $displayCurrency,
             ], $activeInteractive),
             'high_value_quotes' => array_map(fn(Quote $q) => [
                 'id' => $q->getId(),
                 'quote_number' => $q->getQuoteNumber(),
                 'company' => $q->getCompany()?->getName(),
                 'total_cost' => $q->getTotalCost(),
+                'currency' => $q->getCurrency() ?: $displayCurrency,
                 'status' => $q->getStatus(),
             ], $highValueQuotes),
         ];
@@ -323,12 +359,15 @@ class CommandCenterService
             foreach ($recentChanges as $change) {
                 $previousPrice = (float) $change->getPreviousPrice();
                 $currentPrice = (float) $change->getPrice();
+                $currency = $change->getCurrency() ?? 'USD';
                 
                 if ($previousPrice <= 0) continue;
                 
                 $percentChange = (($currentPrice - $previousPrice) / $previousPrice);
                 
                 if ($percentChange >= self::PRICE_CHANGE_ALERT_THRESHOLD) {
+                    $previousFormatted = $this->currencyConverter->format($previousPrice, $currency, $currency, 4);
+                    $currentFormatted = $this->currencyConverter->format($currentPrice, $currency, $currency, 4);
                     $alerts[] = [
                         'type' => 'price_increase',
                         'severity' => $percentChange >= 0.25 ? 'critical' : 'warning',
@@ -336,13 +375,14 @@ class CommandCenterService
                         'distributor' => $change->getDistributor(),
                         'previous_price' => round($previousPrice, 4),
                         'current_price' => round($currentPrice, 4),
+                        'currency' => $currency,
                         'percent_change' => round($percentChange * 100, 1),
                         'message' => sprintf(
-                            'Price increased %.1f%% for %s (from $%.4f to $%.4f)',
+                            'Price increased %.1f%% for %s (from %s to %s)',
                             $percentChange * 100,
                             $change->getMpn(),
-                            $previousPrice,
-                            $currentPrice
+                            $previousFormatted,
+                            $currentFormatted
                         ),
                         'timestamp' => $change->getRecordedAt()?->format('c'),
                     ];
@@ -528,6 +568,7 @@ class CommandCenterService
         $today = new \DateTime('today');
         $weekAgo = (new \DateTime())->modify('-7 days');
         $monthAgo = (new \DateTime())->modify('-30 days');
+        $displayCurrency = $this->currencyConverter->getDisplayCurrency();
         
         // Leads conversion rate (approved / total pending reviewed)
         $approvedLeads = $this->leadRepository->createQueryBuilder('l')
@@ -575,27 +616,53 @@ class CommandCenterService
             ? round(((int)$acceptedQuotes / (int)$totalQuotes) * 100, 1) 
             : 0;
         
-        // Average quote value
-        $avgQuoteValue = $this->quoteRepository->createQueryBuilder('q')
-            ->select('AVG(q.totalCost)')
+        // Average quote value (converted to display currency)
+        $recentQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.createdAt >= :monthAgo')
             ->setParameter('monthAgo', $monthAgo)
             ->getQuery()
-            ->getSingleScalarResult() ?? 0;
-        
-        // Pipeline health
-        $pipelineTotal = $this->quoteRepository->createQueryBuilder('q')
-            ->select('SUM(q.totalCost)')
+            ->getResult();
+
+        $avgQuoteValue = 0.0;
+        if (count($recentQuotes) > 0) {
+            $sum = 0.0;
+            $count = 0;
+            foreach ($recentQuotes as $quote) {
+                $amount = (float) $quote->getTotalCost();
+                if ($amount <= 0) {
+                    continue;
+                }
+                $sourceCurrency = $quote->getCurrency() ?: $displayCurrency;
+                $sum += $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
+                $count++;
+            }
+            $avgQuoteValue = $count > 0 ? $sum / $count : 0.0;
+        }
+
+        // Pipeline health (converted to display currency)
+        $pipelineQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
             ->getQuery()
-            ->getSingleScalarResult() ?? 0;
+            ->getResult();
+
+        $pipelineTotal = 0.0;
+        foreach ($pipelineQuotes as $quote) {
+            $amount = (float) $quote->getTotalCost();
+            if ($amount <= 0) {
+                continue;
+            }
+            $sourceCurrency = $quote->getCurrency() ?: $displayCurrency;
+            $pipelineTotal += $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
+        }
         
         return [
             'lead_conversion_rate' => $leadConversionRate,
             'quote_win_rate' => $quoteWinRate,
             'avg_quote_value' => round((float) $avgQuoteValue, 2),
+            'avg_quote_value_currency' => $displayCurrency,
             'pipeline_total' => round((float) $pipelineTotal, 2),
+            'pipeline_total_currency' => $displayCurrency,
             'leads_this_week' => (int) $this->leadRepository->createQueryBuilder('l')
                 ->select('COUNT(l.id)')
                 ->where('l.createdAt >= :weekAgo')

@@ -30,7 +30,7 @@ class ActivityType extends AbstractType
                     'LinkedIn Connection Request' => 'LinkedIn Connection Request',
                     'Follow-up' => 'Follow-up',
                 ],
-                'attr' => ['class' => 'form-select'],
+                    'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'Select type',
                 'constraints' => [
                     new NotBlank(['message' => 'Activity type is required'])
@@ -40,7 +40,7 @@ class ActivityType extends AbstractType
                 'class' => Company::class,
                 'choice_label' => 'name',
                 'label' => 'Company',
-                'attr' => ['class' => 'form-select'],
+                'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'Select company',
                 'constraints' => [
                     new NotBlank(['message' => 'Company is required'])
@@ -52,14 +52,14 @@ class ActivityType extends AbstractType
                     return $contact->getFirstName() . ' ' . $contact->getLastName();
                 },
                 'label' => 'Contact',
-                'attr' => ['class' => 'form-select'],
+                'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'Select contact (optional)',
                 'required' => false
             ])
             ->add('activityDate', DateType::class, [
                 'label' => 'Activity Date',
                 'widget' => 'single_text',
-                'attr' => ['class' => 'form-input'],
+                    'attr' => ['class' => 'rams-form__input'],
                 'constraints' => [
                     new NotBlank(['message' => 'Activity date is required'])
                 ]
@@ -67,7 +67,7 @@ class ActivityType extends AbstractType
             ->add('notes', TextareaType::class, [
                 'label' => 'Notes',
                 'attr' => [
-                    'class' => 'form-input',
+                        'class' => 'rams-form__textarea',
                     'rows' => 4,
                     'placeholder' => 'Enter activity details, outcomes, next steps...'
                 ],
@@ -82,7 +82,7 @@ class ActivityType extends AbstractType
                     'Not Interested' => 'Not Interested',
                     'Pending' => 'Pending',
                 ],
-                'attr' => ['class' => 'form-select'],
+                    'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'Select outcome',
                 'required' => false
             ]);

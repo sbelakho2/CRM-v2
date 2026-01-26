@@ -4,11 +4,14 @@ namespace App\Service\WebCrawler;
 
 use App\Entity\Company;
 use App\Repository\CompanyRepository;
+use App\Service\CompetitorLearnerService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
  * Main service to discover companies based on sectors and criteria from Tracker.xlsx
+ * 
+ * Enhanced with automatic competitor learning from scraped content.
  */
 class CompanyDiscoveryService
 {
@@ -35,7 +38,8 @@ class CompanyDiscoveryService
         private CompanyRepository $companyRepo,
         private LinkedInScraperService $linkedInScraper,
         private GoogleDorkService $googleDork,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ?CompetitorLearnerService $competitorLearner = null
     ) {}
 
     /**
@@ -132,6 +136,23 @@ class CompanyDiscoveryService
     }
 
     /**
+     * Learn competitors from discovery results
+     * Called automatically during company discovery
+     */
+    private function learnCompetitorsFromResults(array $results): void
+    {
+        if (!$this->competitorLearner) {
+            return;
+        }
+
+        $this->competitorLearner->learnFromGoogleResults($results);
+        
+        $this->logger->debug('Competitor learning from discovery results', [
+            'resultCount' => count($results),
+        ]);
+    }
+
+    /**
      * Enrich existing company data with additional web research
      */
     public function enrichCompanyData(Company $company): void
@@ -153,5 +174,29 @@ class CompanyDiscoveryService
         }
 
         $this->em->flush();
+    }
+
+    /**
+     * Analyze company website for competitor mentions
+     * Returns array of discovered competitors
+     */
+    public function analyzeForCompetitors(Company $company): array
+    {
+        if (!$this->competitorLearner) {
+            return [];
+        }
+
+        $content = '';
+        
+        // Gather available text content about the company
+        $content .= $company->getName() . ' ';
+        $content .= $company->getSourceNotes() ?? '';
+        
+        // If we had website scraping capability, we'd add that content here
+        // For now, use what we have in the database
+        
+        $sourceUrl = $company->getWebsite() ?? 'company_analysis';
+        
+        return $this->competitorLearner->learnFromContent($content, $sourceUrl);
     }
 }

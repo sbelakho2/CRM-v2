@@ -429,7 +429,7 @@ class MouserApiClient
             $pricing[] = [
                 'quantity' => $qty,
                 'price' => (float) str_replace(['$', ','], '', $break['Price'] ?? '0'),
-                'currency' => $break['Currency'] ?? 'USD'
+                'currency' => $break['Currency'] ?? null
             ];
         }
         

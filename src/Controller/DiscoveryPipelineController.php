@@ -7,6 +7,7 @@ use App\Message\LeadDeepScrapeMessage;
 use App\Service\GoogleSearchService;
 use App\Service\WebCrawler\GoogleDorkService;
 use App\Service\WebCrawler\CompanyDiscoveryService;
+use App\Service\CountryService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -35,7 +36,8 @@ class DiscoveryPipelineController extends AbstractController
         private GoogleSearchService $googleSearchService,
         private GoogleDorkService $googleDorkService,
         private MessageBusInterface $messageBus,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private CountryService $countryService
     ) {
         // Inject GoogleSearchService into GoogleDorkService for automated searches
         $this->googleDorkService->setGoogleSearchService($googleSearchService);
@@ -67,6 +69,7 @@ class DiscoveryPipelineController extends AbstractController
         
         $sector = $data['sector'] ?? null;
         $location = $data['location'] ?? null;
+        $locationLabel = $this->resolveLocationLabel($location);
         $enableDeepScrape = $data['enable_deep_scrape'] ?? true;
         $enableLlm = $data['enable_llm'] ?? false;
         $autoImport = $data['auto_import'] ?? true;
@@ -86,7 +89,7 @@ class DiscoveryPipelineController extends AbstractController
             // Step 1: Run Google Dork searches through the API
             $searchResults = $this->googleDorkService->searchCompanies(
                 $sector, 
-                $location, 
+                $locationLabel, 
                 executeSearch: true
             );
             
@@ -177,6 +180,7 @@ class DiscoveryPipelineController extends AbstractController
         
         $sector = $data['sector'] ?? null;
         $location = $data['location'] ?? null;
+        $locationLabel = $this->resolveLocationLabel($location);
         
         if (!$sector) {
             return new JsonResponse(['error' => 'Sector is required'], 400);
@@ -185,7 +189,7 @@ class DiscoveryPipelineController extends AbstractController
         try {
             $searchResults = $this->googleDorkService->searchCompanies(
                 $sector, 
-                $location, 
+                $locationLabel, 
                 executeSearch: true
             );
             
@@ -301,7 +305,7 @@ class DiscoveryPipelineController extends AbstractController
         $lead->setWebsiteRoot($website);
         $lead->setLeadUrl($result['link'] ?? null);
         $lead->setSectorTags([$sector]);
-        $lead->setSiteLocation($location);
+        $lead->setSiteLocation($this->resolveLocationLabel($location));
         $lead->setRegionTag($this->determineRegion($location));
         $lead->setNotesAuto(sprintf(
             "[%s] Auto-discovered via pipeline\nSource query: %s\nSnippet: %s",
@@ -338,18 +342,31 @@ class DiscoveryPipelineController extends AbstractController
      */
     private function determineRegion(?string $location): string
     {
+        $normalized = $this->countryService->normalizeRegionCode($location);
+
+        return $normalized ?? 'unknown';
+    }
+
+    private function resolveLocationLabel(?string $location): ?string
+    {
         if (!$location) {
-            return 'unknown';
+            return null;
         }
-        
-        $location = strtolower($location);
-        
-        if (str_contains($location, 'morocco') || str_contains($location, 'tanger') || 
-            str_contains($location, 'casablanca') || str_contains($location, 'kenitra')) {
-            return 'morocco';
+
+        $legacy = [
+            'Tanger Free Zone' => 'Tanger Free Zone',
+            'Tanger Automotive City' => 'Tanger Automotive City',
+            'Atlantic Free Zone Kenitra' => 'Atlantic Free Zone Kenitra',
+            'Casablanca' => 'Casablanca',
+            'Nouaceur' => 'Nouaceur',
+            'Europe' => 'Europe',
+        ];
+
+        if (isset($legacy[$location])) {
+            return $legacy[$location];
         }
-        
-        return 'international';
+
+        return $this->countryService->getRegionName($location);
     }
 
     /**
@@ -391,16 +408,14 @@ class DiscoveryPipelineController extends AbstractController
      */
     private function getLocations(): array
     {
-        return [
-            'Morocco' => 'Morocco',
+        return $this->countryService->getRegionOptions([
             'Tanger Free Zone' => 'Tanger Free Zone',
             'Tanger Automotive City' => 'Tanger Automotive City',
             'Atlantic Free Zone Kenitra' => 'Atlantic Free Zone Kenitra',
             'Casablanca' => 'Casablanca',
             'Nouaceur' => 'Nouaceur',
             'Europe' => 'Europe',
-            'USA' => 'USA',
-        ];
+        ]);
     }
 
     /**

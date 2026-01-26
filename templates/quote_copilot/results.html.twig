@@ -42,7 +42,7 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <span class="rams-dymo">{{ 'quote.copilot.total_cost'|trans }}</span>
-                <p class="rams-metric rams-metric--xl">${{ quote.totalCost|number_format(2) }}</p>
+                <p class="rams-metric rams-metric--xl">{{ quote.totalCost|format_currency(quote.currency, null, 2) }}</p>
                 <p class="rams-text rams-text--sm rams-text--muted">{{ quote.currency }}</p>
             </div>
         </div>
@@ -91,14 +91,14 @@
                             <td class="rams-table__cell rams-table__cell--right">{{ line.quantity }}</td>
                             <td class="rams-table__cell rams-table__cell--right">
                                 {% if line.unitPrice %}
-                                    ${{ line.unitPrice|number_format(4) }}
+                                    {{ line.unitPrice|format_currency(quote.currency, null, 4) }}
                                 {% else %}
                                     <span class="rams-text rams-text--danger">—</span>
                                 {% endif %}
                             </td>
                             <td class="rams-table__cell rams-table__cell--right rams-text--bold">
                                 {% if line.extendedPrice %}
-                                    ${{ line.extendedPrice|number_format(2) }}
+                                        {{ line.extendedPrice|format_currency(quote.currency, null, 2) }}
                                 {% else %}
                                     <span class="rams-text rams-text--danger">—</span>
                                 {% endif %}
@@ -116,7 +116,7 @@
                 <tfoot class="rams-table__footer">
                     <tr>
                         <td colspan="6" class="rams-table__cell rams-table__cell--right rams-text--bold">{{ 'common.total'|trans }}:</td>
-                        <td class="rams-table__cell rams-table__cell--right rams-text--bold">${{ quote.totalCost|number_format(2) }}</td>
+                            <td class="rams-table__cell rams-table__cell--right rams-text--bold">{{ quote.totalCost|format_currency(quote.currency, null, 2) }}</td>
                         <td class="rams-table__cell"></td>
                     </tr>
                 </tfoot>

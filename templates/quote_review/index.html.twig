@@ -75,7 +75,7 @@
                             <tr class="rams-table__row">
                                 <td class="rams-table__cell">
                                     <span class="rams-text rams-text--bold">{{ q.quoteNumber }}</span>
-                                    <span class="rams-text rams-text--sm rams-text--muted rams-block">${{ q.totalCost|number_format(2) }}</span>
+                                    <span class="rams-text rams-text--sm rams-text--muted rams-block">{{ q.totalCost|format_currency(q.currency, null, 2) }}</span>
                                 </td>
                                 <td class="rams-table__cell">{{ q.company.name|default('N/A') }}</td>
                                 <td class="rams-table__cell">{{ totalLines }} {{ 'quote.lines'|trans|default('lines') }}</td>

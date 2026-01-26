@@ -6,6 +6,7 @@ use App\Service\WebCrawler\CompanyDiscoveryService;
 use App\Service\WebCrawler\GoogleDorkService;
 use App\Service\WebCrawler\LinkedInScraperService;
 use App\Repository\LeadRepository;
+use App\Service\CountryService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,7 +38,8 @@ class WebCrawlerController extends AbstractController
         private CompanyDiscoveryService $discoveryService,
         private GoogleDorkService $googleDorkService,
         private LinkedInScraperService $linkedInService,
-        private LeadRepository $leadRepository
+        private LeadRepository $leadRepository,
+        private CountryService $countryService
     ) {}
 
     #[Route('', name: 'app_webcrawler_index', methods: ['GET'])]
@@ -65,9 +67,19 @@ class WebCrawlerController extends AbstractController
             'approved' => count(array_filter($allLeads, fn($l) => $l->getReviewStatus() === 'approved')),
         ];
 
+        $locations = $this->countryService->getRegionOptions(self::LOCATIONS);
+        $regionLabels = $locations;
+        foreach ($recentLeads as $lead) {
+            $tag = $lead->getRegionTag();
+            if ($tag && !isset($regionLabels[$tag])) {
+                $regionLabels[$tag] = strtoupper((string) $tag);
+            }
+        }
+
         return $this->render('webcrawler/index.html.twig', [
             'sectors' => self::TARGET_SECTORS,
-            'locations' => self::LOCATIONS,
+            'locations' => $locations,
+            'region_labels' => $regionLabels,
             'recent_leads' => $recentLeads,
             'stats' => $stats,
         ]);
@@ -79,6 +91,7 @@ class WebCrawlerController extends AbstractController
         $sector = $request->request->get('sector');
         $location = $request->request->get('location');
         $keywords = $request->request->get('keywords', '');
+        $locationLabel = $this->resolveLocationLabel($location);
 
         if (!$sector) {
             return new JsonResponse(['error' => 'Sector is required'], 400);
@@ -86,7 +99,7 @@ class WebCrawlerController extends AbstractController
 
         try {
             // Run discovery
-            $companies = $this->discoveryService->discoverCompanies($sector, $location);
+            $companies = $this->discoveryService->discoverCompanies($sector, $locationLabel);
 
             return new JsonResponse([
                 'success' => true,
@@ -113,6 +126,7 @@ class WebCrawlerController extends AbstractController
     {
         $sector = $request->request->get('sector');
         $location = $request->request->get('location');
+        $locationLabel = $this->resolveLocationLabel($location);
         $customQuery = $request->request->get('custom_query');
 
         try {
@@ -121,7 +135,7 @@ class WebCrawlerController extends AbstractController
                 $results = $this->googleDorkService->customSearch($customQuery);
             } else {
                 // Standard sector + location search
-                $results = $this->googleDorkService->searchCompanies($sector, $location);
+                $results = $this->googleDorkService->searchCompanies($sector, $locationLabel);
             }
 
             return new JsonResponse([
@@ -143,9 +157,10 @@ class WebCrawlerController extends AbstractController
     {
         $sector = $request->request->get('sector');
         $location = $request->request->get('location');
+        $locationLabel = $this->resolveLocationLabel($location);
 
         try {
-            $results = $this->linkedInService->searchCompanies($sector, $location);
+            $results = $this->linkedInService->searchCompanies($sector, $locationLabel);
 
             return new JsonResponse([
                 'success' => true,
@@ -208,6 +223,19 @@ class WebCrawlerController extends AbstractController
             'sectors' => self::TARGET_SECTORS,
             'locations' => self::LOCATIONS,
         ]);
+    }
+
+    private function resolveLocationLabel(?string $location): ?string
+    {
+        if (!$location) {
+            return null;
+        }
+
+        if (isset(self::LOCATIONS[$location])) {
+            return self::LOCATIONS[$location];
+        }
+
+        return $this->countryService->getRegionName($location);
     }
 
     /**

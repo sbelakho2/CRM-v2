@@ -121,6 +121,29 @@
                 {{ form_end(form) }}
             </div>
         </div>
+
+        {# Preferences Module #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'profile.preferences'|trans|default('Preferences') }}</h2>
+            </div>
+            <div class="rams-module__content rams-p-6">
+                {{ form_start(preferenceForm, {'attr': {'class': 'rams-stack rams-gap-4'}}) }}
+                    <div class="rams-form__group">
+                        {{ form_label(preferenceForm.displayCurrency, 'profile.display_currency'|trans|default('Display Currency'), {'label_attr': {'class': 'rams-form__label'}}) }}
+                        {{ form_widget(preferenceForm.displayCurrency, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(preferenceForm.displayCurrency) }}
+                        <span class="rams-form__hint">{{ 'profile.display_currency_hint'|trans|default('Used to display monetary values across the app') }}</span>
+                    </div>
+
+                    <div class="rams-module__footer rams-flex rams-justify-end">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            {{ 'profile.update_preferences'|trans|default('Update Preferences') }}
+                        </button>
+                    </div>
+                {{ form_end(preferenceForm) }}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

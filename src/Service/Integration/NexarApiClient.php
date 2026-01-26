@@ -135,7 +135,7 @@ GRAPHQL;
                             $allPricing[] = [
                                 'quantity' => $price['quantity'] ?? 0,
                                 'price' => (float) ($price['price'] ?? 0),
-                                'currency' => $price['currency'] ?? 'USD'
+                                'currency' => $price['currency'] ?? null
                             ];
                         }
                     }

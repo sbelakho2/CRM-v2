@@ -12,13 +12,13 @@
         </div>
         <div class="rams-btn-group">
             <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-btn--secondary">
-                <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
                 </svg>
                 {{ 'rfq.actions.pipeline_view'|trans }}
             </a>
             <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
-                <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 {{ 'rfq.actions.new'|trans }}
@@ -138,7 +138,7 @@
                                     {% if rfq.estimatedValue %}
                                         <div class="rams-rfq-card__detail">
                                             <span class="rams-text--muted">{{ 'rfq.fields.value'|trans }}:</span>
-                                            <span class="rams-metric rams-metric--currency">€{{ rfq.estimatedValue|number_format(0, '.', ',') }}</span>
+                                            <span class="rams-metric rams-metric--currency">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</span>
                                         </div>
                                     {% endif %}
 

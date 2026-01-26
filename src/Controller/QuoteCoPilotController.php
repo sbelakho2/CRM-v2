@@ -8,6 +8,8 @@ use App\Service\QuoteCoPilotService;
 use App\Service\DfmLintService;
 use App\Service\CostingEngineService;
 use App\Service\UnifiedPdfGeneratorService;
+use App\Service\CountryService;
+use App\Service\CurrencyPreferenceService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -48,6 +50,8 @@ class QuoteCoPilotController extends AbstractController
         private DfmLintService $dfmLintService,
         private CostingEngineService $costingEngine,
         private UnifiedPdfGeneratorService $pdfGenerator,
+        private CountryService $countryService,
+        private CurrencyPreferenceService $currencyPreferenceService,
         private MailerInterface $mailer,
         private LoggerInterface $logger
     ) {}
@@ -60,7 +64,7 @@ class QuoteCoPilotController extends AbstractController
     {
         $companyRepository = $this->entityManager->getRepository(\App\Entity\Company::class);
         $companies = $companyRepository->findAll();
-        $countries = $this->getCountryList();
+        $countries = $this->countryService->getCountryList();
 
         return $this->render('quote_copilot/index.html.twig', [
             'companies' => $companies,
@@ -142,6 +146,7 @@ class QuoteCoPilotController extends AbstractController
             $quote->setNotes($notes);
             $quote->setStatus('draft');
             $quote->setBomDataJson(json_encode($bomData));
+            $quote->setCurrency($this->currencyPreferenceService->getDisplayCurrency());
             
             $this->entityManager->persist($quote);
             $this->entityManager->flush(); // Get quote ID
@@ -568,78 +573,5 @@ class QuoteCoPilotController extends AbstractController
         return $toEmail;
     }
 
-    /**
-     * Get comprehensive list of supported countries for shipping
-     * 
-     * Used for destination country selection in BOM processing.
-     * Allows operator to calculate landed costs for any destination.
-     * 
-     * @return array - Associative array of country codes => names
-     */
-    private function getCountryList(): array
-    {
-        // Shared country list for consistency across Quote Estimator and Quote Co-Pilot
-        return [
-            // North America
-            'US' => 'United States',
-            'CA' => 'Canada',
-            'MX' => 'Mexico',
-            
-            // Europe
-            'FR' => 'France',
-            'DE' => 'Germany',
-            'GB' => 'United Kingdom',
-            'IT' => 'Italy',
-            'ES' => 'Spain',
-            'NL' => 'Netherlands',
-            'BE' => 'Belgium',
-            'PL' => 'Poland',
-            'SE' => 'Sweden',
-            'NO' => 'Norway',
-            'CH' => 'Switzerland',
-            'AT' => 'Austria',
-            'IE' => 'Ireland',
-            'DK' => 'Denmark',
-            'FI' => 'Finland',
-            'PT' => 'Portugal',
-            'CZ' => 'Czech Republic',
-            'RO' => 'Romania',
-            'GR' => 'Greece',
-            
-            // Middle East & Africa
-            'MA' => 'Morocco',
-            'EG' => 'Egypt',
-            'ZA' => 'South Africa',
-            'AE' => 'United Arab Emirates',
-            'SA' => 'Saudi Arabia',
-            'IL' => 'Israel',
-            'TR' => 'Turkey',
-            'KE' => 'Kenya',
-            'NG' => 'Nigeria',
-            
-            // Asia Pacific
-            'CN' => 'China',
-            'JP' => 'Japan',
-            'KR' => 'South Korea',
-            'IN' => 'India',
-            'SG' => 'Singapore',
-            'MY' => 'Malaysia',
-            'TH' => 'Thailand',
-            'VN' => 'Vietnam',
-            'ID' => 'Indonesia',
-            'PH' => 'Philippines',
-            'TW' => 'Taiwan',
-            'HK' => 'Hong Kong',
-            'AU' => 'Australia',
-            'NZ' => 'New Zealand',
-            
-            // South America
-            'BR' => 'Brazil',
-            'AR' => 'Argentina',
-            'CL' => 'Chile',
-            'CO' => 'Colombia',
-            'PE' => 'Peru',
-        ];
-    }
 }
 

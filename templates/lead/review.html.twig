@@ -36,13 +36,9 @@
                         <label class="rams-dymo">{{ 'lead.region'|trans }}</label>
                         <select name="region" class="rams-form__select">
                             <option value="all" {% if region_filter == 'all' %}selected{% endif %}>{{ 'lead.all_regions'|trans|default('All Regions') }}</option>
-                            <option value="morocco" {% if region_filter == 'morocco' %}selected{% endif %}>{{ 'lead.region_morocco'|trans|default('Morocco') }}</option>
-                            <option value="us_east" {% if region_filter == 'us_east' %}selected{% endif %}>{{ 'lead.region_us_east'|trans|default('US East Coast') }}</option>
-                            <option value="us_texas" {% if region_filter == 'us_texas' %}selected{% endif %}>{{ 'lead.region_us_texas'|trans|default('US Texas') }}</option>
-                            <option value="eu_core" {% if region_filter == 'eu_core' %}selected{% endif %}>{{ 'lead.region_eu_core'|trans|default('EU Core') }}</option>
-                            <option value="eu_nordics" {% if region_filter == 'eu_nordics' %}selected{% endif %}>{{ 'lead.region_eu_nordics'|trans|default('EU Nordics') }}</option>
-                            <option value="eu_cee" {% if region_filter == 'eu_cee' %}selected{% endif %}>{{ 'lead.region_eu_cee'|trans|default('EU CEE') }}</option>
-                            <option value="uk" {% if region_filter == 'uk' %}selected{% endif %}>{{ 'lead.region_uk'|trans|default('UK') }}</option>
+                            {% for code, label in region_options %}
+                                <option value="{{ code }}" {% if region_filter == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -79,7 +75,7 @@
             {% for stat in region_stats %}
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ stat.regionTag|upper|default('Unknown') }}</span>
+                    <span class="rams-dymo">{{ region_options[stat.regionTag]|default(stat.regionTag|upper|default('Unknown')) }}</span>
                     <span class="rams-metric">{{ stat.total }}</span>
                     <span class="rams-metric__label">{{ 'lead.avg_score'|trans|default('Avg Score') }}: {{ stat.avg_score|number_format(1) }}</span>
                 </div>
@@ -120,7 +116,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell">
-                                    <span class="rams-badge rams-badge--info">{{ lead.regionTag|upper }}</span>
+                                    <span class="rams-badge rams-badge--info">{{ region_options[lead.regionTag]|default(lead.regionTag|upper) }}</span>
                                 </td>
                                 <td class="rams-table__cell">
                                     <span class="rams-text--sm">{{ lead.siteLocation ?? lead.usCityMetro ?? 'common.n_a'|trans }}</span>

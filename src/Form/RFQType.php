@@ -13,6 +13,7 @@ use Symfony\Component\Form\Extension\Core\Type\MoneyType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Intl\Currencies;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
@@ -20,6 +21,12 @@ class RFQType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $currencyChoices = [];
+        foreach (Currencies::getNames() as $code => $name) {
+            $currencyChoices["{$code} - {$name}"] = $code;
+        }
+        ksort($currencyChoices);
+
         $builder
             ->add('company', EntityType::class, [
                 'class' => Company::class,
@@ -29,13 +36,13 @@ class RFQType extends AbstractType
                 'constraints' => [
                     new NotBlank(['message' => 'Please select a company']),
                 ],
-                'attr' => ['class' => 'form-select'],
+                'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('rfqNumber', TextType::class, [
                 'required' => false,
                 'label' => 'RFQ Number',
                 'attr' => [
-                    'class' => 'form-input',
+                    'class' => 'rams-form__input',
                     'placeholder' => 'e.g., RFQ-2025-001',
                 ],
             ])
@@ -43,7 +50,7 @@ class RFQType extends AbstractType
                 'required' => false,
                 'widget' => 'single_text',
                 'label' => 'RFQ Date',
-                'attr' => ['class' => 'form-input'],
+                'attr' => ['class' => 'rams-form__input'],
             ])
             ->add('type', ChoiceType::class, [
                 'choices' => [
@@ -53,7 +60,7 @@ class RFQType extends AbstractType
                 ],
                 'required' => true,
                 'label' => 'RFQ Type',
-                'attr' => ['class' => 'form-select'],
+                'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('status', ChoiceType::class, [
                 'choices' => [
@@ -64,14 +71,20 @@ class RFQType extends AbstractType
                     'Lost' => 'Lost',
                 ],
                 'required' => true,
-                'attr' => ['class' => 'form-select'],
+                'attr' => ['class' => 'rams-form__select'],
+            ])
+            ->add('currency', ChoiceType::class, [
+                'choices' => $currencyChoices,
+                'required' => false,
+                'label' => 'Currency',
+                'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('estimatedValue', MoneyType::class, [
                 'required' => false,
-                'currency' => 'EUR',
-                'label' => 'Estimated Value (€)',
+                'currency' => false,
+                'label' => 'Estimated Value',
                 'attr' => [
-                    'class' => 'form-input',
+                    'class' => 'rams-form__input',
                     'placeholder' => '0.00',
                 ],
             ])
@@ -79,7 +92,7 @@ class RFQType extends AbstractType
                 'required' => false,
                 'label' => 'Annual Volume',
                 'attr' => [
-                    'class' => 'form-input',
+                    'class' => 'rams-form__input',
                     'placeholder' => 'e.g., 10000',
                 ],
             ])
@@ -87,13 +100,13 @@ class RFQType extends AbstractType
                 'required' => false,
                 'widget' => 'single_text',
                 'label' => 'SOP Date (Start of Production)',
-                'attr' => ['class' => 'form-input'],
+                'attr' => ['class' => 'rams-form__input'],
             ])
             ->add('technicalScope', TextareaType::class, [
                 'required' => false,
                 'label' => 'Technical Scope',
                 'attr' => [
-                    'class' => 'form-input',
+                    'class' => 'rams-form__input',
                     'rows' => 4,
                     'placeholder' => 'Describe the technical requirements and scope...',
                 ],
@@ -101,7 +114,7 @@ class RFQType extends AbstractType
             ->add('notes', TextareaType::class, [
                 'required' => false,
                 'attr' => [
-                    'class' => 'form-input',
+                    'class' => 'rams-form__textarea',
                     'rows' => 4,
                     'placeholder' => 'Add any additional notes or comments...',
                 ],

@@ -242,7 +242,12 @@ class DatasetImportService
                 $freight->setTransportMode($data['transport_mode']); // Ocean, Air, Rail, Truck
                 $freight->setContainerType($data['container_type']); // 20GP, 40GP, 40HQ, LCL, FCL
                 $freight->setCostPerUnit($data['cost_per_unit']);
-                $freight->setCurrency($data['currency'] ?? 'USD');
+
+                if (empty($data['currency'])) {
+                    throw new \InvalidArgumentException('Missing currency for freight row');
+                }
+
+                $freight->setCurrency($data['currency']);
                 
                 if (isset($data['transit_days']) && !empty($data['transit_days'])) {
                     $freight->setTransitDays((int)$data['transit_days']);

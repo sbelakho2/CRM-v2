@@ -203,10 +203,10 @@
                 <td>{{ line.description ?? '' }}</td>
                 <td class="text-right">{{ line.quantity ?? '' }}</td>
                 <td class="text-right">
-                    {% if line.unitPrice %}${{ line.unitPrice|number_format(4) }}{% else %}-{% endif %}
+                    {% if line.unitPrice %}{{ line.unitPrice|format_currency(quote.currency, quote.currency, 4) }}{% else %}-{% endif %}
                 </td>
                 <td class="text-right">
-                    {% if line.extendedPrice %}${{ line.extendedPrice|number_format(2) }}{% else %}-{% endif %}
+                    {% if line.extendedPrice %}{{ line.extendedPrice|format_currency(quote.currency, quote.currency, 2) }}{% else %}-{% endif %}
                 </td>
             </tr>
             {% else %}
@@ -217,7 +217,7 @@
             
             <tr class="total-row">
                 <td colspan="6" class="text-right">{{ 'common.total'|trans|upper }}</td>
-                <td class="text-right">${{ quote.totalCost|default(0)|number_format(2) }}</td>
+                <td class="text-right">{{ quote.totalCost|default(0)|format_currency(quote.currency, quote.currency, 2) }}</td>
             </tr>
         </tbody>
     </table>

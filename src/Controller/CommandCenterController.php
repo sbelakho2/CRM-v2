@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Service\CommandCenterService;
 use App\Service\LeadSalesAnalystService;
 use App\Service\InteractiveLiveQuoteService;
+use App\Service\CountryService;
 use App\Entity\Lead;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -38,7 +39,8 @@ class CommandCenterController extends AbstractController
         private CommandCenterService $commandCenter,
         private LeadSalesAnalystService $salesAnalyst,
         private InteractiveLiveQuoteService $liveQuoteService,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private CountryService $countryService
     ) {}
 
     /**
@@ -48,9 +50,16 @@ class CommandCenterController extends AbstractController
     public function index(): Response
     {
         $data = $this->commandCenter->getCommandCenterData();
+        $regionLabels = $this->countryService->getRegionOptions();
+        foreach (array_keys($data['lead_inflow']['by_region'] ?? []) as $region) {
+            if ($region && !isset($regionLabels[$region])) {
+                $regionLabels[$region] = strtoupper((string) $region);
+            }
+        }
         
         return $this->render('command_center/index.html.twig', [
             'data' => $data,
+            'region_labels' => $regionLabels,
         ]);
     }
     
