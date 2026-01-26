@@ -84,7 +84,7 @@
                             
                             <p style="margin: 25px 0 0; color: #1a1a1a; font-size: 16px; line-height: 1.6;">
                                 {{ 'emails.common.best_regards'|trans }},<br>
-                                <strong>{{ 'emails.webinar_registration.team'|trans({'%org%': webinar.organization|default('Starz Morocco')}) }}</strong>
+                                <strong>{{ 'emails.webinar_registration.team'|trans({'%org%': webinar.organization ?? 'company.default_name'|trans}) }}</strong>
                             </p>
                         </td>
                     </tr>

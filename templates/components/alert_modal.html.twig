@@ -23,7 +23,7 @@
             <div class="rams-module__header" id="rams-alert-header">
                 <h3 class="rams-module__title" id="rams-alert-title">
                     <span id="rams-alert-icon" class="rams-module__title-icon">ℹ️</span>
-                    <span id="rams-alert-title-text">{{ 'common.information'|trans|default('Information') }}</span>
+                    <span id="rams-alert-title-text">{{ 'common.information'|trans }}</span>
                 </h3>
                 <button type="button" class="rams-btn rams-btn--ghost rams-btn--icon" onclick="ramsAlertClose()" aria-label="{{ 'common.close'|trans }}">
                     <svg class="rams-icon--md" viewBox="0 0 20 20" fill="currentColor">
@@ -32,11 +32,11 @@
                 </button>
             </div>
             <div class="rams-module__content">
-                <p id="rams-alert-message" class="rams-text--muted">{{ 'common.alert_default_message'|trans|default('Please note this information.') }}</p>
+                <p id="rams-alert-message" class="rams-text--muted">{{ 'common.alert_default_message'|trans }}</p>
             </div>
             <div class="rams-module__footer rams-flex rams-justify-end">
                 <button type="button" id="rams-alert-btn" class="rams-btn rams-btn--primary" onclick="ramsAlertClose()">
-                    {{ 'common.ok'|trans|default('OK') }}
+                    {{ 'common.ok'|trans }}
                 </button>
             </div>
         </div>
@@ -116,10 +116,10 @@
      * Default titles for each variant
      */
     const defaultTitles = {
-        info: '{{ 'common.information'|trans|default('Information') }}',
-        success: '{{ 'common.success'|trans|default('Success') }}',
-        warning: '{{ 'common.warning'|trans|default('Warning') }}',
-        error: '{{ 'common.error'|trans|default('Error') }}'
+        info: '{{ 'common.information'|trans }}',
+        success: '{{ 'common.success'|trans }}',
+        warning: '{{ 'common.warning'|trans }}',
+        error: '{{ 'common.error'|trans }}'
     };
     
     /**
@@ -150,7 +150,7 @@
         // Set content
         messageEl.textContent = message;
         titleText.textContent = options.title || defaultTitles[variant] || defaultTitles.info;
-        alertBtn.textContent = options.buttonText || '{{ 'common.ok'|trans|default('OK') }}';
+        alertBtn.textContent = options.buttonText || '{{ 'common.ok'|trans }}';
         iconEl.textContent = variantIcons[variant] || variantIcons.info;
         
         // Set variant class

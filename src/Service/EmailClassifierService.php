@@ -6,6 +6,7 @@ use App\Entity\InboxMessage;
 use App\Entity\OutboundMessage;
 use App\Repository\InboxMessageRepository;
 use App\Repository\ContactRepository;
+use App\Repository\BayesTrainingRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -14,6 +15,7 @@ use Psr\Log\LoggerInterface;
  * 
  * Classifies incoming emails using Naive Bayes + rule-based classification.
  * Supports human-in-the-loop review for uncertain classifications.
+ * Now uses persistent Bayes model from database that learns from human reviews.
  * 
  * Classification Categories:
  * - INTERESTED: Positive response → Queue for follow-up
@@ -28,8 +30,14 @@ use Psr\Log\LoggerInterface;
 class EmailClassifierService
 {
     private const CONFIDENCE_THRESHOLD = 0.70; // Below this, flag for human review
+    
+    // Cache for Bayes model (loaded from database)
+    private ?array $bayesModelCache = null;
+    private ?int $bayesModelCacheTime = null;
+    private const BAYES_CACHE_TTL = 300; // 5 minutes
 
     // Rule-based patterns (fast path)
+    // NOTE: 'please remove' moved from NOT_INTERESTED to only UNSUBSCRIBE to avoid overlap
     private const RULE_PATTERNS = [
         InboxMessage::CLASSIFICATION_UNSUBSCRIBE => [
             '/\bunsubscribe\b/i',
@@ -76,7 +84,7 @@ class EmailClassifierService
         InboxMessage::CLASSIFICATION_NOT_INTERESTED => [
             '/not interested/i',
             '/no thank/i',
-            '/please remove/i',
+            // Removed 'please remove' - it's in UNSUBSCRIBE
             '/don\'?t contact/i',
             '/not looking/i',
             '/not a (good )?fit/i',
@@ -87,9 +95,8 @@ class EmailClassifierService
         ],
     ];
 
-    // Naive Bayes training data (word frequencies per class)
-    // In production, this would be loaded from database (sa_bayes_training)
-    private array $bayesModel = [
+    // Fallback Bayes model (used only if database is empty)
+    private const FALLBACK_BAYES_MODEL = [
         'interested' => [
             'interested' => 10, 'call' => 8, 'discuss' => 7, 'meeting' => 7,
             'learn' => 6, 'more' => 6, 'schedule' => 6, 'talk' => 6,
@@ -102,6 +109,16 @@ class EmailClassifierService
             'don\'t' => 5, 'wrong' => 5, 'already' => 5, 'have' => 5,
             'pass' => 4, 'decline' => 4, 'need' => 4,
         ],
+        'out_of_office' => [
+            'out' => 10, 'office' => 10, 'vacation' => 8, 'away' => 8,
+            'return' => 7, 'back' => 7, 'automatic' => 6, 'reply' => 6,
+            'limited' => 5, 'access' => 5, 'currently' => 5, 'traveling' => 5,
+        ],
+        'bounce' => [
+            'delivery' => 10, 'failed' => 10, 'undeliverable' => 9, 'mailbox' => 8,
+            'full' => 6, 'unknown' => 8, 'rejected' => 7, 'exist' => 6,
+            'permanent' => 7, 'error' => 5,
+        ],
     ];
 
     public function __construct(
@@ -109,6 +126,7 @@ class EmailClassifierService
         private InboxMessageRepository $inboxRepository,
         private ContactRepository $contactRepository,
         private ThompsonSamplerService $thompsonSampler,
+        private ?BayesTrainingRepository $bayesTrainingRepository,
         private LoggerInterface $logger
     ) {}
 
@@ -181,23 +199,42 @@ class EmailClassifierService
     }
 
     /**
-     * Classify using Naive Bayes
+     * Classify using Naive Bayes with persistent database model
      */
     private function classifyByNaiveBayes(string $text): array
     {
         // Tokenize and normalize
         $words = $this->tokenize($text);
         
-        $probabilities = [];
-        $totalClasses = count($this->bayesModel);
+        // Load Bayes model from database (with caching)
+        $bayesModel = $this->loadBayesModel();
         
-        foreach ($this->bayesModel as $class => $wordFreqs) {
+        $probabilities = [];
+        $totalClasses = count($bayesModel);
+        
+        if ($totalClasses === 0) {
+            return [
+                'classification' => InboxMessage::CLASSIFICATION_UNKNOWN,
+                'confidence' => 0.0,
+                'probabilities' => [],
+            ];
+        }
+        
+        foreach ($bayesModel as $class => $wordFreqs) {
             // Prior probability (uniform for simplicity)
             $logProb = log(1.0 / $totalClasses);
             
             // Total words in this class
             $totalClassWords = array_sum($wordFreqs);
             $vocabularySize = count($wordFreqs);
+            
+            // Prevent division by zero
+            if ($totalClassWords === 0) {
+                $totalClassWords = 1;
+            }
+            if ($vocabularySize === 0) {
+                $vocabularySize = 1;
+            }
             
             foreach ($words as $word) {
                 // Laplace smoothing
@@ -231,6 +268,9 @@ class EmailClassifierService
         $classificationMap = [
             'interested' => InboxMessage::CLASSIFICATION_INTERESTED,
             'not_interested' => InboxMessage::CLASSIFICATION_NOT_INTERESTED,
+            'out_of_office' => InboxMessage::CLASSIFICATION_OUT_OF_OFFICE,
+            'bounce' => InboxMessage::CLASSIFICATION_BOUNCE,
+            'unsubscribe' => InboxMessage::CLASSIFICATION_UNSUBSCRIBE,
         ];
         
         $classification = $classificationMap[$bestClass] ?? InboxMessage::CLASSIFICATION_UNKNOWN;
@@ -245,6 +285,100 @@ class EmailClassifierService
             'confidence' => round($confidence, 4),
             'probabilities' => $normalizedProbs,
         ];
+    }
+
+    /**
+     * Load Bayes model from database with caching
+     */
+    private function loadBayesModel(): array
+    {
+        // Check cache
+        if ($this->bayesModelCache !== null && 
+            $this->bayesModelCacheTime !== null &&
+            (time() - $this->bayesModelCacheTime) < self::BAYES_CACHE_TTL) {
+            return $this->bayesModelCache;
+        }
+        
+        // Load from database if repository available
+        if ($this->bayesTrainingRepository) {
+            $model = $this->bayesTrainingRepository->getAllWordFrequencies();
+            
+            if (!empty($model)) {
+                $this->bayesModelCache = $model;
+                $this->bayesModelCacheTime = time();
+                return $model;
+            }
+        }
+        
+        // Fallback to hardcoded model
+        $this->bayesModelCache = self::FALLBACK_BAYES_MODEL;
+        $this->bayesModelCacheTime = time();
+        return self::FALLBACK_BAYES_MODEL;
+    }
+
+    /**
+     * Clear Bayes model cache (call after human review updates)
+     */
+    public function clearBayesCache(): void
+    {
+        $this->bayesModelCache = null;
+        $this->bayesModelCacheTime = null;
+    }
+
+    /**
+     * Learn from human review (update Bayes model)
+     * 
+     * When a human corrects a classification, we update the word frequencies
+     * in the database to improve future classifications.
+     */
+    public function learnFromHumanReview(string $text, string $correctClassification): int
+    {
+        if (!$this->bayesTrainingRepository) {
+            $this->logger->warning('Bayes training repository not available');
+            return 0;
+        }
+        
+        // Map classification to internal class name
+        $classMap = [
+            InboxMessage::CLASSIFICATION_INTERESTED => 'interested',
+            InboxMessage::CLASSIFICATION_NOT_INTERESTED => 'not_interested',
+            InboxMessage::CLASSIFICATION_OUT_OF_OFFICE => 'out_of_office',
+            InboxMessage::CLASSIFICATION_BOUNCE => 'bounce',
+            InboxMessage::CLASSIFICATION_UNSUBSCRIBE => 'unsubscribe',
+        ];
+        
+        $internalClass = $classMap[$correctClassification] ?? null;
+        if (!$internalClass) {
+            $this->logger->warning('Unknown classification for learning', [
+                'classification' => $correctClassification,
+            ]);
+            return 0;
+        }
+        
+        // Update word frequencies
+        $updatedCount = $this->bayesTrainingRepository->learnFromText($text, $internalClass);
+        
+        // Clear cache to pick up new frequencies
+        $this->clearBayesCache();
+        
+        $this->logger->info('Learned from human review', [
+            'classification' => $correctClassification,
+            'wordsUpdated' => $updatedCount,
+        ]);
+        
+        return $updatedCount;
+    }
+
+    /**
+     * Get Bayes model statistics
+     */
+    public function getBayesModelStats(): array
+    {
+        if (!$this->bayesTrainingRepository) {
+            return ['error' => 'Repository not available'];
+        }
+        
+        return $this->bayesTrainingRepository->getModelStats();
     }
 
     /**
@@ -298,7 +432,7 @@ class EmailClassifierService
         
         // If this is a reply to an outbound message, update Thompson Sampler
         if ($inReplyTo && $inReplyTo->getSubjectArm()) {
-            $this->updateThompsonSamplerFromReply($inReplyTo, $inboxMessage);
+            $this->updateThompsonSamplerFromReplyWithAmplification($inReplyTo, $inboxMessage);
         }
         
         $this->logger->info('Processed incoming email', [
@@ -310,40 +444,6 @@ class EmailClassifierService
         ]);
         
         return $inboxMessage;
-    }
-
-    /**
-     * Update Thompson Sampler based on reply classification
-     */
-    private function updateThompsonSamplerFromReply(OutboundMessage $outbound, InboxMessage $inbox): void
-    {
-        if ($outbound->isOutcomeRecorded()) {
-            return; // Already recorded
-        }
-        
-        $arm = $outbound->getSubjectArm();
-        if (!$arm) {
-            return;
-        }
-        
-        // Positive reply = success, negative reply = failure
-        $success = $inbox->isPositiveResponse();
-        
-        $this->thompsonSampler->recordOutcome($arm->getId(), $success);
-        
-        // Mark as recorded
-        $outbound->setOutcomeRecorded(true);
-        $outbound->setStatus(OutboundMessage::STATUS_REPLIED);
-        $outbound->setRepliedAt(new \DateTime());
-        
-        $this->entityManager->flush();
-        
-        $this->logger->info('Updated Thompson Sampler from reply', [
-            'armId' => $arm->getId(),
-            'armName' => $arm->getArmName(),
-            'success' => $success,
-            'classification' => $inbox->getClassification(),
-        ]);
     }
 
     /**
@@ -368,10 +468,14 @@ class EmailClassifierService
         
         $this->entityManager->flush();
         
-        // If linked to outbound message, update Thompson Sampler
+        // Learn from this review to improve Bayes model
+        $text = ($message->getSubject() ?? '') . ' ' . ($message->getBodyText() ?? '');
+        $wordsLearned = $this->learnFromHumanReview($text, $correctClassification);
+        
+        // If linked to outbound message, update Thompson Sampler with proper reply tracking
         $inReplyTo = $message->getInReplyTo();
-        if ($inReplyTo && $inReplyTo->getSubjectArm() && !$inReplyTo->isOutcomeRecorded()) {
-            $this->updateThompsonSamplerFromReply($inReplyTo, $message);
+        if ($inReplyTo && $inReplyTo->getSubjectArm()) {
+            $this->updateThompsonSamplerFromReplyWithAmplification($inReplyTo, $message);
         }
         
         $this->logger->info('Human review submitted', [
@@ -379,6 +483,53 @@ class EmailClassifierService
             'oldClassification' => $oldClassification,
             'newClassification' => $correctClassification,
             'reviewedBy' => $reviewedBy,
+            'wordsLearned' => $wordsLearned,
+        ]);
+    }
+
+    /**
+     * Update Thompson Sampler from reply with proper tracking and amplification
+     * 
+     * Replies are more valuable signals than opens. This method:
+     * 1. Allows replies to override previous open tracking
+     * 2. Uses amplified recording (2x weight) for reply signals
+     * 3. Stores reply classification for analytics
+     */
+    private function updateThompsonSamplerFromReplyWithAmplification(OutboundMessage $outbound, InboxMessage $inbox): void
+    {
+        $arm = $outbound->getSubjectArm();
+        if (!$arm) {
+            return;
+        }
+        
+        // Check if we can record reply (replies can override open tracking)
+        if (!$outbound->canRecordReplyOutcome()) {
+            $this->logger->debug('Reply outcome already recorded', [
+                'outboundId' => $outbound->getId(),
+            ]);
+            return;
+        }
+        
+        $classification = $inbox->getClassification();
+        $positiveReply = $inbox->isPositiveResponse();
+        
+        // Use amplified recording for replies (2x weight)
+        $this->thompsonSampler->recordReplyOutcome($arm->getId(), $positiveReply, $classification);
+        
+        // Update tracking
+        $outbound->setOutcomeRecorded(true);
+        $outbound->setRecordedEventType('reply');
+        $outbound->setReplyClassification($classification);
+        $outbound->setStatus(OutboundMessage::STATUS_REPLIED);
+        $outbound->setRepliedAt(new \DateTime());
+        
+        $this->entityManager->flush();
+        
+        $this->logger->info('Updated Thompson Sampler from reply with amplification', [
+            'armId' => $arm->getId(),
+            'armName' => $arm->getArmName(),
+            'positiveReply' => $positiveReply,
+            'classification' => $classification,
         ]);
     }
 
@@ -388,5 +539,72 @@ class EmailClassifierService
     public function getClassificationStats(): array
     {
         return $this->inboxRepository->getClassificationStats();
+    }
+
+    /**
+     * Get Naive Bayes model statistics from database
+     * 
+     * Returns word counts and frequency information per classification
+     * for monitoring the ML model's training state.
+     */
+    public function getBayesStatistics(): array
+    {
+        $stats = [
+            'byClassification' => [],
+            'totalWords' => 0,
+            'trainingExamples' => 0,
+            'status' => 'active',
+        ];
+        
+        if (!$this->bayesTrainingRepository) {
+            $stats['status'] = 'in-memory-only';
+            
+            // Return stats from in-memory model
+            foreach ($this->wordFrequencies as $classification => $words) {
+                $stats['byClassification'][$classification] = [
+                    'words' => count($words),
+                    'frequency' => array_sum($words),
+                ];
+                $stats['totalWords'] += count($words);
+                $stats['trainingExamples'] += array_sum($words);
+            }
+            
+            return $stats;
+        }
+        
+        try {
+            // Query database for statistics
+            $qb = $this->bayesTrainingRepository->createQueryBuilder('b');
+            $result = $qb->select('b.classification, COUNT(b.word) as word_count, SUM(b.frequency) as total_freq')
+                ->groupBy('b.classification')
+                ->getQuery()
+                ->getResult();
+            
+            foreach ($result as $row) {
+                $stats['byClassification'][$row['classification']] = [
+                    'words' => (int) $row['word_count'],
+                    'frequency' => (int) $row['total_freq'],
+                ];
+                $stats['totalWords'] += (int) $row['word_count'];
+                $stats['trainingExamples'] += (int) $row['total_freq'];
+            }
+            
+            // If database is empty, use in-memory stats
+            if (empty($stats['byClassification'])) {
+                $stats['status'] = 'fallback-to-memory';
+                foreach ($this->wordFrequencies as $classification => $words) {
+                    $stats['byClassification'][$classification] = [
+                        'words' => count($words),
+                        'frequency' => array_sum($words),
+                    ];
+                    $stats['totalWords'] += count($words);
+                    $stats['trainingExamples'] += array_sum($words);
+                }
+            }
+        } catch (\Exception $e) {
+            $stats['status'] = 'error: ' . $e->getMessage();
+        }
+        
+        return $stats;
     }
 }

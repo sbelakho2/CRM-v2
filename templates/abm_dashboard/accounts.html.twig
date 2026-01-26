@@ -20,14 +20,14 @@
                 </div>
                 <select class="rams-select">
                     <option>{{ 'abm_dashboard.all_regions'|trans }}</option>
-                    <option>Morocco</option>
-                    <option>US</option>
-                    <option>EU</option>
+                    <option>{{ 'abm_dashboard.region_morocco'|trans }}</option>
+                    <option>{{ 'abm_dashboard.region_us'|trans }}</option>
+                    <option>{{ 'abm_dashboard.region_eu'|trans }}</option>
                 </select>
                 <select class="rams-select">
                     <option>{{ 'abm_dashboard.all_statuses'|trans }}</option>
                     <option>{{ 'common.active'|trans }}</option>
-                    <option>Prospect</option>
+                    <option>{{ 'abm_dashboard.status_prospect'|trans }}</option>
                     <option>{{ 'common.inactive'|trans }}</option>
                 </select>
             </div>
@@ -42,11 +42,15 @@
                     <div class="rams-module__content">
                         <div class="rams-list-item__header">
                             <div>
-                                <h3 class="rams-list-item__title">{{ account.name | default('Account Name') }}</h3>
-                                <p class="rams-text-muted">{{ account.industry | default('Industry') }}</p>
+                                <h3 class="rams-list-item__title">{{ account.name | default('abm_dashboard.account_name_placeholder'|trans) }}</h3>
+                                <p class="rams-text-muted">{{ account.industry | default('abm_dashboard.industry_placeholder'|trans) }}</p>
                             </div>
+                            {% set statusKey = account.status|default('prospect') %}
+                            {% set statusLabel = statusKey == 'active'
+                                ? 'common.active'|trans
+                                : (statusKey == 'inactive' ? 'common.inactive'|trans : 'abm_dashboard.status_prospect'|trans) %}
                             <span class="rams-badge {% if account.status == 'active' %}rams-badge--success{% elseif account.status == 'prospect' %}rams-badge--info{% else %}rams-badge--neutral{% endif %}">
-                                {{ account.status | default('prospect') | capitalize }}
+                                {{ statusLabel }}
                             </span>
                         </div>
 

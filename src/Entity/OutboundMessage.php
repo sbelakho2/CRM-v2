@@ -94,9 +94,31 @@ class OutboundMessage
 
     /**
      * Whether the outcome has been recorded in the bandit arm
+     * @deprecated Use recordedEventType instead for proper tracking
      */
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $outcomeRecorded = false;
+
+    /**
+     * The type of event that was recorded in Thompson Sampler
+     * Allows separating open tracking from reply outcome tracking
+     * Values: 'open', 'click', 'reply', 'bounce' or null
+     */
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $recordedEventType = null;
+
+    /**
+     * Classification of the reply (if replied) for proper Thompson update
+     * Values: 'interested', 'not_interested', 'out_of_office', 'bounce', 'unknown'
+     */
+    #[ORM\Column(length: 30, nullable: true)]
+    private ?string $replyClassification = null;
+
+    /**
+     * The raw content of the reply email for ML classification and learning
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $replyContent = null;
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
@@ -289,6 +311,56 @@ class OutboundMessage
     {
         $this->outcomeRecorded = $outcomeRecorded;
         return $this;
+    }
+
+    public function getRecordedEventType(): ?string
+    {
+        return $this->recordedEventType;
+    }
+
+    public function setRecordedEventType(?string $eventType): self
+    {
+        $this->recordedEventType = $eventType;
+        return $this;
+    }
+
+    public function getReplyClassification(): ?string
+    {
+        return $this->replyClassification;
+    }
+
+    public function setReplyClassification(?string $classification): self
+    {
+        $this->replyClassification = $classification;
+        return $this;
+    }
+
+    public function getReplyContent(): ?string
+    {
+        return $this->replyContent;
+    }
+
+    public function setReplyContent(?string $replyContent): self
+    {
+        $this->replyContent = $replyContent;
+        return $this;
+    }
+
+    /**
+     * Check if a specific event type has been recorded
+     */
+    public function hasRecordedEventType(string $eventType): bool
+    {
+        return $this->recordedEventType === $eventType;
+    }
+
+    /**
+     * Check if reply outcome can override previous open tracking
+     */
+    public function canRecordReplyOutcome(): bool
+    {
+        // Reply can always override open/click tracking
+        return $this->recordedEventType !== 'reply';
     }
 
     public function getCreatedAt(): ?\DateTimeInterface

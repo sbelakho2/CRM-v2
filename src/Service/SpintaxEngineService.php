@@ -266,6 +266,13 @@ class SpintaxEngineService
 
     /**
      * Seed default templates if none exist
+     * 
+     * Templates now use comprehensive personalization variables:
+     * - {{value_prop}} / {{value_prop_short}} - Industry-specific value propositions
+     * - {{pain_hook}} / {{pain_detail}} - Role-specific pain point targeting
+     * - {{social_proof_stat}} / {{social_proof_full}} - Industry social proof
+     * - {{cta}} - Engagement-adaptive call to action
+     * - {{greeting}} / {{closing}} - Tone-appropriate openers/closers
      */
     public function seedDefaultTemplates(): array
     {
@@ -275,27 +282,146 @@ class SpintaxEngineService
             return $existing;
         }
 
+        // ============================================================================
+        // CIALDINI-OPTIMIZED EMAIL TEMPLATES
+        // ============================================================================
+        // Templates leverage all 7 principles of influence:
+        // - Reciprocity: Lead with value ({{reciprocity}})
+        // - Scarcity: Create urgency without false claims ({{scarcity}})
+        // - Authority: Establish credibility factually ({{authority}})
+        // - Consistency: Micro-commitments ({{consistency}})
+        // - Liking: Build rapport through similarity ({{liking}})
+        // - Social Proof: "Similar others" pattern ({{social_proof}})
+        // - Unity: Shared identity and partnership ({{unity}})
+        // 
+        // Pre-suasion elements:
+        // - {{presuasive_opener}}: Primes recipient mindset
+        // - {{extend_impact}}: Future-oriented partnership framing
+        // - {{geo_*}}: Geographic-specific value props
+        // ============================================================================
+        
         $defaultTemplates = [
+            // ==================== FUSION-BASED INITIAL OUTREACH TEMPLATES ====================
+            // All templates now use pre-fused content that weaves Cialdini elements naturally
+            // instead of concatenating separate paragraphs (eliminates "Mad Libs" feel)
+            
             [
                 'name' => 'Initial Outreach - PCBA',
-                'description' => 'First contact for PCBA manufacturing prospects',
-                'subjectSpintax' => '{Quick question about|Question re:|Regarding} {{company_name}} {sourcing|manufacturing|production}',
-                'bodySpintax' => "{Hi|Hello|Hey} {{first_name}},\n\n{I noticed|I came across|I saw} {{company_name}} {during my research|while reviewing companies in your sector|in my market research}.\n\n{We specialize in|Our expertise is in|We focus on} high-quality PCBA manufacturing from our Morocco facility, serving {automotive|industrial|aerospace} OEMs across Europe.\n\n{I'd love to|Would be great to|I'm curious to} understand if {{company_name}} {is exploring|considers|looks at} alternative sourcing options for electronic assemblies.\n\n{Would you be open to|Could we schedule|Any interest in} a brief call to discuss?\n\n{Best regards|Kind regards|Best},\n{{sender_name}}",
-                'variables' => ['first_name', 'company_name', 'sender_name'],
+                'description' => 'First contact for PCBA manufacturing - natural conversation flow with fused Cialdini elements',
+                'subjectSpintax' => '{Quick question about|Question re:|Regarding} {{company_name}} {sourcing|manufacturing|PCBA production}',
+                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\n{{fused_value}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_intro', 'fused_value', 'consistency', 'industry'],
             ],
+            [
+                'name' => 'Initial Outreach - Technical',
+                'description' => 'Technical-focused first contact - fused authority and social proof for credibility',
+                'subjectSpintax' => '{Technical capabilities for|Engineering support for|R&D partnership with} {{company_name}}',
+                'bodySpintax' => "{{greeting}},\n\n{As someone focused on|Given your expertise in|With your background in} {{job_title}}, I thought you might appreciate this.\n\n{{fused_proof}}\n\n{{fused_value}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'job_title', 'fused_proof', 'fused_value', 'consistency'],
+            ],
+            [
+                'name' => 'Initial Outreach - Cost Focus',
+                'description' => 'Cost-focused first contact - fused geographic and scarcity elements',
+                'subjectSpintax' => '{Cost optimization for|Sourcing alternative for|Competitive pricing for} {{company_name}} {assemblies|production}',
+                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\n{{geo_logistics}} {{geo_trade}}\n\n{{fused_close}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_intro', 'geo_logistics', 'geo_trade', 'fused_close'],
+            ],
+            [
+                'name' => 'Initial Outreach - Tier1 Auto',
+                'description' => 'Specialized outreach for Tier 1 automotive - fused industry unity and authority',
+                'subjectSpintax' => '{Automotive EMS partner for|Tier 1 supplier support for|Manufacturing partnership with} {{company_name}}',
+                'bodySpintax' => "{{greeting}},\n\n{Working with automotive OEMs and Tier 1 suppliers|Supporting automotive programs|In automotive manufacturing}, we've seen what makes partnerships work.\n\n{{fused_proof}}\n\n{{fused_value}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_proof', 'fused_value', 'consistency'],
+            ],
+            
+            // ==================== FUSION-BASED FOLLOW-UP TEMPLATES ====================
             [
                 'name' => 'Follow-up #1 - Value Add',
-                'description' => 'First follow-up with additional value',
+                'description' => 'First follow-up - naturally fused reciprocity with social proof',
                 'subjectSpintax' => '{Re: |Following up: |Quick follow-up on }{{company_name}}',
-                'bodySpintax' => "{Hi|Hey} {{first_name}},\n\n{Just wanted to follow up|Circling back|Bumping this up} on my previous message.\n\n{A quick stat|One thing worth noting|What might interest you}: {our Morocco facility|we} {achieved|delivered} {98.5% first-pass yield|<50ppm defect rates} for {automotive|aerospace} clients last quarter.\n\n{Would this level of quality|Does this kind of performance} be relevant for {{company_name}}'s {requirements|needs|standards}?\n\n{Let me know|Happy to chat|Open to a call} when convenient.\n\n{Cheers|Best|Regards},\n{{sender_name}}",
-                'variables' => ['first_name', 'company_name', 'sender_name'],
+                'bodySpintax' => "{{greeting}},\n\n{Just wanted to follow up|Circling back|Following up} with something {relevant|that might be useful|worth sharing}.\n\n{{fused_intro}}\n\n{{fused_proof}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_intro', 'fused_proof', 'consistency'],
             ],
             [
-                'name' => 'Follow-up #2 - Final',
-                'description' => 'Final follow-up before closing sequence',
-                'subjectSpintax' => '{Last attempt|Final check-in|Closing the loop}: {{company_name}}',
-                'bodySpintax' => "{{first_name}},\n\n{I'll keep this short|Quick one|Last message from me on this}.\n\n{If nearshore PCBA manufacturing isn't a priority right now, totally understand.|I realize timing might not be right.|No worries if this isn't on your radar at the moment.}\n\n{Just reply|Let me know|Drop me a line} {\"not now\"|\"later this year\"|\"interested\"} and I'll {follow up accordingly|adjust my timing|note for future}.\n\n{Thanks for your time|Appreciate your consideration|Thanks either way},\n{{sender_name}}",
-                'variables' => ['first_name', 'company_name', 'sender_name'],
+                'name' => 'Follow-up #2 - Social Proof',
+                'description' => 'Second follow-up - emphasizes similar others pattern with natural flow',
+                'subjectSpintax' => '{Re: |Update on |Checking in: }{{company_name}} {manufacturing|sourcing}',
+                'bodySpintax' => "{{greeting}},\n\n{Quick update|Wanted to share|Thought you might find this interesting}:\n\n{{fused_proof}}\n\n{{fused_value}}\n\n{If timing is better later|If now isn't ideal|If this quarter doesn't work}, {just let me know|happy to reconnect|I can follow up then}.\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_proof', 'fused_value'],
+            ],
+            [
+                'name' => 'Follow-up #3 - Final',
+                'description' => 'Final follow-up - clear options with respect for autonomy',
+                'subjectSpintax' => '{Last check-in|Final follow-up|Closing the loop}: {{company_name}}',
+                'bodySpintax' => "{{first_name}},\n\n{I'll keep this short|Quick one|Last message from me on this}.\n\n{If|In case} {{pain_point}} {isn't a priority right now|isn't on your radar|isn't timely}, {totally understand|no worries|I get it}.\n\n{Just reply|Let me know|Drop me a line}:\n• {\"not now\"|\"later\"} - I'll check back {in 6 months|next quarter}\n• {\"interested\"|\"let's talk\"} - I'll send calendar options\n• {\"not a fit\"|\"remove me\"} - You won't hear from me again\n\n{Thanks for your time|Appreciate your consideration},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'pain_point'],
+            ],
+            
+            // ==================== FUSION-BASED SPECIALIZED TEMPLATES ====================
+            [
+                'name' => 'Second Source Opportunity',
+                'description' => 'For supply chain diversification - fused scarcity and unity',
+                'subjectSpintax' => '{Second source for|Supply chain option for|Manufacturing partner for} {{company_name}} {assemblies|production}',
+                'bodySpintax' => "{{greeting}},\n\n{{presuasive_opener}}\n\n{Companies managing supply chain risk often look for|The trend we're seeing is|What's driving conversations like this}:\n• {A qualified backup source|Supply chain diversification|Risk mitigation}\n• {{fused_intro}}\n\n{{fused_value}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'presuasive_opener', 'fused_intro', 'fused_value', 'consistency'],
+            ],
+            [
+                'name' => 'Re-engagement - Previous Contact',
+                'description' => 'For contacts who went cold - fused consistency and reciprocity',
+                'subjectSpintax' => '{Checking back in|Reconnecting|Following up from earlier}: {{company_name}}',
+                'bodySpintax' => "{{greeting}},\n\n{We connected|We spoke|You engaged with us} {a while back|previously|some time ago} about {{pain_point}}.\n\n{Since then|In the meantime|Recently}, {a few things have changed|there's been some progress|here's what's new}:\n\n{{fused_intro}}\n\n{{fused_proof}}\n\n{Has anything changed|Is this more relevant now|Would this be better timing} for {{company_name}}?\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'pain_point', 'fused_intro', 'fused_proof', 'consistency'],
+            ],
+            [
+                'name' => 'Reciprocity First - Industry Insight',
+                'description' => 'Leads with unconditional gift of value - pure reciprocity focus',
+                'subjectSpintax' => '{{industry}} {manufacturing insight|market update|supply chain note} for {{company_name}}',
+                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\n{No ask here|Just wanted to share|Passing this along} - {hope it's useful|thought it might help|figured it could be valuable}.\n\n{If you ever want to discuss|Happy to explore|If you'd like to chat about} {{industry}} manufacturing challenges, {{consistency}}.\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'industry', 'fused_intro', 'consistency'],
+            ],
+            [
+                'name' => 'Unity Approach - Partnership Focus',
+                'description' => 'Emphasizes shared identity and partnership - fused unity and value',
+                'subjectSpintax' => '{Partnership opportunity|Collaboration idea|Working together}: {{company_name}} + {{sender_company}}',
+                'bodySpintax' => "{{greeting}},\n\n{{presuasive_opener}}\n\n{{fused_value}}\n\n{{fused_proof}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'sender_company', 'greeting', 'closing', 'presuasive_opener', 'fused_value', 'fused_proof', 'consistency'],
+            ],
+            [
+                'name' => 'Geographic Advantage - Nearshore',
+                'description' => 'Emphasizes Morocco nearshore advantages for European prospects',
+                'subjectSpintax' => '{Nearshore advantage|European manufacturing alternative|Morocco facility} for {{company_name}}',
+                'bodySpintax' => "{{greeting}},\n\n{{presuasive_opener}}\n\n{For European companies|For UK/EU manufacturers|For organizations in your region}, {here's what stands out|the value proposition is clear|the benefits are significant}:\n\n{{geo_logistics}} {{geo_timezone}} {{geo_trade}}\n\n{{fused_proof}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'presuasive_opener', 'geo_logistics', 'geo_timezone', 'geo_trade', 'fused_proof', 'consistency'],
+            ],
+            
+            // ==================== COLD OUTREACH VARIANTS (NATURAL FLOW) ====================
+            [
+                'name' => 'Fusion - Cold Outreach Natural',
+                'description' => 'Uses fused elements for natural conversation flow - best for cold outreach',
+                'subjectSpintax' => '{{curiosity_subject}}',
+                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\n{{fused_value}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'curiosity_subject', 'fused_intro', 'fused_value', 'consistency'],
+            ],
+            [
+                'name' => 'Fusion - Warm Lead Follow-up',
+                'description' => 'Natural flow for warm leads who have shown some interest',
+                'subjectSpintax' => '{Re:|Following up on|Regarding} {{company_name}} {sourcing|manufacturing}',
+                'bodySpintax' => "{{greeting}},\n\n{{fused_proof}}\n\n{{fused_value}}\n\n{{fused_close}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_proof', 'fused_value', 'fused_close'],
+            ],
+            [
+                'name' => 'Fusion - Curiosity Subject Cold',
+                'description' => 'Curiosity-gap subject line with naturally flowing body',
+                'subjectSpintax' => '{{curiosity_subject}}',
+                'bodySpintax' => "{{greeting}},\n\n{{presuasive_opener}}\n\n{{fused_intro}}\n\n{{fused_proof}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'curiosity_subject', 'presuasive_opener', 'fused_intro', 'fused_proof', 'consistency'],
+            ],
+            [
+                'name' => 'Fusion - Geographic Cultural',
+                'description' => 'Uses fused geographic and cultural elements for regional prospects',
+                'subjectSpintax' => '{Nearshore partnership|Regional manufacturing} for {{company_name}}',
+                'bodySpintax' => "{{greeting}},\n\n{{presuasive_opener}}\n\n{{geo_cultural}}\n\n{{fused_intro}}\n\n{{geo_logistics}} {{geo_trade}}\n\n{{fused_close}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'presuasive_opener', 'geo_cultural', 'fused_intro', 'geo_logistics', 'geo_trade', 'fused_close'],
             ],
         ];
 

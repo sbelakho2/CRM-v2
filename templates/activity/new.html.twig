@@ -21,7 +21,7 @@
         <div class="rams-page__header">
             <div class="rams-page__header-content">
                 <h1 class="rams-page__title">{{ 'activity.new_activity'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'activity.new_subtitle'|trans|default('Record an interaction or touchpoint') }}</p>
+                <p class="rams-page__subtitle">{{ 'activity.new_subtitle'|trans }}</p>
             </div>
         </div>
 
@@ -70,7 +70,7 @@
                         <label class="rams-dymo" for="{{ form.notes.vars.id }}">{{ 'common.notes'|trans }}</label>
                         {{ form_widget(form.notes, {'attr': {'class': 'rams-form__input rams-form__input--textarea'}}) }}
                         {{ form_errors(form.notes) }}
-                        <p class="rams-form__hint">{{ 'activity.notes_hint'|trans|default('Include key discussion points, outcomes, and next steps') }}</p>
+                        <p class="rams-form__hint">{{ 'activity.notes_hint'|trans }}</p>
                     </div>
 
                     {# Action Buttons #}
@@ -79,7 +79,7 @@
                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            {{ 'activity.create_button'|trans|default('Create Activity') }}
+                            {{ 'activity.create_button'|trans }}
                         </button>
                         <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--secondary">
                             {{ 'common.cancel'|trans }}
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add placeholder
             const placeholder = document.createElement('option');
             placeholder.value = '';
-            placeholder.textContent = '{{ 'activity.select_contact'|trans|default('Select contact (optional)') }}';
+            placeholder.textContent = '{{ 'activity.select_contact'|trans }}';
             contactSelect.appendChild(placeholder);
             
             // Add contacts
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (contacts.length === 0) {
                 const option = document.createElement('option');
                 option.value = '';
-                option.textContent = companyId ? '{{ 'activity.no_contacts_company'|trans|default('No contacts for this company') }}' : '{{ 'activity.no_contacts'|trans|default('No contacts found') }}';
+                option.textContent = companyId ? '{{ 'activity.no_contacts_company'|trans }}' : '{{ 'activity.no_contacts'|trans }}';
                 option.disabled = true;
                 contactSelect.appendChild(option);
             }

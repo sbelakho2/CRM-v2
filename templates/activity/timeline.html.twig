@@ -9,21 +9,21 @@
         {# Header #}
         <div class="rams-page__header">
             <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ 'activity.timeline_title'|trans|default('Activity Timeline') }}</h1>
-                <p class="rams-page__subtitle">{{ 'activity.timeline_subtitle'|trans|default('Chronological view of all activities') }}</p>
+                <h1 class="rams-page__title">{{ 'activity.timeline_title'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'activity.timeline_subtitle'|trans }}</p>
             </div>
             <div class="rams-page__actions">
                 <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--secondary">
                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                     </svg>
-                    {{ 'activity.list_view'|trans|default('List View') }}
+                    {{ 'activity.list_view'|trans }}
                 </a>
                 <a href="{{ path('app_activity_new') }}" class="rams-btn rams-btn--primary">
                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    {{ 'activity.log_activity'|trans|default('Log Activity') }}
+                    {{ 'activity.log_activity'|trans }}
                 </a>
             </div>
         </div>
@@ -59,10 +59,10 @@
                                             </div>
                                             <div class="rams-timeline__item-content">
                                                 <div class="rams-timeline__item-header">
-                                                    <span class="rams-timeline__item-type">{{ activity.type }}</span>
+                                                    <span class="rams-timeline__item-type">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</span>
                                                     {% if activity.outcome %}
                                                         <span class="rams-badge rams-badge--sm rams-badge--{{ activity.outcome|lower|replace({' ': '-'}) }}">
-                                                            {{ activity.outcome }}
+                                                            {{ ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans }}
                                                         </span>
                                                     {% endif %}
                                                 </div>
@@ -96,8 +96,8 @@
                                 <circle cx="8" cy="8" r="6" stroke-width="2"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4V8L11 11"/>
                             </svg>
-                            <h3 class="rams-empty-state__title">{{ 'activity.no_timeline'|trans|default('No activities in timeline') }}</h3>
-                            <p class="rams-empty-state__description">{{ 'activity.timeline_empty'|trans|default('Start logging activities to see them here.') }}</p>
+                            <h3 class="rams-empty-state__title">{{ 'activity.no_timeline'|trans }}</h3>
+                            <p class="rams-empty-state__description">{{ 'activity.timeline_empty'|trans }}</p>
                         </div>
                     </div>
                 {% endfor %}

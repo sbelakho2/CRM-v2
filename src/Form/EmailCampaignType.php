@@ -18,35 +18,36 @@ class EmailCampaignType extends AbstractType
     {
         $builder
             ->add('name', TextType::class, [
-                'label' => 'Campaign Name',
-                'attr' => ['class' => 'geist-input', 'placeholder' => 'Q4 Automotive Outreach'],
+                'label' => 'email_campaign.campaign_name',
+                'attr' => ['class' => 'geist-input', 'placeholder' => 'email_campaign.form.name_placeholder'],
             ])
             ->add('language', ChoiceType::class, [
-                'label' => 'Language',
+                'label' => 'profile.language',
                 'choices' => [
-                    'English' => 'EN',
-                    'French' => 'FR',
-                    'Bilingual' => 'Bilingual',
+                    'language.english' => 'EN',
+                    'language.french' => 'FR',
+                    'language.bilingual' => 'Bilingual',
                 ],
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'geist-select'],
             ])
             ->add('description', TextareaType::class, [
-                'label' => 'Description',
+                'label' => 'common.description',
                 'required' => false,
-                'attr' => ['class' => 'geist-textarea', 'rows' => 4, 'placeholder' => 'Campaign objectives and target audience...'],
+                'attr' => ['class' => 'geist-textarea', 'rows' => 4, 'placeholder' => 'email_campaign.form.description_placeholder'],
             ])
             ->add('touchCount', IntegerType::class, [
-                'label' => 'Number of Touches',
+                'label' => 'email_campaign.form.touch_count',
                 'data' => 5,
                 'attr' => [
                     'class' => 'geist-input',
                     'min' => 1,
                     'max' => 10,
-                    'placeholder' => '5',
+                    'placeholder' => 'email_campaign.form.touch_count_placeholder',
                 ],
             ])
             ->add('active', CheckboxType::class, [
-                'label' => 'Active',
+                'label' => 'common.active',
                 'required' => false,
                 'data' => true,
             ])
@@ -57,6 +58,7 @@ class EmailCampaignType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => EmailCampaign::class,
+            'translation_domain' => 'messages',
         ]);
     }
 }

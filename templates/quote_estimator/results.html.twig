@@ -10,17 +10,17 @@
             <svg class="rams-link__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            {{ 'quote.estimator.back_to_estimates'|trans|default('Back to Estimates') }}
+            {{ 'quote.estimator.back_to_estimates'|trans }}
         </a>
         <h1 class="rams-heading rams-heading--1">{{ 'quote.estimator.estimate_results'|trans }}</h1>
-        <p class="rams-text rams-text--muted">{{ 'quote.estimator.estimate_number'|trans|default('Estimate') }} #{{ estimate.estimateNumber }}</p>
+        <p class="rams-text rams-text--muted">{{ 'quote.estimator.estimate_number'|trans }} #{{ estimate.estimateNumber }}</p>
     </header>
     
     <div class="rams-grid rams-grid--cols-3 rams-grid--gap-md">
         {# Customer Info #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <span class="rams-dymo">{{ 'quote.estimator.customer'|trans|default('Customer') }}</span>
+                <span class="rams-dymo">{{ 'quote.estimator.customer'|trans }}</span>
             </div>
             <div class="rams-module__content">
                 <p class="rams-text rams-text--bold">{{ quoteData.customer_name | default('common.n_a'|trans) }}</p>
@@ -30,12 +30,12 @@
         {# Part Info #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <span class="rams-dymo">{{ 'quote.estimator.part_details'|trans|default('Part Details') }}</span>
+                <span class="rams-dymo">{{ 'quote.estimator.part_details'|trans }}</span>
             </div>
             <div class="rams-module__content">
                 <dl class="rams-definition-list rams-definition-list--compact">
                     <div class="rams-definition-list__item">
-                        <dt class="rams-definition-list__term">{{ 'quote.estimator.part_number'|trans|default('Part #') }}:</dt>
+                        <dt class="rams-definition-list__term">{{ 'quote.estimator.part_number'|trans }}:</dt>
                         <dd class="rams-definition-list__desc"><code class="rams-code">{{ quoteData.part_number | default('common.n_a'|trans) }}</code></dd>
                     </div>
                     <div class="rams-definition-list__item">
@@ -44,7 +44,7 @@
                     </div>
                     {% if quoteData.delivery_date %}
                     <div class="rams-definition-list__item">
-                        <dt class="rams-definition-list__term">{{ 'quote.estimator.required_date'|trans|default('Required Date') }}:</dt>
+                        <dt class="rams-definition-list__term">{{ 'quote.estimator.required_date'|trans }}:</dt>
                         <dd class="rams-definition-list__desc">{{ quoteData.delivery_date }}</dd>
                     </div>
                     {% endif %}
@@ -55,14 +55,14 @@
         {# Pricing Summary #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <span class="rams-dymo">{{ 'quote.estimator.quote_summary'|trans|default('Quote Summary') }}</span>
+                <span class="rams-dymo">{{ 'quote.estimator.quote_summary'|trans }}</span>
             </div>
             <div class="rams-module__content">
                 <dl class="rams-definition-list rams-definition-list--compact">
                     <div class="rams-definition-list__item">
                         <dt class="rams-definition-list__term">{{ 'common.status'|trans }}:</dt>
                         <dd class="rams-definition-list__desc">
-                            <span class="rams-badge rams-badge--yellow">{{ 'quote.estimator.pending_pricing'|trans|default('Pending Pricing') }}</span>
+                            <span class="rams-badge rams-badge--yellow">{{ 'quote.estimator.pending_pricing'|trans }}</span>
                         </dd>
                     </div>
                     <div class="rams-definition-list__item">
@@ -77,19 +77,19 @@
     {# Quote Details #}
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-heading rams-heading--3">{{ 'quote.estimator.quote_details'|trans|default('Quote Details') }}</h2>
+            <h2 class="rams-heading rams-heading--3">{{ 'quote.estimator.quote_details'|trans }}</h2>
         </div>
         <div class="rams-module__content">
             <div class="rams-andon rams-andon--yellow">
                 <p class="rams-text">
-                    ⏳ <strong>{{ 'quote.estimator.pricing_in_progress'|trans|default('Pricing in Progress:') }}</strong> {{ 'quote.estimator.pricing_message'|trans|default('Your quote request has been saved. Our team will review and provide pricing shortly.') }}
+                    ⏳ <strong>{{ 'quote.estimator.pricing_in_progress'|trans }}</strong> {{ 'quote.estimator.pricing_message'|trans }}
                 </p>
             </div>
 
             {% if quoteData.special_requirements %}
             <div class="rams-module rams-module--nested rams-module--muted">
                 <div class="rams-module__header">
-                    <h3 class="rams-heading rams-heading--4">{{ 'quote.estimator.special_requirements'|trans|default('Special Requirements') }}:</h3>
+                    <h3 class="rams-heading rams-heading--4">{{ 'quote.estimator.special_requirements'|trans }}:</h3>
                 </div>
                 <div class="rams-module__content">
                     <p class="rams-text">{{ quoteData.special_requirements }}</p>
@@ -102,10 +102,10 @@
     {# Actions #}
     <div class="rams-form__actions rams-form__actions--center">
         <a href="{{ path('quote_estimator_index') }}" class="rams-btn rams-btn--secondary">
-            ← {{ 'quote.estimator.new_quote_request'|trans|default('New Quote Request') }}
+            ← {{ 'quote.estimator.new_quote_request'|trans }}
         </a>
         <button onclick="window.print()" class="rams-btn rams-btn--primary">
-            🖨️ {{ 'common.print'|trans|default('Print') }}
+            🖨️ {{ 'common.print'|trans }}
         </button>
     </div>
 </div>

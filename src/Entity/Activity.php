@@ -9,6 +9,34 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'activities')]
 class Activity
 {
+    // Standardized outcome categories for analytics
+    public const OUTCOME_POSITIVE = 'positive';     // Meeting scheduled, interest expressed
+    public const OUTCOME_NEUTRAL = 'neutral';       // Left voicemail, sent info
+    public const OUTCOME_NEGATIVE = 'negative';     // Not interested, wrong contact
+    public const OUTCOME_NO_RESPONSE = 'no_response'; // No answer, bounced email
+    public const OUTCOME_PENDING = 'pending';       // Awaiting response
+    
+    public const OUTCOMES = [
+        self::OUTCOME_POSITIVE,
+        self::OUTCOME_NEUTRAL,
+        self::OUTCOME_NEGATIVE,
+        self::OUTCOME_NO_RESPONSE,
+        self::OUTCOME_PENDING,
+    ];
+    
+    // Activity statuses
+    public const STATUS_OPEN = 'Open';
+    public const STATUS_COMPLETED = 'Completed';
+    public const STATUS_CANCELLED = 'Cancelled';
+    public const STATUS_DEFERRED = 'Deferred';
+    
+    public const STATUSES = [
+        self::STATUS_OPEN,
+        self::STATUS_COMPLETED,
+        self::STATUS_CANCELLED,
+        self::STATUS_DEFERRED,
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -29,6 +57,9 @@ class Activity
     #[ORM\Column(length: 50)]
     private ?string $type = null; // Call, Email, Meeting, Site Visit, Follow-up
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $subject = null; // Brief subject/title for the activity
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
 
@@ -36,7 +67,16 @@ class Activity
     private ?string $notes = null;
 
     #[ORM\Column(length: 50, nullable: true)]
-    private ?string $outcome = null;
+    private ?string $outcome = null; // Standardized: positive, neutral, negative, no_response, pending
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $outcomeDetail = null; // Free text for specific outcome details
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $status = self::STATUS_OPEN; // Open, Completed, Cancelled, Deferred
+
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $durationMinutes = null; // Duration in minutes
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $activityDate = null;
@@ -165,6 +205,155 @@ class Activity
     public function setCreatedAt(\DateTimeInterface $createdAt): self
     {
         $this->createdAt = $createdAt;
+        return $this;
+    }
+    
+    // ============================================================
+    // NEW METHODS for PlaybookEngine and enhanced analytics
+    // ============================================================
+    
+    public function getSubject(): ?string
+    {
+        return $this->subject;
+    }
+    
+    public function setSubject(?string $subject): self
+    {
+        $this->subject = $subject;
+        return $this;
+    }
+    
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+    
+    public function setStatus(?string $status): self
+    {
+        // Validate status if provided
+        if ($status !== null && !in_array($status, self::STATUSES)) {
+            // Accept status but normalize common variations
+            $normalized = ucfirst(strtolower($status));
+            if (in_array($normalized, self::STATUSES)) {
+                $status = $normalized;
+            }
+        }
+        $this->status = $status;
+        return $this;
+    }
+    
+    public function getDurationMinutes(): ?int
+    {
+        return $this->durationMinutes;
+    }
+    
+    public function setDurationMinutes(?int $durationMinutes): self
+    {
+        $this->durationMinutes = $durationMinutes;
+        return $this;
+    }
+    
+    /**
+     * Alias for getDurationMinutes() for convenience
+     */
+    public function getDuration(): ?int
+    {
+        return $this->durationMinutes;
+    }
+    
+    /**
+     * Alias for setDurationMinutes() for convenience
+     */
+    public function setDuration(?int $minutes): self
+    {
+        return $this->setDurationMinutes($minutes);
+    }
+    
+    /**
+     * Get formatted duration string (e.g., "1h 30m")
+     */
+    public function getFormattedDuration(): string
+    {
+        if ($this->durationMinutes === null) {
+            return 'N/A';
+        }
+        
+        $hours = intdiv($this->durationMinutes, 60);
+        $mins = $this->durationMinutes % 60;
+        
+        if ($hours > 0 && $mins > 0) {
+            return sprintf('%dh %dm', $hours, $mins);
+        } elseif ($hours > 0) {
+            return sprintf('%dh', $hours);
+        } else {
+            return sprintf('%dm', $mins);
+        }
+    }
+    
+    public function getOutcomeDetail(): ?string
+    {
+        return $this->outcomeDetail;
+    }
+    
+    public function setOutcomeDetail(?string $outcomeDetail): self
+    {
+        $this->outcomeDetail = $outcomeDetail;
+        return $this;
+    }
+    
+    /**
+     * Set outcome with validation against standard categories
+     */
+    public function setOutcomeCategory(string $category): self
+    {
+        if (!in_array($category, self::OUTCOMES)) {
+            throw new \InvalidArgumentException(
+                sprintf('Invalid outcome category "%s". Must be one of: %s', 
+                    $category, 
+                    implode(', ', self::OUTCOMES)
+                )
+            );
+        }
+        $this->outcome = $category;
+        return $this;
+    }
+    
+    /**
+     * Check if activity has a positive outcome
+     */
+    public function isPositiveOutcome(): bool
+    {
+        return $this->outcome === self::OUTCOME_POSITIVE;
+    }
+    
+    /**
+     * Check if activity is completed
+     */
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+    
+    /**
+     * Check if activity is open/pending
+     */
+    public function isOpen(): bool
+    {
+        return $this->status === self::STATUS_OPEN;
+    }
+    
+    /**
+     * Mark activity as completed
+     */
+    public function complete(?string $outcome = null, ?string $outcomeDetail = null): self
+    {
+        $this->status = self::STATUS_COMPLETED;
+        if ($outcome !== null) {
+            $this->outcome = $outcome;
+        }
+        if ($outcomeDetail !== null) {
+            $this->outcomeDetail = $outcomeDetail;
+        }
         return $this;
     }
 }

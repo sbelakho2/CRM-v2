@@ -6,7 +6,7 @@
     <div class="rams-module rams-shortcuts-modal">
         {# Modal Header #}
         <div class="rams-module__header rams-shortcuts-modal__header">
-            <h2 class="rams-module__title">{{ 'shortcuts.title'|trans|default('Keyboard Shortcuts') }}</h2>
+            <h2 class="rams-module__title">{{ 'shortcuts.title'|trans }}</h2>
             <button 
                 type="button"
                 class="rams-btn rams-btn--ghost rams-shortcuts-modal__close"
@@ -23,49 +23,49 @@
         <div class="rams-module__content rams-shortcuts-modal__body">
             {# Navigation Shortcuts #}
             <div class="rams-shortcuts__section">
-                <h3 class="rams-dymo rams-shortcuts__title">{{ 'shortcuts.navigation'|trans|default('Navigation') }}</h3>
+                <h3 class="rams-dymo rams-shortcuts__title">{{ 'shortcuts.navigation'|trans }}</h3>
                 <div class="rams-shortcuts__list">
                     <div class="rams-shortcuts__item">
                         <kbd class="rams-kbd">/</kbd>
-                        <span class="rams-shortcuts__desc">{{ 'shortcuts.focus_search'|trans|default('Focus search') }}</span>
+                        <span class="rams-shortcuts__desc">{{ 'shortcuts.focus_search'|trans }}</span>
                     </div>
                 </div>
             </div>
 
             {# Quick Actions #}
             <div class="rams-shortcuts__section">
-                <h3 class="rams-dymo rams-shortcuts__title">{{ 'shortcuts.quick_actions'|trans|default('Quick Actions') }}</h3>
+                <h3 class="rams-dymo rams-shortcuts__title">{{ 'shortcuts.quick_actions'|trans }}</h3>
                 <div class="rams-shortcuts__list">
                     <div class="rams-shortcuts__item">
-                        <kbd class="rams-kbd">L</kbd>
-                        <span class="rams-shortcuts__desc">{{ 'shortcuts.log_activity'|trans|default('Log activity') }}</span>
+                        <kbd class="rams-kbd">{{ 'shortcuts.key_l'|trans }}</kbd>
+                        <span class="rams-shortcuts__desc">{{ 'shortcuts.log_activity'|trans }}</span>
                     </div>
                     <div class="rams-shortcuts__item">
-                        <kbd class="rams-kbd">A</kbd>
+                        <kbd class="rams-kbd">{{ 'shortcuts.key_a'|trans }}</kbd>
                         <span class="rams-shortcuts__plus">+</span>
-                        <kbd class="rams-kbd">C</kbd>
-                        <span class="rams-shortcuts__desc">{{ 'shortcuts.add_company'|trans|default('Add company') }}</span>
+                        <kbd class="rams-kbd">{{ 'shortcuts.key_c'|trans }}</kbd>
+                        <span class="rams-shortcuts__desc">{{ 'shortcuts.add_company'|trans }}</span>
                     </div>
                     <div class="rams-shortcuts__item">
-                        <kbd class="rams-kbd">A</kbd>
+                        <kbd class="rams-kbd">{{ 'shortcuts.key_a'|trans }}</kbd>
                         <span class="rams-shortcuts__plus">+</span>
-                        <kbd class="rams-kbd">E</kbd>
-                        <span class="rams-shortcuts__desc">{{ 'shortcuts.add_contact'|trans|default('Add contact') }}</span>
+                        <kbd class="rams-kbd">{{ 'shortcuts.key_e'|trans }}</kbd>
+                        <span class="rams-shortcuts__desc">{{ 'shortcuts.add_contact'|trans }}</span>
                     </div>
                 </div>
             </div>
 
             {# Help #}
             <div class="rams-shortcuts__section">
-                <h3 class="rams-dymo rams-shortcuts__title">{{ 'common.help'|trans|default('Help') }}</h3>
+                <h3 class="rams-dymo rams-shortcuts__title">{{ 'common.help'|trans }}</h3>
                 <div class="rams-shortcuts__list">
                     <div class="rams-shortcuts__item">
-                        <kbd class="rams-kbd">?</kbd>
-                        <span class="rams-shortcuts__desc">{{ 'shortcuts.show_dialog'|trans|default('Show this dialog') }}</span>
+                        <kbd class="rams-kbd">{{ 'shortcuts.key_question'|trans }}</kbd>
+                        <span class="rams-shortcuts__desc">{{ 'shortcuts.show_dialog'|trans }}</span>
                     </div>
                     <div class="rams-shortcuts__item">
-                        <kbd class="rams-kbd">ESC</kbd>
-                        <span class="rams-shortcuts__desc">{{ 'shortcuts.close_dialogs'|trans|default('Close dialogs') }}</span>
+                        <kbd class="rams-kbd">{{ 'shortcuts.key_esc'|trans }}</kbd>
+                        <span class="rams-shortcuts__desc">{{ 'shortcuts.close_dialogs'|trans }}</span>
                     </div>
                 </div>
             </div>
@@ -74,7 +74,7 @@
         {# Modal Footer #}
         <div class="rams-module__footer rams-shortcuts-modal__footer">
             <p class="rams-dymo">
-                {{ 'shortcuts.note_disabled_in_text'|trans|default('Note: Shortcuts are disabled when typing in text fields') }}
+                {{ 'shortcuts.note_disabled_in_text'|trans }}
             </p>
         </div>
     </div>

@@ -13,7 +13,7 @@
         
         <div class="rams-module__header-content">
             <h1 class="rams-module__title">{{ 'webcrawler.dork_generator'|trans }}</h1>
-            <p class="rams-module__subtitle">{{ 'webcrawler.dork_generator_subtitle'|trans|default('Generate custom Google search queries for company discovery') }}</p>
+            <p class="rams-module__subtitle">{{ 'webcrawler.dork_generator_subtitle'|trans }}</p>
         </div>
     </div>
 
@@ -21,14 +21,14 @@
         <!-- Quick Generator -->
         <div class="rams-module rams-module--nested">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.quick_generator'|trans|default('Quick Generator') }}</h2>
+                <h2 class="rams-module__title">{{ 'webcrawler.quick_generator'|trans }}</h2>
             </div>
             
             <div class="rams-module__content">
                 <div class="rams-form__row rams-form__row--2">
                     <div class="rams-form__group">
-                        <label class="rams-form__label">{{ 'webcrawler.company_domain'|trans|default('Company/Domain') }}</label>
-                        <input type="text" id="domain-input" placeholder="example.com" class="rams-form__input">
+                        <label class="rams-form__label">{{ 'webcrawler.company_domain'|trans }}</label>
+                        <input type="text" id="domain-input" placeholder="{{ 'webcrawler.domain_placeholder'|trans }}" class="rams-form__input">
                     </div>
                     
                     <div class="rams-form__group">
@@ -49,7 +49,7 @@
         <!-- Dork Templates -->
         <div class="rams-module rams-module--nested">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.dork_templates'|trans|default('Dork Templates') }}</h2>
+                <h2 class="rams-module__title">{{ 'webcrawler.dork_templates'|trans }}</h2>
             </div>
             
             <div class="rams-module__content">
@@ -71,51 +71,51 @@
 
         <!-- Advanced Tips -->
         <div class="rams-alert rams-alert--info">
-            <h3 class="rams-alert__title">{{ 'webcrawler.dork_tips_title'|trans|default('Google Dork Tips') }}</h3>
+            <h3 class="rams-alert__title">{{ 'webcrawler.dork_tips_title'|trans }}</h3>
             <ul class="rams-alert__list">
-                <li>• <code>site:</code> - {{ 'webcrawler.tip_site'|trans|default('Search within a specific domain') }}</li>
-                <li>• <code>inurl:</code> - {{ 'webcrawler.tip_inurl'|trans|default('Search for text in URL') }}</li>
-                <li>• <code>intitle:</code> - {{ 'webcrawler.tip_intitle'|trans|default('Search for text in page title') }}</li>
-                <li>• <code>"exact phrase"</code> - {{ 'webcrawler.tip_exact'|trans|default('Search for exact phrase match') }}</li>
-                <li>• <code>OR</code> - {{ 'webcrawler.tip_or'|trans|default('Search for either term (must be uppercase)') }}</li>
-                <li>• <code>-keyword</code> - {{ 'webcrawler.tip_exclude'|trans|default('Exclude results with keyword') }}</li>
-                <li>• <code>filetype:pdf</code> - {{ 'webcrawler.tip_filetype'|trans|default('Search for specific file types') }}</li>
+                <li>• <code>{{ 'webcrawler.tip_code_site'|trans }}</code> - {{ 'webcrawler.tip_site'|trans }}</li>
+                <li>• <code>{{ 'webcrawler.tip_code_inurl'|trans }}</code> - {{ 'webcrawler.tip_inurl'|trans }}</li>
+                <li>• <code>{{ 'webcrawler.tip_code_intitle'|trans }}</code> - {{ 'webcrawler.tip_intitle'|trans }}</li>
+                <li>• <code>"{{ 'webcrawler.tip_exact_example'|trans }}"</code> - {{ 'webcrawler.tip_exact'|trans }}</li>
+                <li>• <code>{{ 'webcrawler.tip_or_example'|trans }}</code> - {{ 'webcrawler.tip_or'|trans }}</li>
+                <li>• <code>{{ 'webcrawler.tip_code_exclude'|trans }}</code> - {{ 'webcrawler.tip_exclude'|trans }}</li>
+                <li>• <code>{{ 'webcrawler.tip_code_filetype_pdf'|trans }}</code> - {{ 'webcrawler.tip_filetype'|trans }}</li>
             </ul>
         </div>
 
         <!-- Example Searches -->
         <div class="rams-module rams-module--nested">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.example_searches'|trans|default('Example Searches') }}</h2>
+                <h2 class="rams-module__title">{{ 'webcrawler.example_searches'|trans }}</h2>
             </div>
             
             <div class="rams-module__content">
                 <div class="rams-example-list">
                     <div class="rams-example-item">
-                        <div class="rams-example-item__label">{{ 'webcrawler.example_automotive'|trans|default('Find Automotive Suppliers in Morocco') }}</div>
+                        <div class="rams-example-item__label">{{ 'webcrawler.example_automotive'|trans }}</div>
                         <code class="rams-example-item__code">
-                            "automotive" "morocco" ("tier 1" OR "tier 2" OR "supplier") -jobs -careers
+                            {{ 'webcrawler.example_query_automotive'|trans }}
                         </code>
                     </div>
                     
                     <div class="rams-example-item">
-                        <div class="rams-example-item__label">{{ 'webcrawler.example_supplier_portals'|trans|default('Find Companies with Supplier Portals') }}</div>
+                        <div class="rams-example-item__label">{{ 'webcrawler.example_supplier_portals'|trans }}</div>
                         <code class="rams-example-item__code">
-                            site:*.ma inurl:supplier OR inurl:vendor "portal" OR "registration"
+                            {{ 'webcrawler.example_query_supplier_portals'|trans }}
                         </code>
                     </div>
                     
                     <div class="rams-example-item">
-                        <div class="rams-example-item__label">{{ 'webcrawler.example_aerospace'|trans|default('Find Aerospace Companies in Free Zones') }}</div>
+                        <div class="rams-example-item__label">{{ 'webcrawler.example_aerospace'|trans }}</div>
                         <code class="rams-example-item__code">
-                            "aerospace" ("tanger free zone" OR "atlantic free zone") manufacturer OR supplier
+                            {{ 'webcrawler.example_query_aerospace'|trans }}
                         </code>
                     </div>
                     
                     <div class="rams-example-item">
-                        <div class="rams-example-item__label">{{ 'webcrawler.example_electronics'|trans|default('Find Electronics Manufacturing Services') }}</div>
+                        <div class="rams-example-item__label">{{ 'webcrawler.example_electronics'|trans }}</div>
                         <code class="rams-example-item__code">
-                            "morocco" ("EMS" OR "PCBA" OR "PCB assembly") contract manufacturer
+                            {{ 'webcrawler.example_query_electronics'|trans }}
                         </code>
                     </div>
                 </div>
@@ -128,7 +128,7 @@
 function copyDork(template) {
     navigator.clipboard.writeText(template).then(() => {
         // Show temporary feedback
-        event.target.textContent = '✓ {{ 'common.copied'|trans|default('Copied') }}';
+        event.target.textContent = '✓ {{ 'common.copied'|trans }}';
         setTimeout(() => event.target.textContent = '{{ 'common.copy'|trans }}', 2000);
     });
 }
@@ -141,6 +141,21 @@ const generatedDorks = document.getElementById('generated-dorks');
 function generateDorks() {
     const domain = domainInput.value.trim();
     const sector = sectorInput.value;
+    const dorkTemplates = {
+        domainSupplierPortal: "{{ 'webcrawler.dork_domain_supplier_portal'|trans|e('js') }}",
+        domainVendorRegistration: "{{ 'webcrawler.dork_domain_vendor_registration'|trans|e('js') }}",
+        domainContactProcurement: "{{ 'webcrawler.dork_domain_contact_procurement'|trans|e('js') }}",
+        domainLinkedin: "{{ 'webcrawler.dork_domain_linkedin'|trans|e('js') }}",
+        sectorSupplierManufacturer: "{{ 'webcrawler.dork_sector_supplier_manufacturer'|trans|e('js') }}",
+        sectorFreeZoneSupplier: "{{ 'webcrawler.dork_sector_free_zone_supplier'|trans|e('js') }}",
+        domainSectorContact: "{{ 'webcrawler.dork_domain_sector_contact'|trans|e('js') }}"
+    };
+    const tokenMap = {
+        domain: ['%domain%', '%نطاق%'],
+        sector: ['%sector%', '%قطاع%'],
+        company: ['%company%', '%شركة%']
+    };
+    const replaceTokens = (template, tokens, value) => tokens.reduce((acc, token) => acc.split(token).join(value), template);
     
     if (!domain && !sector) {
         generatedDorks.innerHTML = '';
@@ -150,19 +165,21 @@ function generateDorks() {
     const dorks = [];
     
     if (domain) {
-        dorks.push(`site:${domain} "supplier portal"`);
-        dorks.push(`site:${domain} "vendor registration"`);
-        dorks.push(`site:${domain} contact procurement`);
-        dorks.push(`site:linkedin.com/company "${domain.replace('.com', '')}"`);
+        const companyName = domain.replace('.com', '');
+        dorks.push(replaceTokens(dorkTemplates.domainSupplierPortal, tokenMap.domain, domain));
+        dorks.push(replaceTokens(dorkTemplates.domainVendorRegistration, tokenMap.domain, domain));
+        dorks.push(replaceTokens(dorkTemplates.domainContactProcurement, tokenMap.domain, domain));
+        dorks.push(replaceTokens(dorkTemplates.domainLinkedin, tokenMap.company, companyName));
     }
     
     if (sector) {
-        dorks.push(`"${sector}" morocco supplier manufacturer`);
-        dorks.push(`"${sector}" "free zone" supplier`);
+        dorks.push(replaceTokens(dorkTemplates.sectorSupplierManufacturer, tokenMap.sector, sector));
+        dorks.push(replaceTokens(dorkTemplates.sectorFreeZoneSupplier, tokenMap.sector, sector));
     }
     
     if (domain && sector) {
-        dorks.push(`"${domain}" "${sector}" contact`);
+        const domainReplaced = replaceTokens(dorkTemplates.domainSectorContact, tokenMap.domain, domain);
+        dorks.push(replaceTokens(domainReplaced, tokenMap.sector, sector));
     }
     
     generatedDorks.innerHTML = dorks.map(dork => `

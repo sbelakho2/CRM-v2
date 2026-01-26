@@ -30,11 +30,11 @@
                     <option value="archived">{{ 'admin.datasets.archived'|trans }}</option>
                 </select>
                 <select class="rams-select">
-                    <option value="">All Industries</option>
-                    <option value="technology">Technology</option>
-                    <option value="finance">Finance</option>
-                    <option value="healthcare">Healthcare</option>
-                    <option value="retail">Retail</option>
+                    <option value="">{{ 'abm_dashboard.industry_all'|trans }}</option>
+                    <option value="technology">{{ 'abm_dashboard.industry_technology'|trans }}</option>
+                    <option value="finance">{{ 'abm_dashboard.industry_finance'|trans }}</option>
+                    <option value="healthcare">{{ 'abm_dashboard.industry_healthcare'|trans }}</option>
+                    <option value="retail">{{ 'abm_dashboard.industry_retail'|trans }}</option>
                 </select>
                 <button class="rams-btn rams-btn--primary">
                     {{ 'common.filter'|trans }}
@@ -48,8 +48,8 @@
         <!-- Playbook Card 1 -->
         <div class="rams-module">
             <div class="rams-module__header rams-module__header--success">
-                <h3 class="rams-module__title">Enterprise Demo Playbook</h3>
-                <p class="rams-text-muted">Created 2 weeks ago</p>
+                <h3 class="rams-module__title">{{ 'abm_dashboard.sample_playbook_1_title'|trans }}</h3>
+                <p class="rams-text-muted">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': 2}) }}</p>
             </div>
             <div class="rams-module__content">
                 <div class="rams-stack">
@@ -59,7 +59,7 @@
                     </div>
                     <div class="rams-metric">
                         <span class="rams-dymo">{{ 'playbook.target_accounts'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[0].account_count | default(24) }} accounts</span>
+                        <span class="rams-metric__value">{{ playbooks[0].account_count | default(24) }} {{ 'abm_dashboard.accounts_label'|trans }}</span>
                     </div>
                     <div class="rams-metric">
                         <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
@@ -80,8 +80,8 @@
         <!-- Playbook Card 2 -->
         <div class="rams-module">
             <div class="rams-module__header rams-module__header--warning">
-                <h3 class="rams-module__title">Mid-Market Sales Sequence</h3>
-                <p class="rams-text-muted">Created 4 weeks ago</p>
+                <h3 class="rams-module__title">{{ 'abm_dashboard.sample_playbook_2_title'|trans }}</h3>
+                <p class="rams-text-muted">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': 4}) }}</p>
             </div>
             <div class="rams-module__content">
                 <div class="rams-stack">
@@ -91,7 +91,7 @@
                     </div>
                     <div class="rams-metric">
                         <span class="rams-dymo">{{ 'playbook.target_accounts'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[1].account_count | default(18) }} accounts</span>
+                        <span class="rams-metric__value">{{ playbooks[1].account_count | default(18) }} {{ 'abm_dashboard.accounts_label'|trans }}</span>
                     </div>
                     <div class="rams-metric">
                         <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
@@ -112,8 +112,8 @@
         <!-- Playbook Card 3 -->
         <div class="rams-module">
             <div class="rams-module__header rams-module__header--info">
-                <h3 class="rams-module__title">Product Launch Campaign</h3>
-                <p class="rams-text-muted">Created 1 week ago</p>
+                <h3 class="rams-module__title">{{ 'abm_dashboard.sample_playbook_3_title'|trans }}</h3>
+                <p class="rams-text-muted">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': 1}) }}</p>
             </div>
             <div class="rams-module__content">
                 <div class="rams-stack">
@@ -123,7 +123,7 @@
                     </div>
                     <div class="rams-metric">
                         <span class="rams-dymo">{{ 'playbook.target_accounts'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[2].account_count | default(12) }} accounts</span>
+                        <span class="rams-metric__value">{{ playbooks[2].account_count | default(12) }} {{ 'abm_dashboard.accounts_label'|trans }}</span>
                     </div>
                     <div class="rams-metric">
                         <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
@@ -144,8 +144,8 @@
         <!-- Playbook Card 4 -->
         <div class="rams-module">
             <div class="rams-module__header rams-module__header--danger">
-                <h3 class="rams-module__title">Re-engagement Campaign</h3>
-                <p class="rams-text-muted">Created 3 weeks ago</p>
+                <h3 class="rams-module__title">{{ 'abm_dashboard.sample_playbook_4_title'|trans }}</h3>
+                <p class="rams-text-muted">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': 3}) }}</p>
             </div>
             <div class="rams-module__content">
                 <div class="rams-stack">
@@ -155,7 +155,7 @@
                     </div>
                     <div class="rams-metric">
                         <span class="rams-dymo">{{ 'playbook.target_accounts'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[3].account_count | default(31) }} accounts</span>
+                        <span class="rams-metric__value">{{ playbooks[3].account_count | default(31) }} {{ 'abm_dashboard.accounts_label'|trans }}</span>
                     </div>
                     <div class="rams-metric">
                         <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
@@ -188,7 +188,7 @@
     <!-- Playbook Performance Overview -->
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">Performance Overview</h2>
+            <h2 class="rams-module__title">{{ 'abm_dashboard.performance_overview'|trans }}</h2>
         </div>
         <div class="rams-module__content">
             <div class="rams-grid rams-grid--4">
@@ -201,7 +201,7 @@
                     <span class="rams-metric__value rams-metric__value--lg rams-text-success">3</span>
                 </div>
                 <div class="rams-metric">
-                    <span class="rams-dymo">Avg. {{ 'playbook.success_rate'|trans }}</span>
+                    <span class="rams-dymo">{{ 'abm_dashboard.avg_label'|trans }} {{ 'playbook.success_rate'|trans }}</span>
                     <span class="rams-metric__value rams-metric__value--lg rams-text-info">55%</span>
                 </div>
                 <div class="rams-metric">

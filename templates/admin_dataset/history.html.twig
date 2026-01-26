@@ -29,10 +29,16 @@
                 {% if versions | default([]) %}
                     {% for version in versions %}
                         <tr>
-                            <td>v{{ version.version | default('1.0') }}</td>
-                            <td>{{ version.dataset_name | default('Unknown') }}</td>
-                            <td class="rams-text-muted">{{ version.uploaded_by | default('System') }}</td>
-                            <td class="rams-text-muted">{{ version.created_at | date('M d, Y H:i') | default('common.n_a'|trans) }}</td>
+                            <td>{{ 'admin.datasets.version_prefix'|trans }}{{ version.version | default('admin.datasets.version_default'|trans) }}</td>
+                            <td>{{ version.dataset_name | default('common.unknown'|trans) }}</td>
+                            <td class="rams-text-muted">{{ version.uploaded_by | default('admin.datasets.system'|trans) }}</td>
+                            <td class="rams-text-muted">
+                                {% if version.created_at %}
+                                    {{ version.created_at | date('Y-m-d H:i') }}
+                                {% else %}
+                                    {{ 'common.n_a'|trans }}
+                                {% endif %}
+                            </td>
                             <td>
                                 <span class="rams-metric__value">{{ version.record_count | default('0') }}</span>
                             </td>
@@ -82,13 +88,19 @@
                                 {% endif %}
                             </div>
                             <div class="rams-timeline__content">
-                                <p class="rams-timeline__title">{{ version.dataset_name | default('Dataset Update') }}</p>
-                                <p class="rams-text-muted">{{ version.created_at | date('F j, Y \\a\\t H:i') | default('Unknown date') }}</p>
+                                <p class="rams-timeline__title">{{ version.dataset_name | default('admin.datasets.dataset_update_default'|trans) }}</p>
+                                <p class="rams-text-muted">
+                                    {% if version.created_at %}
+                                        {{ version.created_at | date('Y-m-d H:i') }}
+                                    {% else %}
+                                        {{ 'admin.datasets.unknown_date'|trans }}
+                                    {% endif %}
+                                </p>
                                 {% if version.description %}
                                     <p class="rams-timeline__description">{{ version.description }}</p>
                                 {% endif %}
                                 <p class="rams-dymo">
-                                    {{ 'admin.datasets.uploaded_by'|trans }} {{ version.uploaded_by | default('System') }} • 
+                                    {{ 'admin.datasets.uploaded_by'|trans }} {{ version.uploaded_by | default('admin.datasets.system'|trans) }} • 
                                     {{ version.record_count | default('0') }} {{ 'admin.datasets.records'|trans|lower }}
                                 </p>
                             </div>

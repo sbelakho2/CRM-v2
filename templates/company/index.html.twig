@@ -26,26 +26,26 @@
             <span class="rams-module__title">{{ 'filters.title'|trans }}</span>
         </div>
         <div class="rams-module__content">
-            <form method="get" action="{{ path('app_company_index') }}">
+            <form method="get" action="{{ path('app_company_index') }}" class="rams-form">
                 {# Search Bar #}
-                <div class="rams-form-group">
-                    <label for="search" class="rams-label">{{ 'common.search'|trans }}</label>
+                <div class="rams-form__group">
+                    <label for="search" class="rams-dymo">{{ 'common.search'|trans }}</label>
                     <input 
                         type="text" 
                         name="search" 
                         id="search" 
                         value="{{ current_search }}" 
                         placeholder="{{ 'table.search_placeholder'|trans }}" 
-                        class="rams-input"
+                        class="rams-form__input"
                     />
                 </div>
 
                 {# Filter Grid #}
-                <div class="rams-grid rams-grid--4 rams-mb-4">
+                <div class="rams-form__row rams-form__row--4 rams-mb-4">
                     {# Sector Filter #}
-                    <div class="rams-form-group rams-mb-0">
-                        <label for="sector" class="rams-label">{{ 'company.sector'|trans }}</label>
-                        <select name="sector" id="sector" class="rams-select">
+                    <div class="rams-form__group rams-mb-0">
+                        <label for="sector" class="rams-dymo">{{ 'company.sector'|trans }}</label>
+                        <select name="sector" id="sector" class="rams-form__select">
                             <option value="">{{ 'common.all'|trans }} {{ 'company.sector'|trans|lower }}s</option>
                             {% for sector in sectors %}
                                 <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>{{ sector }}</option>
@@ -54,9 +54,9 @@
                     </div>
 
                     {# Tier Filter #}
-                    <div class="rams-form-group rams-mb-0">
-                        <label for="tier" class="rams-label">{{ 'company.account_tier'|trans }}</label>
-                        <select name="tier" id="tier" class="rams-select">
+                    <div class="rams-form__group rams-mb-0">
+                        <label for="tier" class="rams-dymo">{{ 'company.account_tier'|trans }}</label>
+                        <select name="tier" id="tier" class="rams-form__select">
                             <option value="">{{ 'common.all'|trans }} {{ 'company.account_tier'|trans|lower }}s</option>
                             {% for tier in tiers %}
                                 <option value="{{ tier }}" {% if current_tier == tier %}selected{% endif %}>{{ 'company.tiers.standard'|trans }} {{ tier }}</option>
@@ -65,9 +65,9 @@
                     </div>
 
                     {# Stage Filter #}
-                    <div class="rams-form-group rams-mb-0">
-                        <label for="stage" class="rams-label">{{ 'company.pipeline_stage'|trans }}</label>
-                        <select name="stage" id="stage" class="rams-select">
+                    <div class="rams-form__group rams-mb-0">
+                        <label for="stage" class="rams-dymo">{{ 'company.pipeline_stage'|trans }}</label>
+                        <select name="stage" id="stage" class="rams-form__select">
                             <option value="">{{ 'common.all'|trans }} {{ 'company.pipeline_stage'|trans|lower }}s</option>
                             {% for stage in stages %}
                                 <option value="{{ stage }}" {% if current_stage == stage %}selected{% endif %}>{{ stage }}</option>
@@ -76,9 +76,9 @@
                     </div>
 
                     {# Region Filter #}
-                    <div class="rams-form-group rams-mb-0">
-                        <label for="region" class="rams-label">{{ 'company.region'|trans }}</label>
-                        <select name="region" id="region" class="rams-select">
+                    <div class="rams-form__group rams-mb-0">
+                        <label for="region" class="rams-dymo">{{ 'company.region'|trans }}</label>
+                        <select name="region" id="region" class="rams-form__select">
                             <option value="">{{ 'common.all'|trans }} {{ 'company.region'|trans|lower }}s</option>
                             {% for code, label in regions %}
                                 <option value="{{ code }}" {% if current_region == code %}selected{% endif %}>{{ label }}</option>
@@ -137,7 +137,7 @@
                 <div class="rams-module__content">
                     {# Sector #}
                     <div class="rams-flex rams-items-center rams-gap-2 rams-mb-2">
-                        <span class="rams-dymo">{{ company.sector|default('N/A') }}</span>
+                        <span class="rams-dymo">{{ company.sector ?: 'common.n_a'|trans }}</span>
                     </div>
 
                     {# Pipeline Stage #}

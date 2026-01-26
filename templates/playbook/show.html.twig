@@ -188,7 +188,7 @@
                                     </span>
                                 </td>
                                 <td class="rams-table__cell">{{ run.actionsExecuted|default(0) }}</td>
-                                <td class="rams-table__cell rams-text-muted">{{ run.outcome|default('—') }}</td>
+                                <td class="rams-table__cell rams-text-muted">{{ run.outcome ?: 'common.n_a'|trans }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>

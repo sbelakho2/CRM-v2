@@ -10,7 +10,7 @@
         <div class="rams-page__header">
             <div class="rams-page__header-content">
                 <h1 class="rams-page__title">{{ 'email_campaign.title'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'email_campaign.subtitle'|trans|default('Multi-touch email sequences with tracking') }}</p>
+                <p class="rams-page__subtitle">{{ 'email_campaign.subtitle'|trans }}</p>
             </div>
             <div class="rams-page__actions">
                 <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary">
@@ -42,15 +42,15 @@
             <div class="rams-segmented-control">
                 <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'all'}) }}" 
                    class="rams-segmented-control__item {{ currentLanguage == 'all' ? 'rams-segmented-control__item--active' : '' }}">
-                    {{ 'email_campaign.all_languages'|trans|default('All Languages') }}
+                    {{ 'email_campaign.all_languages'|trans }}
                 </a>
                 <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'EN'}) }}" 
                    class="rams-segmented-control__item {{ currentLanguage == 'EN' ? 'rams-segmented-control__item--active' : '' }}">
-                    EN
+                    {{ 'language.short.en'|trans }}
                 </a>
                 <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'FR'}) }}" 
                    class="rams-segmented-control__item {{ currentLanguage == 'FR' ? 'rams-segmented-control__item--active' : '' }}">
-                    FR
+                    {{ 'language.short.fr'|trans }}
                 </a>
             </div>
         </div>
@@ -68,7 +68,7 @@
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>
-                        {{ 'email_campaign.create_campaign'|trans|default('Create Campaign') }}
+                        {{ 'email_campaign.create_campaign'|trans }}
                     </a>
                 </div>
             </div>
@@ -96,7 +96,7 @@
                                     {% if campaign.description %}
                                         <p class="rams-module__description">{{ campaign.description }}</p>
                                     {% endif %}
-                                    <span class="rams-dymo">{{ campaign.touchCount }}-{{ 'email_campaign.touch_sequence'|trans|default('touch sequence') }}</span>
+                                    <span class="rams-dymo">{{ campaign.touchCount }}-{{ 'email_campaign.touch_sequence'|trans }}</span>
                                 </div>
                             </div>
 
@@ -116,7 +116,7 @@
                                 </div>
                                 <div class="rams-metric rams-metric--primary">
                                     <span class="rams-metric__value">{{ metrics.reply_rate|number_format(1) }}%</span>
-                                    <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans|default('Reply Rate') }}</span>
+                                    <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans }}</span>
                                 </div>
                                 <div class="rams-metric rams-metric--danger">
                                     <span class="rams-metric__value">{{ metrics.bounce_rate|number_format(1) }}%</span>
@@ -131,7 +131,7 @@
                                         {{ 'common.view'|trans }} {{ 'common.details'|trans }}
                                     </a>
                                     <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-action-link">
-                                        {{ 'email_campaign.send_emails'|trans|default('Send Emails') }}
+                                        {{ 'email_campaign.send_emails'|trans }}
                                     </a>
                                     <a href="{{ path('app_email_campaign_analytics', {id: campaign.id}) }}" class="rams-action-link">
                                         {{ 'email_campaign.analytics.title'|trans }}

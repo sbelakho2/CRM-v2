@@ -33,6 +33,9 @@ class Playbook
     #[ORM\Column(type: 'boolean')]
     private bool $isActive = true;
 
+    #[ORM\Column(type: 'integer', nullable: true, options: ['default' => 24])]
+    private ?int $cooldownHours = 24; // Prevent re-triggering within this window
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $createdAt = null;
 
@@ -150,5 +153,39 @@ class Playbook
     {
         $this->notes = $notes;
         return $this;
+    }
+    
+    // ============================================================
+    // COOLDOWN MANAGEMENT - Prevents playbook re-triggering
+    // ============================================================
+    
+    public function getCooldownHours(): ?int
+    {
+        return $this->cooldownHours;
+    }
+    
+    public function setCooldownHours(?int $cooldownHours): self
+    {
+        $this->cooldownHours = $cooldownHours;
+        return $this;
+    }
+    
+    /**
+     * Get cooldown period as DateInterval
+     */
+    public function getCooldownInterval(): \DateInterval
+    {
+        $hours = $this->cooldownHours ?? 24;
+        return new \DateInterval("PT{$hours}H");
+    }
+    
+    /**
+     * Check if cooldown period has elapsed since given time
+     */
+    public function isCooldownComplete(\DateTimeInterface $lastTriggered): bool
+    {
+        $cooldownHours = $this->cooldownHours ?? 24;
+        $cooldownEnd = (clone $lastTriggered)->modify("+{$cooldownHours} hours");
+        return new \DateTime() >= $cooldownEnd;
     }
 }

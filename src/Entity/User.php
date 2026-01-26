@@ -49,7 +49,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?\DateTimeInterface $resetTokenExpiresAt = null;
 
     #[ORM\Column(length: 10, nullable: true)]
-    private ?string $displayCurrency = 'USD';
+    private ?string $displayCurrency = null;
+
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $preferredLocale = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $preferredTimezone = null;
 
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Activity::class)]
     private Collection $activities;
@@ -160,6 +166,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setDisplayCurrency(?string $displayCurrency): self
     {
         $this->displayCurrency = $displayCurrency ? strtoupper($displayCurrency) : null;
+        return $this;
+    }
+
+    public function getPreferredLocale(): ?string
+    {
+        return $this->preferredLocale;
+    }
+
+    public function setPreferredLocale(?string $preferredLocale): self
+    {
+        $this->preferredLocale = $preferredLocale ? strtolower($preferredLocale) : null;
+        return $this;
+    }
+
+    public function getPreferredTimezone(): ?string
+    {
+        return $this->preferredTimezone;
+    }
+
+    public function setPreferredTimezone(?string $preferredTimezone): self
+    {
+        $this->preferredTimezone = $preferredTimezone;
         return $this;
     }
 

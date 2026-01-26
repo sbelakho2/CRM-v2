@@ -31,12 +31,12 @@
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'rfq.estimated_value'|trans }}</span>
                     <span class="rams-metric__value">
-                        {{ (kpis.pipeline_value / 1000000)|format_currency(kpis.pipeline_value_currency|default(display_currency()), null, 1) }}<span class="rams-metric__unit">M</span>
+                        {{ (kpis.pipeline_value / 1000000)|format_currency(kpis.pipeline_value_currency|default(display_currency()), null, 1) }}<span class="rams-metric__unit">{{ 'common.million_short'|trans }}</span>
                     </span>
                 </div>
                 <div class="rams-mt-3">
                     <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ (kpis.target_pipeline / 1000000)|format_currency(kpis.target_pipeline_currency|default(display_currency()), null, 1) }}M</span>
+                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ (kpis.target_pipeline / 1000000)|format_currency(kpis.target_pipeline_currency|default(display_currency()), null, 1) }}{{ 'common.million_short'|trans }}</span>
                         <span class="rams-badge rams-badge--info">{{ pipeline_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
@@ -74,7 +74,7 @@
         {# NPI Awards #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <span class="rams-module__title">NPI {{ 'rfq.statuses.won'|trans }}</span>
+                <span class="rams-module__title">{{ 'dashboard.npi_awards'|trans }}</span>
                 <span class="rams-andon">
                     <span class="rams-andon__light rams-andon__light--green"></span>
                 </span>
@@ -106,7 +106,7 @@
             </div>
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">Frameworks</span>
+                    <span class="rams-metric__label">{{ 'dashboard.framework_agreements'|trans }}</span>
                     <span class="rams-metric__value">{{ kpis.framework_agreements }}</span>
                 </div>
                 <div class="rams-mt-3">

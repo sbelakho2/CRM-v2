@@ -1,7 +1,7 @@
 {# Engagement Heat Map Component - Sensei-Rams Industrial Design #}
 <div class="rams-module rams-heat-map">
     <div class="rams-module__header rams-heat-map__header">
-        <h3 class="rams-module__title">{{ 'dashboard.engagement_heat_map'|trans|default('Engagement Heat Map') }}</h3>
+        <h3 class="rams-module__title">{{ 'dashboard.engagement_heat_map'|trans }}</h3>
         <button onclick="refreshHeatMap()" class="rams-btn rams-btn--ghost rams-btn--sm" aria-label="{{ 'common.refresh'|trans }}">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C10.7614 2 13 4.23858 13 7"/>
@@ -24,19 +24,19 @@
                      onclick="navigateToCompany({{ company.id }})"
                      role="button"
                      tabindex="0"
-                     aria-label="{{ 'company.title_singular'|trans }}: {{ company.name }}, {{ 'dashboard.engagement_score'|trans|default('Engagement score') }}: {{ company.score }}">
+                     aria-label="{{ 'company.title_singular'|trans }}: {{ company.name }}, {{ 'dashboard.engagement_score'|trans }}: {{ company.score }}">
                     
                     {# Tooltip #}
                     <div class="rams-heat-map__tooltip">
                         <div class="rams-heat-map__tooltip-name">{{ company.name }}</div>
-                        <div class="rams-heat-map__tooltip-score">{{ 'dashboard.score'|trans|default('Score') }}: {{ company.score }}/100</div>
+                        <div class="rams-heat-map__tooltip-score">{{ 'dashboard.score'|trans }}: {{ company.score }}/100</div>
                         <div class="rams-heat-map__tooltip-details">
-                            <div>🎯 {{ company.activities_count }} {{ 'activity.title'|trans|default('activities') }}</div>
-                            <div>📧 {{ company.email_opens }} {{ 'email.opens'|trans|default('email opens') }}</div>
+                            <div>🎯 {{ company.activities_count }} {{ 'activity.title'|trans }}</div>
+                            <div>📧 {{ company.email_opens }} {{ 'email.opens'|trans }}</div>
                             {% if company.recent_activity_days is not null %}
-                                <div>⏱️ {{ 'dashboard.last_activity'|trans|default('Last activity') }}: {{ company.recent_activity_days }}{{ 'common.days_ago'|trans|default('d ago') }}</div>
+                                <div>⏱️ {{ 'dashboard.last_activity'|trans }}: {{ company.recent_activity_days }}{{ 'common.days_ago'|trans }}</div>
                             {% else %}
-                                <div>⏱️ {{ 'dashboard.no_recent_activity'|trans|default('No recent activity') }}</div>
+                                <div>⏱️ {{ 'dashboard.no_recent_activity'|trans }}</div>
                             {% endif %}
                         </div>
                     </div>
@@ -52,135 +52,19 @@
         <div class="rams-legend">
             <div class="rams-legend__item">
                 <span class="rams-andon rams-andon--success"></span>
-                <span class="rams-dymo">{{ 'common.high'|trans|default('High') }} (60-100)</span>
+                <span class="rams-dymo">{{ 'common.high'|trans }} (60-100)</span>
             </div>
             <div class="rams-legend__item">
                 <span class="rams-andon rams-andon--warning"></span>
-                <span class="rams-dymo">{{ 'common.medium'|trans|default('Medium') }} (30-59)</span>
+                <span class="rams-dymo">{{ 'common.medium'|trans }} (30-59)</span>
             </div>
             <div class="rams-legend__item">
                 <span class="rams-andon rams-andon--danger"></span>
-                <span class="rams-dymo">{{ 'common.low'|trans|default('Low') }} (0-29)</span>
+                <span class="rams-dymo">{{ 'common.low'|trans }} (0-29)</span>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    .rams-heat-map {
-        margin-bottom: 24px;
-    }
-    
-    .rams-heat-map__header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .rams-heat-map__grid {
-        display: grid;
-        grid-template-columns: repeat(10, 1fr);
-        grid-template-rows: repeat(2, 1fr);
-        gap: 6px;
-        margin-bottom: 16px;
-    }
-    
-    .rams-heat-map__cell {
-        aspect-ratio: 1;
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        position: relative;
-        transition: all 0.2s;
-        border: 2px solid transparent;
-    }
-    
-    .rams-heat-map__cell:not(.rams-heat-map__cell--empty):hover {
-        transform: scale(1.1);
-        z-index: 10;
-        border-color: var(--rams-foreground);
-        box-shadow: var(--shadow-pressed);
-    }
-    
-    .rams-heat-map__cell--empty {
-        cursor: default;
-        opacity: 0.3;
-        background-color: var(--rams-panel);
-    }
-    
-    .rams-heat-map__tooltip {
-        position: absolute;
-        bottom: calc(100% + 10px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--rams-grey-900);
-        color: white;
-        padding: 12px 14px;
-        border-radius: var(--radius-md);
-        min-width: 200px;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s;
-        font-size: 12px;
-        line-height: 1.4;
-        box-shadow: var(--shadow-inset);
-        z-index: 1000;
-    }
-    
-    .rams-heat-map__tooltip::after {
-        content: '';
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border: 6px solid transparent;
-        border-top-color: var(--rams-grey-900);
-    }
-    
-    .rams-heat-map__cell:hover .rams-heat-map__tooltip {
-        opacity: 1;
-    }
-    
-    .rams-heat-map__tooltip-name {
-        font-weight: 600;
-        font-size: var(--text-sm);
-        margin-bottom: var(--space-1);
-        color: white;
-    }
-    
-    .rams-heat-map__tooltip-score {
-        font-size: var(--text-sm);
-        font-weight: 600;
-        margin-bottom: var(--space-2);
-        color: var(--rams-orange);
-    }
-    
-    .rams-heat-map__tooltip-details {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-        padding-top: var(--space-1);
-        border-top: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .rams-heat-map__tooltip-details div {
-        font-size: var(--text-2xs);
-        color: rgba(255, 255, 255, 0.9);
-    }
-    
-    /* Keyboard focus styles */
-    .rams-heat-map__cell:focus {
-        outline: 2px solid var(--rams-orange);
-        outline-offset: 2px;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 767px) {
-        .rams-heat-map__grid {
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(4, 1fr);
-        }
-    }
-</style>
 
 <script>
     function navigateToCompany(companyId) {

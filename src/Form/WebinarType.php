@@ -19,43 +19,44 @@ class WebinarType extends AbstractType
     {
         $builder
             ->add('title', TextType::class, [
-                'label' => 'Webinar Title',
-                'attr' => ['placeholder' => 'e.g., EMS Excellence: ISO 9001 & IATF 16949'],
+                'label' => 'webinar.webinar_title',
+                'attr' => ['placeholder' => 'webinar.form.title_placeholder'],
             ])
             ->add('description', TextareaType::class, [
-                'label' => 'Description',
+                'label' => 'common.description',
                 'required' => false,
                 'attr' => [
                     'rows' => 5,
-                    'placeholder' => 'Describe the webinar content, topics covered, and target audience...',
+                    'placeholder' => 'webinar.form.description_placeholder',
                 ],
             ])
             ->add('scheduledDate', DateTimeType::class, [
-                'label' => 'Scheduled Date & Time',
+                'label' => 'webinar.form.scheduled_date',
                 'widget' => 'single_text',
             ])
             ->add('language', ChoiceType::class, [
-                'label' => 'Language',
+                'label' => 'profile.language',
                 'choices' => [
-                    'English' => 'EN',
-                    'French' => 'FR',
-                    'Bilingual (EN/FR)' => 'EN/FR',
+                    'language.english' => 'EN',
+                    'language.french' => 'FR',
+                    'language.bilingual_en_fr' => 'EN/FR',
                 ],
+                'choice_translation_domain' => 'messages',
             ])
             ->add('maxAttendees', IntegerType::class, [
-                'label' => 'Maximum Attendees',
+                'label' => 'webinar.max_attendees',
                 'required' => false,
-                'attr' => ['placeholder' => 'Leave empty for unlimited'],
+                'attr' => ['placeholder' => 'webinar.form.max_attendees_placeholder'],
             ])
             ->add('meetingUrl', UrlType::class, [
-                'label' => 'Meeting URL (Zoom/Teams)',
+                'label' => 'webinar.form.meeting_url',
                 'required' => false,
-                'attr' => ['placeholder' => 'https://zoom.us/j/...'],
+                'attr' => ['placeholder' => 'webinar.form.meeting_url_placeholder'],
             ])
             ->add('recordingUrl', UrlType::class, [
-                'label' => 'Recording URL',
+                'label' => 'webinar.recording',
                 'required' => false,
-                'attr' => ['placeholder' => 'Will be added after the webinar'],
+                'attr' => ['placeholder' => 'webinar.form.recording_url_placeholder'],
             ]);
     }
 
@@ -63,6 +64,7 @@ class WebinarType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Webinar::class,
+            'translation_domain' => 'messages',
         ]);
     }
 }

@@ -60,6 +60,12 @@ class BanditArm
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
+    /**
+     * Last time this arm was selected for use (for confidence decay)
+     */
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $lastUsedAt = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
@@ -178,6 +184,39 @@ class BanditArm
     {
         $this->updatedAt = $updatedAt;
         return $this;
+    }
+
+    public function getLastUsedAt(): ?\DateTimeInterface
+    {
+        return $this->lastUsedAt;
+    }
+
+    public function setLastUsedAt(?\DateTimeInterface $lastUsedAt): self
+    {
+        $this->lastUsedAt = $lastUsedAt;
+        return $this;
+    }
+
+    /**
+     * Mark arm as used (updates lastUsedAt timestamp)
+     */
+    public function markUsed(): self
+    {
+        $this->lastUsedAt = new \DateTime();
+        return $this;
+    }
+
+    /**
+     * Get days since this arm was last used
+     */
+    public function getDaysSinceLastUse(): int
+    {
+        if (!$this->lastUsedAt) {
+            return 0;
+        }
+        $now = new \DateTime();
+        $diff = $now->diff($this->lastUsedAt);
+        return (int) $diff->days;
     }
 
     /**

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ 'quote.live.expired.title'|trans|default('Quote Expired - Link Invalid') }}</title>
+    <title>{{ 'quote.live.expired.title'|trans }}</title>
     <link rel="stylesheet" href="{{ asset('build/app.css') }}">
     {# Page-specific layout - component styles are in sensei-rams.css (Section 45) #}
     <style>
@@ -20,43 +20,43 @@
     <div class="rams-expired-card rams-module">
         <div class="rams-module__header rams-module__header--danger">
             <div class="rams-expired-icon">⚠️</div>
-            <h2 class="rams-heading rams-heading--2 rams-text--white">{{ 'quote.live.expired.heading'|trans|default('Quote Link Expired') }}</h2>
+            <h2 class="rams-heading rams-heading--2 rams-text--white">{{ 'quote.live.expired.heading'|trans }}</h2>
         </div>
         
         <div class="rams-module__content">
             <p class="rams-text rams-text--lg rams-text--muted rams-mb-lg">
-                {{ message|default('quote.live.expired.message'|trans|default('This quote link has expired or is no longer valid.')) }}
+                {{ message ?? 'quote.live.expired.message'|trans }}
             </p>
             
             <div class="rams-module rams-module--nested rams-module--muted rams-mb-lg rams-text--left">
                 <div class="rams-module__content">
-                    <p class="rams-text rams-text--bold rams-mb-sm">{{ 'quote.live.expired.what_happened'|trans|default('What happened?') }}</p>
+                    <p class="rams-text rams-text--bold rams-mb-sm">{{ 'quote.live.expired.what_happened'|trans }}</p>
                     <ul class="rams-list">
                         <li class="rams-list__item">
-                            <span class="rams-text--warning">🕐</span> {{ 'quote.live.expired.reason_expired'|trans|default('The quote may have expired') }}
+                            <span class="rams-text--warning">🕐</span> {{ 'quote.live.expired.reason_expired'|trans }}
                         </li>
                         <li class="rams-list__item">
-                            <span class="rams-text--info">🔗</span> {{ 'quote.live.expired.reason_deactivated'|trans|default('The link may have been deactivated') }}
+                            <span class="rams-text--info">🔗</span> {{ 'quote.live.expired.reason_deactivated'|trans }}
                         </li>
                         <li class="rams-list__item">
-                            <span class="rams-text--success">✓</span> {{ 'quote.live.expired.reason_accepted'|trans|default('The quote may have been accepted') }}
+                            <span class="rams-text--success">✓</span> {{ 'quote.live.expired.reason_accepted'|trans }}
                         </li>
                     </ul>
                 </div>
             </div>
             
             <p class="rams-text rams-text--sm rams-text--muted rams-mb-lg">
-                {{ 'quote.live.expired.contact_hint'|trans|default('If you believe this is an error or need an updated quote, please contact your sales representative.') }}
+                {{ 'quote.live.expired.contact_hint'|trans }}
             </p>
             
             <a href="mailto:sales@starzcrm.com" class="rams-btn rams-btn--primary rams-btn--lg rams-btn--block">
-                ✉️ {{ 'quote.live.contact_sales'|trans|default('Contact Sales') }}
+                ✉️ {{ 'quote.live.contact_sales'|trans }}
             </a>
         </div>
         
         <div class="rams-module__footer rams-module__footer--muted">
             <small class="rams-text rams-text--sm rams-text--muted">
-                🔒 {{ 'quote.live.expired.security_note'|trans|default('Quote reference links are secured and expire for your protection.') }}
+                🔒 {{ 'quote.live.expired.security_note'|trans }}
             </small>
         </div>
     </div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app.request.locale }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +19,7 @@
                 <div class="rams-module__header--row">
                     <div>
                         <h2 class="rams-heading rams-heading--2 rams-text--white">{{ 'quote.live.title'|trans }} {{ quote.quoteNumber }}</h2>
-                        <p class="rams-text rams-text--white-muted">{{ 'quote.live.for'|trans|default('For') }}: {{ quote.company.name }}</p>
+                        <p class="rams-text rams-text--white-muted">{{ 'quote.live.for'|trans }}: {{ quote.company.name }}</p>
                     </div>
                     <div class="rams-text--right">
                         <span class="rams-dymo rams-text--white-muted">{{ 'quote.live.valid_until'|trans }}</span>
@@ -32,7 +32,7 @@
                 {# Summary Info #}
                 <div class="rams-grid rams-grid--cols-3 rams-grid--gap-md rams-mb-lg">
                     <div class="rams-text--center">
-                        <span class="rams-dymo">{{ 'quote.copilot.bom_lines'|trans|default('BOM Lines') }}</span>
+                        <span class="rams-dymo">{{ 'quote.copilot.bom_lines'|trans }}</span>
                         <p class="rams-metric rams-metric--lg">{{ tierPricing.bom_line_count }}</p>
                     </div>
                     <div class="rams-text--center">
@@ -40,14 +40,14 @@
                         <p class="rams-metric rams-metric--lg">{{ tierPricing.currency }}</p>
                     </div>
                     <div class="rams-text--center">
-                        <span class="rams-dymo">{{ 'quote.live.base_quantity'|trans|default('Base Quantity') }}</span>
+                        <span class="rams-dymo">{{ 'quote.live.base_quantity'|trans }}</span>
                         <p class="rams-metric rams-metric--lg">{{ tierPricing.base_quantity|number_format }}</p>
                     </div>
                 </div>
 
                 {# Quantity Tier Selection #}
                 <h5 class="rams-heading rams-heading--4 rams-mb-sm">{{ 'quote.live.select_quantity'|trans }}</h5>
-                <p class="rams-text rams-text--sm rams-text--muted rams-mb-md">{{ 'quote.live.select_quantity_hint'|trans|default('Click a quantity tier to see pricing. Higher quantities unlock better unit prices.') }}</p>
+                <p class="rams-text rams-text--sm rams-text--muted rams-mb-md">{{ 'quote.live.select_quantity_hint'|trans }}</p>
 
                 <div class="rams-grid rams-grid--cols-4 rams-grid--gap-sm rams-mb-lg" id="tierCards">
                     {% for tier in tierPricing.tiers %}
@@ -61,9 +61,9 @@
                             {% endif %}
                             <div class="rams-module__content rams-text--center">
                                 <p class="rams-metric rams-metric--md">{{ tier.quantity|number_format }}</p>
-                                <span class="rams-text rams-text--xs rams-text--muted">{{ 'quote.live.units'|trans|default('units') }}</span>
+                                <span class="rams-text rams-text--xs rams-text--muted">{{ 'quote.live.units'|trans }}</span>
                                 <div class="rams-price-highlight">{{ tier.unit_price|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</div>
-                                <span class="rams-text rams-text--xs rams-text--muted">{{ 'quote.live.per_unit'|trans|default('per unit') }}</span>
+                                <span class="rams-text rams-text--xs rams-text--muted">{{ 'quote.live.per_unit'|trans }}</span>
                                 <hr class="rams-divider">
                                 <p class="rams-text rams-text--bold rams-text--success">{{ tier.extended_price|format_currency(tierPricing.currency, tierPricing.currency, 2) }}</p>
                                 <span class="rams-text rams-text--xs rams-text--muted">{{ 'common.total'|trans|lower }}</span>
@@ -77,7 +77,7 @@
                     <div class="rams-module__content">
                         <div class="rams-grid rams-grid--cols-2 rams-grid--gap-lg">
                             <div>
-                                <h5 class="rams-heading rams-heading--4">{{ 'quote.live.selected'|trans|default('Selected') }}: <span id="selectedQty">{{ tierPricing.tiers[0].quantity|number_format }}</span> {{ 'quote.live.units'|trans|default('units') }}</h5>
+                                <h5 class="rams-heading rams-heading--4">{{ 'quote.live.selected'|trans }}: <span id="selectedQty">{{ tierPricing.tiers[0].quantity|number_format }}</span> {{ 'quote.live.units'|trans }}</h5>
                                 <dl class="rams-definition-list rams-definition-list--compact">
                                     <div class="rams-definition-list__item">
                                         <dt class="rams-definition-list__term">{{ 'quote.live.unit_price'|trans }}:</dt>
@@ -88,7 +88,7 @@
                                         <dd class="rams-definition-list__desc rams-text--bold rams-text--success" id="selectedExtended">{{ tierPricing.tiers[0].extended_price|format_currency(tierPricing.currency, tierPricing.currency, 2) }}</dd>
                                     </div>
                                     <div class="rams-definition-list__item">
-                                        <dt class="rams-definition-list__term">{{ 'quote.live.stock_status'|trans|default('Stock Status') }}:</dt>
+                                        <dt class="rams-definition-list__term">{{ 'quote.live.stock_status'|trans }}:</dt>
                                         <dd class="rams-definition-list__desc" id="selectedStock">
                                             <span class="rams-badge rams-badge--{% if tierPricing.tiers[0].stock_status == 'all_in_stock' %}green{% else %}yellow{% endif %}">
                                                 {{ tierPricing.tiers[0].stock_status|replace({'_': ' '})|title }}
@@ -102,14 +102,14 @@
                                 <div id="leadTimeInfo">
                                     {% set lt = tierPricing.tiers[0].lead_time_estimate %}
                                     <div class="rams-mb-sm">
-                                        <span class="rams-text rams-text--bold">{{ lt.total_days }} {{ 'quote.live.days'|trans|default('days') }}</span>
-                                        <span class="rams-text rams-text--sm rams-text--muted">({{ 'quote.live.est'|trans|default('Est.') }} {{ lt.estimate_date }})</span>
+                                        <span class="rams-text rams-text--bold">{{ lt.total_days }} {{ 'quote.live.days'|trans }}</span>
+                                        <span class="rams-text rams-text--sm rams-text--muted">({{ 'quote.live.est'|trans }} {{ lt.estimate_date }})</span>
                                     </div>
                                     <div class="rams-lead-time-bar rams-mb-sm">
                                         <div class="rams-lead-time-fill rams-lead-time-fill--{% if lt.confidence == 'high' %}fast{% elseif lt.confidence == 'medium' %}medium{% else %}slow{% endif %}"></div>
                                     </div>
                                     <span class="rams-text rams-text--xs rams-text--muted">
-                                        {{ 'quote.live.procurement'|trans|default('Procurement') }}: {{ lt.procurement_days }}d | {{ 'quote.live.assembly'|trans|default('Assembly') }}: {{ lt.assembly_days }}d
+                                        {{ 'quote.live.procurement'|trans }}: {{ lt.procurement_days }}d | {{ 'quote.live.assembly'|trans }}: {{ lt.assembly_days }}d
                                     </span>
                                 </div>
                             </div>
@@ -118,10 +118,10 @@
                         {# Price Break Recommendation #}
                         {% if tierPricing.tiers[0].next_break is defined %}
                             <div class="rams-andon rams-andon--blue rams-mt-md" id="priceBreakTip">
-                                <strong>💡 {{ 'quote.live.tip'|trans|default('Tip') }}:</strong>
-                                {{ 'quote.live.order'|trans|default('Order') }} <span id="additionalQty">{{ tierPricing.tiers[0].next_break.additional_qty }}</span> {{ 'quote.live.more_units'|trans|default('more units') }} 
+                                <strong>💡 {{ 'quote.live.tip'|trans }}:</strong>
+                                {{ 'quote.live.order'|trans }} <span id="additionalQty">{{ tierPricing.tiers[0].next_break.additional_qty }}</span> {{ 'quote.live.more_units'|trans }} 
                                 ({{ 'common.total'|trans|lower }} <span id="nextBreakQty">{{ tierPricing.tiers[0].next_break.quantity }}</span>) 
-                                {{ 'quote.live.and_save'|trans|default('and save') }} <span id="savingsPerUnit">{{ tierPricing.tiers[0].next_break.savings_per_unit|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</span>/{{ 'quote.live.unit'|trans|default('unit') }}!
+                                {{ 'quote.live.and_save'|trans }} <span id="savingsPerUnit">{{ tierPricing.tiers[0].next_break.savings_per_unit|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</span>/{{ 'quote.live.unit'|trans }}!
                             </div>
                         {% endif %}
                     </div>
@@ -140,8 +140,8 @@
                 {# Contact Info #}
                 <div class="rams-text--center rams-mt-lg">
                     <p class="rams-text rams-text--sm rams-text--muted">
-                        {{ 'quote.live.questions'|trans|default('Questions? Contact your sales representative or email') }}
-                        <a href="mailto:sales@starzcrm.com" class="rams-link">sales@starzcrm.com</a>
+                        {{ 'quote.live.questions'|trans }}
+                        <a href="mailto:{{ 'quote.live.support_email_address'|trans }}" class="rams-link">{{ 'quote.live.support_email_label'|trans }}</a>
                     </p>
                 </div>
             </div>
@@ -153,18 +153,18 @@
         <div class="rams-modal__backdrop" onclick="closeModal('requestModal')"></div>
         <div class="rams-modal__content">
             <div class="rams-modal__header">
-                <h5 class="rams-heading rams-heading--3">{{ 'quote.live.request_custom_quote'|trans|default('Request Custom Quote') }}</h5>
+                <h5 class="rams-heading rams-heading--3">{{ 'quote.live.request_custom_quote'|trans }}</h5>
             </div>
             <div class="rams-modal__body">
                 <form id="requestForm">
                     <div class="rams-form__group">
-                        <label class="rams-form__label rams-dymo">{{ 'quote.live.desired_quantity'|trans|default('Desired Quantity') }}</label>
+                        <label class="rams-form__label rams-dymo">{{ 'quote.live.desired_quantity'|trans }}</label>
                         <input type="number" class="rams-form__input" id="requestQty" required>
                     </div>
                     <div class="rams-form__group">
                         <label class="rams-form__label rams-dymo">{{ 'common.notes'|trans }} ({{ 'common.optional'|trans|lower }})</label>
                         <textarea class="rams-form__textarea" id="requestNotes" rows="3" 
-                                  placeholder="{{ 'quote.live.notes_placeholder'|trans|default('Any special requirements or questions...') }}"></textarea>
+                                  placeholder="{{ 'quote.live.notes_placeholder'|trans }}"></textarea>
                     </div>
                 </form>
             </div>
@@ -184,7 +184,7 @@
             </div>
             <div class="rams-modal__body">
                 <p class="rams-text rams-mb-md">
-                    {{ 'quote.live.accepting_for'|trans|default('You are accepting this quote for') }} <strong id="acceptQtyDisplay">-</strong> {{ 'quote.live.at'|trans|default('at') }} <strong id="acceptPriceDisplay">-</strong>.
+                    {{ 'quote.live.accepting_for'|trans }} <strong id="acceptQtyDisplay">-</strong> {{ 'quote.live.at'|trans }} <strong id="acceptPriceDisplay">-</strong>.
                 </p>
                 <form id="acceptForm">
                     <div class="rams-form__group">
@@ -200,7 +200,7 @@
                         <input type="tel" class="rams-form__input" id="acceptPhone">
                     </div>
                     <div class="rams-form__group">
-                        <label class="rams-form__label rams-dymo">{{ 'quote.live.po_number'|trans|default('PO Number') }} ({{ 'quote.live.if_available'|trans|default('if available') }})</label>
+                        <label class="rams-form__label rams-dymo">{{ 'quote.live.po_number'|trans }} ({{ 'quote.live.if_available'|trans }})</label>
                         <input type="text" class="rams-form__input" id="acceptPO">
                     </div>
                 </form>
@@ -208,7 +208,7 @@
             <div class="rams-modal__footer">
                 <button type="button" class="rams-btn rams-btn--secondary" onclick="closeModal('acceptModal')">{{ 'common.cancel'|trans }}</button>
                 <button type="button" class="rams-btn rams-btn--primary" onclick="submitAcceptance()">
-                    ✓ {{ 'quote.live.confirm_acceptance'|trans|default('Confirm Acceptance') }}
+                    ✓ {{ 'quote.live.confirm_acceptance'|trans }}
                 </button>
             </div>
         </div>
@@ -219,6 +219,20 @@
         const tierData = {{ tierPricing.tiers|json_encode|raw }};
         const currencySymbol = '{{ currency_symbol(tierPricing.currency)|e('js') }}';
         const currencyNeedsSpace = {{ tierPricing.currency in ['MAD', 'TND'] ? 'true' : 'false' }};
+        const stockAllInLabel = '{{ 'quote.live.stock_all_in'|trans|e('js') }}';
+        const stockPartialLabel = '{{ 'quote.live.stock_partial'|trans|e('js') }}';
+        const i18n = {
+            daysLabel: '{{ 'quote.live.days_label'|trans|e('js') }}',
+            daysShort: '{{ 'quote.live.days_short'|trans|e('js') }}',
+            estimateLabel: '{{ 'quote.live.estimate_label'|trans|e('js') }}',
+            procurementLabel: '{{ 'quote.live.procurement_label'|trans|e('js') }}',
+            assemblyLabel: '{{ 'quote.live.assembly_label'|trans|e('js') }}',
+            unitsLabel: '{{ 'quote.live.units_label'|trans|e('js') }}',
+            requestSubmitted: '{{ 'quote.live.request_submitted'|trans|e('js') }}',
+            requestError: '{{ 'quote.live.request_error'|trans|e('js') }}',
+            acceptedTitle: '{{ 'quote.live.accepted_title'|trans|e('js') }}',
+            errorLabel: '{{ 'common.error'|trans|e('js') }}'
+        };
         let selectedQuantity = tierData[0].quantity;
 
         function formatCurrency(value, decimals) {
@@ -243,21 +257,21 @@
             document.getElementById('selectedExtended').textContent = formatCurrency(tier.extended_price, 2);
             
             const stockBadge = tier.stock_status === 'all_in_stock' 
-                ? '<span class="rams-badge rams-badge--green">All In Stock</span>'
-                : '<span class="rams-badge rams-badge--yellow">Partial Stock</span>';
+                ? `<span class="rams-badge rams-badge--green">${stockAllInLabel}</span>`
+                : `<span class="rams-badge rams-badge--yellow">${stockPartialLabel}</span>`;
             document.getElementById('selectedStock').innerHTML = stockBadge;
             
             const lt = tier.lead_time_estimate;
             const ltClass = lt.confidence === 'high' ? 'fast' : lt.confidence === 'medium' ? 'medium' : 'slow';
             document.getElementById('leadTimeInfo').innerHTML = `
                 <div class="rams-mb-sm">
-                    <span class="rams-text rams-text--bold">${lt.total_days} days</span>
-                    <span class="rams-text rams-text--sm rams-text--muted">(Est. ${lt.estimate_date})</span>
+                    <span class="rams-text rams-text--bold">${lt.total_days} ${i18n.daysLabel}</span>
+                    <span class="rams-text rams-text--sm rams-text--muted">(${i18n.estimateLabel} ${lt.estimate_date})</span>
                 </div>
                 <div class="rams-lead-time-bar rams-mb-sm">
                     <div class="rams-lead-time-fill rams-lead-time-fill--${ltClass}"></div>
                 </div>
-                <span class="rams-text rams-text--xs rams-text--muted">Procurement: ${lt.procurement_days}d | Assembly: ${lt.assembly_days}d</span>
+                <span class="rams-text rams-text--xs rams-text--muted">${i18n.procurementLabel}: ${lt.procurement_days}${i18n.daysShort} | ${i18n.assemblyLabel}: ${lt.assembly_days}${i18n.daysShort}</span>
             `;
             
             const tipEl = document.getElementById('priceBreakTip');
@@ -282,7 +296,7 @@
         
         function acceptQuote() {
             const tier = tierData.find(t => t.quantity === selectedQuantity);
-            document.getElementById('acceptQtyDisplay').textContent = selectedQuantity.toLocaleString() + ' units';
+            document.getElementById('acceptQtyDisplay').textContent = `${selectedQuantity.toLocaleString()} ${i18n.unitsLabel}`;
             document.getElementById('acceptPriceDisplay').textContent = formatCurrency(tier.extended_price, 2);
             document.getElementById('acceptModal').classList.remove('rams-modal--hidden');
         }
@@ -299,9 +313,9 @@
             .then(response => response.json())
             .then(data => {
                 closeModal('requestModal');
-                ramsAlert(data.message || 'Request submitted successfully!', {variant: 'success'});
+                ramsAlert(data.message || i18n.requestSubmitted, {variant: 'success'});
             })
-            .catch(error => ramsAlert('Error submitting request: ' + error.message, {variant: 'error'}));
+            .catch(error => ramsAlert(`${i18n.requestError}: ${error.message}`, {variant: 'error'}));
         }
         
         function submitAcceptance() {
@@ -324,7 +338,7 @@
                 document.querySelector('.rams-quote-card .rams-module__content').innerHTML = `
                     <div class="rams-text--center rams-py-xl">
                         <div class="rams-text--success rams-text-6xl">✓</div>
-                        <h2 class="rams-heading rams-heading--2 rams-mt-md">Quote Accepted!</h2>
+                        <h2 class="rams-heading rams-heading--2 rams-mt-md">${i18n.acceptedTitle}</h2>
                         <p class="rams-text rams-text--muted">${result.message}</p>
                         <ul class="rams-list rams-list--check rams-text--left rams-mx-auto" style="max-width: 400px;">
                             ${result.next_steps.map(s => `<li class="rams-list__item">✓ ${s}</li>`).join('')}
@@ -332,7 +346,7 @@
                     </div>
                 `;
             })
-            .catch(error => ramsAlert('Error: ' + error.message, {variant: 'error'}));
+            .catch(error => ramsAlert(`${i18n.errorLabel}: ${error.message}`, {variant: 'error'}));
         }
     </script>
 </body>

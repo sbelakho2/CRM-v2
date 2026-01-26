@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'supplier.portal.title'|trans|default('Supplier Portal') }}{% endblock %}
+{% block title %}{{ 'supplier.portal.title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack rams-stack--lg">
@@ -8,11 +8,11 @@
     <div class="rams-page-header">
         <div class="rams-page-header__row">
             <div>
-                <h1 class="rams-heading rams-heading--1">{{ 'supplier.portal.title'|trans|default('Supplier Portal') }}</h1>
-                <p class="rams-text rams-text--muted">{{ 'supplier.portal.subtitle'|trans|default('Manage your supplier relationships and compliance') }}</p>
+                <h1 class="rams-heading rams-heading--1">{{ 'supplier.portal.title'|trans }}</h1>
+                <p class="rams-text rams-text--muted">{{ 'supplier.portal.subtitle'|trans }}</p>
             </div>
             <a href="#" class="rams-btn rams-btn--secondary">
-                + {{ 'supplier.portal.add_supplier'|trans|default('Add Supplier') }}
+                + {{ 'supplier.portal.add_supplier'|trans }}
             </a>
         </div>
     </div>
@@ -22,14 +22,14 @@
         <div class="rams-module__content">
             <form class="rams-form--inline rams-grid rams-grid--cols-3 rams-grid--gap-md">
                 <div class="rams-form__group">
-                    <input type="text" placeholder="{{ 'supplier.portal.search_placeholder'|trans|default('Search suppliers...') }}" class="rams-form__input">
+                    <input type="text" placeholder="{{ 'supplier.portal.search_placeholder'|trans }}" class="rams-form__input">
                 </div>
                 <div class="rams-form__group">
                     <select class="rams-form__select">
-                        <option value="">{{ 'supplier.portal.all_statuses'|trans|default('All Statuses') }}</option>
-                        <option value="active">{{ 'common.active'|trans|default('Active') }}</option>
-                        <option value="inactive">{{ 'common.inactive'|trans|default('Inactive') }}</option>
-                        <option value="pending">{{ 'supplier.portal.pending_approval'|trans|default('Pending Approval') }}</option>
+                        <option value="">{{ 'supplier.portal.all_statuses'|trans }}</option>
+                        <option value="active">{{ 'common.active'|trans }}</option>
+                        <option value="inactive">{{ 'common.inactive'|trans }}</option>
+                        <option value="pending">{{ 'supplier.portal.pending_approval'|trans }}</option>
                     </select>
                 </div>
                 <button type="submit" class="rams-btn rams-btn--secondary">
@@ -45,11 +45,11 @@
             <table class="rams-table">
                 <thead class="rams-table__header">
                     <tr>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'supplier.portal.name'|trans|default('Supplier Name') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'supplier.portal.name'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'common.contact'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'common.email'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'supplier.portal.region'|trans|default('Region') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'supplier.portal.region'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header rams-text--right">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
@@ -74,7 +74,7 @@
                                     <div class="rams-btn-group rams-btn-group--compact">
                                         <a href="{{ path('supplier_portal_detail', {id: supplier.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
                                         <button class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</button>
-                                        <button class="rams-btn rams-btn--ghost rams-btn--sm rams-text--danger">{{ 'common.remove'|trans|default('Remove') }}</button>
+                                        <button class="rams-btn rams-btn--ghost rams-btn--sm rams-text--danger">{{ 'common.remove'|trans }}</button>
                                     </div>
                                 </td>
                             </tr>
@@ -84,7 +84,7 @@
                             <td colspan="6" class="rams-table__cell">
                                 <div class="rams-empty-state">
                                     <div class="rams-empty-state__icon">📦</div>
-                                    <p class="rams-text rams-text--muted">{{ 'supplier.portal.no_suppliers'|trans|default('No suppliers found. Add your first supplier to get started.') }}</p>
+                                    <p class="rams-text rams-text--muted">{{ 'supplier.portal.no_suppliers'|trans }}</p>
                                 </div>
                             </td>
                         </tr>
@@ -97,7 +97,7 @@
     {# Pagination #}
     <div class="rams-pagination">
         <p class="rams-text rams-text--sm rams-text--muted">
-            {{ 'common.showing'|trans|default('Showing') }} {{ suppliers | length }} {{ 'common.of'|trans|default('of') }} 100+ {{ 'supplier.portal.suppliers'|trans|default('suppliers') }}
+            {{ 'common.showing'|trans }} {{ suppliers | length }} {{ 'common.of'|trans }} 100+ {{ 'supplier.portal.suppliers'|trans }}
         </p>
         <div class="rams-btn-group">
             <button class="rams-btn rams-btn--secondary rams-btn--sm">{{ 'common.previous'|trans }}</button>

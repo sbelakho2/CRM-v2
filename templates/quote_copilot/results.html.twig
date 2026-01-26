@@ -10,7 +10,7 @@
             <svg class="rams-link__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            {{ 'quote.copilot.back'|trans|default('Back to Quote Co-Pilot') }}
+            {{ 'quote.copilot.back'|trans }}
         </a>
         <div class="rams-module__header--row">
             <div>
@@ -19,11 +19,11 @@
             </div>
             <div class="rams-badge-group">
                 {% if quote.coveragePercent >= 90 %}
-                    <span class="rams-badge rams-badge--green">{{ 'quote.copilot.coverage_high_label'|trans|default('High Coverage') }}</span>
+                    <span class="rams-badge rams-badge--green">{{ 'quote.copilot.coverage_high_label'|trans }}</span>
                 {% elseif quote.coveragePercent >= 60 %}
-                    <span class="rams-badge rams-badge--yellow">{{ 'quote.copilot.coverage_medium_label'|trans|default('Medium Coverage') }}</span>
+                    <span class="rams-badge rams-badge--yellow">{{ 'quote.copilot.coverage_medium_label'|trans }}</span>
                 {% else %}
-                    <span class="rams-badge rams-badge--red">{{ 'quote.copilot.coverage_low_label'|trans|default('Low Coverage') }}</span>
+                    <span class="rams-badge rams-badge--red">{{ 'quote.copilot.coverage_low_label'|trans }}</span>
                 {% endif %}
                 <span class="rams-badge rams-badge--gray">{{ quote.status|upper }}</span>
             </div>
@@ -31,12 +31,12 @@
     </header>
 
     {# Coverage Metrics #}
-    <div class="rams-grid rams-grid--cols-4 rams-grid--gap-md">
+    <div class="rams-grid rams-grid--4">
         <div class="rams-module">
             <div class="rams-module__content">
                 <span class="rams-dymo">{{ 'quote.copilot.coverage'|trans }}</span>
                 <p class="rams-metric rams-metric--xl">{{ quote.coveragePercent|number_format(1) }}%</p>
-                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.parts_sourced'|trans|default('Parts sourced with pricing') }}</p>
+                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.parts_sourced'|trans }}</p>
             </div>
         </div>
         <div class="rams-module">
@@ -48,16 +48,16 @@
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'quote.copilot.bom_lines'|trans|default('BOM Lines') }}</span>
+                <span class="rams-dymo">{{ 'quote.copilot.bom_lines'|trans }}</span>
                 <p class="rams-metric rams-metric--xl">{{ quote.bomLines|length }}</p>
-                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.component_types'|trans|default('Component types') }}</p>
+                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.component_types'|trans }}</p>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
                 <span class="rams-dymo">{{ 'quote.quantity'|trans }}</span>
                 <p class="rams-metric rams-metric--xl">{{ quote.quantity }}</p>
-                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.units_to_produce'|trans|default('Units to produce') }}</p>
+                <p class="rams-text rams-text--sm rams-text--muted">{{ 'quote.copilot.units_to_produce'|trans }}</p>
             </div>
         </div>
     </div>
@@ -65,20 +65,20 @@
     {# BOM Lines Table #}
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-heading rams-heading--3">{{ 'quote.copilot.bill_of_materials'|trans|default('Bill of Materials') }}</h2>
+            <h2 class="rams-heading rams-heading--3">{{ 'quote.copilot.bill_of_materials'|trans }}</h2>
         </div>
         <div class="rams-table-container">
             <table class="rams-table">
                 <thead class="rams-table__header">
                     <tr>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.line'|trans|default('Line') }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.mpn'|trans|default('MPN') }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.manufacturer'|trans|default('Manufacturer') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.line'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.mpn'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.manufacturer'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'common.description'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'common.quantity'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'quote.copilot.unit_price'|trans|default('Unit Price') }}</th>
-                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'quote.copilot.ext_price'|trans|default('Ext. Price') }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.source'|trans|default('Source') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'quote.copilot.unit_price'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--right">{{ 'quote.copilot.ext_price'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.source'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody class="rams-table__body">
@@ -125,19 +125,19 @@
     </div>
 
     {# Quote Details #}
-    <div class="rams-grid rams-grid--cols-2 rams-grid--gap-lg">
+    <div class="rams-grid rams-grid--2">
         <div class="rams-module">
             <div class="rams-module__header">
-                <span class="rams-dymo">{{ 'quote.copilot.shipment_details'|trans|default('Shipment Details') }}</span>
+                <span class="rams-dymo">{{ 'quote.copilot.shipment_details'|trans }}</span>
             </div>
             <div class="rams-module__content">
                 <dl class="rams-definition-list">
                     <div class="rams-definition-list__item">
-                        <dt class="rams-definition-list__term">{{ 'quote.copilot.destination'|trans|default('Destination') }}</dt>
+                        <dt class="rams-definition-list__term">{{ 'quote.copilot.destination'|trans }}</dt>
                         <dd class="rams-definition-list__desc">{{ quote.shipToCountry }}</dd>
                     </div>
                     <div class="rams-definition-list__item">
-                        <dt class="rams-definition-list__term">{{ 'quote.copilot.incoterms'|trans|default('Incoterms') }}</dt>
+                        <dt class="rams-definition-list__term">{{ 'quote.copilot.incoterms_label'|trans }}</dt>
                         <dd class="rams-definition-list__desc">{{ quote.incoterms }}</dd>
                     </div>
                     {% if quote.notes %}
@@ -160,7 +160,7 @@
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
-                        {{ 'quote.copilot.download_pdf'|trans|default('Download PDF') }}
+                        {{ 'quote.copilot.download_pdf'|trans }}
                     </a>
                     
                     {% if quote.coveragePercent >= 60 %}
@@ -173,7 +173,7 @@
                     {% else %}
                         <div class="rams-andon rams-andon--yellow">
                             <p class="rams-text rams-text--sm">
-                                <strong>⚠ {{ 'quote.copilot.coverage_too_low'|trans|default('Coverage too low:') }}</strong> {{ 'quote.copilot.coverage_requirement'|trans|default('Requires ≥60% to publish. Manual pricing needed for missing parts.') }}
+                                <strong>⚠ {{ 'quote.copilot.coverage_too_low'|trans }}</strong> {{ 'quote.copilot.coverage_requirement'|trans }}
                             </p>
                         </div>
                     {% endif %}
@@ -188,8 +188,8 @@
     <div class="rams-modal__backdrop" onclick="closeContactModal()"></div>
     <div class="rams-modal__content">
         <div class="rams-modal__header">
-            <h3 class="rams-heading rams-heading--3">{{ 'quote.copilot.select_contact'|trans|default('Select Contact') }}</h3>
-            <p class="rams-text rams-text--muted">{{ 'quote.copilot.select_contact_hint'|trans|default('Choose who should receive this quote') }}</p>
+            <h3 class="rams-heading rams-heading--3">{{ 'quote.copilot.select_contact'|trans }}</h3>
+            <p class="rams-text rams-text--muted">{{ 'quote.copilot.select_contact_hint'|trans }}</p>
         </div>
         <div id="contactList" class="rams-modal__body">
             {# Contacts will be loaded here #}
@@ -213,24 +213,24 @@ async function initiatePublish(quoteId) {
         const data = await response.json();
         
         if (!data.success) {
-            ramsAlert('{{ 'quote.copilot.error_loading_contacts'|trans|default('Error loading contacts') }}: ' + data.message, {variant: 'error'});
+            ramsAlert('{{ 'quote.copilot.error_loading_contacts'|trans }}: ' + data.message, {variant: 'error'});
             return;
         }
         
         if (data.count === 0) {
-            ramsAlert('{{ 'quote.copilot.no_contacts'|trans|default('No contacts with email addresses found for this company. Please add a contact first.') }}', {variant: 'warning'});
+            ramsAlert('{{ 'quote.copilot.no_contacts'|trans }}', {variant: 'warning'});
             return;
         }
         
         if (data.count === 1) {
-            ramsConfirm(`{{ 'quote.copilot.send_to'|trans|default('Send quote to') }} ${data.contacts[0].name} (${data.contacts[0].email})?`, function() {
+            ramsConfirm(`{{ 'quote.copilot.send_to'|trans }} ${data.contacts[0].name} (${data.contacts[0].email})?`, function() {
                 publishQuote(quoteId, data.contacts[0].id);
             });
         } else {
             showContactModal(data.contacts);
         }
     } catch (error) {
-        ramsAlert('{{ 'quote.copilot.error_loading_contacts'|trans|default('Error loading contacts') }}', {variant: 'error'});
+        ramsAlert('{{ 'quote.copilot.error_loading_contacts'|trans }}', {variant: 'error'});
         console.error(error);
     }
 }
@@ -265,7 +265,7 @@ function selectContact(contactId, contactName, contactEmail) {
     const unescapeName = contactName.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
     const unescapeEmail = contactEmail.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
     
-    ramsConfirm(`{{ 'quote.copilot.send_to'|trans|default('Send quote to') }} ${unescapeName} (${unescapeEmail})?`, function() {
+    ramsConfirm(`{{ 'quote.copilot.send_to'|trans }} ${unescapeName} (${unescapeEmail})?`, function() {
         closeContactModal();
         publishQuote(currentQuoteId, contactId);
     });
@@ -284,12 +284,12 @@ async function publishQuote(quoteId, contactId) {
         const data = await response.json();
         
         if (data.success) {
-            ramsAlert('{{ 'quote.copilot.publish_success'|trans|default('Quote published successfully!') }}', {variant: 'success', onClose: function() { window.location.reload(); }});
+            ramsAlert('{{ 'quote.copilot.publish_success'|trans }}', {variant: 'success', onClose: function() { window.location.reload(); }});
         } else {
             ramsAlert('{{ 'common.error'|trans }}: ' + data.message, {variant: 'error'});
         }
     } catch (error) {
-        ramsAlert('{{ 'quote.copilot.publish_error'|trans|default('Error publishing quote') }}', {variant: 'error'});
+        ramsAlert('{{ 'quote.copilot.publish_error'|trans }}', {variant: 'error'});
         console.error(error);
     }
 }

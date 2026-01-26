@@ -13,7 +13,7 @@
         
         <div class="rams-module__header-content">
             <h1 class="rams-module__title">{{ 'webcrawler.keyword_expansion'|trans }}</h1>
-            <p class="rams-module__subtitle">{{ 'webcrawler.keyword_expansion_subtitle'|trans|default('Generate keyword variations for better search coverage') }}</p>
+            <p class="rams-module__subtitle">{{ 'webcrawler.keyword_expansion_subtitle'|trans }}</p>
         </div>
     </div>
 
@@ -22,7 +22,7 @@
             <div class="rams-module__content">
                 <form id="expansion-form" class="rams-form">
                     <div class="rams-form__group">
-                        <label class="rams-form__label">{{ 'webcrawler.base_sector'|trans|default('Base Sector') }}</label>
+                        <label class="rams-form__label">{{ 'webcrawler.base_sector'|trans }}</label>
                         <select name="sector" required class="rams-form__select">
                             {% for sector in sectors %}
                                 <option value="{{ sector }}">{{ sector }}</option>
@@ -31,12 +31,12 @@
                     </div>
 
                     <div class="rams-form__group">
-                        <label class="rams-form__label">{{ 'webcrawler.additional_keywords'|trans|default('Additional Keywords') }} ({{ 'webcrawler.comma_separated'|trans|default('comma-separated') }})</label>
-                        <textarea name="keywords" rows="3" class="rams-form__textarea" placeholder="{{ 'webcrawler.keywords_placeholder_expansion'|trans|default('e.g., tier 1, supplier, OEM') }}"></textarea>
+                        <label class="rams-form__label">{{ 'webcrawler.additional_keywords'|trans }} ({{ 'webcrawler.comma_separated'|trans }})</label>
+                        <textarea name="keywords" rows="3" class="rams-form__textarea" placeholder="{{ 'webcrawler.keywords_placeholder_expansion'|trans }}"></textarea>
                     </div>
 
                     <div class="rams-form__actions">
-                        <button type="submit" class="rams-btn rams-btn--primary">{{ 'webcrawler.generate_keywords'|trans|default('Generate Keywords') }}</button>
+                        <button type="submit" class="rams-btn rams-btn--primary">{{ 'webcrawler.generate_keywords'|trans }}</button>
                     </div>
                 </form>
 
@@ -45,7 +45,7 @@
                     <div id="keywords-list" class="rams-keyword-cloud"></div>
                     
                     <div class="rams-results__actions">
-                        <button id="copy-keywords" class="rams-btn rams-btn--secondary">{{ 'webcrawler.copy_all_keywords'|trans|default('Copy All Keywords') }}</button>
+                        <button id="copy-keywords" class="rams-btn rams-btn--secondary">{{ 'webcrawler.copy_all_keywords'|trans }}</button>
                     </div>
                 </div>
             </div>
@@ -54,26 +54,26 @@
         <!-- Keyword Suggestions -->
         <div class="rams-module rams-module--nested">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.common_keywords_by_sector'|trans|default('Common Keywords by Sector') }}</h2>
+                <h2 class="rams-module__title">{{ 'webcrawler.common_keywords_by_sector'|trans }}</h2>
             </div>
             
             <div class="rams-module__content">
                 <div class="rams-grid rams-grid--2">
                     <div class="rams-keyword-group">
-                        <h3 class="rams-keyword-group__title">{{ 'webcrawler.sector_automotive'|trans|default('Automotive') }}</h3>
-                        <p class="rams-keyword-group__keywords">OEM, Tier 1, Tier 2, vehicle, car, powertrain, chassis, assembly</p>
+                        <h3 class="rams-keyword-group__title">{{ 'webcrawler.sector_automotive'|trans }}</h3>
+                        <p class="rams-keyword-group__keywords">{{ 'webcrawler.keywords_automotive'|trans }}</p>
                     </div>
                     <div class="rams-keyword-group">
-                        <h3 class="rams-keyword-group__title">{{ 'webcrawler.sector_aerospace'|trans|default('Aerospace') }}</h3>
-                        <p class="rams-keyword-group__keywords">aviation, aircraft, defense, MRO, avionics, cabin, landing gear</p>
+                        <h3 class="rams-keyword-group__title">{{ 'webcrawler.sector_aerospace'|trans }}</h3>
+                        <p class="rams-keyword-group__keywords">{{ 'webcrawler.keywords_aerospace'|trans }}</p>
                     </div>
                     <div class="rams-keyword-group">
-                        <h3 class="rams-keyword-group__title">{{ 'webcrawler.sector_industrial'|trans|default('Industrial') }}</h3>
-                        <p class="rams-keyword-group__keywords">manufacturing, factory, production, machinery, automation, robotics</p>
+                        <h3 class="rams-keyword-group__title">{{ 'webcrawler.sector_industrial'|trans }}</h3>
+                        <p class="rams-keyword-group__keywords">{{ 'webcrawler.keywords_industrial'|trans }}</p>
                     </div>
                     <div class="rams-keyword-group">
-                        <h3 class="rams-keyword-group__title">{{ 'webcrawler.sector_electronics'|trans|default('Electronics') }}</h3>
-                        <p class="rams-keyword-group__keywords">PCBA, PCB, EMS, SMT, assembly, contract manufacturer, electronics</p>
+                        <h3 class="rams-keyword-group__title">{{ 'webcrawler.sector_electronics'|trans }}</h3>
+                        <p class="rams-keyword-group__keywords">{{ 'webcrawler.keywords_electronics'|trans }}</p>
                     </div>
                 </div>
             </div>
@@ -115,8 +115,8 @@ document.getElementById('copy-keywords').addEventListener('click', function() {
     if (window.expandedKeywords) {
         const text = window.expandedKeywords.join(', ');
         navigator.clipboard.writeText(text).then(() => {
-            this.textContent = '✓ {{ 'common.copied'|trans|default('Copied!') }}';
-            setTimeout(() => this.textContent = '{{ 'webcrawler.copy_all_keywords'|trans|default('Copy All Keywords') }}', 2000);
+            this.textContent = '✓ {{ 'common.copied'|trans }}';
+            setTimeout(() => this.textContent = '{{ 'webcrawler.copy_all_keywords'|trans }}', 2000);
         });
     }
 });

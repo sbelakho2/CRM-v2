@@ -17,7 +17,7 @@ class ChangePasswordType extends AbstractType
     {
         $builder
             ->add('currentPassword', PasswordType::class, [
-                'label' => 'Current Password',
+                'label' => 'auth.current_password',
                 'mapped' => false,
                 'attr' => [
                     'autocomplete' => 'current-password',
@@ -25,7 +25,7 @@ class ChangePasswordType extends AbstractType
                 ],
                 'constraints' => [
                     new NotBlank([
-                        'message' => 'Please enter your current password',
+                        'message' => 'validation.required',
                     ]),
                 ],
             ])
@@ -33,35 +33,37 @@ class ChangePasswordType extends AbstractType
                 'type' => PasswordType::class,
                 'mapped' => false,
                 'first_options' => [
-                    'label' => 'New Password',
+                    'label' => 'auth.new_password',
                     'attr' => [
                         'autocomplete' => 'new-password',
                         'class' => 'w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
                     ],
                     'constraints' => [
                         new NotBlank([
-                            'message' => 'Please enter a new password',
+                            'message' => 'validation.required',
                         ]),
                         new Length([
                             'min' => 6,
-                            'minMessage' => 'Your password should be at least {{ limit }} characters',
+                            'minMessage' => 'validation.min_length',
                             'max' => 4096,
                         ]),
                     ],
                 ],
                 'second_options' => [
-                    'label' => 'Confirm New Password',
+                    'label' => 'auth.confirm_password',
                     'attr' => [
                         'autocomplete' => 'new-password',
                         'class' => 'w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
                     ],
                 ],
-                'invalid_message' => 'The password fields must match.',
+                'invalid_message' => 'validation.password_mismatch',
             ]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
-        $resolver->setDefaults([]);
+        $resolver->setDefaults([
+            'translation_domain' => 'messages',
+        ]);
     }
 }

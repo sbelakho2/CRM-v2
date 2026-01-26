@@ -7,7 +7,7 @@
     <div class="rams-module__header">
         <div class="rams-module__header-content">
             <h1 class="rams-module__title">{{ 'webinar.title'|trans }}</h1>
-            <p class="rams-module__subtitle">{{ 'webinar.subtitle'|trans|default('Manage webinars and track attendance') }}</p>
+            <p class="rams-module__subtitle">{{ 'webinar.subtitle'|trans }}</p>
         </div>
         <div class="rams-module__header-actions">
             <a href="{{ path('app_webinar_new') }}" class="rams-btn rams-btn--primary">
@@ -28,11 +28,11 @@
             </a>
             <a href="{{ path('app_webinar_index', {status: 'upcoming'}) }}" 
                class="rams-tabs__item {{ current_status == 'upcoming' ? 'rams-tabs__item--active' : '' }}">
-                {{ 'webinar.upcoming'|trans|default('Upcoming') }}
+                {{ 'webinar.upcoming'|trans }}
             </a>
             <a href="{{ path('app_webinar_index', {status: 'past'}) }}" 
                class="rams-tabs__item {{ current_status == 'past' ? 'rams-tabs__item--active' : '' }}">
-                {{ 'webinar.past'|trans|default('Past') }}
+                {{ 'webinar.past'|trans }}
             </a>
         </div>
 
@@ -80,7 +80,7 @@
                                     </svg>
                                     {{ webinar.registeredCount }} {{ 'webinar.registration.registered'|trans|lower }}
                                     {% if webinar.attendedCount > 0 %}
-                                        · {{ webinar.attendedCount }} {{ 'webinar.attended'|trans|default('attended')|lower }}
+                                        · {{ webinar.attendedCount }} {{ 'webinar.attended'|trans|lower }}
                                     {% endif %}
                                 </span>
                             </div>

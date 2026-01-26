@@ -23,7 +23,7 @@
         <div class="rams-page__header">
             <div class="rams-page__header-content">
                 <h1 class="rams-page__title">{{ 'email_campaign.analytics.title'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'email_campaign.analytics.subtitle'|trans|default('Detailed performance metrics for') }} {{ campaign.name }}</p>
+                <p class="rams-page__subtitle">{{ 'email_campaign.analytics.subtitle'|trans }} {{ campaign.name }}</p>
             </div>
         </div>
 
@@ -57,7 +57,7 @@
                 <div class="rams-module__content">
                     <div class="rams-metric rams-metric--large rams-metric--primary">
                         <span class="rams-metric__value">{{ metrics.reply_rate|number_format(1) }}%</span>
-                        <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans|default('Reply Rate') }}</span>
+                        <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans }}</span>
                     </div>
                 </div>
             </div>
@@ -75,12 +75,12 @@
             {# Sends Over Time #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-module__title">{{ 'email_campaign.analytics.sends_over_time'|trans|default('Sends Over Time') }}</h2>
+                    <h2 class="rams-module__title">{{ 'email_campaign.analytics.sends_over_time'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
                     {% if sendsByDate is empty %}
                         <div class="rams-empty-state rams-empty-state--compact">
-                            <p class="rams-empty-state__description">{{ 'email_campaign.no_sends_yet'|trans|default('No sends yet') }}</p>
+                            <p class="rams-empty-state__description">{{ 'email_campaign.no_sends_yet'|trans }}</p>
                         </div>
                     {% else %}
                         <div class="rams-chart-bars">
@@ -110,13 +110,13 @@
             {# Engagement Funnel #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-module__title">{{ 'email_campaign.analytics.engagement_funnel'|trans|default('Engagement Funnel') }}</h2>
+                    <h2 class="rams-module__title">{{ 'email_campaign.analytics.engagement_funnel'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-funnel">
                         <div class="rams-funnel__item">
                             <div class="rams-funnel__header">
-                                <span class="rams-funnel__label">{{ 'email_campaign.sent'|trans|default('Sent') }}</span>
+                                <span class="rams-funnel__label">{{ 'email_campaign.sent'|trans }}</span>
                                 <span class="rams-funnel__value">{{ metrics.total_sent }}</span>
                             </div>
                             <div class="rams-progress-bar__track">
@@ -143,7 +143,7 @@
                         </div>
                         <div class="rams-funnel__item">
                             <div class="rams-funnel__header">
-                                <span class="rams-funnel__label">{{ 'email_campaign.replied'|trans|default('Replied') }}</span>
+                                <span class="rams-funnel__label">{{ 'email_campaign.replied'|trans }}</span>
                                 <span class="rams-funnel__value">{{ metrics.replied }} ({{ metrics.reply_rate|number_format(1) }}%)</span>
                             </div>
                             <div class="rams-progress-bar__track">
@@ -158,12 +158,12 @@
         {# Top Performing Contacts #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'email_campaign.analytics.top_contacts'|trans|default('Top Performing Contacts') }}</h2>
+                <h2 class="rams-module__title">{{ 'email_campaign.analytics.top_contacts'|trans }}</h2>
             </div>
             <div class="rams-module__content">
                 {% if topContacts is empty %}
                     <div class="rams-empty-state rams-empty-state--compact">
-                        <p class="rams-empty-state__description">{{ 'email_campaign.analytics.no_engagement'|trans|default('No engagement data yet') }}</p>
+                        <p class="rams-empty-state__description">{{ 'email_campaign.analytics.no_engagement'|trans }}</p>
                     </div>
                 {% else %}
                     <div class="rams-table-wrapper">
@@ -171,10 +171,10 @@
                             <thead class="rams-table__header">
                                 <tr>
                                     <th class="rams-table__cell">{{ 'contact.title_singular'|trans }}</th>
-                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.opens'|trans|default('Opens') }}</th>
-                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.clicks'|trans|default('Clicks') }}</th>
-                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.replies'|trans|default('Replies') }}</th>
-                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.analytics.engagement'|trans|default('Engagement') }}</th>
+                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.opens'|trans }}</th>
+                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.clicks'|trans }}</th>
+                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.replies'|trans }}</th>
+                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.analytics.engagement'|trans }}</th>
                                 </tr>
                             </thead>
                             <tbody>

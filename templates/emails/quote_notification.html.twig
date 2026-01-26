@@ -125,9 +125,9 @@
                                 {{ 'app.company'|trans }}
                             </p>
                             <p style="margin: 0 0 15px; color: #888888; font-size: 12px; text-align: center; line-height: 1.6;">
-                                Casablanca, Morocco<br>
-                                {{ 'common.email'|trans }}: <a href="mailto:quotes@starzelectronics.site" style="color: #FFBE00; text-decoration: none;">quotes@starzelectronics.site</a><br>
-                                Web: <a href="https://starzelectronics.site" style="color: #FFBE00; text-decoration: none;">starzelectronics.site</a>
+                                {{ 'emails.quote_notification.footer_location'|trans }}<br>
+                                {{ 'common.email'|trans }}: <a href="mailto:{{ 'emails.quote_notification.footer_email_address'|trans }}" style="color: #FFBE00; text-decoration: none;">{{ 'emails.quote_notification.footer_email_label'|trans }}</a><br>
+                                {{ 'company.website'|trans }}: <a href="{{ 'emails.quote_notification.footer_site_url'|trans }}" style="color: #FFBE00; text-decoration: none;">{{ 'emails.quote_notification.footer_site_label'|trans }}</a>
                             </p>
                             <p style="margin: 0; color: #5a5a5a; font-size: 11px; text-align: center;">
                                 {{ 'emails.quote_notification.email_sent_for'|trans({'%quote%': quote.quoteNumber ?? ('Q-' ~ quote.id)}) }}

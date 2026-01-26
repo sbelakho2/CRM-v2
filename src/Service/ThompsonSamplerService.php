@@ -49,9 +49,17 @@ class ThompsonSamplerService
 
     /**
      * Sample from Gamma distribution using Marsaglia and Tsang's method
+     * 
+     * @param int $shape Shape parameter (must be > 0)
      */
     private function sampleGamma(int $shape): float
     {
+        // Guard against invalid shape parameter (prevents division by zero)
+        if ($shape <= 0) {
+            $this->logger->warning('Invalid gamma shape parameter, using default', ['shape' => $shape]);
+            return 0.5; // Return neutral value for edge case
+        }
+        
         if ($shape < 1) {
             // For shape < 1, use: Gamma(a) = Gamma(a+1) * U^(1/a)
             return $this->sampleGamma($shape + 1) * pow(mt_rand() / mt_getrandmax(), 1.0 / $shape);
@@ -92,12 +100,16 @@ class ThompsonSamplerService
     }
 
     /**
-     * Select best arm via Thompson Sampling
+     * Select best arm via Thompson Sampling with confidence decay
+     * 
+     * Arms that haven't been used recently get a slight exploration boost
+     * to prevent getting stuck on suboptimal arms.
      * 
      * @param string $armType Type of arm ('subject_line', 'template', 'send_time')
+     * @param bool $applyDecay Whether to apply confidence decay for stale arms
      * @return array|null ['arm' => BanditArm, 'sampledScore' => float] or null if no arms
      */
-    public function sampleAndSelect(string $armType): ?array
+    public function sampleAndSelect(string $armType, bool $applyDecay = true): ?array
     {
         $arms = $this->armRepository->findActiveByType($armType);
         
@@ -111,13 +123,44 @@ class ThompsonSamplerService
         $allSamples = [];
 
         foreach ($arms as $arm) {
-            $sampledScore = $this->sampleBeta($arm->getAlpha(), $arm->getBeta());
+            $alpha = $arm->getAlpha();
+            $beta = $arm->getBeta();
+            
+            // Apply confidence decay for arms not used recently
+            // This encourages re-exploration of potentially improved arms
+            if ($applyDecay) {
+                $daysSinceLastUse = $arm->getDaysSinceLastUse();
+                if ($daysSinceLastUse > 14) {
+                    // Decay factor increases with time, reducing certainty
+                    $decayFactor = 1 + ($daysSinceLastUse / 100);
+                    // Apply decay to both parameters (reduce certainty, not bias)
+                    $alpha = max(1, (int) round($alpha / $decayFactor));
+                    $beta = max(1, (int) round($beta / $decayFactor));
+                    
+                    $this->logger->debug('Applied confidence decay', [
+                        'armId' => $arm->getId(),
+                        'daysSinceLastUse' => $daysSinceLastUse,
+                        'decayFactor' => $decayFactor,
+                        'originalAlpha' => $arm->getAlpha(),
+                        'decayedAlpha' => $alpha,
+                    ]);
+                }
+            }
+            
+            $sampledScore = $this->sampleBeta($alpha, $beta);
             $allSamples[$arm->getId()] = $sampledScore;
             
             if ($sampledScore > $bestScore) {
                 $bestScore = $sampledScore;
                 $bestArm = $arm;
             }
+        }
+
+        // Mark the selected arm as used
+        if ($bestArm) {
+            $bestArm->markUsed();
+            $this->entityManager->persist($bestArm);
+            $this->entityManager->flush();
         }
 
         $this->logger->debug('Thompson Sampling selection', [
@@ -136,8 +179,12 @@ class ThompsonSamplerService
 
     /**
      * Record outcome for an arm (success or failure)
+     * 
+     * @param int $armId The arm ID
+     * @param bool $success Whether this was a success
+     * @param string $eventType The event type ('open', 'click', 'reply', 'bounce')
      */
-    public function recordOutcome(int $armId, bool $success): void
+    public function recordOutcome(int $armId, bool $success, string $eventType = 'open'): void
     {
         $arm = $this->armRepository->find($armId);
         
@@ -158,6 +205,49 @@ class ThompsonSamplerService
             'armId' => $armId,
             'armName' => $arm->getArmName(),
             'success' => $success,
+            'eventType' => $eventType,
+            'newAlpha' => $arm->getAlpha(),
+            'newBeta' => $arm->getBeta(),
+            'expectedRate' => $arm->getExpectedRate(),
+        ]);
+    }
+
+    /**
+     * Record reply outcome with amplification
+     * 
+     * Replies are more valuable signals than opens, so we amplify their effect.
+     * A positive reply counts as 2 successes, a negative reply counts as 2 failures.
+     * This makes reply-generating subject lines converge faster.
+     * 
+     * @param int $armId The arm ID
+     * @param bool $positiveReply Whether the reply indicated interest
+     * @param string $classification The reply classification for logging
+     */
+    public function recordReplyOutcome(int $armId, bool $positiveReply, string $classification = 'unknown'): void
+    {
+        $arm = $this->armRepository->find($armId);
+        
+        if (!$arm) {
+            $this->logger->warning('Arm not found for reply outcome recording', ['armId' => $armId]);
+            return;
+        }
+
+        // Amplify reply signal (2x weight compared to opens)
+        if ($positiveReply) {
+            $arm->recordSuccess();
+            $arm->recordSuccess(); // Double count positive replies
+        } else {
+            $arm->recordFailure();
+            $arm->recordFailure(); // Double count negative replies
+        }
+
+        $this->entityManager->flush();
+
+        $this->logger->info('Recorded amplified reply outcome for arm', [
+            'armId' => $armId,
+            'armName' => $arm->getArmName(),
+            'positiveReply' => $positiveReply,
+            'classification' => $classification,
             'newAlpha' => $arm->getAlpha(),
             'newBeta' => $arm->getBeta(),
             'expectedRate' => $arm->getExpectedRate(),

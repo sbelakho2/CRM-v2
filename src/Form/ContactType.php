@@ -23,86 +23,87 @@ class ContactType extends AbstractType
     {
         $builder
             ->add('firstName', TextType::class, [
-                'label' => 'First Name',
+                'label' => 'contact.first_name',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'First name',
+                    'placeholder' => 'contact.form.first_name_placeholder',
                 ],
                 'constraints' => [
-                    new NotBlank(['message' => 'First name is required']),
+                    new NotBlank(['message' => 'validation.required']),
                 ],
             ])
             ->add('lastName', TextType::class, [
-                'label' => 'Last Name',
+                'label' => 'contact.last_name',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'Last name',
+                    'placeholder' => 'contact.form.last_name_placeholder',
                 ],
                 'constraints' => [
-                    new NotBlank(['message' => 'Last name is required']),
+                    new NotBlank(['message' => 'validation.required']),
                 ],
             ])
             ->add('company', EntityType::class, [
                 'class' => Company::class,
                 'choice_label' => 'name',
-                'label' => 'Company',
+                'label' => 'company.title_singular',
                 'attr' => ['class' => 'rams-form__select'],
-                'placeholder' => 'Select company',
+                'placeholder' => 'contact.form.select_company',
                 'constraints' => [
-                    new NotBlank(['message' => 'Company is required']),
+                    new NotBlank(['message' => 'validation.required']),
                 ],
             ])
             ->add('jobTitle', TextType::class, [
-                'label' => 'Job Title',
+                'label' => 'contact.job_title',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'e.g., Procurement Manager',
+                    'placeholder' => 'contact.form.job_title_placeholder',
                 ],
                 'required' => false,
             ])
             ->add('role', ChoiceType::class, [
-                'label' => 'Role',
+                'label' => 'contact.role',
                 'choices' => [
-                    'CEO' => 'CEO',
-                    'Procurement Manager' => 'Procurement Manager',
-                    'Engineering Manager' => 'Engineering Manager',
-                    'Quality Manager' => 'Quality Manager',
-                    'Operations Manager' => 'Operations Manager',
-                    'Finance Manager' => 'Finance Manager',
-                    'Other' => 'Other',
+                    'contact.roles.ceo' => 'CEO',
+                    'contact.roles.procurement_manager' => 'Procurement Manager',
+                    'contact.roles.engineering_manager' => 'Engineering Manager',
+                    'contact.roles.quality_manager' => 'Quality Manager',
+                    'contact.roles.operations_manager' => 'Operations Manager',
+                    'contact.roles.finance_manager' => 'Finance Manager',
+                    'contact.roles.other' => 'Other',
                 ],
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-form__select'],
-                'placeholder' => 'Select role',
+                'placeholder' => 'contact.form.select_role',
                 'required' => false,
             ])
             ->add('email', EmailType::class, [
-                'label' => 'Email',
+                'label' => 'common.email',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'contact@company.com',
+                    'placeholder' => 'contact.form.email_placeholder',
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Email(['message' => 'Please enter a valid email']),
+                    new Email(['message' => 'validation.email']),
                 ],
             ])
             ->add('phone', TelType::class, [
-                'label' => 'Phone',
+                'label' => 'common.phone',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => '+212 XXX XXX XXX',
+                    'placeholder' => 'contact.form.phone_placeholder',
                 ],
                 'required' => false,
             ])
             ->add('linkedInUrl', UrlType::class, [
-                'label' => 'LinkedIn URL',
+                'label' => 'contact.linkedin',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'https://linkedin.com/in/username',
+                    'placeholder' => 'contact.form.linkedin_placeholder',
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Url(['message' => 'Please enter a valid LinkedIn URL']),
+                    new Url(['message' => 'validation.url']),
                 ],
             ]);
     }
@@ -111,6 +112,7 @@ class ContactType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Contact::class,
+            'translation_domain' => 'messages',
         ]);
     }
 }

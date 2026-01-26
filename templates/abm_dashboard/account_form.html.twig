@@ -46,7 +46,7 @@
                 <div class="rams-form-group">
                     <label class="rams-label">{{ 'company.industry'|trans }}</label>
                     <input type="text" name="industry"
-                           value="{{ account and account.metadata ? account.metadata.industry|default('') : '' }}"
+                           value="{{ account and account.metadata ? (account.metadata.industry ?? '') : '' }}"
                            class="rams-input"
                            placeholder="e.g., Technology, Manufacturing">
                 </div>
@@ -55,7 +55,7 @@
                 <div class="rams-form-group">
                     <label class="rams-label">{{ 'company.country'|trans }}</label>
                     <input type="text" name="country"
-                           value="{{ account and account.metadata ? account.metadata.country|default('') : '' }}"
+                           value="{{ account and account.metadata ? (account.metadata.country ?? '') : '' }}"
                            class="rams-input"
                            placeholder="e.g., Morocco, USA">
                 </div>
@@ -64,7 +64,7 @@
                 <div class="rams-form-group">
                     <label class="rams-label">{{ 'abm_dashboard.company_size'|trans }}</label>
                     <input type="text" name="company_size"
-                           value="{{ account and account.metadata ? account.metadata.company_size|default('') : '' }}"
+                           value="{{ account and account.metadata ? (account.metadata.company_size ?? '') : '' }}"
                            class="rams-input"
                            placeholder="e.g., 50-200, 1000+">
                 </div>
@@ -73,7 +73,7 @@
                 <div class="rams-form-group">
                           <label class="rams-label">{{ 'abm_dashboard.annual_revenue'|trans }}</label>
                           <input type="text" name="revenue"
-                              value="{{ account and account.metadata ? account.metadata.revenue|default('') : '' }}"
+                              value="{{ account and account.metadata ? (account.metadata.revenue ?? '') : '' }}"
                               class="rams-input"
                               placeholder="e.g., 1M-10M ({{ display_currency() }})">
                 </div>

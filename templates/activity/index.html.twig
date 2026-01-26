@@ -10,7 +10,7 @@
         <div class="rams-page__header">
             <div class="rams-page__header-content">
                 <h1 class="rams-page__title">{{ 'activity.title'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'activity.subtitle'|trans|default('Track all interactions and touchpoints') }}</p>
+                <p class="rams-page__subtitle">{{ 'activity.subtitle'|trans }}</p>
             </div>
             <div class="rams-page__actions">
                 <a href="{{ path('app_activity_timeline') }}" class="rams-btn rams-btn--secondary">
@@ -23,7 +23,7 @@
                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    {{ 'activity.log_activity'|trans|default('Log Activity') }}
+                    {{ 'activity.log_activity'|trans }}
                 </a>
             </div>
         </div>
@@ -39,9 +39,9 @@
                         <div class="rams-form__group">
                             <label for="type" class="rams-dymo">{{ 'activity.type'|trans }}</label>
                             <select name="type" id="type" class="rams-form__select">
-                                <option value="">{{ 'common.all'|trans }} {{ 'activity.types_label'|trans|default('Types') }}</option>
+                                <option value="">{{ 'common.all'|trans }} {{ 'activity.types_label'|trans }}</option>
                                 {% for type in types %}
-                                    <option value="{{ type }}" {% if current_type == type %}selected{% endif %}>{{ type }}</option>
+                                    <option value="{{ type }}" {% if current_type == type %}selected{% endif %}>{{ ('activity.types.' ~ type|lower|replace({' ': '_', '-': '_'}) )|trans }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -59,9 +59,9 @@
 
                         {# User Filter #}
                         <div class="rams-form__group">
-                            <label for="user" class="rams-dymo">{{ 'activity.team_member'|trans|default('Team Member') }}</label>
+                            <label for="user" class="rams-dymo">{{ 'activity.team_member'|trans }}</label>
                             <select name="user" id="user" class="rams-form__select">
-                                <option value="">{{ 'common.all'|trans }} {{ 'activity.users_label'|trans|default('Users') }}</option>
+                                <option value="">{{ 'common.all'|trans }} {{ 'activity.users_label'|trans }}</option>
                                 {% for user in users %}
                                     <option value="{{ user.id }}" {% if current_user == user.id %}selected{% endif %}>{{ user.firstName }} {{ user.lastName }}</option>
                                 {% endfor %}
@@ -70,13 +70,13 @@
 
                         {# Date From #}
                         <div class="rams-form__group">
-                            <label for="date_from" class="rams-dymo">{{ 'common.from_date'|trans|default('From Date') }}</label>
+                            <label for="date_from" class="rams-dymo">{{ 'common.from_date'|trans }}</label>
                             <input type="date" name="date_from" id="date_from" value="{{ current_date_from }}" class="rams-form__input"/>
                         </div>
 
                         {# Date To #}
                         <div class="rams-form__group">
-                            <label for="date_to" class="rams-dymo">{{ 'common.to_date'|trans|default('To Date') }}</label>
+                            <label for="date_to" class="rams-dymo">{{ 'common.to_date'|trans }}</label>
                             <input type="date" name="date_to" id="date_to" value="{{ current_date_to }}" class="rams-form__input"/>
                         </div>
                     </div>
@@ -111,7 +111,7 @@
 
         {# Results Count #}
         <div class="rams-results-count">
-            {{ 'common.showing'|trans|default('Showing') }} <span class="rams-results-count__value">{{ activities|length }}</span> {{ 'activity.title'|trans|lower }}
+            {{ 'common.showing'|trans }} <span class="rams-results-count__value">{{ activities|length }}</span> {{ 'activity.title'|trans|lower }}
         </div>
 
         {# Activities List #}
@@ -132,11 +132,11 @@
                                 <div class="rams-list__header">
                                     <div class="rams-list__meta">
                                         <span class="rams-badge rams-badge--{{ activity.type|lower|replace({' ': '-', '-': '-'}) }}">
-                                            {{ activity.type }}
+                                            {{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}
                                         </span>
                                         {% if activity.outcome %}
                                             <span class="rams-list__separator">·</span>
-                                            <span class="rams-list__outcome">{{ activity.outcome }}</span>
+                                            <span class="rams-list__outcome">{{ ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans }}</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -190,7 +190,7 @@
                                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                 </svg>
-                                {{ 'activity.create_first_button'|trans|default('Create First Activity') }}
+                                {{ 'activity.create_first_button'|trans }}
                             </a>
                         </div>
                     </div>

@@ -76,12 +76,12 @@
         {% else %}
             <div class="rams-alert rams-alert--warning">
                 <p class="rams-alert__title">{{ 'abm_dashboard.no_engagement_data'|trans }}</p>
-                <p>{{ 'abm_dashboard.add_activities_hint'|trans }}. Debug: {{ heatMapCompanies|length }} companies returned.</p>
+                <p>{{ 'abm_dashboard.add_activities_hint'|trans }}</p>
             </div>
         {% endif %}
     {% else %}
         <div class="rams-alert rams-alert--error">
-            <p>Debug: heatMapCompanies variable is not defined in template</p>
+            <p>{{ 'abm_dashboard.heatmap_missing'|trans }}</p>
         </div>
     {% endif %}
 
@@ -96,12 +96,12 @@
                     {% for activity in activities %}
                         <div class="rams-list-item">
                             <div class="rams-list-item__content">
-                                <p class="rams-list-item__title">{{ activity.title | default('Activity') }}</p>
+                                <p class="rams-list-item__title">{{ activity.title | default('abm_dashboard.activity_default'|trans) }}</p>
                                 <p class="rams-text-muted">{{ activity.description | default('') }}</p>
-                                <p class="rams-dymo">{{ activity.timestamp | date('M d, Y H:i') | default('Unknown') }}</p>
+                                <p class="rams-dymo">{{ activity.timestamp is defined and activity.timestamp ? activity.timestamp | date('M d, Y H:i') : 'common.unknown'|trans }}</p>
                             </div>
                             <span class="rams-badge">
-                                {{ activity.type | default('Update') }}
+                                {{ activity.type | default('abm_dashboard.activity_update'|trans) }}
                             </span>
                         </div>
                     {% endfor %}

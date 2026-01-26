@@ -7,7 +7,8 @@
     "dev-server": "encore dev-server",
     "dev": "encore dev",
     "watch": "encore dev --watch",
-    "build": "encore production --progress"
+    "build": "encore production --progress",
+    "test:ui": "playwright test"
   },
   "devDependencies": {
     "@hotwired/stimulus": "^3.2.2",
@@ -24,6 +25,8 @@
     "sass-loader": "^14.2.1",
     "style-loader": "^3.3.4",
     "tailwindcss": "^3.4.15",
+    "playwright": "^1.49.1",
+    "@playwright/test": "^1.49.1",
     "webpack": "^5.96.1",
     "webpack-cli": "^5.1.4",
     "webpack-notifier": "^1.15.0"

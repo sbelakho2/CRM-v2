@@ -10,11 +10,11 @@
         <div class="rams-page__header">
             <div class="rams-page__header-content">
                 <h1 class="rams-page__title">{{ 'lead_discovery.results'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'lead_discovery.query_label'|trans|default('Query') }}: <span class="rams-text--bold">{{ query }}</span></p>
+                <p class="rams-page__subtitle">{{ 'lead_discovery.query_label'|trans }}: <span class="rams-text--bold">{{ query }}</span></p>
             </div>
             <div class="rams-page__actions">
                 <a href="{{ path('lead_discovery_index') }}" class="rams-btn rams-btn--secondary">
-                    {{ 'lead_discovery.new_search'|trans|default('New Search') }}
+                    {{ 'lead_discovery.new_search'|trans }}
                 </a>
             </div>
         </div>
@@ -23,25 +23,25 @@
         <div class="rams-metrics-grid rams-metrics-grid--4col">
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead_discovery.results_found'|trans|default('Results Found') }}</span>
+                    <span class="rams-dymo">{{ 'lead_discovery.results_found'|trans }}</span>
                     <span class="rams-metric rams-metric--info">{{ results|length }}</span>
                 </div>
             </div>
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead_discovery.search_time'|trans|default('Search Time') }}</span>
+                    <span class="rams-dymo">{{ 'lead_discovery.search_time'|trans }}</span>
                     <span class="rams-metric rams-metric--success">{{ searchTime|number_format(2) }}s</span>
                 </div>
             </div>
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead_discovery.queries_used'|trans|default('Queries Used') }}</span>
+                    <span class="rams-dymo">{{ 'lead_discovery.queries_used'|trans }}</span>
                     <span class="rams-metric rams-metric--warning">{{ quota.total_queries }}</span>
                 </div>
             </div>
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead_discovery.estimated_cost'|trans|default('Estimated Cost') }}</span>
+                    <span class="rams-dymo">{{ 'lead_discovery.estimated_cost'|trans }}</span>
                             <span class="rams-metric">{{ quota.estimated_cost|format_currency(quota.currency|default(display_currency()), null, 2) }}</span>
                 </div>
             </div>
@@ -54,7 +54,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                     </svg>
                     <h3 class="rams-empty-state__title">{{ 'lead_discovery.no_results'|trans }}</h3>
-                    <p class="rams-empty-state__description">{{ 'lead_discovery.no_results_hint'|trans|default('Try adjusting your search query or filters.') }}</p>
+                    <p class="rams-empty-state__description">{{ 'lead_discovery.no_results_hint'|trans }}</p>
                 </div>
             </div>
         {% else %}
@@ -65,10 +65,10 @@
                         <div class="rams-form__group rams-form__group--inline">
                             <label class="rams-checkbox">
                                 <input type="checkbox" id="selectAll" class="rams-checkbox__input">
-                                <span class="rams-checkbox__label">{{ 'lead_discovery.select_all'|trans|default('Select All') }}</span>
+                                <span class="rams-checkbox__label">{{ 'lead_discovery.select_all'|trans }}</span>
                             </label>
                             <span class="rams-text--muted">
-                                <span id="selectedCount">0</span> {{ 'lead_discovery.selected'|trans|default('selected') }}
+                                <span id="selectedCount">0</span> {{ 'lead_discovery.selected'|trans }}
                             </span>
                         </div>
                         <div class="rams-form__actions">
@@ -130,7 +130,7 @@
                                     
                                     {% if result.pagemap.organization is defined %}
                                         <div class="rams-list__meta">
-                                            <span class="rams-dymo rams-dymo--sm">{{ 'lead_discovery.additional_info'|trans|default('Additional Info') }}:</span>
+                                            <span class="rams-dymo rams-dymo--sm">{{ 'lead_discovery.additional_info'|trans }}:</span>
                                             {% for org in result.pagemap.organization %}
                                                 {% if org.name is defined %}
                                                     <span class="rams-text--sm">{{ org.name }}</span>

@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'discovery_pipeline.title'|trans|default('Discovery Pipeline') }}{% endblock %}
+{% block title %}{{ 'discovery_pipeline.title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack">
@@ -8,8 +8,8 @@
     <div class="rams-module">
         <div class="rams-module__header">
             <div>
-                <h1 class="rams-module__title">🔍 {{ 'discovery_pipeline.title'|trans|default('Automated Lead Discovery Pipeline') }}</h1>
-                <p class="rams-dymo">{{ 'discovery_pipeline.subtitle'|trans|default('Run intelligent searches, auto-import leads, and enrich with contact data') }}</p>
+                <h1 class="rams-module__title">🔍 {{ 'discovery_pipeline.title'|trans }}</h1>
+                <p class="rams-dymo">{{ 'discovery_pipeline.subtitle'|trans }}</p>
             </div>
             
             {# Export Dropdown #}
@@ -18,29 +18,29 @@
                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
-                    {{ 'common.export'|trans }} CSV
+                    {{ 'discovery_pipeline.export_csv'|trans }}
                     <svg class="rams-btn__icon--end" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
                 <div class="rams-dropdown rams-hidden" id="export-dropdown-menu">
                     <div class="rams-dropdown__content">
-                        <p class="rams-dropdown__header">{{ 'discovery_pipeline.export_options'|trans|default('Export Options') }}</p>
+                        <p class="rams-dropdown__header">{{ 'discovery_pipeline.export_options'|trans }}</p>
                         <a href="{{ path('export_leads') }}" class="rams-dropdown__item">
-                            📋 {{ 'discovery_pipeline.export_all'|trans|default('All Leads (Full Export)') }}
+                            📋 {{ 'discovery_pipeline.export_all'|trans }}
                         </a>
                         <a href="{{ path('export_leads', {hasEmails: 1}) }}" class="rams-dropdown__item">
-                            📧 {{ 'discovery_pipeline.export_with_emails'|trans|default('Leads with Emails Only') }}
+                            📧 {{ 'discovery_pipeline.export_with_emails'|trans }}
                         </a>
                         <a href="{{ path('export_leads', {hasContactForm: 1}) }}" class="rams-dropdown__item">
-                            📝 {{ 'discovery_pipeline.export_with_forms'|trans|default('Leads with Contact Forms') }}
+                            📝 {{ 'discovery_pipeline.export_with_forms'|trans }}
                         </a>
                         <a href="{{ path('export_leads', {status: 'approved'}) }}" class="rams-dropdown__item">
-                            ✅ {{ 'discovery_pipeline.export_approved'|trans|default('Approved Leads Only') }}
+                            ✅ {{ 'discovery_pipeline.export_approved'|trans }}
                         </a>
                         <div class="rams-dropdown__divider"></div>
                         <a href="#" onclick="exportCustomLeads(); return false;" class="rams-dropdown__item">
-                            ⚙️ {{ 'discovery_pipeline.export_custom'|trans|default('Custom Export (Filters)...') }}
+                            ⚙️ {{ 'discovery_pipeline.export_custom'|trans }}
                         </a>
                     </div>
                 </div>
@@ -52,37 +52,37 @@
     <div class="rams-grid rams-grid--6">
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.total_leads'|trans|default('Total Leads') }}</span>
+                <span class="rams-dymo">{{ 'discovery_pipeline.total_leads'|trans }}</span>
                 <div class="rams-metric__value rams-text-info">{{ stats.total_leads }}</div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.today'|trans|default('Today') }}</span>
+                <span class="rams-dymo">{{ 'discovery_pipeline.today'|trans }}</span>
                 <div class="rams-metric__value rams-text-success">{{ stats.today_leads }}</div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.with_emails'|trans|default('With Emails') }}</span>
+                <span class="rams-dymo">{{ 'discovery_pipeline.with_emails'|trans }}</span>
                 <div class="rams-metric__value">{{ stats.with_emails }}</div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.has_contact_form'|trans|default('Has Contact Form') }}</span>
+                <span class="rams-dymo">{{ 'discovery_pipeline.has_contact_form'|trans }}</span>
                 <div class="rams-metric__value">{{ stats.with_contact_forms|default(0) }}</div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.enrichment_rate'|trans|default('Enrichment Rate') }}</span>
+                <span class="rams-dymo">{{ 'discovery_pipeline.enrichment_rate'|trans }}</span>
                 <div class="rams-metric__value rams-text-warning">{{ stats.enrichment_rate }}%</div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.pending_review'|trans|default('Pending Review') }}</span>
+                <span class="rams-dymo">{{ 'discovery_pipeline.pending_review'|trans }}</span>
                 <div class="rams-metric__value rams-text-danger">{{ stats.pending_review }}</div>
             </div>
         </div>
@@ -93,21 +93,21 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-module__header">
-                    <h3 class="rams-module__title">🔄 {{ 'discovery_pipeline.enrichment_progress'|trans|default('Enrichment Progress') }}</h3>
+                    <h3 class="rams-module__title">🔄 {{ 'discovery_pipeline.enrichment_progress'|trans }}</h3>
                     <span id="progress-status" class="rams-dymo">{{ 'messages.processing'|trans }}...</span>
                 </div>
                 <div class="rams-progress">
                     <div id="progress-bar" class="rams-progress__bar" style="width: 0%"></div>
                 </div>
                 <div class="rams-metric">
-                    <span id="progress-enriched" class="rams-dymo">0 {{ 'discovery_pipeline.enriched'|trans|default('enriched') }}</span>
+                    <span id="progress-enriched" class="rams-dymo">0 {{ 'discovery_pipeline.enriched'|trans }}</span>
                     <span id="progress-percent" class="rams-metric__value">0%</span>
                     <span id="progress-pending" class="rams-dymo">0 {{ 'common.pending'|trans }}</span>
                 </div>
                 <div id="progress-details" class="rams-stack">
                     <div class="rams-andon rams-andon--success">
                         <span class="rams-andon__light"></span>
-                        <span id="recently-scraped-text" class="rams-dymo">0 {{ 'discovery_pipeline.leads_scraped'|trans|default('leads scraped in last 5 min') }}</span>
+                        <span id="recently-scraped-text" class="rams-dymo">0 {{ 'discovery_pipeline.leads_scraped'|trans }}</span>
                     </div>
                 </div>
             </div>
@@ -118,14 +118,14 @@
         {# Pipeline Runner Module #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">🚀 {{ 'discovery_pipeline.run_pipeline'|trans|default('Run Discovery Pipeline') }}</h2>
+                <h2 class="rams-module__title">🚀 {{ 'discovery_pipeline.run_pipeline'|trans }}</h2>
             </div>
             <div class="rams-module__content">
                 <form id="pipeline-form" class="rams-form">
                     <div class="rams-form-group">
-                        <label class="rams-label">{{ 'discovery_pipeline.target_sector'|trans|default('Target Sector') }} *</label>
+                        <label class="rams-label">{{ 'discovery_pipeline.target_sector'|trans }} *</label>
                         <select name="sector" required class="rams-select">
-                            <option value="">{{ 'discovery_pipeline.select_sector'|trans|default('Select a sector...') }}</option>
+                            <option value="">{{ 'discovery_pipeline.select_sector'|trans }}</option>
                             {% for sector in sectors %}
                                 <option value="{{ sector }}">{{ sector }}</option>
                             {% endfor %}
@@ -133,9 +133,9 @@
                     </div>
                     
                     <div class="rams-form-group">
-                        <label class="rams-label">{{ 'discovery_pipeline.geographic_focus'|trans|default('Geographic Focus') }}</label>
+                        <label class="rams-label">{{ 'discovery_pipeline.geographic_focus'|trans }}</label>
                         <select name="location" class="rams-select">
-                            <option value="">{{ 'discovery_pipeline.all_locations'|trans|default('All Locations') }}</option>
+                            <option value="">{{ 'discovery_pipeline.all_locations'|trans }}</option>
                             {% for key, label in locations %}
                                 <option value="{{ key }}">{{ label }}</option>
                             {% endfor %}
@@ -145,31 +145,31 @@
                     <div class="rams-stack">
                         <label class="rams-checkbox">
                             <input type="checkbox" name="auto_import" checked class="rams-checkbox__input">
-                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.auto_import'|trans|default('Auto-import new leads') }}</span>
+                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.auto_import'|trans }}</span>
                         </label>
                         <label class="rams-checkbox">
                             <input type="checkbox" name="enable_deep_scrape" checked class="rams-checkbox__input">
-                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.enable_deep_scrape'|trans|default('Enable deep scraping (extract emails/phones)') }}</span>
+                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.enable_deep_scrape'|trans }}</span>
                         </label>
                         <label class="rams-checkbox">
                             <input type="checkbox" name="enable_llm" class="rams-checkbox__input">
-                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.use_llm'|trans|default('Use LLM enrichment (requires API key)') }}</span>
+                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.use_llm'|trans }}</span>
                         </label>
                     </div>
                     
                     <div class="rams-btn-group">
                         <button type="button" id="preview-btn" class="rams-btn rams-btn--secondary">
-                            {{ 'discovery_pipeline.preview_results'|trans|default('Preview Results') }}
+                            {{ 'discovery_pipeline.preview_results'|trans }}
                         </button>
                         <button type="submit" id="run-btn" class="rams-btn rams-btn--primary">
-                            {{ 'discovery_pipeline.run_pipeline_btn'|trans|default('Run Pipeline') }}
+                            {{ 'discovery_pipeline.run_pipeline_btn'|trans }}
                         </button>
                     </div>
                 </form>
                 
                 {# Results #}
                 <div id="pipeline-results" class="rams-hidden">
-                    <h3 class="rams-dymo">{{ 'discovery_pipeline.results'|trans|default('Results') }}</h3>
+                    <h3 class="rams-dymo">{{ 'discovery_pipeline.results'|trans }}</h3>
                     <div id="results-content" class="rams-module rams-module--muted"></div>
                 </div>
             </div>
@@ -178,27 +178,27 @@
         {# Enrich Existing Leads Module #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">✨ {{ 'discovery_pipeline.enrich_existing'|trans|default('Enrich Existing Leads') }}</h2>
+                <h2 class="rams-module__title">✨ {{ 'discovery_pipeline.enrich_existing'|trans }}</h2>
             </div>
             <div class="rams-module__content">
                 <p class="rams-text-muted">
-                    {{ 'discovery_pipeline.enrich_description'|trans|default('Queue leads that have websites but no contact information for deep scraping.') }}
+                    {{ 'discovery_pipeline.enrich_description'|trans }}
                 </p>
                 
                 <form id="enrich-form" class="rams-form">
                     <div class="rams-form-group">
-                        <label class="rams-label">{{ 'discovery_pipeline.number_of_leads'|trans|default('Number of Leads') }}</label>
+                        <label class="rams-label">{{ 'discovery_pipeline.number_of_leads'|trans }}</label>
                         <input type="number" name="limit" value="50" min="1" max="100" class="rams-input">
-                        <p class="rams-text-muted">{{ 'discovery_pipeline.max_per_batch'|trans|default('Max 100 per batch') }}</p>
+                        <p class="rams-text-muted">{{ 'discovery_pipeline.max_per_batch'|trans }}</p>
                     </div>
                     
                     <label class="rams-checkbox">
                         <input type="checkbox" name="enable_llm" class="rams-checkbox__input">
-                        <span class="rams-checkbox__label">{{ 'discovery_pipeline.use_llm'|trans|default('Use LLM enrichment') }}</span>
+                        <span class="rams-checkbox__label">{{ 'discovery_pipeline.use_llm'|trans }}</span>
                     </label>
                     
                     <button type="submit" class="rams-btn rams-btn--primary">
-                        {{ 'discovery_pipeline.start_enrichment'|trans|default('Start Enrichment') }}
+                        {{ 'discovery_pipeline.start_enrichment'|trans }}
                     </button>
                 </form>
                 
@@ -213,14 +213,14 @@
     <div id="preview-table-container" class="rams-mt-8 rams-hidden">
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3 class="rams-module__title">{{ 'discovery_pipeline.search_preview'|trans|default('Search Preview') }}</h3>
+                <h3 class="rams-module__title">{{ 'discovery_pipeline.search_preview'|trans }}</h3>
             </div>
             <div class="rams-module__content rams-overflow-x-auto">
                 <table class="rams-table rams-w-full">
                     <thead class="rams-table__header">
                         <tr>
-                            <th class="rams-table__cell">{{ 'company.title_singular'|trans|default('Company') }}</th>
-                            <th class="rams-table__cell">{{ 'company.website'|trans|default('Website') }}</th>
+                            <th class="rams-table__cell">{{ 'company.title_singular'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'company.website'|trans }}</th>
                             <th class="rams-table__cell">{{ 'common.description'|trans }}</th>
                             <th class="rams-table__cell rams-text-center">{{ 'common.status'|trans }}</th>
                         </tr>
@@ -239,6 +239,49 @@
 <script>
 let progressInterval = null;
 let isPolling = false;
+const i18n = {
+    running: '{{ 'discovery_pipeline.running'|trans|e('js') }}',
+    runPipeline: '{{ 'discovery_pipeline.run_pipeline_btn'|trans|e('js') }}',
+    loading: '{{ 'common.loading'|trans|e('js') }}',
+    previewResults: '{{ 'discovery_pipeline.preview_results'|trans|e('js') }}',
+    selectSector: '{{ 'discovery_pipeline.select_sector_error'|trans|e('js') }}',
+    processing: '{{ 'messages.processing'|trans|e('js') }}',
+    startEnrichment: '{{ 'discovery_pipeline.start_enrichment'|trans|e('js') }}',
+    searched: '{{ 'discovery_pipeline.stats.searched'|trans|e('js') }}',
+    imported: '{{ 'discovery_pipeline.stats.imported'|trans|e('js') }}',
+    duplicates: '{{ 'discovery_pipeline.stats.duplicates'|trans|e('js') }}',
+    queuedForScrape: '{{ 'discovery_pipeline.stats.queued_for_scrape'|trans|e('js') }}',
+    errorLabel: '{{ 'common.error'|trans|e('js') }}',
+    statusDuplicate: '{{ 'discovery_pipeline.status.duplicate'|trans|e('js') }}',
+    statusNew: '{{ 'discovery_pipeline.status.new'|trans|e('js') }}',
+    foundResults: '{{ 'discovery_pipeline.found_results'|trans|e('js') }}',
+    enrichedLabel: '{{ 'discovery_pipeline.enriched'|trans|e('js') }}',
+    pendingLabel: '{{ 'common.pending'|trans|e('js') }}',
+    leadsScrapedRecent: '{{ 'discovery_pipeline.leads_scraped_recent'|trans|e('js') }}',
+    processingActive: '{{ 'discovery_pipeline.processing_active'|trans|e('js') }}',
+    complete: '{{ 'discovery_pipeline.complete'|trans|e('js') }}',
+    idleWaiting: '{{ 'discovery_pipeline.idle_waiting'|trans|e('js') }}',
+    exportTitle: '{{ 'discovery_pipeline.export_custom_title'|trans|e('js') }}',
+    reviewStatus: '{{ 'discovery_pipeline.review_status'|trans|e('js') }}',
+    allStatuses: '{{ 'discovery_pipeline.all_statuses'|trans|e('js') }}',
+    statusPending: '{{ 'discovery_pipeline.status.pending'|trans|e('js') }}',
+    statusApproved: '{{ 'discovery_pipeline.status.approved'|trans|e('js') }}',
+    statusRejected: '{{ 'discovery_pipeline.status.rejected'|trans|e('js') }}',
+    dateFrom: '{{ 'filters.from'|trans|e('js') }}',
+    dateTo: '{{ 'filters.to'|trans|e('js') }}',
+    sectorFilter: '{{ 'discovery_pipeline.sector_filter'|trans|e('js') }}',
+    sectorPlaceholder: '{{ 'discovery_pipeline.sector_placeholder'|trans|e('js') }}',
+    region: '{{ 'discovery_pipeline.region'|trans|e('js') }}',
+    allRegions: '{{ 'discovery_pipeline.all_regions'|trans|e('js') }}',
+    regionNorthAmerica: '{{ 'discovery_pipeline.region_north_america'|trans|e('js') }}',
+    regionEurope: '{{ 'discovery_pipeline.region_europe'|trans|e('js') }}',
+    regionAsiaPacific: '{{ 'discovery_pipeline.region_asia_pacific'|trans|e('js') }}',
+    dataFilters: '{{ 'discovery_pipeline.data_filters'|trans|e('js') }}',
+    onlyWithEmails: '{{ 'discovery_pipeline.only_with_emails'|trans|e('js') }}',
+    onlyWithContactForms: '{{ 'discovery_pipeline.only_with_contact_forms'|trans|e('js') }}',
+    cancel: '{{ 'common.cancel'|trans|e('js') }}',
+    exportCsv: '{{ 'discovery_pipeline.export_csv'|trans|e('js') }}'
+};
 
 // Export Dropdown Toggle (vanilla JS replacement for Alpine.js)
 function toggleExportDropdown() {
@@ -302,20 +345,20 @@ function startProgressPolling() {
             
             progressBar.style.width = data.progress + '%';
             progressPercent.textContent = data.progress + '%';
-            progressEnriched.textContent = data.enriched + ' enriched';
-            progressPending.textContent = data.pending_enrichment + ' pending';
-            recentlyScrapedText.textContent = data.recently_scraped + ' leads scraped in last 5 min';
+            progressEnriched.textContent = `${data.enriched} ${i18n.enrichedLabel}`;
+            progressPending.textContent = `${data.pending_enrichment} ${i18n.pendingLabel}`;
+            recentlyScrapedText.textContent = i18n.leadsScrapedRecent.replace('%count%', data.recently_scraped);
             
             // Update status text
             if (data.recently_scraped > 0) {
-                progressStatus.textContent = `Processing (${data.recently_scraped} active)...`;
+                progressStatus.textContent = i18n.processingActive.replace('%count%', data.recently_scraped);
                 progressStatus.className = 'rams-text--sm rams-text--success';
             } else if (data.pending_enrichment === 0) {
-                progressStatus.textContent = 'Complete ✓';
+                progressStatus.textContent = i18n.complete;
                 progressStatus.className = 'rams-text--sm rams-text--success';
                 stopProgressPolling();
             } else {
-                progressStatus.textContent = 'Idle - Waiting for queue';
+                progressStatus.textContent = i18n.idleWaiting;
                 progressStatus.className = 'rams-text--sm rams-text--muted';
             }
             
@@ -347,7 +390,7 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
     const form = e.target;
     const btn = document.getElementById('run-btn');
     btn.disabled = true;
-    btn.textContent = 'Running...';
+    btn.textContent = i18n.running;
     
     const data = {
         sector: form.sector.value,
@@ -373,10 +416,10 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
             contentDiv.innerHTML = `
                 <div class="rams-text--success rams-mb-2" style="font-weight: 500;">✓ ${result.message}</div>
                 <div class="rams-grid rams-grid--2 rams-gap-2 rams-text--muted">
-                    <div>Searched: ${result.stats.searched}</div>
-                    <div>Imported: ${result.stats.imported}</div>
-                    <div>Duplicates: ${result.stats.duplicates}</div>
-                    <div>Queued for scrape: ${result.stats.queued_for_scrape}</div>
+                    <div>${i18n.searched}: ${result.stats.searched}</div>
+                    <div>${i18n.imported}: ${result.stats.imported}</div>
+                    <div>${i18n.duplicates}: ${result.stats.duplicates}</div>
+                    <div>${i18n.queuedForScrape}: ${result.stats.queued_for_scrape}</div>
                 </div>
             `;
             showToast(result.message);
@@ -386,14 +429,14 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
                 startProgressPolling();
             }
         } else {
-            contentDiv.innerHTML = `<div class="rams-text--danger">Error: ${result.error}</div>`;
-            showToast(result.error, 'error');
+            contentDiv.innerHTML = `<div class="rams-text--danger">${i18n.errorLabel}: ${result.error}</div>`;
+            showToast(`${i18n.errorLabel}: ${result.error}`, 'error');
         }
     } catch (e) {
-        showToast('Error: ' + e.message, 'error');
+        showToast(`${i18n.errorLabel}: ${e.message}`, 'error');
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Run Pipeline';
+        btn.textContent = i18n.runPipeline;
     }
 });
 
@@ -402,7 +445,7 @@ document.getElementById('preview-btn').addEventListener('click', async () => {
     const form = document.getElementById('pipeline-form');
     const btn = document.getElementById('preview-btn');
     btn.disabled = true;
-    btn.textContent = 'Loading...';
+    btn.textContent = i18n.loading;
     
     const data = {
         sector: form.sector.value,
@@ -410,9 +453,9 @@ document.getElementById('preview-btn').addEventListener('click', async () => {
     };
     
     if (!data.sector) {
-        showToast('Please select a sector', 'error');
+        showToast(i18n.selectSector, 'error');
         btn.disabled = false;
-        btn.textContent = 'Preview Results';
+        btn.textContent = i18n.previewResults;
         return;
     }
     
@@ -437,22 +480,25 @@ document.getElementById('preview-btn').addEventListener('click', async () => {
                     <td class="rams-table__cell rams-text--muted">${r.snippet || '—'}</td>
                     <td class="rams-table__cell rams-text--center">
                         ${r.is_duplicate 
-                            ? '<span class="rams-badge rams-badge--muted">Duplicate</span>'
-                            : '<span class="rams-badge rams-badge--green">New</span>'}
+                            ? `<span class="rams-badge rams-badge--muted">${i18n.statusDuplicate}</span>`
+                            : `<span class="rams-badge rams-badge--green">${i18n.statusNew}</span>`}
                     </td>
                 </tr>
             `).join('');
             
             container.classList.remove('rams-hidden');
-            showToast(`Found ${result.total} results (${result.new_leads} new, ${result.duplicates} duplicates)`);
+            showToast(i18n.foundResults
+                .replace('%total%', result.total)
+                .replace('%new%', result.new_leads)
+                .replace('%duplicates%', result.duplicates));
         } else {
             showToast(result.error, 'error');
         }
     } catch (e) {
-        showToast('Error: ' + e.message, 'error');
+        showToast(`${i18n.errorLabel}: ${e.message}`, 'error');
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Preview Results';
+        btn.textContent = i18n.previewResults;
     }
 });
 
@@ -462,7 +508,7 @@ document.getElementById('enrich-form').addEventListener('submit', async (e) => {
     const form = e.target;
     const btn = form.querySelector('button[type="submit"]');
     btn.disabled = true;
-    btn.textContent = 'Processing...';
+    btn.textContent = i18n.processing;
     
     const data = {
         limit: parseInt(form.limit.value),
@@ -481,20 +527,20 @@ document.getElementById('enrich-form').addEventListener('submit', async (e) => {
         resultsDiv.classList.remove('rams-hidden');
         resultsDiv.querySelector('div').textContent = result.success 
             ? `✓ ${result.message}` 
-            : `Error: ${result.error}`;
+            : `${i18n.errorLabel}: ${result.error}`;
         
         if (result.success) {
             showToast(result.message);
             // Start progress polling when enrichment begins
             startProgressPolling();
         } else {
-            showToast(result.error, 'error');
+            showToast(`${i18n.errorLabel}: ${result.error}`, 'error');
         }
     } catch (e) {
-        showToast('Error: ' + e.message, 'error');
+        showToast(`${i18n.errorLabel}: ${e.message}`, 'error');
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Start Enrichment';
+        btn.textContent = i18n.startEnrichment;
     }
 });
 
@@ -508,63 +554,63 @@ function exportCustomLeads() {
     modal.innerHTML = `
         <div class="rams-modal">
             <div class="rams-modal__header">
-                <h3 class="rams-modal__title">Custom Export Options</h3>
+                <h3 class="rams-modal__title">${i18n.exportTitle}</h3>
             </div>
             <form id="custom-export-form" class="rams-modal__body rams-stack">
                 <div class="rams-field">
-                    <label class="rams-field__label">Review Status</label>
+                    <label class="rams-field__label">${i18n.reviewStatus}</label>
                     <select name="status" class="rams-input rams-select">
-                        <option value="">All statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
+                        <option value="">${i18n.allStatuses}</option>
+                        <option value="pending">${i18n.statusPending}</option>
+                        <option value="approved">${i18n.statusApproved}</option>
+                        <option value="rejected">${i18n.statusRejected}</option>
                     </select>
                 </div>
                 
                 <div class="rams-grid rams-grid--2">
                     <div class="rams-field">
-                        <label class="rams-field__label">Date From</label>
+                        <label class="rams-field__label">${i18n.dateFrom}</label>
                         <input type="date" name="dateFrom" class="rams-input">
                     </div>
                     <div class="rams-field">
-                        <label class="rams-field__label">Date To</label>
+                        <label class="rams-field__label">${i18n.dateTo}</label>
                         <input type="date" name="dateTo" class="rams-input">
                     </div>
                 </div>
                 
                 <div class="rams-field">
-                    <label class="rams-field__label">Sector Filter</label>
-                    <input type="text" name="sector" placeholder="e.g., Aerospace" class="rams-input">
+                    <label class="rams-field__label">${i18n.sectorFilter}</label>
+                    <input type="text" name="sector" placeholder="${i18n.sectorPlaceholder}" class="rams-input">
                 </div>
                 
                 <div class="rams-field">
-                    <label class="rams-field__label">Region</label>
+                    <label class="rams-field__label">${i18n.region}</label>
                     <select name="region" class="rams-input rams-select">
-                        <option value="">All regions</option>
-                        <option value="north_america">North America</option>
-                        <option value="europe">Europe</option>
-                        <option value="asia_pacific">Asia Pacific</option>
+                        <option value="">${i18n.allRegions}</option>
+                        <option value="north_america">${i18n.regionNorthAmerica}</option>
+                        <option value="europe">${i18n.regionEurope}</option>
+                        <option value="asia_pacific">${i18n.regionAsiaPacific}</option>
                     </select>
                 </div>
                 
                 <div class="rams-field rams-stack rams-stack--sm">
-                    <label class="rams-field__label">Data Filters</label>
+                    <label class="rams-field__label">${i18n.dataFilters}</label>
                     <label class="rams-checkbox">
                         <input type="checkbox" name="hasEmails" class="rams-checkbox__input">
-                        <span class="rams-checkbox__label">Only leads with email addresses</span>
+                        <span class="rams-checkbox__label">${i18n.onlyWithEmails}</span>
                     </label>
                     <label class="rams-checkbox">
                         <input type="checkbox" name="hasContactForm" class="rams-checkbox__input">
-                        <span class="rams-checkbox__label">Only leads with contact forms</span>
+                        <span class="rams-checkbox__label">${i18n.onlyWithContactForms}</span>
                     </label>
                 </div>
                 
                 <div class="rams-modal__footer">
                     <button type="button" onclick="closeExportModal()" class="rams-btn rams-btn--secondary">
-                        Cancel
+                        ${i18n.cancel}
                     </button>
                     <button type="submit" class="rams-btn rams-btn--primary">
-                        Export CSV
+                        ${i18n.exportCsv}
                     </button>
                 </div>
             </form>

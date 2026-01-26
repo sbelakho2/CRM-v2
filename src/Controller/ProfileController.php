@@ -31,6 +31,13 @@ class ProfileController extends AbstractController
 
         if ($preferenceForm->isSubmitted() && $preferenceForm->isValid()) {
             $em->flush();
+            $preferredLocale = $user->getPreferredLocale();
+            if ($preferredLocale) {
+                $request->setLocale($preferredLocale);
+                if ($request->hasSession()) {
+                    $request->getSession()->set('_locale', $preferredLocale);
+                }
+            }
             $this->addFlash('success', 'Currency preferences updated successfully!');
             return $this->redirectToRoute('profile_index');
         }

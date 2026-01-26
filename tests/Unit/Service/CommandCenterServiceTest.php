@@ -11,6 +11,7 @@ use App\Repository\QuoteRepository;
 use App\Repository\ActivityRepository;
 use App\Repository\PriceHistoryRepository;
 use App\Service\CommandCenterService;
+use App\Service\CurrencyConverter;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -32,6 +33,7 @@ class CommandCenterServiceTest extends TestCase
     private QuoteRepository $quoteRepository;
     private ActivityRepository $activityRepository;
     private LoggerInterface $logger;
+    private CurrencyConverter $currencyConverter;
 
     protected function setUp(): void
     {
@@ -40,6 +42,11 @@ class CommandCenterServiceTest extends TestCase
         $this->quoteRepository = $this->createMock(QuoteRepository::class);
         $this->activityRepository = $this->createMock(ActivityRepository::class);
         $this->logger = $this->createMock(LoggerInterface::class);
+        $this->currencyConverter = $this->createMock(CurrencyConverter::class);
+        
+        // Mock currency converter to return the same value (no conversion)
+        $this->currencyConverter->method('convert')
+            ->willReturnCallback(fn($amount) => $amount);
         
         // Mock the getRepository method for PriceHistory
         $priceHistoryRepo = $this->createMock(PriceHistoryRepository::class);
@@ -56,7 +63,8 @@ class CommandCenterServiceTest extends TestCase
             $this->leadRepository,
             $this->quoteRepository,
             $this->activityRepository,
-            $this->logger
+            $this->logger,
+            $this->currencyConverter
         );
     }
 

@@ -47,7 +47,7 @@
             <div class="rams-module__content">
                 <div class="rams-stack rams-gap-3">
                     {% for notification in notifications %}
-                        <div class="rams-notification guidance-notification rams-notification--{{ notification.type|default('info') }}" data-notification-index="{{ loop.index0 }}">
+                        <div class="rams-notification guidance-notification rams-notification--{{ notification.type ?? 'info' }}" data-notification-index="{{ loop.index0 }}">
                             {# Icon with Andon indicator #}
                             <div class="rams-notification__indicator">
                                 <span class="rams-andon__light 
@@ -126,7 +126,7 @@ function clearAllGuidanceNotifications() {
                 location.reload();
             }
         });
-    }, {title: '{{ 'guidance.clear_all'|trans|default('Clear All') }}', variant: 'warning'});
+    }, {title: '{{ 'guidance.clear_all'|trans }}', variant: 'warning'});
 }
 </script>
 {% endblock %}

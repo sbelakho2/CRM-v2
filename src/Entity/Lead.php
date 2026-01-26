@@ -593,4 +593,74 @@ class Lead
                !empty($this->contactFormUrl) ||
                $this->hasContactForm;
     }
+    
+    // ============================================================
+    // ALIAS METHODS for LeadDiscoveryController compatibility
+    // ============================================================
+    
+    /**
+     * Alias for setWebsiteRoot() - used by LeadDiscoveryController
+     */
+    public function setWebsite(?string $website): self
+    {
+        return $this->setWebsiteRoot($website);
+    }
+    
+    /**
+     * Alias for getWebsiteRoot() - used by LeadDiscoveryController
+     */
+    public function getWebsite(): ?string
+    {
+        return $this->getWebsiteRoot();
+    }
+    
+    /**
+     * Set source info - stored in notesAuto field
+     */
+    public function setSource(?string $source): self
+    {
+        // Prepend source info to notes
+        $currentNotes = $this->notesAuto ?? '';
+        $sourcePrefix = $source ? "[Source: {$source}]\n" : '';
+        $this->notesAuto = $sourcePrefix . $currentNotes;
+        return $this;
+    }
+    
+    /**
+     * Get source from notesAuto (extracts from prefix if present)
+     */
+    public function getSource(): ?string
+    {
+        if (!$this->notesAuto) {
+            return null;
+        }
+        if (preg_match('/\[Source:\s*([^\]]+)\]/', $this->notesAuto, $matches)) {
+            return trim($matches[1]);
+        }
+        return null;
+    }
+    
+    /**
+     * Set description - alias for first part of notesAuto
+     */
+    public function setDescription(?string $description): self
+    {
+        // Extract source if present, then set description with source preserved
+        $source = $this->getSource();
+        $sourcePrefix = $source ? "[Source: {$source}]\n" : '';
+        $this->notesAuto = $sourcePrefix . ($description ?? '');
+        return $this;
+    }
+    
+    /**
+     * Get description - returns notesAuto without source prefix
+     */
+    public function getDescription(): ?string
+    {
+        if (!$this->notesAuto) {
+            return null;
+        }
+        // Remove source prefix if present
+        return preg_replace('/^\[Source:[^\]]+\]\n?/', '', $this->notesAuto);
+    }
 }

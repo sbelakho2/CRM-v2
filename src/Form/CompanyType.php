@@ -18,93 +18,96 @@ class CompanyType extends AbstractType
     {
         $builder
             ->add('name', TextType::class, [
-                'label' => 'Company Name',
+                'label' => 'company.company_name',
                 'attr' => [
-                        'class' => 'rams-form__input',
-                    'placeholder' => 'Enter company name'
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'company.form.name_placeholder'
                 ],
                 'constraints' => [
-                    new NotBlank(['message' => 'Company name is required'])
+                    new NotBlank(['message' => 'validation.required'])
                 ]
             ])
             ->add('sector', ChoiceType::class, [
-                'label' => 'Sector',
+                'label' => 'company.sector',
                 'choices' => [
-                    'Automotive' => 'Automotive',
-                    'Industrial' => 'Industrial',
-                    'Aerospace' => 'Aerospace',
-                    'Rail' => 'Rail',
-                    'Renewables' => 'Renewables',
-                    'Power Electronics' => 'Power Electronics',
+                    'company.sectors.automotive' => 'Automotive',
+                    'company.sectors.industrial' => 'Industrial',
+                    'company.sectors.aerospace' => 'Aerospace',
+                    'company.sectors.rail' => 'Rail',
+                    'company.sectors.renewables' => 'Renewables',
+                    'company.sectors.power_electronics' => 'Power Electronics',
                 ],
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-form__select'],
-                'placeholder' => 'Select sector',
+                'placeholder' => 'company.form.select_sector',
                 'constraints' => [
-                    new NotBlank(['message' => 'Sector is required'])
+                    new NotBlank(['message' => 'validation.required'])
                 ]
             ])
             ->add('accountTier', ChoiceType::class, [
-                'label' => 'Account Tier',
+                'label' => 'company.account_tier',
                 'choices' => [
-                    'Tier A' => 'A',
-                    'Tier B' => 'B',
-                    'Tier C' => 'C',
+                    'company.account_tiers.tier_a' => 'A',
+                    'company.account_tiers.tier_b' => 'B',
+                    'company.account_tiers.tier_c' => 'C',
                 ],
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-form__select'],
-                'placeholder' => 'Select tier'
+                'placeholder' => 'company.form.select_tier'
             ])
             ->add('pipelineStage', ChoiceType::class, [
-                'label' => 'Pipeline Stage',
+                'label' => 'company.pipeline_stage',
                 'choices' => [
-                    'Prospect' => 'Prospect',
-                    'MQL (Marketing Qualified Lead)' => 'MQL',
-                    'SQL (Sales Qualified Lead)' => 'SQL',
-                    'SQO (Sales Qualified Opportunity)' => 'SQO',
-                    'Proposal' => 'Proposal',
-                    'Award' => 'Award',
+                    'company.pipeline_stages.prospect' => 'Prospect',
+                    'company.pipeline_stages.mql' => 'MQL',
+                    'company.pipeline_stages.sql' => 'SQL',
+                    'company.pipeline_stages.sqo' => 'SQO',
+                    'company.pipeline_stages.proposal' => 'Proposal',
+                    'company.pipeline_stages.award' => 'Award',
                 ],
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-form__select'],
-                'placeholder' => 'Select stage'
+                'placeholder' => 'company.form.select_stage'
             ])
             ->add('region', TextType::class, [
-                'label' => 'Region',
+                'label' => 'company.region',
                 'attr' => [
-                        'class' => 'rams-form__input',
-                    'placeholder' => 'e.g., Morocco - TAC, EU - Germany'
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'company.form.region_placeholder'
                 ],
                 'required' => false
             ])
             ->add('website', UrlType::class, [
-                'label' => 'Website',
+                'label' => 'company.website',
                 'attr' => [
-                        'class' => 'rams-form__input',
-                    'placeholder' => 'https://example.com'
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'company.form.website_placeholder'
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Url(['message' => 'Please enter a valid URL'])
+                    new Url(['message' => 'validation.url'])
                 ]
             ])
             ->add('linkedInUrl', UrlType::class, [
-                'label' => 'LinkedIn URL',
+                'label' => 'company.linkedin',
                 'attr' => [
-                        'class' => 'rams-form__input',
-                    'placeholder' => 'https://linkedin.com/company/example'
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'company.form.linkedin_placeholder'
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Url(['message' => 'Please enter a valid LinkedIn URL'])
+                    new Url(['message' => 'validation.url'])
                 ]
             ])
             ->add('googleDriveLink', UrlType::class, [
-                'label' => 'Google Drive Link',
+                'label' => 'company.google_drive_link',
                 'attr' => [
-                        'class' => 'rams-form__input',
-                    'placeholder' => 'https://drive.google.com/...'
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'company.form.google_drive_placeholder'
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Url(['message' => 'Please enter a valid Google Drive URL'])
+                    new Url(['message' => 'validation.url'])
                 ]
             ]);
     }
@@ -113,6 +116,7 @@ class CompanyType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Company::class,
+            'translation_domain' => 'messages',
         ]);
     }
 }

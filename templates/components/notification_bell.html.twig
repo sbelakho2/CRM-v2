@@ -5,15 +5,15 @@
     id="notification-bell"
     type="button"
     class="rams-sidebar__nav-link rams-notification__button rams-w-full rams-justify-start rams-relative"
-    aria-label="{{ 'notifications.title'|trans|default('Notifications') }}"
-    title="{{ 'notifications.title'|trans|default('Notifications') }}"
+    aria-label="{{ 'notifications.title'|trans }}"
+    title="{{ 'notifications.title'|trans }}"
 >
     {# Bell Icon #}
     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="rams-flex-shrink-0">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
     </svg>
     
-    <span class="rams-flex-1">{{ 'notifications.title'|trans|default('Notifications') }}</span>
+    <span class="rams-flex-1">{{ 'notifications.title'|trans }}</span>
 
     {# Unread Badge #}
     <span 
@@ -31,7 +31,7 @@
 >
     {# Modal Header #}
     <div class="rams-module__header rams-flex rams-items-center rams-justify-between">
-        <h3 class="rams-module__title rams-text-sm">{{ 'notifications.title'|trans|default('Notifications') }}</h3>
+        <h3 class="rams-module__title rams-text-sm">{{ 'notifications.title'|trans }}</h3>
         <button 
             type="button"
             id="notification-close"
@@ -48,7 +48,7 @@
     <div id="notification-list" class="rams-module__content rams-flex-1 rams-overflow-auto">
         {# Notifications will be populated here by JavaScript #}
         <div class="rams-p-4 rams-text-center">
-            <p class="rams-dymo">{{ 'notifications.no_notifications'|trans|default('No notifications') }}</p>
+            <p class="rams-dymo">{{ 'notifications.no_notifications'|trans }}</p>
         </div>
     </div>
 
@@ -59,7 +59,7 @@
             id="notification-mark-all"
             class="rams-btn rams-btn--ghost rams-btn--sm"
         >
-            {{ 'notifications.mark_all_read'|trans|default('Mark all as read') }}
+            {{ 'notifications.mark_all_read'|trans }}
         </button>
         <a 
             href="#" 

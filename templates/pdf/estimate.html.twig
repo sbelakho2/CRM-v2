@@ -232,7 +232,7 @@
             <tr>
                 <th style="width: 60%;">{{ 'common.description'|trans }}</th>
                 <th style="width: 20%;">{{ 'common.details'|trans }}</th>
-                    <th style="width: 20%;">{{ 'pdf.estimate.amount'|trans|default('Amount') }} ({{ estimate.currency|default(display_currency()) }})</th>
+                    <th style="width: 20%;">{{ 'pdf.estimate.amount'|trans }} ({{ estimate.currency ?? display_currency() }})</th>
             </tr>
         </thead>
         <tbody>
@@ -248,7 +248,7 @@
             <tr>
                 <td>{{ 'pdf.estimate.freight_cost'|trans }}</td>
                 <td class="text-center">
-                    {{ freightMode ?? 'AIR' }}<br>
+                    {{ freightMode ?? ('pdf.estimate.freight_mode_air'|trans) }}<br>
                     <span class="small text-muted">{{ transitDays ?? 5 }} {{ 'pdf.estimate.days'|trans }}</span>
                 </td>
                     <td class="text-right">{{ freightCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
@@ -279,9 +279,9 @@
                 <td class="text-center">
                     {{ dutyRate|number_format(1) }}%<br>
                     {% if ftaApplied %}
-                    <span class="badge badge-success">FTA</span>
+                    <span class="badge badge-success">{{ 'pdf.estimate.badge_fta'|trans }}</span>
                     {% else %}
-                    <span class="badge badge-warning">MFN</span>
+                    <span class="badge badge-warning">{{ 'pdf.estimate.badge_mfn'|trans }}</span>
                     {% endif %}
                 </td>
                     <td class="text-right">{{ dutyCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
@@ -327,15 +327,15 @@
         </tr>
         <tr>
             <td style="background: #f5f5f5;"><strong>{{ 'pdf.estimate.duty_type'|trans }}:</strong></td>
-            <td>{{ dutyType ?? 'Ad Valorem' }}</td>
+            <td>{{ dutyType ?? ('pdf.estimate.duty_type_default'|trans) }}</td>
         </tr>
         <tr>
             <td style="background: #f5f5f5;"><strong>{{ 'pdf.estimate.trade_agreement'|trans }}:</strong></td>
             <td>
                 {% if ftaApplied %}
-                    {{ ftaName ?? 'Morocco-US FTA' }} (0% {{ 'pdf.estimate.duty'|trans|lower }})
+                    {{ ftaName ?? ('pdf.estimate.fta_name_default'|trans) }} (0% {{ 'pdf.estimate.duty'|trans|lower }})
                 {% else %}
-                    MFN ({{ 'pdf.estimate.mfn_full'|trans }})
+                    {{ 'pdf.estimate.mfn_short'|trans }} ({{ 'pdf.estimate.mfn_full'|trans }})
                 {% endif %}
             </td>
         </tr>
@@ -346,10 +346,10 @@
     <ul>
         <li><strong>{{ 'pdf.estimate.incoterm'|trans }}:</strong> {{ estimate.incoterm }} - {{ incoterms[estimate.incoterm].description ?? ('pdf.estimate.standard_terms'|trans) }}</li>
         <li><strong>{{ 'pdf.estimate.currency'|trans }}:</strong> {{ 'pdf.estimate.currency_note'|trans({'%rate%': fxRate|number_format(4), '%date%': fxDate|date('Y-m-d')}) }}</li>
-        <li><strong>{{ 'pdf.estimate.freight_mode'|trans }}:</strong> {{ freightMode ?? 'AIR' }} - {{ 'pdf.estimate.transit_time'|trans }}: {{ transitDays ?? 5 }} {{ 'pdf.estimate.days'|trans }}</li>
+        <li><strong>{{ 'pdf.estimate.freight_mode'|trans }}:</strong> {{ freightMode ?? ('pdf.estimate.freight_mode_air'|trans) }} - {{ 'pdf.estimate.transit_time'|trans }}: {{ transitDays ?? 5 }} {{ 'pdf.estimate.days'|trans }}</li>
         <li><strong>{{ 'pdf.estimate.insurance_label'|trans }}:</strong> {{ 'pdf.estimate.insurance_rate'|trans }}</li>
         {% if ftaApplied %}
-        <li><strong>{{ 'pdf.estimate.fta_eligibility'|trans }}:</strong> {{ 'pdf.estimate.fta_note'|trans({'%fta%': ftaName ?? 'Morocco-US FTA'}) }}</li>
+        <li><strong>{{ 'pdf.estimate.fta_eligibility'|trans }}:</strong> {{ 'pdf.estimate.fta_note'|trans({'%fta%': ftaName ?? ('pdf.estimate.fta_name_default'|trans)}) }}</li>
         {% endif %}
     </ul>
     
@@ -363,7 +363,7 @@
     
     <div class="footer">
         <p>
-            <strong>{{ 'app.company'|trans }}</strong> | Casablanca, Morocco<br>
+            <strong>{{ 'app.company'|trans }}</strong> | {{ 'pdf.estimate.company_location'|trans }}<br>
             {{ 'pdf.generated_on'|trans }} {{ "now"|date('Y-m-d H:i:s') }}
         </p>
     </div>

@@ -23,7 +23,7 @@
         <div class="rams-page__header">
             <div class="rams-page__header-content">
                 <h1 class="rams-page__title">{{ 'email_campaign.edit_campaign'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'email_campaign.update_settings'|trans|default('Update campaign settings') }}</p>
+                <p class="rams-page__subtitle">{{ 'email_campaign.update_settings'|trans }}</p>
             </div>
         </div>
 
@@ -47,7 +47,7 @@
                         </div>
 
                         <div class="rams-form__group">
-                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.touch_count'|trans|default('Touch Count') }}</label>
+                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.touch_count'|trans }}</label>
                             {{ form_widget(form.touchCount, {'attr': {'class': 'rams-form__input'}}) }}
                             {{ form_errors(form.touchCount) }}
                         </div>

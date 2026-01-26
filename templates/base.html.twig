@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ app.request.locale|default('en') }}">
+<html lang="{{ app.request.locale }}" dir="{{ app.request.locale starts with 'ar' ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,20 +25,6 @@
     {% if not isAuthPage %}
         {# Industrial Bezel Frame (Desktop only) #}
         <div class="rams-bezel" aria-hidden="true"></div>
-        
-        {# Corner Screws #}
-        <div class="rams-screw rams-screw--tl" aria-hidden="true">
-            <svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1"/><path d="M3 6L9 6M6 3L6 9" stroke="currentColor" stroke-width="1"/></svg>
-        </div>
-        <div class="rams-screw rams-screw--tr" aria-hidden="true">
-            <svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1"/><path d="M3 6L9 6M6 3L6 9" stroke="currentColor" stroke-width="1"/></svg>
-        </div>
-        <div class="rams-screw rams-screw--bl" aria-hidden="true">
-            <svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1"/><path d="M3 6L9 6M6 3L6 9" stroke="currentColor" stroke-width="1"/></svg>
-        </div>
-        <div class="rams-screw rams-screw--br" aria-hidden="true">
-            <svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1"/><path d="M3 6L9 6M6 3L6 9" stroke="currentColor" stroke-width="1"/></svg>
-        </div>
         
         {# Rack Sidebar #}
         <aside class="rams-sidebar" role="navigation" aria-label="{{ 'accessibility.navigation'|trans }}">
@@ -278,7 +264,7 @@
                         <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="8" cy="5" r="3"/><path d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
                         </svg>
-                        <span>{% if app.user %}{{ app.user.fullName|default('nav.profile'|trans) }}{% else %}{{ 'nav.profile'|trans }}{% endif %}</span>
+                        <span>{% if app.user %}{{ app.user.fullName ?: 'nav.profile'|trans }}{% else %}{{ 'nav.profile'|trans }}{% endif %}</span>
                     </a>
                     <a href="{{ path('app_logout') }}" class="rams-sidebar__nav-link">
                         <span class="rams-sidebar__nav-indicator"></span>

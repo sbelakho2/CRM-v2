@@ -9,6 +9,31 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'rfqs')]
 class RFQ
 {
+    // Loss reason categories for competitive intelligence
+    public const LOSS_REASON_PRICE = 'price';
+    public const LOSS_REASON_LEAD_TIME = 'lead_time';
+    public const LOSS_REASON_TECHNICAL = 'technical_capability';
+    public const LOSS_REASON_QUALITY = 'quality_certification';
+    public const LOSS_REASON_RELATIONSHIP = 'existing_relationship';
+    public const LOSS_REASON_LOCATION = 'location_preference';
+    public const LOSS_REASON_CAPACITY = 'capacity_constraints';
+    public const LOSS_REASON_NO_RESPONSE = 'no_response';
+    public const LOSS_REASON_CANCELLED = 'rfq_cancelled';
+    public const LOSS_REASON_OTHER = 'other';
+    
+    public const LOSS_REASONS = [
+        self::LOSS_REASON_PRICE,
+        self::LOSS_REASON_LEAD_TIME,
+        self::LOSS_REASON_TECHNICAL,
+        self::LOSS_REASON_QUALITY,
+        self::LOSS_REASON_RELATIONSHIP,
+        self::LOSS_REASON_LOCATION,
+        self::LOSS_REASON_CAPACITY,
+        self::LOSS_REASON_NO_RESPONSE,
+        self::LOSS_REASON_CANCELLED,
+        self::LOSS_REASON_OTHER,
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -56,6 +81,34 @@ class RFQ
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
+    
+    // ============================================================
+    // WIN/LOSS COMPETITIVE INTELLIGENCE FIELDS
+    // ============================================================
+    
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $lossReason = null; // Standardized loss category
+    
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $lossReasonDetail = null; // Free text explanation
+    
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $competitorWon = null; // Name of winning competitor
+    
+    #[ORM\Column(type: 'decimal', precision: 15, scale: 2, nullable: true)]
+    private ?string $winningBidAmount = null; // Competitor's winning price if known
+    
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $lessonsLearned = null; // What could we do better?
+    
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $winFactors = null; // If won: key success factors
+    
+    #[ORM\Column(type: 'date', nullable: true)]
+    private ?\DateTimeInterface $decisionDate = null; // When was final decision made
+    
+    #[ORM\Column(type: 'date', nullable: true)]
+    private ?\DateTimeInterface $awardDate = null; // When was contract awarded (if won)
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
@@ -233,5 +286,157 @@ class RFQ
     {
         $this->createdAt = $createdAt;
         return $this;
+    }
+    
+    // ============================================================
+    // WIN/LOSS COMPETITIVE INTELLIGENCE METHODS
+    // ============================================================
+    
+    public function getLossReason(): ?string
+    {
+        return $this->lossReason;
+    }
+    
+    public function setLossReason(?string $lossReason): self
+    {
+        // Validate against standard categories
+        if ($lossReason !== null && !in_array($lossReason, self::LOSS_REASONS)) {
+            // Accept but log warning - allow custom reasons
+        }
+        $this->lossReason = $lossReason;
+        return $this;
+    }
+    
+    public function getLossReasonDetail(): ?string
+    {
+        return $this->lossReasonDetail;
+    }
+    
+    public function setLossReasonDetail(?string $detail): self
+    {
+        $this->lossReasonDetail = $detail;
+        return $this;
+    }
+    
+    public function getCompetitorWon(): ?string
+    {
+        return $this->competitorWon;
+    }
+    
+    public function setCompetitorWon(?string $competitor): self
+    {
+        $this->competitorWon = $competitor;
+        return $this;
+    }
+    
+    public function getWinningBidAmount(): ?string
+    {
+        return $this->winningBidAmount;
+    }
+    
+    public function setWinningBidAmount(?string $amount): self
+    {
+        $this->winningBidAmount = $amount;
+        return $this;
+    }
+    
+    public function getLessonsLearned(): ?string
+    {
+        return $this->lessonsLearned;
+    }
+    
+    public function setLessonsLearned(?string $lessons): self
+    {
+        $this->lessonsLearned = $lessons;
+        return $this;
+    }
+    
+    public function getWinFactors(): ?string
+    {
+        return $this->winFactors;
+    }
+    
+    public function setWinFactors(?string $factors): self
+    {
+        $this->winFactors = $factors;
+        return $this;
+    }
+    
+    public function getDecisionDate(): ?\DateTimeInterface
+    {
+        return $this->decisionDate;
+    }
+    
+    public function setDecisionDate(?\DateTimeInterface $date): self
+    {
+        $this->decisionDate = $date;
+        return $this;
+    }
+    
+    public function getAwardDate(): ?\DateTimeInterface
+    {
+        return $this->awardDate;
+    }
+    
+    public function setAwardDate(?\DateTimeInterface $date): self
+    {
+        $this->awardDate = $date;
+        return $this;
+    }
+    
+    /**
+     * Check if RFQ was won
+     */
+    public function isWon(): bool
+    {
+        return $this->status === 'Won';
+    }
+    
+    /**
+     * Check if RFQ was lost
+     */
+    public function isLost(): bool
+    {
+        return $this->status === 'Lost';
+    }
+    
+    /**
+     * Mark RFQ as lost with details
+     */
+    public function markLost(string $reason, ?string $competitor = null, ?string $detail = null): self
+    {
+        $this->status = 'Lost';
+        $this->lossReason = $reason;
+        $this->competitorWon = $competitor;
+        $this->lossReasonDetail = $detail;
+        $this->decisionDate = new \DateTime();
+        return $this;
+    }
+    
+    /**
+     * Mark RFQ as won with details
+     */
+    public function markWon(?string $factors = null, ?\DateTimeInterface $awardDate = null): self
+    {
+        $this->status = 'Won';
+        $this->winFactors = $factors;
+        $this->awardDate = $awardDate ?? new \DateTime();
+        $this->decisionDate = new \DateTime();
+        return $this;
+    }
+    
+    /**
+     * Calculate price difference vs winning bid (negative = we were higher)
+     */
+    public function getPriceDifferencePercent(): ?float
+    {
+        if (!$this->winningBidAmount || !$this->estimatedValue || $this->winningBidAmount <= 0) {
+            return null;
+        }
+        
+        $ourBid = (float)$this->estimatedValue;
+        $winningBid = (float)$this->winningBidAmount;
+        
+        return round((($ourBid - $winningBid) / $winningBid) * 100, 2);
     }
 }

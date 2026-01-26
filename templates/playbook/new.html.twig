@@ -101,6 +101,18 @@
 <script>
 const availableTriggers = {{ availableTriggers|json_encode|raw }};
 const availableActions = {{ availableActions|json_encode|raw }};
+const i18n = {
+    selectField: '{{ 'playbook.rule.select_field'|trans|e('js') }}',
+    selectAction: '{{ 'playbook.action.select_action'|trans|e('js') }}',
+    operatorEquals: '{{ 'playbook.rule.operator.equals'|trans|e('js') }}',
+    operatorNotEquals: '{{ 'playbook.rule.operator.not_equals'|trans|e('js') }}',
+    operatorGreater: '{{ 'playbook.rule.operator.greater_than'|trans|e('js') }}',
+    operatorLess: '{{ 'playbook.rule.operator.less_than'|trans|e('js') }}',
+    operatorGreaterOrEqual: '{{ 'playbook.rule.operator.greater_or_equal'|trans|e('js') }}',
+    operatorLessOrEqual: '{{ 'playbook.rule.operator.less_or_equal'|trans|e('js') }}',
+    operatorContains: '{{ 'playbook.rule.operator.contains'|trans|e('js') }}',
+    valuePlaceholder: '{{ 'playbook.rule.value_placeholder'|trans|e('js') }}'
+};
 
 let triggerRules = [];
 let actions = [];
@@ -120,19 +132,19 @@ function addTriggerRule(existingRule = null) {
     
     ruleDiv.innerHTML = `
         <select class="rams-form__select rams-flex-1" onchange="updateTriggerField(${ruleId}, 'field', this.value)">
-            <option value="">Select field...</option>
+            <option value="">${i18n.selectField}</option>
             ${fieldOptions}
         </select>
         <select class="rams-form__select rams-flex-1" onchange="updateTriggerField(${ruleId}, 'operator', this.value)">
-            <option value="==" ${rule.operator === '==' ? 'selected' : ''}>equals</option>
-            <option value="!=" ${rule.operator === '!=' ? 'selected' : ''}>not equals</option>
-            <option value=">" ${rule.operator === '>' ? 'selected' : ''}>greater than</option>
-            <option value="<" ${rule.operator === '<' ? 'selected' : ''}>less than</option>
-            <option value=">=" ${rule.operator === '>=' ? 'selected' : ''}>greater or equal</option>
-            <option value="<=" ${rule.operator === '<=' ? 'selected' : ''}>less or equal</option>
-            <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>contains</option>
+            <option value="==" ${rule.operator === '==' ? 'selected' : ''}>${i18n.operatorEquals}</option>
+            <option value="!=" ${rule.operator === '!=' ? 'selected' : ''}>${i18n.operatorNotEquals}</option>
+            <option value=">" ${rule.operator === '>' ? 'selected' : ''}>${i18n.operatorGreater}</option>
+            <option value="<" ${rule.operator === '<' ? 'selected' : ''}>${i18n.operatorLess}</option>
+            <option value=">=" ${rule.operator === '>=' ? 'selected' : ''}>${i18n.operatorGreaterOrEqual}</option>
+            <option value="<=" ${rule.operator === '<=' ? 'selected' : ''}>${i18n.operatorLessOrEqual}</option>
+            <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>${i18n.operatorContains}</option>
         </select>
-        <input type="text" class="rams-form__input rams-flex-1" placeholder="Value" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
+        <input type="text" class="rams-form__input rams-flex-1" placeholder="${i18n.valuePlaceholder}" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
         <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
     `;
     
@@ -176,7 +188,7 @@ function addAction(existingAction = null) {
     actionDiv.innerHTML = `
         <div class="rams-flex rams-gap-2 rams-items-center rams-mb-3">
             <select class="rams-form__select rams-flex-1" onchange="updateActionType(${actionId}, this.value)">
-                <option value="">Select action...</option>
+                <option value="">${i18n.selectAction}</option>
                 ${actionOptions}
             </select>
             <button type="button" onclick="removeAction(${actionId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>

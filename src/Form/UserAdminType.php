@@ -21,18 +21,28 @@ class UserAdminType extends AbstractType
         $isNew = $options['is_new'] ?? false;
         
         $builder
-            ->add('email', EmailType::class)
-            ->add('firstName', TextType::class)
-            ->add('lastName', TextType::class)
-            ->add('active', CheckboxType::class, ['required' => false])
+            ->add('email', EmailType::class, [
+                'label' => 'admin.users.email',
+            ])
+            ->add('firstName', TextType::class, [
+                'label' => 'admin.users.first_name',
+            ])
+            ->add('lastName', TextType::class, [
+                'label' => 'admin.users.last_name',
+            ])
+            ->add('active', CheckboxType::class, [
+                'label' => 'admin.users.active',
+                'required' => false,
+            ])
             ->add('roles', ChoiceType::class, [
                 'choices' => [
-                    'Admin' => 'ROLE_ADMIN',
-                    'Sales Ops' => 'ROLE_SALES_OPS',
-                    'Digital Rep' => 'ROLE_DIGITAL_REP',
-                    'Field Rep' => 'ROLE_FIELD_REP',
-                    'User' => 'ROLE_USER',
+                    'admin.users.roles.admin' => 'ROLE_ADMIN',
+                    'admin.users.roles.sales_ops' => 'ROLE_SALES_OPS',
+                    'admin.users.roles.digital_rep' => 'ROLE_DIGITAL_REP',
+                    'admin.users.roles.field_rep' => 'ROLE_FIELD_REP',
+                    'admin.users.roles.user' => 'ROLE_USER',
                 ],
+                'choice_translation_domain' => 'messages',
                 'multiple' => true,
                 'expanded' => true,
             ]);
@@ -41,14 +51,14 @@ class UserAdminType extends AbstractType
         if ($isNew) {
             $builder->add('plainPassword', PasswordType::class, [
                 'mapped' => false,
-                'label' => 'Password',
+                'label' => 'admin.users.password',
                 'constraints' => [
                     new NotBlank([
-                        'message' => 'Please enter a password',
+                        'message' => 'validation.required',
                     ]),
                     new Length([
                         'min' => 6,
-                        'minMessage' => 'Your password should be at least {{ limit }} characters',
+                        'minMessage' => 'validation.min_length',
                         'max' => 4096,
                     ]),
                 ],
@@ -61,6 +71,7 @@ class UserAdminType extends AbstractType
         $resolver->setDefaults([
             'data_class' => User::class,
             'is_new' => false,
+            'translation_domain' => 'messages',
         ]);
     }
 }

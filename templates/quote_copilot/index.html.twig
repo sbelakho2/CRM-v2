@@ -16,7 +16,7 @@
     {# Page Header #}
     <header class="rams-module__header rams-module__header--border-bottom">
         <h1 class="rams-heading rams-heading--1">{{ 'quote.copilot.title'|trans }}</h1>
-        <p class="rams-text rams-text--muted">{{ 'quote.copilot.subtitle'|trans|default('Upload BOM files and get automated quote generation with pricing coverage analysis') }}</p>
+        <p class="rams-text rams-text--muted">{{ 'quote.copilot.subtitle'|trans }}</p>
     </header>
 
     <div class="rams-grid rams-grid--cols-3 rams-grid--gap-lg">
@@ -41,15 +41,15 @@
 
                         {# BOM File Upload #}
                         <div class="rams-form__group">
-                            <label class="rams-form__label rams-dymo">{{ 'quote.copilot.bom_file'|trans|default('BOM File (CSV)') }}</label>
+                            <label class="rams-form__label rams-dymo">{{ 'quote.copilot.bom_file'|trans }}</label>
                             <div class="rams-upload-zone" onclick="document.getElementById('bom-file-input').click()">
                                 <svg class="rams-upload-zone__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
-                                <p class="rams-upload-zone__title">{{ 'quote.copilot.click_to_upload'|trans|default('Click to upload BOM CSV') }}</p>
-                                <p class="rams-upload-zone__hint">{{ 'quote.copilot.csv_format_hint'|trans|default('CSV format with columns: Part Number, Description, Quantity, Manufacturer, Reference Designators') }}</p>
+                                <p class="rams-upload-zone__title">{{ 'quote.copilot.click_to_upload'|trans }}</p>
+                                <p class="rams-upload-zone__hint">{{ 'quote.copilot.csv_format_hint'|trans }}</p>
                                 <input type="file" name="bom_file" required accept=".csv" class="rams-sr-only" id="bom-file-input" onchange="displayFileName(this)">
-                                <button type="button" class="rams-btn rams-btn--primary">{{ 'quote.copilot.choose_file'|trans|default('Choose CSV File') }}</button>
+                                <button type="button" class="rams-btn rams-btn--primary">{{ 'quote.copilot.choose_file'|trans }}</button>
                                 <div id="file-name-display" class="rams-upload-zone__filename"></div>
                             </div>
                         </div>
@@ -57,11 +57,11 @@
                         {# Shipment Details #}
                         <div class="rams-module rams-module--nested">
                             <div class="rams-module__header">
-                                <h3 class="rams-heading rams-heading--4 rams-dymo">{{ 'quote.copilot.shipment_details'|trans|default('Shipment Details') }}</h3>
+                                <h3 class="rams-heading rams-heading--4 rams-dymo">{{ 'quote.copilot.shipment_details'|trans }}</h3>
                             </div>
                             <div class="rams-module__content">
                                 <div class="rams-form__group">
-                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.destination_country'|trans|default('Destination Country') }}</label>
+                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.destination_country'|trans }}</label>
                                     <select name="ship_to_country" required class="rams-form__select">
                                         <option value="">{{ 'common.select'|trans }}...</option>
                                         {% for code, name in countries %}
@@ -71,24 +71,24 @@
                                 </div>
 
                                 <div class="rams-form__group">
-                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.assembly_quantity'|trans|default('Assembly Quantity') }}</label>
+                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.assembly_quantity'|trans }}</label>
                                     <input type="number" name="quantity" value="100" min="1" required class="rams-form__input">
-                                    <p class="rams-form__hint">{{ 'quote.copilot.assembly_quantity_hint'|trans|default('Number of PCB assemblies to produce') }}</p>
+                                    <p class="rams-form__hint">{{ 'quote.copilot.assembly_quantity_hint'|trans }}</p>
                                 </div>
 
                                 <div class="rams-form__group">
-                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.incoterms'|trans|default('Incoterms') }}</label>
+                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.incoterms_label'|trans }}</label>
                                     <select name="incoterms" class="rams-form__select">
-                                        <option value="FCA">FCA (Free Carrier)</option>
-                                        <option value="CIF">CIF (Cost, Insurance & Freight)</option>
-                                        <option value="DDP">DDP (Delivered Duty Paid)</option>
-                                        <option value="EXW">EXW (Ex Works)</option>
+                                        <option value="FCA">{{ 'quote.copilot.incoterms.fca'|trans }}</option>
+                                        <option value="CIF">{{ 'quote.copilot.incoterms.cif'|trans }}</option>
+                                        <option value="DDP">{{ 'quote.copilot.incoterms.ddp'|trans }}</option>
+                                        <option value="EXW">{{ 'quote.copilot.incoterms.exw'|trans }}</option>
                                     </select>
                                 </div>
 
                                 <div class="rams-form__group">
                                     <label class="rams-form__label rams-dymo">{{ 'common.notes'|trans }} ({{ 'common.optional'|trans|lower }})</label>
-                                    <textarea name="notes" rows="3" class="rams-form__textarea" placeholder="{{ 'quote.copilot.notes_placeholder'|trans|default('Special requirements, RFQ reference, etc.') }}"></textarea>
+                                    <textarea name="notes" rows="3" class="rams-form__textarea" placeholder="{{ 'quote.copilot.notes_placeholder'|trans }}"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -99,7 +99,7 @@
                                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                 </svg>
-                                {{ 'quote.copilot.generate_quote'|trans|default('Generate Quote') }}
+                                {{ 'quote.copilot.generate_quote'|trans }}
                             </button>
                             <button type="reset" onclick="document.getElementById('file-name-display').textContent = ''" class="rams-btn rams-btn--secondary rams-btn--lg">
                                 {{ 'common.clear'|trans }}
@@ -115,25 +115,25 @@
             {# Process Steps #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <span class="rams-dymo">{{ 'quote.copilot.how_it_works'|trans|default('How It Works') }}</span>
+                    <span class="rams-dymo">{{ 'quote.copilot.how_it_works'|trans }}</span>
                 </div>
                 <div class="rams-module__content">
                     <ol class="rams-steps">
                         <li class="rams-steps__item">
                             <span class="rams-steps__number">1</span>
-                            <span class="rams-steps__text">{{ 'quote.copilot.step_1'|trans|default('Upload your BOM CSV file') }}</span>
+                            <span class="rams-steps__text">{{ 'quote.copilot.step_1'|trans }}</span>
                         </li>
                         <li class="rams-steps__item">
                             <span class="rams-steps__number">2</span>
-                            <span class="rams-steps__text">{{ 'quote.copilot.step_2'|trans|default('System parses components and looks up pricing') }}</span>
+                            <span class="rams-steps__text">{{ 'quote.copilot.step_2'|trans }}</span>
                         </li>
                         <li class="rams-steps__item">
                             <span class="rams-steps__number">3</span>
-                            <span class="rams-steps__text">{{ 'quote.copilot.step_3'|trans|default('Pricing coverage % calculated') }}</span>
+                            <span class="rams-steps__text">{{ 'quote.copilot.step_3'|trans }}</span>
                         </li>
                         <li class="rams-steps__item">
                             <span class="rams-steps__number">4</span>
-                            <span class="rams-steps__text">{{ 'quote.copilot.step_4'|trans|default('Review quote and publish to customer') }}</span>
+                            <span class="rams-steps__text">{{ 'quote.copilot.step_4'|trans }}</span>
                         </li>
                     </ol>
                 </div>
@@ -142,21 +142,21 @@
             {# Coverage Metrics #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <span class="rams-dymo">{{ 'quote.copilot.coverage_metrics'|trans|default('Coverage Metrics') }}</span>
+                    <span class="rams-dymo">{{ 'quote.copilot.coverage_metrics'|trans }}</span>
                 </div>
                 <div class="rams-module__content">
                     <ul class="rams-list rams-list--status">
                         <li class="rams-list__item">
                             <span class="rams-andon rams-andon--green rams-andon--sm">✓</span>
-                            <span><strong>{{ 'quote.copilot.coverage_high'|trans|default('High (>90%):') }}</strong> {{ 'quote.copilot.auto_publish_eligible'|trans|default('Auto-publish eligible') }}</span>
+                            <span><strong>{{ 'quote.copilot.coverage_high'|trans }}</strong> {{ 'quote.copilot.auto_publish_eligible'|trans }}</span>
                         </li>
                         <li class="rams-list__item">
                             <span class="rams-andon rams-andon--yellow rams-andon--sm">⚠</span>
-                            <span><strong>{{ 'quote.copilot.coverage_medium'|trans|default('Medium (60-90%):') }}</strong> {{ 'quote.copilot.review_required'|trans|default('Review required') }}</span>
+                            <span><strong>{{ 'quote.copilot.coverage_medium'|trans }}</strong> {{ 'quote.copilot.review_required'|trans }}</span>
                         </li>
                         <li class="rams-list__item">
                             <span class="rams-andon rams-andon--red rams-andon--sm">✗</span>
-                            <span><strong>{{ 'quote.copilot.coverage_low'|trans|default('Low (<60%):') }}</strong> {{ 'quote.copilot.manual_pricing_needed'|trans|default('Manual pricing needed') }}</span>
+                            <span><strong>{{ 'quote.copilot.coverage_low'|trans }}</strong> {{ 'quote.copilot.manual_pricing_needed'|trans }}</span>
                         </li>
                     </ul>
                 </div>
@@ -165,19 +165,19 @@
             {# Sample BOM Format #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <span class="rams-dymo">{{ 'quote.copilot.csv_format_example'|trans|default('CSV Format Example') }}</span>
+                    <span class="rams-dymo">{{ 'quote.copilot.csv_format_example'|trans }}</span>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-code-block">
-                        <code>Part Number,Description,Quantity,Manufacturer,Reference Designators</code>
-                        <code class="rams-code-block--muted">STM32F407VGT6,MCU 32-bit,1,STMicroelectronics,U1</code>
-                        <code class="rams-code-block--muted">GRM155R71C104KA88D,CAP 100nF,10,Murata,C1-C10</code>
+                        <code>{{ 'quote.copilot.sample_header'|trans }}</code>
+                        <code class="rams-code-block--muted">{{ 'quote.copilot.sample_row_1'|trans }}</code>
+                        <code class="rams-code-block--muted">{{ 'quote.copilot.sample_row_2'|trans }}</code>
                     </div>
                     <a href="/samples/sample-bom.csv" download class="rams-link rams-link--icon">
                         <svg class="rams-link__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                         </svg>
-                        {{ 'quote.copilot.download_sample'|trans|default('Download sample BOM') }}
+                        {{ 'quote.copilot.download_sample'|trans }}
                     </a>
                 </div>
             </div>

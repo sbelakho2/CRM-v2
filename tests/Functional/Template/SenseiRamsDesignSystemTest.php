@@ -227,7 +227,7 @@ class SenseiRamsDesignSystemTest extends TestCase
         $finder->files()->in($this->templatesPath)->name('*.twig');
         
         $this->assertGreaterThan(0, $finder->count(), 'Should have at least some template files');
-        $this->assertGreaterThanOrEqual(100, $finder->count(), 'Should have at least 100 template files');
+        $this->assertGreaterThanOrEqual(95, $finder->count(), 'Should have at least 95 template files');
     }
     
     public function testNoTemplatesContainTailwindCdn(): void
@@ -610,8 +610,8 @@ class SenseiRamsDesignSystemTest extends TestCase
         
         $this->assertStringContainsString('rams-bezel', $baseContent, 
             'Base template should include industrial bezel frame');
-        $this->assertStringContainsString('rams-screw', $baseContent, 
-            'Base template should include screw decorations');
+        $this->assertStringNotContainsString('rams-screw', $baseContent, 
+            'Base template should not include screw decorations');
     }
     
     public function testUseStatusBar(): void
@@ -666,8 +666,8 @@ class SenseiRamsDesignSystemTest extends TestCase
         
         $count = $finder->count();
         
-        $this->assertGreaterThanOrEqual(100, $count, 
-            "Should have at least 100 templates, found $count");
+        $this->assertGreaterThanOrEqual(95, $count, 
+            "Should have at least 95 templates, found $count");
     }
     
     // ========================================

@@ -16,7 +16,7 @@
                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
-                    {{ 'lead.review_leads_title'|trans|default('Review Leads') }}
+                    {{ 'lead.review_leads_title'|trans }}
                 </a>
             </div>
         </div>
@@ -56,16 +56,16 @@
         <div class="rams-grid rams-grid--2col">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="rams-module__title">{{ 'lead.weekly_performance'|trans|default('Weekly Performance (Last 7 Days)') }}</h3>
+                    <h3 class="rams-module__title">{{ 'lead.weekly_performance'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-metrics-grid rams-metrics-grid--2col">
                         <div>
-                            <span class="rams-dymo">{{ 'lead.total_reviewed'|trans|default('Total Reviewed') }}</span>
+                            <span class="rams-dymo">{{ 'lead.total_reviewed'|trans }}</span>
                             <span class="rams-metric">{{ weekly_stats.total ?? 0 }}</span>
                         </div>
                         <div>
-                            <span class="rams-dymo">{{ 'lead.approval_rate'|trans|default('Approval Rate') }}</span>
+                            <span class="rams-dymo">{{ 'lead.approval_rate'|trans }}</span>
                             <span class="rams-metric rams-metric--success">
                                 {% if weekly_stats.total > 0 %}
                                     {{ ((weekly_stats.approved / weekly_stats.total) * 100)|number_format(1) }}%
@@ -80,14 +80,14 @@
 
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="rams-module__title">{{ 'lead.quality_metrics'|trans|default('Quality Metrics') }}</h3>
+                    <h3 class="rams-module__title">{{ 'lead.quality_metrics'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead.precision_top50'|trans|default('Precision @ Top-50') }}</span>
+                    <span class="rams-dymo">{{ 'lead.precision_top50'|trans }}</span>
                     <span class="rams-metric rams-metric--{% if precision_top50 >= 75 %}success{% elseif precision_top50 >= 50 %}warning{% else %}danger{% endif %}">
                         {{ precision_top50 }}%
                     </span>
-                    <p class="rams-metric__label">{{ 'lead.target'|trans|default('Target') }}: ≥75%</p>
+                    <p class="rams-metric__label">{{ 'lead.target'|trans }}: ≥75%</p>
                 </div>
             </div>
         </div>
@@ -95,7 +95,7 @@
         {# Regional Breakdown #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3 class="rams-module__title">{{ 'lead.leads_by_region'|trans|default('Leads by Region') }}</h3>
+                <h3 class="rams-module__title">{{ 'lead.leads_by_region'|trans }}</h3>
             </div>
             <div class="rams-module__content rams-module__content--flush">
                 <div class="rams-table-wrapper">
@@ -104,7 +104,7 @@
                             <tr>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'lead.region'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'lead.total_leads'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.avg_score'|trans|default('Average Score') }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.avg_score'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
                             </tr>
                         </thead>
@@ -132,7 +132,7 @@
                             {% else %}
                             <tr>
                                 <td colspan="4" class="rams-table__cell rams-table__cell--empty">
-                                    {{ 'lead.no_regional_data'|trans|default('No regional data available') }}
+                                    {{ 'lead.no_regional_data'|trans }}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -145,7 +145,7 @@
         {# Top Leads #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3 class="rams-module__title">{{ 'lead.top_leads'|trans|default('Top 20 Leads by Score') }}</h3>
+                <h3 class="rams-module__title">{{ 'lead.top_leads'|trans }}</h3>
             </div>
             <div class="rams-module__content rams-module__content--flush">
                 <div class="rams-table-wrapper">

@@ -4,7 +4,9 @@ namespace App\Controller;
 
 use App\Entity\EmailSend;
 use App\Entity\EmailUnsubscribe;
+use App\Entity\OutboundMessage;
 use App\Service\EmailCampaignService;
+use App\Service\AutonomousSalesOrchestratorService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,6 +20,7 @@ class EmailWebhookController extends AbstractController
     public function __construct(
         private EntityManagerInterface $entityManager,
         private EmailCampaignService $campaignService,
+        private ?AutonomousSalesOrchestratorService $orchestrator,
         private LoggerInterface $logger
     ) {
     }
@@ -329,6 +332,197 @@ class EmailWebhookController extends AbstractController
             case 'bounced':
                 $this->campaignService->markBounced($send);
                 break;
+        }
+        
+        return new Response('OK', 200);
+    }
+
+    /**
+     * Autonomous Sales System Webhook
+     * 
+     * Receives email engagement events and routes them to the ML-based orchestrator
+     * for Thompson Sampling reward updates and Naive Bayes classification learning.
+     * 
+     * Expected payload:
+     * {
+     *   "outbound_message_id": 123,
+     *   "event": "open|click|reply|bounce|complaint",
+     *   "reply_content": "..." (optional, for reply events),
+     *   "classification_override": "..." (optional, human-reviewed classification)
+     * }
+     */
+    #[Route('/autonomous-sales', name: 'webhook_autonomous_sales', methods: ['POST'])]
+    public function autonomousSales(Request $request): Response
+    {
+        if ($response = $this->enforceWebhookSecret($request)) {
+            return $response;
+        }
+        
+        if (!$this->orchestrator) {
+            $this->logger->error('AutonomousSalesOrchestratorService not available');
+            return new Response('Autonomous sales system not configured', 503);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        
+        if (!$data) {
+            return new Response('Invalid JSON', 400);
+        }
+        
+        $messageId = $data['outbound_message_id'] ?? null;
+        $event = $data['event'] ?? null;
+        $replyContent = $data['reply_content'] ?? null;
+        $classificationOverride = $data['classification_override'] ?? null;
+
+        $this->logger->info('Autonomous sales webhook received', [
+            'message_id' => $messageId,
+            'event' => $event,
+            'has_reply_content' => !empty($replyContent),
+            'has_classification_override' => !empty($classificationOverride),
+        ]);
+        
+        if (!$messageId) {
+            return new Response('Missing outbound_message_id', 400);
+        }
+        
+        if (!$event) {
+            return new Response('Missing event', 400);
+        }
+        
+        $message = $this->entityManager->getRepository(OutboundMessage::class)->find($messageId);
+        
+        if (!$message) {
+            $this->logger->warning('OutboundMessage not found', ['message_id' => $messageId]);
+            return new Response('Message not found', 404);
+        }
+        
+        // Map event types to orchestrator event types
+        $eventMap = [
+            'open' => 'open',
+            'opened' => 'open',
+            'click' => 'click',
+            'clicked' => 'click',
+            'reply' => 'reply',
+            'replied' => 'reply',
+            'bounce' => 'bounce',
+            'bounced' => 'bounce',
+            'complaint' => 'complaint',
+            'spam' => 'complaint',
+        ];
+        
+        $normalizedEvent = $eventMap[strtolower($event)] ?? $event;
+        
+        try {
+            // If it's a reply event with content, process through orchestrator
+            if ($normalizedEvent === 'reply' && $replyContent) {
+                // Process the reply through the full classification pipeline
+                $result = $this->orchestrator->recordEmailEvent(
+                    $message,
+                    $normalizedEvent,
+                    $replyContent
+                );
+                
+                // If a classification override was provided (human review), apply it
+                if ($classificationOverride && method_exists($this->orchestrator, 'applyClassificationOverride')) {
+                    $this->orchestrator->applyClassificationOverride($message, $classificationOverride);
+                }
+                
+                return new Response(json_encode([
+                    'status' => 'processed',
+                    'message_id' => $messageId,
+                    'event' => $normalizedEvent,
+                    'classification_result' => $result['classification'] ?? null,
+                    'thompson_updated' => $result['thompson_updated'] ?? false,
+                ]), 200, ['Content-Type' => 'application/json']);
+            }
+            
+            // For non-reply events, just record the engagement
+            $this->orchestrator->recordEmailEvent($message, $normalizedEvent, $replyContent);
+            
+            return new Response(json_encode([
+                'status' => 'recorded',
+                'message_id' => $messageId,
+                'event' => $normalizedEvent,
+            ]), 200, ['Content-Type' => 'application/json']);
+            
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to process autonomous sales webhook', [
+                'message_id' => $messageId,
+                'event' => $normalizedEvent,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return new Response(json_encode([
+                'status' => 'error',
+                'message' => 'Failed to process event: ' . $e->getMessage(),
+            ]), 500, ['Content-Type' => 'application/json']);
+        }
+    }
+
+    /**
+     * Bridge endpoint: Routes traditional campaign webhook events to autonomous sales
+     * 
+     * This endpoint allows existing email campaign tracking to also feed the ML system.
+     * Call this endpoint when you want traditional campaign tracking PLUS autonomous learning.
+     */
+    #[Route('/campaign-bridge/{sendId}', name: 'webhook_campaign_bridge', methods: ['POST'])]
+    public function campaignBridge(Request $request, int $sendId): Response
+    {
+        if ($response = $this->enforceWebhookSecret($request)) {
+            return $response;
+        }
+        
+        $data = json_decode($request->getContent(), true) ?? $request->request->all();
+        $event = $data['event'] ?? null;
+        
+        if (!$event) {
+            return new Response('Missing event', 400);
+        }
+        
+        // First, handle traditional campaign tracking
+        $send = $this->entityManager->getRepository(EmailSend::class)->find($sendId);
+        
+        if ($send) {
+            switch ($event) {
+                case 'opened':
+                case 'open':
+                    if (!$send->isOpened()) {
+                        $this->campaignService->markOpened($send);
+                    }
+                    break;
+                case 'clicked':
+                case 'click':
+                    if (!$send->isClicked()) {
+                        $this->campaignService->markClicked($send);
+                    }
+                    break;
+                case 'replied':
+                case 'reply':
+                    $this->campaignService->markReplied($send);
+                    break;
+                case 'bounced':
+                case 'bounce':
+                    $this->campaignService->markBounced($send);
+                    break;
+            }
+        }
+        
+        // Then, if this email send has an associated OutboundMessage, update autonomous sales
+        if ($this->orchestrator) {
+            // Try to find OutboundMessage by campaign send ID
+            $message = $this->entityManager->getRepository(OutboundMessage::class)
+                ->findOneBy(['campaignSendId' => $sendId]);
+            
+            if ($message) {
+                $replyContent = $data['reply_content'] ?? null;
+                $this->orchestrator->recordEmailEvent($message, $event, $replyContent);
+                
+                $this->logger->info('Campaign event bridged to autonomous sales', [
+                    'send_id' => $sendId,
+                    'outbound_message_id' => $message->getId(),
+                    'event' => $event,
+                ]);
+            }
         }
         
         return new Response('OK', 200);

@@ -20,8 +20,8 @@
         {# Header #}
         <div class="rams-page__header">
             <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ 'email_campaign.create_campaign'|trans|default('Create Email Campaign') }}</h1>
-                <p class="rams-page__subtitle">{{ 'email_campaign.setup_sequence'|trans|default('Set up a multi-touch email sequence') }}</p>
+                <h1 class="rams-page__title">{{ 'email_campaign.create_campaign'|trans }}</h1>
+                <p class="rams-page__subtitle">{{ 'email_campaign.setup_sequence'|trans }}</p>
             </div>
         </div>
 
@@ -45,10 +45,10 @@
                         </div>
 
                         <div class="rams-form__group">
-                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.touch_count'|trans|default('Touch Count') }}</label>
+                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.touch_count'|trans }}</label>
                             {{ form_widget(form.touchCount, {'attr': {'class': 'rams-form__input'}}) }}
                             {{ form_errors(form.touchCount) }}
-                            <span class="rams-form__hint">{{ 'email_campaign.touch_count_hint'|trans|default('Recommended: 5 touches over 3 weeks') }}</span>
+                            <span class="rams-form__hint">{{ 'email_campaign.touch_count_hint'|trans }}</span>
                         </div>
                     </div>
 
@@ -70,7 +70,7 @@
                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            {{ 'email_campaign.create_campaign'|trans|default('Create Campaign') }}
+                            {{ 'email_campaign.create_campaign'|trans }}
                         </button>
                         <a href="{{ path('app_email_campaign_index') }}" class="rams-btn rams-btn--secondary">
                             {{ 'common.cancel'|trans }}
@@ -90,13 +90,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <div class="rams-info-panel__content">
-                        <h3 class="rams-info-panel__title">{{ 'email_campaign.best_practice_title'|trans|default('5-Touch Email Sequence Best Practice') }}</h3>
+                        <h3 class="rams-info-panel__title">{{ 'email_campaign.best_practice_title'|trans }}</h3>
                         <ul class="rams-info-panel__list">
-                            <li>{{ 'email_campaign.touch_1_hint'|trans|default('Touch 1: Initial introduction (Day 1)') }}</li>
-                            <li>{{ 'email_campaign.touch_2_hint'|trans|default('Touch 2: Value proposition (Day 4)') }}</li>
-                            <li>{{ 'email_campaign.touch_3_hint'|trans|default('Touch 3: Case study or proof (Day 8)') }}</li>
-                            <li>{{ 'email_campaign.touch_4_hint'|trans|default('Touch 4: Specific offer (Day 14)') }}</li>
-                            <li>{{ 'email_campaign.touch_5_hint'|trans|default('Touch 5: Final follow-up (Day 21)') }}</li>
+                            <li>{{ 'email_campaign.touch_1_hint'|trans }}</li>
+                            <li>{{ 'email_campaign.touch_2_hint'|trans }}</li>
+                            <li>{{ 'email_campaign.touch_3_hint'|trans }}</li>
+                            <li>{{ 'email_campaign.touch_4_hint'|trans }}</li>
+                            <li>{{ 'email_campaign.touch_5_hint'|trans }}</li>
                         </ul>
                     </div>
                 </div>

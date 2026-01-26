@@ -8,7 +8,7 @@
     <div class="rams-module">
         <div class="rams-module__header">
             <h1 class="rams-page-title">{{ 'compliance.overview'|trans }}</h1>
-            <p class="rams-dymo">{{ 'compliance.subtitle'|trans|default('Track compliance status across all companies') }}</p>
+            <p class="rams-dymo">{{ 'compliance.subtitle'|trans }}</p>
         </div>
     </div>
 
@@ -16,7 +16,7 @@
     <div class="rams-btn-group">
         <a href="{{ path('app_compliance_overview') }}" 
            class="rams-btn {{ not current_sector ? 'rams-btn--primary' : 'rams-btn--ghost' }}">
-            {{ 'common.all'|trans }} {{ 'company.sectors'|trans|default('Sectors') }}
+            {{ 'common.all'|trans }} {{ 'company.sectors_label'|trans }}
         </a>
         {% for sector in sectors %}
             <a href="{{ path('app_compliance_overview', {sector: sector}) }}" 
@@ -36,7 +36,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </div>
-                    <p class="rams-text-muted">{{ 'company.no_companies'|trans|default('No companies found') }}</p>
+                    <p class="rams-text-muted">{{ 'company.no_companies'|trans }}</p>
                 </div>
             {% else %}
                 <div class="rams-stack">
@@ -80,7 +80,7 @@
                                     </div>
                                     <div class="rams-andon">
                                         <span class="rams-andon__light rams-andon__light--green"></span>
-                                        <span class="rams-dymo">{{ stats.uploaded }} {{ 'common.upload'|trans|default('Uploaded') }}</span>
+                                        <span class="rams-dymo">{{ stats.uploaded }} {{ 'common.upload'|trans }}</span>
                                     </div>
                                     <div class="rams-andon">
                                         <span class="rams-andon__light rams-andon__light--green"></span>
@@ -95,7 +95,7 @@
                                     {% if stats.expired > 0 %}
                                         <div class="rams-andon">
                                             <span class="rams-andon__light rams-andon__light--red"></span>
-                                            <span class="rams-dymo">{{ stats.expired }} {{ 'compliance.expired'|trans|default('Expired') }}</span>
+                                            <span class="rams-dymo">{{ stats.expired }} {{ 'compliance.expired'|trans }}</span>
                                         </div>
                                     {% endif %}
                                 </div>

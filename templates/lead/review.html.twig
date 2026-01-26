@@ -10,7 +10,7 @@
         <div class="rams-page__header">
             <div class="rams-page__header-content">
                 <h1 class="rams-page__title">{{ 'lead.review'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'lead.review_subtitle'|trans|default('Review and approve discovered leads') }}</p>
+                <p class="rams-page__subtitle">{{ 'lead.review_subtitle'|trans }}</p>
             </div>
             <div class="rams-page__actions">
                 <a href="{{ path('app_lead_dashboard') }}" class="rams-btn rams-btn--secondary">
@@ -35,7 +35,7 @@
                     <div class="rams-form__group">
                         <label class="rams-dymo">{{ 'lead.region'|trans }}</label>
                         <select name="region" class="rams-form__select">
-                            <option value="all" {% if region_filter == 'all' %}selected{% endif %}>{{ 'lead.all_regions'|trans|default('All Regions') }}</option>
+                            <option value="all" {% if region_filter == 'all' %}selected{% endif %}>{{ 'lead.all_regions'|trans }}</option>
                             {% for code, label in region_options %}
                                 <option value="{{ code }}" {% if region_filter == code %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
@@ -45,7 +45,7 @@
                     <div class="rams-form__group">
                         <label class="rams-dymo">{{ 'common.status'|trans }}</label>
                         <select name="status" class="rams-form__select">
-                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{{ 'lead.all_statuses'|trans|default('All Statuses') }}</option>
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{{ 'lead.all_statuses'|trans }}</option>
                             <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>{{ 'lead.pending_review'|trans }}</option>
                             <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>{{ 'lead.approved_leads'|trans }}</option>
                             <option value="denied" {% if status_filter == 'denied' %}selected{% endif %}>{{ 'lead.denied_leads'|trans }}</option>
@@ -75,9 +75,9 @@
             {% for stat in region_stats %}
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ region_options[stat.regionTag]|default(stat.regionTag|upper|default('Unknown')) }}</span>
+                    <span class="rams-dymo">{{ region_options[stat.regionTag] ?? (stat.regionTag ? stat.regionTag|upper : 'lead.unknown_region'|trans) }}</span>
                     <span class="rams-metric">{{ stat.total }}</span>
-                    <span class="rams-metric__label">{{ 'lead.avg_score'|trans|default('Avg Score') }}: {{ stat.avg_score|number_format(1) }}</span>
+                    <span class="rams-metric__label">{{ 'lead.avg_score'|trans }}: {{ stat.avg_score|number_format(1) }}</span>
                 </div>
             </div>
             {% endfor %}
@@ -94,9 +94,9 @@
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'company.title_singular'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'lead.region'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.location'|trans|default('Location') }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.sectors'|trans|default('Sectors') }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.contact_info'|trans|default('Contact') }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.location'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.sectors'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.contact_info'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
                             </tr>
@@ -130,7 +130,7 @@
                                 </td>
                                 <td class="rams-table__cell">
                                     {% if lead.supplierPortalUrl %}
-                                        <a href="{{ lead.supplierPortalUrl }}" target="_blank" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.supplier_portal'|trans|default('Supplier Portal') }}">
+                                        <a href="{{ lead.supplierPortalUrl }}" target="_blank" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.supplier_portal'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                             </svg>
@@ -172,16 +172,16 @@
                                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                             </svg>
-                                            {{ 'lead.add_to_companies'|trans|default('Add to Companies') }}
+                                            {{ 'lead.add_to_companies'|trans }}
                                         </button>
                                     {% elseif lead.company %}
                                         <span class="rams-badge rams-badge--success">
                                             <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                             </svg>
-                                            {{ 'lead.in_crm'|trans|default('In CRM') }}
+                                            {{ 'lead.in_crm'|trans }}
                                         </span>
-                                        <a href="{{ path('app_company_show', {id: lead.company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.view_company'|trans|default('View Company') }}">
+                                        <a href="{{ path('app_company_show', {id: lead.company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.view_company'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                             </svg>
@@ -206,7 +206,7 @@
 
 <script>
 function approveLead(leadId) {
-    ramsConfirm('{{ 'lead.confirm_approve'|trans|default('Approve this lead?') }}', function() {
+    ramsConfirm('{{ 'lead.confirm_approve'|trans }}', function() {
         fetch(`/leads/approve/${leadId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'}
@@ -219,16 +219,16 @@ function approveLead(leadId) {
                 ramsAlert('{{ 'common.error'|trans }}: ' + data.message, {variant: 'error'});
             }
         });
-    }, {title: '{{ 'lead.approve'|trans|default('Approve Lead') }}', variant: 'default'});
+    }, {title: '{{ 'lead.approve'|trans }}', variant: 'default'});
 }
 
 function denyLead(leadId) {
-    const reason = prompt('{{ 'lead.deny_reason_prompt'|trans|default('Reason for denial (optional):') }}');
+    const reason = prompt('{{ 'lead.deny_reason_prompt'|trans }}');
     
     fetch(`/leads/deny/${leadId}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({reason: reason || '{{ 'lead.not_good_fit'|trans|default('Not a good fit') }}'})
+        body: JSON.stringify({reason: reason || '{{ 'lead.not_good_fit'|trans }}'})
     })
     .then(response => response.json())
     .then(data => {
@@ -241,7 +241,7 @@ function denyLead(leadId) {
 }
 
 function convertLead(leadId) {
-    ramsConfirm('{{ 'lead.confirm_convert'|trans|default('Add this approved lead to the Companies list?') }}', function() {
+    ramsConfirm('{{ 'lead.confirm_convert'|trans }}', function() {
         fetch(`/leads/convert/${leadId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'}
@@ -249,15 +249,15 @@ function convertLead(leadId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                ramsAlert('{{ 'lead.convert_success'|trans|default('Lead successfully added to Companies!') }}', {variant: 'success', onClose: function() { location.reload(); }});
+                ramsAlert('{{ 'lead.convert_success'|trans }}', {variant: 'success', onClose: function() { location.reload(); }});
             } else {
                 ramsAlert('{{ 'common.error'|trans }}: ' + data.message, {variant: 'error'});
         }
     })
     .catch(error => {
-        ramsAlert('{{ 'lead.convert_error'|trans|default('Error converting lead:') }} ' + error.message, {variant: 'error'});
+        ramsAlert('{{ 'lead.convert_error'|trans }} ' + error.message, {variant: 'error'});
     });
-    }, {title: '{{ 'lead.convert'|trans|default('Convert Lead') }}', variant: 'default'});
+    }, {title: '{{ 'lead.convert'|trans }}', variant: 'default'});
 }
 </script>
 {% endblock %}

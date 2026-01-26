@@ -31,58 +31,60 @@ class RFQType extends AbstractType
             ->add('company', EntityType::class, [
                 'class' => Company::class,
                 'choice_label' => 'name',
-                'placeholder' => 'Select company',
+                'placeholder' => 'rfq.form.select_company',
                 'required' => true,
                 'constraints' => [
-                    new NotBlank(['message' => 'Please select a company']),
+                    new NotBlank(['message' => 'validation.required']),
                 ],
                 'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('rfqNumber', TextType::class, [
                 'required' => false,
-                'label' => 'RFQ Number',
+                'label' => 'rfq.rfq_number',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'e.g., RFQ-2025-001',
+                    'placeholder' => 'rfq.form.rfq_number_placeholder',
                 ],
             ])
             ->add('rfqDate', DateType::class, [
                 'required' => false,
                 'widget' => 'single_text',
-                'label' => 'RFQ Date',
+                'label' => 'rfq.form.rfq_date',
                 'attr' => ['class' => 'rams-form__input'],
             ])
             ->add('type', ChoiceType::class, [
                 'choices' => [
-                    'Standard RFQ' => 'Standard RFQ',
-                    'NPI (New Product Introduction)' => 'NPI',
-                    'Framework Agreement' => 'Framework Agreement',
+                    'rfq.types.standard' => 'Standard RFQ',
+                    'rfq.types.npi' => 'NPI',
+                    'rfq.types.framework' => 'Framework Agreement',
                 ],
+                'choice_translation_domain' => 'messages',
                 'required' => true,
-                'label' => 'RFQ Type',
+                'label' => 'rfq.form.rfq_type',
                 'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('status', ChoiceType::class, [
                 'choices' => [
-                    'Pending' => 'Pending',
-                    'In Review' => 'In Review',
-                    'Submitted' => 'Submitted',
-                    'Won' => 'Won',
-                    'Lost' => 'Lost',
+                    'rfq.statuses.pending' => 'Pending',
+                    'rfq.statuses.in_review' => 'In Review',
+                    'rfq.statuses.submitted' => 'Submitted',
+                    'rfq.statuses.won' => 'Won',
+                    'rfq.statuses.lost' => 'Lost',
                 ],
                 'required' => true,
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('currency', ChoiceType::class, [
                 'choices' => $currencyChoices,
                 'required' => false,
-                'label' => 'Currency',
+                'label' => 'rfq.currency',
                 'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('estimatedValue', MoneyType::class, [
                 'required' => false,
                 'currency' => false,
-                'label' => 'Estimated Value',
+                'label' => 'rfq.estimated_value',
                 'attr' => [
                     'class' => 'rams-form__input',
                     'placeholder' => '0.00',
@@ -90,25 +92,25 @@ class RFQType extends AbstractType
             ])
             ->add('volumeAnnual', IntegerType::class, [
                 'required' => false,
-                'label' => 'Annual Volume',
+                'label' => 'rfq.form.annual_volume',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'e.g., 10000',
+                    'placeholder' => 'rfq.form.annual_volume_placeholder',
                 ],
             ])
             ->add('sopDate', DateType::class, [
                 'required' => false,
                 'widget' => 'single_text',
-                'label' => 'SOP Date (Start of Production)',
+                'label' => 'rfq.form.sop_date',
                 'attr' => ['class' => 'rams-form__input'],
             ])
             ->add('technicalScope', TextareaType::class, [
                 'required' => false,
-                'label' => 'Technical Scope',
+                'label' => 'rfq.form.technical_scope',
                 'attr' => [
                     'class' => 'rams-form__input',
                     'rows' => 4,
-                    'placeholder' => 'Describe the technical requirements and scope...',
+                    'placeholder' => 'rfq.form.technical_scope_placeholder',
                 ],
             ])
             ->add('notes', TextareaType::class, [
@@ -116,7 +118,7 @@ class RFQType extends AbstractType
                 'attr' => [
                     'class' => 'rams-form__textarea',
                     'rows' => 4,
-                    'placeholder' => 'Add any additional notes or comments...',
+                    'placeholder' => 'rfq.form.notes_placeholder',
                 ],
             ])
         ;
@@ -126,6 +128,7 @@ class RFQType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => RFQ::class,
+            'translation_domain' => 'messages',
         ]);
     }
 }

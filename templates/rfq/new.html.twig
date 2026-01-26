@@ -63,7 +63,7 @@
                 {# Financial Details #}
                 <div class="rams-grid rams-grid--3">
                     <div class="rams-form__group">
-                        {{ form_label(form.currency, 'rfq.fields.currency'|trans|default('Currency'), {'label_attr': {'class': 'rams-dymo'}}) }}
+                        {{ form_label(form.currency, 'rfq.fields.currency'|trans, {'label_attr': {'class': 'rams-dymo'}}) }}
                         {{ form_widget(form.currency, {'attr': {'class': 'rams-form__select'}}) }}
                         {{ form_errors(form.currency) }}
                     </div>

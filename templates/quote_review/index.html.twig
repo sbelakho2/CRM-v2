@@ -7,32 +7,32 @@
     {# Header #}
     <div class="rams-page-header">
         <h1 class="rams-heading rams-heading--1">{{ 'quote.review.title'|trans }}</h1>
-        <p class="rams-text rams-text--muted">{{ 'quote.review.subtitle'|trans|default('Review and verify part matches before publishing quotes') }}</p>
+        <p class="rams-text rams-text--muted">{{ 'quote.review.subtitle'|trans }}</p>
     </div>
 
     {# Stats Summary #}
-    <div class="rams-grid rams-grid--cols-4 rams-grid--gap-md">
+    <div class="rams-grid rams-grid--4">
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
-                <span class="rams-dymo">{{ 'quote.review.total_pending'|trans|default('Total Pending') }}</span>
+                <span class="rams-dymo">{{ 'quote.review.total_pending'|trans }}</span>
                 <p class="rams-metric rams-metric--lg rams-text--primary">{{ quotes|length }}</p>
             </div>
         </div>
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
-                <span class="rams-dymo">{{ 'quote.review.high_priority'|trans|default('High Priority') }}</span>
+                <span class="rams-dymo">{{ 'quote.review.high_priority'|trans }}</span>
                 <p class="rams-metric rams-metric--lg rams-text--danger">{{ quotes|filter(q => q[2] > 5)|length }}</p>
             </div>
         </div>
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
-                <span class="rams-dymo">{{ 'quote.review.ready_approve'|trans|default('Ready to Approve') }}</span>
+                <span class="rams-dymo">{{ 'quote.review.ready_approve'|trans }}</span>
                 <p class="rams-metric rams-metric--lg rams-text--success">{{ quotes|filter(q => q[2] == 0)|length }}</p>
             </div>
         </div>
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
-                <span class="rams-dymo">{{ 'quote.review.in_progress'|trans|default('In Progress') }}</span>
+                <span class="rams-dymo">{{ 'quote.review.in_progress'|trans }}</span>
                 <p class="rams-metric rams-metric--lg rams-text--warning">{{ quotes|filter(q => q[2] > 0 and q[2] <= 5)|length }}</p>
             </div>
         </div>
@@ -44,10 +44,10 @@
             <div class="rams-module__content">
                 <div class="rams-empty-state">
                     <div class="rams-empty-state__icon rams-text--success">✓</div>
-                    <h3 class="rams-heading rams-heading--3">{{ 'quote.review.all_caught_up'|trans|default('All Caught Up!') }}</h3>
-                    <p class="rams-text rams-text--muted">{{ 'quote.review.no_pending'|trans|default('No quotes require review at this time.') }}</p>
+                    <h3 class="rams-heading rams-heading--3">{{ 'quote.review.all_caught_up'|trans }}</h3>
+                    <p class="rams-text rams-text--muted">{{ 'quote.review.no_pending'|trans }}</p>
                     <a href="{{ path('quote_copilot_index') }}" class="rams-btn rams-btn--primary rams-mt-md">
-                        {{ 'quote.copilot.new_quote'|trans|default('Create New Quote') }}
+                        {{ 'quote.copilot.new_quote'|trans }}
                     </a>
                 </div>
             </div>
@@ -60,8 +60,8 @@
                         <tr>
                             <th class="rams-table__cell rams-table__cell--header">{{ 'quote.quote'|trans }}</th>
                             <th class="rams-table__cell rams-table__cell--header">{{ 'common.company'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.bom_lines'|trans|default('BOM Lines') }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.review.needs_review'|trans|default('Needs Review') }}</th>
+                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.bom_lines'|trans }}</th>
+                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.review.needs_review'|trans }}</th>
                             <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
                             <th class="rams-table__cell rams-table__cell--header">{{ 'common.created'|trans }}</th>
                             <th class="rams-table__cell rams-table__cell--header rams-text--right">{{ 'common.actions'|trans }}</th>
@@ -77,15 +77,15 @@
                                     <span class="rams-text rams-text--bold">{{ q.quoteNumber }}</span>
                                     <span class="rams-text rams-text--sm rams-text--muted rams-block">{{ q.totalCost|format_currency(q.currency, null, 2) }}</span>
                                 </td>
-                                <td class="rams-table__cell">{{ q.company.name|default('N/A') }}</td>
-                                <td class="rams-table__cell">{{ totalLines }} {{ 'quote.lines'|trans|default('lines') }}</td>
+                                <td class="rams-table__cell">{{ q.company.name ?: 'common.n_a'|trans }}</td>
+                                <td class="rams-table__cell">{{ totalLines }} {{ 'quote.lines'|trans }}</td>
                                 <td class="rams-table__cell">
                                     {% if reviewCount == 0 %}
-                                        <span class="rams-badge rams-badge--green">{{ 'quote.review.ready'|trans|default('Ready') }} ✓</span>
+                                        <span class="rams-badge rams-badge--green">{{ 'quote.review.ready'|trans }} ✓</span>
                                     {% elseif reviewCount <= 5 %}
-                                        <span class="rams-badge rams-badge--yellow">{{ reviewCount }} {{ 'quote.review.items'|trans|default('items') }}</span>
+                                        <span class="rams-badge rams-badge--yellow">{{ reviewCount }} {{ 'quote.review.items'|trans }}</span>
                                     {% else %}
-                                        <span class="rams-badge rams-badge--red">{{ reviewCount }} {{ 'quote.review.items'|trans|default('items') }}</span>
+                                        <span class="rams-badge rams-badge--red">{{ reviewCount }} {{ 'quote.review.items'|trans }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell">
@@ -96,7 +96,7 @@
                                 <td class="rams-table__cell">{{ q.createdAt|date('M j, Y') }}</td>
                                 <td class="rams-table__cell rams-text--right">
                                     <a href="{{ path('quote_review_detail', {id: q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
-                                        {{ 'quote.review.review'|trans|default('Review') }}
+                                        {{ 'quote.review.review'|trans }}
                                     </a>
                                 </td>
                             </tr>

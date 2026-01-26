@@ -13,7 +13,7 @@
                 <li class="rams-breadcrumb__separator">/</li>
                 <li class="rams-breadcrumb__item"><a href="{{ path('app_activity_index') }}" class="rams-breadcrumb__link">{{ 'activity.title'|trans }}</a></li>
                 <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ activity.type }}</li>
+                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</li>
             </ol>
         </nav>
 
@@ -25,13 +25,13 @@
                 </svg>
             </div>
             <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ activity.type }}</h1>
+                <h1 class="rams-page__title">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</h1>
                 <div class="rams-page__meta">
                     <span>{{ activity.activityDate|date('F d, Y') }}</span>
                     {% if activity.outcome %}
                         <span class="rams-page__meta-separator">·</span>
                         <span class="rams-badge rams-badge--{{ activity.outcome|lower|replace({' ': '-'}) }}">
-                            {{ activity.outcome }}
+                            {{ ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans }}
                         </span>
                     {% endif %}
                 </div>
@@ -44,7 +44,7 @@
                     </svg>
                     {{ 'common.edit'|trans }}
                 </a>
-                <form method="post" action="{{ path('app_activity_delete', {id: activity.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'activity.confirm_delete'|trans|default('Are you sure you want to delete this activity?') }}', {variant: 'danger'})">
+                <form method="post" action="{{ path('app_activity_delete', {id: activity.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'activity.confirm_delete'|trans }}', {variant: 'danger'})">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ activity.id) }}">
                     <button type="submit" class="rams-btn rams-btn--danger">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,7 +68,7 @@
         {# Main Content #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'activity.details'|trans|default('Activity Details') }}</h2>
+                <h2 class="rams-module__title">{{ 'activity.details'|trans }}</h2>
             </div>
             <div class="rams-module__content">
                 <dl class="rams-detail-grid">
@@ -98,19 +98,19 @@
                     </div>
                     <div class="rams-detail-grid__item">
                         <dt class="rams-dymo">{{ 'activity.type'|trans }}</dt>
-                        <dd class="rams-detail-grid__value">{{ activity.type }}</dd>
+                        <dd class="rams-detail-grid__value">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</dd>
                     </div>
                     <div class="rams-detail-grid__item">
                         <dt class="rams-dymo">{{ 'activity.activity_date'|trans }}</dt>
                         <dd class="rams-detail-grid__value">{{ activity.activityDate|date('F d, Y') }}</dd>
                     </div>
                     <div class="rams-detail-grid__item">
-                        <dt class="rams-dymo">{{ 'activity.logged_by'|trans|default('Logged By') }}</dt>
+                        <dt class="rams-dymo">{{ 'activity.logged_by'|trans }}</dt>
                         <dd class="rams-detail-grid__value">{{ activity.user.firstName }} {{ activity.user.lastName }}</dd>
                     </div>
                     <div class="rams-detail-grid__item">
                         <dt class="rams-dymo">{{ 'activity.outcome'|trans }}</dt>
-                        <dd class="rams-detail-grid__value">{{ activity.outcome ?? 'common.n_a'|trans }}</dd>
+                        <dd class="rams-detail-grid__value">{{ activity.outcome ? ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans : ('common.n_a'|trans) }}</dd>
                     </div>
                 </dl>
             </div>

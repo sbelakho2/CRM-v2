@@ -9,7 +9,7 @@
         {% if totalCount > 0 %}
             <div class="rams-module__header">
                 <h3 class="rams-dymo">
-                    {{ 'guidance.notifications'|trans|default('Guidance Notifications') }} ({{ totalCount }})
+                    {{ 'guidance.notifications'|trans }} ({{ totalCount }})
                 </h3>
                 <div class="rams-btn-group">
                     {% if totalCount > maxDisplay %}
@@ -18,7 +18,7 @@
                         </a>
                     {% endif %}
                     <button type="button" onclick="clearAllGuidanceNotifications()" class="rams-btn rams-btn--ghost rams-btn--sm">
-                        {{ 'guidance.clear_all'|trans|default('Clear All') }}
+                        {{ 'guidance.clear_all'|trans }}
                     </button>
                 </div>
             </div>
@@ -99,7 +99,7 @@
     }
 
     function clearAllGuidanceNotifications() {
-        ramsConfirm('{{ 'guidance.clear_confirm'|trans|default('Are you sure you want to clear all guidance notifications?') }}', function() {
+        ramsConfirm('{{ 'guidance.clear_confirm'|trans }}', function() {
             fetch('{{ path('guidance_dismiss_all') }}', {
                 method: 'POST'
             }).then(response => {
@@ -107,7 +107,7 @@
                     location.reload();
                 }
             });
-        }, {title: '{{ 'guidance.clear_all'|trans|default('Clear All') }}', variant: 'warning'});
+        }, {title: '{{ 'guidance.clear_all'|trans }}', variant: 'warning'});
     }
 
     // Auto-dismiss success notifications after 10 seconds

@@ -19,18 +19,47 @@ class CurrencyPreferenceType extends AbstractType
         }
         ksort($currencyChoices);
 
+        $languageChoices = [
+            'language.english' => 'en',
+            'language.french' => 'fr',
+            'language.arabic' => 'ar',
+        ];
+
+        $timezoneChoices = [];
+        foreach (\DateTimeZone::listIdentifiers() as $timezone) {
+            $timezoneChoices[$timezone] = $timezone;
+        }
+
         $builder->add('displayCurrency', ChoiceType::class, [
             'choices' => $currencyChoices,
             'required' => false,
-            'label' => 'Display Currency',
+            'label' => 'profile.display_currency',
             'attr' => ['class' => 'rams-form__select'],
         ]);
+
+        $builder
+            ->add('preferredLocale', ChoiceType::class, [
+                'choices' => $languageChoices,
+                'required' => false,
+                'label' => 'profile.language',
+                'placeholder' => 'profile.language_placeholder',
+                'choice_translation_domain' => 'messages',
+                'attr' => ['class' => 'rams-form__select'],
+            ])
+            ->add('preferredTimezone', ChoiceType::class, [
+                'choices' => $timezoneChoices,
+                'required' => false,
+                'label' => 'profile.timezone',
+                'placeholder' => 'profile.timezone_placeholder',
+                'attr' => ['class' => 'rams-form__select'],
+            ]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
             'data_class' => User::class,
+            'translation_domain' => 'messages',
         ]);
     }
 }

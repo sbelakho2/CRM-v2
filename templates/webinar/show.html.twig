@@ -49,11 +49,11 @@
                 <span class="rams-metric__value">{{ stats.total_registered }}</span>
             </div>
             <div class="rams-metric">
-                <span class="rams-metric__label">{{ 'webinar.attended'|trans|default('Attended') }}</span>
+                <span class="rams-metric__label">{{ 'webinar.attended'|trans }}</span>
                 <span class="rams-metric__value">{{ stats.attended }}</span>
             </div>
             <div class="rams-metric">
-                <span class="rams-metric__label">{{ 'webinar.attendance_rate'|trans|default('Attendance Rate') }}</span>
+                <span class="rams-metric__label">{{ 'webinar.attendance_rate'|trans }}</span>
                 <span class="rams-metric__value">{{ stats.attendance_rate }}%</span>
             </div>
         </div>
@@ -88,7 +88,7 @@
             {% if webinar.recordingUrl %}
                 <div class="rams-module rams-module--nested">
                     <div class="rams-module__header">
-                        <h3 class="rams-module__title">{{ 'webinar.recording'|trans|default('Recording') }}</h3>
+                        <h3 class="rams-module__title">{{ 'webinar.recording'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
                         <a href="{{ webinar.recordingUrl }}" target="_blank" class="rams-link rams-link--external">
@@ -111,12 +111,12 @@
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
                         </svg>
-                        {{ 'webinar.copy_registration_link'|trans|default('Copy Registration Link') }}
+                        {{ 'webinar.copy_registration_link'|trans }}
                     </button>
                     <form method="post" action="{{ path('app_webinar_send_followup', {id: webinar.id}) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('followup' ~ webinar.id) }}">
                         <button type="submit" class="rams-btn rams-btn--primary">
-                            {{ 'webinar.send_followups'|trans|default('Send Follow-ups') }}
+                            {{ 'webinar.send_followups'|trans }}
                         </button>
                     </form>
                 </div>
@@ -125,7 +125,7 @@
             <div class="rams-module__content">
                 {% if attendees is empty %}
                     <div class="rams-empty-state">
-                        <p class="rams-empty-state__message">{{ 'webinar.no_attendees'|trans|default('No attendees registered yet') }}</p>
+                        <p class="rams-empty-state__message">{{ 'webinar.no_attendees'|trans }}</p>
                     </div>
                 {% else %}
                     <table class="rams-table">
@@ -155,7 +155,7 @@
                                     <td class="rams-table__cell">
                                         {% if attendee.attended %}
                                             <span class="rams-andon rams-andon--success">
-                                                {{ 'webinar.attended'|trans|default('Attended') }}
+                                                {{ 'webinar.attended'|trans }}
                                             </span>
                                         {% else %}
                                             <span class="rams-andon rams-andon--neutral">
@@ -167,7 +167,7 @@
                                         {% if not attendee.attended %}
                                             <form method="post" action="{{ path('app_webinar_mark_attended', {id: webinar.id, attendeeId: attendee.id}) }}" class="rams-inline-block">
                                                 <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">
-                                                    {{ 'webinar.mark_attended'|trans|default('Mark Attended') }}
+                                                    {{ 'webinar.mark_attended'|trans }}
                                                 </button>
                                             </form>
                                         {% endif %}
@@ -191,7 +191,7 @@ function copyRegistrationLink(button) {
             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
-            {{ 'common.copied'|trans|default('Copied!') }}
+            {{ 'common.copied'|trans }}
         `;
         button.classList.add('rams-btn--success');
         setTimeout(() => {

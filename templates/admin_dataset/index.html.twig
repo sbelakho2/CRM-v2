@@ -37,13 +37,13 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <span class="rams-dymo">{{ 'admin.datasets.last_updated'|trans }}</span>
-                <p class="rams-metric__value">Oct 22, 2025</p>
+                <p class="rams-metric__value">{{ 'admin.datasets.sample_last_updated'|trans }}</p>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
                 <span class="rams-dymo">{{ 'admin.datasets.storage_used'|trans }}</span>
-                <p class="rams-metric__value">2.4 GB</p>
+                <p class="rams-metric__value">{{ 'admin.datasets.sample_storage_used'|trans }}</p>
             </div>
         </div>
     </div>
@@ -111,7 +111,7 @@
         <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--clickable">
             <div class="rams-module__content">
                 <h3 class="rams-module__title">⬆️ {{ 'admin.datasets.import'|trans }}</h3>
-                <p class="rams-text-muted">Upload new datasets or updates</p>
+                <p class="rams-text-muted">{{ 'admin.datasets.upload_hint'|trans }}</p>
             </div>
         </a>
         <a href="#" class="rams-module rams-module--clickable">

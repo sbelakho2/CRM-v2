@@ -7,7 +7,7 @@
     <div class="rams-module__header">
         <div class="rams-module__header-content">
             <h1 class="rams-module__title">{{ 'webcrawler.title'|trans }}</h1>
-            <p class="rams-module__subtitle">{{ 'webcrawler.subtitle'|trans|default('Discover companies using Google Dorks and LinkedIn search') }}</p>
+            <p class="rams-module__subtitle">{{ 'webcrawler.subtitle'|trans }}</p>
         </div>
     </div>
 
@@ -31,7 +31,7 @@
         <!-- Discovery Form -->
         <div class="rams-module rams-module--nested">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.start_discovery'|trans|default('Start New Discovery') }}</h2>
+                <h2 class="rams-module__title">{{ 'webcrawler.start_discovery'|trans }}</h2>
             </div>
             
             <div class="rams-module__content">
@@ -50,7 +50,7 @@
                         <div class="rams-form__group">
                             <label class="rams-form__label">{{ 'company.region'|trans }}</label>
                             <select name="location" class="rams-form__select">
-                                <option value="">{{ 'webcrawler.all_locations'|trans|default('All locations') }}</option>
+                                <option value="">{{ 'webcrawler.all_locations'|trans }}</option>
                                 {% for code, name in locations %}
                                     <option value="{{ code }}">{{ name }}</option>
                                 {% endfor %}
@@ -59,8 +59,8 @@
                     </div>
 
                     <div class="rams-form__group">
-                        <label class="rams-form__label">{{ 'webcrawler.additional_keywords'|trans|default('Additional Keywords') }} ({{ 'webcrawler.comma_separated'|trans|default('comma-separated') }})</label>
-                        <input type="text" name="keywords" placeholder="{{ 'webcrawler.keywords_placeholder'|trans|default('e.g., tier 1, supplier, PCBA') }}" class="rams-form__input">
+                        <label class="rams-form__label">{{ 'webcrawler.additional_keywords'|trans }} ({{ 'webcrawler.comma_separated'|trans }})</label>
+                        <input type="text" name="keywords" placeholder="{{ 'webcrawler.keywords_placeholder'|trans }}" class="rams-form__input">
                     </div>
 
                     <div class="rams-form__actions">
@@ -68,7 +68,7 @@
                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
-                            {{ 'webcrawler.start_discovery'|trans|default('Start Discovery') }}
+                            {{ 'webcrawler.start_discovery'|trans }}
                         </button>
                         <a href="{{ path('app_webcrawler_keyword_expansion') }}" class="rams-btn rams-btn--secondary">{{ 'webcrawler.keyword_expansion'|trans }}</a>
                         <a href="{{ path('app_webcrawler_dork_generator') }}" class="rams-btn rams-btn--secondary">{{ 'webcrawler.dork_generator'|trans }}</a>
@@ -84,7 +84,7 @@
                 <!-- Loading -->
                 <div id="discovery-loading" class="rams-loading rams-hidden">
                     <div class="rams-loading__spinner"></div>
-                    <p class="rams-loading__message">{{ 'webcrawler.discovering'|trans|default('Discovering companies... This may take a few minutes.') }}</p>
+                    <p class="rams-loading__message">{{ 'webcrawler.discovering'|trans }}</p>
                 </div>
             </div>
         </div>
@@ -92,7 +92,7 @@
         <!-- Recent Discoveries -->
         <div class="rams-module rams-module--nested">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.recent_discoveries'|trans|default('Recent Discoveries') }}</h2>
+                <h2 class="rams-module__title">{{ 'webcrawler.recent_discoveries'|trans }}</h2>
             </div>
             
             <div class="rams-module__content">
@@ -105,7 +105,7 @@
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'company.region'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'webcrawler.discovered'|trans|default('Discovered') }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'webcrawler.discovered'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
                             </tr>
                         </thead>
@@ -143,7 +143,7 @@
                     </table>
                 {% else %}
                     <div class="rams-empty-state">
-                        <p class="rams-empty-state__message">{{ 'webcrawler.no_discoveries'|trans|default('No discoveries yet. Start a new discovery above.') }}</p>
+                        <p class="rams-empty-state__message">{{ 'webcrawler.no_discoveries'|trans }}</p>
                     </div>
                 {% endif %}
             </div>
@@ -181,7 +181,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
             resultsContent.innerHTML = `
                 <div class="rams-alert rams-alert--success">
                     <p class="rams-alert__title">${data.message}</p>
-                    <p class="rams-alert__message">{{ 'webcrawler.found_companies'|trans|default('Found') }} ${data.discovered} {{ 'company.title'|trans|lower }}</p>
+                    <p class="rams-alert__message">{{ 'webcrawler.found_companies'|trans }} ${data.discovered} {{ 'company.title'|trans|lower }}</p>
                 </div>
                 ${data.companies.length > 0 ? `
                     <div class="rams-discovery-list">
@@ -189,7 +189,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
                             <div class="rams-discovery-item">
                                 <div class="rams-discovery-item__name">${c.name}</div>
                                 ${c.website ? `<div class="rams-discovery-item__website">${c.website}</div>` : ''}
-                                ${c.linkedin ? `<a href="${c.linkedin}" target="_blank" class="rams-link rams-link--external">LinkedIn</a>` : ''}
+                                ${c.linkedin ? `<a href="${c.linkedin}" target="_blank" class="rams-link rams-link--external">{{ 'contact.linkedin.label'|trans }}</a>` : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -210,7 +210,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
         resultsContent.innerHTML = `
             <div class="rams-alert rams-alert--danger">
                 <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
-                <p class="rams-alert__message">{{ 'webcrawler.discovery_failed'|trans|default('Failed to start discovery:') }} ${error.message}</p>
+                <p class="rams-alert__message">{{ 'webcrawler.discovery_failed'|trans }} ${error.message}</p>
             </div>
         `;
     }

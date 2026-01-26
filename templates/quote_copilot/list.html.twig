@@ -8,7 +8,7 @@
     <header class="rams-module__header rams-module__header--row rams-module__header--border-bottom">
         <div>
             <h1 class="rams-heading rams-heading--1">{{ 'quote.copilot.list'|trans }}</h1>
-            <p class="rams-text rams-text--muted">{{ 'quote.copilot.list_subtitle'|trans|default('Automated quotes generated from BOM files') }}</p>
+            <p class="rams-text rams-text--muted">{{ 'quote.copilot.list_subtitle'|trans }}</p>
         </div>
         <a href="{{ path('quote_copilot_index') }}" class="rams-btn rams-btn--secondary">
             <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
@@ -28,7 +28,7 @@
                         <th class="rams-table__cell rams-table__cell--header">{{ 'quote.company'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'quote.created_at'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'quote.quantity'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.ship_to'|trans|default('Ship To') }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.ship_to'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.coverage'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'quote.total'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'quote.status'|trans }}</th>
@@ -65,9 +65,9 @@
                             </td>
                             <td class="rams-table__cell">
                                 {% if quote.status == 'sent' %}
-                                    <span class="rams-badge rams-badge--green">{{ 'quote.copilot.status_sent'|trans|default('Sent') }}</span>
+                                    <span class="rams-badge rams-badge--green">{{ 'quote.copilot.status_sent'|trans }}</span>
                                 {% elseif quote.status == 'draft' %}
-                                    <span class="rams-badge rams-badge--gray">{{ 'quote.copilot.status_draft'|trans|default('Draft') }}</span>
+                                    <span class="rams-badge rams-badge--gray">{{ 'quote.copilot.status_draft'|trans }}</span>
                                 {% else %}
                                     <span class="rams-badge rams-badge--blue">{{ quote.status|capitalize }}</span>
                                 {% endif %}
@@ -99,9 +99,9 @@
                         <tr>
                             <td colspan="9" class="rams-table__cell rams-table__cell--empty">
                                 <div class="rams-empty-state">
-                                    <p class="rams-empty-state__text">{{ 'quote.copilot.no_quotes'|trans|default('No quotes found') }}</p>
+                                    <p class="rams-empty-state__text">{{ 'quote.copilot.no_quotes'|trans }}</p>
                                     <a href="{{ path('quote_copilot_index') }}" class="rams-link">
-                                        {{ 'quote.copilot.create_first'|trans|default('Create your first quote') }} →
+                                        {{ 'quote.copilot.create_first'|trans }} →
                                     </a>
                                 </div>
                             </td>

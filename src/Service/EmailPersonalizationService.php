@@ -6,8 +6,10 @@ use App\Entity\Contact;
 use App\Entity\Lead;
 use App\Entity\Company;
 use App\Entity\PersonalizationProfile;
+use App\Entity\PersonalizationArchetype;
 use App\Entity\OutboundMessage;
 use App\Repository\PersonalizationProfileRepository;
+use App\Repository\PersonalizationArchetypeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -18,6 +20,7 @@ use Psr\Log\LoggerInterface;
  * - Feature embeddings (TF-IDF style vectors)
  * - Cosine similarity for profile matching
  * - Learned preferences from interaction history
+ * - Archetype profiles for cold-start scenarios
  * - Multi-armed bandit integration for content selection
  * 
  * This provides ONNX-equivalent personalization without requiring
@@ -98,13 +101,706 @@ class EmailPersonalizationService
         ],
     ];
 
+    // ========================= NEW: INDUSTRY-SPECIFIC VALUE PROPOSITIONS =========================
+    // These provide meaningful content variation based on industry+content focus
+    private const INDUSTRY_VALUE_PROPS = [
+        'automotive' => [
+            'technical' => 'With ISO 9001 certification, 100% automated optical inspection, and dedicated automotive production lines, we deliver the traceability and quality documentation your Tier 1 programs demand.',
+            'business' => 'Reduce your total landed cost compared to Western European suppliers while maintaining automotive-grade quality. Our Morocco facility offers EU proximity with competitive North African economics.',
+            'value_focused' => 'Strong first-pass yields and proven automotive manufacturing processes mean fewer rejections and smoother production planning for your plant.',
+            'relationship' => 'We partner with automotive suppliers for the long term—dedicated program managers, shared KPI dashboards, and transparent communication from prototype through series production.',
+        ],
+        'aerospace' => [
+            'technical' => 'ISO 9001 certified with full material traceability and first-article inspection reports for your aerospace assemblies. We handle complex multilayer PCBAs and cable harnesses for demanding applications.',
+            'business' => 'Competitive pricing versus Western European suppliers, with the documentation rigor your programs require. Reduce your supply chain risk with our Morocco facility—same time zone, simplified logistics.',
+            'value_focused' => 'Zero-defect culture with 100% in-circuit testing and AOI. Complete traceability for every component installed.',
+            'relationship' => 'Complex programs require partners who understand long certification cycles. We invest in customer-specific tooling and maintain qualified backup capacity for your critical assemblies.',
+        ],
+        'industrial' => [
+            'technical' => 'ISO 9001 certified with expertise in high-mix, low-to-medium volume industrial assemblies. We handle harsh-environment specifications, conformal coating, and extended temperature qualification testing.',
+            'business' => 'Flexible NRE structures and competitive piece prices for industrial controls, automation systems, and power electronics. Our nearshore model cuts your lead times while reducing landed costs.',
+            'value_focused' => 'Reliable supply continuity backed by strategic component partnerships. Our industrial customers achieve 99%+ on-time delivery with consistent quality across multi-year programs.',
+            'relationship' => 'Industrial equipment programs evolve over decades. We provide engineering support for ECOs, obsolescence management, and capacity scaling as your volumes grow.',
+        ],
+        'defense' => [
+            'technical' => 'Full traceability, serialization, and secure data handling for demanding electronics programs. Rigorous testing protocols and counterfeit prevention practices.',
+            'business' => 'Competitive pricing with the documentation rigor your programs require. Our Morocco facility provides a nearshore manufacturing option.',
+            'value_focused' => 'Mission-critical reliability with zero tolerance for defects. 100% testing, X-ray inspection, and complete build documentation for every unit delivered.',
+            'relationship' => 'Complex programs require suppliers who understand security requirements and long-term commitment. We invest in program-specific capabilities.',
+        ],
+        'medical' => [
+            'technical' => 'ISO 9001 certified with validated processes for medical device assemblies. We maintain full traceability and support your documentation requirements.',
+            'business' => 'Cost-effective manufacturing for medical devices with robust quality systems. Reduce your COGS while maintaining thorough documentation.',
+            'value_focused' => 'Patient safety through manufacturing excellence—zero-defect processes, 100% testing, and statistical process control across all critical parameters.',
+            'relationship' => 'Medical device lifecycles span decades. We provide design for manufacturing feedback, support your documentation requirements, and maintain qualified processes through your product lifetime.',
+        ],
+        'consumer' => [
+            'technical' => 'High-volume SMT capability with 0201 placement accuracy, fine-pitch BGA expertise, and integrated functional testing. We ramp quickly for product launches and seasonal demand spikes.',
+            'business' => 'Aggressive pricing for volume production with the flexibility consumer electronics demand. Rapid NPI cycles and quick-turn prototyping to hit your market windows.',
+            'value_focused' => 'Speed to market with quality—4-week prototype turnaround and scalable production capacity. Our consumer customers achieve 99%+ yields at launch.',
+            'relationship' => 'Consumer products require agile manufacturing partners. We flex capacity for seasonal peaks, support frequent product refreshes, and provide cost-down roadmaps for mature products.',
+        ],
+        'telecom' => [
+            'technical' => 'High-frequency PCB assembly expertise with impedance-controlled processes, nitrogen reflow, and RF testing capabilities. We support 5G infrastructure, base station electronics, and networking equipment.',
+            'business' => 'Scale-ready manufacturing for telecom equipment with flexible capacity models. Our infrastructure supports rapid volume increases for network rollout programs.',
+            'value_focused' => 'Network reliability starts with manufacturing quality—100% testing, burn-in capabilities, and statistical process control for consistent performance across all units.',
+            'relationship' => 'Telecom infrastructure has multi-decade lifespans. We support long-term supply agreements, component lifecycle management, and technology transitions.',
+        ],
+        'renewables' => [
+            'technical' => 'Expertise in power electronics for solar inverters, wind turbine controllers, and energy storage systems. We handle high-current designs, thermal management challenges, and harsh-environment requirements.',
+            'business' => 'Competitive pricing supports your cost-down targets for renewable energy systems. Our nearshore model offers logistical advantages for European customers.',
+            'value_focused' => 'Reliability for long product lifespans—rigorous testing and proven quality systems for power electronics.',
+            'relationship' => 'Renewables projects require long-term supply commitments. We provide capacity guarantees, technology roadmap alignment, and support for evolving grid requirements.',
+        ],
+        'semiconductor' => [
+            'technical' => 'ESD-protected handling and expertise in test equipment and precision assemblies. We support both production equipment and R&D prototype builds.',
+            'business' => 'Cost-effective option for semiconductor equipment assemblies requiring high precision. Our engineering team understands the unique requirements of semiconductor manufacturing.',
+            'value_focused' => 'Precision manufacturing for demanding specifications—100% testing, calibrated processes, and complete documentation.',
+            'relationship' => 'Semiconductor equipment programs require partners who understand your technology roadmap. We invest in capabilities to support next-generation requirements.',
+        ],
+        'other' => [
+            'technical' => 'ISO 9001 certified with flexible manufacturing capabilities for diverse electronic assemblies. We support various industries with tailored quality and documentation requirements.',
+            'business' => 'Competitive nearshore manufacturing with EU proximity. Reduce your supply chain complexity while maintaining quality and delivery performance.',
+            'value_focused' => 'Consistent quality across all programs—statistical process control, 100% testing, and continuous improvement culture drive excellent yields.',
+            'relationship' => 'We build long-term partnerships with customers across industries. Dedicated program management, transparent communication, and investment in your success.',
+        ],
+    ];
+
+    // ========================= NEW: ROLE-SPECIFIC PAIN POINTS =========================
+    // These target the specific concerns of each buyer persona
+    private const ROLE_PAIN_POINTS = [
+        'procurement' => [
+            'primary' => 'cost pressure and supply chain risk',
+            'hook' => 'Reduce your assembly costs versus Western European suppliers while reducing single-source risk with our Morocco facility.',
+            'detail' => 'Our pricing transparency and fixed-cost NRE models eliminate budget surprises. Quarterly business reviews track performance against your targets.',
+        ],
+        'engineering' => [
+            'primary' => 'lead time and DFM feedback',
+            'hook' => '4-week prototype turnaround with detailed DFM feedback from our engineering team.',
+            'detail' => 'Our engineers review your designs within 48 hours and provide manufacturability recommendations before you release tooling.',
+        ],
+        'management' => [
+            'primary' => 'strategic sourcing and risk mitigation',
+            'hook' => 'Diversify your manufacturing footprint with a qualified nearshore alternative.',
+            'detail' => 'Reduce geopolitical risk with an ally-nation manufacturing option. We provide capacity guarantees and business continuity planning.',
+        ],
+        'quality' => [
+            'primary' => 'compliance and traceability',
+            'hook' => 'Full IPC-A-610 Class 3 certification with 100% AOI and complete traceability.',
+            'detail' => 'Our quality systems support your audit requirements—real-time SPC data, CAPA tracking, and paperless traveler documentation.',
+        ],
+        'operations' => [
+            'primary' => 'capacity and on-time delivery',
+            'hook' => 'Flexible capacity model with 99%+ on-time delivery performance.',
+            'detail' => 'Dedicated production lines with VMI programs and safety stock agreements. Our operations team integrates with your ERP for seamless planning.',
+        ],
+        'supply_chain' => [
+            'primary' => 'lead time reduction and inventory optimization',
+            'hook' => 'Reduce your supply chain lead time by 4-6 weeks with nearshore manufacturing.',
+            'detail' => 'Consignment inventory programs, component kitting services, and real-time visibility into work-in-progress inventory levels.',
+        ],
+        'other' => [
+            'primary' => 'finding the right manufacturing partner',
+            'hook' => 'Let us show you why leading OEMs choose our Morocco facility for their electronic assemblies.',
+            'detail' => 'We combine European quality standards with competitive North African economics for the best total value.',
+        ],
+    ];
+
+    // ========================= NEW: EXPANDED TONE TRANSFORMATIONS =========================
+    // 20+ patterns per tone for meaningful text adaptation
+    private const TONE_TRANSFORMATION_PATTERNS = [
+        PersonalizationProfile::TONE_FORMAL => [
+            // Contractions to formal
+            '/\bI\'d\b/i' => 'I would',
+            '/\bWe\'d\b/i' => 'We would',
+            '/\bYou\'d\b/i' => 'You would',
+            '/\bThey\'d\b/i' => 'They would',
+            '/\bI\'ll\b/i' => 'I will',
+            '/\bWe\'ll\b/i' => 'We will',
+            '/\bYou\'ll\b/i' => 'You will',
+            '/\bI\'m\b/i' => 'I am',
+            '/\bWe\'re\b/i' => 'We are',
+            '/\bYou\'re\b/i' => 'You are',
+            '/\bcan\'t\b/i' => 'cannot',
+            '/\bwon\'t\b/i' => 'will not',
+            '/\bdon\'t\b/i' => 'do not',
+            '/\bdoesn\'t\b/i' => 'does not',
+            '/\bisn\'t\b/i' => 'is not',
+            '/\baren\'t\b/i' => 'are not',
+            // Casual to formal phrases
+            '/\bJust wanted to\b/i' => 'I wanted to',
+            '/\bQuick question\b/i' => 'I have a question',
+            '/\bTouching base\b/i' => 'Following up',
+            '/\bCircling back\b/i' => 'Following up on our previous correspondence',
+            '/\bBumping this up\b/i' => 'I am following up on',
+            '/\bHey\b/' => 'Hello',
+            '/\bHi there\b/i' => 'Hello',
+            '/\bThanks\b/' => 'Thank you',
+            '/\bthx\b/i' => 'thank you',
+        ],
+        PersonalizationProfile::TONE_CASUAL => [
+            // Formal to casual
+            '/\bI would\b/i' => "I'd",
+            '/\bWe would\b/i' => "We'd",
+            '/\bYou would\b/i' => "You'd",
+            '/\bI will\b/i' => "I'll",
+            '/\bWe will\b/i' => "We'll",
+            '/\bYou will\b/i' => "You'll",
+            '/\bI am\b/i' => "I'm",
+            '/\bWe are\b/i' => "We're",
+            '/\bYou are\b/i' => "You're",
+            '/\bcannot\b/i' => "can't",
+            '/\bwill not\b/i' => "won't",
+            '/\bdo not\b/i' => "don't",
+            '/\bdoes not\b/i' => "doesn't",
+            '/\bis not\b/i' => "isn't",
+            '/\bare not\b/i' => "aren't",
+            // Formal to casual phrases
+            '/\bI wanted to inquire\b/i' => 'Just wanted to check',
+            '/\bI am writing to\b/i' => 'Wanted to reach out about',
+            '/\bPlease do not hesitate to\b/i' => 'Feel free to',
+            '/\bAt your earliest convenience\b/i' => 'When you get a chance',
+            '/\bI would be pleased to discuss\b/i' => "I'd love to chat about",
+            '/\bKindly let me know\b/i' => 'Let me know',
+            '/\bBest regards\b/i' => 'Cheers',
+            '/\bSincerely\b/i' => 'Thanks',
+            '/\bDear\b/' => 'Hi',
+        ],
+        PersonalizationProfile::TONE_DIRECT => [
+            // Remove filler words and hedging
+            '/\bI would like to\b/i' => "I'd like to",
+            '/\bWe would be happy to\b/i' => "We'd be happy to",
+            '/\bI was wondering if\b/i' => '',
+            '/\bI just wanted to\b/i' => '',
+            '/\bI thought I would\b/i' => '',
+            '/\bJust checking in to see if\b/i' => '',
+            '/\bI hope this email finds you well\.\s*/i' => '',
+            '/\bI hope all is well\.\s*/i' => '',
+            '/\bPlease let me know if you have any questions\.\s*/i' => '',
+            '/\bPlease do not hesitate to reach out\.\s*/i' => '',
+            '/\bLooking forward to hearing from you\.\s*/i' => '',
+            '/\bI would appreciate it if you could\b/i' => 'Please',
+            '/\bIt would be great if we could\b/i' => "Let's",
+            '/\bI believe that\b/i' => '',
+            '/\bI think that\b/i' => '',
+            '/\bperhaps we could\b/i' => "let's",
+            '/\bmaybe we should\b/i' => "let's",
+            '/\bKind regards\b/i' => 'Best',
+            '/\bBest regards\b/i' => 'Best',
+            '/\bWarm regards\b/i' => 'Best',
+            // Clean up double spaces from removals
+            '/  +/' => ' ',
+            '/^\s+/' => '',
+        ],
+        PersonalizationProfile::TONE_FRIENDLY => [
+            // Add warmth while staying professional
+            '/\bI wanted to\b/i' => "I'd love to",
+            '/\bI would like to\b/i' => "I'd really like to",
+            '/\bWe are\b/i' => "We're",
+            '/\bPlease let me know\b/i' => "I'd love to hear",
+            '/\bcontact me\b/i' => 'reach out',
+            '/\bregarding\b/i' => 'about',
+            '/\bpursuant to\b/i' => 'following up on',
+            '/\bper our discussion\b/i' => 'as we discussed',
+            '/\bhereby\b/i' => '',
+            '/\baforementioned\b/i' => 'earlier',
+            '/\bBest regards\b/i' => 'Looking forward to connecting',
+            '/\bSincerely\b/i' => 'Warmly',
+            '/\bDear\b/' => 'Hello',
+            // Add friendly transitions
+            '/\bAlso,\b/i' => 'Oh, and',
+            '/\bAdditionally,\b/i' => 'Also,',
+            '/\bFurthermore,\b/i' => 'Plus,',
+        ],
+    ];
+
+    // ========================= NEW: SOCIAL PROOF BY INDUSTRY =========================
+    // Industry-focused capability statements using Cialdini's Social Proof principle
+    // IMPROVED: Now YOU-FOCUSED - eliminates self-referential "Trusted by..." language
+    // Uses "Companies like yours" and "Teams in your position" patterns
+    private const SOCIAL_PROOF = [
+        'automotive' => [
+            'stat' => 'Automotive OEMs and Tier 1 suppliers across Europe are {achieving|seeing|reporting} {strong|excellent|consistent} results with nearshore manufacturing.',
+            'reference' => 'automotive manufacturers in Germany, France, and UK',
+            'detail' => 'Your peers in automotive are getting dedicated production lines with full traceability—the same standards you require.',
+            'similarity' => 'Other automotive procurement teams like yours',
+            'outcome' => 'Procurement teams {like yours|in similar roles|facing your challenges} report {99%+ OTD|significant cost savings|faster time-to-market}.',
+        ],
+        'aerospace' => [
+            'stat' => 'Aerospace programs {requiring|demanding|needing} rigorous quality {are finding|have found|report} success with this approach.',
+            'reference' => 'aerospace companies requiring full material traceability',
+            'detail' => 'Teams handling complex multilayer assemblies—like yours—get the documentation rigor aerospace programs demand.',
+            'similarity' => 'Aerospace quality managers in your position',
+            'outcome' => 'Quality managers {like you|in similar programs|with comparable requirements} cite {zero-defect delivery|complete traceability|audit-ready documentation}.',
+        ],
+        'industrial' => [
+            'stat' => 'Industrial OEMs are {benefiting from|seeing value in|reporting success with} flexible capacity and reliable delivery.',
+            'reference' => 'industrial equipment manufacturers across Europe',
+            'detail' => 'High-mix, low-to-medium volume capability—exactly what industrial programs like yours need.',
+            'similarity' => 'Industrial operations teams like yours',
+            'outcome' => 'Operations teams {in your situation|like yours|with similar volumes} report {99%+ OTD|reduced inventory|better planning visibility}.',
+        ],
+        'defense' => [
+            'stat' => 'Defense electronics programs {are achieving|have achieved|report} secure, traceable manufacturing.',
+            'reference' => 'defense contractors requiring full traceability',
+            'detail' => 'Serialization, secure handling, and complete documentation—what programs like yours require.',
+            'similarity' => 'Defense program managers in your role',
+            'outcome' => 'Program managers {like you|with similar requirements|in defense} cite {100% traceability|secure handling|audit-ready records}.',
+        ],
+        'medical' => [
+            'stat' => 'Medical device manufacturers {are seeing|report|have found} success with validated processes.',
+            'reference' => 'medical device companies requiring robust quality systems',
+            'detail' => 'Validated processes and full traceability—the standards your medical applications require.',
+            'similarity' => 'Medical device quality teams like yours',
+            'outcome' => 'Quality teams {in your space|like yours|with similar compliance needs} report {FDA-ready documentation|validated consistency|reduced audit prep time}.',
+        ],
+        'consumer' => [
+            'stat' => 'Consumer electronics brands {are hitting|have hit|report hitting} aggressive launch timelines.',
+            'reference' => 'consumer electronics brands hitting aggressive timelines',
+            'detail' => 'Rapid prototyping to volume production—the speed your consumer market demands.',
+            'similarity' => 'Consumer electronics product managers like you',
+            'outcome' => 'Product managers {like you|in CE|with aggressive timelines} report {4-week NPI|seamless ramp|flexible capacity}.',
+        ],
+        'telecom' => [
+            'stat' => 'Telecom equipment manufacturers {are scaling|have scaled|report scaling} production successfully.',
+            'reference' => 'telecom equipment manufacturers scaling production',
+            'detail' => 'From prototype to volume—the flexibility your network rollouts require.',
+            'similarity' => 'Telecom supply chain teams in your position',
+            'outcome' => 'Supply chain teams {like yours|in telecom|with similar scale-up needs} cite {capacity flexibility|on-time delivery|responsive support}.',
+        ],
+        'renewables' => [
+            'stat' => 'Renewable energy companies {are achieving|report|have achieved} high-reliability power electronics.',
+            'reference' => 'renewable energy companies building for 25-year lifespans',
+            'detail' => 'Rigorous testing and quality systems—what your 25-year product lifespans require.',
+            'similarity' => 'Renewables engineering teams like yours',
+            'outcome' => 'Engineering teams {in renewables|like yours|building for longevity} report {zero-defect assembly|lifecycle reliability|cost-effective quality}.',
+        ],
+        'semiconductor' => [
+            'stat' => 'Semiconductor equipment OEMs {are getting|report|have achieved} precision manufacturing.',
+            'reference' => 'semiconductor equipment OEMs requiring high precision',
+            'detail' => 'ESD-protected handling and calibrated processes—what your sensitive equipment requires.',
+            'similarity' => 'Semiconductor manufacturing teams in your role',
+            'outcome' => 'Manufacturing teams {like yours|in semi|with precision requirements} cite {calibrated consistency|ESD excellence|zero-contamination}.',
+        ],
+        'other' => [
+            'stat' => 'European OEMs across industries {are benefiting from|report success with|have found value in} nearshore manufacturing.',
+            'reference' => 'manufacturers across industries choosing nearshore production',
+            'detail' => 'ISO 9001 certified with flexible manufacturing capabilities—adaptable to your requirements.',
+            'similarity' => 'Sourcing professionals like you',
+            'outcome' => 'Sourcing professionals {in your position|like you|with similar needs} cite {responsive service|quality consistency|total cost savings}.',
+        ],
+    ];
+
+    // ========================= CIALDINI'S 7 PRINCIPLES FRAMEWORK =========================
+    // Ethical persuasion elements to incorporate into messaging
+    // IMPROVED: Now includes sentence-level spintax for natural variation
+    private const CIALDINI_PRINCIPLES = [
+        // 1. RECIPROCITY: Give something first, personalized and unexpected
+        // Uses spintax {option1|option2|option3} for variation
+        'reciprocity' => [
+            'free_dfm_review' => '{I can offer|Happy to provide|I\'d be glad to send} a free DFM review on your {first|next|upcoming} design—{no strings attached|no commitment required|completely free}.',
+            'industry_insight' => 'I {put together|compiled|prepared} a brief {industry comparison|market analysis|benchmark report} that {might be useful|could help|may be relevant} for your planning.',
+            'capacity_check' => '{Happy to|I can|Would be glad to} run a quick capacity check for your volumes—{takes about 24 hours|usually ready next day|quick turnaround}.',
+            'cost_model' => 'I can {provide|send over|put together} a preliminary landed-cost comparison {with no commitment|no strings attached|just to give you a sense of the numbers}.',
+        ],
+        // 2. SCARCITY: Unique benefits they stand to lose
+        'scarcity' => [
+            'capacity' => '{Limited|A few} capacity slots {are opening|become available} in {Q2|the coming quarter}—programs typically book {8-12 weeks|2-3 months} ahead.',
+            'location' => 'The Morocco facility is {uniquely positioned|ideally located|strategically placed} for EU customers—{same time zone|real-time communication|no overnight delays}, {simplified logistics|streamlined shipping|efficient delivery}.',
+            'expertise' => '{Few|Not many} EMS providers offer this {combination|blend|mix} of nearshore economics with European quality standards.',
+            'timing' => 'Current component lead times make {early planning|advance planning|production planning} {critical|essential|important}—{earlier engagement|starting now|getting ahead} means {smoother ramp|easier transition|better outcomes}.',
+        ],
+        // 3. AUTHORITY: Signal credible expertise
+        'authority' => [
+            'experience' => 'The engineering team brings {decades|years|extensive} {automotive and aerospace|high-reliability|demanding industry} manufacturing experience.',
+            'certification' => 'ISO 9001 certified with {IPC-A-610 trained|certified|qualified} operators across all production lines.',
+            'process' => '{100%|Full} AOI and {in-circuit testing|functional testing|comprehensive testing} standard on all PCBA programs.',
+            'track_record' => '{Multi-year|Long-term|Ongoing} programs running for {leading|major|top-tier} European OEMs.',
+        ],
+        // 4. CONSISTENCY: Get small commitments leading to larger ones
+        'consistency' => [
+            'micro_commitment' => 'Would a {quick|brief|short} {15-minute|15-min|quarter-hour} {overview|call|chat} be useful?',
+            'next_step' => 'Even if timing {isn\'t immediate|is later|isn\'t right now}, a brief call {helps understand|clarifies|establishes} your requirements.',
+            'information_request' => '{Happy to|I can|Would be glad to} send {detailed|comprehensive|thorough} capability info—{what format works best|PDF or web link|how would you like it}?',
+            'pilot_suggestion' => 'Many {customers|teams|companies} start with a {small pilot|trial run|initial project} to validate quality and service.',
+        ],
+        // 5. LIKING: Build rapport through similarity and genuine compliments
+        'liking' => [
+            'industry_knowledge' => 'Having worked with {companies|teams|organizations} in your industry, I {understand|appreciate|recognize} the {unique pressures|specific challenges|demands} you face.',
+            'challenge_empathy' => 'Supply chain {complexity|challenges|disruption} has made sourcing {particularly challenging|more difficult|tougher} {recently|lately|these days}.',
+            'company_compliment' => 'Your company\'s {reputation for quality|track record|standing in the industry} makes you {exactly|precisely} the kind of partner {worth pursuing|to work with|to build with}.',
+            'shared_values' => 'There\'s a shared commitment here to {quality and on-time delivery|reliability and excellence|getting it right}.',
+        ],
+        // 6. SOCIAL PROOF: Show similar others are doing it (YOU-FOCUSED)
+        'social_proof' => [
+            'industry_peers' => 'Companies {like yours|in your industry|similar to {{company_name}}} are {increasingly|actively|more often} {diversifying|expanding|rethinking} their manufacturing footprint.',
+            'trend' => '{Growing|Increasing|More} interest from European OEMs {exploring|evaluating|considering} nearshore alternatives.',
+            'behavior' => 'Many {procurement teams|sourcing groups|supply chain leads} are running {parallel sourcing|dual-source|backup supplier} evaluations this quarter.',
+            'outcome' => 'Teams {like yours|in similar situations|facing these challenges} consistently {cite|mention|highlight} responsiveness and quality as {key differentiators|what matters most|the deciding factors}.',
+        ],
+        // 7. UNITY: Shared identity and belonging (YOU-FOCUSED)
+        'unity' => [
+            'regional' => 'Working within the European ecosystem means {shared understanding|common ground|alignment} on {EU regulatory requirements|compliance standards|business culture}.',
+            'industry' => 'A commitment to the {long-term success|sustainable growth|continued strength} of European manufacturing.',
+            'partnership' => 'Think of this as an extension of your team, {not just a supplier|not a vendor relationship|a true partnership}.',
+            'values' => 'A quality-first culture that {aligns with|matches|complements} the standards your customers expect.',
+        ],
+    ];
+
+    // ========================= PRE-SUASION T.I.M.E. FRAMEWORK =========================
+    // Target mindsets, Identify triggers, Move triggers to optimal moment, Extend impact
+    // FIXED: Converted from fragments to curiosity-inducing QUESTIONS per report
+    private const PRESUASION_ELEMENTS = [
+        // TARGET: Mindset-priming openers - NOW AS CURIOSITY QUESTIONS
+        'target_mindsets' => [
+            'quality_focused' => 'When was the last time a supplier surprised you with quality that exceeded spec?',
+            'cost_conscious' => 'What would it mean for your P&L if you could cut 15% from your assembly costs without touching quality?',
+            'risk_aware' => 'If your primary supplier went down tomorrow, how long until production stops?',
+            'growth_oriented' => 'What\'s the one manufacturing constraint that\'s limiting your growth right now?',
+            'innovation_driven' => 'How much faster could you iterate if your EMS partner matched your engineering speed?',
+        ],
+        // IDENTIFY: Trigger associations
+        'triggers' => [
+            'reliability' => ['consistent', 'dependable', 'proven', 'trusted'],
+            'value' => ['competitive', 'efficient', 'optimized', 'strategic'],
+            'partnership' => ['collaborative', 'responsive', 'aligned', 'dedicated'],
+            'expertise' => ['experienced', 'specialized', 'capable', 'qualified'],
+        ],
+        // MOVE: Privileged moment timing
+        'privileged_moments' => [
+            'budget_cycle' => 'Q4 planning and Q1 budget allocation',
+            'project_start' => 'New product development phases',
+            'supplier_review' => 'Annual supplier evaluation periods',
+            'capacity_crunch' => 'When current suppliers are at capacity',
+        ],
+        // EXTEND: Long-term relationship anchors
+        'extend_impact' => [
+            'roadmap' => 'We plan 3-5 years ahead with our customers.',
+            'continuous_improvement' => 'Quarterly business reviews drive ongoing optimization.',
+            'investment' => 'We invest in customer-specific tooling and capabilities.',
+            'partnership' => 'Our longest customer relationships span over a decade.',
+        ],
+    ];
+
+    // ========================= GEOGRAPHIC VALUE PROPOSITIONS =========================
+    // Regional-specific benefits based on customer location
+    private const GEOGRAPHIC_VALUE_PROPS = [
+        'eu' => [
+            'logistics' => 'Same time zone as Western Europe with 2-3 day delivery to major EU hubs.',
+            'timezone' => 'Real-time communication during European business hours—no overnight delays.',
+            'trade' => 'Morocco-EU free trade agreements simplify customs and reduce duties.',
+            'cultural' => 'European business culture and French/English language proficiency.',
+            'proximity' => 'Just a 3-hour flight from major European cities for site visits.',
+        ],
+        'uk' => [
+            'logistics' => 'Direct shipping to UK with competitive transit times.',
+            'timezone' => 'Same working hours as London—calls and support without delays.',
+            'trade' => 'Morocco-UK trade continuity post-Brexit provides supply chain stability.',
+            'cultural' => 'Strong English proficiency and familiarity with UK business practices.',
+            'proximity' => 'Easy travel access for program reviews and audits.',
+        ],
+        'us' => [
+            'logistics' => 'Atlantic shipping routes with competitive air freight options.',
+            'timezone' => 'Morning overlap with US East Coast for daily synchronization.',
+            'trade' => 'Morocco-US Free Trade Agreement provides duty-free access for qualifying products.',
+            'cultural' => 'Experience working with American multinationals and their requirements.',
+            'proximity' => 'Closer than Asian alternatives for supply chain resilience.',
+        ],
+        'global' => [
+            'logistics' => 'Strategic location bridging Europe, Africa, and the Americas.',
+            'timezone' => 'GMT+1 provides overlap with multiple business regions.',
+            'trade' => 'Free trade agreements with EU, US, UK, and 55+ countries.',
+            'cultural' => 'Multilingual workforce with international business experience.',
+            'proximity' => 'Nearshore alternative to distant offshore manufacturing.',
+        ],
+    ];
+
+    // ========================= COMPETITOR HOOKS (DISABLED) =========================
+    // Competitor-specific messaging removed - requires verified claims and legal review
+    private const COMPETITOR_HOOKS = [];
+
+    // ========================= SENTENCE FUSION TEMPLATES =========================
+    // CRITICAL FIX: Weave Cialdini elements into coherent paragraphs instead of concatenating
+    // This eliminates the "Mad Libs" robotic feel identified in the quality report
+    private const FUSION_TEMPLATES = [
+        // Reciprocity → Authority flow
+        'reciprocity_to_authority' => [
+            "{reciprocity}—and with {authority}, you'd get the kind of results that actually matter for your programs.",
+            "I'd be happy to {reciprocity_action}. {authority}, so you'll get insights that are actually relevant to {industry} challenges.",
+            "{reciprocity} The team brings {authority}, which means the analysis will be tailored to your specific requirements.",
+        ],
+        // Liking → Social Proof flow  
+        'liking_to_social_proof' => [
+            "{liking} That's exactly why {social_proof}—they faced similar pressures and found this approach fit their needs.",
+            "Given that {liking}, you might find it relevant that {social_proof}.",
+            "{liking} In fact, {social_proof}.",
+        ],
+        // Authority → Scarcity flow
+        'authority_to_scarcity' => [
+            "With {authority}, there's been strong demand—{scarcity}.",
+            "{authority} As a result, {scarcity}.",
+            "Because {authority}, {scarcity}.",
+        ],
+        // Social Proof → Consistency flow
+        'social_proof_to_consistency' => [
+            "{social_proof} {consistency}",
+            "Given that {social_proof}, I thought it might be worth asking: {consistency}",
+            "{social_proof} If that resonates, {consistency}",
+        ],
+        // Unity → Value Prop flow
+        'unity_to_value' => [
+            "{unity} That shared commitment is why {value_prop_short}",
+            "Because {unity}, partnerships here work differently: {value_prop_short}",
+            "{unity} Specifically, {value_prop_short}",
+        ],
+        // Pain → Reciprocity flow
+        'pain_to_reciprocity' => [
+            "If {pain_hook} is on your radar, {reciprocity}.",
+            "I know {pain_hook} can be challenging—{reciprocity}.",
+            "Regarding {pain_hook}: {reciprocity}.",
+        ],
+        // Geographic → Scarcity flow
+        'geo_to_scarcity' => [
+            "{geo_logistics} Combined with {scarcity}, the timing might be right to explore.",
+            "For your region, {geo_logistics}. Worth noting: {scarcity}.",
+            "{geo_logistics}—and {scarcity}.",
+        ],
+        // NEW: Opening hook → Value flow (for cold emails)
+        'opener_to_value' => [
+            "{presuasive_opener} {value_prop_short}",
+            "{presuasive_opener} Here's why that matters: {value_prop_short}",
+            "{presuasive_opener} {pain_hook}—and there's a straightforward solution.",
+        ],
+        // NEW: Proof → CTA flow (natural close)
+        'proof_to_cta' => [
+            "{social_proof} {consistency}",
+            "Given that {social_proof}, {consistency}",
+            "{social_proof} If any of that resonates: {consistency}",
+        ],
+    ];
+
+    // ========================= ENGAGEMENT-BASED TEMPLATE ARCHITECTURE =========================
+    // Different email structures for cold/warm/hot leads with Cialdini principle limits
+    private const TEMPLATE_ARCHITECTURES = [
+        'cold' => [
+            'structure' => 'hook → curiosity → single_ask',
+            'max_sentences' => 3,
+            'max_paragraphs' => 2,
+            'cialdini_limit' => 2,  // Only 2 principles max for cold
+            'allowed_principles' => ['reciprocity', 'liking', 'social_proof'],
+            'avoid_principles' => ['scarcity', 'authority'],  // Too salesy for cold
+            'tone_preference' => 'casual',
+        ],
+        'warm' => [
+            'structure' => 'rapport → value → social_proof → ask',
+            'max_sentences' => 5,
+            'max_paragraphs' => 3,
+            'cialdini_limit' => 4,
+            'allowed_principles' => ['reciprocity', 'liking', 'social_proof', 'authority', 'consistency'],
+            'avoid_principles' => [],
+            'tone_preference' => 'friendly',
+        ],
+        'hot' => [
+            'structure' => 'personalized_reference → proposal → next_step',
+            'max_sentences' => 7,
+            'max_paragraphs' => 4,
+            'cialdini_limit' => 6,
+            'allowed_principles' => ['reciprocity', 'scarcity', 'authority', 'consistency', 'liking', 'social_proof', 'unity'],
+            'avoid_principles' => [],
+            'tone_preference' => 'formal',
+        ],
+    ];
+
+    // ========================= CURIOSITY-GAP SUBJECT LINE PATTERNS =========================
+    // Subject lines that create information gaps and compel opens
+    private const CURIOSITY_SUBJECT_PATTERNS = [
+        'question' => [
+            'Quick question about {{company_name}}\'s {pain_area}',
+            '{{first_name}}, wondering about {{company_name}}',
+            'Is {{company_name}} seeing this too?',
+        ],
+        'intrigue' => [
+            'The {{industry}} sourcing mistake I see every week',
+            'Something about {{company_name}} caught my eye',
+            '{{first_name}}, saw something interesting',
+        ],
+        'social_proof' => [
+            'How {{similar_company}} solved their {pain_area}',
+            '{{industry}} trend worth watching',
+            'What {{industry}} teams are doing differently',
+        ],
+        'specificity' => [
+            '3 options for {{company_name}}\'s {pain_area}',
+            '{{first_name}} - quick {{industry}} note',
+            'Re: {{company_name}} manufacturing',
+        ],
+        'value_forward' => [
+            'Free {reciprocity_offer} for {{company_name}}',
+            '{{industry}} benchmark data inside',
+            'Quick win for {{company_name}}\'s sourcing',
+        ],
+    ];
+
+    // ========================= NEW: CONTENT LENGTH TEMPLATES =========================
+    // Engagement-adaptive content length
+    private const CONTENT_LENGTH_SETTINGS = [
+        'brief' => [
+            'max_sentences' => 3,
+            'cta_style' => 'single_question',
+            'detail_level' => 'minimal',
+        ],
+        'standard' => [
+            'max_sentences' => 5,
+            'cta_style' => 'soft_ask',
+            'detail_level' => 'moderate',
+        ],
+        'detailed' => [
+            'max_sentences' => 8,
+            'cta_style' => 'full_proposal',
+            'detail_level' => 'comprehensive',
+        ],
+    ];
+    
+    // ========================= P4-3 FIX: CONFIGURABLE WARMTH SCORING =========================
+    // Warmth indicators for email quality scoring
+    // Higher positive values = warmer/more personal email
+    // Negative values = colder/more corporate-sounding
+    // 
+    // Tuning guide:
+    // - Increase warm weights to reward personal language more
+    // - Increase cold penalties to penalize corporate-speak more
+    // - Adjust based on A/B test results showing correlation with reply rates
+    //
+    // Default weights calibrated for B2B sales outreach
+    private const WARMTH_INDICATORS_POSITIVE = [
+        '/\byou\b/i' => 2.0,              // You-focused language (highly valued)
+        '/\byour\b/i' => 1.5,             // Possessive you
+        '/\?\s*$/' => 1.5,                // Questions increase engagement
+        '/\bI\'d love\b/i' => 1.5,        // Warm, enthusiastic phrasing
+        '/\bI\'d be happy\b/i' => 1.2,    // Helpful, accommodating tone
+        '/\bhappy to\b/i' => 1.0,         // Helpful disposition
+        '/\bthought you\b/i' => 1.0,      // Personal thought, shows effort
+        '/\bwondering\b/i' => 0.8,        // Curiosity, not demanding
+        '/\bquick\b/i' => 0.5,            // Casual, time-respectful
+        '/\bchat\b/i' => 0.5,             // Informal, approachable
+        '/\bexcited\b/i' => 0.7,          // Enthusiasm
+        '/\bcurious\b/i' => 0.6,          // Interest
+        '/\binteresting\b/i' => 0.4,      // Engagement
+    ];
+
+    private const WARMTH_INDICATORS_NEGATIVE = [
+        '/\bwe\b/i' => -1.5,              // We-focused (self-centered)
+        '/\bour\b/i' => -1.0,             // Our-focused (self-centered)
+        '/\bplease find\b/i' => -2.0,     // Corporate attachment speak
+        '/\bkindly\b/i' => -1.5,          // Overly formal, distant
+        '/\bhereby\b/i' => -2.0,          // Legal/contract language
+        '/\bpursuant\b/i' => -2.0,        // Legal jargon
+        '/\baforementioned\b/i' => -1.5,  // Stuffy, archaic
+        '/\bper our\b/i' => -1.5,         // Corporate reference
+        '/\bat your earliest\b/i' => -1.5, // Formal pressure
+        '/\bdo not hesitate\b/i' => -1.0, // Filler phrase
+        '/\bsir\/madam\b/i' => -2.0,      // Impersonal salutation
+        '/\bdear sir\b/i' => -2.0,        // Impersonal salutation
+        '/\brevert\b/i' => -1.5,          // Corporate jargon
+        '/\bkindly revert\b/i' => -2.5,   // Heavy corporate jargon
+    ];
+
+    // Warmth score thresholds
+    private const WARMTH_THRESHOLD_EXCELLENT = 7.0;
+    private const WARMTH_THRESHOLD_GOOD = 5.5;
+    private const WARMTH_THRESHOLD_MINIMUM = 5.0;
+    private const WARMTH_BASE_SCORE = 5.0;
+    private const WARMTH_MAX_MULTIPLIER = 3;  // Cap pattern matches at 3x weight
+
+    // ========================= NEW: SEND TIME OPTIMIZATION =========================
+    // Default optimal send times by day and region
+    private const DEFAULT_SEND_TIMES = [
+        'weekday_morning' => '09:00',     // Tuesday-Thursday, 9-10 AM
+        'weekday_afternoon' => '14:00',   // Tuesday-Thursday, 2-3 PM
+        'monday_morning' => '10:00',      // Later start for Mondays
+        'friday_afternoon' => '11:00',    // Earlier on Fridays
+    ];
+
+    private const OPTIMAL_SEND_DAYS = ['Tuesday', 'Wednesday', 'Thursday'];
+
+    // Extended industry features (covers more industries)
+    private const EXTENDED_INDUSTRY_FEATURES = [
+        'automotive' => [0.9, 0.8, 0.7, 0.6, 0.1, 0.2, 0.3, 0.4],
+        'aerospace' => [0.8, 0.9, 0.6, 0.5, 0.2, 0.3, 0.4, 0.5],
+        'industrial' => [0.7, 0.6, 0.9, 0.5, 0.3, 0.4, 0.5, 0.3],
+        'defense' => [0.6, 0.7, 0.5, 0.9, 0.4, 0.5, 0.6, 0.2],
+        'medical' => [0.5, 0.4, 0.3, 0.2, 0.9, 0.8, 0.7, 0.6],
+        'consumer' => [0.4, 0.3, 0.2, 0.1, 0.8, 0.9, 0.8, 0.7],
+        'telecom' => [0.3, 0.2, 0.4, 0.3, 0.7, 0.6, 0.9, 0.8],
+        'renewables' => [0.6, 0.5, 0.8, 0.4, 0.5, 0.6, 0.7, 0.5],
+        'power' => [0.5, 0.4, 0.8, 0.5, 0.4, 0.5, 0.7, 0.6],
+        'rail' => [0.7, 0.6, 0.7, 0.5, 0.3, 0.4, 0.5, 0.4],
+        'marine' => [0.6, 0.5, 0.6, 0.5, 0.4, 0.5, 0.5, 0.5],
+        'hvac' => [0.5, 0.4, 0.7, 0.4, 0.5, 0.6, 0.6, 0.4],
+        'lighting' => [0.4, 0.3, 0.5, 0.3, 0.7, 0.8, 0.6, 0.5],
+        'semiconductor' => [0.7, 0.8, 0.5, 0.4, 0.5, 0.4, 0.8, 0.7],
+        'other' => [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+    ];
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private PersonalizationProfileRepository $profileRepository,
+        private ?PersonalizationArchetypeRepository $archetypeRepository,
         private ?ThompsonSamplerService $thompsonSampler,
         private ?SpintaxEngineService $spintaxEngine,
         private LoggerInterface $logger
     ) {}
+
+    /**
+     * Get personalization context for a contact without applying to a template
+     * 
+     * This is used by the orchestrator to get all personalization variables
+     * which are then passed to the spintax engine for template rendering.
+     * 
+     * @param Contact $contact The contact to personalize for
+     * @param array $additionalVariables Additional variables to merge
+     * @return array Full personalization context with all variables
+     */
+    public function getPersonalizationContext(Contact $contact, array $additionalVariables = []): array
+    {
+        // Get or create personalization profile
+        $profile = $this->profileRepository->findOrCreateForContact($contact->getId());
+        
+        // Generate embedding if not exists
+        if (empty($profile->getFeatureEmbedding())) {
+            $embedding = $this->generateContactEmbedding($contact);
+            $profile->setFeatureEmbedding($embedding);
+            $this->entityManager->persist($profile);
+            $this->entityManager->flush();
+        }
+        
+        // Find similar high-performing profiles for learning
+        $similarProfiles = $this->findSimilarSuccessfulProfiles($profile, $contact);
+        
+        // Determine optimal tone and content focus
+        $optimalSettings = $this->determineOptimalSettings($profile, $similarProfiles);
+        
+        // Build personalization context
+        $context = $this->buildPersonalizationContext($contact, $profile, $optimalSettings);
+        
+        // Merge with additional variables (additional vars override defaults)
+        $variables = array_merge($context['variables'], $additionalVariables);
+        
+        // Apply tone transformations will happen when the template is rendered
+        return [
+            'variables' => $variables,
+            'profile' => $profile,
+            'settings' => $optimalSettings,
+            'tone' => $context['tone'],
+            'content' => $context['content'],
+            'industry' => $context['industry'] ?? 'other',
+            'role' => $context['role'] ?? 'other',
+            'contentLength' => $context['contentLength'] ?? 'standard',
+            'engagementLevel' => $context['engagementLevel'] ?? 'cold',  // NEW: For template architecture
+            'similarProfilesUsed' => count($similarProfiles),
+            'successfulPatterns' => $profile->getSuccessfulSubjectPatterns(),
+        ];
+    }
 
     /**
      * Generate personalized email content for a contact
@@ -127,7 +823,8 @@ class EmailPersonalizationService
         }
         
         // Find similar high-performing profiles for learning
-        $similarProfiles = $this->findSimilarSuccessfulProfiles($profile);
+        // Now includes archetype profiles for cold-start scenarios
+        $similarProfiles = $this->findSimilarSuccessfulProfiles($profile, $contact);
         
         // Determine optimal tone and content focus
         $optimalSettings = $this->determineOptimalSettings($profile, $similarProfiles);
@@ -215,8 +912,14 @@ class EmailPersonalizationService
 
     /**
      * Find similar profiles that have had successful engagement
+     * 
+     * FIXED: Method signature now matches all call sites (accepts optional Contact)
+     * 
+     * @param PersonalizationProfile $targetProfile The profile to find matches for
+     * @param Contact|null $contact Optional contact for additional context
+     * @return array Array of similar successful profiles with similarity scores
      */
-    public function findSimilarSuccessfulProfiles(PersonalizationProfile $targetProfile): array
+    public function findSimilarSuccessfulProfiles(PersonalizationProfile $targetProfile, ?Contact $contact = null): array
     {
         $targetEmbedding = $targetProfile->getFeatureEmbedding();
         if (empty($targetEmbedding)) {
@@ -307,6 +1010,12 @@ class EmailPersonalizationService
 
     /**
      * Build personalization context with variables
+     * 
+     * Now generates FULL dynamic content including:
+     * - Industry-specific value propositions
+     * - Role-specific pain points
+     * - Social proof appropriate to segment
+     * - Engagement-adaptive content length
      */
     private function buildPersonalizationContext(
         Contact $contact,
@@ -319,24 +1028,165 @@ class EmailPersonalizationService
         
         $firstName = $contact->getFirstName() ?? 'there';
         
+        // Determine industry and role for content selection
+        $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
+        $industry = isset(self::INDUSTRY_VALUE_PROPS[$industry]) ? $industry : 'other';
+        
+        $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
+        $role = isset(self::ROLE_PAIN_POINTS[$role]) ? $role : 'other';
+        
+        // Map content focus to value prop key
+        $contentKey = match($settings['content']) {
+            PersonalizationProfile::CONTENT_TECHNICAL => 'technical',
+            PersonalizationProfile::CONTENT_BUSINESS => 'business',
+            PersonalizationProfile::CONTENT_VALUE_FOCUSED => 'value_focused',
+            PersonalizationProfile::CONTENT_RELATIONSHIP => 'relationship',
+            default => 'business',
+        };
+        
+        // Get industry-specific value proposition
+        $valueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentKey] 
+            ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
+        
+        // Get role-specific pain point content
+        $painPointData = self::ROLE_PAIN_POINTS[$role] ?? self::ROLE_PAIN_POINTS['other'];
+        
+        // Get social proof for industry
+        $socialProofData = self::SOCIAL_PROOF[$industry] ?? self::SOCIAL_PROOF['other'];
+        
+        // Determine content length based on engagement score
+        $engagementScore = $profile->getEngagementScore();
+        $contentLength = $this->determineContentLength($engagementScore);
+        $lengthSettings = self::CONTENT_LENGTH_SETTINGS[$contentLength];
+        
+        // Select CTA based on engagement level
+        $cta = $this->selectCta($contentLength, $settings['tone']);
+        
         return [
             'variables' => [
+                // Basic contact info
                 'first_name' => $firstName,
                 'last_name' => $contact->getLastName() ?? '',
-                'full_name' => $contact->getFirstName() . ' ' . $contact->getLastName(),
+                'full_name' => trim($contact->getFirstName() . ' ' . $contact->getLastName()),
                 'company_name' => $company ? $company->getName() : '',
                 'job_title' => $contact->getJobTitle() ?? '',
+                
+                // Tone-based elements
                 'greeting' => str_replace('{name}', $firstName, $toneConfig['greeting']),
                 'closing' => $toneConfig['closing'],
                 'style_phrase' => $toneConfig['style'],
+                
+                // Content focus emphasis words
                 'emphasis_1' => $contentConfig['emphasis'][0] ?? '',
                 'emphasis_2' => $contentConfig['emphasis'][1] ?? '',
+                'emphasis_3' => $contentConfig['emphasis'][2] ?? '',
+                'emphasis_4' => $contentConfig['emphasis'][3] ?? '',
+                
+                // NEW: Dynamic content blocks
+                'value_prop' => $valueProp,
+                'value_prop_short' => $this->shortenValueProp($valueProp),
+                
+                // NEW: Pain point targeting
+                'pain_point' => $painPointData['primary'],
+                'pain_hook' => $painPointData['hook'],
+                'pain_detail' => $painPointData['detail'],
+                
+                // NEW: Social proof
+                'social_proof_stat' => $socialProofData['stat'],
+                'social_proof_ref' => $socialProofData['reference'],
+                'social_proof_detail' => $socialProofData['detail'],
+                'social_proof_full' => sprintf(
+                    'A %s achieved %s with our manufacturing partnership.',
+                    $socialProofData['reference'],
+                    $socialProofData['stat']
+                ),
+                
+                // NEW: Call to action
+                'cta' => $cta,
+                
+                // NEW: Industry/role context
+                'industry' => ucfirst($industry),
+                'industry_lower' => $industry,
+                'role_category' => $role,
             ],
             'tone' => $settings['tone'],
             'content' => $settings['content'],
             'toneConfig' => $toneConfig,
             'contentConfig' => $contentConfig,
+            'industry' => $industry,
+            'role' => $role,
+            'contentLength' => $contentLength,
+            'lengthSettings' => $lengthSettings,
+            // NEW: Engagement level for template architecture decisions
+            'engagementLevel' => $this->mapContentLengthToEngagement($contentLength),
         ];
+    }
+
+    /**
+     * Determine content length based on engagement score
+     */
+    private function determineContentLength(int $engagementScore): string
+    {
+        if ($engagementScore >= 70) {
+            return 'detailed'; // High engagement - they want more detail
+        } elseif ($engagementScore >= 40) {
+            return 'standard'; // Medium engagement - balanced approach
+        } else {
+            return 'brief'; // Low/cold engagement - keep it short
+        }
+    }
+
+    /**
+     * Map content length setting to engagement level
+     * 
+     * Used for template architecture decisions
+     */
+    private function mapContentLengthToEngagement(string $contentLength): string
+    {
+        return match($contentLength) {
+            'detailed' => 'hot',
+            'standard' => 'warm',
+            'brief' => 'cold',
+            default => 'cold',
+        };
+    }
+
+    /**
+     * Create shortened version of value prop (first sentence only)
+     */
+    private function shortenValueProp(string $valueProp): string
+    {
+        $sentences = preg_split('/(?<=[.!?])\s+/', $valueProp, 2);
+        return $sentences[0] ?? $valueProp;
+    }
+
+    /**
+     * Select appropriate CTA based on engagement level and tone
+     */
+    private function selectCta(string $contentLength, string $tone): string
+    {
+        $ctas = [
+            'brief' => [
+                PersonalizationProfile::TONE_FORMAL => 'Would a brief call to discuss your requirements be of interest?',
+                PersonalizationProfile::TONE_CASUAL => 'Open to a quick chat?',
+                PersonalizationProfile::TONE_DIRECT => 'Worth a 15-minute call?',
+                PersonalizationProfile::TONE_FRIENDLY => "I'd love to hear what you're working on—open to connecting?",
+            ],
+            'standard' => [
+                PersonalizationProfile::TONE_FORMAL => 'I would welcome the opportunity to discuss how we might support your manufacturing requirements. Would you have time for a brief conversation this week or next?',
+                PersonalizationProfile::TONE_CASUAL => "Would love to learn more about what you're working on. Any chance we could grab 15 minutes this week?",
+                PersonalizationProfile::TONE_DIRECT => 'Can we schedule a 15-minute call this week to discuss your requirements?',
+                PersonalizationProfile::TONE_FRIENDLY => "I'd really enjoy learning more about your projects. Would you be open to a short call to explore if there's a fit?",
+            ],
+            'detailed' => [
+                PersonalizationProfile::TONE_FORMAL => 'I would be pleased to arrange a detailed technical discussion with our engineering team to review your specific requirements. Please let me know what time works best for your schedule, and I will coordinate accordingly.',
+                PersonalizationProfile::TONE_CASUAL => "I can put together a custom capability deck for your specific applications. Want me to send that over, or would a call work better so I can tailor it to what you're actually building?",
+                PersonalizationProfile::TONE_DIRECT => 'Next step: 30-minute call with our engineering team to review your requirements. I can send calendar options, or reply with times that work.',
+                PersonalizationProfile::TONE_FRIENDLY => "I'd love to dig deeper into your projects and put together some specific recommendations. Would a call work, or would you prefer I send over some initial ideas first?",
+            ],
+        ];
+        
+        return $ctas[$contentLength][$tone] ?? $ctas['standard'][PersonalizationProfile::TONE_FORMAL];
     }
 
     /**
@@ -358,31 +1208,35 @@ class EmailPersonalizationService
     }
 
     /**
-     * Apply tone-specific text transformations
+     * Apply tone-specific text transformations using comprehensive pattern matching
+     * 
+     * Uses 20+ regex patterns per tone for meaningful text adaptation.
+     * Made public for use by AutonomousSalesOrchestratorService (DRY principle).
+     * 
+     * @param string $text The text to transform
+     * @param string $tone The target tone (formal, casual, direct, friendly)
+     * @return string Transformed text
      */
-    private function applyToneTransformations(string $text, string $tone): string
+    public function applyToneTransformations(string $text, string $tone): string
     {
-        switch ($tone) {
-            case PersonalizationProfile::TONE_DIRECT:
-                // Make text more concise
-                $text = preg_replace('/\bI would like to\b/i', "I'd like to", $text);
-                $text = preg_replace('/\bWe would be happy to\b/i', "We'd be happy to", $text);
-                break;
-                
-            case PersonalizationProfile::TONE_FORMAL:
-                // Make text more formal
-                $text = preg_replace('/\bI\'d\b/i', 'I would', $text);
-                $text = preg_replace('/\bWe\'d\b/i', 'We would', $text);
-                break;
-                
-            case PersonalizationProfile::TONE_CASUAL:
-                // Make text more casual
-                $text = preg_replace('/\bI would\b/i', "I'd", $text);
-                $text = preg_replace('/\bWe would\b/i', "We'd", $text);
-                break;
+        // Get patterns for this tone
+        $patterns = self::TONE_TRANSFORMATION_PATTERNS[$tone] ?? [];
+        
+        if (empty($patterns)) {
+            return $text;
         }
         
-        return $text;
+        // Apply all patterns for this tone
+        foreach ($patterns as $pattern => $replacement) {
+            $text = preg_replace($pattern, $replacement, $text);
+        }
+        
+        // Clean up any artifacts (double spaces, leading spaces on lines)
+        $text = preg_replace('/  +/', ' ', $text);
+        $text = preg_replace('/\n +/', "\n", $text);
+        $text = preg_replace('/ +\n/', "\n", $text);
+        
+        return trim($text);
     }
 
     /**
@@ -521,28 +1375,33 @@ class EmailPersonalizationService
 
     /**
      * Infer role category from job title
+     * 
+     * FIXED: Reordered patterns to prevent "supply chain manager" matching both supply_chain and management
+     * More specific patterns checked first, generic management patterns last
      */
     private function inferRoleCategory(string $jobTitle): string
     {
         $title = strtolower($jobTitle);
         
+        // Check specific functional roles FIRST (before generic management)
         if (preg_match('/\b(procurement|buyer|purchasing|sourcing)\b/', $title)) {
             return 'procurement';
         }
-        if (preg_match('/\b(engineer|technical|design|r&d)\b/', $title)) {
-            return 'engineering';
+        if (preg_match('/\b(supply\s*chain|logistics|materials|inventory)\b/', $title)) {
+            return 'supply_chain';  // Moved BEFORE management to catch "Supply Chain Manager"
         }
-        if (preg_match('/\b(manager|director|vp|chief|head|lead)\b/', $title)) {
-            return 'management';
-        }
-        if (preg_match('/\b(quality|sqe|qa|compliance)\b/', $title)) {
+        if (preg_match('/\b(quality|sqe|qa|compliance|inspection)\b/', $title)) {
             return 'quality';
         }
-        if (preg_match('/\b(operations|ops|manufacturing)\b/', $title)) {
+        if (preg_match('/\b(engineer|technical|design|r&d|development)\b/', $title)) {
+            return 'engineering';
+        }
+        if (preg_match('/\b(operations|ops|manufacturing|production)\b/', $title)) {
             return 'operations';
         }
-        if (preg_match('/\b(supply|logistics|materials)\b/', $title)) {
-            return 'supply_chain';
+        // Generic management patterns LAST (catches remaining managers/directors/VPs)
+        if (preg_match('/\b(manager|director|vp|chief|head|lead|president|ceo|coo|cto)\b/', $title)) {
+            return 'management';
         }
         
         return 'other';
@@ -673,11 +1532,2215 @@ class EmailPersonalizationService
         return $features;
     }
 
+    // ==================================================================================
+    // NEW ENHANCEMENT METHODS (Report Recommendations Implementation)
+    // ==================================================================================
+
+    /**
+     * Enforce content length limits based on engagement level
+     * 
+     * CRITICAL FIX: CONTENT_LENGTH_SETTINGS defined max_sentences but nothing enforced it.
+     * This method actually truncates content to respect the limits.
+     * 
+     * IMPROVED: Now preserves CTA (questions) when truncating - never cuts the ask!
+     * 
+     * @param string $content The content to truncate
+     * @param string $lengthSetting 'brief', 'standard', or 'detailed'
+     * @return string Truncated content respecting max_sentences while preserving CTA
+     */
+    public function enforceContentLength(string $content, string $lengthSetting): string
+    {
+        $settings = self::CONTENT_LENGTH_SETTINGS[$lengthSetting] ?? self::CONTENT_LENGTH_SETTINGS['standard'];
+        $maxSentences = $settings['max_sentences'] ?? 5;
+        
+        // Split into sentences (preserve sentence-ending punctuation)
+        $sentences = preg_split('/(?<=[.!?])\s+/', trim($content), -1, PREG_SPLIT_NO_EMPTY);
+        
+        if (count($sentences) <= $maxSentences) {
+            return $content; // Already within limit
+        }
+        
+        // CRITICAL FIX: Find and preserve CTA sentences (questions)
+        $ctaSentences = [];
+        $nonCtaSentences = [];
+        
+        foreach ($sentences as $index => $sentence) {
+            $trimmed = trim($sentence);
+            // CTA indicators: questions, or sentences with call-to-action phrases
+            $isCta = str_ends_with($trimmed, '?') 
+                || preg_match('/\b(would you|can we|let me know|schedule|call|chat|connect|reply|interested)\b/i', $trimmed);
+            
+            if ($isCta) {
+                $ctaSentences[$index] = $sentence;
+            } else {
+                $nonCtaSentences[$index] = $sentence;
+            }
+        }
+        
+        // Strategy: Keep first sentence (hook) + CTA + fill middle with non-CTA up to limit
+        $truncated = [];
+        
+        // Always keep the first sentence (the hook/opener)
+        if (!empty($nonCtaSentences)) {
+            $firstKey = array_key_first($nonCtaSentences);
+            $truncated[$firstKey] = $nonCtaSentences[$firstKey];
+            unset($nonCtaSentences[$firstKey]);
+        }
+        
+        // Reserve slots for CTAs (at least 1)
+        $ctaSlots = min(count($ctaSentences), max(1, $maxSentences - count($truncated) - 1));
+        $contentSlots = $maxSentences - count($truncated) - $ctaSlots;
+        
+        // Fill with content sentences
+        $contentAdded = 0;
+        foreach ($nonCtaSentences as $index => $sentence) {
+            if ($contentAdded >= $contentSlots) break;
+            $truncated[$index] = $sentence;
+            $contentAdded++;
+        }
+        
+        // Add CTA sentences (prefer the last one - usually the main ask)
+        $ctaKeys = array_keys($ctaSentences);
+        $ctaToAdd = array_slice($ctaKeys, -$ctaSlots, $ctaSlots);
+        foreach ($ctaToAdd as $index) {
+            $truncated[$index] = $ctaSentences[$index];
+        }
+        
+        // Sort by original order and rejoin
+        ksort($truncated);
+        
+        return implode(' ', $truncated);
+    }
+
+    /**
+     * Get competitor-specific hook for displacement messaging
+     * 
+     * Returns targeted messaging when we know the prospect uses a specific competitor.
+     * 
+     * @param string $competitorName Name of the competitor (jabil, flex, celestica, etc.)
+     * @return array|null Hook data with 'hook', 'pain', 'differentiation' keys or null if unknown
+     */
+    public function getCompetitorHook(string $competitorName): ?array
+    {
+        $competitor = strtolower(trim($competitorName));
+        return self::COMPETITOR_HOOKS[$competitor] ?? null;
+    }
+
+    /**
+     * Get all known competitors for detection
+     * 
+     * @return array List of competitor names
+     */
+    public function getKnownCompetitors(): array
+    {
+        return array_keys(self::COMPETITOR_HOOKS);
+    }
+
+    /**
+     * Get optimal send time recommendation for a contact
+     * 
+     * Uses learned send time from profile if available, otherwise falls back
+     * to intelligent defaults based on day of week.
+     * 
+     * @param Contact $contact The contact to get send time for
+     * @return array ['time' => 'HH:MM', 'day' => 'Day', 'source' => 'learned'|'default']
+     */
+    public function getOptimalSendTime(Contact $contact): array
+    {
+        $profile = $this->profileRepository->findByContactId($contact->getId());
+        
+        // Check if we have learned data
+        if ($profile) {
+            $learnedTime = $profile->getBestSendTime();
+            $learnedDay = $profile->getBestSendDay();
+            
+            if ($learnedTime && $learnedDay) {
+                return [
+                    'time' => $learnedTime,
+                    'day' => $learnedDay,
+                    'source' => 'learned',
+                    'confidence' => $this->calculateSendTimeConfidence($profile),
+                ];
+            }
+        }
+        
+        // Fall back to intelligent defaults
+        $today = date('l');
+        
+        // Determine default time based on day
+        $defaultTime = match($today) {
+            'Monday' => self::DEFAULT_SEND_TIMES['monday_morning'],
+            'Friday' => self::DEFAULT_SEND_TIMES['friday_afternoon'],
+            'Saturday', 'Sunday' => self::DEFAULT_SEND_TIMES['weekday_morning'], // Will schedule for Tuesday
+            default => self::DEFAULT_SEND_TIMES['weekday_morning'],
+        };
+        
+        // Determine best day if not today
+        $sendDay = in_array($today, self::OPTIMAL_SEND_DAYS, true) ? $today : 'Tuesday';
+        
+        return [
+            'time' => $defaultTime,
+            'day' => $sendDay,
+            'source' => 'default',
+            'confidence' => 0.5, // Medium confidence for defaults
+        ];
+    }
+
+    /**
+     * Calculate confidence in learned send time based on interaction count
+     */
+    private function calculateSendTimeConfidence(PersonalizationProfile $profile): float
+    {
+        $interactions = $profile->getInteractionHistory();
+        $successfulCount = count(array_filter($interactions, fn($i) => 
+            in_array($i['type'] ?? '', ['opened', 'replied', 'clicked'])
+        ));
+        
+        // More data = higher confidence, cap at 0.95
+        return min(0.95, 0.5 + ($successfulCount * 0.05));
+    }
+
+    /**
+     * Synthesize a new subject line based on learned successful patterns
+     * 
+     * Uses extractSubjectPattern() data to generate new subject lines
+     * that follow patterns that have previously resulted in replies.
+     * 
+     * @param Contact $contact The contact to synthesize for
+     * @param string $baseTemplate Base template to enhance
+     * @return string Synthesized subject line
+     */
+    public function synthesizeSubjectLine(Contact $contact, string $baseTemplate): string
+    {
+        $profile = $this->profileRepository->findByContactId($contact->getId());
+        
+        if (!$profile) {
+            return $baseTemplate;
+        }
+        
+        $successfulPatterns = $profile->getSuccessfulSubjectPatterns();
+        
+        if (empty($successfulPatterns)) {
+            return $baseTemplate;
+        }
+        
+        // Analyze patterns for common structures
+        $elements = $this->analyzeSubjectPatterns($successfulPatterns);
+        
+        // Try to incorporate successful elements into the base template
+        $company = $contact->getCompany();
+        $companyName = $company?->getName() ?? '';
+        $firstName = $contact->getFirstName() ?? '';
+        
+        // If successful patterns often include company name, ensure it's present
+        if ($elements['uses_company_name'] && $companyName && !str_contains($baseTemplate, $companyName)) {
+            $baseTemplate = str_replace('{name}', $companyName, $baseTemplate);
+        }
+        
+        // If successful patterns are questions, convert to question if not already
+        if ($elements['is_question'] && !str_ends_with(trim($baseTemplate), '?')) {
+            $baseTemplate = rtrim($baseTemplate, '.!') . '?';
+        }
+        
+        // Apply length optimization based on successful patterns
+        if ($elements['avg_length'] > 0) {
+            $targetLength = (int)$elements['avg_length'];
+            $currentLength = strlen($baseTemplate);
+            
+            // If template is much longer than successful patterns, try to shorten
+            if ($currentLength > $targetLength * 1.3) {
+                // Remove filler words
+                $baseTemplate = preg_replace('/\b(just|quick|brief|short)\b\s*/i', '', $baseTemplate);
+            }
+        }
+        
+        return trim($baseTemplate);
+    }
+
+    /**
+     * Analyze subject patterns for common elements
+     */
+    private function analyzeSubjectPatterns(array $patterns): array
+    {
+        $usesCompanyName = 0;
+        $isQuestion = 0;
+        $totalLength = 0;
+        
+        foreach ($patterns as $pattern) {
+            if (str_contains($pattern, '{name}')) {
+                $usesCompanyName++;
+            }
+            if (str_ends_with(trim($pattern), '?')) {
+                $isQuestion++;
+            }
+            $totalLength += strlen($pattern);
+        }
+        
+        $count = count($patterns);
+        
+        return [
+            'uses_company_name' => $usesCompanyName > ($count / 2),
+            'is_question' => $isQuestion > ($count / 2),
+            'avg_length' => $count > 0 ? $totalLength / $count : 0,
+        ];
+    }
+
+    /**
+     * Get value proposition variant for A/B testing via Thompson Sampling
+     * 
+     * Instead of using a fixed value prop per industry, this can return
+     * different variants for testing which messaging resonates best.
+     * 
+     * @param string $industry The industry key
+     * @param string $contentFocus The content focus (technical, business, etc.)
+     * @return array ['value_prop' => string, 'variant_id' => string, 'is_ab_test' => bool]
+     */
+    public function getValuePropVariant(string $industry, string $contentFocus): array
+    {
+        // Get base value proposition
+        $baseValueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentFocus] 
+            ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
+        
+        // If Thompson Sampler is available, try to get A/B test variant
+        if ($this->thompsonSampler) {
+            $armName = "value_prop_{$industry}_{$contentFocus}";
+            
+            // Check if we have arms for this value prop
+            $armResult = $this->thompsonSampler->sampleAndSelect($armName);
+            
+            if ($armResult && isset($armResult['arm'])) {
+                $arm = $armResult['arm'];
+                return [
+                    'value_prop' => $arm->getArmValue(),
+                    'variant_id' => $arm->getArmName(),
+                    'arm_id' => $arm->getId(),
+                    'is_ab_test' => true,
+                ];
+            }
+        }
+        
+        // Fall back to base value prop (no A/B testing)
+        return [
+            'value_prop' => $baseValueProp,
+            'variant_id' => 'base',
+            'arm_id' => null,
+            'is_ab_test' => false,
+        ];
+    }
+
+    /**
+     * Seed value proposition variants for A/B testing
+     * 
+     * Creates Thompson Sampling arms for different value prop variants
+     * to enable data-driven optimization of messaging.
+     * 
+     * @param string $industry Industry to seed variants for
+     * @param string $contentFocus Content focus to seed variants for
+     * @return array Created arm IDs
+     */
+    public function seedValuePropVariants(string $industry, string $contentFocus): array
+    {
+        if (!$this->thompsonSampler) {
+            return [];
+        }
+        
+        $armName = "value_prop_{$industry}_{$contentFocus}";
+        
+        // Get base value proposition
+        $baseValueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentFocus] 
+            ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
+        
+        // Create variants with different emphases
+        $variants = [
+            [
+                'name' => "{$armName}_base",
+                'value' => $baseValueProp,
+            ],
+            [
+                'name' => "{$armName}_short",
+                'value' => $this->shortenValueProp($baseValueProp),
+            ],
+            [
+                'name' => "{$armName}_question",
+                'value' => $this->convertToQuestion($baseValueProp),
+            ],
+        ];
+        
+        $createdArms = [];
+        
+        foreach ($variants as $variant) {
+            try {
+                $arm = $this->thompsonSampler->createArm(
+                    $armName,
+                    $variant['name'],
+                    $variant['value']
+                );
+                if ($arm) {
+                    $createdArms[] = $arm->getId();
+                }
+            } catch (\Exception $e) {
+                // Arm may already exist, which is fine
+                $this->logger->debug('Value prop arm may already exist', [
+                    'name' => $variant['name'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        
+        return $createdArms;
+    }
+
+    /**
+     * Convert a statement into a question format
+     */
+    private function convertToQuestion(string $statement): string
+    {
+        // Remove trailing punctuation
+        $statement = rtrim($statement, '.!');
+        
+        // Check if it starts with "We" and convert to "Would you be interested..."
+        if (preg_match('/^We (offer|provide|deliver|support|have|can)/i', $statement)) {
+            $statement = preg_replace(
+                '/^We (offer|provide|deliver|support|have|can)/i',
+                'Would you be interested in how we $1',
+                $statement
+            );
+            return $statement . '?';
+        }
+        
+        // Generic conversion
+        return "What if you could " . lcfirst($statement) . "?";
+    }
+
     /**
      * Get personalization statistics
      */
     public function getStatistics(): array
     {
         return $this->profileRepository->getStatistics();
+    }
+
+    // ==================================================================================
+    // CIALDINI'S 7 PRINCIPLES OF PERSUASION - IMPLEMENTATION METHODS
+    // Based on Dr. Robert Cialdini's research (influenceatwork.com)
+    // ==================================================================================
+
+    /**
+     * Get a reciprocity element - give something first, personalized and unexpected
+     * 
+     * Cialdini's First Principle: People are obliged to give back to others
+     * the form of a behavior, gift, or service they have received first.
+     * Key: Be first to give, make it personalized and unexpected.
+     * 
+     * @param Contact $contact The contact
+     * @param string $context The context (intro, follow_up, technical, etc.)
+     * @return string A reciprocity-based offering
+     */
+    public function getReciprocityElement(Contact $contact, string $context = 'intro'): string
+    {
+        $company = $contact->getCompany();
+        $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
+        $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
+        
+        // Match offering to role/context
+        $element = match($role) {
+            'engineering' => self::CIALDINI_PRINCIPLES['reciprocity']['free_dfm_review'],
+            'procurement' => self::CIALDINI_PRINCIPLES['reciprocity']['cost_model'],
+            'operations' => self::CIALDINI_PRINCIPLES['reciprocity']['capacity_check'],
+            default => self::CIALDINI_PRINCIPLES['reciprocity']['industry_insight'],
+        };
+        
+        // CRITICAL FIX: Resolve spintax before returning
+        return $this->resolveInternalSpintax($element);
+    }
+
+    /**
+     * Get a scarcity element - unique benefits they stand to lose
+     * 
+     * Cialdini's Second Principle: People want more of what they can have less of.
+     * Key: Point out what is unique and what they stand to lose.
+     * 
+     * @param Contact $contact The contact
+     * @return string A scarcity-based message element
+     */
+    /**
+     * Get scarcity element based on contact context (IMPROVED)
+     * 
+     * Cialdini's First Principle: People want more of what they can have less of.
+     * 
+     * IMPROVEMENT: Now bases scarcity on contact context (company tier, role, region)
+     * instead of just calendar month. This makes scarcity feel more relevant.
+     * 
+     * @param Contact $contact The contact
+     * @return string Contextually appropriate scarcity element
+     */
+    public function getScarcityElement(Contact $contact): string
+    {
+        $company = $contact->getCompany();
+        $location = $company?->getPhysicalSite() ?? '';
+        $region = $this->detectRegion($location);
+        
+        // Get company tier/size indicator for context
+        $tier = $company?->getAccountTier() ?? 'C';
+        $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
+        
+        // Large companies (A/B tier) care about capacity and scalability
+        if (in_array($tier, ['A', 'B'])) {
+            $options = [
+                self::CIALDINI_PRINCIPLES['scarcity']['capacity'],
+                self::CIALDINI_PRINCIPLES['scarcity']['timing'],
+            ];
+            return $this->resolveInternalSpintax($options[array_rand($options)]);
+        }
+        
+        // EU/UK customers get location scarcity (relevant to them)
+        if (in_array($region, ['eu', 'uk'])) {
+            return $this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['location']);
+        }
+        
+        // Procurement/supply chain roles care about timing/planning
+        if (in_array($role, ['procurement', 'supply_chain', 'operations'])) {
+            return $this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['timing']);
+        }
+        
+        // Engineering/technical roles care about expertise access
+        if (in_array($role, ['engineering', 'quality'])) {
+            return $this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['expertise']);
+        }
+        
+        // Management/other - use quarterly context for strategic framing
+        $month = (int)date('n');
+        if ($month >= 10 || $month <= 2) {
+            $element = self::CIALDINI_PRINCIPLES['scarcity']['timing']; // Budget season
+        } else {
+            $element = self::CIALDINI_PRINCIPLES['scarcity']['capacity'];
+        }
+        
+        // CRITICAL FIX: Resolve spintax before returning
+        return $this->resolveInternalSpintax($element);
+    }
+
+    /**
+     * Get an authority element - signal credible expertise
+     * 
+     * Cialdini's Third Principle: People follow the lead of credible, knowledgeable experts.
+     * Key: Signal credentials before making the influence attempt.
+     * 
+     * @param Contact $contact The contact
+     * @return string An authority-establishing message element
+     */
+    public function getAuthorityElement(Contact $contact): string
+    {
+        $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
+        
+        $element = match($role) {
+            'engineering' => self::CIALDINI_PRINCIPLES['authority']['process'],
+            'quality' => self::CIALDINI_PRINCIPLES['authority']['certification'],
+            'management' => self::CIALDINI_PRINCIPLES['authority']['track_record'],
+            default => self::CIALDINI_PRINCIPLES['authority']['experience'],
+        };
+        
+        // CRITICAL FIX: Resolve spintax before returning
+        return $this->resolveInternalSpintax($element);
+    }
+
+    /**
+     * Get a consistency/commitment element - small initial commitment
+     * 
+     * Cialdini's Fourth Principle: People like to be consistent with things
+     * they have previously said or done.
+     * Key: Look for voluntary, active commitments; ideally in writing.
+     * 
+     * @param string $engagementLevel 'cold', 'warm', 'hot'
+     * @return string A commitment-seeking message element
+     */
+    public function getConsistencyElement(string $engagementLevel = 'cold'): string
+    {
+        $element = match($engagementLevel) {
+            'hot' => self::CIALDINI_PRINCIPLES['consistency']['pilot_suggestion'],
+            'warm' => self::CIALDINI_PRINCIPLES['consistency']['next_step'],
+            default => self::CIALDINI_PRINCIPLES['consistency']['micro_commitment'],
+        };
+        
+        // CRITICAL FIX: Resolve spintax before returning
+        return $this->resolveInternalSpintax($element);
+    }
+
+    /**
+     * Get a liking element - build rapport through similarity
+     * 
+     * Cialdini's Fifth Principle: People prefer to say yes to those they like.
+     * Three factors: similarity, compliments, cooperation toward mutual goals.
+     * Key: Find similarities and give genuine compliments before business.
+     * 
+     * @param Contact $contact The contact
+     * @return string A liking/rapport message element
+     */
+    public function getLikingElement(Contact $contact): string
+    {
+        $company = $contact->getCompany();
+        $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
+        
+        // Industry knowledge shows understanding (similarity)
+        if (in_array($industry, ['automotive', 'aerospace', 'medical', 'defense'])) {
+            $element = self::CIALDINI_PRINCIPLES['liking']['industry_knowledge'];
+        } else {
+            // For other industries, show empathy for challenges
+            $element = self::CIALDINI_PRINCIPLES['liking']['challenge_empathy'];
+        }
+        
+        // CRITICAL FIX: Resolve spintax before returning
+        return $this->resolveInternalSpintax($element);
+    }
+
+    /**
+     * Get a social proof element - show similar others doing it
+     * 
+     * Cialdini's Sixth Principle: People look to actions of others to determine their own.
+     * Key: Point to what many SIMILAR others are already doing.
+     * "75% of guests who stayed in this room reused their towels" - specific + similar
+     * 
+     * @param Contact $contact The contact
+     * @return string A social proof message element
+     */
+    public function getSocialProofElement(Contact $contact): string
+    {
+        $company = $contact->getCompany();
+        $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
+        
+        // Get industry-specific social proof
+        $socialProof = self::SOCIAL_PROOF[$industry] ?? self::SOCIAL_PROOF['other'];
+        
+        // Format with similarity emphasis (key insight from Cialdini)
+        $element = sprintf(
+            '%s are increasingly evaluating nearshore alternatives. %s',
+            $socialProof['similarity'] ?? 'Companies like yours',
+            $socialProof['stat']
+        );
+        
+        // CRITICAL FIX: Resolve spintax before returning
+        return $this->resolveInternalSpintax($element);
+    }
+
+    /**
+     * Get a unity element - shared identity and belonging
+     * 
+     * Cialdini's Seventh Principle: People say yes to those they consider "one of us."
+     * Key: Emphasize shared identity, values, and belonging.
+     * 
+     * @param Contact $contact The contact
+     * @return string A unity message element
+     */
+    public function getUnityElement(Contact $contact): string
+    {
+        $company = $contact->getCompany();
+        $location = $company?->getPhysicalSite() ?? '';
+        $region = $this->detectRegion($location);
+        
+        $element = match($region) {
+            'eu', 'uk' => self::CIALDINI_PRINCIPLES['unity']['regional'],
+            default => self::CIALDINI_PRINCIPLES['unity']['partnership'],
+        };
+        
+        // CRITICAL FIX: Resolve spintax before returning
+        return $this->resolveInternalSpintax($element);
+    }
+
+    // ==================================================================================
+    // PRE-SUASION T.I.M.E. FRAMEWORK - IMPLEMENTATION
+    // Based on Cialdini's Pre-Suasion book
+    // ==================================================================================
+
+    /**
+     * Get a pre-suasive opener that targets the right mindset
+     * 
+     * T.I.M.E. Framework - TARGET: Put recipient in a receptive mindset
+     * before delivering the main message.
+     * 
+     * @param Contact $contact The contact
+     * @return string A mindset-priming opening phrase
+     */
+    public function getPresuasiveOpener(Contact $contact): string
+    {
+        $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
+        
+        return match($role) {
+            'procurement' => self::PRESUASION_ELEMENTS['target_mindsets']['cost_conscious'],
+            'quality' => self::PRESUASION_ELEMENTS['target_mindsets']['quality_focused'],
+            'management' => self::PRESUASION_ELEMENTS['target_mindsets']['growth_oriented'],
+            'supply_chain' => self::PRESUASION_ELEMENTS['target_mindsets']['risk_aware'],
+            'engineering' => self::PRESUASION_ELEMENTS['target_mindsets']['innovation_driven'],
+            default => self::PRESUASION_ELEMENTS['target_mindsets']['quality_focused'],
+        };
+    }
+
+    /**
+     * Check if current timing is a "privileged moment" for outreach
+     * 
+     * T.I.M.E. Framework - MOVE: Position the message at the optimal moment.
+     * Certain times create natural receptivity.
+     * 
+     * @return array ['is_privileged' => bool, 'reason' => string]
+     */
+    public function checkPrivilegedMoment(): array
+    {
+        $month = (int)date('n');
+        $dayOfWeek = date('l');
+        
+        // Q4 budget planning (October-December)
+        if ($month >= 10 && $month <= 12) {
+            return [
+                'is_privileged' => true,
+                'reason' => self::PRESUASION_ELEMENTS['privileged_moments']['budget_cycle'],
+                'messaging_hook' => 'As you finalize next year\'s sourcing strategy...',
+            ];
+        }
+        
+        // Q1 new budget (January-February)
+        if ($month >= 1 && $month <= 2) {
+            return [
+                'is_privileged' => true,
+                'reason' => self::PRESUASION_ELEMENTS['privileged_moments']['budget_cycle'],
+                'messaging_hook' => 'With fresh budget allocations...',
+            ];
+        }
+        
+        // Mid-week is best for B2B
+        if (in_array($dayOfWeek, ['Tuesday', 'Wednesday', 'Thursday'])) {
+            return [
+                'is_privileged' => true,
+                'reason' => 'Mid-week focus time',
+                'messaging_hook' => '',
+            ];
+        }
+        
+        return [
+            'is_privileged' => false,
+            'reason' => 'Standard timing',
+            'messaging_hook' => '',
+        ];
+    }
+
+    /**
+     * Get a relationship-extending element for long-term impact
+     * 
+     * T.I.M.E. Framework - EXTEND: Create lasting change, not just immediate action.
+     * 
+     * FIXED: Now accepts optional key for deterministic selection (testing)
+     * 
+     * @param string|null $key Specific key to select, or null for contextual selection
+     * @return string A relationship-extending message element
+     */
+    public function getExtendImpactElement(?string $key = null): string
+    {
+        $options = self::PRESUASION_ELEMENTS['extend_impact'];
+        
+        if ($key !== null && isset($options[$key])) {
+            return $options[$key];
+        }
+        
+        // Contextual selection based on current month (budget cycles)
+        $month = (int)date('n');
+        
+        // Q4/Q1 - emphasize roadmap planning
+        if ($month >= 10 || $month <= 2) {
+            return $options['roadmap'];
+        }
+        
+        // Q2 - emphasize continuous improvement
+        if ($month >= 3 && $month <= 5) {
+            return $options['continuous_improvement'];
+        }
+        
+        // Q3 - emphasize investment/partnership
+        return $options['partnership'];
+    }
+
+    // ==================================================================================
+    // GEOGRAPHIC PERSONALIZATION
+    // ==================================================================================
+
+    /**
+     * Get geographic value proposition based on customer region
+     * 
+     * @param Contact $contact The contact
+     * @return array Geographic value prop data
+     */
+    public function getGeographicValueProp(Contact $contact): array
+    {
+        $company = $contact->getCompany();
+        $location = $company?->getPhysicalSite() ?? '';
+        $region = $this->detectRegion($location);
+        
+        $geoProps = self::GEOGRAPHIC_VALUE_PROPS[$region] ?? self::GEOGRAPHIC_VALUE_PROPS['global'];
+        
+        return [
+            'region' => $region,
+            'logistics' => $geoProps['logistics'],
+            'timezone' => $geoProps['timezone'],
+            'trade' => $geoProps['trade'],
+            'cultural' => $geoProps['cultural'],
+            'proximity' => $geoProps['proximity'],
+        ];
+    }
+
+    /**
+     * Detect region from location string
+     */
+    private function detectRegion(string $location): string
+    {
+        $location = strtolower($location);
+        
+        // EU countries
+        if (preg_match('/\b(germany|france|spain|italy|netherlands|belgium|austria|poland|czech|sweden|denmark|finland|portugal|ireland)\b/', $location)) {
+            return 'eu';
+        }
+        
+        // UK
+        if (preg_match('/\b(uk|united kingdom|england|scotland|wales|britain)\b/', $location)) {
+            return 'uk';
+        }
+        
+        // US
+        if (preg_match('/\b(usa|united states|us|america|california|texas|michigan|ohio|florida|new york)\b/', $location)) {
+            return 'us';
+        }
+        
+        return 'global';
+    }
+
+    /**
+     * Build comprehensive persuasion context combining all Cialdini principles
+     * 
+     * This method assembles a complete set of persuasion elements that can be
+     * used in email templates. Each element is carefully chosen based on the
+     * contact's profile.
+     * 
+     * @param Contact $contact The contact
+     * @return array Complete persuasion context
+     */
+    public function buildPersuasionContext(Contact $contact): array
+    {
+        $company = $contact->getCompany();
+        $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
+        $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
+        
+        // Get geographic context
+        $geoProps = $this->getGeographicValueProp($contact);
+        
+        // Check timing
+        $privilegedMoment = $this->checkPrivilegedMoment();
+        
+        // Get profile for engagement level
+        $profile = $this->profileRepository->findByContactId($contact->getId());
+        $engagementScore = $profile ? $profile->getEngagementScore() : 0;
+        $engagementLevel = $engagementScore > 70 ? 'hot' : ($engagementScore > 30 ? 'warm' : 'cold');
+        
+        return [
+            // Cialdini's 7 Principles
+            'reciprocity' => $this->getReciprocityElement($contact),
+            'scarcity' => $this->getScarcityElement($contact),
+            'authority' => $this->getAuthorityElement($contact),
+            'consistency' => $this->getConsistencyElement($engagementLevel),
+            'liking' => $this->getLikingElement($contact),
+            'social_proof' => $this->getSocialProofElement($contact),
+            'unity' => $this->getUnityElement($contact),
+            
+            // Pre-suasion elements
+            'presuasive_opener' => $this->getPresuasiveOpener($contact),
+            'privileged_moment' => $privilegedMoment,
+            'privileged_moment_hook' => $privilegedMoment['messaging_hook'] ?? '',  // FIXED: Actually use messaging_hook
+            'extend_impact' => $this->getExtendImpactElement(),
+            
+            // Geographic context - FIXED: Added geo_cultural that was missing
+            'geo_logistics' => $geoProps['logistics'],
+            'geo_timezone' => $geoProps['timezone'],
+            'geo_trade' => $geoProps['trade'],
+            'geo_cultural' => $geoProps['cultural'],  // FIXED: Was defined but not included
+            'geo_proximity' => $geoProps['proximity'],
+            'region' => $geoProps['region'],
+            
+            // Pain point - FIXED: Ensure pain_point is always available for templates
+            'pain_point' => $this->getPainPointForRole($role),
+            
+            // Fused content - NEW: Pre-fused paragraphs for natural flow
+            'fused_intro' => $this->getFusedParagraph('pain_to_reciprocity', $contact, $engagementLevel),
+            'fused_value' => $this->getFusedParagraph('unity_to_value', $contact, $engagementLevel),
+            'fused_proof' => $this->getFusedParagraph('liking_to_social_proof', $contact, $engagementLevel),
+            'fused_close' => $this->getFusedParagraph('social_proof_to_consistency', $contact, $engagementLevel),
+            
+            // Context metadata
+            'industry' => $industry,
+            'role' => $role,
+            'engagement_level' => $engagementLevel,
+            'template_architecture' => self::TEMPLATE_ARCHITECTURES[$engagementLevel] ?? self::TEMPLATE_ARCHITECTURES['cold'],
+        ];
+    }
+
+    // ==================================================================================
+    // CRITICAL NEW METHODS - REPORT RECOMMENDATIONS IMPLEMENTATION
+    // ==================================================================================
+
+    /**
+     * Get pain point text for a role
+     * 
+     * FIXED: Ensures pain_point variable is always populated for templates
+     */
+    private function getPainPointForRole(string $role): string
+    {
+        $painPoints = self::ROLE_PAIN_POINTS[$role] ?? self::ROLE_PAIN_POINTS['other'];
+        return $painPoints['primary'] ?? 'finding the right manufacturing partner';
+    }
+
+    /**
+     * Convert "We"-focused text to "You"-focused text
+     * 
+     * CRITICAL FIX: Eliminates the self-focused language identified in the report
+     * "We offer X" → "You get X"
+     * 
+     * @param string $text The text to convert
+     * @return string You-focused text
+     */
+    public function convertToYouFocus(string $text): string
+    {
+        // IMPROVED: More contextually correct patterns that don't create awkward sentences
+        // "We offer X" → "I can offer you X" (not "You get X" which sounds like recipient is giving)
+        $patterns = [
+            // Offering patterns - keep the giving context clear
+            '/\bWe offer\b/i' => 'I can offer you',
+            '/\bWe can offer\b/i' => 'I can offer you',
+            '/\bWe provide\b/i' => "You'll receive",
+            '/\bWe can provide\b/i' => 'I can send you',
+            '/\bWe have\b/i' => "There's",
+            '/\bWe can\b/i' => 'You can',
+            '/\bWe deliver\b/i' => "You'll receive",
+            '/\bWe support\b/i' => "You'll have support for",
+            '/\bWe bring\b/i' => "You'll benefit from",
+            '/\bWe ensure\b/i' => "You're assured of",
+            '/\bWe specialize\b/i' => "You'll benefit from specialization in",
+            '/\bWe work with\b/i' => "You'd be working with",
+            '/\bWe\'re committed\b/i' => 'You can count on',
+            '/\bWe understand\b/i' => 'Your challenges with',
+            '/\bWe\'ve built\b/i' => "You'll benefit from",
+            '/\bWe\'ve developed\b/i' => "You'll have access to",
+            '/\bWe\'ve seen\b/i' => 'Teams like yours have seen',
+            // Our → Your/The conversions
+            '/\bOur team\b/i' => 'Your dedicated team',
+            '/\bOur facility\b/i' => 'The facility serving you',
+            '/\bOur engineers\b/i' => 'Engineers dedicated to your project',
+            '/\bOur approach\b/i' => 'The approach for your program',
+            '/\bOur customers\b/i' => 'Customers like you',
+            '/\bOur manufacturing\b/i' => 'Manufacturing for you',
+            '/\bOur quality\b/i' => 'The quality systems backing you',
+            '/\bOur pricing\b/i' => 'Pricing for you',
+            '/\bOur capabilities\b/i' => 'Capabilities available to you',
+            // Clean up any awkward doubled words
+            '/You\'ll have have/i' => "You'll have",
+            '/You\'ll receive receive/i' => "You'll receive",
+            '/You can can/i' => 'You can',
+            // Remove orphaned "We" at sentence start when it became empty
+            '/^\s*,\s*/' => '',
+        ];
+        
+        return preg_replace(array_keys($patterns), array_values($patterns), $text);
+    }
+
+    /**
+     * Get a fused paragraph that weaves Cialdini elements naturally
+     * 
+     * CRITICAL FIX: This eliminates the "Mad Libs" paragraph-per-element structure
+     * 
+     * @param string $fusionType The type of fusion (e.g., 'reciprocity_to_authority')
+     * @param Contact $contact The contact for context
+     * @param string $engagementLevel 'cold', 'warm', or 'hot'
+     * @return string A naturally flowing fused paragraph
+     */
+    public function getFusedParagraph(string $fusionType, Contact $contact, string $engagementLevel = 'cold'): string
+    {
+        $templates = self::FUSION_TEMPLATES[$fusionType] ?? [];
+        
+        if (empty($templates)) {
+            return '';
+        }
+        
+        // Select template based on engagement level
+        $templateIndex = match($engagementLevel) {
+            'hot' => 0,     // Most formal/detailed
+            'warm' => 1,    // Balanced
+            default => 2,   // Most casual/brief for cold
+        };
+        
+        $template = $templates[$templateIndex] ?? $templates[0];
+        
+        // Get the raw elements
+        $company = $contact->getCompany();
+        $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
+        $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
+        
+        // Build replacement values
+        $replacements = [
+            '{reciprocity}' => $this->getReciprocityElement($contact),
+            '{reciprocity_action}' => 'provide a free DFM review',
+            '{authority}' => $this->getAuthorityElement($contact),
+            '{liking}' => $this->getLikingElement($contact),
+            '{social_proof}' => $this->getSocialProofElement($contact),
+            '{scarcity}' => $this->getScarcityElement($contact),
+            '{consistency}' => $this->getConsistencyElement($engagementLevel),
+            '{unity}' => $this->getUnityElement($contact),
+            '{value_prop_short}' => $this->getShortValueProp($industry, $role),
+            '{pain_hook}' => self::ROLE_PAIN_POINTS[$role]['hook'] ?? self::ROLE_PAIN_POINTS['other']['hook'],
+            '{industry}' => ucfirst($industry),
+            '{geo_logistics}' => $this->getGeographicValueProp($contact)['logistics'],
+        ];
+        
+        $fused = str_replace(array_keys($replacements), array_values($replacements), $template);
+        
+        // Apply You-focus conversion
+        $fused = $this->convertToYouFocus($fused);
+        
+        return $fused;
+    }
+
+    /**
+     * Get a short value proposition for a specific industry/role combination
+     */
+    private function getShortValueProp(string $industry, string $role): string
+    {
+        $valueProp = self::INDUSTRY_VALUE_PROPS[$industry]['business'] 
+            ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
+        
+        // Take first sentence only
+        $sentences = preg_split('/(?<=[.!?])\s+/', $valueProp, 2);
+        return $sentences[0] ?? $valueProp;
+    }
+
+    /**
+     * Get template architecture settings for an engagement level
+     * 
+     * @param string $engagementLevel 'cold', 'warm', or 'hot'
+     * @return array Architecture settings
+     */
+    public function getTemplateArchitecture(string $engagementLevel): array
+    {
+        return self::TEMPLATE_ARCHITECTURES[$engagementLevel] ?? self::TEMPLATE_ARCHITECTURES['cold'];
+    }
+
+    /**
+     * Filter Cialdini principles based on engagement level
+     * 
+     * Cold leads should not receive scarcity/authority heavy messages
+     * 
+     * @param array $principles All available principles
+     * @param string $engagementLevel 'cold', 'warm', or 'hot'
+     * @return array Filtered principles appropriate for engagement level
+     */
+    public function filterPrinciplesForEngagement(array $principles, string $engagementLevel): array
+    {
+        $architecture = self::TEMPLATE_ARCHITECTURES[$engagementLevel] ?? self::TEMPLATE_ARCHITECTURES['cold'];
+        $allowed = $architecture['allowed_principles'] ?? [];
+        $limit = $architecture['cialdini_limit'] ?? 2;
+        
+        // Filter to allowed principles
+        $filtered = array_intersect_key($principles, array_flip($allowed));
+        
+        // Limit count
+        return array_slice($filtered, 0, $limit, true);
+    }
+
+    /**
+     * Generate a curiosity-gap subject line
+     * 
+     * @param Contact $contact The contact
+     * @param string $patternType The type of pattern (question, intrigue, social_proof, specificity, value_forward)
+     * @return string A curiosity-inducing subject line
+     */
+    public function getCuriositySubjectLine(Contact $contact, string $patternType = 'question'): string
+    {
+        $patterns = self::CURIOSITY_SUBJECT_PATTERNS[$patternType] ?? self::CURIOSITY_SUBJECT_PATTERNS['question'];
+        
+        if (empty($patterns)) {
+            return 'Quick question';
+        }
+        
+        // Select pattern
+        $pattern = $patterns[array_rand($patterns)];
+        
+        // Get context values
+        $company = $contact->getCompany();
+        $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
+        $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
+        
+        // Replace placeholders
+        $replacements = [
+            '{{company_name}}' => $company?->getName() ?? 'your company',
+            '{{first_name}}' => $contact->getFirstName() ?? 'there',
+            '{{industry}}' => ucfirst($industry),
+            '{{similar_company}}' => $this->getSimilarCompanyName($industry),
+            '{pain_area}' => self::ROLE_PAIN_POINTS[$role]['primary'] ?? 'sourcing',
+            '{reciprocity_offer}' => 'DFM review',
+        ];
+        
+        return str_replace(array_keys($replacements), array_values($replacements), $pattern);
+    }
+
+    /**
+     * Get a representative similar company name for social proof
+     */
+    private function getSimilarCompanyName(string $industry): string
+    {
+        $similarCompanies = [
+            'automotive' => 'a leading German Tier 1 supplier',
+            'aerospace' => 'a major aerospace OEM',
+            'medical' => 'a medical device manufacturer',
+            'industrial' => 'an industrial equipment company',
+            'defense' => 'a defense contractor',
+            'consumer' => 'a consumer electronics brand',
+            'telecom' => 'a telecom equipment provider',
+            'renewables' => 'a solar inverter manufacturer',
+            'semiconductor' => 'a semiconductor equipment OEM',
+            'other' => 'companies in your industry',
+        ];
+        
+        return $similarCompanies[$industry] ?? $similarCompanies['other'];
+    }
+
+    /**
+     * Apply all output quality fixes to final email content
+     * 
+     * This is the master method that applies:
+     * 1. You-focus conversion
+     * 2. Content length enforcement
+     * 3. Tone transformations
+     * 4. Double-space cleanup
+     * 
+     * @param string $content The raw email content
+     * @param string $engagementLevel 'cold', 'warm', or 'hot'
+     * @param string $tone The tone preference
+     * @return string Polished email content
+     */
+    public function applyOutputQualityFixes(string $content, string $engagementLevel, string $tone): string
+    {
+        // 1. Convert to You-focus
+        $content = $this->convertToYouFocus($content);
+        
+        // 2. Apply tone transformations
+        $content = $this->applyToneTransformations($content, $tone);
+        
+        // 3. CRITICAL FIX: Add transitional phrases for natural flow
+        $content = $this->addTransitionalPhrases($content);
+        
+        // 4. Enforce content length based on engagement
+        $content = $this->enforceContentLength($content, $this->mapEngagementToLength($engagementLevel));
+        
+        // 5. Fix sentence case issues from fusion templates
+        $content = $this->fixSentenceCase($content);
+        
+        // 6. Clean up artifacts
+        $content = preg_replace('/\n{3,}/', "\n\n", $content);  // Max 2 newlines
+        $content = preg_replace('/  +/', ' ', $content);         // No double spaces
+        $content = preg_replace('/\n +/', "\n", $content);       // No leading spaces on lines
+        
+        return trim($content);
+    }
+
+    /**
+     * Map engagement level to content length setting
+     */
+    private function mapEngagementToLength(string $engagementLevel): string
+    {
+        return match($engagementLevel) {
+            'hot' => 'detailed',
+            'warm' => 'standard',
+            default => 'brief',
+        };
+    }
+
+    // ==================================================================================
+    // P2 IMPROVEMENTS: TRANSITIONAL PHRASES, WARMTH SCORE, CONTEXTUAL SCARCITY
+    // ==================================================================================
+
+    /**
+     * Transitional phrases for natural email flow ("breathing room")
+     * 
+     * Use these to connect paragraphs naturally instead of hard transitions
+     */
+    private const TRANSITIONAL_PHRASES = [
+        'addition' => [
+            'Additionally,',
+            'Also worth noting:',
+            'On a related note,',
+            'Plus,',
+            'And',
+        ],
+        'contrast' => [
+            'That said,',
+            'However,',
+            'On the other hand,',
+            'But',
+        ],
+        'result' => [
+            'As a result,',
+            'This means',
+            'The bottom line:',
+            'So',
+            'Which means',
+        ],
+        'example' => [
+            'For example,',
+            'To give you a sense,',
+            'Case in point:',
+            'For instance,',
+        ],
+        'specificity' => [
+            'Specifically,',
+            'In particular,',
+            'More precisely,',
+        ],
+        'conclusion' => [
+            'In short,',
+            'All in all,',
+            'The key point:',
+        ],
+    ];
+
+    /**
+     * Add transitional phrases between paragraphs for natural flow
+     * 
+     * @param string $content Email content with hard paragraph breaks
+     * @param int|null $seed Optional seed for deterministic behavior (useful for testing)
+     * @param float $probability Probability of adding transition (0.0-1.0, default 0.5)
+     * @return string Content with natural transitions added
+     */
+    public function addTransitionalPhrases(string $content, ?int $seed = null, float $probability = 0.5): string
+    {
+        $paragraphs = preg_split('/\n\n+/', trim($content));
+        
+        if (count($paragraphs) <= 2) {
+            return $content; // Too short to need transitions
+        }
+        
+        // Use seeded random for deterministic testing
+        $rng = $seed !== null ? new \Random\Randomizer(new \Random\Engine\Mt19937($seed)) : null;
+        
+        $result = [$paragraphs[0]]; // Keep first paragraph as-is (greeting/hook)
+        
+        for ($i = 1; $i < count($paragraphs) - 1; $i++) {
+            $para = $paragraphs[$i];
+            
+            // Skip if paragraph already starts with a transition word
+            if (preg_match('/^(Also|Additionally|However|That said|Plus|And|But|So|For example|Specifically|In short)/i', trim($para))) {
+                $result[] = $para;
+                continue;
+            }
+            
+            // Analyze content to pick appropriate transition
+            $transitionType = $this->detectTransitionType($paragraphs[$i - 1], $para);
+            $transitions = self::TRANSITIONAL_PHRASES[$transitionType] ?? self::TRANSITIONAL_PHRASES['addition'];
+            
+            // Use probability threshold (default 50% chance to add transition)
+            $shouldAdd = $rng !== null 
+                ? ($rng->nextFloat() < $probability)
+                : (random_int(0, 100) < ($probability * 100));
+                
+            if ($shouldAdd) {
+                $transitionIndex = $rng !== null
+                    ? $rng->nextInt() % count($transitions)
+                    : array_rand($transitions);
+                $transition = $transitions[abs($transitionIndex)];
+                $para = $transition . ' ' . lcfirst(ltrim($para));
+            }
+            
+            $result[] = $para;
+        }
+        
+        // Keep last paragraph as-is (usually the CTA/closing)
+        if (count($paragraphs) > 1) {
+            $result[] = end($paragraphs);
+        }
+        
+        return implode("\n\n", $result);
+    }
+
+    /**
+     * Detect what type of transition would fit between two paragraphs
+     */
+    private function detectTransitionType(string $previous, string $current): string
+    {
+        $prevLower = strtolower($previous);
+        $currLower = strtolower($current);
+        
+        // If current starts with specifics/numbers, use 'specificity'
+        if (preg_match('/^(•|\d|specifically|for your)/i', trim($current))) {
+            return 'specificity';
+        }
+        
+        // If current contains contrast words
+        if (preg_match('/\b(but|however|although|different|unlike)\b/', $currLower)) {
+            return 'contrast';
+        }
+        
+        // If previous contains cause and current contains effect
+        if (preg_match('/\b(because|since|due to)\b/', $prevLower)) {
+            return 'result';
+        }
+        
+        // If current gives an example
+        if (preg_match('/\b(for example|instance|like|such as)\b/', $currLower)) {
+            return 'example';
+        }
+        
+        // Default to addition
+        return 'addition';
+    }
+
+    /**
+     * Calculate "warmth score" for an email
+     * 
+     * Higher score = warmer, more personal email
+     * Lower score = colder, more corporate-sounding
+     * 
+     * Use this to validate emails before sending - aim for score >= 6.0
+     * 
+     * @param string $email The email body text
+     * @return array ['score' => float 0-10, 'breakdown' => array, 'suggestions' => array]
+     */
+    public function calculateWarmthScore(string $email): array
+    {
+        // P4-3 FIX: Use configurable constants instead of hardcoded values
+        $warmIndicators = self::WARMTH_INDICATORS_POSITIVE;
+        $coldIndicators = self::WARMTH_INDICATORS_NEGATIVE;
+        
+        $score = self::WARMTH_BASE_SCORE; // Start at neutral (configurable)
+        $breakdown = ['warm' => [], 'cold' => []];
+        $suggestions = [];
+        
+        // Apply warm indicators from configurable constants
+        foreach ($warmIndicators as $pattern => $value) {
+            $matches = preg_match_all($pattern, $email);
+            if ($matches > 0) {
+                $impact = min($value * $matches, $value * self::WARMTH_MAX_MULTIPLIER);
+                $score += $impact;
+                $breakdown['warm'][] = ['pattern' => $pattern, 'count' => $matches, 'impact' => $impact];
+            }
+        }
+        
+        // Apply cold indicators from configurable constants
+        foreach ($coldIndicators as $pattern => $value) {
+            $matches = preg_match_all($pattern, $email);
+            if ($matches > 0) {
+                $impact = $value * $matches;
+                $score += $impact;
+                $breakdown['cold'][] = ['pattern' => $pattern, 'count' => $matches, 'impact' => $impact];
+                
+                // Add suggestion to fix cold language (for significant penalties)
+                if ($value <= -1.5) {
+                    $suggestions[] = "Consider removing or replacing: " . trim($pattern, '/i');
+                }
+            }
+        }
+        
+        // Check for missing warm elements
+        if (!preg_match('/\?/', $email)) {
+            $suggestions[] = "Add a question to increase engagement";
+        }
+        if (preg_match_all('/\byou\b/i', $email) < 3) {
+            $suggestions[] = "Use 'you/your' more frequently to make it about the reader";
+        }
+        
+        // Clamp score to 0-10
+        $score = max(0, min(10, $score));
+        
+        // Use configurable thresholds for verdict
+        $verdict = match(true) {
+            $score >= self::WARMTH_THRESHOLD_EXCELLENT => 'Warm & Personal',
+            $score >= self::WARMTH_THRESHOLD_GOOD => 'Good',
+            $score >= self::WARMTH_THRESHOLD_MINIMUM => 'Neutral',
+            default => 'Too Corporate',
+        };
+        
+        return [
+            'score' => round($score, 1),
+            'breakdown' => $breakdown,
+            'suggestions' => $suggestions,
+            'verdict' => $verdict,
+            // P4-3 FIX: Include configuration info for debugging/tuning
+            'config' => [
+                'base_score' => self::WARMTH_BASE_SCORE,
+                'thresholds' => [
+                    'excellent' => self::WARMTH_THRESHOLD_EXCELLENT,
+                    'good' => self::WARMTH_THRESHOLD_GOOD,
+                    'minimum' => self::WARMTH_THRESHOLD_MINIMUM,
+                ],
+                'indicators_count' => [
+                    'positive' => count(self::WARMTH_INDICATORS_POSITIVE),
+                    'negative' => count(self::WARMTH_INDICATORS_NEGATIVE),
+                ],
+            ],
+        ];
+    }
+
+    // ==================================================================================
+    // PERSONALIZATION DEPTH INDICATOR
+    // Note: getContextualScarcity() was REMOVED - duplicate of getScarcityElement()
+    // ==================================================================================
+
+    /**
+     * Calculate personalization depth score
+     * 
+     * Shows users how personalized each email actually is.
+     * Useful for quality assurance and A/B testing personalization levels.
+     * 
+     * @param Contact $contact The contact
+     * @param array $context The personalization context used
+     * @return array Detailed personalization assessment
+     */
+    public function calculatePersonalizationDepth(Contact $contact, array $context): array
+    {
+        $dimensions = [
+            'industry_specific' => false,
+            'role_specific' => false,
+            'geo_specific' => false,
+            'engagement_adaptive' => false,
+            'company_named' => false,
+            'person_named' => false,
+            'tone_matched' => false,
+            'pain_point_targeted' => false,
+        ];
+        
+        $details = [];
+        
+        // Check industry specificity
+        $industry = $context['industry'] ?? 'other';
+        if ($industry !== 'other' && isset(self::INDUSTRY_VALUE_PROPS[$industry])) {
+            $dimensions['industry_specific'] = true;
+            $details[] = "Industry-specific content for: " . ucfirst($industry);
+        }
+        
+        // Check role specificity
+        $role = $context['role'] ?? 'other';
+        if ($role !== 'other' && isset(self::ROLE_PAIN_POINTS[$role])) {
+            $dimensions['role_specific'] = true;
+            $details[] = "Role-targeted messaging for: " . ucfirst($role);
+        }
+        
+        // Check geographic specificity
+        $region = $context['region'] ?? 'global';
+        if ($region !== 'global') {
+            $dimensions['geo_specific'] = true;
+            $details[] = "Geographic value props for: " . strtoupper($region);
+        }
+        
+        // Check engagement adaptation
+        $engagementLevel = $context['engagement_level'] ?? 'cold';
+        if ($engagementLevel !== 'cold') {
+            $dimensions['engagement_adaptive'] = true;
+            $details[] = "Engagement-adapted content: " . ucfirst($engagementLevel);
+        }
+        
+        // Check company personalization
+        $company = $contact->getCompany();
+        if ($company && $company->getName()) {
+            $dimensions['company_named'] = true;
+            $details[] = "Company named: " . $company->getName();
+        }
+        
+        // Check person personalization  
+        if ($contact->getFirstName() && $contact->getFirstName() !== 'there') {
+            $dimensions['person_named'] = true;
+            $details[] = "Personalized to: " . $contact->getFirstName();
+        }
+        
+        // Check tone matching
+        $tone = $context['tone'] ?? 'formal';
+        if ($tone !== 'formal') {
+            $dimensions['tone_matched'] = true;
+            $details[] = "Tone adapted: " . ucfirst($tone);
+        }
+        
+        // Check pain point targeting
+        if (isset($context['pain_point']) && $context['pain_point'] !== 'finding the right manufacturing partner') {
+            $dimensions['pain_point_targeted'] = true;
+            $details[] = "Pain point targeted: " . $context['pain_point'];
+        }
+        
+        // Calculate score
+        $trueCount = count(array_filter($dimensions));
+        $totalCount = count($dimensions);
+        $score = ($trueCount / $totalCount) * 10;
+        
+        // Determine grade
+        $grade = match(true) {
+            $score >= 8 => 'A - Highly Personalized',
+            $score >= 6 => 'B - Well Personalized',
+            $score >= 4 => 'C - Moderately Personalized',
+            $score >= 2 => 'D - Basic Personalization',
+            default => 'F - Generic',
+        };
+        
+        return [
+            'score' => round($score, 1),
+            'max_score' => 10,
+            'dimensions_met' => $trueCount,
+            'dimensions_total' => $totalCount,
+            'dimensions' => $dimensions,
+            'details' => $details,
+            'grade' => $grade,
+            'summary' => "{$trueCount}/{$totalCount} personalization dimensions used",
+        ];
+    }
+
+    // ==================================================================================
+    // CRITICAL NEW METHODS - P0/P1/P2/P3 FIXES FROM QUALITY REPORT
+    // ==================================================================================
+
+    /**
+     * Resolve internal spintax in Cialdini element strings
+     * 
+     * CRITICAL FIX: Cialdini constants contain spintax like {option1|option2}
+     * This method resolves them to a single option before returning.
+     * 
+     * @param string $text Text potentially containing {option1|option2} syntax
+     * @return string Text with spintax resolved to random selection
+     */
+    private function resolveInternalSpintax(string $text): string
+    {
+        // If SpintaxEngine is available, use it
+        if ($this->spintaxEngine) {
+            return $this->spintaxEngine->spin($text);
+        }
+        
+        // Fallback: Simple regex-based spintax resolution
+        $pattern = '/\{([^{}]+)\}/';
+        
+        while (preg_match($pattern, $text)) {
+            $text = preg_replace_callback($pattern, function ($matches) {
+                $options = array_map('trim', explode('|', $matches[1]));
+                $options = array_filter($options, fn($o) => $o !== '');
+                
+                if (empty($options)) {
+                    return $matches[0];
+                }
+                
+                return $options[array_rand($options)];
+            }, $text);
+        }
+        
+        return $text;
+    }
+
+    /**
+     * Fix sentence case issues that can arise from fusion templates
+     * 
+     * P1 FIX: Fusion templates can create awkward capitalization like:
+     * "Because Working within..." where the fused text starts with uppercase
+     * 
+     * @param string $content The content to fix
+     * @return string Content with proper sentence case
+     */
+    private function fixSentenceCase(string $content): string
+    {
+        // Fix sentences that start with lowercase after period
+        $content = preg_replace_callback(
+            '/\.\s+([a-z])/',
+            fn($m) => '. ' . strtoupper($m[1]),
+            $content
+        );
+        
+        // Fix first character of content if lowercase
+        if (strlen($content) > 0 && ctype_lower($content[0])) {
+            $content = ucfirst($content);
+        }
+        
+        // Fix paragraph starts (after double newline)
+        $content = preg_replace_callback(
+            '/\n\n([a-z])/',
+            fn($m) => "\n\n" . strtoupper($m[1]),
+            $content
+        );
+        
+        // Fix awkward "Because Working" pattern from fusion
+        $content = preg_replace_callback(
+            '/\b(Because|Since|Given that|As|If)\s+([A-Z][a-z]+ing)\b/',
+            fn($m) => $m[1] . ' ' . lcfirst($m[2]),
+            $content
+        );
+        
+        return $content;
+    }
+
+    /**
+     * Validate email warmth before sending
+     * 
+     * P1 FIX: Pre-send gate that rejects emails scoring below warmth threshold
+     * Use this to ensure no cold, corporate-sounding emails get sent.
+     * 
+     * @param string $email The email body text
+     * @param float $threshold Minimum warmth score (default 5.5)
+     * @return array ['approved' => bool, 'score' => float, 'reason' => string, 'suggestions' => array]
+     */
+    public function validateEmailWarmth(string $email, float $threshold = 5.5): array
+    {
+        $warmth = $this->calculateWarmthScore($email);
+        
+        if ($warmth['score'] < $threshold) {
+            return [
+                'approved' => false,
+                'score' => $warmth['score'],
+                'threshold' => $threshold,
+                'reason' => 'Email warmth score below threshold - too corporate/cold',
+                'suggestions' => $warmth['suggestions'],
+                'verdict' => $warmth['verdict'],
+            ];
+        }
+        
+        return [
+            'approved' => true,
+            'score' => $warmth['score'],
+            'threshold' => $threshold,
+            'reason' => 'Email passes warmth validation',
+            'suggestions' => $warmth['suggestions'],
+            'verdict' => $warmth['verdict'],
+        ];
+    }
+
+    // ==================================================================================
+    // P2 IMPROVEMENTS: EMAIL PREVIEW WITH METRICS, HUMAN TOUCH DETECTOR
+    // ==================================================================================
+
+    /**
+     * Common templated phrases that indicate low-effort, generic emails
+     * 
+     * These phrases are often copied from templates and signal lack of personalization
+     */
+    private const TEMPLATED_PHRASES = [
+        '/\bI hope this email finds you well\b/i',
+        '/\bI hope this message finds you\b/i',
+        '/\bI wanted to reach out\b/i',
+        '/\bI am reaching out\b/i',
+        '/\bPlease do not hesitate\b/i',
+        '/\bAt your earliest convenience\b/i',
+        '/\bI am writing to\b/i',
+        '/\bI would like to introduce\b/i',
+        '/\bAs per our conversation\b/i',
+        '/\bPer our discussion\b/i',
+        '/\bI trust this email finds you\b/i',
+        '/\bLooking forward to hearing from you\b/i',
+        '/\bDon\'t hesitate to contact\b/i',
+        '/\bKindly revert\b/i',
+        '/\bPlease find attached\b/i',
+        '/\bWe are pleased to inform\b/i',
+        '/\bWe are delighted to\b/i',
+        '/\bThis is to inform you\b/i',
+    ];
+
+    /**
+     * Detect templated/generic language in an email
+     * 
+     * P2 FIX: Flag emails that sound too templated, which indicates low effort
+     * and may trigger spam filters or be ignored by recipients.
+     * 
+     * @param string $email The email body text
+     * @return array ['is_templated' => bool, 'score' => int, 'phrases' => array, 'verdict' => string]
+     */
+    public function detectTemplatedLanguage(string $email): array
+    {
+        $matches = [];
+        
+        foreach (self::TEMPLATED_PHRASES as $pattern) {
+            if (preg_match($pattern, $email, $m)) {
+                $matches[] = $m[0];
+            }
+        }
+        
+        $score = count($matches);
+        
+        return [
+            'is_templated' => $score >= 2,
+            'score' => $score,
+            'max_acceptable' => 1,
+            'phrases' => $matches,
+            'verdict' => match(true) {
+                $score === 0 => 'Excellent - No templated language detected',
+                $score === 1 => 'Good - Minor templated language',
+                $score === 2 => 'Warning - Multiple templated phrases',
+                default => 'Poor - Heavily templated, likely to be ignored',
+            },
+        ];
+    }
+
+    /**
+     * Preview email with comprehensive quality metrics
+     * 
+     * P2 FIX: Single method that returns email + all quality metrics for UI display.
+     * Useful for previewing before send and for A/B testing analysis.
+     * 
+     * @param Contact $contact The contact
+     * @param array $context Additional context variables
+     * @return array Complete email preview with metrics
+     */
+    public function previewEmailWithMetrics(Contact $contact, array $context = [], ?string $sampleEmailBody = null): array
+    {
+        // Build persuasion context
+        $persuasionContext = $this->buildPersuasionContext($contact);
+        
+        // Get personalization context
+        $personalization = $this->getPersonalizationContext($contact, $context);
+        
+        // Generate a sample email body for metrics if not provided
+        // This uses the fused paragraphs to simulate what the final email would look like
+        if ($sampleEmailBody === null) {
+            $engagementLevel = $personalization['engagementLevel'] ?? 'cold';
+            $sampleParts = [
+                $persuasionContext['fused_intro'] ?? '',
+                $persuasionContext['fused_value'] ?? '',
+                $persuasionContext['fused_close'] ?? '',
+            ];
+            $sampleEmailBody = implode("\n\n", array_filter($sampleParts));
+        }
+        
+        // Calculate ALL metrics - FIX: Actually compute warmth and templated language
+        $warmth = !empty($sampleEmailBody) 
+            ? $this->calculateWarmthScore($sampleEmailBody) 
+            : ['score' => 0, 'breakdown' => [], 'suggestions' => [], 'verdict' => 'No content'];
+            
+        $templated = !empty($sampleEmailBody)
+            ? $this->detectTemplatedLanguage($sampleEmailBody)
+            : ['is_templated' => false, 'score' => 0, 'phrases' => [], 'verdict' => 'No content'];
+            
+        $personalizationDepth = $this->calculatePersonalizationDepth($contact, array_merge(
+            $persuasionContext,
+            ['tone' => $personalization['tone'] ?? 'formal']
+        ));
+        
+        // Generate email fingerprint for deduplication tracking
+        $fingerprint = !empty($sampleEmailBody) 
+            ? $this->generateEmailFingerprint($sampleEmailBody) 
+            : null;
+        
+        return [
+            'contact' => [
+                'name' => $contact->getFirstName() . ' ' . $contact->getLastName(),
+                'company' => $contact->getCompany()?->getName(),
+                'role' => $this->inferRoleCategory($contact->getJobTitle() ?? ''),
+            ],
+            'personalization' => [
+                'tone' => $personalization['tone'],
+                'content_focus' => $personalization['content'],
+                'content_length' => $personalization['contentLength'],
+                'engagement_level' => $personalization['engagementLevel'],
+                'industry' => $personalization['industry'],
+                'role' => $personalization['role'],
+            ],
+            'metrics' => [
+                'personalization_depth' => $personalizationDepth,
+            ],
+            'persuasion_elements' => [
+                'reciprocity' => $persuasionContext['reciprocity'],
+                'scarcity' => $persuasionContext['scarcity'],
+                'authority' => $persuasionContext['authority'],
+                'consistency' => $persuasionContext['consistency'],
+                'liking' => $persuasionContext['liking'],
+                'social_proof' => $persuasionContext['social_proof'],
+                'unity' => $persuasionContext['unity'],
+            ],
+            'geographic' => [
+                'region' => $persuasionContext['region'],
+                'logistics' => $persuasionContext['geo_logistics'],
+                'timezone' => $persuasionContext['geo_timezone'],
+            ],
+            'template_architecture' => $persuasionContext['template_architecture'],
+            // NEW: Quality metrics now fully populated
+            'quality_metrics' => [
+                'warmth' => $warmth,
+                'templated_language' => $templated,
+                'fingerprint' => $fingerprint,
+            ],
+            'sample_body' => $sampleEmailBody,
+        ];
+    }
+
+    // ==================================================================================
+    // P3 IMPROVEMENTS: EMAIL FINGERPRINTING PREVENTION, INDUSTRY SUBJECT PATTERNS
+    // ==================================================================================
+
+    /**
+     * Industry-specific subject line patterns
+     * 
+     * P3 FIX: Generic subject patterns don't resonate as well as industry-specific ones.
+     * These patterns use industry terminology that signals relevance.
+     */
+    private const INDUSTRY_SUBJECT_PATTERNS = [
+        'automotive' => [
+            'ISO 9001 certified assembly for {{company_name}}?',
+            '{{company_name}} PPAP timeline question',
+            'Tier 1 capacity for {{company_name}}',
+            'APQP support for {{company_name}}?',
+            'Automotive PCBA for {{company_name}}',
+            'Nearshore automotive supplier - {{company_name}}',
+        ],
+        'aerospace' => [
+            '{{company_name}} AS9100 manufacturing',
+            'Flight-critical assemblies for {{company_name}}?',
+            'Aerospace traceability for {{company_name}}',
+            'FAI documentation - {{company_name}}',
+        ],
+        'medical' => [
+            '{{company_name}} MDR compliance support',
+            'ISO 13485 manufacturing for {{company_name}}',
+            'Medical device assembly - {{company_name}}',
+            'DHR documentation for {{company_name}}?',
+        ],
+        'defense' => [
+            '{{company_name}} ITAR-compliant manufacturing',
+            'Defense electronics for {{company_name}}',
+            'Mil-spec assemblies - {{company_name}}',
+        ],
+        'industrial' => [
+            'Industrial controls for {{company_name}}',
+            'Harsh environment PCBA - {{company_name}}',
+            'Industrial automation support?',
+        ],
+        'consumer' => [
+            'NPI timeline for {{company_name}}',
+            'Volume ramp support - {{company_name}}',
+            '{{company_name}} product launch capacity',
+        ],
+        'telecom' => [
+            '5G/RF assemblies for {{company_name}}',
+            'Telecom PCBA capacity - {{company_name}}',
+            'Network equipment manufacturing?',
+        ],
+        'renewables' => [
+            'Power electronics for {{company_name}}',
+            'Solar/wind PCBA - {{company_name}}',
+            'Energy storage assemblies?',
+        ],
+        'semiconductor' => [
+            'Semiconductor equipment PCBA - {{company_name}}',
+            'ESD-critical assemblies for {{company_name}}',
+            'Test equipment manufacturing?',
+        ],
+        'other' => [
+            'PCBA manufacturing for {{company_name}}',
+            '{{company_name}} assembly question',
+            'Electronics manufacturing - {{company_name}}',
+        ],
+    ];
+
+    /**
+     * Get an industry-specific subject line
+     * 
+     * P3 FIX: Returns subject lines that use industry-specific terminology
+     * to signal relevance and increase open rates.
+     * 
+     * @param Contact $contact The contact
+     * @param string|null $patternType Optional specific pattern type (null = random)
+     * @return string Industry-specific subject line
+     */
+    public function getIndustrySubjectLine(Contact $contact, ?string $patternType = null): string
+    {
+        $company = $contact->getCompany();
+        $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
+        
+        // Get patterns for this industry, fall back to 'other'
+        $patterns = self::INDUSTRY_SUBJECT_PATTERNS[$industry] ?? self::INDUSTRY_SUBJECT_PATTERNS['other'];
+        
+        if (empty($patterns)) {
+            $patterns = self::INDUSTRY_SUBJECT_PATTERNS['other'];
+        }
+        
+        // Select a pattern
+        $pattern = $patterns[array_rand($patterns)];
+        
+        // Replace placeholders
+        $replacements = [
+            '{{company_name}}' => $company?->getName() ?? 'your company',
+            '{{first_name}}' => $contact->getFirstName() ?? 'there',
+            '{{industry}}' => ucfirst($industry),
+        ];
+        
+        return str_replace(array_keys($replacements), array_values($replacements), $pattern);
+    }
+
+    /**
+     * Calculate text similarity using simple token overlap
+     * 
+     * Used for email fingerprinting prevention to ensure variety.
+     * 
+     * @param string $text1 First text
+     * @param string $text2 Second text
+     * @return float Similarity score 0.0 to 1.0
+     */
+    public function calculateTextSimilarity(string $text1, string $text2): float
+    {
+        // Tokenize (simple word split)
+        $tokens1 = array_unique(preg_split('/\s+/', strtolower(strip_tags($text1))));
+        $tokens2 = array_unique(preg_split('/\s+/', strtolower(strip_tags($text2))));
+        
+        // Remove very common words
+        $stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 
+                      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 
+                      'should', 'may', 'might', 'must', 'to', 'of', 'in', 'for', 'on', 'with',
+                      'at', 'by', 'from', 'as', 'into', 'through', 'and', 'or', 'but', 'if',
+                      'then', 'else', 'when', 'up', 'out', 'about', 'this', 'that', 'these',
+                      'those', 'i', 'you', 'we', 'they', 'it', 'he', 'she', 'my', 'your', 'our'];
+        
+        $tokens1 = array_diff($tokens1, $stopWords);
+        $tokens2 = array_diff($tokens2, $stopWords);
+        
+        if (empty($tokens1) || empty($tokens2)) {
+            return 0.0;
+        }
+        
+        // Jaccard similarity
+        $intersection = count(array_intersect($tokens1, $tokens2));
+        $union = count(array_unique(array_merge($tokens1, $tokens2)));
+        
+        return $union > 0 ? $intersection / $union : 0.0;
+    }
+
+    /**
+     * Generate a unique email variation that differs from recent emails
+     * 
+     * P3 FIX: Email fingerprinting prevention - ensures consecutive emails
+     * to the same company vary sufficiently to avoid spam detection.
+     * 
+     * @param Contact $contact The contact
+     * @param array $recentEmailBodies Array of recent email body texts sent to this company
+     * @param float $maxSimilarity Maximum allowed similarity (default 0.6)
+     * @param int $maxAttempts Maximum generation attempts (default 10)
+     * @return array ['success' => bool, 'body' => string|null, 'attempts' => int, 'similarity' => float]
+     */
+    public function ensureUniqueVariation(
+        Contact $contact,
+        array $recentEmailBodies,
+        float $maxSimilarity = 0.6,
+        int $maxAttempts = 10
+    ): array {
+        // If no recent emails, any variation is unique
+        if (empty($recentEmailBodies)) {
+            return [
+                'success' => true,
+                'body' => null, // Caller should generate normally
+                'attempts' => 0,
+                'similarity' => 0.0,
+                'message' => 'No recent emails to compare against',
+            ];
+        }
+        
+        // This method validates - actual generation happens in orchestrator
+        // Return guidance for the orchestrator
+        return [
+            'success' => true,
+            'recent_count' => count($recentEmailBodies),
+            'max_similarity' => $maxSimilarity,
+            'max_attempts' => $maxAttempts,
+            'message' => 'Use spintax variation to generate unique content',
+            'validation_callback' => function(string $newBody) use ($recentEmailBodies, $maxSimilarity): bool {
+                foreach ($recentEmailBodies as $recent) {
+                    if ($this->calculateTextSimilarity($newBody, $recent) > $maxSimilarity) {
+                        return false; // Too similar
+                    }
+                }
+                return true; // Sufficiently unique
+            },
+        ];
+    }
+
+    /**
+     * Comprehensive email quality check
+     * 
+     * MASTER METHOD: Runs all quality validations and returns pass/fail with details.
+     * Use this before sending any email.
+     * 
+     * @param string $emailBody The email body text
+     * @param Contact $contact The recipient contact
+     * @param array $context The personalization context used
+     * @return array Complete quality assessment with pass/fail
+     */
+    public function runFullQualityCheck(string $emailBody, Contact $contact, array $context = []): array
+    {
+        $checks = [];
+        $allPassed = true;
+        
+        // 1. Warmth validation
+        $warmth = $this->validateEmailWarmth($emailBody);
+        $checks['warmth'] = [
+            'passed' => $warmth['approved'],
+            'score' => $warmth['score'],
+            'threshold' => $warmth['threshold'],
+            'suggestions' => $warmth['suggestions'],
+        ];
+        if (!$warmth['approved']) {
+            $allPassed = false;
+        }
+        
+        // 2. Templated language detection
+        $templated = $this->detectTemplatedLanguage($emailBody);
+        $checks['templated_language'] = [
+            'passed' => !$templated['is_templated'],
+            'score' => $templated['score'],
+            'max_acceptable' => $templated['max_acceptable'],
+            'phrases_found' => $templated['phrases'],
+            'verdict' => $templated['verdict'],
+        ];
+        if ($templated['is_templated']) {
+            $allPassed = false;
+        }
+        
+        // 3. Personalization depth
+        $persuasionContext = $this->buildPersuasionContext($contact);
+        $depth = $this->calculatePersonalizationDepth($contact, array_merge($persuasionContext, $context));
+        $checks['personalization_depth'] = [
+            'passed' => $depth['score'] >= 5.0,
+            'score' => $depth['score'],
+            'grade' => $depth['grade'],
+            'dimensions_met' => $depth['dimensions_met'],
+            'dimensions_total' => $depth['dimensions_total'],
+        ];
+        if ($depth['score'] < 5.0) {
+            $allPassed = false;
+        }
+        
+        // 4. Unresolved spintax check
+        $hasUnresolvedSpintax = preg_match('/\{[^{}]+\|[^{}]+\}/', $emailBody);
+        $checks['spintax_resolved'] = [
+            'passed' => !$hasUnresolvedSpintax,
+            'message' => $hasUnresolvedSpintax 
+                ? 'Email contains unresolved spintax syntax' 
+                : 'All spintax properly resolved',
+        ];
+        if ($hasUnresolvedSpintax) {
+            $allPassed = false;
+        }
+        
+        // 5. You-focus ratio
+        $youCount = preg_match_all('/\byou\b|\byour\b/i', $emailBody);
+        $weCount = preg_match_all('/\bwe\b|\bour\b/i', $emailBody);
+        $youFocusRatio = $weCount > 0 ? $youCount / $weCount : ($youCount > 0 ? 10 : 0);
+        $checks['you_focus'] = [
+            'passed' => $youFocusRatio >= 1.5,
+            'you_count' => $youCount,
+            'we_count' => $weCount,
+            'ratio' => round($youFocusRatio, 2),
+            'target_ratio' => 1.5,
+        ];
+        if ($youFocusRatio < 1.5) {
+            $allPassed = false;
+        }
+        
+        // 6. CTA presence
+        $hasCta = preg_match('/\?|call|chat|connect|schedule|reply|interested/i', $emailBody);
+        $checks['cta_present'] = [
+            'passed' => (bool)$hasCta,
+            'message' => $hasCta ? 'Clear call-to-action found' : 'No clear CTA detected',
+        ];
+        if (!$hasCta) {
+            $allPassed = false;
+        }
+        
+        // 7. Length check
+        $wordCount = str_word_count($emailBody);
+        $checks['length'] = [
+            'passed' => $wordCount >= 30 && $wordCount <= 300,
+            'word_count' => $wordCount,
+            'range' => '30-300 words',
+            'message' => match(true) {
+                $wordCount < 30 => 'Email too short - may seem rushed',
+                $wordCount > 300 => 'Email too long - may not be read',
+                default => 'Length appropriate',
+            },
+        ];
+        if ($wordCount < 30 || $wordCount > 300) {
+            $allPassed = false;
+        }
+        
+        return [
+            'passed' => $allPassed,
+            'checks' => $checks,
+            'summary' => $allPassed 
+                ? 'Email passes all quality checks' 
+                : 'Email failed one or more quality checks',
+            'failed_checks' => array_keys(array_filter($checks, fn($c) => !$c['passed'])),
+        ];
+    }
+
+    // ==================================================================================
+    // P3 IMPROVEMENT: EMAIL FINGERPRINT FOR DEDUPLICATION TRACKING
+    // ==================================================================================
+
+    /**
+     * Generate a fingerprint hash for an email body
+     * 
+     * This creates a normalized hash that can be used to:
+     * 1. Track unique email variations for A/B testing
+     * 2. Detect duplicate emails being sent
+     * 3. Help with email fingerprinting prevention
+     * 
+     * The fingerprint normalizes the content (lowercase, whitespace normalized)
+     * so that minor formatting differences don't create different hashes.
+     * 
+     * @param string $body The email body text
+     * @return string A 16-character hex fingerprint
+     */
+    public function generateEmailFingerprint(string $body): string
+    {
+        // Normalize: lowercase, collapse whitespace, remove punctuation variations
+        $normalized = strtolower($body);
+        $normalized = preg_replace('/\s+/', ' ', $normalized);  // Collapse whitespace
+        $normalized = preg_replace('/[^\w\s]/', '', $normalized); // Remove punctuation
+        $normalized = trim($normalized);
+        
+        // Use xxHash for speed, or fall back to MD5 if not available
+        if (function_exists('hash') && in_array('xxh3', hash_algos())) {
+            return substr(hash('xxh3', $normalized), 0, 16);
+        }
+        
+        // Fallback to MD5 (first 16 chars)
+        return substr(md5($normalized), 0, 16);
+    }
+
+    /**
+     * Check if an email fingerprint matches any recent emails
+     * 
+     * @param string $fingerprint The fingerprint to check
+     * @param array $recentFingerprints Array of recent fingerprints to compare against
+     * @return bool True if fingerprint is found (duplicate), false otherwise
+     */
+    public function isDuplicateFingerprint(string $fingerprint, array $recentFingerprints): bool
+    {
+        return in_array($fingerprint, $recentFingerprints, true);
+    }
+
+    /**
+     * Generate a batch of unique email variations
+     * 
+     * This method helps generate multiple unique email variations for a contact,
+     * ensuring each has a distinct fingerprint. Useful for:
+     * - Multi-touch campaigns (different emails in a sequence)
+     * - A/B testing with guaranteed variation
+     * - Avoiding spam filter fingerprint detection
+     * 
+     * @param Contact $contact The contact
+     * @param int $count Number of variations to generate
+     * @param int $maxAttempts Maximum attempts per variation
+     * @return array Array of unique variations with fingerprints
+     */
+    public function generateUniqueEmailVariations(Contact $contact, int $count = 3, int $maxAttempts = 10): array
+    {
+        $variations = [];
+        $fingerprints = [];
+        $totalAttempts = 0;
+        $collisions = 0;
+        $startTime = microtime(true);
+        
+        // P4-2 FIX: Log start of variation generation
+        $this->logger->debug('Starting unique email variation generation', [
+            'contact_id' => $contact->getId(),
+            'contact_name' => $contact->getFirstName() . ' ' . $contact->getLastName(),
+            'company' => $contact->getCompany()?->getName(),
+            'requested_count' => $count,
+            'max_attempts_per_variation' => $maxAttempts,
+        ]);
+        
+        for ($i = 0; $i < $count; $i++) {
+            $attempts = 0;
+            $variationCollisions = 0;
+            
+            do {
+                $attempts++;
+                $totalAttempts++;
+                
+                // Build fresh persuasion context (uses random spintax selections)
+                $persuasionContext = $this->buildPersuasionContext($contact);
+                $engagementLevel = $persuasionContext['engagement_level'] ?? 'cold';
+                
+                // Generate sample body from fused paragraphs
+                $sampleParts = [
+                    $persuasionContext['fused_intro'] ?? '',
+                    $persuasionContext['fused_value'] ?? '',
+                    $persuasionContext['fused_close'] ?? '',
+                ];
+                $sampleBody = implode("\n\n", array_filter($sampleParts));
+                
+                // Apply quality fixes
+                $tone = $persuasionContext['template_architecture']['tone_preference'] ?? 'formal';
+                $sampleBody = $this->applyOutputQualityFixes($sampleBody, $engagementLevel, $tone);
+                
+                $fingerprint = $this->generateEmailFingerprint($sampleBody);
+                
+                // P4-2 FIX: Track collisions for logging
+                if (in_array($fingerprint, $fingerprints, true)) {
+                    $variationCollisions++;
+                    $collisions++;
+                    $this->logger->debug('Fingerprint collision detected', [
+                        'variation_index' => $i + 1,
+                        'attempt' => $attempts,
+                        'fingerprint' => $fingerprint,
+                        'existing_fingerprints' => $fingerprints,
+                    ]);
+                }
+                
+            } while (in_array($fingerprint, $fingerprints, true) && $attempts < $maxAttempts);
+            
+            if (!in_array($fingerprint, $fingerprints, true)) {
+                $fingerprints[] = $fingerprint;
+                $variations[] = [
+                    'body' => $sampleBody,
+                    'fingerprint' => $fingerprint,
+                    'persuasion_context' => $persuasionContext,
+                    'attempts_needed' => $attempts,
+                    'collisions' => $variationCollisions,
+                ];
+                
+                // P4-2 FIX: Log successful variation
+                $this->logger->debug('Successfully generated unique variation', [
+                    'variation_index' => $i + 1,
+                    'fingerprint' => $fingerprint,
+                    'attempts_needed' => $attempts,
+                    'word_count' => str_word_count($sampleBody),
+                ]);
+            } else {
+                // P4-2 FIX: Log failed variation (max attempts reached)
+                $this->logger->warning('Failed to generate unique variation - max attempts reached', [
+                    'variation_index' => $i + 1,
+                    'max_attempts' => $maxAttempts,
+                    'collisions' => $variationCollisions,
+                    'existing_fingerprints_count' => count($fingerprints),
+                ]);
+            }
+        }
+        
+        $elapsedMs = round((microtime(true) - $startTime) * 1000, 2);
+        $success = count($variations) === $count;
+        
+        // P4-2 FIX: Log completion summary
+        $logLevel = $success ? 'info' : 'warning';
+        $this->logger->$logLevel('Completed unique email variation generation', [
+            'contact_id' => $contact->getId(),
+            'requested_count' => $count,
+            'generated_count' => count($variations),
+            'success' => $success,
+            'total_attempts' => $totalAttempts,
+            'total_collisions' => $collisions,
+            'elapsed_ms' => $elapsedMs,
+            'fingerprints' => $fingerprints,
+        ]);
+        
+        return [
+            'variations' => $variations,
+            'unique_count' => count($variations),
+            'requested_count' => $count,
+            'success' => $success,
+            // P4-2 FIX: Include generation statistics
+            'stats' => [
+                'total_attempts' => $totalAttempts,
+                'total_collisions' => $collisions,
+                'elapsed_ms' => $elapsedMs,
+                'avg_attempts_per_variation' => count($variations) > 0 
+                    ? round($totalAttempts / count($variations), 2) 
+                    : 0,
+            ],
+        ];
     }
 }

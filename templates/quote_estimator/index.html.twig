@@ -7,7 +7,7 @@
     {# Page Header #}
     <header class="rams-module__header rams-module__header--border-bottom">
         <h1 class="rams-heading rams-heading--1">{{ 'quote.estimator.title'|trans }}</h1>
-        <p class="rams-text rams-text--muted">{{ 'quote.estimator.subtitle'|trans|default('Generate intelligent price quotes for customer requests') }}</p>
+        <p class="rams-text rams-text--muted">{{ 'quote.estimator.subtitle'|trans }}</p>
     </header>
 
     <div class="rams-container rams-container--md">
@@ -25,52 +25,52 @@
                 <form method="POST" action="{{ path('quote_estimator_calculate') }}">
                     <div class="rams-grid rams-grid--cols-2 rams-grid--gap-md">
                         <div class="rams-form__group">
-                            <label class="rams-form__label rams-dymo">{{ 'quote.estimator.customer_name'|trans|default('Customer Name') }}</label>
-                            <input type="text" name="customer_name" class="rams-form__input" placeholder="{{ 'quote.estimator.customer_name_placeholder'|trans|default('Enter customer name') }}">
+                            <label class="rams-form__label rams-dymo">{{ 'quote.estimator.customer_name'|trans }}</label>
+                            <input type="text" name="customer_name" class="rams-form__input" placeholder="{{ 'quote.estimator.customer_name_placeholder'|trans }}">
                         </div>
 
                         <div class="rams-form__group">
-                            <label class="rams-form__label rams-dymo">{{ 'quote.estimator.part_number'|trans|default('Part Number') }}</label>
-                            <input type="text" name="part_number" class="rams-form__input" placeholder="{{ 'quote.estimator.part_number_placeholder'|trans|default('Enter part number') }}">
+                            <label class="rams-form__label rams-dymo">{{ 'quote.estimator.part_number'|trans }}</label>
+                            <input type="text" name="part_number" class="rams-form__input" placeholder="{{ 'quote.estimator.part_number_placeholder'|trans }}">
                         </div>
 
                         <div class="rams-form__group">
                             <label class="rams-form__label rams-dymo">{{ 'common.quantity'|trans }}</label>
-                            <input type="number" name="quantity" class="rams-form__input" placeholder="{{ 'quote.estimator.quantity_placeholder'|trans|default('Enter quantity') }}">
+                            <input type="number" name="quantity" class="rams-form__input" placeholder="{{ 'quote.estimator.quantity_placeholder'|trans }}">
                         </div>
 
                         <div class="rams-form__group">
-                            <label class="rams-form__label rams-dymo">{{ 'quote.estimator.required_delivery'|trans|default('Required Delivery') }}</label>
+                            <label class="rams-form__label rams-dymo">{{ 'quote.estimator.required_delivery'|trans }}</label>
                             <input type="date" name="delivery_date" class="rams-form__input">
                         </div>
                     </div>
 
                     <div class="rams-form__group">
-                        <label class="rams-form__label rams-dymo">{{ 'quote.estimator.special_requirements'|trans|default('Special Requirements') }}</label>
-                        <textarea name="special_requirements" rows="4" class="rams-form__textarea" placeholder="{{ 'quote.estimator.special_requirements_placeholder'|trans|default('Enter any special requirements or notes') }}"></textarea>
+                        <label class="rams-form__label rams-dymo">{{ 'quote.estimator.special_requirements'|trans }}</label>
+                        <textarea name="special_requirements" rows="4" class="rams-form__textarea" placeholder="{{ 'quote.estimator.special_requirements_placeholder'|trans }}"></textarea>
                     </div>
 
                     <div class="rams-form__actions">
                         <button type="submit" name="action" value="estimate" class="rams-btn rams-btn--primary">
-                            {{ 'quote.estimator.generate_quote'|trans|default('Generate Quote') }}
+                            {{ 'quote.estimator.generate_quote'|trans }}
                         </button>
                         <button type="submit" name="action" value="save" class="rams-btn rams-btn--secondary">
-                            {{ 'quote.estimator.save_for_later'|trans|default('Save for Later') }}
+                            {{ 'quote.estimator.save_for_later'|trans }}
                         </button>
                     </div>
                 </form>
 
                 <div class="rams-module rams-module--nested rams-module--muted">
                     <div class="rams-module__header">
-                        <h3 class="rams-heading rams-heading--4">{{ 'quote.estimator.how_to_use'|trans|default('How to Use:') }}</h3>
+                        <h3 class="rams-heading rams-heading--4">{{ 'quote.estimator.how_to_use'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
                         <ul class="rams-list rams-list--disc">
-                            <li class="rams-list__item">{{ 'quote.estimator.instruction_1'|trans|default('Enter customer and part details') }}</li>
-                            <li class="rams-list__item">{{ 'quote.estimator.instruction_2'|trans|default('Specify required quantity and delivery date') }}</li>
-                            <li class="rams-list__item">{{ 'quote.estimator.instruction_3'|trans|default('Click "Generate Quote" to get an AI-assisted estimate') }}</li>
-                            <li class="rams-list__item">{{ 'quote.estimator.instruction_4'|trans|default('Review pricing and delivery options') }}</li>
-                            <li class="rams-list__item">{{ 'quote.estimator.instruction_5'|trans|default('Send quote to customer via email') }}</li>
+                            <li class="rams-list__item">{{ 'quote.estimator.instruction_1'|trans }}</li>
+                            <li class="rams-list__item">{{ 'quote.estimator.instruction_2'|trans }}</li>
+                            <li class="rams-list__item">{{ 'quote.estimator.instruction_3'|trans }}</li>
+                            <li class="rams-list__item">{{ 'quote.estimator.instruction_4'|trans }}</li>
+                            <li class="rams-list__item">{{ 'quote.estimator.instruction_5'|trans }}</li>
                         </ul>
                     </div>
                 </div>
