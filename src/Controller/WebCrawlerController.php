@@ -4,7 +4,6 @@ namespace App\Controller;
 
 use App\Service\WebCrawler\CompanyDiscoveryService;
 use App\Service\WebCrawler\GoogleDorkService;
-use App\Service\WebCrawler\LinkedInScraperService;
 use App\Repository\LeadRepository;
 use App\Service\CountryService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -37,7 +36,6 @@ class WebCrawlerController extends AbstractController
     public function __construct(
         private CompanyDiscoveryService $discoveryService,
         private GoogleDorkService $googleDorkService,
-        private LinkedInScraperService $linkedInService,
         private LeadRepository $leadRepository,
         private CountryService $countryService
     ) {}
@@ -109,7 +107,6 @@ class WebCrawlerController extends AbstractController
                     'id' => $c->getId(),
                     'name' => $c->getName(),
                     'website' => $c->getWebsite(),
-                    'linkedin' => $c->getLinkedin(),
                 ], $companies)
             ]);
 
@@ -137,30 +134,6 @@ class WebCrawlerController extends AbstractController
                 // Standard sector + location search
                 $results = $this->googleDorkService->searchCompanies($sector, $locationLabel);
             }
-
-            return new JsonResponse([
-                'success' => true,
-                'results' => count($results),
-                'companies' => $results
-            ]);
-
-        } catch (\Exception $e) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    #[Route('/search-linkedin', name: 'app_webcrawler_search_linkedin', methods: ['POST'])]
-    public function searchLinkedIn(Request $request): JsonResponse
-    {
-        $sector = $request->request->get('sector');
-        $location = $request->request->get('location');
-        $locationLabel = $this->resolveLocationLabel($location);
-
-        try {
-            $results = $this->linkedInService->searchCompanies($sector, $locationLabel);
 
             return new JsonResponse([
                 'success' => true,
@@ -212,7 +185,6 @@ class WebCrawlerController extends AbstractController
                 'site:{domain} contact',
             ],
             'Company Info' => [
-                'site:linkedin.com/company {company}',
                 '"{company}" "{location}" supplier',
                 '"{company}" manufacturing {sector}',
             ],

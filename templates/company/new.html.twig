@@ -3,14 +3,16 @@
 {% block title %}{{ 'company.new_company'|trans }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-flex rams-flex-col rams-gap-6">
+<div class="rams-stack rams-gap-6">
     {# Breadcrumb #}
     <nav class="rams-breadcrumb" aria-label="Breadcrumb">
-        <a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__item">{{ 'nav.dashboard'|trans }}</a>
-        <span class="rams-breadcrumb__separator">/</span>
-        <a href="{{ path('app_company_index') }}" class="rams-breadcrumb__item">{{ 'company.title'|trans }}</a>
-        <span class="rams-breadcrumb__separator">/</span>
-        <span class="rams-breadcrumb__item rams-breadcrumb__item--current" aria-current="page">{{ 'common.new'|trans }}</span>
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_company_index') }}" class="rams-breadcrumb__link">{{ 'company.title'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'common.new'|trans }}</li>
+        </ol>
     </nav>
 
     {# Page Header #}
@@ -22,123 +24,83 @@
     </div>
 
     {# Form Module #}
-    <div class="rams-module">
+    <div class="rams-module rams-module--narrow rams-mx-auto">
         <div class="rams-module__header">
-            <span class="rams-module__title">{{ 'company.title_singular'|trans }} {{ 'common.details'|trans }}</span>
+            <h2 class="rams-module__title">{{ 'company.title_singular'|trans }} {{ 'common.details'|trans }}</h2>
         </div>
         <div class="rams-module__content">
-            {{ form_start(form, {'attr': {'class': 'rams-flex rams-flex-col rams-gap-4'}}) }}
+            {{ form_start(form, {'attr': {'class': 'rams-form', 'id': 'company-form'}}) }}
 
                 {# Company Name #}
-                <div class="rams-form-group rams-mb-0">
-                    <label for="{{ form.name.vars.id }}" class="rams-label">{{ 'company.company_name'|trans }} <span class="rams-text-danger">*</span></label>
-                    {{ form_widget(form.name, {'attr': {'class': 'rams-input', 'placeholder': 'company.company_name'|trans}}) }}
-                    {% if form.name.vars.errors|length > 0 %}
-                        <span class="rams-error-text">{{ form_errors(form.name) }}</span>
-                    {% endif %}
+                <div class="rams-form__group">
+                    {{ form_label(form.name, 'company.company_name'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                    {{ form_widget(form.name, {'attr': {'class': 'rams-form__input', 'placeholder': 'company.company_name'|trans}}) }}
+                    {{ form_errors(form.name) }}
                 </div>
 
                 {# Sector and Tier Row #}
                 <div class="rams-grid rams-grid--2 rams-gap-4">
-                    <div class="rams-form-group rams-mb-0">
-                        <label for="{{ form.sector.vars.id }}" class="rams-label">{{ 'company.sector'|trans }}</label>
-                        {{ form_widget(form.sector, {'attr': {'class': 'rams-select'}}) }}
-                        {% if form.sector.vars.errors|length > 0 %}
-                            <span class="rams-error-text">{{ form_errors(form.sector) }}</span>
-                        {% endif %}
+                    <div class="rams-form__group">
+                        {{ form_label(form.sector, 'company.sector'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.sector, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.sector) }}
                     </div>
-                    <div class="rams-form-group rams-mb-0">
-                        <label for="{{ form.accountTier.vars.id }}" class="rams-label">{{ 'company.account_tier'|trans }}</label>
-                        {{ form_widget(form.accountTier, {'attr': {'class': 'rams-select'}}) }}
-                        {% if form.accountTier.vars.errors|length > 0 %}
-                            <span class="rams-error-text">{{ form_errors(form.accountTier) }}</span>
-                        {% endif %}
+                    <div class="rams-form__group">
+                        {{ form_label(form.accountTier, 'company.account_tier'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.accountTier, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.accountTier) }}
                     </div>
                 </div>
 
                 {# Pipeline Stage and Region Row #}
                 <div class="rams-grid rams-grid--2 rams-gap-4">
-                    <div class="rams-form-group rams-mb-0">
-                        <label for="{{ form.pipelineStage.vars.id }}" class="rams-label">{{ 'company.pipeline_stage'|trans }}</label>
-                        {{ form_widget(form.pipelineStage, {'attr': {'class': 'rams-select'}}) }}
-                        {% if form.pipelineStage.vars.errors|length > 0 %}
-                            <span class="rams-error-text">{{ form_errors(form.pipelineStage) }}</span>
-                        {% endif %}
+                    <div class="rams-form__group">
+                        {{ form_label(form.pipelineStage, 'company.pipeline_stage'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.pipelineStage, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.pipelineStage) }}
                     </div>
-                    <div class="rams-form-group rams-mb-0">
-                        <label for="{{ form.region.vars.id }}" class="rams-label">{{ 'company.region'|trans }}</label>
-                        {{ form_widget(form.region, {'attr': {'class': 'rams-select'}}) }}
-                        {% if form.region.vars.errors|length > 0 %}
-                            <span class="rams-error-text">{{ form_errors(form.region) }}</span>
-                        {% endif %}
+                    <div class="rams-form__group">
+                        {{ form_label(form.region, 'company.region'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.region, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.region) }}
                     </div>
                 </div>
 
-                {# Divider #}
-                <div class="rams-border-t rams-mt-2 rams-pt-4">
-                    <span class="rams-module__title">{{ 'common.details'|trans }}</span>
-                </div>
+                <div class="rams-divider rams-my-4"></div>
 
                 {# Website #}
-                <div class="rams-form-group rams-mb-0">
-                    <label for="{{ form.website.vars.id }}" class="rams-label">{{ 'company.website'|trans }}</label>
+                <div class="rams-form__group">
+                    {{ form_label(form.website, 'company.website'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                     <div class="rams-flex rams-items-center rams-gap-2">
-                        <span class="rams-icon-container">
-                            <svg class="rams-icon--sm rams-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-                            </svg>
-                        </span>
-                        {{ form_widget(form.website, {'attr': {'class': 'rams-input rams-flex-1', 'placeholder': 'https://example.com'}}) }}
+                        <span class="rams-text-xl">🌐</span>
+                        {{ form_widget(form.website, {'attr': {'class': 'rams-form__input', 'placeholder': 'https://example.com'}}) }}
                     </div>
-                    {% if form.website.vars.errors|length > 0 %}
-                        <span class="rams-error-text">{{ form_errors(form.website) }}</span>
-                    {% endif %}
-                </div>
-
-                {# LinkedIn URL #}
-                <div class="rams-form-group rams-mb-0">
-                    <label for="{{ form.linkedInUrl.vars.id }}" class="rams-label">{{ 'company.linkedin'|trans }}</label>
-                    <div class="rams-flex rams-items-center rams-gap-2">
-                        <span class="rams-icon-container rams-icon-container--info">
-                            <svg class="rams-icon--sm rams-text-info" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                            </svg>
-                        </span>
-                        {{ form_widget(form.linkedInUrl, {'attr': {'class': 'rams-input rams-flex-1', 'placeholder': 'https://linkedin.com/company/...'}}) }}
-                    </div>
-                    {% if form.linkedInUrl.vars.errors|length > 0 %}
-                        <span class="rams-error-text">{{ form_errors(form.linkedInUrl) }}</span>
-                    {% endif %}
+                    {{ form_errors(form.website) }}
                 </div>
 
                 {# Google Drive Link #}
-                <div class="rams-form-group rams-mb-0">
-                    <label for="{{ form.googleDriveLink.vars.id }}" class="rams-label">{{ 'company.google_drive_link'|trans }}</label>
+                <div class="rams-form__group">
+                    {{ form_label(form.googleDriveLink, 'company.google_drive_link'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                     <div class="rams-flex rams-items-center rams-gap-2">
-                        <span class="rams-icon-container rams-icon-container--warning">
-                            <svg class="rams-icon--sm rams-text-warning" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M7.71 3.5L1.15 15l3.18 5.5L11.88 9zm4.58 0l-6.56 11.5 3.18 5.5 6.56-11.5zM8.3 20.5l-3.18-5.5H21l-3.18 5.5z"/>
-                            </svg>
-                        </span>
-                        {{ form_widget(form.googleDriveLink, {'attr': {'class': 'rams-input rams-flex-1', 'placeholder': 'https://drive.google.com/...'}}) }}
+                        <span class="rams-text-xl">📁</span>
+                        {{ form_widget(form.googleDriveLink, {'attr': {'class': 'rams-form__input', 'placeholder': 'https://drive.google.com/...'}}) }}
                     </div>
-                    {% if form.googleDriveLink.vars.errors|length > 0 %}
-                        <span class="rams-error-text">{{ form_errors(form.googleDriveLink) }}</span>
-                    {% endif %}
+                    {{ form_errors(form.googleDriveLink) }}
                 </div>
 
-            {{ form_end(form, {'render_rest': false}) }}
-        </div>
-        <div class="rams-module__footer rams-flex rams-gap-2">
-            <button type="submit" form="{{ form.vars.id }}" class="rams-btn rams-btn--primary">
-                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
-                {{ 'common.create'|trans }} {{ 'company.title_singular'|trans }}
-            </button>
-            <a href="{{ path('app_company_index') }}" class="rams-btn">
-                {{ 'common.cancel'|trans }}
-            </a>
+                <div class="rams-form__actions">
+                    <button type="submit" class="rams-btn rams-btn--primary">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        {{ 'common.create'|trans }} {{ 'company.title_singular'|trans }}
+                    </button>
+                    <a href="{{ path('app_company_index') }}" class="rams-btn rams-btn--ghost">
+                        {{ 'common.cancel'|trans }}
+                    </a>
+                </div>
+
+            {{ form_end(form) }}
         </div>
     </div>
 </div>

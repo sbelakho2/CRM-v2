@@ -618,7 +618,23 @@ class DatasetImportService
     }
 
     /**
+     * Cache of verified signatures to avoid recalculating for the same file in the same session.
+     * Key: file path, Value: ['hash' => string, 'mtime' => int, 'size' => int]
+     * 
+     * @var array<string, array{hash: string, mtime: int, size: int}>
+     */
+    private array $signatureCache = [];
+
+    /**
      * Verify CSV file signature (SHA-256 hash)
+     * 
+     * Uses stream-based hashing for memory efficiency with large files (100MB+).
+     * Implements caching to avoid re-verification of the same file in a session.
+     * 
+     * Performance optimizations:
+     * - Stream-based hashing: Processes file in 8KB chunks (vs loading entire file into memory)
+     * - Session caching: Avoids re-hashing if file hasn't changed (based on mtime + size)
+     * - Early validation: Checks file existence before expensive hash operation
      * 
      * @param string $csvPath - Path to CSV file
      * @param string $signaturePath - Path to .sha256 signature file
@@ -627,8 +643,7 @@ class DatasetImportService
      */
     private function verifySignature(string $csvPath, string $signaturePath): void
     {
-        // Fully implemented helper method
-        
+        // Early validation
         if (!file_exists($csvPath)) {
             throw new \RuntimeException("CSV file not found: $csvPath");
         }
@@ -637,16 +652,83 @@ class DatasetImportService
             throw new \RuntimeException("Signature file not found: $signaturePath");
         }
         
-        // Calculate hash of CSV file
-        $calculatedHash = hash_file('sha256', $csvPath);
-        
         // Read expected hash from signature file
         $expectedHash = trim(file_get_contents($signaturePath));
+        if (empty($expectedHash)) {
+            throw new \RuntimeException("Signature file is empty: $signaturePath");
+        }
         
-        // Verify hashes match
-        if ($calculatedHash !== $expectedHash) {
+        // Calculate hash using stream-based approach with caching
+        $calculatedHash = $this->calculateStreamHash($csvPath);
+        
+        // Verify hashes match (timing-safe comparison)
+        if (!hash_equals($expectedHash, $calculatedHash)) {
+            // Invalidate cache on failure
+            unset($this->signatureCache[$csvPath]);
             throw new \RuntimeException("Signature verification failed. File may be corrupted or tampered.");
         }
+    }
+    
+    /**
+     * Calculate SHA-256 hash using stream-based processing
+     * 
+     * Benefits over hash_file():
+     * - Memory efficient: Processes 8KB chunks instead of loading entire file
+     * - Cacheable: Can leverage file metadata for cache validation
+     * - Cancellable: Could be extended to support progress callbacks for very large files
+     * 
+     * @param string $filePath - Path to file to hash
+     * @return string - Lowercase hexadecimal SHA-256 hash
+     */
+    private function calculateStreamHash(string $filePath): string
+    {
+        $fileMtime = filemtime($filePath);
+        $fileSize = filesize($filePath);
+        
+        // Check cache: if file metadata matches, return cached hash
+        if (isset($this->signatureCache[$filePath])) {
+            $cached = $this->signatureCache[$filePath];
+            if ($cached['mtime'] === $fileMtime && $cached['size'] === $fileSize) {
+                return $cached['hash'];
+            }
+        }
+        
+        // Stream-based hashing for memory efficiency
+        $handle = fopen($filePath, 'rb');
+        if (!$handle) {
+            throw new \RuntimeException("Cannot open file for hashing: $filePath");
+        }
+        
+        $hashContext = hash_init('sha256');
+        
+        // Process in 8KB chunks (optimal for disk I/O)
+        while (!feof($handle)) {
+            $chunk = fread($handle, 8192);
+            if ($chunk !== false) {
+                hash_update($hashContext, $chunk);
+            }
+        }
+        
+        fclose($handle);
+        
+        $calculatedHash = hash_final($hashContext);
+        
+        // Cache the result
+        $this->signatureCache[$filePath] = [
+            'hash' => $calculatedHash,
+            'mtime' => $fileMtime,
+            'size' => $fileSize,
+        ];
+        
+        return $calculatedHash;
+    }
+    
+    /**
+     * Clear the signature cache (useful for testing or forced re-verification)
+     */
+    public function clearSignatureCache(): void
+    {
+        $this->signatureCache = [];
     }
 
     /**

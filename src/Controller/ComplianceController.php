@@ -159,6 +159,71 @@ class ComplianceController extends AbstractController
             'id' => $document->getCompany()->getId()
         ]);
     }
+    
+    /**
+     * Snooze compliance alerts for a document
+     * 
+     * Allows users to temporarily suppress alerts for a document while
+     * acknowledging that an issue exists (e.g., renewal in progress).
+     */
+    #[Route('/document/{id}/snooze', name: 'app_compliance_snooze', methods: ['POST'])]
+    public function snoozeDocument(Request $request, ComplianceDocument $document): Response
+    {
+        if ($this->isCsrfTokenValid('snooze'.$document->getId(), $request->request->get('_token'))) {
+            $days = (int) $request->request->get('days', 7);
+            $reason = $request->request->get('reason', '');
+            
+            // Validate days (min 1, max 90)
+            $days = max(1, min(90, $days));
+            
+            // Get current user
+            $user = $this->getUser();
+            $snoozedBy = $user ? $user->getUserIdentifier() : 'unknown';
+            
+            $document->snooze($days, $reason ?: null, $snoozedBy);
+            $this->entityManager->flush();
+            
+            $this->addFlash('success', sprintf(
+                'Alerts snoozed for %d days until %s',
+                $days,
+                $document->getSnoozedUntil()->format('M j, Y')
+            ));
+        }
+        
+        // Redirect back to referrer or company compliance page
+        $referer = $request->headers->get('referer');
+        if ($referer && str_contains($referer, '/compliance/')) {
+            return $this->redirect($referer);
+        }
+        
+        return $this->redirectToRoute('app_compliance_company', [
+            'id' => $document->getCompany()->getId()
+        ]);
+    }
+    
+    /**
+     * Clear snooze for a document, re-enabling alerts immediately
+     */
+    #[Route('/document/{id}/unsnooze', name: 'app_compliance_unsnooze', methods: ['POST'])]
+    public function unsnoozeDocument(Request $request, ComplianceDocument $document): Response
+    {
+        if ($this->isCsrfTokenValid('unsnooze'.$document->getId(), $request->request->get('_token'))) {
+            $document->clearSnooze();
+            $this->entityManager->flush();
+            
+            $this->addFlash('success', 'Snooze cleared - alerts are now active.');
+        }
+        
+        // Redirect back to referrer or company compliance page
+        $referer = $request->headers->get('referer');
+        if ($referer && str_contains($referer, '/compliance/')) {
+            return $this->redirect($referer);
+        }
+        
+        return $this->redirectToRoute('app_compliance_company', [
+            'id' => $document->getCompany()->getId()
+        ]);
+    }
 
     #[Route('/overview', name: 'app_compliance_overview', methods: ['GET'])]
     public function overview(Request $request): Response

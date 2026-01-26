@@ -88,17 +88,6 @@ class CompanyType extends AbstractType
                     new Url(['message' => 'validation.url'])
                 ]
             ])
-            ->add('linkedInUrl', UrlType::class, [
-                'label' => 'company.linkedin',
-                'attr' => [
-                    'class' => 'rams-form__input',
-                    'placeholder' => 'company.form.linkedin_placeholder'
-                ],
-                'required' => false,
-                'constraints' => [
-                    new Url(['message' => 'validation.url'])
-                ]
-            ])
             ->add('googleDriveLink', UrlType::class, [
                 'label' => 'company.google_drive_link',
                 'attr' => [

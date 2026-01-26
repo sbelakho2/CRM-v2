@@ -131,20 +131,19 @@ class TrackerDataService
                     'email' => $row[6] ?? '',
                     'portal_url' => $row[7] ?? '',
                     'notes' => $row[8] ?? '',
-                    'linkedin_url' => $row[9] ?? '',
-                    'priority' => $row[10] ?? 'C',
-                    'owner' => $row[11] ?? '',
-                    'status' => $row[12] ?? 'Pending',
-                    'last_touch' => $row[13] ?? '',
-                    'next_step' => $row[14] ?? '',
-                    'verification_status' => $row[15] ?? '',
-                    'compliance_required' => $row[16] ?? '',
-                    'compliance_provided' => $row[17] ?? false,
-                    'nda_sent' => $row[18] ?? false,
-                    'nda_date' => $row[19] ?? '',
-                    'rfq_number' => $row[20] ?? '',
-                    'rfq_date' => $row[21] ?? '',
-                    'portal_sla_days' => $row[22] ?? null
+                    'priority' => $row[9] ?? 'C',
+                    'owner' => $row[10] ?? '',
+                    'status' => $row[11] ?? 'Pending',
+                    'last_touch' => $row[12] ?? '',
+                    'next_step' => $row[13] ?? '',
+                    'verification_status' => $row[14] ?? '',
+                    'compliance_required' => $row[15] ?? '',
+                    'compliance_provided' => $row[16] ?? false,
+                    'nda_sent' => $row[17] ?? false,
+                    'nda_date' => $row[18] ?? '',
+                    'rfq_number' => $row[19] ?? '',
+                    'rfq_date' => $row[20] ?? '',
+                    'portal_sla_days' => $row[21] ?? null
                 ];
 
                 $suppliers[] = $supplier;

@@ -63,7 +63,7 @@ class RFQController extends AbstractController
     }
 
     #[Route('/pipeline', name: 'app_rfq_pipeline', methods: ['GET'])]
-    public function pipeline(Request $request, RFQRepository $rfqRepository): Response
+    public function pipeline(Request $request, RFQRepository $rfqRepository, CompanyRepository $companyRepository): Response
     {
         // Get filters
         $type = $request->query->get('type');
@@ -102,6 +102,7 @@ class RFQController extends AbstractController
 
         return $this->render('rfq/pipeline.html.twig', [
             'pipeline' => $pipeline,
+            'companies' => $companyRepository->findBy([], ['name' => 'ASC']),
         ]);
     }
 
@@ -237,5 +238,197 @@ class RFQController extends AbstractController
         }
 
         return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
+    }
+    
+    /**
+     * Win/Loss Analytics Dashboard
+     * 
+     * Displays competitive intelligence insights including:
+     * - Win/Loss rates by time period
+     * - Loss reason breakdown
+     * - Competitor analysis
+     * - Lessons learned repository
+     * 
+     * Supports filtering by:
+     * - Preset periods (30, 90, 180, 365 days, YTD, All Time)
+     * - Custom date ranges
+     * - Period-over-period comparison
+     */
+    #[Route('/analytics/win-loss', name: 'app_rfq_win_loss_analytics', methods: ['GET'])]
+    public function winLossAnalytics(Request $request, RFQRepository $rfqRepository): Response
+    {
+        // Get filter parameters
+        $period = $request->query->get('period', '90');
+        $startDateParam = $request->query->get('start_date');
+        $endDateParam = $request->query->get('end_date');
+        $compareMode = $request->query->get('compare') === 'previous';
+        
+        // Determine date range based on period or custom dates
+        $customRange = false;
+        $endDate = new \DateTime('today 23:59:59');
+        
+        if ($period === 'custom' && $startDateParam && $endDateParam) {
+            // Custom date range
+            $startDate = new \DateTime($startDateParam . ' 00:00:00');
+            $endDate = new \DateTime($endDateParam . ' 23:59:59');
+            $customRange = true;
+            $dateRangeDisplay = $startDate->format('M j, Y') . ' - ' . $endDate->format('M j, Y');
+        } elseif ($period === 'ytd') {
+            // Year to date
+            $startDate = new \DateTime('first day of January this year 00:00:00');
+            $dateRangeDisplay = $startDate->format('M j, Y') . ' - ' . $endDate->format('M j, Y');
+        } elseif ($period === 'all') {
+            // All time
+            $startDate = new \DateTime('2000-01-01 00:00:00'); // Far past date
+            $dateRangeDisplay = 'All Time';
+        } else {
+            // Standard period in days
+            $days = (int) $period;
+            $startDate = (new \DateTime())->modify("-{$days} days")->setTime(0, 0, 0);
+            $dateRangeDisplay = $startDate->format('M j, Y') . ' - ' . $endDate->format('M j, Y');
+        }
+        
+        // Get all completed RFQs (Won or Lost) in period
+        $completedRfqs = $rfqRepository->createQueryBuilder('r')
+            ->leftJoin('r.company', 'c')
+            ->addSelect('c')
+            ->where('r.status IN (:statuses)')
+            ->andWhere('r.decisionDate >= :start AND r.decisionDate <= :end OR (r.decisionDate IS NULL AND r.createdAt >= :start AND r.createdAt <= :end)')
+            ->setParameter('statuses', ['Won', 'Lost'])
+            ->setParameter('start', $startDate)
+            ->setParameter('end', $endDate)
+            ->orderBy('r.decisionDate', 'DESC')
+            ->getQuery()
+            ->getResult();
+        
+        // Calculate metrics
+        $metrics = $this->calculateWinLossMetrics($completedRfqs);
+        
+        // Comparison data (previous period)
+        $comparisonMetrics = null;
+        if ($compareMode && $period !== 'all' && $period !== 'custom') {
+            $periodDays = $period === 'ytd' 
+                ? $startDate->diff($endDate)->days 
+                : (int) $period;
+            
+            $prevEndDate = (clone $startDate)->modify('-1 day');
+            $prevStartDate = (clone $prevEndDate)->modify("-{$periodDays} days");
+            
+            $previousRfqs = $rfqRepository->createQueryBuilder('r')
+                ->leftJoin('r.company', 'c')
+                ->addSelect('c')
+                ->where('r.status IN (:statuses)')
+                ->andWhere('r.decisionDate >= :start AND r.decisionDate <= :end OR (r.decisionDate IS NULL AND r.createdAt >= :start AND r.createdAt <= :end)')
+                ->setParameter('statuses', ['Won', 'Lost'])
+                ->setParameter('start', $prevStartDate)
+                ->setParameter('end', $prevEndDate)
+                ->getQuery()
+                ->getResult();
+            
+            $comparisonMetrics = $this->calculateWinLossMetrics($previousRfqs);
+        }
+        
+        return $this->render('rfq/win_loss_analytics.html.twig', [
+            'period' => $period,
+            'custom_range' => $customRange,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'date_range_display' => $dateRangeDisplay,
+            'compare_mode' => $compareMode,
+            'comparison' => $comparisonMetrics,
+            'total_decided' => $metrics['totalDecided'],
+            'won_count' => $metrics['wonCount'],
+            'lost_count' => $metrics['lostCount'],
+            'won_value' => $metrics['wonValue'],
+            'lost_value' => $metrics['lostValue'],
+            'win_rate' => $metrics['winRate'],
+            'loss_rate' => $metrics['lossRate'],
+            'loss_reasons' => $metrics['lossReasons'],
+            'competitors' => $metrics['competitors'],
+            'lessons_learned' => $metrics['lessonsLearned'],
+            'win_factors' => $metrics['winFactors'],
+            'completed_rfqs' => $completedRfqs,
+        ]);
+    }
+    
+    /**
+     * Calculate win/loss metrics from a collection of RFQs
+     */
+    private function calculateWinLossMetrics(array $rfqs): array
+    {
+        $wonCount = 0;
+        $lostCount = 0;
+        $wonValue = 0.0;
+        $lostValue = 0.0;
+        $lossReasons = [];
+        $competitors = [];
+        $lessonsLearned = [];
+        $winFactorsList = [];
+        
+        foreach ($rfqs as $rfq) {
+            /** @var RFQ $rfq */
+            $value = (float) ($rfq->getEstimatedValue() ?? 0);
+            
+            if ($rfq->isWon()) {
+                $wonCount++;
+                $wonValue += $value;
+                if ($rfq->getWinFactors()) {
+                    $winFactorsList[] = [
+                        'rfq' => $rfq,
+                        'factors' => $rfq->getWinFactors(),
+                    ];
+                }
+            } else {
+                $lostCount++;
+                $lostValue += $value;
+                
+                // Aggregate loss reasons
+                $reason = $rfq->getLossReason() ?? 'unspecified';
+                $lossReasons[$reason] = ($lossReasons[$reason] ?? 0) + 1;
+                
+                // Aggregate competitors
+                if ($rfq->getCompetitorWon()) {
+                    $competitor = $rfq->getCompetitorWon();
+                    if (!isset($competitors[$competitor])) {
+                        $competitors[$competitor] = ['count' => 0, 'value' => 0.0];
+                    }
+                    $competitors[$competitor]['count']++;
+                    $competitors[$competitor]['value'] += $value;
+                }
+                
+                // Collect lessons learned
+                if ($rfq->getLessonsLearned()) {
+                    $lessonsLearned[] = [
+                        'rfq' => $rfq,
+                        'lessons' => $rfq->getLessonsLearned(),
+                    ];
+                }
+            }
+        }
+        
+        // Calculate rates
+        $totalDecided = $wonCount + $lostCount;
+        $winRate = $totalDecided > 0 ? round(($wonCount / $totalDecided) * 100, 1) : 0;
+        $lossRate = $totalDecided > 0 ? round(($lostCount / $totalDecided) * 100, 1) : 0;
+        
+        // Sort loss reasons by frequency
+        arsort($lossReasons);
+        
+        // Sort competitors by value lost
+        uasort($competitors, fn($a, $b) => $b['value'] <=> $a['value']);
+        
+        return [
+            'wonCount' => $wonCount,
+            'lostCount' => $lostCount,
+            'wonValue' => $wonValue,
+            'lostValue' => $lostValue,
+            'totalDecided' => $totalDecided,
+            'winRate' => $winRate,
+            'lossRate' => $lossRate,
+            'lossReasons' => $lossReasons,
+            'competitors' => $competitors,
+            'lessonsLearned' => array_slice($lessonsLearned, 0, 10),
+            'winFactors' => array_slice($winFactorsList, 0, 10),
+        ];
     }
 }

@@ -51,7 +51,6 @@ Expected CSV columns:
 - Sector
 - Location
 - Website
-- LinkedIn
 - Account Tier (A/B/C)
 - Pipeline Stage
 - Portal URL

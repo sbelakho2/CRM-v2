@@ -7,7 +7,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Geist-inspired color palette
+        rams: {
+          chassis: '#F2F2F2',
+          module: '#E6E6E6',
+          panel: '#D9D9D9',
+          line: '#CCCCCC',
+          muted: '#999999',
+          orange: '#FFBE00',
+          green: '#2D8C3C',
+          red: '#D62D2D',
+          steel: '#4A90E2',
+        },
+        // Geist-inspired color palette (keeping for backward compatibility)
         background: {
           DEFAULT: '#FFFFFF',
           secondary: '#FAFAFA',
@@ -29,8 +40,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
-        mono: ['"SF Mono"', 'Monaco', 'Menlo', 'Consolas', '"Courier New"', 'monospace'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        mono: ['JetBrains Mono', 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', 'monospace'],
       },
       borderRadius: {
         'sm': '6px',

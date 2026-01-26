@@ -3,38 +3,57 @@
 {% block title %}{{ pageTitle }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack">
+<div class="rams-stack rams-gap-6">
+    {# Breadcrumb #}
+    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('abm_dashboard_index') }}" class="rams-breadcrumb__link">{{ 'nav.abm_dashboard'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('abm_dashboard_accounts') }}" class="rams-breadcrumb__link">{{ 'abm_dashboard.accounts'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ account ? 'abm_dashboard.update_account'|trans : 'abm_dashboard.create_account'|trans }}</li>
+        </ol>
+    </nav>
+
+    {# Page Header #}
     <div class="rams-page-header">
-        <h1 class="rams-page-title">{{ pageTitle }}</h1>
-        <p class="rams-page-subtitle">{{ account ? 'abm_dashboard.update_account'|trans : 'abm_dashboard.create_account'|trans }} ABM target account</p>
+        <div>
+            <h1 class="rams-page-title">{{ pageTitle }}</h1>
+            <p class="rams-page-subtitle">{{ account ? 'abm_dashboard.update_account'|trans : 'abm_dashboard.create_account'|trans }} ABM target account</p>
+        </div>
     </div>
 
-    <div class="rams-module rams-module--narrow">
+    <div class="rams-module rams-module--narrow rams-mx-auto">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'abm_dashboard.account_configuration'|trans }}</h2>
+        </div>
         <div class="rams-module__content">
             <form method="POST" class="rams-form">
-                <!-- Account Name -->
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'abm_dashboard.account_name'|trans }} *</label>
+                {# Account Name #}
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'abm_dashboard.account_name'|trans }} *</label>
                     <input type="text" name="account_name" required
                            value="{{ account ? account.accountName : '' }}"
-                           class="rams-input"
+                           class="rams-form__input"
                            placeholder="e.g., Acme Corporation">
                 </div>
 
-                <!-- Domain -->
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'abm_dashboard.domain'|trans }} *</label>
+                {# Domain #}
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'abm_dashboard.domain'|trans }} *</label>
                     <input type="text" name="domain" required
                            value="{{ account ? account.domain : '' }}"
-                           class="rams-input"
+                           class="rams-form__input"
                            placeholder="e.g., acme.com">
-                    <p class="rams-text-muted">{{ 'abm_dashboard.domain_hint'|trans }}</p>
+                    <p class="rams-form__hint">{{ 'abm_dashboard.domain_hint'|trans }}</p>
                 </div>
 
-                <!-- ICP Tier -->
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'abm_dashboard.icp_tier'|trans }}</label>
-                    <select name="icp_tier" class="rams-select">
+                {# ICP Tier #}
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'abm_dashboard.icp_tier'|trans }}</label>
+                    <select name="icp_tier" class="rams-form__select">
                         <option value="">{{ 'abm_dashboard.select_tier'|trans }}</option>
                         <option value="Tier1" {{ account and account.icpTier == 'Tier1' ? 'selected' : '' }}>{{ 'abm_dashboard.tier1'|trans }}</option>
                         <option value="Tier2" {{ account and account.icpTier == 'Tier2' ? 'selected' : '' }}>{{ 'abm_dashboard.tier2'|trans }}</option>
@@ -42,47 +61,49 @@
                     </select>
                 </div>
 
-                <!-- Industry -->
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'company.industry'|trans }}</label>
+                {# Industry #}
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'company.industry'|trans }}</label>
                     <input type="text" name="industry"
                            value="{{ account and account.metadata ? (account.metadata.industry ?? '') : '' }}"
-                           class="rams-input"
+                           class="rams-form__input"
                            placeholder="e.g., Technology, Manufacturing">
                 </div>
 
-                <!-- Country -->
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'company.country'|trans }}</label>
-                    <input type="text" name="country"
-                           value="{{ account and account.metadata ? (account.metadata.country ?? '') : '' }}"
-                           class="rams-input"
-                           placeholder="e.g., Morocco, USA">
+                <div class="rams-grid rams-grid--2 rams-gap-4">
+                    {# Country #}
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'company.country'|trans }}</label>
+                        <input type="text" name="country"
+                               value="{{ account and account.metadata ? (account.metadata.country ?? '') : '' }}"
+                               class="rams-form__input"
+                               placeholder="e.g., Morocco, USA">
+                    </div>
+
+                    {# Company Size #}
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'abm_dashboard.company_size'|trans }}</label>
+                        <input type="text" name="company_size"
+                               value="{{ account and account.metadata ? (account.metadata.company_size ?? '') : '' }}"
+                               class="rams-form__input"
+                               placeholder="e.g., 50-200, 1000+">
+                    </div>
                 </div>
 
-                <!-- Company Size -->
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'abm_dashboard.company_size'|trans }}</label>
-                    <input type="text" name="company_size"
-                           value="{{ account and account.metadata ? (account.metadata.company_size ?? '') : '' }}"
-                           class="rams-input"
-                           placeholder="e.g., 50-200, 1000+">
+                {# Revenue #}
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'abm_dashboard.annual_revenue'|trans }}</label>
+                    <input type="text" name="revenue"
+                           value="{{ account and account.metadata ? (account.metadata.revenue ?? '') : '' }}"
+                           class="rams-form__input"
+                           placeholder="e.g., 1M-10M ({{ display_currency() }})">
                 </div>
 
-                <!-- Revenue -->
-                <div class="rams-form-group">
-                          <label class="rams-label">{{ 'abm_dashboard.annual_revenue'|trans }}</label>
-                          <input type="text" name="revenue"
-                              value="{{ account and account.metadata ? (account.metadata.revenue ?? '') : '' }}"
-                              class="rams-input"
-                              placeholder="e.g., 1M-10M ({{ display_currency() }})">
-                </div>
-
-                <!-- Form Actions -->
-                <div class="rams-module__footer">
+                {# Form Actions #}
+                <div class="rams-form__actions">
                     <button type="submit" class="rams-btn rams-btn--primary">
-                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M13 3L6 13L3 9"/>
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 3L6 13L3 9" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                         {{ account ? 'abm_dashboard.update_account'|trans : 'abm_dashboard.create_account'|trans }}
                     </button>

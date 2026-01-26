@@ -154,7 +154,6 @@ class GenerateTestDataCommand extends Command
             $contact->setPhone('+212 6' . rand(60, 69) . ' ' . rand(100000, 999999));
             $contact->setJobTitle(['CEO', 'CTO', 'Procurement Manager', 'Director of Operations', 'Supply Chain Manager'][array_rand(['CEO', 'CTO', 'Procurement Manager', 'Director of Operations', 'Supply Chain Manager'])]);
             $contact->setCompany($companies[array_rand($companies)]);
-            $contact->setLinkedinUrl("https://linkedin.com/in/{$firstName}-{$lastName}-{$i}");
 
             $this->em->persist($contact);
             $contacts[] = $contact;

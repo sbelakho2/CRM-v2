@@ -3,24 +3,26 @@
 {% block title %}{{ company.name }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-flex rams-flex-col rams-gap-6">
+<div class="rams-stack rams-gap-6">
     {# Breadcrumb #}
     <nav class="rams-breadcrumb" aria-label="Breadcrumb">
-        <a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__item">{{ 'nav.dashboard'|trans }}</a>
-        <span class="rams-breadcrumb__separator">/</span>
-        <a href="{{ path('app_company_index') }}" class="rams-breadcrumb__item">{{ 'company.title'|trans }}</a>
-        <span class="rams-breadcrumb__separator">/</span>
-        <span class="rams-breadcrumb__item rams-breadcrumb__item--current" aria-current="page">{{ company.name }}</span>
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_company_index') }}" class="rams-breadcrumb__link">{{ 'company.title'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ company.name }}</li>
+        </ol>
     </nav>
 
     {# Page Header #}
     <div class="rams-page-header">
         <div>
             <h1 class="rams-page-title">{{ company.name }}</h1>
-            <div class="rams-flex rams-gap-2 rams-mt-2">
+            <div class="rams-flex rams-flex-wrap rams-gap-2 rams-mt-2">
                 <span class="rams-dymo">{{ company.sector }}</span>
                 {% if company.accountTier %}
-                    <span class="rams-badge">{{ 'company.account_tier'|trans }} {{ company.accountTier }}</span>
+                    <span class="rams-badge rams-badge--primary">{{ 'company.account_tier'|trans }} {{ company.accountTier }}</span>
                 {% endif %}
                 {% if company.pipelineStage %}
                     <span class="rams-badge {% if company.pipelineStage == 'Award' %}rams-badge--success{% elseif company.pipelineStage == 'Proposal' %}rams-badge--warning{% elseif company.pipelineStage == 'SQO' %}rams-badge--info{% endif %}">
@@ -30,114 +32,109 @@
             </div>
         </div>
         <div class="rams-page-actions">
-            <a href="{{ path('app_company_edit', {id: company.id}) }}" class="rams-btn">
-                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                </svg>
-                {{ 'common.edit'|trans }}
-            </a>
-            <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'messages.delete_confirm'|trans }}', {variant: 'danger'});" class="rams-inline-block">
-                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ company.id) }}">
-                <button type="submit" class="rams-btn rams-btn--danger">
-                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            <div class="rams-btn-group">
+                <a href="{{ path('app_company_edit', {id: company.id}) }}" class="rams-btn rams-btn--secondary">
+                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                     </svg>
-                    {{ 'common.delete'|trans }}
-                </button>
-            </form>
+                    {{ 'common.edit'|trans }}
+                </a>
+                <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'messages.delete_confirm'|trans }}', {variant: 'danger'});" class="rams-inline-block">
+                    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ company.id) }}">
+                    <button type="submit" class="rams-btn rams-btn--danger">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
+                        </svg>
+                        {{ 'common.delete'|trans }}
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
-    {# Flash Messages #}
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="rams-alert {% if label == 'success' %}rams-alert--success{% elseif label == 'error' %}rams-alert--error{% else %}rams-alert--info{% endif %}">
-                <div class="rams-alert__content">{{ message }}</div>
-            </div>
-        {% endfor %}
-    {% endfor %}
-
-    <div class="rams-grid rams-grid--3">
+    <div class="rams-grid rams-grid--3 rams-gap-6">
         {# Main Content - 2 columns #}
-        <div class="rams-grid-span-2 rams-flex rams-flex-col rams-gap-6">
+        <div class="rams-grid-span-2 rams-stack rams-gap-6">
             {# Company Information Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <span class="rams-module__title">{{ 'company.title_singular'|trans }} {{ 'common.details'|trans }}</span>
+                    <h2 class="rams-module__title">{{ 'company.title_singular'|trans }} {{ 'common.details'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-grid rams-grid--2 rams-gap-4">
-                        <div class="rams-metric">
-                            <span class="rams-metric__label">{{ 'company.sector'|trans }}</span>
-                            <span class="rams-text-sm">{{ company.sector }}</span>
+                    <dl class="rams-definition-list rams-grid rams-grid--2">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'company.sector'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ company.sector }}</dd>
                         </div>
                         {% if company.accountTier %}
-                            <div class="rams-metric">
-                                <span class="rams-metric__label">{{ 'company.account_tier'|trans }}</span>
-                                <span class="rams-text-sm">{{ 'company.tiers.standard'|trans }} {{ company.accountTier }}</span>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'company.account_tier'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">{{ 'company.tiers.standard'|trans }} {{ company.accountTier }}</dd>
                             </div>
                         {% endif %}
                         {% if company.pipelineStage %}
-                            <div class="rams-metric">
-                                <span class="rams-metric__label">{{ 'company.pipeline_stage'|trans }}</span>
-                                <span class="rams-text-sm">{{ company.pipelineStage }}</span>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'company.pipeline_stage'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">{{ company.pipelineStage }}</dd>
                             </div>
                         {% endif %}
                         {% if company.region %}
-                            <div class="rams-metric">
-                                <span class="rams-metric__label">{{ 'company.region'|trans }}</span>
-                                <span class="rams-text-sm">{{ company.region }}</span>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'company.region'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">{{ company.region }}</dd>
                             </div>
                         {% endif %}
-                        <div class="rams-metric">
-                            <span class="rams-metric__label">{{ 'company.created_at'|trans }}</span>
-                            <span class="rams-text-sm">{{ company.createdAt|date('M d, Y') }}</span>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'company.created_at'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ company.createdAt|date('M d, Y') }}</dd>
                         </div>
-                        <div class="rams-metric">
-                            <span class="rams-metric__label">{{ 'company.updated_at'|trans }}</span>
-                            <span class="rams-text-sm">{{ company.updatedAt|date('M d, Y') }}</span>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'company.updated_at'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ company.updatedAt|date('M d, Y') }}</dd>
                         </div>
-                    </div>
+                    </dl>
                 </div>
             </div>
 
             {# Contacts Section #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <span class="rams-module__title">{{ 'contact.title'|trans }}</span>
-                    <a href="{{ path('app_contact_new', {company_id: company.id}) }}" class="rams-btn rams-btn--sm">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    <h2 class="rams-module__title">{{ 'contact.title'|trans }}</h2>
+                    <a href="{{ path('app_contact_new', {company_id: company.id}) }}" class="rams-btn rams-btn--secondary rams-btn--sm">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3V13M3 8H13"/>
                         </svg>
                         {{ 'common.add'|trans }}
                     </a>
                 </div>
-                <div class="rams-module__content">
+                <div class="rams-module__content rams-module__content--flush">
                     {% if company.contacts is empty %}
-                        <div class="rams-flex rams-flex-col rams-items-center rams-p-6 rams-text-muted">
-                            <svg class="rams-icon-container--sm rams-opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                            </svg>
-                            <p class="rams-mt-2 rams-text-sm">{{ 'contact.no_contacts'|trans }}</p>
+                        <div class="rams-empty-state">
+                            <p class="rams-text--muted rams-text--sm">{{ 'contact.no_contacts'|trans }}</p>
                         </div>
                     {% else %}
-                        <div class="rams-flex rams-flex-col rams-gap-2">
+                        <div class="rams-list">
                             {% for contact in company.contacts %}
-                                <div class="rams-flex rams-items-center rams-gap-3 rams-p-3 rams-bordered">
-                                    <div class="rams-avatar">
-                                        {{ contact.firstName|slice(0, 1) }}{{ contact.lastName|slice(0, 1) }}
-                                    </div>
-                                    <div class="rams-flex-1">
-                                        <p class="rams-text-sm rams-font-medium">{{ contact.firstName }} {{ contact.lastName }}</p>
-                                        <p class="rams-text-muted rams-text-xs">{{ contact.jobTitle }}</p>
-                                    </div>
-                                    {% if contact.email %}
-                                        <a href="mailto:{{ contact.email }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.email'|trans }}">
-                                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                                            </svg>
+                                <div class="rams-list-item rams-p-4 rams-border-b last:rams-border-b-0">
+                                    <div class="rams-flex rams-items-center rams-gap-4 rams-flex-1">
+                                        <div class="rams-badge rams-badge--lg rams-badge--circle">
+                                            {{ contact.firstName|slice(0, 1) }}{{ contact.lastName|slice(0, 1) }}
+                                        </div>
+                                        <div class="rams-flex-1">
+                                            <h3 class="rams-text--sm rams-text--bold">{{ contact.firstName }} {{ contact.lastName }}</h3>
+                                            <p class="rams-text--muted rams-text--xs">{{ contact.jobTitle }}</p>
+                                        </div>
+                                        {% if contact.email %}
+                                            <a href="mailto:{{ contact.email }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.email'|trans }}">
+                                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M2 4L8 8L14 4V12H2V4Z"/>
+                                                </svg>
+                                            </a>
+                                        {% endif %}
+                                        <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                            {{ 'common.view'|trans }}
                                         </a>
-                                    {% endif %}
+                                    </div>
                                 </div>
                             {% endfor %}
                         </div>
@@ -148,22 +145,19 @@
             {# Activities Section #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <span class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</span>
-                    <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
+                    <h2 class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</h2>
+                    <a href="{{ path('app_activity_index', {company: company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
                 </div>
                 <div class="rams-module__content">
                     {% if company.activities is empty %}
-                        <div class="rams-flex rams-flex-col rams-items-center rams-p-6 rams-text-muted">
-                            <svg class="rams-icon--xl rams-opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                            </svg>
-                            <p class="rams-mt-2 rams-text-sm">{{ 'activity.no_activities'|trans }}</p>
+                        <div class="rams-empty-state">
+                            <p class="rams-text--muted rams-text--sm">{{ 'activity.no_activities'|trans }}</p>
                         </div>
                     {% else %}
-                        <div class="rams-flex rams-flex-col rams-gap-2">
+                        <div class="rams-stack rams-gap-4">
                             {% for activity in company.activities|slice(0, 5) %}
                                 <div class="rams-flex rams-items-start rams-gap-3">
-                                    <span class="rams-andon">
+                                    <div class="rams-andon rams-mt-1">
                                         {% if activity.type == 'Call' %}
                                             <span class="rams-andon__light rams-andon__light--green"></span>
                                         {% elseif activity.type == 'Email' %}
@@ -171,15 +165,17 @@
                                         {% elseif activity.type == 'Meeting' %}
                                             <span class="rams-andon__light rams-andon__light--green"></span>
                                         {% else %}
-                                            <span class="rams-andon__light rams-andon__light--off"></span>
+                                            <span class="rams-andon__light"></span>
                                         {% endif %}
-                                    </span>
+                                    </div>
                                     <div class="rams-flex-1">
-                                        <p class="rams-text-sm">{{ activity.type }}</p>
+                                        <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
+                                            <span class="rams-text--sm rams-text--bold uppercase rams-font-mono">{{ activity.type }}</span>
+                                            <span class="rams-text--muted rams-text--xs rams-font-mono">{{ activity.activityDate|date('M d, Y') }}</span>
+                                        </div>
                                         {% if activity.notes %}
-                                            <p class="rams-text-muted rams-text-xs">{{ activity.notes|slice(0, 60) }}...</p>
+                                            <p class="rams-text--muted rams-text--xs">{{ activity.notes|slice(0, 120) }}{% if activity.notes|length > 120 %}...{% endif %}</p>
                                         {% endif %}
-                                        <p class="rams-text-muted rams-text-xs rams-mt-1">{{ activity.activityDate|date('M d, Y') }}</p>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -190,55 +186,37 @@
         </div>
 
         {# Sidebar - 1 column #}
-        <div class="rams-flex rams-flex-col rams-gap-6">
+        <div class="rams-stack rams-gap-6">
             {# Quick Links Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <span class="rams-module__title">{{ 'common.actions'|trans }}</span>
+                    <h2 class="rams-module__title">{{ 'common.actions'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-flex rams-flex-col rams-gap-2">
+                    <div class="rams-stack rams-gap-2">
                         {% if company.website %}
-                            <a href="{{ company.website }}" target="_blank" class="rams-link-card">
-                                <div class="rams-icon-container rams-icon-container--sm">
-                                    <svg class="rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-                                    </svg>
-                                </div>
-                                <div class="rams-flex-1">
-                                    <p class="rams-text-sm rams-font-medium">{{ 'company.website'|trans }}</p>
-                                    <p class="rams-text-muted rams-text-xs rams-truncate">{{ company.website }}</p>
-                                </div>
-                            </a>
-                        {% endif %}
-
-                        {% if company.linkedInUrl %}
-                            <a href="{{ company.linkedInUrl }}" target="_blank" class="rams-link-card">
-                                <div class="rams-icon-container rams-icon-container--sm rams-icon-container--info">
-                                    <svg class="rams-icon--sm rams-text-info" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                                    </svg>
-                                </div>
-                                <div class="rams-flex-1">
-                                    <p class="rams-text-sm rams-font-medium">{{ 'company.linkedin'|trans }}</p>
-                                    <p class="rams-text-muted rams-text-xs">{{ 'common.view'|trans }} {{ 'profile.title'|trans|lower }}</p>
+                            <a href="{{ company.website }}" target="_blank" class="rams-module rams-module--inset rams-module--hoverable rams-p-3 rams-flex rams-items-center rams-gap-3" style="text-decoration:none">
+                                <span class="rams-text--xl">🌐</span>
+                                <div class="rams-flex-1 rams-overflow-hidden">
+                                    <p class="rams-text--sm rams-text--bold rams-mb-0">{{ 'company.website'|trans }}</p>
+                                    <p class="rams-text--muted rams-text--xs rams-truncate rams-mb-0">{{ company.website|replace({'https://': '', 'http://': ''}) }}</p>
                                 </div>
                             </a>
                         {% endif %}
 
                         {% if company.googleDriveLink %}
-                            <a href="{{ company.googleDriveLink }}" target="_blank" class="rams-link-card">
-                                <div class="rams-icon-container rams-icon-container--sm rams-icon-container--warning">
-                                    <svg class="rams-icon--sm rams-text-warning" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M7.71 3.5L1.15 15l3.18 5.5L11.88 9zm4.58 0l-6.56 11.5 3.18 5.5 6.56-11.5zM8.3 20.5l-3.18-5.5H21l-3.18 5.5z"/>
-                                    </svg>
-                                </div>
+                            <a href="{{ company.googleDriveLink }}" target="_blank" class="rams-module rams-module--inset rams-module--hoverable rams-p-3 rams-flex rams-items-center rams-gap-3" style="text-decoration:none">
+                                <span class="rams-text--xl">📁</span>
                                 <div class="rams-flex-1">
-                                    <p class="rams-text-sm rams-font-medium">{{ 'company.google_drive_link'|trans }}</p>
-                                    <p class="rams-text-muted rams-text-xs">{{ 'common.view'|trans }} {{ 'compliance.documents'|trans|lower }}</p>
+                                    <p class="rams-text--sm rams-text--bold rams-mb-0">{{ 'company.google_drive_link'|trans }}</p>
+                                    <p class="rams-text--muted rams-text--xs rams-mb-0">{{ 'common.view'|trans }} {{ 'compliance.documents'|trans|lower }}</p>
                                 </div>
                             </a>
                         {% endif %}
+                        
+                        <a href="{{ path('app_rfq_new', {company: company.id}) }}" class="rams-btn rams-btn--primary rams-w-full rams-mt-2">
+                            {{ 'rfq.actions.new'|trans }}
+                        </a>
                     </div>
                 </div>
             </div>
@@ -246,20 +224,20 @@
             {# Stats Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <span class="rams-module__title">{{ 'dashboard.statistics'|trans }}</span>
+                    <h2 class="rams-module__title">{{ 'dashboard.statistics'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-flex rams-flex-col rams-gap-3">
+                    <div class="rams-stack rams-gap-3">
                         <div class="rams-flex rams-justify-between rams-items-center">
-                            <span class="rams-metric__label">{{ 'company.contacts_count'|trans }}</span>
+                            <span class="rams-text-xs rams-text-muted uppercase">{{ 'company.contacts_count'|trans }}</span>
                             <span class="rams-badge">{{ company.contacts|length }}</span>
                         </div>
                         <div class="rams-flex rams-justify-between rams-items-center">
-                            <span class="rams-metric__label">{{ 'company.activities_count'|trans }}</span>
+                            <span class="rams-text-xs rams-text-muted uppercase">{{ 'company.activities_count'|trans }}</span>
                             <span class="rams-badge">{{ company.activities|length }}</span>
                         </div>
                         <div class="rams-flex rams-justify-between rams-items-center">
-                            <span class="rams-metric__label">{{ 'company.rfqs_count'|trans }}</span>
+                            <span class="rams-text-xs rams-text-muted uppercase">{{ 'company.rfqs_count'|trans }}</span>
                             <span class="rams-badge">{{ company.rfqs|length }}</span>
                         </div>
                     </div>

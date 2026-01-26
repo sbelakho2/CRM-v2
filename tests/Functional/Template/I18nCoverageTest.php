@@ -251,7 +251,7 @@ class I18nCoverageTest extends TestCase
         $relativePath = str_replace($this->templatesPath . '/', '', $templatePath);
         
         // Skip emails (use inline text for compatibility)
-        if (strpos($relativePath, 'emails/') === 0) {
+        if (str_contains($relativePath, 'emails/')) {
             $this->markTestSkipped('Email templates use inline text for email client compatibility');
         }
         

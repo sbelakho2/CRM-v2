@@ -3,14 +3,26 @@
 namespace App\Service;
 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Psr\Log\LoggerInterface;
 
 /**
  * Service to search for companies using Google Custom Search API
+ * 
+ * Features:
+ * - Automatic retry with exponential backoff for transient failures
+ * - Rate limiting awareness
+ * - Comprehensive error handling
  */
 class GoogleSearchService
 {
     private const SEARCH_URL = 'https://www.googleapis.com/customsearch/v1';
+    private const MAX_RETRIES = 3;
+    private const INITIAL_RETRY_DELAY_MS = 500;
+    private const MAX_RETRY_DELAY_MS = 5000;
+    
+    // HTTP status codes that are retryable
+    private const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504];
     
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -20,7 +32,7 @@ class GoogleSearchService
     ) {}
 
     /**
-     * Search for companies based on criteria
+     * Search for companies based on criteria with retry logic
      * 
      * @param string $query Search query (e.g., "aerospace manufacturing morocco")
      * @param int $resultsPerPage Number of results (max 10 per request)
@@ -29,43 +41,140 @@ class GoogleSearchService
      */
     public function searchCompanies(string $query, int $resultsPerPage = 10, int $startIndex = 1): array
     {
-        try {
-            $response = $this->httpClient->request('GET', self::SEARCH_URL, [
-                'query' => [
-                    'key' => $this->apiKey,
-                    'cx' => $this->searchEngineId,
-                    'q' => $query,
-                    'num' => min($resultsPerPage, 10), // Max 10 per request
-                    'start' => $startIndex,
-                ],
-            ]);
-
-            $data = $response->toArray();
-            
-            if (!isset($data['items'])) {
-                $this->logger->warning('Google Search returned no results', ['query' => $query]);
-                return [
-                    'results' => [],
-                    'totalResults' => 0,
-                    'searchTime' => 0,
-                ];
+        $lastException = null;
+        $attempt = 0;
+        
+        while ($attempt < self::MAX_RETRIES) {
+            try {
+                return $this->executeSearch($query, $resultsPerPage, $startIndex);
+            } catch (\Exception $e) {
+                $lastException = $e;
+                $attempt++;
+                
+                // Check if error is retryable
+                if (!$this->isRetryableError($e)) {
+                    $this->logger->error('Google Search API error (non-retryable)', [
+                        'message' => $e->getMessage(),
+                        'query' => $query,
+                        'attempt' => $attempt,
+                    ]);
+                    throw new \RuntimeException('Failed to search Google: ' . $e->getMessage(), 0, $e);
+                }
+                
+                // Calculate retry delay with exponential backoff
+                $delayMs = min(
+                    self::INITIAL_RETRY_DELAY_MS * pow(2, $attempt - 1),
+                    self::MAX_RETRY_DELAY_MS
+                );
+                
+                $this->logger->warning('Google Search API error, retrying...', [
+                    'message' => $e->getMessage(),
+                    'query' => $query,
+                    'attempt' => $attempt,
+                    'max_attempts' => self::MAX_RETRIES,
+                    'retry_delay_ms' => $delayMs,
+                ]);
+                
+                // Wait before retry
+                usleep($delayMs * 1000);
             }
-
-            return [
-                'results' => $this->parseResults($data['items']),
-                'totalResults' => (int)($data['searchInformation']['totalResults'] ?? 0),
-                'searchTime' => (float)($data['searchInformation']['searchTime'] ?? 0),
-                'queries' => $data['queries'] ?? [],
-            ];
-
-        } catch (\Exception $e) {
-            $this->logger->error('Google Search API error', [
-                'message' => $e->getMessage(),
-                'query' => $query,
-            ]);
-            
-            throw new \RuntimeException('Failed to search Google: ' . $e->getMessage());
         }
+        
+        // All retries exhausted
+        $this->logger->error('Google Search API error (all retries exhausted)', [
+            'message' => $lastException?->getMessage(),
+            'query' => $query,
+            'attempts' => $attempt,
+        ]);
+        
+        throw new \RuntimeException(
+            'Failed to search Google after ' . self::MAX_RETRIES . ' attempts: ' . 
+            ($lastException?->getMessage() ?? 'Unknown error'),
+            0,
+            $lastException
+        );
+    }
+    
+    /**
+     * Execute the actual search request
+     */
+    private function executeSearch(string $query, int $resultsPerPage, int $startIndex): array
+    {
+        $response = $this->httpClient->request('GET', self::SEARCH_URL, [
+            'query' => [
+                'key' => $this->apiKey,
+                'cx' => $this->searchEngineId,
+                'q' => $query,
+                'num' => min($resultsPerPage, 10), // Max 10 per request
+                'start' => $startIndex,
+            ],
+        ]);
+        
+        $statusCode = $response->getStatusCode();
+        
+        // Check for rate limiting or server errors that should trigger retry
+        if (in_array($statusCode, self::RETRYABLE_STATUS_CODES)) {
+            throw new \RuntimeException(
+                sprintf('HTTP %d: Retryable error', $statusCode)
+            );
+        }
+
+        $data = $response->toArray();
+        
+        if (!isset($data['items'])) {
+            $this->logger->warning('Google Search returned no results', ['query' => $query]);
+            return [
+                'results' => [],
+                'totalResults' => 0,
+                'searchTime' => 0,
+            ];
+        }
+
+        return [
+            'results' => $this->parseResults($data['items']),
+            'totalResults' => (int)($data['searchInformation']['totalResults'] ?? 0),
+            'searchTime' => (float)($data['searchInformation']['searchTime'] ?? 0),
+            'queries' => $data['queries'] ?? [],
+        ];
+    }
+    
+    /**
+     * Determine if an error is retryable
+     */
+    private function isRetryableError(\Exception $e): bool
+    {
+        // Transport exceptions (network issues) are retryable
+        if ($e instanceof TransportExceptionInterface) {
+            return true;
+        }
+        
+        // Check for retryable HTTP status codes in message
+        $message = $e->getMessage();
+        foreach (self::RETRYABLE_STATUS_CODES as $code) {
+            if (str_contains($message, "HTTP $code") || str_contains($message, "Retryable error")) {
+                return true;
+            }
+        }
+        
+        // Check for common transient error patterns
+        $retryablePatterns = [
+            'timeout',
+            'timed out',
+            'connection reset',
+            'temporarily unavailable',
+            'service unavailable',
+            'rate limit',
+            'quota exceeded',
+        ];
+        
+        $messageLower = strtolower($message);
+        foreach ($retryablePatterns as $pattern) {
+            if (str_contains($messageLower, $pattern)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**

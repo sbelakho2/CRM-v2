@@ -5,7 +5,6 @@ namespace App\Controller;
 use App\Entity\Contact;
 use App\Form\ContactType;
 use App\Repository\ContactRepository;
-use App\Service\LinkedInService;
 use App\Service\ExportService;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,7 +21,6 @@ class ContactController extends AbstractController
     public function __construct(
         private ContactRepository $contactRepository,
         private EntityManagerInterface $entityManager,
-        private LinkedInService $linkedInService,
         private ExportService $exportService,
         private GuidanceNotificationService $guidanceService
     ) {}
@@ -128,15 +126,8 @@ class ContactController extends AbstractController
     #[Route('/{id}', name: 'app_contact_show', methods: ['GET'])]
     public function show(Contact $contact): Response
     {
-        // Get LinkedIn engagement metrics if URL exists
-        $linkedInMetrics = null;
-        if ($contact->getLinkedInUrl()) {
-            $linkedInMetrics = $this->linkedInService->getEngagementMetrics($contact);
-        }
-
         return $this->render('contact/show.html.twig', [
             'contact' => $contact,
-            'linkedInMetrics' => $linkedInMetrics,
         ]);
     }
 
@@ -171,20 +162,6 @@ class ContactController extends AbstractController
         }
 
         return $this->redirectToRoute('app_contact_index');
-    }
-
-    #[Route('/{id}/linkedin-outreach', name: 'app_contact_linkedin_outreach', methods: ['POST'])]
-    public function trackLinkedInOutreach(Request $request, Contact $contact): Response
-    {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $outreachType = $request->request->get('type', 'Connection Request');
-        $notes = $request->request->get('notes', '');
-
-        $this->linkedInService->trackLinkedInOutreach($contact, $outreachType, $notes, $this->getUser());
-
-        $this->addFlash('success', 'LinkedIn outreach tracked successfully!');
-
-        return $this->redirectToRoute('app_contact_show', ['id' => $contact->getId()]);
     }
 
     #[Route('/export/{format}', name: 'app_contact_export', requirements: ['format' => 'csv|xlsx'], methods: ['GET'])]

@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="rams-flex rams-flex-col rams-gap-6">
+<div class="rams-stack rams-gap-6">
     {# Page Header #}
     <div class="rams-page-header">
         <div>
@@ -18,26 +18,23 @@
     </div>
 
     {# 90-Day KPI Cards #}
-    <div class="rams-grid rams-grid--4">
+    <div class="rams-metrics-grid rams-metrics-grid--4col">
         {# Pipeline Value #}
-        <div class="rams-module">
-            <div class="rams-module__header">
-                <span class="rams-module__title">{{ 'dashboard.metrics'|trans }}</span>
-                <span class="rams-andon">
-                    <span class="rams-andon__light rams-andon__light--green"></span>
-                </span>
-            </div>
+        <div class="rams-module rams-module--inset">
             <div class="rams-module__content">
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'rfq.estimated_value'|trans }}</span>
-                    <span class="rams-metric__value">
-                        {{ (kpis.pipeline_value / 1000000)|format_currency(kpis.pipeline_value_currency|default(display_currency()), null, 1) }}<span class="rams-metric__unit">{{ 'common.million_short'|trans }}</span>
-                    </span>
+                <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label uppercase rams-text--3xs rams-font-mono">{{ 'rfq.estimated_value'|trans }}</span>
+                        <span class="rams-metric__value rams-text--xl">
+                            {{ (kpis.pipeline_value / 1000000)|format_currency(kpis.pipeline_value_currency|default(display_currency()), null, 1) }}<span class="rams-metric__unit">{{ 'common.million_short'|trans }}</span>
+                        </span>
+                    </div>
+                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
                 </div>
-                <div class="rams-mt-3">
-                    <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ (kpis.target_pipeline / 1000000)|format_currency(kpis.target_pipeline_currency|default(display_currency()), null, 1) }}{{ 'common.million_short'|trans }}</span>
-                        <span class="rams-badge rams-badge--info">{{ pipeline_progress }}%</span>
+                <div class="rams-stack rams-gap-1">
+                    <div class="rams-flex rams-justify-between rams-items-center">
+                        <span class="rams-text--3xs rams-text--muted uppercase rams-font-mono">{{ 'common.total'|trans }}: {{ (kpis.target_pipeline / 1000000)|format_currency(kpis.target_pipeline_currency|default(display_currency()), null, 1) }}{{ 'common.million_short'|trans }}</span>
+                        <span class="rams-badge rams-badge--info rams-badge--xs rams-font-mono">{{ pipeline_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
                         <div class="rams-progress__bar rams-progress__bar--info" style="width: {{ pipeline_progress }}%;"></div>
@@ -47,22 +44,19 @@
         </div>
 
         {# RFQs #}
-        <div class="rams-module">
-            <div class="rams-module__header">
-                <span class="rams-module__title">{{ 'rfq.title'|trans }}</span>
-                <span class="rams-andon">
-                    <span class="rams-andon__light rams-andon__light--green"></span>
-                </span>
-            </div>
+        <div class="rams-module rams-module--inset">
             <div class="rams-module__content">
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'common.submit'|trans }}</span>
-                    <span class="rams-metric__value">{{ kpis.rfq_count }}</span>
+                <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label uppercase rams-text--3xs rams-font-mono">{{ 'common.submit'|trans }} {{ 'rfq.title'|trans }}</span>
+                        <span class="rams-metric__value rams-text--xl">{{ kpis.rfq_count }}</span>
+                    </div>
+                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
                 </div>
-                <div class="rams-mt-3">
-                    <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ kpis.target_rfqs }}</span>
-                        <span class="rams-badge rams-badge--success">{{ rfq_progress }}%</span>
+                <div class="rams-stack rams-gap-1">
+                    <div class="rams-flex rams-justify-between rams-items-center">
+                        <span class="rams-text--3xs rams-text--muted uppercase rams-font-mono">{{ 'common.total'|trans }}: {{ kpis.target_rfqs }}</span>
+                        <span class="rams-badge rams-badge--success rams-badge--xs rams-font-mono">{{ rfq_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
                         <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ rfq_progress }}%;"></div>
@@ -72,22 +66,19 @@
         </div>
 
         {# NPI Awards #}
-        <div class="rams-module">
-            <div class="rams-module__header">
-                <span class="rams-module__title">{{ 'dashboard.npi_awards'|trans }}</span>
-                <span class="rams-andon">
-                    <span class="rams-andon__light rams-andon__light--green"></span>
-                </span>
-            </div>
+        <div class="rams-module rams-module--inset">
             <div class="rams-module__content">
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'common.total'|trans }}</span>
-                    <span class="rams-metric__value">{{ kpis.npi_awards }}</span>
+                <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label uppercase rams-text--3xs rams-font-mono">{{ 'dashboard.npi_awards'|trans }}</span>
+                        <span class="rams-metric__value rams-text--xl">{{ kpis.npi_awards }}</span>
+                    </div>
+                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
                 </div>
-                <div class="rams-mt-3">
-                    <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ kpis.target_npis }}</span>
-                        <span class="rams-badge rams-badge--primary">{{ npi_progress }}%</span>
+                <div class="rams-stack rams-gap-1">
+                    <div class="rams-flex rams-justify-between rams-items-center">
+                        <span class="rams-text--3xs rams-text--muted uppercase rams-font-mono">{{ 'common.total'|trans }}: {{ kpis.target_npis }}</span>
+                        <span class="rams-badge rams-badge--primary rams-badge--xs rams-font-mono">{{ npi_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
                         <div class="rams-progress__bar rams-progress__bar--primary" style="width: {{ npi_progress }}%;"></div>
@@ -97,22 +88,19 @@
         </div>
 
         {# Framework Agreements #}
-        <div class="rams-module">
-            <div class="rams-module__header">
-                <span class="rams-module__title">{{ 'common.status'|trans }}</span>
-                <span class="rams-andon">
-                    <span class="rams-andon__light rams-andon__light--green"></span>
-                </span>
-            </div>
+        <div class="rams-module rams-module--inset">
             <div class="rams-module__content">
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'dashboard.framework_agreements'|trans }}</span>
-                    <span class="rams-metric__value">{{ kpis.framework_agreements }}</span>
+                <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label uppercase rams-text--3xs rams-font-mono">{{ 'dashboard.framework_agreements'|trans }}</span>
+                        <span class="rams-metric__value rams-text--xl">{{ kpis.framework_agreements }}</span>
+                    </div>
+                    <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
                 </div>
-                <div class="rams-mt-3">
-                    <div class="rams-flex rams-justify-between rams-mb-1">
-                        <span class="rams-text-muted rams-text-xs">{{ 'common.total'|trans }}: {{ kpis.target_frameworks }}</span>
-                        <span class="rams-badge rams-badge--warning">{{ framework_progress }}%</span>
+                <div class="rams-stack rams-gap-1">
+                    <div class="rams-flex rams-justify-between rams-items-center">
+                        <span class="rams-text--3xs rams-text--muted uppercase rams-font-mono">{{ 'common.total'|trans }}: {{ kpis.target_frameworks }}</span>
+                        <span class="rams-badge rams-badge--warning rams-badge--xs rams-font-mono">{{ framework_progress }}%</span>
                     </div>
                     <div class="rams-progress rams-progress--compact">
                         <div class="rams-progress__bar rams-progress__bar--warning" style="width: {{ framework_progress }}%;"></div>
@@ -152,52 +140,44 @@
     </div>
 
     {# Weekly Activity Summary & Recent Activities #}
-    <div class="rams-grid rams-grid--3">
+    <div class="rams-grid rams-grid--3 rams-gap-6">
         {# Weekly Activity #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <span class="rams-module__title">{{ 'dashboard.this_week'|trans }}</span>
+                <h2 class="rams-module__title">{{ 'dashboard.this_week'|trans }}</h2>
             </div>
             <div class="rams-module__content">
-                <div class="rams-flex rams-flex-col rams-gap-3">
+                <div class="rams-stack rams-gap-4">
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
-                            <span class="rams-andon">
-                                <span class="rams-andon__light rams-andon__light--green"></span>
-                            </span>
-                            <span class="rams-text-muted">{{ 'activity.types.call'|trans }}</span>
+                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                            <span class="rams-text-sm">{{ 'activity.types.call'|trans }}</span>
                         </div>
-                        <span class="rams-badge">{{ weekly_metrics.calls_made }}</span>
+                        <span class="rams-badge font-mono">{{ weekly_metrics.calls_made }}</span>
                     </div>
                     
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
-                            <span class="rams-andon">
-                                <span class="rams-andon__light rams-andon__light--green"></span>
-                            </span>
-                            <span class="rams-text-muted">{{ 'activity.types.email'|trans }}</span>
+                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                            <span class="rams-text-sm">{{ 'activity.types.email'|trans }}</span>
                         </div>
-                        <span class="rams-badge">{{ weekly_metrics.emails_sent }}</span>
+                        <span class="rams-badge font-mono">{{ weekly_metrics.emails_sent }}</span>
                     </div>
                     
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
-                            <span class="rams-andon">
-                                <span class="rams-andon__light rams-andon__light--green"></span>
-                            </span>
-                            <span class="rams-text-muted">{{ 'activity.types.meeting'|trans }}</span>
+                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                            <span class="rams-text-sm">{{ 'activity.types.meeting'|trans }}</span>
                         </div>
-                        <span class="rams-badge">{{ weekly_metrics.meetings_held }}</span>
+                        <span class="rams-badge font-mono">{{ weekly_metrics.meetings_held }}</span>
                     </div>
                     
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
-                            <span class="rams-andon">
-                                <span class="rams-andon__light rams-andon__light--yellow"></span>
-                            </span>
-                            <span class="rams-text-muted">{{ 'supplier_portal.title'|trans }}</span>
+                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--yellow"></span></div>
+                            <span class="rams-text-sm">{{ 'supplier_portal.title'|trans }}</span>
                         </div>
-                        <span class="rams-badge">{{ weekly_metrics.portal_signups }}</span>
+                        <span class="rams-badge font-mono">{{ weekly_metrics.portal_signups }}</span>
                     </div>
                 </div>
             </div>
@@ -206,14 +186,14 @@
         {# Recent Activities #}
         <div class="rams-module rams-grid-span-2">
             <div class="rams-module__header">
-                <span class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</span>
-                <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans|lower }}</a>
+                <h2 class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</h2>
+                <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
             </div>
             <div class="rams-module__content">
-                <div class="rams-flex rams-flex-col rams-gap-2">
+                <div class="rams-grid rams-grid--2 rams-gap-4">
                     {% for activity in recent_activities %}
-                    <div class="rams-flex rams-items-center rams-gap-3 rams-p-2 rams-rounded">
-                        <span class="rams-andon">
+                    <div class="rams-flex rams-items-center rams-gap-3 rams-p-2 rams-bg-panel rams-border rams-rounded">
+                        <div class="rams-andon">
                             {% if activity.type == 'Call' %}
                                 <span class="rams-andon__light rams-andon__light--green"></span>
                             {% elseif activity.type == 'Email' %}
@@ -221,24 +201,97 @@
                             {% elseif activity.type == 'Meeting' %}
                                 <span class="rams-andon__light rams-andon__light--yellow"></span>
                             {% else %}
-                                <span class="rams-andon__light rams-andon__light--off"></span>
+                                <span class="rams-andon__light"></span>
                             {% endif %}
-                        </span>
-                        <div class="rams-flex-1">
-                            <p class="rams-text-sm rams-font-medium">{{ activity.type }}</p>
-                            <p class="rams-text-muted rams-text-xs rams-truncate">{{ activity.company.name }}</p>
                         </div>
-                        <span class="rams-text-muted rams-text-xs">{{ activity.activityDate|date('M d') }}</span>
+                        <div class="rams-flex-1 rams-overflow-hidden">
+                            <p class="rams-text-xs rams-text-bold uppercase font-mono rams-mb-0">{{ activity.type }}</p>
+                            <p class="rams-text-3xs rams-text-muted rams-truncate rams-mb-0">{{ activity.company.name }}</p>
+                        </div>
+                        <span class="rams-text-3xs rams-text-muted font-mono uppercase">{{ activity.activityDate|date('M d') }}</span>
                     </div>
                     {% else %}
-                    <div class="rams-flex rams-justify-center rams-p-6">
-                        <p class="rams-text-muted">{{ 'activity.no_activities'|trans }}</p>
+                    <div class="rams-grid-span-2 rams-empty-state rams-p-4">
+                        <p class="rams-text-muted rams-text-xs">{{ 'activity.no_activities'|trans }}</p>
                     </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
     </div>
+
+    {# Compliance Alerts Widget #}
+    {% if compliance_alert_counts.total > 0 or compliance_alert_counts.snoozed > 0 %}
+    <div class="rams-module rams-module--warning">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">
+                <span class="rams-andon rams-mr-2"><span class="rams-andon__light rams-andon__light--yellow"></span></span>
+                {{ 'compliance.alerts'|trans|default('Compliance Alerts') }}
+            </h2>
+            <div class="rams-flex rams-gap-2 rams-flex-wrap">
+                {% if compliance_alert_counts.expired > 0 %}
+                    <span class="rams-badge rams-badge--danger rams-badge--sm">{{ compliance_alert_counts.expired }} {{ 'compliance.expired'|trans|default('Expired') }}</span>
+                {% endif %}
+                {% if compliance_alert_counts.expiring_soon > 0 %}
+                    <span class="rams-badge rams-badge--warning rams-badge--sm">{{ compliance_alert_counts.expiring_soon }} {{ 'compliance.expiring_soon'|trans|default('Expiring Soon') }}</span>
+                {% endif %}
+                {% if compliance_alert_counts.missing > 0 %}
+                    <span class="rams-badge rams-badge--info rams-badge--sm">{{ compliance_alert_counts.missing }} {{ 'compliance.missing'|trans|default('Missing') }}</span>
+                {% endif %}
+                {% if compliance_alert_counts.snoozed > 0 %}
+                    <span class="rams-badge rams-badge--muted rams-badge--sm" title="{{ 'compliance.snoozed_tooltip'|trans|default('Alerts temporarily suppressed') }}">
+                        😴 {{ compliance_alert_counts.snoozed }} {{ 'compliance.snoozed'|trans|default('Snoozed') }}
+                    </span>
+                {% endif %}
+                <a href="{{ path('app_compliance_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
+            </div>
+        </div>
+        <div class="rams-module__content">
+            <div class="rams-stack rams-gap-2">
+                {% for doc in compliance_alerts|slice(0, 5) %}
+                <div class="rams-flex rams-justify-between rams-items-center rams-p-2 rams-bg-panel rams-border rams-rounded">
+                    <div class="rams-flex rams-items-center rams-gap-3">
+                        <div class="rams-andon">
+                            {% if doc.isExpired %}
+                                <span class="rams-andon__light rams-andon__light--red"></span>
+                            {% elseif doc.isExpiringSoon %}
+                                <span class="rams-andon__light rams-andon__light--yellow"></span>
+                            {% else %}
+                                <span class="rams-andon__light rams-andon__light--blue"></span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <p class="rams-text-xs rams-text-bold rams-mb-0">{{ doc.name }}</p>
+                            <p class="rams-text-3xs rams-text-muted rams-mb-0">
+                                {{ doc.company ? doc.company.name : 'No Company' }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="rams-flex rams-items-center rams-gap-2">
+                        <div class="rams-text-right">
+                            {% if doc.expiryDate %}
+                                <span class="rams-text-3xs font-mono {% if doc.isExpired %}rams-text-danger{% elseif doc.isExpiringSoon %}rams-text-warning{% endif %}">
+                                    {{ doc.expiryMessage }}
+                                </span>
+                            {% elseif not doc.provided %}
+                                <span class="rams-badge rams-badge--info rams-badge--xs">{{ 'compliance.not_provided'|trans|default('Not Provided') }}</span>
+                            {% endif %}
+                        </div>
+                        {# Snooze Button #}
+                        <form method="POST" action="{{ path('app_compliance_snooze', {id: doc.id}) }}" class="rams-inline-form">
+                            <input type="hidden" name="_token" value="{{ csrf_token('snooze' ~ doc.id) }}">
+                            <input type="hidden" name="days" value="7">
+                            <button type="submit" class="rams-btn rams-btn--ghost rams-btn--xs" title="{{ 'compliance.snooze_7_days'|trans|default('Snooze for 7 days') }}">
+                                😴
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>

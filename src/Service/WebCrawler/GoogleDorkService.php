@@ -225,7 +225,7 @@ class GoogleDorkService
         $dorkQueries = [
             "site:{$domain} intext:\"procurement\" OR intext:\"purchasing\" email",
             "site:{$domain} \"buyer\" OR \"commodity manager\" contact",
-            "site:linkedin.com \"{$companyName}\" procurement engineer email",
+            "site:{$domain} \"supply chain\" OR \"purchasing manager\" email",
         ];
 
         foreach ($dorkQueries as $query) {
@@ -254,9 +254,6 @@ class GoogleDorkService
         $queries[] = "\"{$sector}\" manufacturing{$locationTerm}";
         $queries[] = "{$sector} supplier{$locationTerm}";
         $queries[] = "{$sector} electronics{$locationTerm}";
-
-        // LinkedIn-specific dorks
-        $queries[] = "site:linkedin.com \"{$sector}\"{$locationTerm} company";
 
         // Industry directory dorks
         $queries[] = "site:moroccanindustry.com {$sector}";

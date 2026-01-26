@@ -24,26 +24,34 @@
     <div class="rams-grid rams-grid--4">
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'admin.datasets.total_datasets'|trans }}</span>
-                <p class="rams-metric__value">12</p>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'admin.datasets.total_datasets'|trans }}</span>
+                    <span class="rams-metric__value">12</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'admin.datasets.active_versions'|trans }}</span>
-                <p class="rams-metric__value">8</p>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'admin.datasets.active_versions'|trans }}</span>
+                    <span class="rams-metric__value">8</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'admin.datasets.last_updated'|trans }}</span>
-                <p class="rams-metric__value">{{ 'admin.datasets.sample_last_updated'|trans }}</p>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'admin.datasets.last_updated'|trans }}</span>
+                    <span class="rams-metric__value rams-text--lg">{{ 'admin.datasets.sample_last_updated'|trans }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'admin.datasets.storage_used'|trans }}</span>
-                <p class="rams-metric__value">{{ 'admin.datasets.sample_storage_used'|trans }}</p>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'admin.datasets.storage_used'|trans }}</span>
+                    <span class="rams-metric__value rams-text--lg">{{ 'admin.datasets.sample_storage_used'|trans }}</span>
+                </div>
             </div>
         </div>
     </div>
@@ -54,72 +62,91 @@
             <h2 class="rams-module__title">{{ 'admin.datasets.active_datasets'|trans }}</h2>
         </div>
 
-        <table class="rams-table">
-            <thead>
-                <tr>
-                    <th>{{ 'admin.datasets.dataset_name'|trans }}</th>
-                    <th>{{ 'admin.datasets.version'|trans }}</th>
-                    <th>{{ 'admin.datasets.records'|trans }}</th>
-                    <th>{{ 'admin.datasets.last_updated'|trans }}</th>
-                    <th>{{ 'admin.datasets.status'|trans }}</th>
-                    <th>{{ 'common.actions'|trans }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if datasets | default([]) %}
-                    {% for dataset in datasets %}
+        <div class="rams-table-container">
+            <table class="rams-table">
+                <thead class="rams-table__header">
+                    <tr>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.dataset_name'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.version'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.records'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.last_updated'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.status'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody class="rams-table__body">
+                    {% if datasets | default([]) %}
+                        {% for dataset in datasets %}
+                            <tr class="rams-table__row">
+                                <td class="rams-table__cell rams-text--bold">{{ dataset.name }}</td>
+                                <td class="rams-table__cell"><span class="rams-badge">{{ dataset.version }}</span></td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-metric__value rams-text--sm">{{ dataset.records | number_format }}</span>
+                                </td>
+                                <td class="rams-table__cell rams-text--muted rams-text--xs">{{ dataset.updated_at }}</td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--info">
+                                        {{ dataset.status }}
+                                    </span>
+                                </td>
+                                <td class="rams-table__cell rams-table__cell--actions">
+                                    <div class="rams-btn-group">
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.export'|trans }}</a>
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
                         <tr>
-                            <td>{{ dataset.name }}</td>
-                            <td>{{ dataset.version }}</td>
-                            <td>
-                                <span class="rams-metric__value">{{ dataset.records | number_format }}</span>
-                            </td>
-                            <td>{{ dataset.updated_at }}</td>
-                            <td>
-                                <span class="rams-badge">
-                                    {{ dataset.status }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="rams-btn-group">
-                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
-                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.export'|trans }}</a>
-                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text-danger">{{ 'common.delete'|trans }}</a>
+                            <td colspan="6" class="rams-table__cell">
+                                <div class="rams-empty-state">
+                                    {{ 'admin.datasets.no_datasets'|trans }} <a href="{{ path('admin_dataset_import_form') }}" class="rams-link">{{ 'admin.datasets.import_one_now'|trans }}</a>
                                 </div>
                             </td>
                         </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="6" class="rams-empty-state">
-                            {{ 'admin.datasets.no_datasets'|trans }} <a href="{{ path('admin_dataset_import_form') }}">{{ 'admin.datasets.import_one_now'|trans }}</a>
-                        </td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Quick Actions -->
     <div class="rams-grid rams-grid--3">
-        <a href="{{ path('admin_dataset_history') }}" class="rams-module rams-module--clickable">
+        <a href="{{ path('admin_dataset_history') }}" class="rams-module rams-module--hoverable">
             <div class="rams-module__content">
-                <h3 class="rams-module__title">📋 {{ 'admin.datasets.version_history'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'admin.datasets.version_history_desc'|trans }}</p>
+                <div class="rams-flex rams-items-center rams-gap-3">
+                    <span class="rams-metric__value rams-text--xl">📋</span>
+                    <div>
+                        <h3 class="rams-module__title">{{ 'admin.datasets.version_history'|trans }}</h3>
+                        <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.version_history_desc'|trans }}</p>
+                    </div>
+                </div>
             </div>
         </a>
-        <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--clickable">
+        <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--hoverable">
             <div class="rams-module__content">
-                <h3 class="rams-module__title">⬆️ {{ 'admin.datasets.import'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'admin.datasets.upload_hint'|trans }}</p>
+                <div class="rams-flex rams-items-center rams-gap-3">
+                    <span class="rams-metric__value rams-text--xl">⬆️</span>
+                    <div>
+                        <h3 class="rams-module__title">{{ 'admin.datasets.import'|trans }}</h3>
+                        <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.upload_hint'|trans }}</p>
+                    </div>
+                </div>
             </div>
         </a>
-        <a href="#" class="rams-module rams-module--clickable">
+        <div class="rams-module rams-module--hoverable" onclick="ramsAlert('Syncing started...')">
             <div class="rams-module__content">
-                <h3 class="rams-module__title">🔄 {{ 'admin.datasets.sync_datasets'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'admin.datasets.sync_desc'|trans }}</p>
+                <div class="rams-flex rams-items-center rams-gap-3">
+                    <span class="rams-metric__value rams-text--xl">🔄</span>
+                    <div>
+                        <h3 class="rams-module__title">{{ 'admin.datasets.sync_datasets'|trans }}</h3>
+                        <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.sync_desc'|trans }}</p>
+                    </div>
+                </div>
             </div>
-        </a>
+        </div>
     </div>
 </div>
 {% endblock %}

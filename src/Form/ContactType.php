@@ -94,17 +94,6 @@ class ContactType extends AbstractType
                     'placeholder' => 'contact.form.phone_placeholder',
                 ],
                 'required' => false,
-            ])
-            ->add('linkedInUrl', UrlType::class, [
-                'label' => 'contact.linkedin',
-                'attr' => [
-                    'class' => 'rams-form__input',
-                    'placeholder' => 'contact.form.linkedin_placeholder',
-                ],
-                'required' => false,
-                'constraints' => [
-                    new Url(['message' => 'validation.url']),
-                ],
             ]);
     }
 

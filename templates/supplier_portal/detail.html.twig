@@ -3,51 +3,44 @@
 {% block title %}{{ 'supplier.portal.details'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack rams-stack--lg">
-    {# Back Link #}
-    <a href="{{ path('supplier_portal_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">
-        ← {{ 'supplier.portal.back_to_suppliers'|trans }}
-    </a>
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <nav class="rams-breadcrumb rams-mb-2">
+                <ol class="rams-breadcrumb__list">
+                    <li class="rams-breadcrumb__item"><a href="{{ path('supplier_portal_index') }}" class="rams-breadcrumb__link">{{ 'nav.supplier_portal'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ supplier.name }}</li>
+                </ol>
+            </nav>
+            <h1 class="rams-page-title">{{ supplier.name }}</h1>
+            <p class="rams-page-subtitle">{{ supplier.region }}</p>
+        </div>
+        <div class="rams-page-actions">
+            <span class="rams-badge rams-badge--lg">{{ supplier.status }}</span>
+        </div>
+    </div>
 
-    <div class="rams-grid rams-grid--cols-3 rams-grid--gap-lg">
+    <div class="rams-grid rams-grid--3 rams-gap-6">
         {# Main Content #}
-        <div class="rams-stack rams-stack--lg" style="grid-column: span 2;">
-            {# Supplier Header #}
+        <div class="rams-stack rams-gap-6 rams-grid-span-2">
+            {# Supplier Header Metrics #}
             <div class="rams-module">
-                <div class="rams-module__header">
-                    <div class="rams-module__header--row">
-                        <div>
-                            <h1 class="rams-heading rams-heading--2">{{ supplier.name }}</h1>
-                            <p class="rams-text rams-text--muted">{{ supplier.region }}</p>
-                        </div>
-                        <span class="rams-badge rams-badge--gray rams-badge--lg">{{ supplier.status }}</span>
-                    </div>
-                </div>
                 <div class="rams-module__content">
-                    <div class="rams-grid rams-grid--cols-3 rams-grid--gap-md">
-                        <div>
-                            <span class="rams-dymo">{{ 'supplier.portal.priority'|trans }}</span>
-                            <p class="rams-text rams-text--bold">{{ supplier.priority }}</p>
+                    <div class="rams-grid rams-grid--3 rams-gap-4">
+                        <div class="rams-metric">
+                            <span class="rams-metric__label">{{ 'supplier.portal.priority'|trans }}</span>
+                            <span class="rams-metric__value rams-text-xl">{{ supplier.priority }}</span>
                         </div>
-                        <div>
-                            <span class="rams-dymo">{{ 'supplier.portal.contact_name'|trans }}</span>
-                            <p class="rams-text rams-text--bold">{{ supplier.contact_name | default('N/A') }}</p>
+                        <div class="rams-metric">
+                            <span class="rams-metric__label">{{ 'supplier.portal.contact_name'|trans }}</span>
+                            <span class="rams-metric__value rams-text-lg">{{ supplier.contact_name | default('common.n_a'|trans) }}</span>
                         </div>
-                        <div>
-                            <span class="rams-dymo">{{ 'common.email'|trans }}</span>
-                            <p class="rams-text rams-text--bold">{{ supplier.email | default('N/A') }}</p>
-                        </div>
-                        <div>
-                            <span class="rams-dymo">{{ 'supplier.portal.title'|trans }}</span>
-                            <p class="rams-text rams-text--bold">{{ supplier.title | default('N/A') }}</p>
-                        </div>
-                        <div>
-                            <span class="rams-dymo">{{ 'supplier.portal.website'|trans }}</span>
-                            <p class="rams-text"><a href="{{ supplier.website }}" target="_blank" class="rams-link">{{ 'common.visit'|trans }}</a></p>
-                        </div>
-                        <div>
-                            <span class="rams-dymo">{{ 'supplier.portal.portal_sla'|trans }}</span>
-                            <p class="rams-text rams-text--bold">{{ supplier.portal_sla_days | default('N/A') }}</p>
+                        <div class="rams-metric">
+                            <span class="rams-metric__label">{{ 'supplier.portal.portal_sla'|trans }}</span>
+                            <span class="rams-metric__value rams-text-lg">{{ supplier.portal_sla_days | default('common.n_a'|trans) }}</span>
+                            <span class="rams-metric__unit">{{ 'common.days'|trans|lower }}</span>
                         </div>
                     </div>
                 </div>
@@ -56,29 +49,33 @@
             {# Company Information #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-heading rams-heading--3">{{ 'supplier.portal.company_info'|trans }}</h2>
+                    <h2 class="rams-module__title">{{ 'supplier.portal.company_info'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <dl class="rams-definition-list">
+                    <dl class="rams-definition-list rams-grid rams-grid--2">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'supplier.portal.website'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                <a href="{{ supplier.website }}" target="_blank" class="rams-link">{{ supplier.website | default('common.n_a'|trans) }}</a>
+                            </dd>
+                        </div>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.email'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ supplier.email | default('common.n_a'|trans) }}</dd>
+                        </div>
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'supplier.portal.portal_url'|trans }}</dt>
                             <dd class="rams-definition-list__desc">
-                                <a href="{{ supplier.portal_url }}" target="_blank" class="rams-link">{{ supplier.portal_url | default('N/A') }}</a>
+                                <a href="{{ supplier.portal_url }}" target="_blank" class="rams-link">{{ supplier.portal_url | default('common.n_a'|trans) }}</a>
                             </dd>
                         </div>
-                        <div class="rams-definition-list__item">
-                            <dt class="rams-definition-list__term">{{ 'supplier.portal.linkedin'|trans }}</dt>
-                            <dd class="rams-definition-list__desc">
-                                <a href="{{ supplier.linkedin_url }}" target="_blank" class="rams-link">{{ 'supplier.portal.company_profile'|trans }}</a>
-                            </dd>
-                        </div>
-                        <div class="rams-definition-list__item">
+                        <div class="rams-definition-list__item rams-grid-span-2">
                             <dt class="rams-definition-list__term">{{ 'common.notes'|trans }}</dt>
-                            <dd class="rams-definition-list__desc">{{ supplier.notes | default('No notes') }}</dd>
+                            <dd class="rams-definition-list__desc">{{ supplier.notes | default('messages.no_notes'|trans) }}</dd>
                         </div>
-                        <div class="rams-definition-list__item">
+                        <div class="rams-definition-list__item rams-grid-span-2">
                             <dt class="rams-definition-list__term">{{ 'supplier.portal.next_step'|trans }}</dt>
-                            <dd class="rams-definition-list__desc">{{ supplier.next_step | default('No next step defined') }}</dd>
+                            <dd class="rams-definition-list__desc">{{ supplier.next_step | default('messages.no_next_step'|trans) }}</dd>
                         </div>
                     </dl>
                 </div>
@@ -87,34 +84,25 @@
             {# Compliance & NDA #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-heading rams-heading--3">{{ 'supplier.portal.compliance_nda'|trans }}</h2>
+                    <h2 class="rams-module__title">{{ 'supplier.portal.compliance_nda'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-stack rams-stack--sm">
-                        <div class="rams-module rams-module--nested rams-module--muted">
-                            <div class="rams-module__content rams-flex rams-flex--between rams-flex--center">
-                                <span class="rams-text">{{ 'supplier.portal.compliance_required'|trans }}</span>
-                                {% set complianceRequired = supplier.compliance_required | default('Not specified') %}
-                                <span class="rams-text rams-text--bold">
-                                    {{ complianceRequired | slice(0, 50) }}{% if complianceRequired|length > 50 %}…{% endif %}
-                                </span>
-                            </div>
+                    <div class="rams-stack rams-gap-3">
+                        <div class="rams-flex rams-justify-between rams-items-center rams-p-3 rams-bg-panel rams-border rams-rounded">
+                            <span class="rams-text-sm">{{ 'supplier.portal.compliance_required'|trans }}</span>
+                            <span class="rams-text-bold rams-text-sm">{{ supplier.compliance_required | default('messages.not_specified'|trans) }}</span>
                         </div>
-                        <div class="rams-module rams-module--nested rams-module--muted">
-                            <div class="rams-module__content rams-flex rams-flex--between rams-flex--center">
-                                <span class="rams-text">{{ 'supplier.portal.compliance_provided'|trans }}</span>
-                                <span class="rams-badge rams-badge--{% if supplier.compliance_provided %}green{% else %}red{% endif %}">
-                                    {% if supplier.compliance_provided %}{{ 'common.yes'|trans }}{% else %}{{ 'common.no'|trans }}{% endif %}
-                                </span>
-                            </div>
+                        <div class="rams-flex rams-justify-between rams-items-center rams-p-3 rams-bg-panel rams-border rams-rounded">
+                            <span class="rams-text-sm">{{ 'supplier.portal.compliance_provided'|trans }}</span>
+                            <span class="rams-badge rams-badge--{% if supplier.compliance_provided %}success{% else %}danger{% endif %}">
+                                {{ (supplier.compliance_provided ? 'common.yes' : 'common.no')|trans }}
+                            </span>
                         </div>
-                        <div class="rams-module rams-module--nested rams-module--muted">
-                            <div class="rams-module__content rams-flex rams-flex--between rams-flex--center">
-                                <span class="rams-text">{{ 'supplier.portal.nda_sent'|trans }}</span>
-                                <span class="rams-badge rams-badge--{% if supplier.nda_sent %}green{% else %}yellow{% endif %}">
-                                    {% if supplier.nda_sent %}{{ 'common.yes'|trans }}{% else %}{{ 'common.no'|trans }}{% endif %}
-                                </span>
-                            </div>
+                        <div class="rams-flex rams-justify-between rams-items-center rams-p-3 rams-bg-panel rams-border rams-rounded">
+                            <span class="rams-text-sm">{{ 'supplier.portal.nda_sent'|trans }}</span>
+                            <span class="rams-badge rams-badge--{% if supplier.nda_sent %}success{% else %}warning{% endif %}">
+                                {{ (supplier.nda_sent ? 'common.yes' : 'common.no')|trans }}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -122,35 +110,35 @@
         </div>
 
         {# Sidebar #}
-        <div class="rams-stack rams-stack--lg">
+        <div class="rams-stack rams-gap-6">
             {# Performance Metrics #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-heading rams-heading--4">{{ 'supplier.portal.performance'|trans }}</h2>
+                    <h2 class="rams-module__title">{{ 'supplier.portal.performance'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-stack rams-stack--md">
+                    <div class="rams-stack rams-gap-4">
                         <div>
-                            <div class="rams-flex rams-flex--between rams-mb-xs">
-                                <span class="rams-text rams-text--sm rams-text--muted">{{ 'supplier.portal.on_time_delivery'|trans }}</span>
-                                <span class="rams-text rams-text--sm rams-text--bold">{{ supplier.on_time_rate | default(95) }}%</span>
+                            <div class="rams-flex rams-justify-between rams-mb-1">
+                                <span class="rams-text-xs rams-text-muted uppercase">{{ 'supplier.portal.on_time_delivery'|trans }}</span>
+                                <span class="rams-text-xs rams-text-bold">{{ supplier.on_time_rate | default(95) }}%</span>
                             </div>
-                            <div class="rams-progress">
+                            <div class="rams-progress rams-progress--compact">
                                 <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ supplier.on_time_rate | default(95) }}%"></div>
                             </div>
                         </div>
                         <div>
-                            <div class="rams-flex rams-flex--between rams-mb-xs">
-                                <span class="rams-text rams-text--sm rams-text--muted">{{ 'supplier.portal.quality_score'|trans }}</span>
-                                <span class="rams-text rams-text--sm rams-text--bold">{{ supplier.quality_score | default(88) }}/100</span>
+                            <div class="rams-flex rams-justify-between rams-mb-1">
+                                <span class="rams-text-xs rams-text-muted uppercase">{{ 'supplier.portal.quality_score'|trans }}</span>
+                                <span class="rams-text-xs rams-text-bold">{{ supplier.quality_score | default(88) }}/100</span>
                             </div>
-                            <div class="rams-progress">
+                            <div class="rams-progress rams-progress--compact">
                                 <div class="rams-progress__bar" style="width: {{ supplier.quality_score | default(88) }}%"></div>
                             </div>
                         </div>
-                        <div class="rams-flex rams-flex--between">
-                            <span class="rams-text rams-text--sm rams-text--muted">{{ 'supplier.portal.response_time'|trans }}</span>
-                            <span class="rams-text rams-text--sm rams-text--bold">{{ supplier.response_time | default('2h') }}</span>
+                        <div class="rams-flex rams-justify-between">
+                            <span class="rams-text-xs rams-text-muted uppercase">{{ 'supplier.portal.response_time'|trans }}</span>
+                            <span class="rams-text-xs rams-text-bold">{{ supplier.response_time | default('2h') }}</span>
                         </div>
                     </div>
                 </div>
@@ -159,27 +147,21 @@
             {# Statistics #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-heading rams-heading--4">{{ 'supplier.portal.statistics'|trans }}</h2>
+                    <h2 class="rams-module__title">{{ 'supplier.portal.statistics'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-stack rams-stack--sm">
-                        <div class="rams-module rams-module--nested rams-bg-info-subtle">
-                            <div class="rams-module__content">
-                                <span class="rams-text rams-text--sm rams-text--info">{{ 'supplier.portal.total_orders'|trans }}</span>
-                                <p class="rams-metric rams-metric--lg rams-text--info">{{ supplier.total_orders | default(0) }}</p>
-                            </div>
+                    <div class="rams-stack rams-gap-2">
+                        <div class="rams-module rams-module--inset rams-p-3 rams-bg-info-subtle">
+                            <span class="rams-text-2xs rams-text-info uppercase rams-mb-1 rams-block">{{ 'supplier.portal.total_orders'|trans }}</span>
+                            <span class="rams-metric__value rams-text-info rams-text-2xl">{{ supplier.total_orders | default(0) }}</span>
                         </div>
-                        <div class="rams-module rams-module--nested rams-bg-success-subtle">
-                            <div class="rams-module__content">
-                                <span class="rams-text rams-text--sm rams-text--success">{{ 'supplier.portal.total_spent'|trans }}</span>
-                                <p class="rams-metric rams-metric--lg rams-text--success">{{ supplier.total_spent|default(0)|format_currency(supplier.total_spent_currency|default(supplier.currency|default(display_currency())), null, 2) }}</p>
-                            </div>
+                        <div class="rams-module rams-module--inset rams-p-3 rams-bg-success-subtle">
+                            <span class="rams-text-2xs rams-text-success uppercase rams-mb-1 rams-block">{{ 'supplier.portal.total_spent'|trans }}</span>
+                            <span class="rams-metric__value rams-text-success rams-text-2xl">{{ supplier.total_spent|default(0)|format_currency(supplier.total_spent_currency|default(supplier.currency|default(display_currency())), null, 0) }}</span>
                         </div>
-                        <div class="rams-module rams-module--nested rams-bg-warning-subtle">
-                            <div class="rams-module__content">
-                                <span class="rams-text rams-text--sm rams-text--warning">{{ 'supplier.portal.avg_order_value'|trans }}</span>
-                                <p class="rams-metric rams-metric--lg rams-text--warning">{{ supplier.avg_order_value|default(0)|format_currency(supplier.avg_order_value_currency|default(supplier.currency|default(display_currency())), null, 2) }}</p>
-                            </div>
+                        <div class="rams-module rams-module--inset rams-p-3 rams-bg-warning-subtle">
+                            <span class="rams-text-2xs rams-text-warning uppercase rams-mb-1 rams-block">{{ 'supplier.portal.avg_order_value'|trans }}</span>
+                            <span class="rams-metric__value rams-text-warning rams-text-2xl">{{ supplier.avg_order_value|default(0)|format_currency(supplier.avg_order_value_currency|default(supplier.currency|default(display_currency())), null, 0) }}</span>
                         </div>
                     </div>
                 </div>
@@ -188,20 +170,20 @@
             {# Quick Actions #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-heading rams-heading--4">{{ 'common.actions'|trans }}</h2>
+                    <h2 class="rams-module__title">{{ 'common.actions'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-stack rams-stack--sm">
-                        <button class="rams-btn rams-btn--primary rams-btn--block">
+                    <div class="rams-stack rams-gap-2">
+                        <button class="rams-btn rams-btn--primary rams-w-full">
                             {{ 'supplier.portal.view_portal'|trans }}
                         </button>
-                        <button class="rams-btn rams-btn--secondary rams-btn--block">
+                        <button class="rams-btn rams-btn--secondary rams-w-full">
                             {{ 'supplier.portal.send_message'|trans }}
                         </button>
-                        <button class="rams-btn rams-btn--secondary rams-btn--block">
+                        <button class="rams-btn rams-btn--secondary rams-w-full">
                             {{ 'supplier.portal.edit_details'|trans }}
                         </button>
-                        <button class="rams-btn rams-btn--danger-outline rams-btn--block">
+                        <button class="rams-btn rams-btn--danger rams-btn--ghost rams-w-full">
                             {{ 'supplier.portal.deactivate'|trans }}
                         </button>
                     </div>

@@ -52,38 +52,50 @@
     <div class="rams-grid rams-grid--6">
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.total_leads'|trans }}</span>
-                <div class="rams-metric__value rams-text-info">{{ stats.total_leads }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'discovery_pipeline.total_leads'|trans }}</span>
+                    <span class="rams-metric__value rams-text-info">{{ stats.total_leads }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.today'|trans }}</span>
-                <div class="rams-metric__value rams-text-success">{{ stats.today_leads }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'discovery_pipeline.today'|trans }}</span>
+                    <span class="rams-metric__value rams-text-success">{{ stats.today_leads }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.with_emails'|trans }}</span>
-                <div class="rams-metric__value">{{ stats.with_emails }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'discovery_pipeline.with_emails'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.with_emails }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.has_contact_form'|trans }}</span>
-                <div class="rams-metric__value">{{ stats.with_contact_forms|default(0) }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'discovery_pipeline.has_contact_form'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.with_contact_forms|default(0) }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.enrichment_rate'|trans }}</span>
-                <div class="rams-metric__value rams-text-warning">{{ stats.enrichment_rate }}%</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'discovery_pipeline.enrichment_rate'|trans }}</span>
+                    <span class="rams-metric__value rams-text-warning">{{ stats.enrichment_rate }}%</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'discovery_pipeline.pending_review'|trans }}</span>
-                <div class="rams-metric__value rams-text-danger">{{ stats.pending_review }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'discovery_pipeline.pending_review'|trans }}</span>
+                    <span class="rams-metric__value rams-text-danger">{{ stats.pending_review }}</span>
+                </div>
             </div>
         </div>
     </div>
@@ -122,9 +134,9 @@
             </div>
             <div class="rams-module__content">
                 <form id="pipeline-form" class="rams-form">
-                    <div class="rams-form-group">
-                        <label class="rams-label">{{ 'discovery_pipeline.target_sector'|trans }} *</label>
-                        <select name="sector" required class="rams-select">
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'discovery_pipeline.target_sector'|trans }} *</label>
+                        <select name="sector" required class="rams-form__select">
                             <option value="">{{ 'discovery_pipeline.select_sector'|trans }}</option>
                             {% for sector in sectors %}
                                 <option value="{{ sector }}">{{ sector }}</option>
@@ -132,9 +144,9 @@
                         </select>
                     </div>
                     
-                    <div class="rams-form-group">
-                        <label class="rams-label">{{ 'discovery_pipeline.geographic_focus'|trans }}</label>
-                        <select name="location" class="rams-select">
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'discovery_pipeline.geographic_focus'|trans }}</label>
+                        <select name="location" class="rams-form__select">
                             <option value="">{{ 'discovery_pipeline.all_locations'|trans }}</option>
                             {% for key, label in locations %}
                                 <option value="{{ key }}">{{ label }}</option>
@@ -142,22 +154,22 @@
                         </select>
                     </div>
                     
-                    <div class="rams-stack">
-                        <label class="rams-checkbox">
-                            <input type="checkbox" name="auto_import" checked class="rams-checkbox__input">
-                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.auto_import'|trans }}</span>
+                    <div class="rams-stack rams-gap-2 rams-mb-4">
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="auto_import" checked class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">{{ 'discovery_pipeline.auto_import'|trans }}</span>
                         </label>
-                        <label class="rams-checkbox">
-                            <input type="checkbox" name="enable_deep_scrape" checked class="rams-checkbox__input">
-                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.enable_deep_scrape'|trans }}</span>
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="enable_deep_scrape" checked class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">{{ 'discovery_pipeline.enable_deep_scrape'|trans }}</span>
                         </label>
-                        <label class="rams-checkbox">
-                            <input type="checkbox" name="enable_llm" class="rams-checkbox__input">
-                            <span class="rams-checkbox__label">{{ 'discovery_pipeline.use_llm'|trans }}</span>
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="enable_llm" class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">{{ 'discovery_pipeline.use_llm'|trans }}</span>
                         </label>
                     </div>
                     
-                    <div class="rams-btn-group">
+                    <div class="rams-form__actions">
                         <button type="button" id="preview-btn" class="rams-btn rams-btn--secondary">
                             {{ 'discovery_pipeline.preview_results'|trans }}
                         </button>
@@ -168,9 +180,9 @@
                 </form>
                 
                 {# Results #}
-                <div id="pipeline-results" class="rams-hidden">
+                <div id="pipeline-results" class="rams-hidden rams-mt-4">
                     <h3 class="rams-dymo">{{ 'discovery_pipeline.results'|trans }}</h3>
-                    <div id="results-content" class="rams-module rams-module--muted"></div>
+                    <div id="results-content" class="rams-module rams-module--inset rams-p-4"></div>
                 </div>
             </div>
         </div>
@@ -181,28 +193,32 @@
                 <h2 class="rams-module__title">✨ {{ 'discovery_pipeline.enrich_existing'|trans }}</h2>
             </div>
             <div class="rams-module__content">
-                <p class="rams-text-muted">
+                <p class="rams-text-muted rams-text-sm rams-mb-4">
                     {{ 'discovery_pipeline.enrich_description'|trans }}
                 </p>
                 
                 <form id="enrich-form" class="rams-form">
-                    <div class="rams-form-group">
-                        <label class="rams-label">{{ 'discovery_pipeline.number_of_leads'|trans }}</label>
-                        <input type="number" name="limit" value="50" min="1" max="100" class="rams-input">
-                        <p class="rams-text-muted">{{ 'discovery_pipeline.max_per_batch'|trans }}</p>
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'discovery_pipeline.number_of_leads'|trans }}</label>
+                        <input type="number" name="limit" value="50" min="1" max="100" class="rams-form__input">
+                        <p class="rams-form__hint">{{ 'discovery_pipeline.max_per_batch'|trans }}</p>
                     </div>
                     
-                    <label class="rams-checkbox">
-                        <input type="checkbox" name="enable_llm" class="rams-checkbox__input">
-                        <span class="rams-checkbox__label">{{ 'discovery_pipeline.use_llm'|trans }}</span>
-                    </label>
+                    <div class="rams-form__group">
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="enable_llm" class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">{{ 'discovery_pipeline.use_llm'|trans }}</span>
+                        </label>
+                    </div>
                     
-                    <button type="submit" class="rams-btn rams-btn--primary">
-                        {{ 'discovery_pipeline.start_enrichment'|trans }}
-                    </button>
+                    <div class="rams-form__actions">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            {{ 'discovery_pipeline.start_enrichment'|trans }}
+                        </button>
+                    </div>
                 </form>
                 
-                <div id="enrich-results" class="rams-hidden">
+                <div id="enrich-results" class="rams-hidden rams-mt-4">
                     <div class="rams-alert rams-alert--success"></div>
                 </div>
             </div>
@@ -556,10 +572,10 @@ function exportCustomLeads() {
             <div class="rams-modal__header">
                 <h3 class="rams-modal__title">${i18n.exportTitle}</h3>
             </div>
-            <form id="custom-export-form" class="rams-modal__body rams-stack">
-                <div class="rams-field">
-                    <label class="rams-field__label">${i18n.reviewStatus}</label>
-                    <select name="status" class="rams-input rams-select">
+            <form id="custom-export-form" class="rams-modal__body rams-stack rams-gap-4">
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">${i18n.reviewStatus}</label>
+                    <select name="status" class="rams-form__select">
                         <option value="">${i18n.allStatuses}</option>
                         <option value="pending">${i18n.statusPending}</option>
                         <option value="approved">${i18n.statusApproved}</option>
@@ -568,24 +584,24 @@ function exportCustomLeads() {
                 </div>
                 
                 <div class="rams-grid rams-grid--2">
-                    <div class="rams-field">
-                        <label class="rams-field__label">${i18n.dateFrom}</label>
-                        <input type="date" name="dateFrom" class="rams-input">
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">${i18n.dateFrom}</label>
+                        <input type="date" name="dateFrom" class="rams-form__input">
                     </div>
-                    <div class="rams-field">
-                        <label class="rams-field__label">${i18n.dateTo}</label>
-                        <input type="date" name="dateTo" class="rams-input">
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">${i18n.dateTo}</label>
+                        <input type="date" name="dateTo" class="rams-form__input">
                     </div>
                 </div>
                 
-                <div class="rams-field">
-                    <label class="rams-field__label">${i18n.sectorFilter}</label>
-                    <input type="text" name="sector" placeholder="${i18n.sectorPlaceholder}" class="rams-input">
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">${i18n.sectorFilter}</label>
+                    <input type="text" name="sector" placeholder="${i18n.sectorPlaceholder}" class="rams-form__input">
                 </div>
                 
-                <div class="rams-field">
-                    <label class="rams-field__label">${i18n.region}</label>
-                    <select name="region" class="rams-input rams-select">
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">${i18n.region}</label>
+                    <select name="region" class="rams-form__select">
                         <option value="">${i18n.allRegions}</option>
                         <option value="north_america">${i18n.regionNorthAmerica}</option>
                         <option value="europe">${i18n.regionEurope}</option>
@@ -593,16 +609,18 @@ function exportCustomLeads() {
                     </select>
                 </div>
                 
-                <div class="rams-field rams-stack rams-stack--sm">
-                    <label class="rams-field__label">${i18n.dataFilters}</label>
-                    <label class="rams-checkbox">
-                        <input type="checkbox" name="hasEmails" class="rams-checkbox__input">
-                        <span class="rams-checkbox__label">${i18n.onlyWithEmails}</span>
-                    </label>
-                    <label class="rams-checkbox">
-                        <input type="checkbox" name="hasContactForm" class="rams-checkbox__input">
-                        <span class="rams-checkbox__label">${i18n.onlyWithContactForms}</span>
-                    </label>
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">${i18n.dataFilters}</label>
+                    <div class="rams-stack rams-gap-2">
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="hasEmails" class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">${i18n.onlyWithEmails}</span>
+                        </label>
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="hasContactForm" class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">${i18n.onlyWithContactForms}</span>
+                        </label>
+                    </div>
                 </div>
                 
                 <div class="rams-modal__footer">

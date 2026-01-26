@@ -124,7 +124,7 @@ class ActivityController extends AbstractController
         $activities = $qb->getQuery()->getResult();
 
         // Get filter options
-        $types = ['Call', 'Email', 'Meeting', 'LinkedIn Message', 'LinkedIn InMail', 'LinkedIn Connection Request', 'Follow-up'];
+        $types = ['Call', 'Email', 'Meeting', 'Follow-up', 'Site Visit', 'Demo'];
         
         $companies = $this->companyRepository->createQueryBuilder('c')
             ->orderBy('c.name', 'ASC')

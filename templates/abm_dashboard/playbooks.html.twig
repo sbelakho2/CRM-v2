@@ -3,210 +3,159 @@
 {% block title %}{{ 'abm_dashboard.playbooks'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack">
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
     <div class="rams-page-header">
         <div>
+            <nav class="rams-breadcrumb rams-mb-2">
+                <ol class="rams-breadcrumb__list">
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('abm_dashboard_index') }}" class="rams-breadcrumb__link">{{ 'nav.abm_dashboard'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'abm_dashboard.playbooks'|trans }}</li>
+                </ol>
+            </nav>
             <h1 class="rams-page-title">{{ 'playbook.title'|trans }}</h1>
         </div>
-        <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary">
-            + {{ 'playbook.new_playbook'|trans }}
-        </a>
+        <div class="rams-page-actions">
+            <a href="{{ path('app_playbook_new') }}" class="rams-btn rams-btn--primary">
+                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3V13M3 8H13"/>
+                </svg>
+                {{ 'playbook.new_playbook'|trans }}
+            </a>
+        </div>
     </div>
 
-    <!-- Filter and Search -->
+    {# Filter and Search #}
     <div class="rams-module">
         <div class="rams-module__content">
-            <div class="rams-grid rams-grid--4">
-                <input 
-                    type="text" 
-                    placeholder="{{ 'common.search'|trans }}..." 
-                    class="rams-input"
-                >
-                <select class="rams-select">
-                    <option value="">{{ 'abm_dashboard.all_statuses'|trans }}</option>
-                    <option value="active">{{ 'common.active'|trans }}</option>
-                    <option value="inactive">{{ 'common.inactive'|trans }}</option>
-                    <option value="draft">{{ 'email_campaign.statuses.draft'|trans }}</option>
-                    <option value="archived">{{ 'admin.datasets.archived'|trans }}</option>
-                </select>
-                <select class="rams-select">
-                    <option value="">{{ 'abm_dashboard.industry_all'|trans }}</option>
-                    <option value="technology">{{ 'abm_dashboard.industry_technology'|trans }}</option>
-                    <option value="finance">{{ 'abm_dashboard.industry_finance'|trans }}</option>
-                    <option value="healthcare">{{ 'abm_dashboard.industry_healthcare'|trans }}</option>
-                    <option value="retail">{{ 'abm_dashboard.industry_retail'|trans }}</option>
-                </select>
-                <button class="rams-btn rams-btn--primary">
-                    {{ 'common.filter'|trans }}
-                </button>
-            </div>
+            <form class="rams-form rams-grid rams-grid--4">
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'common.search'|trans }}</label>
+                    <input type="text" placeholder="{{ 'common.search'|trans }}..." class="rams-form__input">
+                </div>
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'common.status'|trans }}</label>
+                    <select class="rams-form__select">
+                        <option value="">{{ 'abm_dashboard.all_statuses'|trans }}</option>
+                        <option value="active">{{ 'common.active'|trans }}</option>
+                        <option value="inactive">{{ 'common.inactive'|trans }}</option>
+                        <option value="draft">{{ 'email_campaign.statuses.draft'|trans }}</option>
+                        <option value="archived">{{ 'admin.datasets.archived'|trans }}</option>
+                    </select>
+                </div>
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'company.industry'|trans }}</label>
+                    <select class="rams-form__select">
+                        <option value="">{{ 'abm_dashboard.industry_all'|trans }}</option>
+                        <option value="technology">{{ 'abm_dashboard.industry_technology'|trans }}</option>
+                        <option value="finance">{{ 'abm_dashboard.industry_finance'|trans }}</option>
+                        <option value="healthcare">{{ 'abm_dashboard.industry_healthcare'|trans }}</option>
+                        <option value="retail">{{ 'abm_dashboard.industry_retail'|trans }}</option>
+                    </select>
+                </div>
+                <div class="rams-form__group rams-form__group--actions">
+                    <button type="submit" class="rams-btn rams-btn--secondary rams-w-full">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="7" cy="7" r="4"/>
+                            <path d="M11 11L14 14"/>
+                        </svg>
+                        {{ 'common.filter'|trans }}
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- Playbooks Grid -->
-    <div class="rams-grid rams-grid--3">
-        <!-- Playbook Card 1 -->
-        <div class="rams-module">
-            <div class="rams-module__header rams-module__header--success">
-                <h3 class="rams-module__title">{{ 'abm_dashboard.sample_playbook_1_title'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': 2}) }}</p>
-            </div>
-            <div class="rams-module__content">
-                <div class="rams-stack">
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'common.status'|trans }}</span>
-                        <span class="rams-badge rams-badge--success">{{ 'common.active'|trans }}</span>
+    {# Playbooks Grid #}
+    <div class="rams-grid rams-grid--3 rams-gap-6">
+        {% set sample_playbooks = [
+            {'title': 'abm_dashboard.sample_playbook_1_title'|trans, 'weeks': 2, 'status': 'active', 'accounts': 24, 'success': 68},
+            {'title': 'abm_dashboard.sample_playbook_2_title'|trans, 'weeks': 4, 'status': 'active', 'accounts': 18, 'success': 52},
+            {'title': 'abm_dashboard.sample_playbook_3_title'|trans, 'weeks': 1, 'status': 'draft', 'accounts': 12, 'success': 0},
+            {'title': 'abm_dashboard.sample_playbook_4_title'|trans, 'weeks': 3, 'status': 'inactive', 'accounts': 31, 'success': 45}
+        ] %}
+
+        {% for p in sample_playbooks %}
+            <div class="rams-module rams-module--hoverable">
+                <div class="rams-module__header">
+                    <div>
+                        <h3 class="rams-heading rams-heading--3 rams-mb-1">{{ p.title }}</h3>
+                        <p class="rams-text--muted rams-text--xs rams-font-mono uppercase">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': p.weeks}) }}</p>
                     </div>
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'playbook.target_accounts'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[0].account_count | default(24) }} {{ 'abm_dashboard.accounts_label'|trans }}</span>
-                    </div>
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[0].success_rate | default(68) }}%</span>
+                    <span class="rams-badge {% if p.status == 'active' %}rams-badge--success{% elseif p.status == 'draft' %}rams-badge--warning{% endif %}">
+                        {{ (p.status == 'active' ? 'common.active' : (p.status == 'draft' ? 'email_campaign.statuses.draft' : 'common.inactive'))|trans }}
+                    </span>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-stack rams-gap-4">
+                        <div class="rams-metric">
+                            <span class="rams-metric__label">{{ 'playbook.target_accounts'|trans }}</span>
+                            <span class="rams-metric__value rams-text--lg">{{ p.accounts }} <span class="rams-text--xs rams-font-mono uppercase rams-text--muted">{{ 'abm_dashboard.accounts_label'|trans }}</span></span>
+                        </div>
+                        <div class="rams-metric">
+                            <span class="rams-metric__label">{{ 'playbook.success_rate'|trans }}</span>
+                            <span class="rams-metric__value rams-text--lg {% if p.success >= 60 %}rams-text--success{% elseif p.success >= 40 %}rams-text--info{% endif %}">{{ p.success }}%</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="rams-module__footer">
-                <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--secondary">
-                    {{ 'common.view'|trans }}
-                </a>
-                <a href="{{ path('app_email_campaign_index') }}" class="rams-btn rams-btn--ghost">
-                    {{ 'common.edit'|trans }}
-                </a>
-            </div>
-        </div>
-
-        <!-- Playbook Card 2 -->
-        <div class="rams-module">
-            <div class="rams-module__header rams-module__header--warning">
-                <h3 class="rams-module__title">{{ 'abm_dashboard.sample_playbook_2_title'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': 4}) }}</p>
-            </div>
-            <div class="rams-module__content">
-                <div class="rams-stack">
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'common.status'|trans }}</span>
-                        <span class="rams-badge rams-badge--success">{{ 'common.active'|trans }}</span>
-                    </div>
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'playbook.target_accounts'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[1].account_count | default(18) }} {{ 'abm_dashboard.accounts_label'|trans }}</span>
-                    </div>
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[1].success_rate | default(52) }}%</span>
-                    </div>
+                <div class="rams-module__footer rams-flex rams-gap-2">
+                    <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--secondary rams-btn--sm rams-flex-1">
+                        {{ 'common.view'|trans }}
+                    </a>
+                    <a href="{{ path('app_email_campaign_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                        <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
+                        </svg>
+                    </a>
                 </div>
             </div>
-            <div class="rams-module__footer">
-                <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--secondary">
-                    {{ 'common.view'|trans }}
-                </a>
-                <a href="{{ path('app_email_campaign_index') }}" class="rams-btn rams-btn--ghost">
-                    {{ 'common.edit'|trans }}
-                </a>
-            </div>
-        </div>
+        {% endfor %}
 
-        <!-- Playbook Card 3 -->
-        <div class="rams-module">
-            <div class="rams-module__header rams-module__header--info">
-                <h3 class="rams-module__title">{{ 'abm_dashboard.sample_playbook_3_title'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': 1}) }}</p>
-            </div>
-            <div class="rams-module__content">
-                <div class="rams-stack">
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'common.status'|trans }}</span>
-                        <span class="rams-badge rams-badge--warning">{{ 'email_campaign.statuses.draft'|trans }}</span>
-                    </div>
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'playbook.target_accounts'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[2].account_count | default(12) }} {{ 'abm_dashboard.accounts_label'|trans }}</span>
-                    </div>
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[2].success_rate | default(0) }}%</span>
-                    </div>
-                </div>
-            </div>
-            <div class="rams-module__footer">
-                <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--secondary">
-                    {{ 'common.view'|trans }}
-                </a>
-                <a href="{{ path('app_email_campaign_index') }}" class="rams-btn rams-btn--ghost">
-                    {{ 'common.edit'|trans }}
-                </a>
-            </div>
-        </div>
-
-        <!-- Playbook Card 4 -->
-        <div class="rams-module">
-            <div class="rams-module__header rams-module__header--danger">
-                <h3 class="rams-module__title">{{ 'abm_dashboard.sample_playbook_4_title'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'abm_dashboard.created_weeks_ago'|trans({'%count%': 3}) }}</p>
-            </div>
-            <div class="rams-module__content">
-                <div class="rams-stack">
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'common.status'|trans }}</span>
-                        <span class="rams-badge">{{ 'common.inactive'|trans }}</span>
-                    </div>
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'playbook.target_accounts'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[3].account_count | default(31) }} {{ 'abm_dashboard.accounts_label'|trans }}</span>
-                    </div>
-                    <div class="rams-metric">
-                        <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
-                        <span class="rams-metric__value">{{ playbooks[3].success_rate | default(45) }}%</span>
-                    </div>
-                </div>
-            </div>
-            <div class="rams-module__footer">
-                <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--secondary">
-                    {{ 'common.view'|trans }}
-                </a>
-                <a href="{{ path('app_email_campaign_index') }}" class="rams-btn rams-btn--ghost">
-                    {{ 'common.edit'|trans }}
-                </a>
-            </div>
-        </div>
-
-        <!-- Create New Playbook Card -->
-        <a href="{{ path('app_playbook_new') }}" class="rams-module rams-module--dashed rams-module--clickable">
+        {# Create New Playbook Card #}
+        <a href="{{ path('app_playbook_new') }}" class="rams-module rams-module--hoverable rams-flex rams-items-center rams-justify-center rams-p-8" style="text-decoration:none; border-style: dashed;">
             <div class="rams-empty-state">
-                <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                <svg class="rams-empty-state__icon" width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M8 3V13M3 8H13"/>
                 </svg>
-                <h3 class="rams-empty-state__title">{{ 'playbook.new_playbook'|trans }}</h3>
-                <p class="rams-empty-state__text">{{ 'playbook.create_first'|trans }}</p>
+                <h3 class="rams-empty-state__title rams-mt-4">{{ 'playbook.new_playbook'|trans }}</h3>
+                <p class="rams-empty-state__description">{{ 'playbook.create_first'|trans }}</p>
             </div>
         </a>
     </div>
 
-    <!-- Playbook Performance Overview -->
+    {# Playbook Performance Overview #}
     <div class="rams-module">
         <div class="rams-module__header">
             <h2 class="rams-module__title">{{ 'abm_dashboard.performance_overview'|trans }}</h2>
         </div>
         <div class="rams-module__content">
-            <div class="rams-grid rams-grid--4">
-                <div class="rams-metric">
-                    <span class="rams-dymo">{{ 'abm_dashboard.total_accounts'|trans }}</span>
-                    <span class="rams-metric__value rams-metric__value--lg">85</span>
+            <div class="rams-grid rams-grid--4 rams-gap-4">
+                <div class="rams-module rams-module--inset rams-p-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'abm_dashboard.total_accounts'|trans }}</span>
+                        <span class="rams-metric__value rams-text--2xl">85</span>
+                    </div>
                 </div>
-                <div class="rams-metric">
-                    <span class="rams-dymo">{{ 'abm_dashboard.active_playbooks'|trans }}</span>
-                    <span class="rams-metric__value rams-metric__value--lg rams-text-success">3</span>
+                <div class="rams-module rams-module--inset rams-p-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'abm_dashboard.active_playbooks'|trans }}</span>
+                        <span class="rams-metric__value rams-text--2xl rams-text--success">3</span>
+                    </div>
                 </div>
-                <div class="rams-metric">
-                    <span class="rams-dymo">{{ 'abm_dashboard.avg_label'|trans }} {{ 'playbook.success_rate'|trans }}</span>
-                    <span class="rams-metric__value rams-metric__value--lg rams-text-info">55%</span>
+                <div class="rams-module rams-module--inset rams-p-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'abm_dashboard.avg_label'|trans }} {{ 'playbook.success_rate'|trans }}</span>
+                        <span class="rams-metric__value rams-text--2xl rams-text--info">55%</span>
+                    </div>
                 </div>
-                <div class="rams-metric">
-                    <span class="rams-dymo">{{ 'abm_dashboard.conversion_rate'|trans }}</span>
-                    <span class="rams-metric__value rams-metric__value--lg">12%</span>
+                <div class="rams-module rams-module--inset rams-p-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'abm_dashboard.conversion_rate'|trans }}</span>
+                        <span class="rams-metric__value rams-text--2xl">12%</span>
+                    </div>
                 </div>
             </div>
         </div>

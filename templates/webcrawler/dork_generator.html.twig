@@ -3,63 +3,65 @@
 {% block title %}{{ 'webcrawler.dork_generator'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-module">
-    <div class="rams-module__header">
-        <div class="rams-breadcrumb">
-            <a href="{{ path('app_webcrawler_index') }}" class="rams-breadcrumb__link">{{ 'webcrawler.title'|trans }}</a>
-            <span class="rams-breadcrumb__separator">/</span>
-            <span class="rams-breadcrumb__current">{{ 'webcrawler.dork_generator'|trans }}</span>
-        </div>
-        
-        <div class="rams-module__header-content">
-            <h1 class="rams-module__title">{{ 'webcrawler.dork_generator'|trans }}</h1>
-            <p class="rams-module__subtitle">{{ 'webcrawler.dork_generator_subtitle'|trans }}</p>
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <nav class="rams-breadcrumb rams-mb-2">
+                <ol class="rams-breadcrumb__list">
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_webcrawler_index') }}" class="rams-breadcrumb__link">{{ 'webcrawler.title'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'webcrawler.dork_generator'|trans }}</li>
+                </ol>
+            </nav>
+            <h1 class="rams-page-title">{{ 'webcrawler.dork_generator'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'webcrawler.dork_generator_subtitle'|trans }}</p>
         </div>
     </div>
 
-    <div class="rams-module__content">
-        <!-- Quick Generator -->
-        <div class="rams-module rams-module--nested">
-            <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.quick_generator'|trans }}</h2>
-            </div>
-            
-            <div class="rams-module__content">
-                <div class="rams-form__row rams-form__row--2">
-                    <div class="rams-form__group">
-                        <label class="rams-form__label">{{ 'webcrawler.company_domain'|trans }}</label>
-                        <input type="text" id="domain-input" placeholder="{{ 'webcrawler.domain_placeholder'|trans }}" class="rams-form__input">
-                    </div>
-                    
-                    <div class="rams-form__group">
-                        <label class="rams-form__label">{{ 'company.sector'|trans }}</label>
-                        <select id="sector-input" class="rams-form__select">
-                            <option value="">{{ 'common.select'|trans }}...</option>
-                            {% for sector in sectors %}
-                                <option value="{{ sector }}">{{ sector }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div id="generated-dorks" class="rams-dork-list"></div>
-            </div>
+    {# Quick Generator #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'webcrawler.quick_generator'|trans }}</h2>
         </div>
-
-        <!-- Dork Templates -->
-        <div class="rams-module rams-module--nested">
-            <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.dork_templates'|trans }}</h2>
+        
+        <div class="rams-module__content">
+            <div class="rams-form rams-grid rams-grid--2">
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'webcrawler.company_domain'|trans }}</label>
+                    <input type="text" id="domain-input" placeholder="{{ 'webcrawler.domain_placeholder'|trans }}" class="rams-form__input">
+                </div>
+                
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'company.sector'|trans }}</label>
+                    <select id="sector-input" class="rams-form__select">
+                        <option value="">{{ 'common.select'|trans }}...</option>
+                        {% for sector in sectors %}
+                            <option value="{{ sector }}">{{ sector }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
-            
-            <div class="rams-module__content">
+
+            <div id="generated-dorks" class="rams-stack rams-gap-2 rams-mt-4"></div>
+        </div>
+    </div>
+
+    {# Dork Templates #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'webcrawler.dork_templates'|trans }}</h2>
+        </div>
+        
+        <div class="rams-module__content">
+            <div class="rams-stack rams-gap-6">
                 {% for category, templates in dork_templates %}
-                    <div class="rams-template-group">
-                        <h3 class="rams-template-group__title">{{ category }}</h3>
-                        <div class="rams-template-list">
+                    <div>
+                        <h3 class="rams-dymo rams-mb-2">{{ category }}</h3>
+                        <div class="rams-stack rams-gap-2">
                             {% for template in templates %}
-                                <div class="rams-template-item">
-                                    <code class="rams-template-item__code">{{ template }}</code>
+                                <div class="rams-flex rams-justify-between rams-items-center rams-p-2 rams-bg-panel rams-border rams-rounded">
+                                    <code class="rams-text-xs">{{ template }}</code>
                                     <button onclick="copyDork('{{ template|escape('js') }}')" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.copy'|trans }}</button>
                                 </div>
                             {% endfor %}
@@ -68,11 +70,13 @@
                 {% endfor %}
             </div>
         </div>
+    </div>
 
-        <!-- Advanced Tips -->
-        <div class="rams-alert rams-alert--info">
-            <h3 class="rams-alert__title">{{ 'webcrawler.dork_tips_title'|trans }}</h3>
-            <ul class="rams-alert__list">
+    {# Advanced Tips #}
+    <div class="rams-module rams-module--info">
+        <div class="rams-module__content">
+            <h3 class="rams-module__title rams-mb-3">💡 {{ 'webcrawler.dork_tips_title'|trans }}</h3>
+            <ul class="rams-stack rams-gap-1 rams-text-xs rams-text-muted" style="list-style: none;">
                 <li>• <code>{{ 'webcrawler.tip_code_site'|trans }}</code> - {{ 'webcrawler.tip_site'|trans }}</li>
                 <li>• <code>{{ 'webcrawler.tip_code_inurl'|trans }}</code> - {{ 'webcrawler.tip_inurl'|trans }}</li>
                 <li>• <code>{{ 'webcrawler.tip_code_intitle'|trans }}</code> - {{ 'webcrawler.tip_intitle'|trans }}</li>
@@ -82,42 +86,42 @@
                 <li>• <code>{{ 'webcrawler.tip_code_filetype_pdf'|trans }}</code> - {{ 'webcrawler.tip_filetype'|trans }}</li>
             </ul>
         </div>
+    </div>
 
-        <!-- Example Searches -->
-        <div class="rams-module rams-module--nested">
-            <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'webcrawler.example_searches'|trans }}</h2>
-            </div>
-            
-            <div class="rams-module__content">
-                <div class="rams-example-list">
-                    <div class="rams-example-item">
-                        <div class="rams-example-item__label">{{ 'webcrawler.example_automotive'|trans }}</div>
-                        <code class="rams-example-item__code">
-                            {{ 'webcrawler.example_query_automotive'|trans }}
-                        </code>
-                    </div>
-                    
-                    <div class="rams-example-item">
-                        <div class="rams-example-item__label">{{ 'webcrawler.example_supplier_portals'|trans }}</div>
-                        <code class="rams-example-item__code">
-                            {{ 'webcrawler.example_query_supplier_portals'|trans }}
-                        </code>
-                    </div>
-                    
-                    <div class="rams-example-item">
-                        <div class="rams-example-item__label">{{ 'webcrawler.example_aerospace'|trans }}</div>
-                        <code class="rams-example-item__code">
-                            {{ 'webcrawler.example_query_aerospace'|trans }}
-                        </code>
-                    </div>
-                    
-                    <div class="rams-example-item">
-                        <div class="rams-example-item__label">{{ 'webcrawler.example_electronics'|trans }}</div>
-                        <code class="rams-example-item__code">
-                            {{ 'webcrawler.example_query_electronics'|trans }}
-                        </code>
-                    </div>
+    {# Example Searches #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'webcrawler.example_searches'|trans }}</h2>
+        </div>
+        
+        <div class="rams-module__content">
+            <div class="rams-grid rams-grid--2 rams-gap-4">
+                <div class="rams-p-3 rams-border rams-rounded">
+                    <div class="rams-dymo rams-mb-1">{{ 'webcrawler.example_automotive'|trans }}</div>
+                    <code class="rams-text-xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
+                        {{ 'webcrawler.example_query_automotive'|trans }}
+                    </code>
+                </div>
+                
+                <div class="rams-p-3 rams-border rams-rounded">
+                    <div class="rams-dymo rams-mb-1">{{ 'webcrawler.example_supplier_portals'|trans }}</div>
+                    <code class="rams-text-xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
+                        {{ 'webcrawler.example_query_supplier_portals'|trans }}
+                    </code>
+                </div>
+                
+                <div class="rams-p-3 rams-border rams-rounded">
+                    <div class="rams-dymo rams-mb-1">{{ 'webcrawler.example_aerospace'|trans }}</div>
+                    <code class="rams-text-xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
+                        {{ 'webcrawler.example_query_aerospace'|trans }}
+                    </code>
+                </div>
+                
+                <div class="rams-p-3 rams-border rams-rounded">
+                    <div class="rams-dymo rams-mb-1">{{ 'webcrawler.example_electronics'|trans }}</div>
+                    <code class="rams-text-xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
+                        {{ 'webcrawler.example_query_electronics'|trans }}
+                    </code>
                 </div>
             </div>
         </div>
@@ -145,7 +149,6 @@ function generateDorks() {
         domainSupplierPortal: "{{ 'webcrawler.dork_domain_supplier_portal'|trans|e('js') }}",
         domainVendorRegistration: "{{ 'webcrawler.dork_domain_vendor_registration'|trans|e('js') }}",
         domainContactProcurement: "{{ 'webcrawler.dork_domain_contact_procurement'|trans|e('js') }}",
-        domainLinkedin: "{{ 'webcrawler.dork_domain_linkedin'|trans|e('js') }}",
         sectorSupplierManufacturer: "{{ 'webcrawler.dork_sector_supplier_manufacturer'|trans|e('js') }}",
         sectorFreeZoneSupplier: "{{ 'webcrawler.dork_sector_free_zone_supplier'|trans|e('js') }}",
         domainSectorContact: "{{ 'webcrawler.dork_domain_sector_contact'|trans|e('js') }}"
@@ -169,7 +172,6 @@ function generateDorks() {
         dorks.push(replaceTokens(dorkTemplates.domainSupplierPortal, tokenMap.domain, domain));
         dorks.push(replaceTokens(dorkTemplates.domainVendorRegistration, tokenMap.domain, domain));
         dorks.push(replaceTokens(dorkTemplates.domainContactProcurement, tokenMap.domain, domain));
-        dorks.push(replaceTokens(dorkTemplates.domainLinkedin, tokenMap.company, companyName));
     }
     
     if (sector) {

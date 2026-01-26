@@ -3,149 +3,133 @@
 {% block title %}{{ 'email_campaign.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-page">
-    <div class="rams-page__container">
-        
-        {# Header #}
-        <div class="rams-page__header">
-            <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ 'email_campaign.title'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'email_campaign.subtitle'|trans }}</p>
-            </div>
-            <div class="rams-page__actions">
-                <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary">
-                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    {{ 'email_campaign.new_campaign'|trans }}
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'email_campaign.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'email_campaign.subtitle'|trans }}</p>
+        </div>
+        <div class="rams-page-actions">
+            <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                {{ 'email_campaign.new_campaign'|trans }}
+            </a>
+        </div>
+    </div>
+
+    {# Filters #}
+    <div class="rams-flex rams-flex-wrap rams-gap-4">
+        <div class="rams-segmented-control">
+            <a href="{{ path('app_email_campaign_index', {status: 'all', language: currentLanguage}) }}" 
+               class="rams-segmented-control__item {{ currentStatus == 'all' ? 'rams-segmented-control__item--active' : '' }}">
+                {{ 'common.all'|trans }}
+            </a>
+            <a href="{{ path('app_email_campaign_index', {status: 'active', language: currentLanguage}) }}" 
+               class="rams-segmented-control__item {{ currentStatus == 'active' ? 'rams-segmented-control__item--active' : '' }}">
+                {{ 'common.active'|trans }}
+            </a>
+            <a href="{{ path('app_email_campaign_index', {status: 'inactive', language: currentLanguage}) }}" 
+               class="rams-segmented-control__item {{ currentStatus == 'inactive' ? 'rams-segmented-control__item--active' : '' }}">
+                {{ 'common.inactive'|trans }}
+            </a>
+        </div>
+
+        <div class="rams-segmented-control">
+            <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'all'}) }}" 
+               class="rams-segmented-control__item {{ currentLanguage == 'all' ? 'rams-segmented-control__item--active' : '' }}">
+                {{ 'email_campaign.all_languages'|trans }}
+            </a>
+            <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'EN'}) }}" 
+               class="rams-segmented-control__item {{ currentLanguage == 'EN' ? 'rams-segmented-control__item--active' : '' }}">
+                {{ 'language.short.en'|trans }}
+            </a>
+            <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'FR'}) }}" 
+               class="rams-segmented-control__item {{ currentLanguage == 'FR' ? 'rams-segmented-control__item--active' : '' }}">
+                {{ 'language.short.fr'|trans }}
+            </a>
+        </div>
+    </div>
+
+    {# Campaigns List #}
+    {% if campaigns is empty %}
+        <div class="rams-module">
+            <div class="rams-module__content rams-empty-state">
+                <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <h3 class="rams-empty-state__title">{{ 'email_campaign.no_campaigns'|trans }}</h3>
+                <p class="rams-empty-state__description">{{ 'email_campaign.create_first'|trans }}</p>
+                <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary rams-mt-4">
+                    {{ 'email_campaign.create_campaign'|trans }}
                 </a>
             </div>
         </div>
-
-        {# Filters #}
-        <div class="rams-filter-bar">
-            <div class="rams-segmented-control">
-                <a href="{{ path('app_email_campaign_index', {status: 'all', language: currentLanguage}) }}" 
-                   class="rams-segmented-control__item {{ currentStatus == 'all' ? 'rams-segmented-control__item--active' : '' }}">
-                    {{ 'common.all'|trans }}
-                </a>
-                <a href="{{ path('app_email_campaign_index', {status: 'active', language: currentLanguage}) }}" 
-                   class="rams-segmented-control__item {{ currentStatus == 'active' ? 'rams-segmented-control__item--active' : '' }}">
-                    {{ 'common.active'|trans }}
-                </a>
-                <a href="{{ path('app_email_campaign_index', {status: 'inactive', language: currentLanguage}) }}" 
-                   class="rams-segmented-control__item {{ currentStatus == 'inactive' ? 'rams-segmented-control__item--active' : '' }}">
-                    {{ 'common.inactive'|trans }}
-                </a>
-            </div>
-
-            <div class="rams-segmented-control">
-                <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'all'}) }}" 
-                   class="rams-segmented-control__item {{ currentLanguage == 'all' ? 'rams-segmented-control__item--active' : '' }}">
-                    {{ 'email_campaign.all_languages'|trans }}
-                </a>
-                <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'EN'}) }}" 
-                   class="rams-segmented-control__item {{ currentLanguage == 'EN' ? 'rams-segmented-control__item--active' : '' }}">
-                    {{ 'language.short.en'|trans }}
-                </a>
-                <a href="{{ path('app_email_campaign_index', {status: currentStatus, language: 'FR'}) }}" 
-                   class="rams-segmented-control__item {{ currentLanguage == 'FR' ? 'rams-segmented-control__item--active' : '' }}">
-                    {{ 'language.short.fr'|trans }}
-                </a>
-            </div>
-        </div>
-
-        {# Campaigns List #}
-        {% if campaigns is empty %}
-            <div class="rams-module">
-                <div class="rams-module__content rams-empty-state">
-                    <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                    </svg>
-                    <h3 class="rams-empty-state__title">{{ 'email_campaign.no_campaigns'|trans }}</h3>
-                    <p class="rams-empty-state__description">{{ 'email_campaign.create_first'|trans }}</p>
-                    <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        {{ 'email_campaign.create_campaign'|trans }}
-                    </a>
-                </div>
-            </div>
-        {% else %}
-            <div class="rams-grid rams-grid--1">
-                {% for campaign in campaigns %}
-                    {% set metrics = campaignMetrics[campaign.id] %}
-                    <div class="rams-module rams-module--interactive">
-                        <div class="rams-module__content">
-                            <div class="rams-module__header-row">
-                                <div class="rams-module__header-content">
-                                    <div class="rams-module__title-row">
-                                        <h3 class="rams-module__title">
-                                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-link">
-                                                {{ campaign.name }}
-                                            </a>
-                                        </h3>
-                                        <span class="rams-badge {{ campaign.active ? 'rams-badge--success' : 'rams-badge--neutral' }}">
-                                            {{ campaign.active ? 'common.active'|trans : 'common.inactive'|trans }}
-                                        </span>
-                                        <span class="rams-badge rams-badge--info">
-                                            {{ campaign.language }}
-                                        </span>
-                                    </div>
-                                    {% if campaign.description %}
-                                        <p class="rams-module__description">{{ campaign.description }}</p>
-                                    {% endif %}
-                                    <span class="rams-dymo">{{ campaign.touchCount }}-{{ 'email_campaign.touch_sequence'|trans }}</span>
+    {% else %}
+        <div class="rams-grid rams-grid--1">
+            {% for campaign in campaigns %}
+                {% set metrics = campaignMetrics[campaign.id] %}
+                <div class="rams-module rams-module--hoverable" onclick="location.href='{{ path('app_email_campaign_show', {id: campaign.id}) }}'">
+                    <div class="rams-module__content">
+                        <div class="rams-flex rams-justify-between rams-items-start rams-mb-6">
+                            <div>
+                                <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
+                                    <h3 class="rams-heading rams-heading--3">{{ campaign.name }}</h3>
+                                    <span class="rams-badge {{ campaign.active ? 'rams-badge--success' : '' }}">
+                                        {{ (campaign.active ? 'common.active' : 'common.inactive')|trans }}
+                                    </span>
+                                    <span class="rams-badge rams-badge--info">
+                                        {{ campaign.language }}
+                                    </span>
                                 </div>
+                                {% if campaign.description %}
+                                    <p class="rams-text-muted rams-text-sm">{{ campaign.description }}</p>
+                                {% endif %}
+                                <span class="rams-dymo rams-mt-2">{{ campaign.touchCount }}-{{ 'email_campaign.touch_sequence'|trans }}</span>
                             </div>
-
-                            {# Metrics Grid #}
-                            <div class="rams-metrics-row">
-                                <div class="rams-metric">
-                                    <span class="rams-metric__value">{{ metrics.total_sent }}</span>
-                                    <span class="rams-metric__label">{{ 'email_campaign.total_sent'|trans }}</span>
-                                </div>
-                                <div class="rams-metric rams-metric--success">
-                                    <span class="rams-metric__value">{{ metrics.open_rate|number_format(1) }}%</span>
-                                    <span class="rams-metric__label">{{ 'email_campaign.open_rate'|trans }}</span>
-                                </div>
-                                <div class="rams-metric rams-metric--info">
-                                    <span class="rams-metric__value">{{ metrics.click_rate|number_format(1) }}%</span>
-                                    <span class="rams-metric__label">{{ 'email_campaign.click_rate'|trans }}</span>
-                                </div>
-                                <div class="rams-metric rams-metric--primary">
-                                    <span class="rams-metric__value">{{ metrics.reply_rate|number_format(1) }}%</span>
-                                    <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans }}</span>
-                                </div>
-                                <div class="rams-metric rams-metric--danger">
-                                    <span class="rams-metric__value">{{ metrics.bounce_rate|number_format(1) }}%</span>
-                                    <span class="rams-metric__label">{{ 'email_campaign.bounce_rate'|trans }}</span>
-                                </div>
+                            
+                            <div class="rams-btn-group" onclick="event.stopPropagation()">
+                                <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                    {{ 'email_campaign.send_emails'|trans }}
+                                </a>
+                                <a href="{{ path('app_email_campaign_analytics', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                    {{ 'email_campaign.analytics.title'|trans }}
+                                </a>
+                                <a href="{{ path('app_email_campaign_edit', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                    {{ 'common.edit'|trans }}
+                                </a>
                             </div>
+                        </div>
 
-                            {# Actions #}
-                            <div class="rams-module__footer">
-                                <div class="rams-action-links">
-                                    <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-action-link">
-                                        {{ 'common.view'|trans }} {{ 'common.details'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-action-link">
-                                        {{ 'email_campaign.send_emails'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_email_campaign_analytics', {id: campaign.id}) }}" class="rams-action-link">
-                                        {{ 'email_campaign.analytics.title'|trans }}
-                                    </a>
-                                    <a href="{{ path('app_email_campaign_edit', {id: campaign.id}) }}" class="rams-action-link">
-                                        {{ 'common.edit'|trans }}
-                                    </a>
-                                </div>
+                        {# Metrics Grid #}
+                        <div class="rams-grid rams-grid--5 rams-gap-4">
+                            <div class="rams-metric">
+                                <span class="rams-metric__label">{{ 'email_campaign.total_sent'|trans }}</span>
+                                <span class="rams-metric__value rams-text-lg">{{ metrics.total_sent }}</span>
+                            </div>
+                            <div class="rams-metric">
+                                <span class="rams-metric__label">{{ 'email_campaign.open_rate'|trans }}</span>
+                                <span class="rams-metric__value rams-text-lg rams-text-success">{{ metrics.open_rate|number_format(1) }}%</span>
+                            </div>
+                            <div class="rams-metric">
+                                <span class="rams-metric__label">{{ 'email_campaign.click_rate'|trans }}</span>
+                                <span class="rams-metric__value rams-text-lg rams-text-info">{{ metrics.click_rate|number_format(1) }}%</span>
+                            </div>
+                            <div class="rams-metric">
+                                <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans }}</span>
+                                <span class="rams-metric__value rams-text-lg rams-text-primary">{{ metrics.reply_rate|number_format(1) }}%</span>
+                            </div>
+                            <div class="rams-metric">
+                                <span class="rams-metric__label">{{ 'email_campaign.bounce_rate'|trans }}</span>
+                                <span class="rams-metric__value rams-text-lg rams-text-danger">{{ metrics.bounce_rate|number_format(1) }}%</span>
                             </div>
                         </div>
                     </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

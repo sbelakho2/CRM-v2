@@ -3,53 +3,62 @@
 {% block title %}{{ 'lead_discovery.results'|trans }} - {{ 'lead_discovery.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-page">
-    <div class="rams-page__container">
-        
-        {# Header #}
-        <div class="rams-page__header">
-            <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ 'lead_discovery.results'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'lead_discovery.query_label'|trans }}: <span class="rams-text--bold">{{ query }}</span></p>
-            </div>
-            <div class="rams-page__actions">
-                <a href="{{ path('lead_discovery_index') }}" class="rams-btn rams-btn--secondary">
-                    {{ 'lead_discovery.new_search'|trans }}
-                </a>
-            </div>
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'lead_discovery.results'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'lead_discovery.query_label'|trans }}: <span class="rams-text-bold">{{ query }}</span></p>
         </div>
+        <div class="rams-page-actions">
+            <a href="{{ path('lead_discovery_index') }}" class="rams-btn rams-btn--secondary">
+                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4L13 8L11 12M5 4L3 8L5 12"/>
+                </svg>
+                {{ 'lead_discovery.new_search'|trans }}
+            </a>
+        </div>
+    </div>
 
-        {# Stats #}
-        <div class="rams-metrics-grid rams-metrics-grid--4col">
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead_discovery.results_found'|trans }}</span>
-                    <span class="rams-metric rams-metric--info">{{ results|length }}</span>
-                </div>
-            </div>
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead_discovery.search_time'|trans }}</span>
-                    <span class="rams-metric rams-metric--success">{{ searchTime|number_format(2) }}s</span>
-                </div>
-            </div>
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead_discovery.queries_used'|trans }}</span>
-                    <span class="rams-metric rams-metric--warning">{{ quota.total_queries }}</span>
-                </div>
-            </div>
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead_discovery.estimated_cost'|trans }}</span>
-                            <span class="rams-metric">{{ quota.estimated_cost|format_currency(quota.currency|default(display_currency()), null, 2) }}</span>
+    {# Stats #}
+    <div class="rams-grid rams-grid--4">
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.results_found'|trans }}</span>
+                    <span class="rams-metric__value rams-text-info">{{ results|length }}</span>
                 </div>
             </div>
         </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.search_time'|trans }}</span>
+                    <span class="rams-metric__value rams-text-success">{{ searchTime|number_format(2) }}s</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.queries_used'|trans }}</span>
+                    <span class="rams-metric__value rams-text-warning">{{ quota.total_queries }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.estimated_cost'|trans }}</span>
+                    <span class="rams-metric__value">{{ quota.estimated_cost|format_currency(quota.currency|default(display_currency()), null, 2) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
         {% if results is empty %}
             <div class="rams-module">
-                <div class="rams-module__content rams-empty-state rams-empty-state--warning">
+                <div class="rams-module__content rams-empty-state">
                     <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                     </svg>
@@ -59,31 +68,34 @@
             </div>
         {% else %}
             {# Import Actions #}
-            <div class="rams-module rams-module--compact">
+            <div class="rams-module rams-mb-4">
                 <div class="rams-module__content">
-                    <form method="post" action="{{ path('lead_discovery_import') }}" id="importForm" class="rams-form rams-form--inline">
-                        <div class="rams-form__group rams-form__group--inline">
-                            <label class="rams-checkbox">
-                                <input type="checkbox" id="selectAll" class="rams-checkbox__input">
-                                <span class="rams-checkbox__label">{{ 'lead_discovery.select_all'|trans }}</span>
+                    <form method="post" action="{{ path('lead_discovery_import') }}" id="importForm" class="rams-form rams-flex rams-justify-between rams-items-center">
+                        <div class="rams-flex rams-items-center rams-gap-4">
+                            <label class="rams-form__checkbox-container">
+                                <input type="checkbox" id="selectAll" class="rams-form__checkbox-input">
+                                <span class="rams-form__checkbox-label">{{ 'lead_discovery.select_all'|trans }}</span>
                             </label>
-                            <span class="rams-text--muted">
+                            <span class="rams-badge">
                                 <span id="selectedCount">0</span> {{ 'lead_discovery.selected'|trans }}
                             </span>
                         </div>
-                        <div class="rams-form__actions">
+                        <div class="rams-btn-group">
                             <button 
                                 type="submit" 
                                 class="rams-btn rams-btn--primary"
                                 id="importSelected"
                                 disabled
                             >
+                                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 12V2M4 6L8 2L12 6"/>
+                                </svg>
                                 {{ 'lead_discovery.import_selected'|trans }}
                             </button>
                             <button 
                                 type="button" 
                                 onclick="document.getElementById('importAllForm').submit()"
-                                class="rams-btn rams-btn--success"
+                                class="rams-btn rams-btn--secondary"
                             >
                                 {{ 'lead_discovery.import_all'|trans }}
                             </button>
@@ -96,44 +108,45 @@
             <form method="post" action="{{ path('lead_discovery_import_all') }}" id="importAllForm" class="rams-hidden"></form>
 
             {# Results List #}
-            <div class="rams-list">
+            <div class="rams-grid rams-grid--1">
                 {% for index, result in results %}
-                    <div class="rams-module rams-module--interactive">
+                    <div class="rams-module rams-module--hoverable">
                         <div class="rams-module__content">
-                            <div class="rams-list__item rams-list__item--selectable">
-                                <div class="rams-list__checkbox">
+                            <div class="rams-flex rams-gap-4">
+                                <div class="rams-pt-1">
                                     <input 
                                         type="checkbox" 
                                         name="selected[]" 
                                         value="{{ index }}" 
                                         form="importForm"
-                                        class="result-checkbox rams-checkbox__input"
+                                        class="result-checkbox rams-form__checkbox-input"
                                     >
                                 </div>
-                                <div class="rams-list__content">
-                                    <h3 class="rams-list__title">
-                                        {{ result.title|raw }}
-                                    </h3>
-                                    <a 
-                                        href="{{ result.link }}" 
-                                        target="_blank" 
-                                        class="rams-link rams-link--with-icon"
-                                    >
-                                        {{ result.displayLink }}
-                                        <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                                        </svg>
-                                    </a>
-                                    <p class="rams-list__description">
+                                <div class="rams-flex-1">
+                                    <div class="rams-flex rams-justify-between rams-items-start rams-mb-2">
+                                        <h3 class="rams-heading rams-heading--3">
+                                            {{ result.title|raw }}
+                                        </h3>
+                                        <a 
+                                            href="{{ result.link }}" 
+                                            target="_blank" 
+                                            class="rams-link rams-link--with-icon rams-text-xs"
+                                        >
+                                            {{ result.displayLink }}
+                                            <svg class="rams-icon rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                    <p class="rams-text-sm rams-mb-3">
                                         {{ result.snippet|raw }}
                                     </p>
                                     
                                     {% if result.pagemap.organization is defined %}
-                                        <div class="rams-list__meta">
-                                            <span class="rams-dymo rams-dymo--sm">{{ 'lead_discovery.additional_info'|trans }}:</span>
+                                        <div class="rams-flex rams-flex-wrap rams-gap-2">
                                             {% for org in result.pagemap.organization %}
                                                 {% if org.name is defined %}
-                                                    <span class="rams-text--sm">{{ org.name }}</span>
+                                                    <span class="rams-badge rams-badge--info">{{ org.name }}</span>
                                                 {% endif %}
                                             {% endfor %}
                                         </div>

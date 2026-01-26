@@ -50,6 +50,25 @@ class ComplianceDocument
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
+    
+    /**
+     * Snooze alerts until this date.
+     * When set, this document's alerts will be suppressed until the snooze date passes.
+     */
+    #[ORM\Column(type: 'date', nullable: true)]
+    private ?\DateTimeInterface $snoozedUntil = null;
+    
+    /**
+     * Reason for snoozing (e.g., "Renewal in progress", "Waiting for supplier")
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $snoozeReason = null;
+    
+    /**
+     * Who snoozed the alert
+     */
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $snoozedBy = null;
 
     public function getId(): ?int
     {
@@ -192,5 +211,225 @@ class ComplianceDocument
     {
         $this->fileName = $filePath;
         return $this;
+    }
+    
+    // ============================================================
+    // EXPIRY ALERTING METHODS
+    // ============================================================
+    
+    /**
+     * Check if document has expired
+     */
+    public function isExpired(): bool
+    {
+        if ($this->expiryDate === null) {
+            return false;
+        }
+        return $this->expiryDate < new \DateTime('today');
+    }
+    
+    /**
+     * Check if document is expiring soon (within specified days)
+     */
+    public function isExpiringSoon(int $days = 30): bool
+    {
+        if ($this->expiryDate === null || $this->isExpired()) {
+            return false;
+        }
+        
+        $warningDate = (new \DateTime('today'))->modify("+{$days} days");
+        return $this->expiryDate <= $warningDate;
+    }
+    
+    /**
+     * Get days until expiry (negative if expired)
+     */
+    public function getDaysUntilExpiry(): ?int
+    {
+        if ($this->expiryDate === null) {
+            return null;
+        }
+        
+        $today = new \DateTime('today');
+        $diff = $today->diff($this->expiryDate);
+        
+        return $diff->invert ? -$diff->days : $diff->days;
+    }
+    
+    /**
+     * Get expiry status as string
+     */
+    public function getExpiryStatus(): string
+    {
+        if ($this->expiryDate === null) {
+            return 'no_expiry';
+        }
+        
+        if ($this->isExpired()) {
+            return 'expired';
+        }
+        
+        $days = $this->getDaysUntilExpiry();
+        
+        if ($days <= 7) {
+            return 'critical';  // Expiring within 7 days
+        } elseif ($days <= 30) {
+            return 'warning';   // Expiring within 30 days
+        } elseif ($days <= 90) {
+            return 'caution';   // Expiring within 90 days
+        }
+        
+        return 'valid';
+    }
+    
+    /**
+     * Get human-readable expiry message
+     */
+    public function getExpiryMessage(): string
+    {
+        if ($this->expiryDate === null) {
+            return 'No expiry date set';
+        }
+        
+        $days = $this->getDaysUntilExpiry();
+        
+        if ($days < 0) {
+            return sprintf('Expired %d days ago', abs($days));
+        } elseif ($days === 0) {
+            return 'Expires today';
+        } elseif ($days === 1) {
+            return 'Expires tomorrow';
+        } else {
+            return sprintf('Expires in %d days', $days);
+        }
+    }
+    
+    // ============================================================
+    // SNOOZE FUNCTIONALITY
+    // ============================================================
+    
+    /**
+     * Check if alerts for this document are currently snoozed
+     */
+    public function isSnoozed(): bool
+    {
+        if ($this->snoozedUntil === null) {
+            return false;
+        }
+        return $this->snoozedUntil >= new \DateTime('today');
+    }
+    
+    /**
+     * Snooze alerts until a specified date
+     * 
+     * @param int $days Number of days to snooze (default: 7)
+     * @param string|null $reason Optional reason for snoozing
+     * @param string|null $snoozedBy User who initiated the snooze
+     */
+    public function snooze(int $days = 7, ?string $reason = null, ?string $snoozedBy = null): self
+    {
+        $this->snoozedUntil = (new \DateTime())->modify("+{$days} days");
+        $this->snoozeReason = $reason;
+        $this->snoozedBy = $snoozedBy;
+        return $this;
+    }
+    
+    /**
+     * Clear the snooze, re-enabling alerts
+     */
+    public function clearSnooze(): self
+    {
+        $this->snoozedUntil = null;
+        $this->snoozeReason = null;
+        $this->snoozedBy = null;
+        return $this;
+    }
+    
+    public function getSnoozedUntil(): ?\DateTimeInterface
+    {
+        return $this->snoozedUntil;
+    }
+    
+    public function setSnoozedUntil(?\DateTimeInterface $snoozedUntil): self
+    {
+        $this->snoozedUntil = $snoozedUntil;
+        return $this;
+    }
+    
+    public function getSnoozeReason(): ?string
+    {
+        return $this->snoozeReason;
+    }
+    
+    public function setSnoozeReason(?string $snoozeReason): self
+    {
+        $this->snoozeReason = $snoozeReason;
+        return $this;
+    }
+    
+    public function getSnoozedBy(): ?string
+    {
+        return $this->snoozedBy;
+    }
+    
+    public function setSnoozedBy(?string $snoozedBy): self
+    {
+        $this->snoozedBy = $snoozedBy;
+        return $this;
+    }
+    
+    /**
+     * Get days until snooze expires (negative if expired)
+     */
+    public function getDaysUntilSnoozeExpires(): ?int
+    {
+        if ($this->snoozedUntil === null) {
+            return null;
+        }
+        
+        $today = new \DateTime('today');
+        $diff = $today->diff($this->snoozedUntil);
+        
+        return $diff->invert ? -$diff->days : $diff->days;
+    }
+    
+    /**
+     * Check if document needs renewal attention
+     * Considers snooze status, provided status, and expiry
+     * 
+     * @param bool $respectSnooze If true, snoozed documents don't need attention
+     */
+    public function needsAttention(bool $respectSnooze = true): bool
+    {
+        // If snoozed and we're respecting snooze, no attention needed
+        if ($respectSnooze && $this->isSnoozed()) {
+            return false;
+        }
+        
+        // Required but not provided
+        if ($this->required && !$this->provided) {
+            return true;
+        }
+        
+        // Expired or expiring soon
+        if ($this->isExpired() || $this->isExpiringSoon()) {
+            return true;
+        }
+        
+        // Status is rejected or expired
+        if (in_array($this->status, ['Rejected', 'Expired'], true)) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if document has an underlying issue (ignoring snooze)
+     * Useful for showing that a snoozed item still has problems
+     */
+    public function hasUnderlyingIssue(): bool
+    {
+        return $this->needsAttention(false);
     }
 }

@@ -31,7 +31,6 @@ class LearnedCompetitor
 {
     // Discovery source constants
     public const SOURCE_WEBSITE_SCRAPE = 'website_scrape';
-    public const SOURCE_LINKEDIN = 'linkedin';
     public const SOURCE_GOOGLE_DORK = 'google_dork';
     public const SOURCE_MANUAL = 'manual';
     public const SOURCE_CUSTOMER_REFERENCE = 'customer_reference';

@@ -3,127 +3,122 @@
 {% block title %}{{ 'email_campaign.send_emails'|trans }} - {{ campaign.name }}{% endblock %}
 
 {% block body %}
-<div class="rams-page">
-    <div class="rams-page__container">
-        
-        {# Breadcrumb #}
-        <nav class="rams-breadcrumb">
-            <ol class="rams-breadcrumb__list">
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_index') }}" class="rams-breadcrumb__link">{{ 'email_campaign.title'|trans }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-breadcrumb__link">{{ campaign.name }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'email_campaign.send_emails'|trans }}</li>
-            </ol>
-        </nav>
-
-        {# Header #}
-        <div class="rams-page__header">
-            <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ 'email_campaign.send_campaign_emails'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'email_campaign.select_contacts_touch'|trans }} {{ campaign.name }}</p>
-            </div>
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <nav class="rams-breadcrumb rams-mb-2">
+                <ol class="rams-breadcrumb__list">
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_index') }}" class="rams-breadcrumb__link">{{ 'email_campaign.title'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-breadcrumb__link">{{ campaign.name }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'email_campaign.send_emails'|trans }}</li>
+                </ol>
+            </nav>
+            <h1 class="rams-page-title">{{ 'email_campaign.send_campaign_emails'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'email_campaign.select_contacts_touch'|trans }} {{ campaign.name }}</p>
         </div>
+    </div>
 
-        <form method="post">
-            <input type="hidden" name="_token" value="{{ csrf_token('campaign_send' ~ campaign.id) }}">
-            
-            <div class="rams-layout rams-layout--sidebar-right">
-                {# Contact Selection #}
-                <div class="rams-layout__main">
-                    <div class="rams-module">
-                        <div class="rams-module__header">
-                            <h2 class="rams-module__title">{{ 'email_campaign.select_contacts'|trans }}</h2>
-                            <div class="rams-module__actions">
-                                <button type="button" onclick="selectAll()" class="rams-btn rams-btn--ghost rams-btn--sm">
-                                    {{ 'common.select'|trans }} {{ 'common.all'|trans }}
-                                </button>
-                                <button type="button" onclick="deselectAll()" class="rams-btn rams-btn--ghost rams-btn--sm">
-                                    {{ 'email_campaign.deselect_all'|trans }}
-                                </button>
-                            </div>
-                        </div>
-                        <div class="rams-module__content">
-                            {% if contacts is empty %}
-                                <div class="rams-empty-state rams-empty-state--compact">
-                                    <p class="rams-empty-state__description">{{ 'email_campaign.no_contacts_found'|trans }}</p>
-                                </div>
-                            {% else %}
-                                <div class="rams-contact-list">
-                                    {% for contact in contacts %}
-                                        <label class="rams-contact-item">
-                                            <input type="checkbox" name="contacts[]" value="{{ contact.id }}" class="rams-form__checkbox contact-checkbox">
-                                            <div class="rams-contact-item__content">
-                                                <div class="rams-contact-item__info">
-                                                    <span class="rams-contact-item__name">{{ contact.firstName }} {{ contact.lastName }}</span>
-                                                    <span class="rams-contact-item__email">{{ contact.email }}</span>
-                                                </div>
-                                                {% if contact.company %}
-                                                    <span class="rams-dymo">{{ contact.company.name }}</span>
-                                                {% endif %}
-                                            </div>
-                                        </label>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+    <form method="post" class="rams-form">
+        <input type="hidden" name="_token" value="{{ csrf_token('campaign_send' ~ campaign.id) }}">
+        
+        <div class="rams-grid rams-grid--3 rams-gap-6">
+            {# Contact Selection #}
+            <div class="rams-grid-span-2">
+                <div class="rams-module">
+                    <div class="rams-module__header">
+                        <h2 class="rams-module__title">{{ 'email_campaign.select_contacts'|trans }}</h2>
+                        <div class="rams-btn-group">
+                            <button type="button" onclick="selectAll()" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                {{ 'common.select'|trans }} {{ 'common.all'|trans }}
+                            </button>
+                            <button type="button" onclick="deselectAll()" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                {{ 'email_campaign.deselect_all'|trans }}
+                            </button>
                         </div>
                     </div>
+                    <div class="rams-module__content rams-module__content--flush">
+                        {% if contacts is empty %}
+                            <div class="rams-empty-state">
+                                <p class="rams-text-muted rams-text-sm">{{ 'email_campaign.no_contacts_found'|trans }}</p>
+                            </div>
+                        {% else %}
+                            <div class="rams-stack">
+                                {% for contact in contacts %}
+                                    <label class="rams-flex rams-items-center rams-gap-4 rams-p-3 rams-border-b last:rams-border-b-0 rams-module--hoverable" style="cursor:pointer">
+                                        <input type="checkbox" name="contacts[]" value="{{ contact.id }}" class="rams-form__checkbox-input contact-checkbox">
+                                        <div class="rams-flex-1">
+                                            <div class="rams-flex rams-justify-between rams-items-center">
+                                                <div>
+                                                    <span class="rams-text-bold rams-text-sm rams-block">{{ contact.firstName }} {{ contact.lastName }}</span>
+                                                    <span class="rams-text-muted rams-text-xs">{{ contact.email }}</span>
+                                                </div>
+                                                {% if contact.company %}
+                                                    <span class="rams-badge">{{ contact.company.name }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
+            </div>
 
-                {# Send Options Sidebar #}
-                <div class="rams-layout__sidebar">
-                    <div class="rams-module rams-module--sticky">
-                        <div class="rams-module__header">
-                            <h2 class="rams-module__title">{{ 'email_campaign.send_options'|trans }}</h2>
+            {# Send Options Sidebar #}
+            <div class="rams-stack rams-gap-6">
+                <div class="rams-module">
+                    <div class="rams-module__header">
+                        <h2 class="rams-module__title">{{ 'email_campaign.send_options'|trans }}</h2>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.touch_number'|trans }}</label>
+                            <select name="touch_number" class="rams-form__select">
+                                {% for i in 1..campaign.touchCount %}
+                                    <option value="{{ i }}">{{ 'email_campaign.touch'|trans }} {{ i }}</option>
+                                {% endfor %}
+                            </select>
+                            <span class="rams-form__hint">{{ 'email_campaign.select_touch_hint'|trans }}</span>
                         </div>
-                        <div class="rams-module__content">
-                            <div class="rams-form">
-                                <div class="rams-form__group">
-                                    <label class="rams-form__label rams-dymo">{{ 'email_campaign.touch_number'|trans }}</label>
-                                    <select name="touch_number" class="rams-form__select">
-                                        {% for i in 1..campaign.touchCount %}
-                                            <option value="{{ i }}">{{ 'email_campaign.touch'|trans }} {{ i }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <span class="rams-form__hint">{{ 'email_campaign.select_touch_hint'|trans }}</span>
-                                </div>
 
-                                <div class="rams-divider"></div>
-
-                                <div class="rams-detail-list">
-                                    <div class="rams-detail-list__item">
-                                        <span class="rams-dymo">{{ 'email_campaign.campaign'|trans }}</span>
-                                        <span class="rams-detail-list__value">{{ campaign.name }}</span>
-                                    </div>
-                                    <div class="rams-detail-list__item">
-                                        <span class="rams-dymo">{{ 'email_campaign.language'|trans }}</span>
-                                        <span class="rams-detail-list__value">{{ campaign.language }}</span>
-                                    </div>
-                                    <div class="rams-detail-list__item">
-                                        <span class="rams-dymo">{{ 'email_campaign.selected_contacts'|trans }}</span>
-                                        <span class="rams-metric__value" id="selected-count">0</span>
-                                    </div>
-                                </div>
+                        <div class="rams-stack rams-gap-3 rams-mt-6">
+                            <div class="rams-flex rams-justify-between rams-items-center">
+                                <span class="rams-text-xs rams-text-muted uppercase">{{ 'email_campaign.campaign'|trans }}</span>
+                                <span class="rams-text-xs rams-text-bold">{{ campaign.name }}</span>
+                            </div>
+                            <div class="rams-flex rams-justify-between rams-items-center">
+                                <span class="rams-text-xs rams-text-muted uppercase">{{ 'email_campaign.language'|trans }}</span>
+                                <span class="rams-text-xs rams-text-bold">{{ campaign.language }}</span>
+                            </div>
+                            <div class="rams-flex rams-justify-between rams-items-center rams-p-3 rams-bg-panel rams-border rams-rounded">
+                                <span class="rams-text-sm">{{ 'email_campaign.selected_contacts'|trans }}</span>
+                                <span class="rams-metric__value rams-text-xl" id="selected-count">0</span>
                             </div>
                         </div>
-                        <div class="rams-module__footer">
-                            <button type="submit" class="rams-btn rams-btn--primary rams-btn--full">
+                    </div>
+                    <div class="rams-module__footer">
+                        <div class="rams-stack rams-gap-2">
+                            <button type="submit" class="rams-btn rams-btn--primary rams-w-full">
                                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                 </svg>
                                 {{ 'email_campaign.send_emails'|trans }}
                             </button>
-                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn rams-btn--secondary rams-btn--full">
+                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-w-full">
                                 {{ 'common.cancel'|trans }}
                             </a>
                         </div>
                     </div>
                 </div>
             </div>
-        </form>
-    </div>
+        </div>
+    </form>
 </div>
 
 <script>

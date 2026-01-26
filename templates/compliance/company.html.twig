@@ -3,173 +3,200 @@
 {% block title %}{{ 'compliance.title'|trans }} - {{ company.name }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack">
-    {# Breadcrumb #}
-    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
-        <a href="{{ path('app_company_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'nav.companies'|trans }}</a>
-        <span class="rams-text-muted">/</span>
-        <a href="{{ path('app_company_show', {id: company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ company.name }}</a>
-        <span class="rams-text-muted">/</span>
-        <span class="rams-dymo">{{ 'compliance.title'|trans }}</span>
-    </nav>
-
-    {# Header Module #}
-    <div class="rams-module">
-        <div class="rams-module__header">
-            <div>
-                <h1 class="rams-page-title">{{ 'compliance.company_compliance'|trans }}</h1>
-                <p class="rams-dymo">{{ company.name }}</p>
-            </div>
-
-            <form method="post" action="{{ path('app_compliance_generate_pack', {id: company.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'compliance.regenerate_confirm'|trans }}', {variant: 'warning'})">
-                <input type="hidden" name="_token" value="{{ csrf_token('generate' ~ company.id) }}">
-                <button type="submit" class="rams-btn rams-btn--secondary">
-                    {{ 'compliance.regenerate_pack'|trans }}
-                </button>
-            </form>
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <nav class="rams-breadcrumb rams-mb-2">
+                <ol class="rams-breadcrumb__list">
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_company_index') }}" class="rams-breadcrumb__link">{{ 'nav.companies'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_company_show', {id: company.id}) }}" class="rams-breadcrumb__link">{{ company.name }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'compliance.title'|trans }}</li>
+                </ol>
+            </nav>
+            <h1 class="rams-page-title">{{ 'compliance.company_compliance'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ company.name }}</p>
         </div>
+
+        <form method="post" action="{{ path('app_compliance_generate_pack', {id: company.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'compliance.regenerate_confirm'|trans }}', {variant: 'warning'})">
+            <input type="hidden" name="_token" value="{{ csrf_token('generate' ~ company.id) }}">
+            <button type="submit" class="rams-btn rams-btn--secondary">
+                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C10.7614 2 13 4.23858 13 7"/>
+                    <path d="M10 7L13 7L13 4"/>
+                </svg>
+                {{ 'compliance.regenerate_pack'|trans }}
+            </button>
+        </form>
     </div>
 
     {# Stats Cards #}
     <div class="rams-grid rams-grid--5">
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'compliance.documents'|trans }}</span>
-                <div class="rams-metric__value">{{ stats.total }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'compliance.documents'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.total }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'common.upload'|trans }}</span>
-                <div class="rams-metric__value rams-text-info">{{ stats.uploaded }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'common.upload'|trans }}</span>
+                    <span class="rams-metric__value rams-text-info">{{ stats.uploaded }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'compliance.passed'|trans }}</span>
-                <div class="rams-metric__value rams-text-success">{{ stats.approved }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'compliance.passed'|trans }}</span>
+                    <span class="rams-metric__value rams-text-success">{{ stats.approved }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'common.pending'|trans }}</span>
-                <div class="rams-metric__value rams-text-warning">{{ stats.pending }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'common.pending'|trans }}</span>
+                    <span class="rams-metric__value rams-text-warning">{{ stats.pending }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'compliance.score'|trans }}</span>
-                <div class="rams-metric__value">{{ stats.completion_percentage }}%</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'compliance.score'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.completion_percentage }}%</span>
+                </div>
             </div>
         </div>
     </div>
 
     {# Progress Bar #}
-    <div class="rams-module">
-        <div class="rams-module__content">
-            <div class="rams-progress">
-                <div class="rams-progress__bar" style="width: {{ stats.completion_percentage }}%"></div>
-            </div>
-        </div>
+    <div class="rams-progress">
+        <div class="rams-progress__bar {{ stats.completion_percentage == 100 ? 'rams-progress__bar--success' : 'rams-progress__bar--info' }}" 
+             style="width: {{ stats.completion_percentage }}%"></div>
     </div>
 
     {# Documents List #}
     <div class="rams-module">
         <div class="rams-module__header">
             <h2 class="rams-module__title">{{ 'compliance.document_checklist'|trans }}</h2>
-            <p class="rams-dymo">{{ 'compliance.upload_manage'|trans }}</p>
         </div>
 
-        <div class="rams-module__content">
-            {% for document in documents %}
-                <div class="rams-list-item">
-                    <div class="rams-list-item__content">
-                        <div class="rams-list-item__header">
-                            <h3 class="rams-list-item__title">{{ document.name }}</h3>
-                            
-                            {% if document.fileName %}
-                                <span class="rams-badge rams-badge--success">
-                                    {{ 'common.upload'|trans }}
-                                </span>
-                            {% else %}
-                                <span class="rams-badge">
-                                    {{ 'compliance.not_uploaded'|trans }}
-                                </span>
-                            {% endif %}
-
-                            {% if document.status %}
-                                <span class="rams-badge {{ document.status == 'Approved' ? 'rams-badge--success' : (document.status == 'Rejected' ? 'rams-badge--danger' : 'rams-badge--warning') }}">
-                                    {{ document.status }}
-                                </span>
-                            {% endif %}
-
-                            {% if not document.required %}
-                                <span class="rams-badge">
-                                    {{ 'common.optional'|trans }}
-                                </span>
-                            {% endif %}
-                        </div>
-
-                        {% if document.fileName %}
-                            <div class="rams-list-item__meta">
-                                <span class="rams-dymo">{{ document.fileName }}</span>
-                                {% if document.uploadedAt %}
-                                    <span class="rams-dymo">{{ 'common.upload'|trans }} {{ document.uploadedAt|date('M d, Y') }}</span>
+        <div class="rams-module__content rams-module__content--flush">
+            <div class="rams-list">
+                {% for document in documents %}
+                    <div class="rams-list-item rams-p-4 rams-border-b last:rams-border-b-0">
+                        <div class="rams-list-item__content">
+                            <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
+                                <h3 class="rams-heading rams-heading--4">{{ document.name }}</h3>
+                                
+                                {% if document.fileName %}
+                                    <span class="rams-badge rams-badge--success">
+                                        {{ 'common.upload'|trans }}
+                                    </span>
+                                {% else %}
+                                    <span class="rams-badge">
+                                        {{ 'compliance.not_uploaded'|trans }}
+                                    </span>
                                 {% endif %}
-                                {% if document.expiryDate %}
-                                    <span class="rams-dymo {{ document.expiryDate < date() ? 'rams-dymo--critical' : '' }}">
-                                        {{ 'compliance.expiry_date'|trans }} {{ document.expiryDate|date('M d, Y') }}
+
+                                {% if document.status %}
+                                    <span class="rams-badge {{ document.status == 'Approved' ? 'rams-badge--success' : (document.status == 'Rejected' ? 'rams-badge--danger' : 'rams-badge--warning') }}">
+                                        {{ document.status }}
+                                    </span>
+                                {% endif %}
+
+                                {% if not document.required %}
+                                    <span class="rams-badge">
+                                        {{ 'common.optional'|trans }}
                                     </span>
                                 {% endif %}
                             </div>
-                        {% endif %}
-                    </div>
 
-                    <div class="rams-list-item__actions">
-                        {% if document.fileName %}
-                            <a href="{{ path('app_compliance_download', {id: document.id}) }}" 
-                               class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.download'|trans }}">
-                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                            </a>
+                            {% if document.fileName %}
+                                <div class="rams-flex rams-flex-wrap rams-gap-4 rams-text-xs rams-text-muted">
+                                    <div class="rams-flex rams-items-center rams-gap-1">
+                                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                                            <path d="M3 3H13V13H3V3Z" stroke-width="1.5"/>
+                                        </svg>
+                                        {{ document.fileName }}
+                                    </div>
+                                    {% if document.uploadedAt %}
+                                        <div class="rams-flex rams-items-center rams-gap-1">
+                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                                                <circle cx="8" cy="8" r="6" stroke-width="1.5"/>
+                                                <path d="M8 5V8L10 10" stroke-width="1.5"/>
+                                            </svg>
+                                            {{ 'common.upload'|trans }} {{ document.uploadedAt|date('M d, Y') }}
+                                        </div>
+                                    {% endif %}
+                                    {% if document.expiryDate %}
+                                        <div class="rams-flex rams-items-center rams-gap-1 {{ document.expiryDate < date() ? 'rams-text-danger' : '' }}">
+                                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                                                <path d="M3 5H13M3 11H13" stroke-width="1.5"/>
+                                            </svg>
+                                            {{ 'compliance.expiry_date'|trans }} {{ document.expiryDate|date('M d, Y') }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
 
-                            <form method="post" action="{{ path('app_compliance_delete', {id: document.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'compliance.remove_confirm'|trans }}', {variant: 'danger'})">
-                                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ document.id) }}">
-                                <button type="submit"
-                                        class="rams-btn rams-btn--ghost rams-btn--sm rams-text-danger" title="{{ 'common.remove'|trans }}">
+                        <div class="rams-list-item__actions">
+                            {% if document.fileName %}
+                                <a href="{{ path('app_compliance_download', {id: document.id}) }}" 
+                                   class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.download'|trans }}">
                                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
+                                </a>
+
+                                <form method="post" action="{{ path('app_compliance_delete', {id: document.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'compliance.remove_confirm'|trans }}', {variant: 'danger'})">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ document.id) }}">
+                                    <button type="submit"
+                                            class="rams-btn rams-btn--ghost rams-btn--sm rams-text-danger" title="{{ 'common.remove'|trans }}">
+                                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            {% else %}
+                                <form method="post" action="{{ path('app_compliance_upload', {id: document.id}) }}" enctype="multipart/form-data" class="rams-inline-block">
+                                    <input type="file" name="file" class="rams-sr-only" id="file-{{ document.id }}" onchange="this.form.submit()">
+                                    <label for="file-{{ document.id }}" class="rams-btn rams-btn--primary rams-btn--sm" style="cursor:pointer">
+                                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4m0 0L8 8m4-4v12"/>
+                                        </svg>
+                                        {{ 'common.upload'|trans }}
+                                    </label>
+                                </form>
+                            {% endif %}
+
+                            <form method="post" action="{{ path('app_compliance_toggle_required', {id: document.id}) }}" class="rams-inline-block">
+                                <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ document.id) }}">
+                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm" 
+                                        title="{{ document.required ? 'compliance.mark_optional'|trans : 'compliance.mark_required'|trans }}">
+                                    {% if document.required %}
+                                        <svg class="rams-btn__icon rams-text-success" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                        </svg>
+                                    {% else %}
+                                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    {% endif %}
                                 </button>
                             </form>
-                        {% else %}
-                            <form method="post" action="{{ path('app_compliance_upload', {id: document.id}) }}" enctype="multipart/form-data" class="rams-inline-block">
-                                <input type="file" name="file" class="rams-sr-only" id="file-{{ document.id }}" onchange="this.form.submit()">
-                                <label for="file-{{ document.id }}" class="rams-btn rams-btn--primary rams-btn--sm" style="cursor:pointer">
-                                    {{ 'common.upload'|trans }}
-                                </label>
-                            </form>
-                        {% endif %}
-
-                        <form method="post" action="{{ path('app_compliance_toggle_required', {id: document.id}) }}" class="rams-inline-block">
-                            <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ document.id) }}">
-                            <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm" 
-                                    title="{{ document.required ? 'compliance.mark_optional'|trans : 'compliance.mark_required'|trans }}">
-                                {% if document.required %}
-                                    <svg class="rams-btn__icon rams-text-success" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                                    </svg>
-                                {% else %}
-                                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                {% endif %}
-                            </button>
-                        </form>
+                        </div>
                     </div>
-                </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>

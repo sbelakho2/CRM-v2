@@ -3,211 +3,205 @@
 {% block title %}{{ 'email_campaign.analytics.title'|trans }} - {{ campaign.name }}{% endblock %}
 
 {% block body %}
-<div class="rams-page">
-    <div class="rams-page__container">
-        
-        {# Breadcrumb #}
-        <nav class="rams-breadcrumb">
-            <ol class="rams-breadcrumb__list">
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_index') }}" class="rams-breadcrumb__link">{{ 'email_campaign.title'|trans }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-breadcrumb__link">{{ campaign.name }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'email_campaign.analytics.title'|trans }}</li>
-            </ol>
-        </nav>
-
-        {# Header #}
-        <div class="rams-page__header">
-            <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ 'email_campaign.analytics.title'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'email_campaign.analytics.subtitle'|trans }} {{ campaign.name }}</p>
-            </div>
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <nav class="rams-breadcrumb rams-mb-2">
+                <ol class="rams-breadcrumb__list">
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_index') }}" class="rams-breadcrumb__link">{{ 'email_campaign.title'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-breadcrumb__link">{{ campaign.name }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'email_campaign.analytics.title'|trans }}</li>
+                </ol>
+            </nav>
+            <h1 class="rams-page-title">{{ 'email_campaign.analytics.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'email_campaign.analytics.subtitle'|trans }} {{ campaign.name }}</p>
         </div>
+    </div>
 
-        {# Overall Metrics #}
-        <div class="rams-metrics-grid rams-metrics-grid--5">
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <div class="rams-metric rams-metric--large">
-                        <span class="rams-metric__value">{{ metrics.total_sent }}</span>
-                        <span class="rams-metric__label">{{ 'email_campaign.total_sent'|trans }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <div class="rams-metric rams-metric--large rams-metric--success">
-                        <span class="rams-metric__value">{{ metrics.open_rate|number_format(1) }}%</span>
-                        <span class="rams-metric__label">{{ 'email_campaign.open_rate'|trans }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <div class="rams-metric rams-metric--large rams-metric--info">
-                        <span class="rams-metric__value">{{ metrics.click_rate|number_format(1) }}%</span>
-                        <span class="rams-metric__label">{{ 'email_campaign.click_rate'|trans }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <div class="rams-metric rams-metric--large rams-metric--primary">
-                        <span class="rams-metric__value">{{ metrics.reply_rate|number_format(1) }}%</span>
-                        <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="rams-module rams-module--compact">
-                <div class="rams-module__content">
-                    <div class="rams-metric rams-metric--large rams-metric--danger">
-                        <span class="rams-metric__value">{{ metrics.bounce_rate|number_format(1) }}%</span>
-                        <span class="rams-metric__label">{{ 'email_campaign.bounce_rate'|trans }}</span>
-                    </div>
+    {# Metrics Grid #}
+    <div class="rams-grid rams-grid--5">
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'email_campaign.total_sent'|trans }}</span>
+                    <span class="rams-metric__value">{{ metrics.total_sent }}</span>
                 </div>
             </div>
         </div>
-
-        <div class="rams-layout rams-layout--2-col">
-            {# Sends Over Time #}
-            <div class="rams-module">
-                <div class="rams-module__header">
-                    <h2 class="rams-module__title">{{ 'email_campaign.analytics.sends_over_time'|trans }}</h2>
-                </div>
-                <div class="rams-module__content">
-                    {% if sendsByDate is empty %}
-                        <div class="rams-empty-state rams-empty-state--compact">
-                            <p class="rams-empty-state__description">{{ 'email_campaign.no_sends_yet'|trans }}</p>
-                        </div>
-                    {% else %}
-                        <div class="rams-chart-bars">
-                            {% set maxCount = 0 %}
-                            {% for item in sendsByDate %}
-                                {% if item.count > maxCount %}
-                                    {% set maxCount = item.count %}
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% for item in sendsByDate %}
-                                <div class="rams-chart-bar">
-                                    <span class="rams-chart-bar__label">{{ item.date|date('M d') }}</span>
-                                    <div class="rams-chart-bar__track">
-                                        {% set width = maxCount > 0 ? ((item.count / maxCount * 100)|round) : 0 %}
-                                        <div class="rams-chart-bar__fill" style="width: {{ width }}%">
-                                            <span class="rams-chart-bar__value">{{ item.count }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            {# Engagement Funnel #}
-            <div class="rams-module">
-                <div class="rams-module__header">
-                    <h2 class="rams-module__title">{{ 'email_campaign.analytics.engagement_funnel'|trans }}</h2>
-                </div>
-                <div class="rams-module__content">
-                    <div class="rams-funnel">
-                        <div class="rams-funnel__item">
-                            <div class="rams-funnel__header">
-                                <span class="rams-funnel__label">{{ 'email_campaign.sent'|trans }}</span>
-                                <span class="rams-funnel__value">{{ metrics.total_sent }}</span>
-                            </div>
-                            <div class="rams-progress-bar__track">
-                                <div class="rams-progress-bar__fill rams-progress-bar__fill--neutral" style="width: 100%"></div>
-                            </div>
-                        </div>
-                        <div class="rams-funnel__item">
-                            <div class="rams-funnel__header">
-                                <span class="rams-funnel__label">{{ 'email_campaign.opened'|trans }}</span>
-                                <span class="rams-funnel__value">{{ metrics.opened }} ({{ metrics.open_rate|number_format(1) }}%)</span>
-                            </div>
-                            <div class="rams-progress-bar__track">
-                                <div class="rams-progress-bar__fill rams-progress-bar__fill--success" style="width: {{ metrics.open_rate }}%"></div>
-                            </div>
-                        </div>
-                        <div class="rams-funnel__item">
-                            <div class="rams-funnel__header">
-                                <span class="rams-funnel__label">{{ 'email_campaign.clicked'|trans }}</span>
-                                <span class="rams-funnel__value">{{ metrics.clicked }} ({{ metrics.click_rate|number_format(1) }}%)</span>
-                            </div>
-                            <div class="rams-progress-bar__track">
-                                <div class="rams-progress-bar__fill rams-progress-bar__fill--info" style="width: {{ metrics.click_rate }}%"></div>
-                            </div>
-                        </div>
-                        <div class="rams-funnel__item">
-                            <div class="rams-funnel__header">
-                                <span class="rams-funnel__label">{{ 'email_campaign.replied'|trans }}</span>
-                                <span class="rams-funnel__value">{{ metrics.replied }} ({{ metrics.reply_rate|number_format(1) }}%)</span>
-                            </div>
-                            <div class="rams-progress-bar__track">
-                                <div class="rams-progress-bar__fill rams-progress-bar__fill--primary" style="width: {{ metrics.reply_rate }}%"></div>
-                            </div>
-                        </div>
-                    </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'email_campaign.open_rate'|trans }}</span>
+                    <span class="rams-metric__value rams-text-success">{{ metrics.open_rate|number_format(1) }}%</span>
                 </div>
             </div>
         </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'email_campaign.click_rate'|trans }}</span>
+                    <span class="rams-metric__value rams-text-info">{{ metrics.click_rate|number_format(1) }}%</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans }}</span>
+                    <span class="rams-metric__value rams-text-primary">{{ metrics.reply_rate|number_format(1) }}%</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'email_campaign.bounce_rate'|trans }}</span>
+                    <span class="rams-metric__value rams-text-danger">{{ metrics.bounce_rate|number_format(1) }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        {# Top Performing Contacts #}
+    <div class="rams-grid rams-grid--2">
+        {# Sends Over Time #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'email_campaign.analytics.top_contacts'|trans }}</h2>
+                <h2 class="rams-module__title">{{ 'email_campaign.analytics.sends_over_time'|trans }}</h2>
             </div>
             <div class="rams-module__content">
-                {% if topContacts is empty %}
-                    <div class="rams-empty-state rams-empty-state--compact">
-                        <p class="rams-empty-state__description">{{ 'email_campaign.analytics.no_engagement'|trans }}</p>
+                {% if sendsByDate is empty %}
+                    <div class="rams-empty-state">
+                        <p class="rams-text-muted rams-text-sm">{{ 'email_campaign.no_sends_yet'|trans }}</p>
                     </div>
                 {% else %}
-                    <div class="rams-table-wrapper">
-                        <table class="rams-table">
-                            <thead class="rams-table__header">
-                                <tr>
-                                    <th class="rams-table__cell">{{ 'contact.title_singular'|trans }}</th>
-                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.opens'|trans }}</th>
-                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.clicks'|trans }}</th>
-                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.replies'|trans }}</th>
-                                    <th class="rams-table__cell rams-table__cell--center">{{ 'email_campaign.analytics.engagement'|trans }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for contact in topContacts %}
-                                    {% set totalEngagement = contact.opens + contact.clicks + contact.replies %}
-                                    <tr class="rams-table__row">
-                                        <td class="rams-table__cell">
-                                            <div class="rams-table__primary">{{ contact.firstName }} {{ contact.lastName }}</div>
-                                            <div class="rams-table__secondary">{{ contact.email }}</div>
-                                        </td>
-                                        <td class="rams-table__cell rams-table__cell--center">
-                                            <span class="rams-badge rams-badge--success">{{ contact.opens }}</span>
-                                        </td>
-                                        <td class="rams-table__cell rams-table__cell--center">
-                                            <span class="rams-badge rams-badge--info">{{ contact.clicks }}</span>
-                                        </td>
-                                        <td class="rams-table__cell rams-table__cell--center">
-                                            <span class="rams-badge rams-badge--primary">{{ contact.replies }}</span>
-                                        </td>
-                                        <td class="rams-table__cell rams-table__cell--center">
-                                            <div class="rams-engagement-dots">
-                                                {% for i in 1..5 %}
-                                                    <span class="rams-engagement-dot {{ i <= totalEngagement ? 'rams-engagement-dot--active' : '' }}"></span>
-                                                {% endfor %}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="rams-stack rams-gap-2">
+                        {% set maxCount = 0 %}
+                        {% for item in sendsByDate %}
+                            {% if item.count > maxCount %}
+                                {% set maxCount = item.count %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% for item in sendsByDate %}
+                            <div class="rams-flex rams-items-center rams-gap-3">
+                                <span class="rams-text-2xs rams-text-muted rams-w-16 font-mono">{{ item.date|date('M d') }}</span>
+                                <div class="rams-flex-1 rams-progress rams-progress--compact">
+                                    {% set width = maxCount > 0 ? ((item.count / maxCount * 100)|round) : 0 %}
+                                    <div class="rams-progress__bar" style="width: {{ width }}%"></div>
+                                </div>
+                                <span class="rams-text-2xs font-mono rams-w-8 rams-text--right">{{ item.count }}</span>
+                            </div>
+                        {% endfor %}
                     </div>
                 {% endif %}
             </div>
+        </div>
+
+        {# Engagement Funnel #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'email_campaign.analytics.engagement_funnel'|trans }}</h2>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-stack rams-gap-4">
+                    <div>
+                        <div class="rams-flex rams-justify-between rams-mb-1">
+                            <span class="rams-text-2xs rams-text-muted uppercase">{{ 'email_campaign.sent'|trans }}</span>
+                            <span class="rams-text-2xs font-mono">{{ metrics.total_sent }}</span>
+                        </div>
+                        <div class="rams-progress">
+                            <div class="rams-progress__bar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="rams-flex rams-justify-between rams-mb-1">
+                            <span class="rams-text-2xs rams-text-success uppercase">{{ 'email_campaign.opened'|trans }}</span>
+                            <span class="rams-text-2xs font-mono">{{ metrics.opened }} ({{ metrics.open_rate|number_format(1) }}%)</span>
+                        </div>
+                        <div class="rams-progress">
+                            <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ metrics.open_rate }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="rams-flex rams-justify-between rams-mb-1">
+                            <span class="rams-text-2xs rams-text-info uppercase">{{ 'email_campaign.clicked'|trans }}</span>
+                            <span class="rams-text-2xs font-mono">{{ metrics.clicked }} ({{ metrics.click_rate|number_format(1) }}%)</span>
+                        </div>
+                        <div class="rams-progress">
+                            <div class="rams-progress__bar rams-progress__bar--info" style="width: {{ metrics.click_rate }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="rams-flex rams-justify-between rams-mb-1">
+                            <span class="rams-text-2xs rams-text-primary uppercase">{{ 'email_campaign.replied'|trans }}</span>
+                            <span class="rams-text-2xs font-mono">{{ metrics.replied }} ({{ metrics.reply_rate|number_format(1) }}%)</span>
+                        </div>
+                        <div class="rams-progress">
+                            <div class="rams-progress__bar rams-progress__bar--primary" style="width: {{ metrics.reply_rate }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Top Performing Contacts #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'email_campaign.analytics.top_contacts'|trans }}</h2>
+        </div>
+        <div class="rams-module__content rams-module__content--flush">
+            {% if topContacts is empty %}
+                <div class="rams-empty-state">
+                    <p class="rams-text-muted rams-text-sm">{{ 'email_campaign.analytics.no_engagement'|trans }}</p>
+                </div>
+            {% else %}
+                <div class="rams-table-container">
+                    <table class="rams-table">
+                        <thead class="rams-table__header">
+                            <tr>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'contact.title_singular'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header rams-text--center">{{ 'email_campaign.opens'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header rams-text--center">{{ 'email_campaign.clicks'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header rams-text--center">{{ 'email_campaign.replies'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'email_campaign.analytics.engagement'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="rams-table__body">
+                            {% for contact in topContacts %}
+                                {% set totalEngagement = contact.opens + contact.clicks + contact.replies %}
+                                <tr class="rams-table__row">
+                                    <td class="rams-table__cell">
+                                        <div class="rams-text-bold">{{ contact.firstName }} {{ contact.lastName }}</div>
+                                        <div class="rams-text-muted rams-text-xs">{{ contact.email }}</div>
+                                    </td>
+                                    <td class="rams-table__cell rams-text--center">
+                                        <span class="rams-badge rams-badge--success">{{ contact.opens }}</span>
+                                    </td>
+                                    <td class="rams-table__cell rams-text--center">
+                                        <span class="rams-badge rams-badge--info">{{ contact.clicks }}</span>
+                                    </td>
+                                    <td class="rams-table__cell rams-text--center">
+                                        <span class="rams-badge rams-badge--primary">{{ contact.replies }}</span>
+                                    </td>
+                                    <td class="rams-table__cell rams-table__cell--actions">
+                                        <div class="rams-flex rams-gap-1">
+                                            {% for i in 1..5 %}
+                                                <span class="rams-andon__light rams-andon__light--{{ i <= totalEngagement ? 'green' : '' }} rams-icon--3xs"></span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>

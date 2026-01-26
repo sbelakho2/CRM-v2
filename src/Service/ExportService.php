@@ -33,7 +33,7 @@ class ExportService
         
         // Set headers
         $headers = [
-            'ID', 'Company Name', 'Sector', 'Location', 'Website', 'LinkedIn',
+            'ID', 'Company Name', 'Sector', 'Location', 'Website',
             'Account Tier', 'Pipeline Stage', 'Region', 'Created At'
         ];
         $sheet->fromArray($headers, null, 'A1');
@@ -47,7 +47,6 @@ class ExportService
                 $company->getSector(),
                 $company->getLocation(),
                 $company->getWebsite(),
-                $company->getLinkedin(),
                 $company->getAccountTier(),
                 $company->getPipelineStage(),
                 $company->getRegion(),
@@ -71,7 +70,7 @@ class ExportService
         // Set headers
         $headers = [
             'ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Role',
-            'Company', 'LinkedIn', 'Created At'
+            'Company', 'Created At'
         ];
         $sheet->fromArray($headers, null, 'A1');
         
@@ -86,7 +85,6 @@ class ExportService
                 $contact->getPhone(),
                 $contact->getRole(),
                 $contact->getCompany()?->getName(),
-                $contact->getLinkedin(),
                 $contact->getCreatedAt()?->format('Y-m-d H:i:s'),
             ];
             $sheet->fromArray($data, null, 'A' . $row);

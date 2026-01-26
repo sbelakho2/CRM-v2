@@ -13,62 +13,66 @@
             <h2 class="rams-module__title">{{ 'admin.datasets.all_versions'|trans }}</h2>
         </div>
 
-        <table class="rams-table">
-            <thead>
-                <tr>
-                    <th>{{ 'admin.datasets.version'|trans }}</th>
-                    <th>{{ 'admin.datasets.dataset_name'|trans }}</th>
-                    <th>{{ 'admin.datasets.uploaded_by'|trans }}</th>
-                    <th>{{ 'common.date'|trans }}</th>
-                    <th>{{ 'admin.datasets.records'|trans }}</th>
-                    <th>{{ 'admin.datasets.status'|trans }}</th>
-                    <th>{{ 'common.actions'|trans }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if versions | default([]) %}
-                    {% for version in versions %}
-                        <tr>
-                            <td>{{ 'admin.datasets.version_prefix'|trans }}{{ version.version | default('admin.datasets.version_default'|trans) }}</td>
-                            <td>{{ version.dataset_name | default('common.unknown'|trans) }}</td>
-                            <td class="rams-text-muted">{{ version.uploaded_by | default('admin.datasets.system'|trans) }}</td>
-                            <td class="rams-text-muted">
-                                {% if version.created_at %}
-                                    {{ version.created_at | date('Y-m-d H:i') }}
-                                {% else %}
-                                    {{ 'common.n_a'|trans }}
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="rams-metric__value">{{ version.record_count | default('0') }}</span>
-                            </td>
-                            <td>
-                                {% if version.is_active %}
-                                    <span class="rams-badge rams-badge--success">{{ 'common.active'|trans }}</span>
-                                {% else %}
-                                    <span class="rams-badge">{{ 'admin.datasets.archived'|trans }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="rams-btn-group">
-                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
-                                    {% if not version.is_active %}
-                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text-success">{{ 'admin.datasets.restore'|trans }}</a>
+        <div class="rams-table-container">
+            <table class="rams-table">
+                <thead class="rams-table__header">
+                    <tr>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.version'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.dataset_name'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.uploaded_by'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'common.date'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.records'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.status'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody class="rams-table__body">
+                    {% if versions | default([]) %}
+                        {% for version in versions %}
+                            <tr class="rams-table__row">
+                                <td class="rams-table__cell"><span class="rams-badge">{{ 'admin.datasets.version_prefix'|trans }}{{ version.version | default('admin.datasets.version_default'|trans) }}</span></td>
+                                <td class="rams-table__cell rams-text-bold">{{ version.dataset_name | default('common.unknown'|trans) }}</td>
+                                <td class="rams-table__cell rams-text-muted">{{ version.uploaded_by | default('admin.datasets.system'|trans) }}</td>
+                                <td class="rams-table__cell rams-text-muted rams-text-xs">
+                                    {% if version.created_at %}
+                                        {{ version.created_at | date('Y-m-d H:i') }}
+                                    {% else %}
+                                        {{ 'common.n_a'|trans }}
                                     {% endif %}
-                                    <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text-danger">{{ 'common.delete'|trans }}</a>
+                                </td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-metric__value rams-text-sm">{{ version.record_count | default('0') }}</span>
+                                </td>
+                                <td class="rams-table__cell">
+                                    {% if version.is_active %}
+                                        <span class="rams-badge rams-badge--success">{{ 'common.active'|trans }}</span>
+                                    {% else %}
+                                        <span class="rams-badge">{{ 'admin.datasets.archived'|trans }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell rams-table__cell--actions">
+                                    <div class="rams-btn-group">
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
+                                        {% if not version.is_active %}
+                                            <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text-success">{{ 'admin.datasets.restore'|trans }}</a>
+                                        {% endif %}
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="rams-table__cell">
+                                <div class="rams-empty-state">
+                                    {{ 'admin.datasets.no_versions'|trans }}
                                 </div>
                             </td>
                         </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="7" class="rams-empty-state">
-                            {{ 'admin.datasets.no_versions'|trans }}
-                        </td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Version Timeline -->

@@ -41,7 +41,7 @@
                     <tr class="rams-table__row">
                         <td class="rams-table__cell">
                             <div class="rams-list-item__title">{{ playbook.name }}</div>
-                            <div class="rams-text-muted">{{ playbook.description|slice(0, 60) }}...</div>
+                            <div class="rams-text--muted rams-text--xs">{{ playbook.description|slice(0, 60) }}...</div>
                         </td>
                         <td class="rams-table__cell">
                             <span class="rams-metric__value">{{ playbook.priority }}</span>
@@ -61,13 +61,13 @@
                         <td class="rams-table__cell">
                             {% set success_rate = stats.success_rate %}
                             <div class="rams-metric">
-                                <span class="rams-metric__value {% if success_rate >= 80 %}rams-text-success{% elseif success_rate >= 50 %}rams-text-warning{% else %}rams-text-danger{% endif %}">
+                                <span class="rams-metric__value {% if success_rate >= 80 %}rams-text--success{% elseif success_rate >= 50 %}rams-text--warning{% else %}rams-text--danger{% endif %}">
                                     {{ success_rate|number_format(0) }}%
                                 </span>
-                                <span class="rams-text-muted">({{ stats.successful_runs }}/{{ stats.total_runs }})</span>
+                                <span class="rams-text--muted rams-text--xs">({{ stats.successful_runs }}/{{ stats.total_runs }})</span>
                             </div>
                         </td>
-                        <td class="rams-table__cell rams-text-muted">
+                        <td class="rams-table__cell rams-text--muted rams-text--xs">
                             {% if stats.last_run %}
                                 {{ stats.last_run.triggeredAt|date('M d, H:i') }}
                             {% else %}
@@ -101,12 +101,12 @@
     <div class="rams-module rams-module--info">
         <div class="rams-module__content">
             <h2 class="rams-module__title">{{ 'playbook.what_are_playbooks'|trans }}</h2>
-            <p class="rams-text-muted">
+            <p class="rams-text--muted rams-mb-4">
                 {{ 'playbook.playbooks_description'|trans }}
             </p>
             <div class="rams-grid rams-grid--2">
                 <div>
-                    <h3 class="rams-dymo">{{ 'playbook.example_triggers'|trans }}:</h3>
+                    <h3 class="rams-dymo rams-mb-2">{{ 'playbook.example_triggers'|trans }}:</h3>
                     <ul class="rams-list rams-list--bullet">
                         <li>{{ 'playbook.example_trigger_1'|trans }}</li>
                         <li>{{ 'playbook.example_trigger_2'|trans }}</li>
@@ -115,7 +115,7 @@
                     </ul>
                 </div>
                 <div>
-                    <h3 class="rams-dymo">{{ 'playbook.example_actions'|trans }}:</h3>
+                    <h3 class="rams-dymo rams-mb-2">{{ 'playbook.example_actions'|trans }}:</h3>
                     <ul class="rams-list rams-list--bullet">
                         <li>{{ 'playbook.example_action_1'|trans }}</li>
                         <li>{{ 'playbook.example_action_2'|trans }}</li>
@@ -145,12 +145,12 @@ async function togglePlaybook(id) {
         
         if (data.success) {
             if (data.is_active) {
-                btn.classList.remove('rams-badge--neutral');
-                btn.classList.add('rams-badge--success');
+                btn.classList.remove('rams-toggle-btn--inactive');
+                btn.classList.add('rams-toggle-btn--active');
                 statusText.textContent = '{{ 'playbook.active'|trans }}';
             } else {
-                btn.classList.remove('rams-badge--success');
-                btn.classList.add('rams-badge--neutral');
+                btn.classList.remove('rams-toggle-btn--active');
+                btn.classList.add('rams-toggle-btn--inactive');
                 statusText.textContent = '{{ 'playbook.inactive'|trans }}';
             }
         }

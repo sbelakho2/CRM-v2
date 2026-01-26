@@ -105,13 +105,11 @@ class ExcelImportService
                 str_contains($normalized, 'stage') => 'pipeline_stage',
                 str_contains($normalized, 'region') => 'region',
                 str_contains($normalized, 'website') => 'website',
-                str_contains($normalized, 'linkedin') && str_contains($normalized, 'company') => 'company_linkedin',
                 str_contains($normalized, 'google') || str_contains($normalized, 'drive') => 'google_drive',
                 str_contains($normalized, 'contact') && str_contains($normalized, 'name') => 'contact_name',
                 str_contains($normalized, 'contact') && str_contains($normalized, 'email') => 'contact_email',
                 str_contains($normalized, 'contact') && str_contains($normalized, 'phone') => 'contact_phone',
                 str_contains($normalized, 'contact') && str_contains($normalized, 'role') => 'contact_role',
-                str_contains($normalized, 'contact') && str_contains($normalized, 'linkedin') => 'contact_linkedin',
                 str_contains($normalized, 'portal') && str_contains($normalized, 'registered') => 'portal_registered',
                 str_contains($normalized, 'portal') && str_contains($normalized, 'date') => 'portal_signup_date',
                 str_contains($normalized, 'priority') => 'priority',
@@ -175,9 +173,6 @@ class ExcelImportService
         if (!empty($data['website'])) {
             $company->setWebsite($data['website']);
         }
-        if (!empty($data['company_linkedin'])) {
-            $company->setLinkedInUrl($data['company_linkedin']);
-        }
         if (!empty($data['google_drive'])) {
             $company->setGoogleDriveLink($data['google_drive']);
         }
@@ -216,9 +211,6 @@ class ExcelImportService
         }
         if (!empty($data['contact_role'])) {
             $contact->setJobTitle($data['contact_role']);
-        }
-        if (!empty($data['contact_linkedin'])) {
-            $contact->setLinkedInUrl($data['contact_linkedin']);
         }
 
         $this->entityManager->persist($contact);

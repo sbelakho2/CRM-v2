@@ -57,6 +57,15 @@ class LeadScoringService
      */
     public function scoreLead(array $lead): array
     {
+        // Check if we have enough content to score
+        $pageContent = $lead['page_content'] ?? '';
+        $hasMinimalContent = strlen(trim($pageContent)) >= 100;
+        
+        // Use fallback scoring if content is empty or minimal
+        if (!$hasMinimalContent) {
+            return $this->scoreLeadWithFallback($lead);
+        }
+        
         $breakdown = [];
         $totalScore = 0;
 
@@ -363,5 +372,230 @@ class LeadScoringService
         }
 
         return count($topLeads) > 0 ? ($approved / count($topLeads)) : 0.0;
+    }
+    
+    /**
+     * Fallback scoring when page content is empty or minimal
+     * 
+     * Uses alternative signals like:
+     * - Company name patterns (EMS indicators)
+     * - Domain patterns
+     * - Pre-extracted metadata
+     * - Sector tags
+     * - Quality certifications
+     * 
+     * @param array $lead Lead data with minimal content
+     * @return array Score data with fallback indicators
+     */
+    private function scoreLeadWithFallback(array $lead): array
+    {
+        $breakdown = [];
+        $totalScore = 0;
+        
+        $this->logger->info('Using fallback scoring - minimal content', [
+            'company' => $lead['company_name'] ?? 'unknown',
+            'url' => $lead['website_root'] ?? $lead['lead_url'] ?? 'unknown',
+        ]);
+        
+        // 1. Company name analysis (max 15 points)
+        $companyScore = $this->scoreCompanyNameFallback($lead);
+        $breakdown['company_name'] = [
+            'score' => $companyScore,
+            'weight' => 15,
+            'signals' => ['Fallback: company name analysis'],
+        ];
+        $totalScore += $companyScore;
+        
+        // 2. Pre-extracted metadata (max 20 points)
+        $metadataScore = $this->scoreMetadataFallback($lead);
+        $breakdown['metadata'] = [
+            'score' => $metadataScore,
+            'weight' => 20,
+            'signals' => ['Fallback: pre-extracted metadata'],
+        ];
+        $totalScore += $metadataScore;
+        
+        // 3. Sector tags if available (max 12 points)
+        $sectorScore = $this->scoreSectorTagsFallback($lead);
+        $breakdown['sector'] = [
+            'score' => $sectorScore,
+            'weight' => 12,
+            'signals' => $lead['sector_tags'] ?? ['Fallback: sector tags'],
+        ];
+        $totalScore += $sectorScore;
+        
+        // 4. Quality certifications if available (max 10 points)
+        $qualityScore = $this->scoreQualityStackFallback($lead);
+        $breakdown['quality'] = [
+            'score' => $qualityScore,
+            'weight' => 10,
+            'signals' => $lead['quality_stack'] ?? ['Fallback: quality stack'],
+        ];
+        $totalScore += $qualityScore;
+        
+        // 5. Region bonus for Morocco (max 10 points)
+        $regionScore = $this->scoreRegionFallback($lead);
+        $breakdown['region'] = [
+            'score' => $regionScore,
+            'weight' => 10,
+            'signals' => ['Fallback: region analysis'],
+        ];
+        $totalScore += $regionScore;
+        
+        // 6. Contactability if available (max 8 points)
+        $contactScore = $this->scoreContactability($lead);
+        $breakdown['contactability'] = [
+            'score' => $contactScore,
+            'weight' => 8,
+            'signals' => ['Available contact info'],
+        ];
+        $totalScore += $contactScore;
+        
+        // Cap at 75 (can never get full score without content analysis)
+        $totalScore = min(75, $totalScore);
+        
+        // Mark as requiring review since it's fallback scored
+        $recommendation = $totalScore >= 45 ? 'review' : 'drop';
+        
+        return [
+            'score' => $totalScore,
+            'breakdown' => $breakdown,
+            'recommendation' => $recommendation,
+            'reason' => 'Fallback scoring (limited content) → Score: ' . $totalScore,
+            'fallback_scored' => true,
+        ];
+    }
+    
+    /**
+     * Score based on company name patterns
+     */
+    private function scoreCompanyNameFallback(array $lead): int
+    {
+        $companyName = strtolower($lead['company_name'] ?? '');
+        if (empty($companyName)) {
+            return 0;
+        }
+        
+        $score = 0;
+        
+        // EMS/manufacturing indicators in name
+        $emsIndicators = ['ems', 'electronics', 'pcb', 'circuit', 'assembly', 'manufacturing', 
+                          'tech', 'systems', 'solutions', 'industrial', 'automotive'];
+        
+        foreach ($emsIndicators as $indicator) {
+            if (str_contains($companyName, $indicator)) {
+                $score += 5;
+            }
+        }
+        
+        return min(15, $score);
+    }
+    
+    /**
+     * Score based on pre-extracted metadata
+     */
+    private function scoreMetadataFallback(array $lead): int
+    {
+        $score = 0;
+        
+        // Fit signals present
+        $fitSignals = $lead['fit_signals'] ?? [];
+        if (is_array($fitSignals) && count($fitSignals) > 0) {
+            $score += min(10, count($fitSignals) * 2);
+        }
+        
+        // Morocco signal
+        if (!empty($lead['morocco_signal'])) {
+            $score += 5;
+        }
+        
+        // Supplier portal URL present
+        if (!empty($lead['supplier_portal_url'])) {
+            $score += 3;
+        }
+        
+        // RFQ page present
+        if (!empty($lead['rfq_rfp_page_url'])) {
+            $score += 2;
+        }
+        
+        return min(20, $score);
+    }
+    
+    /**
+     * Score based on pre-extracted sector tags
+     */
+    private function scoreSectorTagsFallback(array $lead): int
+    {
+        $sectorTags = $lead['sector_tags'] ?? [];
+        if (!is_array($sectorTags)) {
+            return 0;
+        }
+        
+        $targetSectors = ['automotive', 'aerospace', 'defense', 'medical', 'industrial', 
+                          'telecommunications', 'power', 'renewables'];
+        
+        $matches = 0;
+        foreach ($sectorTags as $tag) {
+            $tag = strtolower($tag);
+            foreach ($targetSectors as $target) {
+                if (str_contains($tag, $target)) {
+                    $matches++;
+                    break;
+                }
+            }
+        }
+        
+        return min(12, $matches * 4);
+    }
+    
+    /**
+     * Score based on quality certifications
+     */
+    private function scoreQualityStackFallback(array $lead): int
+    {
+        $qualityStack = $lead['quality_stack'] ?? [];
+        if (!is_array($qualityStack)) {
+            return 0;
+        }
+        
+        $valuableCerts = ['iatf 16949', 'as9100', 'iso 13485', 'iso 9001', 'nadcap', 'itar'];
+        
+        $matches = 0;
+        foreach ($qualityStack as $cert) {
+            $cert = strtolower($cert);
+            foreach ($valuableCerts as $valuable) {
+                if (str_contains($cert, $valuable)) {
+                    $matches++;
+                    break;
+                }
+            }
+        }
+        
+        return min(10, $matches * 3);
+    }
+    
+    /**
+     * Score based on region (bonus for Morocco)
+     */
+    private function scoreRegionFallback(array $lead): int
+    {
+        $regionTag = strtolower($lead['region_tag'] ?? '');
+        $siteLocation = strtolower($lead['site_location'] ?? '');
+        
+        // Morocco gets full bonus
+        if (str_contains($regionTag, 'morocco') || str_contains($siteLocation, 'morocco')) {
+            return 10;
+        }
+        
+        // Target regions get partial bonus
+        $targetRegions = ['eu_', 'europe', 'us_', 'america', 'uk'];
+        foreach ($targetRegions as $target) {
+            if (str_contains($regionTag, $target)) {
+                return 5;
+            }
+        }
+        
+        return 0;
     }
 }

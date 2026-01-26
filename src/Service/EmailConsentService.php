@@ -335,7 +335,6 @@ class EmailConsentService
                 'last_name' => $contact->getLastName(),
                 'title' => $contact->getTitle(),
                 'phone' => $contact->getPhone(),
-                'linkedin_url' => $contact->getLinkedInUrl(),
                 'company' => $company?->getName()
             ],
             'consent_status' => [
@@ -368,7 +367,6 @@ class EmailConsentService
             $contact->setLastName('User');
             $contact->setJobTitle(null);
             $contact->setPhone(null);
-            $contact->setLinkedInUrl(null);
             $contact->setSubscribed(false);
             
             $this->logger->info("Contact anonymized (GDPR right to be forgotten)");

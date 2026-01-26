@@ -3,107 +3,146 @@
 {% block title %}{{ 'abm_dashboard.accounts'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack">
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
     <div class="rams-page-header">
-        <h1 class="rams-page-title">{{ 'abm_dashboard.accounts'|trans }}</h1>
-        <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn rams-btn--primary">
-            ➕ {{ 'abm_dashboard.add_account'|trans }}
-        </a>
-    </div>
-
-    <!-- Filters -->
-    <div class="rams-module">
-        <div class="rams-module__content">
-            <div class="rams-form-row">
-                <div class="rams-form-group rams-form-group--grow">
-                    <input type="text" placeholder="{{ 'abm_dashboard.search_accounts'|trans }}" class="rams-input">
-                </div>
-                <select class="rams-select">
-                    <option>{{ 'abm_dashboard.all_regions'|trans }}</option>
-                    <option>{{ 'abm_dashboard.region_morocco'|trans }}</option>
-                    <option>{{ 'abm_dashboard.region_us'|trans }}</option>
-                    <option>{{ 'abm_dashboard.region_eu'|trans }}</option>
-                </select>
-                <select class="rams-select">
-                    <option>{{ 'abm_dashboard.all_statuses'|trans }}</option>
-                    <option>{{ 'common.active'|trans }}</option>
-                    <option>{{ 'abm_dashboard.status_prospect'|trans }}</option>
-                    <option>{{ 'common.inactive'|trans }}</option>
-                </select>
-            </div>
+        <div>
+            <nav class="rams-breadcrumb rams-mb-2">
+                <ol class="rams-breadcrumb__list">
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('abm_dashboard_index') }}" class="rams-breadcrumb__link">{{ 'nav.abm_dashboard'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'abm_dashboard.accounts'|trans }}</li>
+                </ol>
+            </nav>
+            <h1 class="rams-page-title">{{ 'abm_dashboard.accounts'|trans }}</h1>
+        </div>
+        <div class="rams-page-actions">
+            <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn rams-btn--primary">
+                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3V13M3 8H13"/>
+                </svg>
+                {{ 'abm_dashboard.add_account'|trans }}
+            </a>
         </div>
     </div>
 
-    <!-- Accounts Grid -->
-    <div class="rams-grid rams-grid--3">
+    {# Filters #}
+    <div class="rams-module">
+        <div class="rams-module__content">
+            <form class="rams-form rams-grid rams-grid--3">
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'common.search'|trans }}</label>
+                    <input type="text" placeholder="{{ 'abm_dashboard.search_accounts'|trans }}" class="rams-form__input">
+                </div>
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'company.region'|trans }}</label>
+                    <select class="rams-form__select">
+                        <option value="">{{ 'abm_dashboard.all_regions'|trans }}</option>
+                        <option value="MA">{{ 'abm_dashboard.region_morocco'|trans }}</option>
+                        <option value="US">{{ 'abm_dashboard.region_us'|trans }}</option>
+                        <option value="EU">{{ 'abm_dashboard.region_eu'|trans }}</option>
+                    </select>
+                </div>
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'common.status'|trans }}</label>
+                    <select class="rams-form__select">
+                        <option value="">{{ 'abm_dashboard.all_statuses'|trans }}</option>
+                        <option value="active">{{ 'common.active'|trans }}</option>
+                        <option value="prospect">{{ 'abm_dashboard.status_prospect'|trans }}</option>
+                        <option value="inactive">{{ 'common.inactive'|trans }}</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Accounts Grid #}
+    <div class="rams-grid rams-grid--3 rams-gap-6">
         {% if accounts | default([]) %}
             {% for account in accounts %}
-                <div class="rams-module">
+                <div class="rams-module rams-module--hoverable" onclick="location.href='{{ path('abm_dashboard_account_detail', {'id': account.id | default(1)}) }}'">
                     <div class="rams-module__content">
-                        <div class="rams-list-item__header">
+                        <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
                             <div>
-                                <h3 class="rams-list-item__title">{{ account.name | default('abm_dashboard.account_name_placeholder'|trans) }}</h3>
-                                <p class="rams-text-muted">{{ account.industry | default('abm_dashboard.industry_placeholder'|trans) }}</p>
+                                <h3 class="rams-heading rams-heading--3 rams-mb-1">{{ account.name | default('abm_dashboard.account_name_placeholder'|trans) }}</h3>
+                                <p class="rams-text--muted rams-text--xs uppercase">{{ account.industry | default('abm_dashboard.industry_placeholder'|trans) }}</p>
                             </div>
                             {% set statusKey = account.status|default('prospect') %}
                             {% set statusLabel = statusKey == 'active'
                                 ? 'common.active'|trans
                                 : (statusKey == 'inactive' ? 'common.inactive'|trans : 'abm_dashboard.status_prospect'|trans) %}
-                            <span class="rams-badge {% if account.status == 'active' %}rams-badge--success{% elseif account.status == 'prospect' %}rams-badge--info{% else %}rams-badge--neutral{% endif %}">
+                            <span class="rams-badge {% if account.status == 'active' %}rams-badge--success{% elseif account.status == 'prospect' %}rams-badge--info{% endif %}">
                                 {{ statusLabel }}
                             </span>
                         </div>
 
-                        <div class="rams-detail-list">
-                            <p><span class="rams-dymo">{{ 'abm_dashboard.location'|trans }}:</span> {{ account.location | default('common.n_a'|trans) }}</p>
-                            <p><span class="rams-dymo">{{ 'abm_dashboard.company_size'|trans }}:</span> {{ account.company_size | default('common.n_a'|trans) }}</p>
-                            <p><span class="rams-dymo">{{ 'abm_dashboard.annual_revenue'|trans }}:</span> {{ account.revenue | default('common.n_a'|trans) }}</p>
-                        </div>
+                        <dl class="rams-definition-list rams-mb-6">
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'abm_dashboard.location'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">{{ account.location | default('—') }}</dd>
+                            </div>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'abm_dashboard.company_size'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">{{ account.company_size | default('—') }}</dd>
+                            </div>
+                        </dl>
 
-                        <div class="rams-progress-section">
-                            <p class="rams-text-muted">{{ 'abm_dashboard.engagement_score'|trans }}: <span class="rams-metric__value">{{ account.engagement_score | default(0) }}/100</span></p>
-                            <div class="rams-progress">
+                        <div class="rams-stack rams-gap-2">
+                            <div class="rams-flex rams-justify-between rams-items-end">
+                                <span class="rams-text--2xs rams-text--muted uppercase font-mono">{{ 'abm_dashboard.engagement_score'|trans }}</span>
+                                <span class="rams-text--sm rams-text--bold font-mono">{{ account.engagement_score | default(0) }}%</span>
+                            </div>
+                            <div class="rams-progress rams-progress--compact">
                                 <div class="rams-progress__bar" style="width: {{ account.engagement_score | default(0) }}%"></div>
                             </div>
                         </div>
-
-                        <div class="rams-module__footer">
-                            <a href="{{ path('abm_dashboard_account_detail', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
-                                {{ 'common.view'|trans }}
-                            </a>
-                            <a href="{{ path('abm_dashboard_account_edit', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
-                                {{ 'common.edit'|trans }}
-                            </a>
-                        </div>
+                    </div>
+                    <div class="rams-module__footer rams-flex rams-gap-2" onclick="event.stopPropagation()">
+                        <a href="{{ path('abm_dashboard_account_detail', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm rams-flex-1">
+                            {{ 'common.view'|trans }}
+                        </a>
+                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                            <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
+                            </svg>
+                        </a>
                     </div>
                 </div>
             {% endfor %}
         {% else %}
-            <div class="rams-empty-state rams-grid--span-3">
-                <p class="rams-text-muted">{{ 'abm_dashboard.no_target_accounts'|trans }}</p>
-                <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn rams-btn--primary">{{ 'abm_dashboard.add_first_account'|trans }} →</a>
+            <div class="rams-grid-span-3">
+                <div class="rams-module">
+                    <div class="rams-module__content rams-empty-state">
+                        <p class="rams-text-muted rams-mb-4">{{ 'abm_dashboard.no_target_accounts'|trans }}</p>
+                        <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn rams-btn--primary">
+                            {{ 'abm_dashboard.add_first_account'|trans }}
+                        </a>
+                    </div>
+                </div>
             </div>
         {% endif %}
     </div>
 
-    <!-- Quick Actions -->
-    <div class="rams-grid rams-grid--3">
-        <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--clickable">
+    {# Quick Actions #}
+    <div class="rams-grid rams-grid--3 rams-gap-6">
+        <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--inset rams-module--hoverable" style="text-decoration:none">
             <div class="rams-module__content">
-                <h3 class="rams-module__title">📤 {{ 'abm_dashboard.import_accounts'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'abm_dashboard.import_accounts_desc'|trans }}</p>
+                <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
+                    <span class="rams-text-2xl">📤</span>
+                    <h3 class="rams-module__title">{{ 'abm_dashboard.import_accounts'|trans }}</h3>
+                </div>
+                <p class="rams-text-muted rams-text-xs">{{ 'abm_dashboard.import_accounts_desc'|trans }}</p>
             </div>
         </a>
-        <div class="rams-module rams-module--disabled">
+        <a href="{{ path('abm_dashboard_index') }}" class="rams-module rams-module--inset rams-module--hoverable" style="text-decoration:none">
             <div class="rams-module__content">
-                <h3 class="rams-module__title">🔄 {{ 'abm_dashboard.sync_linkedin'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'abm_dashboard.sync_linkedin_desc'|trans }} ({{ 'abm_dashboard.coming_soon'|trans }})</p>
-            </div>
-        </div>
-        <a href="{{ path('abm_dashboard_index') }}" class="rams-module rams-module--clickable">
-            <div class="rams-module__content">
-                <h3 class="rams-module__title">📊 {{ 'abm_dashboard.analytics'|trans }}</h3>
-                <p class="rams-text-muted">{{ 'abm_dashboard.analytics_subtitle'|trans }}</p>
+                <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
+                    <span class="rams-text-2xl">📊</span>
+                    <h3 class="rams-module__title">{{ 'abm_dashboard.analytics'|trans }}</h3>
+                </div>
+                <p class="rams-text-muted rams-text-xs">{{ 'abm_dashboard.analytics_subtitle'|trans }}</p>
             </div>
         </a>
     </div>

@@ -3,28 +3,33 @@
 {% block title %}{{ 'supplier.portal.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack rams-stack--lg">
-    {# Header #}
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
     <div class="rams-page-header">
-        <div class="rams-page-header__row">
-            <div>
-                <h1 class="rams-heading rams-heading--1">{{ 'supplier.portal.title'|trans }}</h1>
-                <p class="rams-text rams-text--muted">{{ 'supplier.portal.subtitle'|trans }}</p>
-            </div>
-            <a href="#" class="rams-btn rams-btn--secondary">
-                + {{ 'supplier.portal.add_supplier'|trans }}
+        <div>
+            <h1 class="rams-page-title">{{ 'supplier.portal.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'supplier.portal.subtitle'|trans }}</p>
+        </div>
+        <div class="rams-page-actions">
+            <a href="#" class="rams-btn rams-btn--primary">
+                <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3V13M3 8H13"/>
+                </svg>
+                {{ 'supplier.portal.add_supplier'|trans }}
             </a>
         </div>
     </div>
 
     {# Search and Filter #}
-    <div class="rams-module rams-module--compact">
+    <div class="rams-module">
         <div class="rams-module__content">
-            <form class="rams-form--inline rams-grid rams-grid--cols-3 rams-grid--gap-md">
+            <form class="rams-form rams-grid rams-grid--3">
                 <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'common.search'|trans }}</label>
                     <input type="text" placeholder="{{ 'supplier.portal.search_placeholder'|trans }}" class="rams-form__input">
                 </div>
                 <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'common.status'|trans }}</label>
                     <select class="rams-form__select">
                         <option value="">{{ 'supplier.portal.all_statuses'|trans }}</option>
                         <option value="active">{{ 'common.active'|trans }}</option>
@@ -32,16 +37,22 @@
                         <option value="pending">{{ 'supplier.portal.pending_approval'|trans }}</option>
                     </select>
                 </div>
-                <button type="submit" class="rams-btn rams-btn--secondary">
-                    {{ 'common.filter'|trans }}
-                </button>
+                <div class="rams-form__group rams-form__group--actions">
+                    <button type="submit" class="rams-btn rams-btn--secondary rams-w-full">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="7" cy="7" r="4"/>
+                            <path d="M11 11L14 14"/>
+                        </svg>
+                        {{ 'common.filter'|trans }}
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 
     {# Suppliers Table #}
     <div class="rams-module">
-        <div class="rams-module__content rams-module__content--flush">
+        <div class="rams-table-container">
             <table class="rams-table">
                 <thead class="rams-table__header">
                     <tr>
@@ -50,31 +61,31 @@
                         <th class="rams-table__cell rams-table__cell--header">{{ 'common.email'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'supplier.portal.region'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header rams-text--right">{{ 'common.actions'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="rams-table__body">
                     {% if suppliers | default([]) %}
                         {% for supplier in suppliers %}
                             <tr class="rams-table__row">
-                                <td class="rams-table__cell rams-text--bold">{{ supplier.name }}</td>
+                                <td class="rams-table__cell rams-text-bold">{{ supplier.name }}</td>
                                 <td class="rams-table__cell">{{ supplier.contact_name | default('Contact') }}</td>
-                                <td class="rams-table__cell">{{ supplier.email | default('N/A') }}</td>
+                                <td class="rams-table__cell rams-text-muted rams-text-xs">{{ supplier.email | default('N/A') }}</td>
                                 <td class="rams-table__cell">
                                     {% if supplier.status == 'Active' %}
-                                        <span class="rams-badge rams-badge--green">{{ supplier.status }}</span>
+                                        <span class="rams-badge rams-badge--success">{{ supplier.status }}</span>
                                     {% elseif supplier.status == 'Pending' %}
-                                        <span class="rams-badge rams-badge--yellow">{{ supplier.status }}</span>
+                                        <span class="rams-badge rams-badge--warning">{{ supplier.status }}</span>
                                     {% else %}
-                                        <span class="rams-badge rams-badge--gray">{{ supplier.status }}</span>
+                                        <span class="rams-badge">{{ supplier.status }}</span>
                                     {% endif %}
                                 </td>
-                                <td class="rams-table__cell">{{ supplier.region | default('N/A') }}</td>
-                                <td class="rams-table__cell rams-text--right">
-                                    <div class="rams-btn-group rams-btn-group--compact">
+                                <td class="rams-table__cell rams-text-xs">{{ supplier.region | default('N/A') }}</td>
+                                <td class="rams-table__cell rams-table__cell--actions">
+                                    <div class="rams-btn-group">
                                         <a href="{{ path('supplier_portal_detail', {id: supplier.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
                                         <button class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</button>
-                                        <button class="rams-btn rams-btn--ghost rams-btn--sm rams-text--danger">{{ 'common.remove'|trans }}</button>
+                                        <button class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</button>
                                     </div>
                                 </td>
                             </tr>
@@ -83,8 +94,12 @@
                         <tr>
                             <td colspan="6" class="rams-table__cell">
                                 <div class="rams-empty-state">
-                                    <div class="rams-empty-state__icon">📦</div>
-                                    <p class="rams-text rams-text--muted">{{ 'supplier.portal.no_suppliers'|trans }}</p>
+                                    <svg class="rams-empty-state__icon" width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                                        <path d="M2 4L8 2L14 4V12L8 14L2 12V4Z" stroke-width="1.5"/>
+                                        <path d="M2 4L8 6L14 4" stroke-width="1.5"/>
+                                        <path d="M8 6V14" stroke-width="1.5"/>
+                                    </svg>
+                                    <h3 class="rams-empty-state__title">{{ 'supplier.portal.no_suppliers'|trans }}</h3>
                                 </div>
                             </td>
                         </tr>
@@ -95,9 +110,9 @@
     </div>
 
     {# Pagination #}
-    <div class="rams-pagination">
-        <p class="rams-text rams-text--sm rams-text--muted">
-            {{ 'common.showing'|trans }} {{ suppliers | length }} {{ 'common.of'|trans }} 100+ {{ 'supplier.portal.suppliers'|trans }}
+    <div class="rams-flex rams-justify-between rams-items-center">
+        <p class="rams-text-muted rams-text-xs">
+            {{ 'common.showing'|trans }} <span class="rams-badge">{{ suppliers | length }}</span> {{ 'common.of'|trans }} 100+ {{ 'supplier.portal.suppliers'|trans }}
         </p>
         <div class="rams-btn-group">
             <button class="rams-btn rams-btn--secondary rams-btn--sm">{{ 'common.previous'|trans }}</button>

@@ -42,13 +42,12 @@ Examples:
   php bin/console app:discover-companies --all
 
 The webcrawler uses:
-- LinkedIn search to find company profiles
 - Google Dorks to discover company websites and information
 - Automatic deduplication to avoid importing duplicates
 
 Discovered companies are saved with:
 - Name, sector, location
-- Website and LinkedIn URLs (when found)
+- Website URLs (when found)
 - Default pipeline stage: Prospect
 - Default tier: C
 - Source notes indicating auto-discovery date
@@ -117,9 +116,8 @@ HELP
 
         $io->info([
             '',
-            'Note: The webcrawler generates search URLs for LinkedIn and Google.',
+            'Note: The webcrawler generates Google search URLs for company discovery.',
             'For production use, integrate with:',
-            '  - LinkedIn Sales Navigator API',
             '  - RocketReach API',
             '  - Apollo.io API',
             '  - Google Custom Search API',

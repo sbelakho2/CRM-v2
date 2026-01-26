@@ -135,7 +135,6 @@ class TrackerImportService
         $sector = $row['Sector'] ?? $row['sector'] ?? $row['Industry'] ?? null;
         $location = $row['Physical Site (Morocco) / Region'] ?? $row['Location'] ?? $row['location'] ?? $row['Physical Site'] ?? $row['Region'] ?? null;
         $website = $row['Website (Verified)'] ?? $row['Website'] ?? $row['website'] ?? $row['URL'] ?? null;
-        $linkedIn = $row['LinkedIn Company URL'] ?? $row['LinkedIn'] ?? $row['linkedin'] ?? null;
         $tier = $row['Priority (A/B/C)'] ?? $row['Priority'] ?? $row['Tier'] ?? $row['tier'] ?? $row['Account Tier'] ?? null;
         $stage = $row['Status'] ?? $row['Stage'] ?? $row['stage'] ?? $row['Pipeline Stage'] ?? null;
         $portalUrl = $row['Contact URL / Supplier Portal'] ?? $row['Portal URL'] ?? $row['portal_url'] ?? $row['Supplier Portal'] ?? null;
@@ -155,10 +154,6 @@ class TrackerImportService
 
         if ($website) {
             $company->setWebsite($website);
-        }
-
-        if ($linkedIn) {
-            $company->setLinkedinCompanyUrl($linkedIn);
         }
 
         if ($tier) {
@@ -263,7 +258,6 @@ class TrackerImportService
             'Sector',
             'Location',
             'Website',
-            'LinkedIn',
             'Account Tier',
             'Pipeline Stage',
             'Portal URL',
@@ -285,7 +279,6 @@ class TrackerImportService
             'Automotive',
             'Tanger Free Zone',
             'https://example.com',
-            'https://linkedin.com/company/example',
             'A',
             'SQL',
             'https://example.com/suppliers',

@@ -180,17 +180,6 @@ class GuidanceNotificationService
             'Log Activity',
             "contact_{$contactId}_log_activity"
         );
-
-        // If contact has LinkedIn, suggest connecting
-        if ($contact->getLinkedinUrl()) {
-            $this->addGuidance(
-                'tip',
-                "🔗 Consider connecting with {$contactName} on LinkedIn and logging the activity",
-                $contact->getLinkedinUrl(),
-                'Open LinkedIn',
-                "contact_{$contactId}_linkedin"
-            );
-        }
     }
 
     /**

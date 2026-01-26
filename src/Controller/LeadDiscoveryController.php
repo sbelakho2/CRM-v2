@@ -94,7 +94,7 @@ class LeadDiscoveryController extends AbstractController
             // Check for duplicates
             if ($website) {
                 $existing = $this->entityManager->getRepository(Lead::class)
-                    ->findOneBy(['website' => $website]);
+                    ->findOneBy(['websiteRoot' => $website]);
 
                 if ($existing) {
                     $skipped++;
@@ -105,7 +105,7 @@ class LeadDiscoveryController extends AbstractController
             // Create lead
             $lead = new Lead();
             $lead->setCompanyName($this->cleanCompanyName($result['title']));
-            $lead->setWebsite($website);
+            $lead->setWebsiteRoot($website);
             $lead->setDescription($result['snippet']);
             $lead->setSource('Google Search: ' . $query);
             $lead->setReviewStatus('new');
@@ -150,7 +150,7 @@ class LeadDiscoveryController extends AbstractController
 
             if ($website) {
                 $existing = $this->entityManager->getRepository(Lead::class)
-                    ->findOneBy(['website' => $website]);
+                    ->findOneBy(['websiteRoot' => $website]);
 
                 if ($existing) {
                     $skipped++;
@@ -160,7 +160,7 @@ class LeadDiscoveryController extends AbstractController
 
             $lead = new Lead();
             $lead->setCompanyName($this->cleanCompanyName($result['title']));
-            $lead->setWebsite($website);
+            $lead->setWebsiteRoot($website);
             $lead->setDescription($result['snippet']);
             $lead->setSource('Google Search: ' . $query);
             $lead->setReviewStatus('new');

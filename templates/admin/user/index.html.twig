@@ -3,27 +3,29 @@
 {% block title %}{{ 'admin.users.title'|trans }} - {{ 'admin.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack rams-gap-4">
-    {# Header #}
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
     <div class="rams-page-header">
         <div>
             <h1 class="rams-page-title">{{ 'admin.users.title'|trans }}</h1>
-            <p class="rams-text-muted">{{ 'admin.users.subtitle'|trans }}</p>
+            <p class="rams-page-subtitle">{{ 'admin.users.subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('admin_user_new') }}" class="rams-btn rams-btn--primary">
-            <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 2v12M2 8h12"/>
-            </svg>
-            {{ 'admin.users.new_user'|trans }}
-        </a>
+        <div class="rams-page-actions">
+            <a href="{{ path('admin_user_new') }}" class="rams-btn rams-btn--primary">
+                <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 2v12M2 8h12"/>
+                </svg>
+                {{ 'admin.users.new_user'|trans }}
+            </a>
+        </div>
     </div>
 
     {# Search and Filters #}
     <div class="rams-module">
         <div class="rams-module__content">
-            <form method="get" class="rams-grid rams-grid--4">
+            <form method="get" class="rams-form rams-grid rams-grid--4">
                 <div class="rams-form__group">
-                    <label for="search" class="rams-form__label">{{ 'common.search'|trans }}</label>
+                    <label for="search" class="rams-form__label rams-dymo">{{ 'common.search'|trans }}</label>
                     <input type="text" 
                            id="search" 
                            name="search" 
@@ -33,7 +35,7 @@
                 </div>
                 
                 <div class="rams-form__group">
-                    <label for="role" class="rams-form__label">{{ 'admin.users.role'|trans }}</label>
+                    <label for="role" class="rams-form__label rams-dymo">{{ 'admin.users.role'|trans }}</label>
                     <select id="role" name="role" class="rams-form__select">
                         <option value="">{{ 'admin.users.all_roles'|trans }}</option>
                         <option value="ROLE_ADMIN" {% if app.request.query.get('role') == 'ROLE_ADMIN' %}selected{% endif %}>{{ 'admin.users.roles.admin'|trans }}</option>
@@ -43,7 +45,7 @@
                 </div>
                 
                 <div class="rams-form__group">
-                    <label for="status" class="rams-form__label">{{ 'admin.users.status'|trans }}</label>
+                    <label for="status" class="rams-form__label rams-dymo">{{ 'admin.users.status'|trans }}</label>
                     <select id="status" name="status" class="rams-form__select">
                         <option value="">{{ 'common.all'|trans }}</option>
                         <option value="active" {% if app.request.query.get('status') == 'active' %}selected{% endif %}>{{ 'admin.users.active'|trans }}</option>
@@ -52,14 +54,13 @@
                 </div>
                 
                 <div class="rams-form__group rams-form__group--actions">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn rams-btn--secondary rams-w-full">
                         <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="7" cy="7" r="4"/>
                             <path d="M11 11L14 14"/>
                         </svg>
                         {{ 'common.filter'|trans }}
                     </button>
-                    <a href="{{ path('admin_user_index') }}" class="rams-btn rams-btn--ghost">{{ 'common.clear'|trans }}</a>
                 </div>
             </form>
         </div>
@@ -67,60 +68,65 @@
 
     {# Users Table #}
     <div class="rams-module">
-        <table class="rams-table">
-            <thead class="rams-table__header">
-                <tr>
-                    <th class="rams-table__cell">{{ 'common.name'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'admin.users.email'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'admin.users.role'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'admin.users.status'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'common.actions'|trans }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                    <tr class="rams-table__row">
-                        <td class="rams-table__cell">
-                            <span class="rams-text-bold">{{ user.firstName }} {{ user.lastName }}</span>
-                        </td>
-                        <td class="rams-table__cell">
-                            <a href="mailto:{{ user.email }}" class="rams-link">{{ user.email }}</a>
-                        </td>
-                        <td class="rams-table__cell">
-                            {% for role in user.roles %}
-                                <span class="rams-badge rams-badge--info">{{ role|replace({'ROLE_': ''}) }}</span>
-                            {% endfor %}
-                        </td>
-                        <td class="rams-table__cell">
-                            {% if user.isActive() %}
-                                <span class="rams-badge rams-badge--success">{{ 'admin.users.active'|trans }}</span>
-                            {% else %}
-                                <span class="rams-badge rams-badge--neutral">{{ 'admin.users.inactive'|trans }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="rams-table__cell">
-                            <div class="rams-btn-group">
-                                <a href="{{ path('admin_user_edit', {id: user.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</a>
-                                <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'admin.users.delete_confirm'|trans }}', {variant: 'danger'})">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('delete_user' ~ user.id) }}">
-                                    <button type="submit" 
-                                            class="rams-btn rams-btn--danger-outline rams-btn--sm">
-                                        {{ 'common.delete'|trans }}
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                {% else %}
+        <div class="rams-table-container">
+            <table class="rams-table">
+                <thead class="rams-table__header">
                     <tr>
-                        <td colspan="5" class="rams-table__cell rams-text-center rams-text-muted">
-                            {{ 'admin.users.no_users'|trans }} 
-                            <a href="{{ path('admin_user_new') }}" class="rams-link">{{ 'admin.users.create_first'|trans }}</a>
-                        </td>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'common.name'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.users.email'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.users.role'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.users.status'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody class="rams-table__body">
+                    {% for user in users %}
+                        <tr class="rams-table__row">
+                            <td class="rams-table__cell">
+                                <span class="rams-text-bold">{{ user.firstName }} {{ user.lastName }}</span>
+                            </td>
+                            <td class="rams-table__cell">
+                                <a href="mailto:{{ user.email }}" class="rams-link rams-text-xs">{{ user.email }}</a>
+                            </td>
+                            <td class="rams-table__cell">
+                                <div class="rams-flex rams-flex-wrap rams-gap-1">
+                                    {% for role in user.roles %}
+                                        <span class="rams-badge rams-badge--info">{{ role|replace({'ROLE_': ''}) }}</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td class="rams-table__cell">
+                                <div class="rams-andon">
+                                    <span class="rams-andon__light rams-andon__light--{{ user.isActive() ? 'green' : '' }}"></span>
+                                    <span class="rams-andon__text">{{ (user.isActive() ? 'admin.users.active' : 'admin.users.inactive')|trans }}</span>
+                                </div>
+                            </td>
+                            <td class="rams-table__cell rams-table__cell--actions">
+                                <div class="rams-btn-group">
+                                    <a href="{{ path('admin_user_edit', {id: user.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</a>
+                                    <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'admin.users.delete_confirm'|trans }}', {variant: 'danger'})">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_user' ~ user.id) }}">
+                                        <button type="submit" 
+                                                class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">
+                                            {{ 'common.delete'|trans }}
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="rams-table__cell">
+                                <div class="rams-empty-state">
+                                    <h3 class="rams-empty-state__title">{{ 'admin.users.no_users'|trans }}</h3>
+                                    <a href="{{ path('admin_user_new') }}" class="rams-link">{{ 'admin.users.create_first'|trans }}</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

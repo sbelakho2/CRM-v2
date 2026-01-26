@@ -14,26 +14,34 @@
     <div class="rams-grid rams-grid--4">
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
-                <span class="rams-dymo">{{ 'quote.review.total_pending'|trans }}</span>
-                <p class="rams-metric rams-metric--lg rams-text--primary">{{ quotes|length }}</p>
+                <div class="rams-metric rams-metric--lg">
+                    <span class="rams-metric__label">{{ 'quote.review.total_pending'|trans }}</span>
+                    <span class="rams-metric__value rams-text--info">{{ quotes|length }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
-                <span class="rams-dymo">{{ 'quote.review.high_priority'|trans }}</span>
-                <p class="rams-metric rams-metric--lg rams-text--danger">{{ quotes|filter(q => q[2] > 5)|length }}</p>
+                <div class="rams-metric rams-metric--lg">
+                    <span class="rams-metric__label">{{ 'quote.review.high_priority'|trans }}</span>
+                    <span class="rams-metric__value rams-text--danger">{{ quotes|filter(q => q[2] > 5)|length }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
-                <span class="rams-dymo">{{ 'quote.review.ready_approve'|trans }}</span>
-                <p class="rams-metric rams-metric--lg rams-text--success">{{ quotes|filter(q => q[2] == 0)|length }}</p>
+                <div class="rams-metric rams-metric--lg">
+                    <span class="rams-metric__label">{{ 'quote.review.ready_approve'|trans }}</span>
+                    <span class="rams-metric__value rams-text--success">{{ quotes|filter(q => q[2] == 0)|length }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content rams-text--center">
-                <span class="rams-dymo">{{ 'quote.review.in_progress'|trans }}</span>
-                <p class="rams-metric rams-metric--lg rams-text--warning">{{ quotes|filter(q => q[2] > 0 and q[2] <= 5)|length }}</p>
+                <div class="rams-metric rams-metric--lg">
+                    <span class="rams-metric__label">{{ 'quote.review.in_progress'|trans }}</span>
+                    <span class="rams-metric__value rams-text--warning">{{ quotes|filter(q => q[2] > 0 and q[2] <= 5)|length }}</span>
+                </div>
             </div>
         </div>
     </div>

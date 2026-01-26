@@ -4,7 +4,6 @@ namespace App\Command;
 
 use App\Entity\Company;
 use App\Repository\CompanyRepository;
-use App\Service\WebCrawler\LinkedInScraperService;
 use App\Service\WebCrawler\GoogleDorkService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -15,13 +14,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:find-contacts',
-    description: 'Find procurement/purchasing contacts at a company',
+    description: 'Find procurement/purchasing contacts at a company using web search',
 )]
 class FindContactsCommand extends Command
 {
     public function __construct(
         private CompanyRepository $companyRepo,
-        private LinkedInScraperService $linkedInScraper,
         private GoogleDorkService $googleDork
     ) {
         parent::__construct();
@@ -35,9 +33,9 @@ class FindContactsCommand extends Command
 Find procurement and purchasing contacts at a specific company.
 
 This command generates search URLs for:
-- LinkedIn Sales Navigator searches
 - Google Dorks for finding email addresses
 - Role-specific searches (Procurement Engineer, Buyer, etc.)
+- Company website contact pages
 
 Examples:
   # Find contacts by company ID
@@ -56,9 +54,9 @@ The command searches for these procurement roles:
 - Category Manager
 
 For production use, integrate with:
-- LinkedIn Sales Navigator API
 - RocketReach for email finding
 - Apollo.io for contact enrichment
+- Hunter.io for email verification
 HELP
             );
     }
@@ -92,18 +90,8 @@ HELP
         $io->info([
             'Sector: ' . ($company->getSector() ?? 'N/A'),
             'Website: ' . ($company->getWebsite() ?? 'N/A'),
-            'LinkedIn: ' . ($company->getLinkedinCompanyUrl() ?? 'N/A'),
+            'Region: ' . ($company->getRegion() ?? 'N/A'),
         ]);
-
-        // Generate LinkedIn search URLs
-        $io->section('LinkedIn Search URLs');
-        $linkedInResults = $this->linkedInScraper->findContactsAtCompany($company);
-        
-        foreach ($linkedInResults as $result) {
-            $io->writeln("• <info>{$result['title']}</info>");
-            $io->writeln("  {$result['url']}");
-            $io->newLine();
-        }
 
         // Generate Google Dork URLs for finding emails
         $io->section('Google Dork Search URLs');
@@ -115,20 +103,39 @@ HELP
             
             $emailResults = $this->googleDork->findContactEmails($company->getName(), $domain);
             
-            if (empty($emailResults)) {
-                $io->note('No email search results. Google Dorks generated for manual review.');
+            if (!empty($emailResults)) {
+                foreach ($emailResults as $result) {
+                    $io->writeln("• <info>{$result['title']}</info>");
+                    $io->writeln("  {$result['url']}");
+                    $io->newLine();
+                }
+            } else {
+                $io->note('No email search results. Generating manual search queries...');
+            }
+            
+            // Generate manual search URLs for procurement roles
+            $roles = [
+                'Procurement Manager',
+                'Purchasing Manager',
+                'Commodity Manager',
+                'Buyer',
+                'Supply Chain Manager',
+                'Supplier Quality Engineer',
+            ];
+            
+            $io->section('Role-Specific Search URLs');
+            foreach ($roles as $role) {
+                $searchQuery = urlencode("{$company->getName()} {$role} email");
+                $io->writeln("• <comment>{$role}</comment>");
+                $io->writeln("  https://www.google.com/search?q={$searchQuery}");
+                $io->newLine();
             }
         } else {
             $io->warning('No company website found. Cannot generate email search queries.');
-        }
-
-        // Show LinkedIn company profile search
-        if (!$company->getLinkedinCompanyUrl()) {
-            $io->section('Find Company LinkedIn Profile');
-            $profileUrl = $this->linkedInScraper->findCompanyProfile($company->getName());
-            if ($profileUrl) {
-                $io->writeln($profileUrl);
-            }
+            
+            // Still generate basic search
+            $searchQuery = urlencode("{$company->getName()} procurement contact email");
+            $io->writeln("Basic search: https://www.google.com/search?q={$searchQuery}");
         }
 
         $io->newLine();

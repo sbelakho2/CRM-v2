@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Follow-up Reminder</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f0f9ff; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { border-bottom: 2px solid #0ea5e9; padding-bottom: 15px; margin-bottom: 20px; }
+        .header h1 { color: #0369a1; margin: 0; font-size: 24px; }
+        .content { color: #374151; line-height: 1.6; }
+        .highlight { background: #e0f2fe; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
+        .btn { display: inline-block; background: #0ea5e9; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 Follow-up Reminder</h1>
+        </div>
+        
+        <div class="content">
+            <p>A follow-up action is due for the following account:</p>
+            
+            <div class="highlight">
+                <strong>Account:</strong> {{ account_name|default(company_name|default('Unknown')) }}<br>
+                {% if domain is defined %}
+                <strong>Domain:</strong> {{ domain }}<br>
+                {% endif %}
+                {% if engagement_score is defined %}
+                <strong>Engagement Score:</strong> {{ engagement_score }}<br>
+                {% endif %}
+            </div>
+            
+            <p>Please ensure timely follow-up to maintain engagement momentum.</p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated reminder from your CRM system.</p>
+            <p>{{ timestamp|date('Y-m-d H:i:s') }}</p>
+        </div>
+    </div>
+</body>
+</html>

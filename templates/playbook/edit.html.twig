@@ -3,50 +3,58 @@
 {% block title %}{{ 'playbook.edit_playbook'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack">
-    <!-- Breadcrumb -->
-    <nav class="rams-breadcrumb">
-        <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-breadcrumb__link">
-            ← {{ 'playbook.back_to_playbook'|trans }}
-        </a>
+<div class="rams-stack rams-gap-6">
+    {# Breadcrumb #}
+    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_playbook_index') }}" class="rams-breadcrumb__link">{{ 'playbook.title'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-breadcrumb__link">{{ playbook.name }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'common.edit'|trans }}</li>
+        </ol>
     </nav>
 
-    <!-- Header -->
+    {# Page Header #}
     <div class="rams-page-header">
-        <h1 class="rams-page-title">{{ 'playbook.edit_playbook'|trans }}</h1>
-        <p class="rams-page-subtitle">{{ playbook.name }}</p>
+        <div>
+            <h1 class="rams-page-title">{{ 'playbook.edit_playbook'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ playbook.name }}</p>
+        </div>
     </div>
 
-    <div class="rams-module rams-module--wide">
+    <div class="rams-module rams-module--narrow rams-mx-auto">
         <div class="rams-module__header">
             <h2 class="rams-module__title">{{ 'playbook.configuration'|trans }}</h2>
         </div>
 
         <div class="rams-module__content">
             <form method="post" id="playbook-form" class="rams-form">
-                <!-- Basic Info -->
-                <div class="rams-form-section">
-                    <h3 class="rams-form-section__title">{{ 'playbook.basic_info'|trans }}</h3>
+                {# Basic Info #}
+                <div class="rams-stack rams-gap-4 rams-mb-8">
+                    <h3 class="rams-module__title rams-text--xs rams-border-b rams-pb-2">{{ 'playbook.basic_info'|trans }}</h3>
                     
-                    <div class="rams-form-group">
-                        <label class="rams-label">{{ 'playbook.playbook_name'|trans }} *</label>
-                        <input type="text" name="name" required class="rams-input" value="{{ playbook.name }}">
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'playbook.playbook_name'|trans }} *</label>
+                        <input type="text" name="name" required class="rams-form__input" value="{{ playbook.name }}">
                     </div>
 
-                    <div class="rams-form-group">
-                        <label class="rams-label">{{ 'playbook.description'|trans }}</label>
-                        <textarea name="description" rows="3" class="rams-textarea">{{ playbook.description }}</textarea>
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'playbook.description'|trans }}</label>
+                        <textarea name="description" rows="3" class="rams-form__textarea">{{ playbook.description }}</textarea>
                     </div>
 
-                    <div class="rams-grid rams-grid--2">
-                        <div class="rams-form-group">
-                            <label class="rams-label">{{ 'playbook.priority'|trans }}</label>
-                            <input type="number" name="priority" value="{{ playbook.priority }}" min="1" class="rams-input">
-                            <p class="rams-text-muted">{{ 'playbook.priority_hint'|trans }}</p>
+                    <div class="rams-grid rams-grid--2 rams-gap-4">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label rams-dymo">{{ 'playbook.priority'|trans }}</label>
+                            <input type="number" name="priority" value="{{ playbook.priority }}" min="1" class="rams-form__input">
+                            <p class="rams-form__hint">{{ 'playbook.priority_hint'|trans }}</p>
                         </div>
-                        <div class="rams-form-group">
-                            <label class="rams-label">{{ 'common.status'|trans }}</label>
-                            <select name="is_active" class="rams-select">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label rams-dymo">{{ 'common.status'|trans }}</label>
+                            <select name="is_active" class="rams-form__select">
                                 <option value="1" {% if playbook.isActive %}selected{% endif %}>{{ 'playbook.active'|trans }}</option>
                                 <option value="0" {% if not playbook.isActive %}selected{% endif %}>{{ 'playbook.inactive'|trans }}</option>
                             </select>
@@ -54,40 +62,50 @@
                     </div>
                 </div>
 
-                <!-- Trigger Rules -->
-                <div class="rams-form-section">
-                    <h3 class="rams-form-section__title">{{ 'playbook.trigger_rules'|trans }}</h3>
-                    <p class="rams-text-muted">{{ 'playbook.trigger_rules_hint'|trans }}</p>
+                {# Trigger Rules #}
+                <div class="rams-stack rams-gap-4 rams-mb-8">
+                    <h3 class="rams-module__title rams-text--xs rams-border-b rams-pb-2">{{ 'playbook.trigger_rules'|trans }}</h3>
+                    <p class="rams-text--muted rams-text--xs">{{ 'playbook.trigger_rules_hint'|trans }}</p>
                     
-                    <div id="trigger-rules" class="rams-stack"></div>
+                    <div id="trigger-rules" class="rams-stack rams-gap-2"></div>
                     
-                    <button type="button" onclick="addTriggerRule()" class="rams-btn rams-btn--secondary">+ {{ 'playbook.add_trigger'|trans }}</button>
+                    <button type="button" onclick="addTriggerRule()" class="rams-btn rams-btn--secondary">
+                        <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3V13M3 8H13"/>
+                        </svg>
+                        {{ 'playbook.add_trigger'|trans }}
+                    </button>
                     
                     <input type="hidden" name="trigger_rules" id="trigger-rules-json" value="{{ playbook.triggerRules }}">
                 </div>
 
-                <!-- Actions -->
-                <div class="rams-form-section">
-                    <h3 class="rams-form-section__title">{{ 'playbook.actions'|trans }}</h3>
-                    <p class="rams-text-muted">{{ 'playbook.actions_hint'|trans }}</p>
+                {# Actions #}
+                <div class="rams-stack rams-gap-4 rams-mb-8">
+                    <h3 class="rams-module__title rams-text--xs rams-border-b rams-pb-2">{{ 'playbook.actions'|trans }}</h3>
+                    <p class="rams-text--muted rams-text--xs">{{ 'playbook.actions_hint'|trans }}</p>
                     
-                    <div id="actions-list" class="rams-stack"></div>
+                    <div id="actions-list" class="rams-stack rams-gap-2"></div>
                     
-                    <button type="button" onclick="addAction()" class="rams-btn rams-btn--secondary">+ {{ 'playbook.add_action'|trans }}</button>
+                    <button type="button" onclick="addAction()" class="rams-btn rams-btn--secondary">
+                        <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3V13M3 8H13"/>
+                        </svg>
+                        {{ 'playbook.add_action'|trans }}
+                    </button>
                     
                     <input type="hidden" name="actions" id="actions-json" value="{{ playbook.actions }}">
                 </div>
 
-                <!-- Notes -->
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'playbook.notes'|trans }} ({{ 'common.optional'|trans|lower }})</label>
-                    <textarea name="notes" rows="2" class="rams-textarea">{{ playbook.notes }}</textarea>
+                {# Notes #}
+                <div class="rams-form__group rams-mb-8">
+                    <label class="rams-form__label rams-dymo">{{ 'playbook.notes'|trans }} ({{ 'common.optional'|trans|lower }})</label>
+                    <textarea name="notes" rows="2" class="rams-form__textarea">{{ playbook.notes }}</textarea>
                 </div>
 
-                <div class="rams-module__footer">
+                <div class="rams-form__actions">
                     <button type="submit" class="rams-btn rams-btn--primary">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                         {{ 'playbook.save_changes'|trans }}
                     </button>

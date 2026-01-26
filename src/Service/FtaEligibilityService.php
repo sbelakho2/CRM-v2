@@ -38,29 +38,29 @@ class FtaEligibilityService
     /**
      * Check FTA eligibility for a shipment
      * 
+     * Evaluates whether a shipment qualifies for preferential duty rates under applicable
+     * Free Trade Agreements by checking Rules of Origin (ROO) requirements.
+     * 
+     * Algorithm:
+     * 1. Identify applicable FTA agreement based on origin/destination country pair
+     * 2. Evaluate ROO requirements for each BOM component
+     * 3. Verify COO supplier declarations exist for BOM MPNs
+     * 4. Calculate Regional Value Content (RVC) if required by the FTA
+     * 5. Determine eligibility status based on all criteria
+     * 
      * @param string $originCountry Origin country code (e.g., 'MA')
      * @param string $destinationCountry Destination country code (e.g., 'US', 'FR')
      * @param array $bomData BOM data with HTS codes and COO info
      * @param float $totalValue Total shipment value
-     * @return array Eligibility result: ['eligible' => true, 'status' => 'ELIGIBLE|CONDITIONAL|INELIGIBLE', 'fta_agreement' => 'MA-US FTA', 'basis' => 'Regional value content 60%', 'confidence' => 95, 'missing_evidence' => [], 'declaration_template' => '...']
-     * 
-     * TODO Implementation:
-     * 1. Identify applicable FTA agreement:
-     *    → Query fta_rules WHERE origin_country = :origin AND destination_country = :dest AND is_active = true
-     *    → Order by effective_date DESC
-     * 2. Evaluate ROO requirements:
-     *    → Call evaluateRoo() for each FTA rule
-     * 3. Check COO supplier declarations:
-     *    → Query coo_supplier_decls for BOM MPNs
-     *    → Verify country_of_origin matches FTA requirements
-     * 4. Calculate regional value content (if required):
-     *    → Formula: RVC = ((Total Value - Non-Originating Materials) / Total Value) * 100
-     *    → Check if RVC >= minimum_value_content_percent from FTA rule
-     * 5. Determine eligibility status:
-     *    → ELIGIBLE: All requirements met
-     *    → CONDITIONAL: Requirements met but missing proof (no supplier COO decls)
-     *    → INELIGIBLE: Requirements not met
-     * 6. Return eligibility object
+     * @return array{
+     *   eligible: string,
+     *   status: string,
+     *   fta_agreement: ?string,
+     *   basis: string,
+     *   confidence: int,
+     *   missing_evidence: array,
+     *   declaration_template: ?string
+     * }
      */
     public function checkEligibility(
         string $originCountry,

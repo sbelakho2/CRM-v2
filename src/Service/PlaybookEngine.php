@@ -8,6 +8,10 @@ use App\Entity\Activity;
 use App\Repository\PlaybookRepository;
 use App\Repository\PlaybookRunRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
+use Twig\Environment;
 
 /**
  * PlaybookEngine
@@ -32,7 +36,7 @@ use Doctrine\ORM\EntityManagerInterface;
  *   ],
  *   "actions": [
  *     {"type": "create_activity", "data": {"type": "CALL", "priority": "HIGH"}},
- *     {"type": "send_email", "data": {"template": "abm_hot_lead"}},
+ *     {"type": "send_email", "data": {"template": "abm_hot_lead", "to": "sales@example.com"}},
  *     {"type": "assign_lead", "data": {"userId": 5}}
  *   ]
  * }
@@ -44,10 +48,22 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class PlaybookEngine
 {
+    // Email templates available for playbook actions
+    private const EMAIL_TEMPLATES = [
+        'abm_hot_lead' => 'playbook/emails/abm_hot_lead.html.twig',
+        'follow_up' => 'playbook/emails/follow_up.html.twig',
+        'quote_reminder' => 'playbook/emails/quote_reminder.html.twig',
+        'default' => 'playbook/emails/default.html.twig',
+    ];
+    
     public function __construct(
         private EntityManagerInterface $entityManager,
         private PlaybookRepository $playbookRepository,
-        private PlaybookRunRepository $playbookRunRepository
+        private PlaybookRunRepository $playbookRunRepository,
+        private ?MailerInterface $mailer = null,
+        private ?Environment $twig = null,
+        private ?LoggerInterface $logger = null,
+        private ?string $senderEmail = null // Configured via services.yaml
     ) {}
 
     /**
@@ -279,14 +295,7 @@ class PlaybookEngine
         
         // 2. send_email
         if ($actionType === 'send_email') {
-            // For now, just log that email would be sent
-            // In production: integrate with EmailSchedulerService or Symfony Mailer
-            return [
-                'action' => 'send_email',
-                'success' => true,
-                'template' => $actionData['template'] ?? 'default',
-                'note' => 'Email sending not yet implemented'
-            ];
+            return $this->executeSendEmailAction($actionData, $context, $event);
         }
         
         // 3. update_score
@@ -456,5 +465,202 @@ class PlaybookEngine
             ['triggeredAt' => 'DESC'],
             $limit
         );
+    }
+    
+    // ============================================================
+    // EMAIL ACTION IMPLEMENTATION
+    // ============================================================
+    
+    /**
+     * Execute send_email action with actual mailer integration
+     * 
+     * @param array $actionData - Action configuration (template, to, subject, etc.)
+     * @param mixed $context - Context object (AbmAccount, etc.)
+     * @param mixed|null $event - Event object that triggered the playbook
+     * 
+     * @return array - Execution result
+     */
+    private function executeSendEmailAction(array $actionData, $context, $event): array
+    {
+        $templateKey = $actionData['template'] ?? 'default';
+        $recipient = $actionData['to'] ?? null;
+        $subject = $actionData['subject'] ?? 'CRM Notification: ' . ucfirst(str_replace('_', ' ', $templateKey));
+        
+        // Extract recipient from context if not specified
+        if (!$recipient && method_exists($context, 'getCompany')) {
+            $company = $context->getCompany();
+            if ($company && method_exists($company, 'getPrimaryEmail')) {
+                $recipient = $company->getPrimaryEmail();
+            }
+        }
+        
+        // Check if mailer is available
+        if ($this->mailer === null) {
+            $this->logger?->warning('PlaybookEngine: Mailer not configured, email action logged only', [
+                'template' => $templateKey,
+                'to' => $recipient,
+                'subject' => $subject,
+            ]);
+            
+            return [
+                'action' => 'send_email',
+                'success' => false,
+                'template' => $templateKey,
+                'error' => 'Mailer not configured - email logged only',
+                'would_send_to' => $recipient,
+            ];
+        }
+        
+        if (!$recipient) {
+            return [
+                'action' => 'send_email',
+                'success' => false,
+                'error' => 'No recipient specified and could not extract from context',
+            ];
+        }
+        
+        try {
+            // Build template context
+            $templateContext = $this->buildEmailTemplateContext($context, $event, $actionData);
+            
+            // Render email body
+            $templatePath = self::EMAIL_TEMPLATES[$templateKey] ?? self::EMAIL_TEMPLATES['default'];
+            $body = $this->renderEmailTemplate($templatePath, $templateContext);
+            
+            // Create and send email
+            $email = (new Email())
+                ->from($this->senderEmail ?? 'noreply@example.com')
+                ->to($recipient)
+                ->subject($subject)
+                ->html($body);
+            
+            // Add CC if specified
+            if (!empty($actionData['cc'])) {
+                $email->cc(...(array)$actionData['cc']);
+            }
+            
+            $this->mailer->send($email);
+            
+            $this->logger?->info('PlaybookEngine: Email sent successfully', [
+                'template' => $templateKey,
+                'to' => $recipient,
+                'subject' => $subject,
+            ]);
+            
+            return [
+                'action' => 'send_email',
+                'success' => true,
+                'template' => $templateKey,
+                'to' => $recipient,
+                'subject' => $subject,
+            ];
+            
+        } catch (\Exception $e) {
+            $this->logger?->error('PlaybookEngine: Email send failed', [
+                'template' => $templateKey,
+                'to' => $recipient,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return [
+                'action' => 'send_email',
+                'success' => false,
+                'template' => $templateKey,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+    
+    /**
+     * Build template context from context and event objects
+     */
+    private function buildEmailTemplateContext($context, $event, array $actionData): array
+    {
+        $templateContext = [
+            'action_data' => $actionData,
+            'timestamp' => new \DateTime(),
+        ];
+        
+        // Add context data
+        if (method_exists($context, 'getAccountName')) {
+            $templateContext['account_name'] = $context->getAccountName();
+        }
+        if (method_exists($context, 'getDomain')) {
+            $templateContext['domain'] = $context->getDomain();
+        }
+        if (method_exists($context, 'getEngagementScore')) {
+            $templateContext['engagement_score'] = $context->getEngagementScore();
+        }
+        if (method_exists($context, 'getCompany')) {
+            $company = $context->getCompany();
+            if ($company) {
+                $templateContext['company'] = $company;
+                $templateContext['company_name'] = method_exists($company, 'getName') 
+                    ? $company->getName() 
+                    : 'Unknown';
+            }
+        }
+        
+        // Add event data
+        if ($event) {
+            $templateContext['event'] = $event;
+            if (method_exists($event, 'getPage')) {
+                $templateContext['page_visited'] = $event->getPage();
+            }
+        }
+        
+        return $templateContext;
+    }
+    
+    /**
+     * Render email template, with fallback for missing templates
+     */
+    private function renderEmailTemplate(string $templatePath, array $context): string
+    {
+        if ($this->twig === null) {
+            // Fallback: generate simple HTML without Twig
+            return $this->generateFallbackEmailHtml($context);
+        }
+        
+        try {
+            return $this->twig->render($templatePath, $context);
+        } catch (\Exception $e) {
+            // Template not found, use fallback
+            $this->logger?->warning('PlaybookEngine: Email template not found, using fallback', [
+                'template' => $templatePath,
+                'error' => $e->getMessage(),
+            ]);
+            return $this->generateFallbackEmailHtml($context);
+        }
+    }
+    
+    /**
+     * Generate fallback email HTML when Twig is unavailable or template missing
+     */
+    private function generateFallbackEmailHtml(array $context): string
+    {
+        $accountName = $context['account_name'] ?? $context['company_name'] ?? 'Unknown';
+        $score = $context['engagement_score'] ?? 'N/A';
+        $timestamp = $context['timestamp'] instanceof \DateTimeInterface 
+            ? $context['timestamp']->format('Y-m-d H:i:s') 
+            : date('Y-m-d H:i:s');
+        
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head><title>CRM Playbook Notification</title></head>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2>Playbook Alert</h2>
+    <p>A playbook has been triggered for <strong>{$accountName}</strong>.</p>
+    <ul>
+        <li><strong>Engagement Score:</strong> {$score}</li>
+        <li><strong>Triggered At:</strong> {$timestamp}</li>
+    </ul>
+    <p>Please review and take appropriate action.</p>
+    <hr>
+    <p style="color: #666; font-size: 12px;">This is an automated message from your CRM system.</p>
+</body>
+</html>
+HTML;
     }
 }

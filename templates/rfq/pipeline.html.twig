@@ -44,7 +44,9 @@
                     <label class="rams-dymo">{{ 'rfq.fields.company'|trans }}</label>
                     <select name="company" class="rams-form__select">
                         <option value="">{{ 'rfq.filters.all_companies'|trans }}</option>
-                        {# Companies will be populated dynamically #}
+                        {% for company in companies %}
+                            <option value="{{ company.id }}" {% if app.request.get('company') == company.id %}selected{% endif %}>{{ company.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 

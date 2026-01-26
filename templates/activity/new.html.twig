@@ -3,93 +3,92 @@
 {% block title %}{{ 'activity.new_activity'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-page">
-    <div class="rams-page__container rams-page__container--narrow">
-        
-        {# Breadcrumb #}
-        <nav class="rams-breadcrumb">
-            <ol class="rams-breadcrumb__list">
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_activity_index') }}" class="rams-breadcrumb__link">{{ 'activity.title'|trans }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'common.new'|trans }}</li>
-            </ol>
-        </nav>
+<div class="rams-stack rams-gap-6">
+    {# Breadcrumb #}
+    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_activity_index') }}" class="rams-breadcrumb__link">{{ 'activity.title'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'common.new'|trans }}</li>
+        </ol>
+    </nav>
 
-        {# Header #}
-        <div class="rams-page__header">
-            <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ 'activity.new_activity'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'activity.new_subtitle'|trans }}</p>
-            </div>
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'activity.new_activity'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'activity.new_subtitle'|trans }}</p>
         </div>
+    </div>
 
-        {# Form Module #}
-        <div class="rams-module">
-            <div class="rams-module__content">
-                {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
-
-                    {# Activity Type and Date Row #}
-                    <div class="rams-form__grid rams-form__grid--2col">
-                        <div class="rams-form__group">
-                            <label class="rams-dymo" for="{{ form.type.vars.id }}">{{ 'activity.type'|trans }}</label>
-                            {{ form_widget(form.type, {'attr': {'class': 'rams-form__select'}}) }}
-                            {{ form_errors(form.type) }}
-                        </div>
-                        <div class="rams-form__group">
-                            <label class="rams-dymo" for="{{ form.activityDate.vars.id }}">{{ 'activity.activity_date'|trans }}</label>
-                            {{ form_widget(form.activityDate, {'attr': {'class': 'rams-form__input'}}) }}
-                            {{ form_errors(form.activityDate) }}
-                        </div>
-                    </div>
-
-                    {# Company and Contact Row #}
-                    <div class="rams-form__grid rams-form__grid--2col">
-                        <div class="rams-form__group">
-                            <label class="rams-dymo" for="{{ form.company.vars.id }}">{{ 'activity.company'|trans }}</label>
-                            {{ form_widget(form.company, {'attr': {'class': 'rams-form__select', 'id': 'activity_company'}}) }}
-                            {{ form_errors(form.company) }}
-                        </div>
-                        <div class="rams-form__group">
-                            <label class="rams-dymo" for="{{ form.contact.vars.id }}">{{ 'activity.contact'|trans }}</label>
-                            {{ form_widget(form.contact, {'attr': {'class': 'rams-form__select', 'id': 'activity_contact'}}) }}
-                            {{ form_errors(form.contact) }}
-                        </div>
-                    </div>
-
-                    {# Outcome #}
-                    <div class="rams-form__group">
-                        <label class="rams-dymo" for="{{ form.outcome.vars.id }}">{{ 'activity.outcome'|trans }}</label>
-                        {{ form_widget(form.outcome, {'attr': {'class': 'rams-form__select'}}) }}
-                        {{ form_errors(form.outcome) }}
-                    </div>
-
-                    {# Notes #}
-                    <div class="rams-form__group">
-                        <label class="rams-dymo" for="{{ form.notes.vars.id }}">{{ 'common.notes'|trans }}</label>
-                        {{ form_widget(form.notes, {'attr': {'class': 'rams-form__input rams-form__input--textarea'}}) }}
-                        {{ form_errors(form.notes) }}
-                        <p class="rams-form__hint">{{ 'activity.notes_hint'|trans }}</p>
-                    </div>
-
-                    {# Action Buttons #}
-                    <div class="rams-module__footer">
-                        <button type="submit" class="rams-btn rams-btn--primary">
-                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                            </svg>
-                            {{ 'activity.create_button'|trans }}
-                        </button>
-                        <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--secondary">
-                            {{ 'common.cancel'|trans }}
-                        </a>
-                    </div>
-
-                {{ form_end(form) }}
-            </div>
+    {# Form Module #}
+    <div class="rams-module rams-module--narrow rams-mx-auto">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'activity.details'|trans }}</h2>
         </div>
+        <div class="rams-module__content">
+            {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
 
+                {# Activity Type and Date Row #}
+                <div class="rams-grid rams-grid--2 rams-gap-4">
+                    <div class="rams-form__group">
+                        {{ form_label(form.type, 'activity.type'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.type, {'attr': {'class': 'rams-form__select font-mono'}}) }}
+                        {{ form_errors(form.type) }}
+                    </div>
+                    <div class="rams-form__group">
+                        {{ form_label(form.activityDate, 'activity.activity_date'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.activityDate, {'attr': {'class': 'rams-form__input font-mono'}}) }}
+                        {{ form_errors(form.activityDate) }}
+                    </div>
+                </div>
+
+                {# Company and Contact Row #}
+                <div class="rams-grid rams-grid--2 rams-gap-4">
+                    <div class="rams-form__group">
+                        {{ form_label(form.company, 'activity.company'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.company, {'attr': {'class': 'rams-form__select', 'id': 'activity_company'}}) }}
+                        {{ form_errors(form.company) }}
+                    </div>
+                    <div class="rams-form__group">
+                        {{ form_label(form.contact, 'activity.contact'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.contact, {'attr': {'class': 'rams-form__select', 'id': 'activity_contact'}}) }}
+                        {{ form_errors(form.contact) }}
+                    </div>
+                </div>
+
+                {# Outcome #}
+                <div class="rams-form__group">
+                    {{ form_label(form.outcome, 'activity.outcome'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                    {{ form_widget(form.outcome, {'attr': {'class': 'rams-form__select'}}) }}
+                    {{ form_errors(form.outcome) }}
+                </div>
+
+                {# Notes #}
+                <div class="rams-form__group">
+                    {{ form_label(form.notes, 'common.notes'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                    {{ form_widget(form.notes, {'attr': {'class': 'rams-form__textarea', 'rows': 4}}) }}
+                    {{ form_errors(form.notes) }}
+                    <p class="rams-form__hint">{{ 'activity.notes_hint'|trans }}</p>
+                </div>
+
+                {# Action Buttons #}
+                <div class="rams-form__actions">
+                    <button type="submit" class="rams-btn rams-btn--primary">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        {{ 'activity.create_button'|trans }}
+                    </button>
+                    <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost">
+                        {{ 'common.cancel'|trans }}
+                    </a>
+                </div>
+
+            {{ form_end(form) }}
+        </div>
     </div>
 </div>
 

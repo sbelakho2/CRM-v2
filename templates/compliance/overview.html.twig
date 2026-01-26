@@ -3,108 +3,100 @@
 {% block title %}{{ 'compliance.overview'|trans }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack">
-    {# Header Module #}
-    <div class="rams-module">
-        <div class="rams-module__header">
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
             <h1 class="rams-page-title">{{ 'compliance.overview'|trans }}</h1>
-            <p class="rams-dymo">{{ 'compliance.subtitle'|trans }}</p>
+            <p class="rams-page-subtitle">{{ 'compliance.subtitle'|trans }}</p>
         </div>
     </div>
 
     {# Filter Tabs #}
-    <div class="rams-btn-group">
+    <div class="rams-segmented-control">
         <a href="{{ path('app_compliance_overview') }}" 
-           class="rams-btn {{ not current_sector ? 'rams-btn--primary' : 'rams-btn--ghost' }}">
+           class="rams-segmented-control__item {{ not current_sector ? 'rams-segmented-control__item--active' : '' }}">
             {{ 'common.all'|trans }} {{ 'company.sectors_label'|trans }}
         </a>
         {% for sector in sectors %}
             <a href="{{ path('app_compliance_overview', {sector: sector}) }}" 
-               class="rams-btn {{ current_sector == sector ? 'rams-btn--primary' : 'rams-btn--ghost' }}">
+               class="rams-segmented-control__item {{ current_sector == sector ? 'rams-segmented-control__item--active' : '' }}">
                 {{ sector }}
             </a>
         {% endfor %}
     </div>
 
     {# Companies List #}
-    <div class="rams-module">
-        <div class="rams-module__content">
-            {% if compliance_data is empty %}
-                <div class="rams-empty-state">
-                    <div class="rams-empty-state__icon">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                    </div>
-                    <p class="rams-text-muted">{{ 'company.no_companies'|trans }}</p>
+    <div class="rams-grid rams-grid--1">
+        {% if compliance_data is empty %}
+            <div class="rams-module">
+                <div class="rams-module__content rams-empty-state">
+                    <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <h3 class="rams-empty-state__title">{{ 'company.no_companies'|trans }}</h3>
                 </div>
-            {% else %}
-                <div class="rams-stack">
-                    {% for data in compliance_data %}
-                        {% set company = data.company %}
-                        {% set stats = data.stats %}
-                        
-                        <div class="rams-module">
-                            <div class="rams-module__content">
-                                <div class="rams-list-item__header">
-                                    <div>
-                                        <h3 class="rams-list-item__title">
-                                            <a href="{{ path('app_compliance_company', {id: company.id}) }}">
-                                                {{ company.name }}
-                                            </a>
-                                        </h3>
-                                        {% if company.sector %}
-                                            <span class="rams-badge rams-badge--info">
-                                                {{ company.sector }}
-                                            </span>
-                                        {% endif %}
-                                    </div>
+            </div>
+        {% else %}
+            {% for data in compliance_data %}
+                {% set company = data.company %}
+                {% set stats = data.stats %}
+                
+                <div class="rams-module rams-module--hoverable" onclick="location.href='{{ path('app_compliance_company', {id: company.id}) }}'">
+                    <div class="rams-module__content">
+                        <div class="rams-flex rams-justify-between rams-items-center rams-mb-4">
+                            <div>
+                                <h3 class="rams-heading rams-heading--3 rams-mb-1">{{ company.name }}</h3>
+                                {% if company.sector %}
+                                    <span class="rams-badge rams-badge--info">
+                                        {{ company.sector }}
+                                    </span>
+                                {% endif %}
+                            </div>
 
-                                    <div class="rams-metric">
-                                        <span class="rams-metric__value">{{ stats.completion_percentage }}%</span>
-                                        <span class="rams-dymo">{{ 'common.completed'|trans }}</span>
-                                    </div>
-                                </div>
-
-                                {# Progress Bar #}
-                                <div class="rams-progress">
-                                    <div class="rams-progress__bar {{ stats.completion_percentage == 100 ? 'rams-progress__bar--success' : stats.completion_percentage >= 75 ? 'rams-progress__bar--info' : stats.completion_percentage >= 50 ? 'rams-progress__bar--warning' : 'rams-progress__bar--danger' }}" 
-                                         style="width: {{ stats.completion_percentage }}%"></div>
-                                </div>
-
-                                {# Stats Row #}
-                                <div class="rams-stats-row">
-                                    <div class="rams-andon">
-                                        <span class="rams-andon__light"></span>
-                                        <span class="rams-dymo">{{ stats.total }} {{ 'common.total'|trans }}</span>
-                                    </div>
-                                    <div class="rams-andon">
-                                        <span class="rams-andon__light rams-andon__light--green"></span>
-                                        <span class="rams-dymo">{{ stats.uploaded }} {{ 'common.upload'|trans }}</span>
-                                    </div>
-                                    <div class="rams-andon">
-                                        <span class="rams-andon__light rams-andon__light--green"></span>
-                                        <span class="rams-dymo">{{ stats.approved }} {{ 'compliance.passed'|trans }}</span>
-                                    </div>
-                                    {% if stats.pending > 0 %}
-                                        <div class="rams-andon">
-                                            <span class="rams-andon__light rams-andon__light--yellow"></span>
-                                            <span class="rams-dymo">{{ stats.pending }} {{ 'common.pending'|trans }}</span>
-                                        </div>
-                                    {% endif %}
-                                    {% if stats.expired > 0 %}
-                                        <div class="rams-andon">
-                                            <span class="rams-andon__light rams-andon__light--red"></span>
-                                            <span class="rams-dymo">{{ stats.expired }} {{ 'compliance.expired'|trans }}</span>
-                                        </div>
-                                    {% endif %}
-                                </div>
+                            <div class="rams-metric rams-text--right">
+                                <span class="rams-metric__value rams-text-2xl">{{ stats.completion_percentage }}%</span>
+                                <span class="rams-metric__label">{{ 'common.completed'|trans }}</span>
                             </div>
                         </div>
-                    {% endfor %}
+
+                        {# Progress Bar #}
+                        <div class="rams-progress rams-progress--compact rams-mb-4">
+                            <div class="rams-progress__bar {{ stats.completion_percentage == 100 ? 'rams-progress__bar--success' : stats.completion_percentage >= 75 ? 'rams-progress__bar--info' : stats.completion_percentage >= 50 ? 'rams-progress__bar--warning' : 'rams-progress__bar--danger' }}" 
+                                 style="width: {{ stats.completion_percentage }}%"></div>
+                        </div>
+
+                        {# Stats Row #}
+                        <div class="rams-flex rams-flex-wrap rams-gap-4">
+                            <div class="rams-andon">
+                                <span class="rams-andon__light"></span>
+                                <span class="rams-andon__text">{{ stats.total }} {{ 'common.total'|trans }}</span>
+                            </div>
+                            <div class="rams-andon">
+                                <span class="rams-andon__light rams-andon__light--green"></span>
+                                <span class="rams-andon__text">{{ stats.uploaded }} {{ 'common.upload'|trans }}</span>
+                            </div>
+                            <div class="rams-andon">
+                                <span class="rams-andon__light rams-andon__light--green"></span>
+                                <span class="rams-andon__text">{{ stats.approved }} {{ 'compliance.passed'|trans }}</span>
+                            </div>
+                            {% if stats.pending > 0 %}
+                                <div class="rams-andon">
+                                    <span class="rams-andon__light rams-andon__light--yellow"></span>
+                                    <span class="rams-andon__text">{{ stats.pending }} {{ 'common.pending'|trans }}</span>
+                                </div>
+                            {% endif %}
+                            {% if stats.expired > 0 %}
+                                <div class="rams-andon">
+                                    <span class="rams-andon__light rams-andon__light--red"></span>
+                                    <span class="rams-andon__text">{{ stats.expired }} {{ 'compliance.expired'|trans }}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-            {% endif %}
-        </div>
+            {% endfor %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -324,6 +324,7 @@ body {
 }
 
 .rams-sidebar__title {
+    font-family: var(--font-mono);
     font-weight: 600;
     font-size: var(--text-sm);
     letter-spacing: -0.01em;
@@ -595,9 +596,19 @@ body {
     border-color: transparent;
 }
 
+.rams-btn--ghost.rams-btn--danger {
+    color: var(--rams-red);
+}
+
 .rams-btn--ghost:hover {
     background: var(--rams-panel);
     border-color: var(--rams-line);
+}
+
+.rams-btn--ghost.rams-btn--danger:hover {
+    background: var(--rams-red);
+    border-color: var(--rams-red);
+    color: #fff;
 }
 
 .rams-btn--sm {
@@ -1214,7 +1225,57 @@ body {
     max-width: 800px;
 }
 
+.rams-metrics-grid {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.rams-metrics-grid--2col { grid-template-columns: repeat(2, 1fr); }
+.rams-metrics-grid--3col { grid-template-columns: repeat(3, 1fr); }
+.rams-metrics-grid--4col { grid-template-columns: repeat(4, 1fr); }
+
 /* Stacking Utilities */
+.rams-upload-zone {
+    border: 2px dashed var(--rams-line);
+    padding: var(--space-8);
+    text-align: center;
+    cursor: pointer;
+    background: var(--rams-chassis);
+    transition: all 0.2s ease;
+}
+
+.rams-upload-zone:hover {
+    border-color: var(--rams-accent);
+    background: var(--rams-module);
+}
+
+.rams-upload-zone__icon {
+    font-size: 2rem;
+    margin-bottom: var(--space-2);
+}
+
+.rams-upload-zone__title {
+    font-weight: 700;
+    margin-bottom: var(--space-1);
+}
+
+.rams-upload-zone__hint {
+    font-size: var(--text-xs);
+    color: var(--rams-muted);
+}
+
+.rams-upload-zone__filename {
+    margin-top: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--rams-accent);
+}
+
+.rams-text-break {
+    word-break: break-all;
+    overflow-wrap: break-word;
+}
+
 .rams-stack {
     display: flex;
     flex-direction: column;
@@ -1228,6 +1289,7 @@ body {
 
 /* Heading Components */
 .rams-heading {
+    font-family: var(--font-mono);
     font-weight: 600;
     color: var(--rams-foreground);
     line-height: 1.2;
@@ -1336,6 +1398,7 @@ body {
 
 .rams-page-title,
 .rams-page__title {
+    font-family: var(--font-mono);
     font-size: var(--text-2xl);
     font-weight: 600;
     color: var(--rams-foreground);
@@ -2270,11 +2333,20 @@ body {
 .rams-font-medium { font-weight: 500; }
 .rams-font-semibold { font-weight: 600; }
 .rams-font-bold { font-weight: 700; }
+.rams-font-mono { font-family: var(--font-mono); }
 
 /* Legacy alias utilities (rams-text--size/weight) */
-.rams-text--xs { font-size: var(--text-xs); line-height: var(--leading-xs); }
-.rams-text--sm { font-size: var(--text-sm); line-height: var(--leading-sm); }
+.rams-text--6xl { font-size: var(--text-6xl); line-height: var(--leading-6xl); }
+.rams-text--5xl { font-size: var(--text-5xl); line-height: var(--leading-5xl); }
+.rams-text--4xl { font-size: var(--text-4xl); line-height: var(--leading-4xl); }
+.rams-text--3xl { font-size: var(--text-3xl); line-height: var(--leading-3xl); }
+.rams-text--2xl { font-size: var(--text-2xl); line-height: var(--leading-2xl); }
+.rams-text--xl { font-size: var(--text-xl); line-height: var(--leading-xl); }
 .rams-text--lg { font-size: var(--text-lg); line-height: var(--leading-lg); }
+.rams-text--sm { font-size: var(--text-sm); line-height: var(--leading-sm); }
+.rams-text--xs { font-size: var(--text-xs); line-height: var(--leading-xs); }
+.rams-text--2xs { font-size: var(--text-2xs); line-height: var(--leading-2xs); }
+.rams-text--3xs { font-size: var(--text-3xs); line-height: var(--leading-3xs); }
 .rams-text--normal { font-weight: 400; }
 .rams-text--bold { font-weight: 700; }
 
@@ -3439,6 +3511,35 @@ a.rams-module:hover {
 .rams-kanban__card--urgent { border-left: 3px solid var(--rams-red); box-shadow: 0 0 8px rgba(214, 45, 45, 0.3); }
 .rams-kanban__card--muted { opacity: 0.7; }
 
+/* List Components */
+.rams-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.rams-list-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    transition: background-color var(--duration-fast);
+}
+
+.rams-list-item--hoverable:hover {
+    background-color: var(--rams-panel);
+}
+
+.rams-list-item__title {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--rams-foreground);
+}
+
+.rams-list-item__subtitle {
+    font-size: var(--text-xs);
+    color: var(--rams-muted);
+}
+
 /* ============================================
    XX. RFQ COMPONENTS
    ============================================ */
@@ -3462,6 +3563,7 @@ a.rams-module:hover {
 }
 
 .rams-rfq-card__title {
+    font-family: var(--font-mono);
     font-size: var(--text-lg);
     font-weight: 600;
     color: var(--rams-foreground);
@@ -3528,6 +3630,7 @@ a.rams-module:hover {
 }
 
 .rams-contact-avatar__name {
+    font-family: var(--font-mono);
     font-weight: 600;
     font-size: var(--text-sm);
 }

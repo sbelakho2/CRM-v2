@@ -3,7 +3,7 @@
 {% block title %}{{ 'command_center.title'|trans }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-flex rams-flex-col rams-gap-6">
+<div class="rams-stack rams-gap-6">
     {# Page Header #}
     <div class="rams-page-header">
         <div>
@@ -11,9 +11,9 @@
             <p class="rams-page-subtitle">{{ 'command_center.overview'|trans }}</p>
         </div>
         <div class="rams-flex rams-items-center rams-gap-3">
-            <span class="rams-dymo">{{ 'common.date'|trans|upper }}: {{ data.timestamp|date('H:i:s') }}</span>
-            <button class="rams-btn rams-btn--sm" onclick="location.reload()">
-                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span class="rams-dymo uppercase rams-text-xs font-mono">{{ 'common.date'|trans }}: {{ data.timestamp|date('H:i:s') }}</span>
+            <button class="rams-btn rams-btn--secondary rams-btn--sm" onclick="location.reload()">
+                <svg class="rams-btn__icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
                 {{ 'common.refresh'|trans }}
@@ -22,128 +22,134 @@
     </div>
 
     {# Key Metrics Row #}
-    <div class="rams-grid rams-grid--6">
-        <div class="rams-module">
-            <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value rams-text-2xl">{{ data.key_metrics.leads_this_week }}</span>
-                <span class="rams-dymo rams-mt-2">{{ 'lead.title'|trans }} {{ 'dashboard.this_week'|trans }}</span>
+    <div class="rams-grid rams-grid--6 rams-gap-4">
+        <div class="rams-module rams-module--inset">
+            <div class="rams-module__content rams-text--center">
+                <div class="rams-metric">
+                    <span class="rams-metric__value rams-text-xl">{{ data.key_metrics.leads_this_week }}</span>
+                    <span class="rams-metric__label uppercase rams-text-3xs font-mono">{{ 'lead.title'|trans }} {{ 'dashboard.this_week'|trans }}</span>
+                </div>
             </div>
         </div>
-        <div class="rams-module">
-            <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value rams-text-success rams-text-2xl">{{ data.key_metrics.lead_conversion_rate }}%</span>
-                <span class="rams-dymo rams-dymo--success rams-mt-2">{{ 'dashboard.conversion_rate'|trans }}</span>
+        <div class="rams-module rams-module--inset">
+            <div class="rams-module__content rams-text--center">
+                <div class="rams-metric">
+                    <span class="rams-metric__value rams-text-xl rams-text-success">{{ data.key_metrics.lead_conversion_rate }}%</span>
+                    <span class="rams-metric__label uppercase rams-text-3xs font-mono">{{ 'dashboard.conversion_rate'|trans }}</span>
+                </div>
             </div>
         </div>
-        <div class="rams-module">
-            <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value rams-text-2xl">{{ data.key_metrics.quotes_this_week }}</span>
-                <span class="rams-dymo rams-mt-2">{{ 'quote.title'|trans }} {{ 'dashboard.this_week'|trans }}</span>
+        <div class="rams-module rams-module--inset">
+            <div class="rams-module__content rams-text--center">
+                <div class="rams-metric">
+                    <span class="rams-metric__value rams-text-xl">{{ data.key_metrics.quotes_this_week }}</span>
+                    <span class="rams-metric__label uppercase rams-text-3xs font-mono">{{ 'quote.title'|trans }} {{ 'dashboard.this_week'|trans }}</span>
+                </div>
             </div>
         </div>
-        <div class="rams-module">
-            <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value rams-text-warning rams-text-2xl">{{ data.key_metrics.quote_win_rate }}%</span>
-                <span class="rams-dymo rams-dymo--warning rams-mt-2">{{ 'dashboard.win_rate'|trans }}</span>
+        <div class="rams-module rams-module--inset">
+            <div class="rams-module__content rams-text--center">
+                <div class="rams-metric">
+                    <span class="rams-metric__value rams-text-xl rams-text-warning">{{ data.key_metrics.quote_win_rate }}%</span>
+                    <span class="rams-metric__label uppercase rams-text-3xs font-mono">{{ 'dashboard.win_rate'|trans }}</span>
+                </div>
             </div>
         </div>
-        <div class="rams-module">
-            <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value rams-text-2xl">{{ (data.key_metrics.avg_quote_value / 1000)|format_currency(data.key_metrics.avg_quote_value_currency|default(display_currency()), null, 1) }}k</span>
-                <span class="rams-dymo rams-mt-2">{{ 'common.value'|trans|upper }}</span>
+        <div class="rams-module rams-module--inset">
+            <div class="rams-module__content rams-text--center">
+                <div class="rams-metric">
+                    <span class="rams-metric__value rams-text-xl">{{ (data.key_metrics.avg_quote_value / 1000)|format_currency(data.key_metrics.avg_quote_value_currency|default(display_currency()), null, 1) }}k</span>
+                    <span class="rams-metric__label uppercase rams-text-3xs font-mono">{{ 'common.value'|trans }}</span>
+                </div>
             </div>
         </div>
-        <div class="rams-module">
-            <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                <span class="rams-metric__value {% if data.supply_alerts.summary.critical > 0 %}rams-text-danger{% endif %} rams-text-2xl">{{ data.supply_alerts.summary.total_alerts }}</span>
-                <span class="rams-dymo {% if data.supply_alerts.summary.critical > 0 %}rams-dymo--critical{% endif %} rams-mt-2">{{ 'command_center.alerts'|trans }}</span>
+        <div class="rams-module rams-module--inset {% if data.supply_alerts.summary.critical > 0 %}rams-border-danger{% endif %}">
+            <div class="rams-module__content rams-text--center">
+                <div class="rams-metric">
+                    <span class="rams-metric__value rams-text-xl {% if data.supply_alerts.summary.critical > 0 %}rams-text-danger{% endif %}">{{ data.supply_alerts.summary.total_alerts }}</span>
+                    <span class="rams-metric__label uppercase rams-text-3xs font-mono">{{ 'command_center.alerts'|trans }}</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="rams-grid rams-grid--3">
+    <div class="rams-grid rams-grid--3 rams-gap-6">
         {# Left Column - Lead Inflow #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <span class="rams-module__title">{{ 'command_center.lead_inflow'|trans }} (LeadBot)</span>
+                <h2 class="rams-module__title">{{ 'command_center.lead_inflow'|trans }}</h2>
                 <span class="rams-badge rams-badge--warning">{{ data.lead_inflow.summary.pending_review }} {{ 'common.pending'|trans|lower }}</span>
             </div>
             <div class="rams-module__content">
                 {# Summary Stats #}
-                <div class="rams-grid rams-grid--3 rams-mb-4">
-                    <div class="rams-module rams-module--inset">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-xl">{{ data.lead_inflow.summary.today }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'dashboard.today'|trans }}</span>
-                        </div>
+                <div class="rams-grid rams-grid--3 rams-gap-2 rams-mb-6">
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center">
+                        <span class="rams-text-2xs rams-text-muted uppercase font-mono rams-block">{{ 'dashboard.today'|trans }}</span>
+                        <span class="rams-text-lg rams-text-bold font-mono">{{ data.lead_inflow.summary.today }}</span>
                     </div>
-                    <div class="rams-module rams-module--inset">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-xl">{{ data.lead_inflow.summary.this_week }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'dashboard.this_week'|trans }}</span>
-                        </div>
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center">
+                        <span class="rams-text-2xs rams-text-muted uppercase font-mono rams-block">{{ 'dashboard.this_week'|trans }}</span>
+                        <span class="rams-text-lg rams-text-bold font-mono">{{ data.lead_inflow.summary.this_week }}</span>
                     </div>
-                    <div class="rams-module rams-module--inset">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-danger rams-text-xl">{{ data.lead_inflow.summary.high_priority_count }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'rfq.priorities.high'|trans }}</span>
-                        </div>
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center">
+                        <span class="rams-text-2xs rams-text-danger uppercase font-mono rams-block">{{ 'rfq.priorities.high'|trans }}</span>
+                        <span class="rams-text-lg rams-text-danger rams-text-bold font-mono">{{ data.lead_inflow.summary.high_priority_count }}</span>
                     </div>
                 </div>
 
                 {# High Priority Leads #}
-                <div class="rams-border-t rams-pt-4 rams-mt-4">
-                    <div class="rams-flex rams-items-center rams-gap-2 rams-mb-3">
-                        <span class="rams-andon__light rams-andon__light--yellow"></span>
-                        <span class="rams-module__title">{{ 'rfq.priorities.high'|trans }} {{ 'lead.title'|trans }}</span>
+                <div class="rams-stack rams-gap-3">
+                    <div class="rams-flex rams-items-center rams-gap-2">
+                        <div class="rams-andon"><span class="rams-andon__light rams-andon__light--yellow"></span></div>
+                        <h3 class="rams-text-2xs rams-text-bold uppercase font-mono rams-text-muted">{{ 'rfq.priorities.high'|trans }} {{ 'lead.title'|trans }}</h3>
                     </div>
                     {% if data.lead_inflow.high_priority_leads|length > 0 %}
-                        <div class="rams-flex rams-flex-col rams-gap-2">
+                        <div class="rams-stack rams-gap-2">
                             {% for lead in data.lead_inflow.high_priority_leads|slice(0, 5) %}
-                                <a href="{{ path('app_lead_show', {id: lead.id}) }}" class="rams-flex rams-justify-between rams-items-center rams-p-2 rams-bordered">
-                                    <div>
-                                        <strong class="rams-text-sm">{{ lead.company_name }}</strong>
-                                        <div class="rams-flex rams-gap-2 rams-mt-1">
-                                            <span class="rams-text-muted rams-text-xs">{{ lead.region }}</span>
-                                            {% if lead.defense_flag %}
-                                                <span class="rams-badge rams-badge--danger">{{ 'lead.defense'|trans }}</span>
-                                            {% endif %}
+                                <a href="{{ path('app_lead_show', {id: lead.id}) }}" class="rams-module rams-module--inset rams-module--hoverable rams-p-3" style="text-decoration:none">
+                                    <div class="rams-flex rams-justify-between rams-items-center">
+                                        <div class="rams-flex-1 rams-overflow-hidden">
+                                            <strong class="rams-text-sm rams-block rams-truncate">{{ lead.company_name }}</strong>
+                                            <div class="rams-flex rams-items-center rams-gap-2 rams-mt-1">
+                                                <span class="rams-text-muted rams-text-xs uppercase font-mono">{{ lead.region }}</span>
+                                                {% if lead.defense_flag %}
+                                                    <span class="rams-badge rams-badge--danger rams-badge--xs">{{ 'lead.defense'|trans }}</span>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="rams-flex rams-flex-col rams-items-end rams-gap-1">
-                                        <span class="rams-badge {% if lead.score >= 80 %}rams-badge--success{% elseif lead.score >= 60 %}rams-badge--warning{% else %}rams-badge--info{% endif %}">
-                                            {{ lead.score }}
-                                        </span>
-                                        <button class="rams-btn rams-btn--ghost rams-btn--sm" onclick="event.preventDefault(); analyzeLeadQuick({{ lead.id }})">
-                                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                                            </svg>
-                                        </button>
+                                        <div class="rams-flex rams-items-center rams-gap-2">
+                                            <span class="rams-badge {% if lead.score >= 80 %}rams-badge--success{% elseif lead.score >= 60 %}rams-badge--warning{% else %}rams-badge--info{% endif %} font-mono">
+                                                {{ lead.score }}
+                                            </span>
+                                            <button class="rams-btn rams-btn--ghost rams-btn--sm rams-p-1" onclick="event.preventDefault(); analyzeLeadQuick({{ lead.id }})">
+                                                <svg class="rams-btn__icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 </a>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <div class="rams-flex rams-flex-col rams-items-center rams-p-6 rams-text-muted">
-                            <svg class="rams-icon--xl rams-opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                            </svg>
-                            <p class="rams-mt-2 rams-text-sm">{{ 'lead.no_leads'|trans }}</p>
+                        <div class="rams-empty-state rams-p-4 rams-bg-panel rams-rounded">
+                            <p class="rams-text-muted rams-text-xs">{{ 'lead.no_leads'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
 
                 {# Leads by Region #}
-                <div class="rams-border-t rams-pt-4 rams-mt-4">
-                    <div class="rams-flex rams-items-center rams-gap-2 rams-mb-3">
-                        <span class="rams-andon__light rams-andon__light--green"></span>
-                        <span class="rams-module__title">{{ 'company.region'|trans }}</span>
+                <div class="rams-divider rams-my-6"></div>
+                <div class="rams-stack rams-gap-3">
+                    <div class="rams-flex rams-items-center rams-gap-2">
+                        <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                        <h3 class="rams-text-2xs rams-text-bold uppercase font-mono rams-text-muted">{{ 'company.region'|trans }}</h3>
                     </div>
-                    <div class="rams-flex rams-flex-col rams-gap-1">
+                    <div class="rams-stack rams-gap-1">
                         {% for region, count in data.lead_inflow.by_region %}
-                            <div class="rams-flex rams-justify-between">
-                                <span class="rams-text-muted rams-text-sm">{{ region_labels[region] ?? (region ?: 'common.unknown'|trans) }}</span>
-                                <span class="rams-badge">{{ count }}</span>
+                            <div class="rams-flex rams-justify-between rams-items-center rams-px-2">
+                                <span class="rams-text-muted rams-text-xs uppercase font-mono">{{ region_labels[region] ?? (region ?: 'common.unknown'|trans) }}</span>
+                                <span class="rams-badge font-mono">{{ count }}</span>
                             </div>
                         {% endfor %}
                     </div>
@@ -154,85 +160,79 @@
         {# Middle Column - Quote Status #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <span class="rams-module__title">{{ 'command_center.quote_status'|trans }} (Quote Buddy)</span>
+                <h2 class="rams-module__title">{{ 'command_center.quote_status'|trans }}</h2>
                 <span class="rams-badge rams-badge--success">{{ (data.quotes_status.summary.pipeline_value / 1000)|format_currency(data.quotes_status.summary.pipeline_currency|default(display_currency()), null, 0) }}k</span>
             </div>
             <div class="rams-module__content">
                 {# Quote Stats #}
-                <div class="rams-grid rams-grid--3 rams-mb-4">
-                    <div class="rams-module rams-module--inset">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-warning rams-text-xl">{{ data.quotes_status.summary.pending_approval }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'common.pending'|trans }}</span>
-                        </div>
+                <div class="rams-grid rams-grid--3 rams-gap-2 rams-mb-6">
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center">
+                        <span class="rams-text-2xs rams-text-warning uppercase font-mono rams-block">{{ 'common.pending'|trans }}</span>
+                        <span class="rams-text-lg rams-text-warning rams-text-bold font-mono">{{ data.quotes_status.summary.pending_approval }}</span>
                     </div>
-                    <div class="rams-module rams-module--inset">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-xl">{{ data.quotes_status.summary.active_interactive }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'common.active'|trans }}</span>
-                        </div>
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center">
+                        <span class="rams-text-2xs rams-text-muted uppercase font-mono rams-block">{{ 'common.active'|trans }}</span>
+                        <span class="rams-text-lg rams-text-bold font-mono">{{ data.quotes_status.summary.active_interactive }}</span>
                     </div>
-                    <div class="rams-module rams-module--inset">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-success rams-text-xl">{{ data.quotes_status.summary.high_value_count }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'common.value'|trans|upper }}</span>
-                        </div>
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center">
+                        <span class="rams-text-2xs rams-text-success uppercase font-mono rams-block">{{ 'common.value'|trans }}</span>
+                        <span class="rams-text-lg rams-text-success rams-text-bold font-mono">{{ data.quotes_status.summary.high_value_count }}</span>
                     </div>
                 </div>
 
-                {# Interactive Quotes with Activity #}
-                <div class="rams-border-t rams-pt-4 rams-mt-4">
-                    <div class="rams-flex rams-items-center rams-gap-2 rams-mb-3">
-                        <span class="rams-andon__light rams-andon__light--green"></span>
-                        <span class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</span>
+                {# Recent Quote Activity #}
+                <div class="rams-stack rams-gap-3">
+                    <div class="rams-flex rams-items-center rams-gap-2">
+                        <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                        <h3 class="rams-text-2xs rams-text-bold uppercase font-mono rams-text-muted">{{ 'dashboard.recent_activity'|trans }}</h3>
                     </div>
                     {% if data.quotes_status.active_interactive|length > 0 %}
-                        <div class="rams-flex rams-flex-col rams-gap-2">
+                        <div class="rams-stack rams-gap-2">
                             {% for quote in data.quotes_status.active_interactive|slice(0, 4) %}
-                                <a href="{{ path('app_quote_copilot_results', {id: quote.id}) }}" class="rams-flex rams-justify-between rams-items-center rams-p-2 rams-bordered">
-                                    <div>
-                                        <strong class="rams-text-sm">{{ quote.quote_number }}</strong>
-                                        <p class="rams-text-muted rams-text-xs">{{ quote.company }}</p>
-                                    </div>
-                                    <div class="rams-flex rams-flex-col rams-items-end">
-                                        <span class="rams-badge rams-badge--info">{{ quote.view_count }} {{ 'common.view'|trans|lower }}s</span>
-                                        <span class="rams-text-muted rams-text-xs">{{ quote.last_viewed }}</span>
+                                <a href="{{ path('app_quote_copilot_results', {id: quote.id}) }}" class="rams-module rams-module--inset rams-module--hoverable rams-p-3" style="text-decoration:none">
+                                    <div class="rams-flex rams-justify-between rams-items-center">
+                                        <div class="rams-flex-1 rams-overflow-hidden">
+                                            <strong class="rams-text-sm rams-block font-mono">{{ quote.quote_number }}</strong>
+                                            <p class="rams-text-muted rams-text-xs rams-truncate rams-mb-0">{{ quote.company }}</p>
+                                        </div>
+                                        <div class="rams-flex rams-flex-col rams-items-end">
+                                            <span class="rams-badge rams-badge--info rams-badge--xs">{{ quote.view_count }} {{ 'common.view'|trans|lower }}s</span>
+                                            <span class="rams-text-3xs rams-text-muted font-mono uppercase rams-mt-1">{{ quote.last_viewed }}</span>
+                                        </div>
                                     </div>
                                 </a>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <div class="rams-flex rams-flex-col rams-items-center rams-p-6 rams-text-muted">
-                            <svg class="rams-icon--xl rams-opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
-                            </svg>
-                            <p class="rams-mt-2 rams-text-sm">{{ 'table.no_data'|trans }}</p>
+                        <div class="rams-empty-state rams-p-4 rams-bg-panel rams-rounded">
+                            <p class="rams-text-muted rams-text-xs">{{ 'table.no_data'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
 
                 {# High Value Quotes #}
-                <div class="rams-border-t rams-pt-4 rams-mt-4">
-                    <div class="rams-flex rams-items-center rams-gap-2 rams-mb-3">
-                        <span class="rams-andon__light rams-andon__light--yellow"></span>
-                        <span class="rams-module__title">{{ 'common.value'|trans|upper }}</span>
+                <div class="rams-divider rams-my-6"></div>
+                <div class="rams-stack rams-gap-3">
+                    <div class="rams-flex rams-items-center rams-gap-2">
+                        <div class="rams-andon"><span class="rams-andon__light rams-andon__light--yellow"></span></div>
+                        <h3 class="rams-text-2xs rams-text-bold uppercase font-mono rams-text-muted">{{ 'common.value'|trans|upper }}</h3>
                     </div>
-                    {% for quote in data.quotes_status.high_value_quotes|slice(0, 3) %}
-                        <div class="rams-flex rams-justify-between rams-mb-2">
-                            <div>
-                                <a href="{{ path('app_quote_copilot_results', {id: quote.id}) }}" class="rams-text-sm rams-font-medium">{{ quote.quote_number }}</a>
-                                <p class="rams-text-muted rams-text-xs">{{ quote.company }}</p>
+                    <div class="rams-stack rams-gap-2">
+                        {% for quote in data.quotes_status.high_value_quotes|slice(0, 3) %}
+                            <div class="rams-flex rams-justify-between rams-items-center rams-px-2">
+                                <div class="rams-overflow-hidden">
+                                    <a href="{{ path('app_quote_copilot_results', {id: quote.id}) }}" class="rams-text-xs rams-text-bold font-mono rams-block rams-truncate">{{ quote.quote_number }}</a>
+                                    <span class="rams-text-3xs rams-text-muted uppercase rams-block rams-truncate">{{ quote.company }}</span>
+                                </div>
+                                <div class="rams-flex rams-flex-col rams-items-end">
+                                    <span class="rams-text-xs rams-text-bold font-mono">{{ (quote.total_cost / 1000)|format_currency(quote.currency|default(display_currency()), null, 1) }}k</span>
+                                    <span class="rams-badge rams-badge--xs {% if quote.status == 'sent' %}rams-badge--info{% elseif quote.status == 'approved' %}rams-badge--success{% endif %}">
+                                        {{ quote.status }}
+                                    </span>
+                                </div>
                             </div>
-                            <div class="rams-flex rams-flex-col rams-items-end">
-                                <strong>{{ (quote.total_cost / 1000)|format_currency(quote.currency|default(display_currency()), null, 1) }}k</strong>
-                                <span class="rams-badge {% if quote.status == 'sent' %}rams-badge--info{% elseif quote.status == 'approved' %}rams-badge--success{% else %}rams-badge--secondary{% endif %}">
-                                    {{ quote.status }}
-                                </span>
-                            </div>
-                        </div>
-                    {% else %}
-                        <p class="rams-text-muted rams-text-sm">{{ 'table.no_data'|trans }}</p>
-                    {% endfor %}
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -240,60 +240,54 @@
         {# Right Column - Supply Alerts #}
         <div class="rams-module">
             <div class="rams-module__header {% if data.supply_alerts.summary.critical > 0 %}rams-bg-danger-subtle{% endif %}">
-                <span class="rams-module__title">{{ 'command_center.supply_alerts'|trans }}</span>
+                <h2 class="rams-module__title">{{ 'command_center.supply_alerts'|trans }}</h2>
                 <span class="rams-badge {% if data.supply_alerts.summary.critical > 0 %}rams-badge--danger{% else %}rams-badge--warning{% endif %}">
-                    {{ data.supply_alerts.summary.critical }} {{ 'compliance.status'|trans|lower }}
+                    {{ data.supply_alerts.summary.critical }} {{ 'common.critical'|trans|lower }}
                 </span>
             </div>
             <div class="rams-module__content">
                 {# Alert Summary #}
-                <div class="rams-grid rams-grid--3 rams-mb-4">
-                    <div class="rams-module rams-module--inset {% if data.supply_alerts.summary.critical > 0 %}rams-border-danger{% endif %}">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-danger rams-text-xl">{{ data.supply_alerts.summary.critical }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'rfq.priorities.urgent'|trans }}</span>
-                        </div>
+                <div class="rams-grid rams-grid--3 rams-gap-2 rams-mb-6">
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center {% if data.supply_alerts.summary.critical > 0 %}rams-border-danger{% endif %}">
+                        <span class="rams-text-2xs rams-text-danger uppercase font-mono rams-block">{{ 'rfq.priorities.urgent'|trans }}</span>
+                        <span class="rams-text-lg rams-text-danger rams-text-bold font-mono">{{ data.supply_alerts.summary.critical }}</span>
                     </div>
-                    <div class="rams-module rams-module--inset rams-border-warning">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-warning rams-text-xl">{{ data.supply_alerts.summary.warning }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'common.warning'|trans }}</span>
-                        </div>
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center rams-border-warning">
+                        <span class="rams-text-2xs rams-text-warning uppercase font-mono rams-block">{{ 'common.warning'|trans }}</span>
+                        <span class="rams-text-lg rams-text-warning rams-text-bold font-mono">{{ data.supply_alerts.summary.warning }}</span>
                     </div>
-                    <div class="rams-module rams-module--inset">
-                        <div class="rams-module__content rams-flex rams-flex-col rams-items-center">
-                            <span class="rams-metric__value rams-text-xl">{{ data.supply_alerts.summary.total_alerts }}</span>
-                            <span class="rams-text-muted rams-text-2xs">{{ 'common.total'|trans }}</span>
-                        </div>
+                    <div class="rams-module rams-module--inset rams-p-2 rams-text--center">
+                        <span class="rams-text-2xs rams-text-muted uppercase font-mono rams-block">{{ 'common.total'|trans }}</span>
+                        <span class="rams-text-lg rams-text-bold font-mono">{{ data.supply_alerts.summary.total_alerts }}</span>
                     </div>
                 </div>
 
                 {# Alert List #}
-                <div class="rams-border-t rams-pt-4 rams-mt-4">
-                    <div class="rams-flex rams-items-center rams-gap-2 rams-mb-3">
-                        <span class="rams-andon__light {% if data.supply_alerts.summary.critical > 0 %}rams-andon__light--red{% else %}rams-andon__light--yellow{% endif %}"></span>
-                        <span class="rams-module__title">{{ 'command_center.alerts'|trans }}</span>
+                <div class="rams-stack rams-gap-3">
+                    <div class="rams-flex rams-items-center rams-gap-2">
+                        <div class="rams-andon"><span class="rams-andon__light {% if data.supply_alerts.summary.critical > 0 %}rams-andon__light--red{% else %}rams-andon__light--yellow{% endif %}"></span></div>
+                        <h3 class="rams-text-2xs rams-text-bold uppercase font-mono rams-text-muted">{{ 'command_center.alerts'|trans }}</h3>
                     </div>
                     {% if data.supply_alerts.alerts|length > 0 %}
-                        <div class="rams-flex rams-flex-col rams-gap-2 rams-max-h-350 rams-overflow-auto">
+                        <div class="rams-stack rams-gap-2 rams-max-h-400 rams-overflow-auto rams-pr-2">
                             {% for alert in data.supply_alerts.alerts|slice(0, 10) %}
-                                <div class="rams-alert {% if alert.severity == 'critical' %}rams-alert--error{% else %}rams-alert--warning{% endif %}">
+                                <div class="rams-alert rams-p-2 {% if alert.severity == 'critical' %}rams-alert--error{% else %}rams-alert--warning{% endif %}">
                                     <div class="rams-alert__content">
-                                        <span class="rams-badge {% if alert.severity == 'critical' %}rams-badge--danger{% else %}rams-badge--warning{% endif %} rams-mb-1">
-                                            {{ alert.type|replace({'_': ' '})|title }}
-                                        </span>
-                                        <p class="rams-text-xs">{{ alert.message }}</p>
+                                        <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
+                                            <span class="rams-badge rams-badge--xs {% if alert.severity == 'critical' %}rams-badge--danger{% else %}rams-badge--warning{% endif %}">
+                                                {{ alert.type|replace({'_': ' '})|upper }}
+                                            </span>
+                                        </div>
+                                        <p class="rams-text-3xs font-mono rams-mb-0">{{ alert.message }}</p>
                                     </div>
                                 </div>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <div class="rams-flex rams-flex-col rams-items-center rams-p-6">
-                            <span class="rams-andon">
-                                <span class="rams-andon__light rams-andon__light--green"></span>
-                                <span class="rams-andon__text rams-andon__text--green">{{ 'status_bar.operational'|trans }}</span>
-                            </span>
-                            <p class="rams-text-muted rams-mt-2 rams-text-sm">{{ 'command_center.supply_alerts'|trans }} - {{ 'common.none'|trans }}</p>
+                        <div class="rams-empty-state rams-p-6 rams-bg-panel rams-rounded rams-text--center">
+                            <div class="rams-andon rams-mb-2"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                            <p class="rams-text-success rams-text-2xs rams-text-bold uppercase font-mono rams-mb-0">{{ 'status_bar.operational'|trans }}</p>
+                            <p class="rams-text-muted rams-text-3xs rams-mt-1 rams-mb-0">{{ 'command_center.supply_alerts'|trans }} - {{ 'common.none'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -304,19 +298,19 @@
     {# Activity Feed Row #}
     <div class="rams-module">
         <div class="rams-module__header">
-            <span class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</span>
-            <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
+            <h2 class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</h2>
+            <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
         </div>
         <div class="rams-module__content">
-            <div class="rams-grid rams-grid--4">
+            <div class="rams-grid rams-grid--4 rams-gap-4">
                 {% for activity in data.activity_feed|slice(0, 8) %}
-                    <div class="rams-flex rams-items-center rams-gap-2">
-                        <span class="rams-badge {% if activity.type == 'CALL' %}rams-badge--info{% elseif activity.type == 'EMAIL' %}rams-badge--info{% elseif activity.type == 'MEETING' %}rams-badge--success{% else %}rams-badge{% endif %}">
-                            {{ activity.type }}
+                    <div class="rams-flex rams-items-center rams-gap-3 rams-p-2 rams-bg-panel rams-border rams-rounded">
+                        <span class="rams-badge rams-badge--xs {% if activity.type == 'CALL' %}rams-badge--info{% elseif activity.type == 'EMAIL' %}rams-badge--info{% elseif activity.type == 'MEETING' %}rams-badge--success{% endif %} font-mono">
+                            {{ activity.type|slice(0, 3) }}
                         </span>
-                        <div class="rams-flex-1">
-                            <strong class="rams-text-sm rams-block rams-truncate">{{ activity.company_name ?: 'common.n_a'|trans }}</strong>
-                            <span class="rams-text-muted rams-text-xs rams-block rams-truncate">{{ activity.subject|slice(0, 30) }}...</span>
+                        <div class="rams-flex-1 rams-overflow-hidden">
+                            <strong class="rams-text-xs rams-block rams-truncate">{{ activity.company_name ?: 'common.n_a'|trans }}</strong>
+                            <span class="rams-text-3xs rams-text-muted rams-block rams-truncate font-mono uppercase">{{ activity.subject|slice(0, 20) }}...</span>
                         </div>
                     </div>
                 {% endfor %}
@@ -329,20 +323,19 @@
 <div class="rams-modal-backdrop rams-hidden" id="leadAnalysisModal">
     <div class="rams-modal rams-modal--lg">
         <div class="rams-module__header">
-            <span class="rams-module__title">{{ 'guidance.title'|trans }}</span>
-            <button type="button rams-btn rams-btn--ghost rams-btn--sm" onclick="closeLeadModal()">×</button>
+            <h3 class="rams-module__title">{{ 'guidance.title'|trans }}</h3>
+            <button class="rams-modal__close" onclick="closeLeadModal()">×</button>
         </div>
         <div class="rams-module__content" id="leadAnalysisContent">
-            <div class="rams-flex rams-flex-col rams-items-center rams-p-6">
+            <div class="rams-flex rams-flex-col rams-items-center rams-p-8">
                 <div class="rams-andon">
                     <span class="rams-andon__light rams-andon__light--yellow rams-pulse"></span>
                 </div>
-                <p class="rams-mt-2">{{ 'messages.loading'|trans }}</p>
+                <p class="rams-mt-4 rams-text-muted rams-text-sm">{{ 'messages.loading'|trans }}</p>
             </div>
         </div>
     </div>
 </div>
-
 <script>
 function analyzeLeadQuick(leadId) {
     document.getElementById('leadAnalysisModal').classList.remove('rams-hidden');

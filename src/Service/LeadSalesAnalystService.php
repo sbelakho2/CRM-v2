@@ -755,7 +755,7 @@ class LeadSalesAnalystService
         if ($fitScore >= 70) {
             $steps[] = [
                 'action' => 'research',
-                'description' => 'Research key contacts on LinkedIn',
+                'description' => 'Research key contacts via company website',
                 'timeframe' => 'Today',
             ];
             

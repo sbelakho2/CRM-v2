@@ -8,6 +8,7 @@ use App\Repository\CompanyRepository;
 use App\Repository\RFQRepository;
 use App\Repository\ActivityRepository;
 use App\Repository\WebinarRepository;
+use App\Repository\ComplianceDocumentRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -20,7 +21,8 @@ class DashboardController extends AbstractController
         private RFQRepository $rfqRepository,
         private ActivityRepository $activityRepository,
         private WebinarRepository $webinarRepository,
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private ComplianceDocumentRepository $complianceDocumentRepository
     ) {}
 
     #[Route('/', name: 'app_dashboard')]
@@ -68,6 +70,10 @@ class DashboardController extends AbstractController
         
         $pipelineLabels = array_keys($pipelineDistribution);
         $pipelineData = array_values($pipelineDistribution);
+        
+        // Get compliance alerts for dashboard widget
+        $complianceAlerts = $this->complianceDocumentRepository->findDocumentsNeedingAttention(30, 10);
+        $complianceAlertCounts = $this->complianceDocumentRepository->getAlertCounts();
 
         return $this->render('dashboard/index.html.twig', [
             'kpis' => $kpis,
@@ -84,6 +90,8 @@ class DashboardController extends AbstractController
             'sector_rfq_counts' => json_encode($sectorRfqCounts),
             'pipeline_labels' => json_encode($pipelineLabels),
             'pipeline_data' => json_encode($pipelineData),
+            'compliance_alerts' => $complianceAlerts,
+            'compliance_alert_counts' => $complianceAlertCounts,
         ]);
     }
 }

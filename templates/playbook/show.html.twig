@@ -3,158 +3,189 @@
 {% block title %}{{ playbook.name }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack rams-gap-4">
+<div class="rams-stack rams-gap-6">
     {# Breadcrumb #}
-    <nav class="rams-breadcrumb">
-        <a href="{{ path('app_playbook_index') }}" class="rams-link">← {{ 'playbook.back_to_playbooks'|trans }}</a>
+    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_playbook_index') }}" class="rams-breadcrumb__link">{{ 'playbook.title'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ playbook.name }}</li>
+        </ol>
     </nav>
 
-    {# Flash Messages #}
-    {% for message in app.flashes('success') %}
-        <div class="rams-alert rams-alert--success">{{ message }}</div>
-    {% endfor %}
-
     {# Playbook Header #}
-    <div class="rams-module">
-        <div class="rams-module__header">
-            <div>
-                <h1 class="rams-page-title">{{ playbook.name }}</h1>
-                <div class="rams-flex rams-gap-2 rams-mt-2">
-                    <span class="rams-badge {% if playbook.isActive %}rams-badge--success{% else %}rams-badge--neutral{% endif %}">
-                        {% if playbook.isActive %}{{ 'playbook.active'|trans }}{% else %}{{ 'playbook.inactive'|trans }}{% endif %}
-                    </span>
-                    <span class="rams-badge rams-badge--info">{{ 'playbook.priority'|trans }}: {{ playbook.priority }}</span>
-                </div>
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ playbook.name }}</h1>
+            <div class="rams-flex rams-gap-2 rams-mt-2">
+                <span class="rams-badge {% if playbook.isActive %}rams-badge--success{% endif %}">
+                    {{ (playbook.isActive ? 'playbook.active' : 'playbook.inactive')|trans }}
+                </span>
+                <span class="rams-badge rams-badge--info">{{ 'playbook.priority'|trans }}: {{ playbook.priority }}</span>
             </div>
+        </div>
+        <div class="rams-page-actions">
             <div class="rams-btn-group">
-                <a href="{{ path('app_playbook_edit', {id: playbook.id}) }}" class="rams-btn rams-btn--primary">{{ 'common.edit'|trans }}</a>
+                <a href="{{ path('app_playbook_edit', {id: playbook.id}) }}" class="rams-btn rams-btn--secondary">
+                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
+                    </svg>
+                    {{ 'common.edit'|trans }}
+                </a>
                 <form action="{{ path('app_playbook_delete', {id: playbook.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'playbook.delete_confirm'|trans }}', {variant: 'danger'})">
-                    <button type="submit" class="rams-btn rams-btn--danger">{{ 'common.delete'|trans }}</button>
+                    <button type="submit" class="rams-btn rams-btn--danger">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
+                        </svg>
+                        {{ 'common.delete'|trans }}
+                    </button>
                 </form>
             </div>
         </div>
-        <div class="rams-module__content">
-            {% if playbook.description %}
-                <p class="rams-text-muted rams-mb-3">{{ playbook.description }}</p>
-            {% endif %}
-            
-            {% if playbook.notes %}
-                <div class="rams-alert rams-alert--info rams-mb-3">
-                    <span class="rams-dymo">{{ 'playbook.notes'|trans }}:</span> {{ playbook.notes }}
-                </div>
-            {% endif %}
+    </div>
 
-            <div class="rams-text-muted rams-text-sm">
-                {{ 'playbook.created'|trans }}: {{ playbook.createdAt|date('M d, Y H:i') }} | {{ 'playbook.last_updated'|trans }}: {{ playbook.updatedAt|date('M d, Y H:i') }}
+    {# Description & Notes #}
+    {% if playbook.description or playbook.notes %}
+        <div class="rams-module">
+            <div class="rams-module__content">
+                {% if playbook.description %}
+                    <p class="rams-text--sm rams-mb-4">{{ playbook.description }}</p>
+                {% endif %}
+                
+                {% if playbook.notes %}
+                    <div class="rams-alert rams-alert--info">
+                        <div class="rams-alert__content">
+                            <span class="rams-text--bold uppercase rams-text--xs rams-font-mono rams-mr-2">{{ 'playbook.notes'|trans }}:</span>
+                            <span class="rams-text--sm">{{ playbook.notes }}</span>
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
-    </div>
+    {% endif %}
 
     {# Statistics #}
     <div class="rams-grid rams-grid--4">
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'playbook.total_runs'|trans }}</span>
-                <div class="rams-metric__value rams-metric__value--lg">{{ stats.total_runs }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'playbook.total_runs'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.total_runs }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'common.completed'|trans }}</span>
-                <div class="rams-metric__value rams-metric__value--lg rams-text-success">{{ stats.completed }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'common.completed'|trans }}</span>
+                    <span class="rams-metric__value rams-text-success">{{ stats.completed }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'common.failed'|trans }}</span>
-                <div class="rams-metric__value rams-metric__value--lg rams-text-danger">{{ stats.failed }}</div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'common.failed'|trans }}</span>
+                    <span class="rams-metric__value rams-text-danger">{{ stats.failed }}</span>
+                </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'playbook.success_rate'|trans }}</span>
-                <div class="rams-metric__value rams-metric__value--lg rams-text-info">
-                    {% if stats.total_runs > 0 %}
-                        {{ ((stats.completed / stats.total_runs) * 100)|number_format(0) }}%
-                    {% else %}
-                        {{ 'common.n_a'|trans }}
-                    {% endif %}
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'playbook.success_rate'|trans }}</span>
+                    <span class="rams-metric__value rams-text-info">
+                        {% if stats.total_runs > 0 %}
+                            {{ ((stats.completed / stats.total_runs) * 100)|number_format(0) }}%
+                        {% else %}
+                            {{ 'common.n_a'|trans }}
+                        {% endif %}
+                    </span>
                 </div>
             </div>
         </div>
     </div>
 
-    {# Trigger Rules #}
-    <div class="rams-module">
-        <div class="rams-module__header">
-            <h2 class="rams-module__title">{{ 'playbook.trigger_rules'|trans }}</h2>
+    <div class="rams-grid rams-grid--2 rams-gap-6">
+        {# Trigger Rules #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'playbook.trigger_rules'|trans }}</h2>
+            </div>
+            <div class="rams-module__content">
+                <div id="trigger-rules-display" data-rules="{{ playbook.triggerRules|e('html_attr') }}"></div>
+                <script>
+                (function() {
+                    try {
+                        const rules = JSON.parse(document.getElementById('trigger-rules-display').dataset.rules || '[]');
+                        const container = document.getElementById('trigger-rules-display');
+                        if (rules.length > 0) {
+                            container.innerHTML = '<div class="rams-stack rams-gap-2">' + rules.map(rule => `
+                                <div class="rams-flex rams-items-center rams-gap-3 rams-p-2 rams-bg-panel rams-border rams-rounded">
+                                    <span class="rams-badge font-mono">${rule.field || ''}</span>
+                                    <span class="rams-text-muted rams-text-xs font-mono uppercase">${rule.operator || ''}</span>
+                                    <span class="rams-badge rams-badge--info font-mono">${rule.value || ''}</span>
+                                </div>
+                            `).join('') + '</div>';
+                        } else {
+                            container.innerHTML = '<div class="rams-empty-state rams-p-4"><p class="rams-text-muted rams-text-xs">{{ 'playbook.no_trigger_rules'|trans }}</p></div>';
+                        }
+                    } catch(e) { 
+                        document.getElementById('trigger-rules-display').innerHTML = '<div class="rams-alert rams-alert--error">{{ 'common.error'|trans }}</div>';
+                    }
+                })();
+                </script>
+            </div>
         </div>
-        <div class="rams-module__content">
-            <div id="trigger-rules-display" data-rules="{{ playbook.triggerRules|e('html_attr') }}"></div>
-            <script>
-            try {
-                const rules = JSON.parse(document.getElementById('trigger-rules-display').dataset.rules || '[]');
-                const container = document.getElementById('trigger-rules-display');
-                if (rules.length > 0) {
-                    container.innerHTML = '<div class="rams-stack rams-gap-2">' + rules.map(rule => `
-                        <div class="rams-list-item">
-                            <span class="rams-badge">${rule.field || ''}</span>
-                            <span class="rams-text-muted">${rule.operator || ''}</span>
-                            <span class="rams-badge">${rule.value || ''}</span>
-                        </div>
-                    `).join('') + '</div>';
-                } else {
-                    container.innerHTML = '<div class="rams-empty-state">{{ 'playbook.no_trigger_rules'|trans }}</div>';
-                }
-            } catch(e) { 
-                console.error('Error parsing trigger rules:', e);
-                document.getElementById('trigger-rules-display').innerHTML = '<div class="rams-alert rams-alert--error">{{ 'common.error'|trans }}</div>';
-            }
-            </script>
-        </div>
-    </div>
 
-    {# Actions #}
-    <div class="rams-module">
-        <div class="rams-module__header">
-            <h2 class="rams-module__title">{{ 'playbook.actions'|trans }}</h2>
-        </div>
-        <div class="rams-module__content">
-            <div id="actions-display" data-actions="{{ playbook.actions|e('html_attr') }}"></div>
-            <script>
-            try {
-                const actions = JSON.parse(document.getElementById('actions-display').dataset.actions || '[]');
-                const container = document.getElementById('actions-display');
-                if (actions.length > 0) {
-                    container.innerHTML = '<div class="rams-stack rams-gap-2">' + actions.map(action => {
-                        let paramsHtml = '';
-                        if (action.params && Object.keys(action.params).length > 0) {
-                            paramsHtml = '<div class="rams-grid rams-grid--2 rams-mt-2">';
-                            for (const [key, value] of Object.entries(action.params)) {
-                                paramsHtml += `
-                                    <div class="rams-metric">
-                                        <span class="rams-dymo">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>
-                                        <span class="rams-metric__value">${value}</span>
+        {# Actions #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'playbook.actions'|trans }}</h2>
+            </div>
+            <div class="rams-module__content">
+                <div id="actions-display" data-actions="{{ playbook.actions|e('html_attr') }}"></div>
+                <script>
+                (function() {
+                    try {
+                        const actions = JSON.parse(document.getElementById('actions-display').dataset.actions || '[]');
+                        const container = document.getElementById('actions-display');
+                        if (actions.length > 0) {
+                            container.innerHTML = '<div class="rams-stack rams-gap-2">' + actions.map(action => {
+                                let paramsHtml = '';
+                                if (action.params && Object.keys(action.params).length > 0) {
+                                    paramsHtml = '<div class="rams-grid rams-grid--2 rams-gap-2 rams-mt-2 rams-pt-2 rams-border-t rams-border-line">';
+                                    for (const [key, value] of Object.entries(action.params)) {
+                                        paramsHtml += `
+                                            <div>
+                                                <span class="rams-text-3xs uppercase rams-text-muted rams-block font-mono">${key.replace(/_/g, ' ')}</span>
+                                                <span class="rams-text-xs rams-text-bold font-mono">${value}</span>
+                                            </div>
+                                        `;
+                                    }
+                                    paramsHtml += '</div>';
+                                }
+                                return `
+                                    <div class="rams-p-3 rams-bg-panel rams-border rams-rounded">
+                                        <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
+                                            <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
+                                            <span class="rams-text-sm rams-text-bold uppercase font-mono">${(action.type || '').replace(/_/g, ' ')}</span>
+                                        </div>
+                                        ${paramsHtml}
                                     </div>
                                 `;
-                            }
-                            paramsHtml += '</div>';
+                            }).join('') + '</div>';
+                        } else {
+                            container.innerHTML = '<div class="rams-empty-state rams-p-4"><p class="rams-text-muted rams-text-xs">{{ 'playbook.no_actions'|trans }}</p></div>';
                         }
-                        return `
-                            <div class="rams-list-item">
-                                <div class="rams-list-item__title">${(action.type || '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                                ${paramsHtml}
-                            </div>
-                        `;
-                    }).join('') + '</div>';
-                } else {
-                    container.innerHTML = '<div class="rams-empty-state">{{ 'playbook.no_actions'|trans }}</div>';
-                }
-            } catch(e) { 
-                console.error('Error parsing actions:', e);
-                document.getElementById('actions-display').innerHTML = '<div class="rams-alert rams-alert--error">{{ 'common.error'|trans }}</div>';
-            }
-            </script>
+                    } catch(e) { 
+                        document.getElementById('actions-display').innerHTML = '<div class="rams-alert rams-alert--error">{{ 'common.error'|trans }}</div>';
+                    }
+                })();
+                </script>
+            </div>
         </div>
     </div>
 
@@ -163,39 +194,53 @@
         <div class="rams-module__header">
             <h2 class="rams-module__title">{{ 'playbook.recent_executions'|trans }}</h2>
         </div>
-        <div class="rams-module__content">
+        <div class="rams-module__content rams-module__content--flush">
             {% if runs|length > 0 %}
-                <table class="rams-table">
-                    <thead class="rams-table__header">
-                        <tr>
-                            <th class="rams-table__cell">{{ 'playbook.triggered_at'|trans }}</th>
-                            <th class="rams-table__cell">{{ 'common.status'|trans }}</th>
-                            <th class="rams-table__cell">{{ 'playbook.actions_executed'|trans }}</th>
-                            <th class="rams-table__cell">{{ 'playbook.outcome'|trans }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for run in runs %}
-                            <tr class="rams-table__row">
-                                <td class="rams-table__cell">{{ run.triggeredAt|date('M d, Y H:i:s') }}</td>
-                                <td class="rams-table__cell">
-                                    <span class="rams-badge
-                                        {% if run.status == 'completed' %}rams-badge--success
-                                        {% elseif run.status == 'failed' %}rams-badge--danger
-                                        {% elseif run.status == 'pending' %}rams-badge--warning
-                                        {% else %}rams-badge--neutral{% endif %}">
-                                        {{ run.status }}
-                                    </span>
-                                </td>
-                                <td class="rams-table__cell">{{ run.actionsExecuted|default(0) }}</td>
-                                <td class="rams-table__cell rams-text-muted">{{ run.outcome ?: 'common.n_a'|trans }}</td>
+                <div class="rams-table-container">
+                    <table class="rams-table">
+                        <thead class="rams-table__header">
+                            <tr>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'playbook.triggered_at'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'playbook.actions_executed'|trans }}</th>
+                                <th class="rams-table__cell rams-table__cell--header">{{ 'playbook.outcome'|trans }}</th>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="rams-table__body">
+                            {% for run in runs %}
+                                <tr class="rams-table__row">
+                                    <td class="rams-table__cell rams-text-xs font-mono">{{ run.triggeredAt|date('M d, Y H:i:s') }}</td>
+                                    <td class="rams-table__cell">
+                                        <span class="rams-badge
+                                            {% if run.status == 'completed' %}rams-badge--success
+                                            {% elseif run.status == 'failed' %}rams-badge--danger
+                                            {% elseif run.status == 'pending' %}rams-badge--warning
+                                            {% endif %}">
+                                            {{ run.status }}
+                                        </span>
+                                    </td>
+                                    <td class="rams-table__cell rams-text-bold font-mono">{{ run.actionsExecuted|default(0) }}</td>
+                                    <td class="rams-table__cell rams-text-muted rams-text-xs">{{ run.outcome ?: 'common.n_a'|trans }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             {% else %}
-                <div class="rams-empty-state">{{ 'playbook.no_executions'|trans }}</div>
+                <div class="rams-empty-state rams-p-8">
+                    <p class="rams-text-muted rams-text-sm">{{ 'playbook.no_executions'|trans }}</p>
+                </div>
             {% endif %}
+        </div>
+    </div>
+
+    {# Metadata #}
+    <div class="rams-module rams-module--inset">
+        <div class="rams-module__content">
+            <div class="rams-flex rams-justify-between rams-text-muted rams-text-xs font-mono">
+                <span>{{ 'playbook.created'|trans }}: {{ playbook.createdAt|date('Y-m-d H:i') }}</span>
+                <span>{{ 'playbook.last_updated'|trans }}: {{ playbook.updatedAt|date('Y-m-d H:i') }}</span>
+            </div>
         </div>
     </div>
 </div>

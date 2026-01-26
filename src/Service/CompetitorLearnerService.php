@@ -13,7 +13,6 @@ use Psr\Log\LoggerInterface;
  * 
  * Automatically discovers and learns about competitors from:
  * - Web scraping results (company pages, supplier lists)
- * - LinkedIn mentions
  * - Press releases and news
  * - Customer reference lists
  * - Manual user submissions
@@ -394,29 +393,6 @@ class CompetitorLearnerService
                 $content,
                 $sourceUrl,
                 LearnedCompetitor::SOURCE_GOOGLE_DORK
-            );
-            
-            $discovered = array_merge($discovered, $found);
-        }
-        
-        return $discovered;
-    }
-
-    /**
-     * Learn from LinkedIn scrape results
-     */
-    public function learnFromLinkedInData(array $linkedInData): array
-    {
-        $discovered = [];
-        
-        foreach ($linkedInData as $data) {
-            $content = json_encode($data); // Serialize all data for analysis
-            $sourceUrl = $data['linkedin_url'] ?? 'linkedin';
-            
-            $found = $this->learnFromContent(
-                $content,
-                $sourceUrl,
-                LearnedCompetitor::SOURCE_LINKEDIN
             );
             
             $discovered = array_merge($discovered, $found);

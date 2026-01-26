@@ -113,16 +113,6 @@ class LeadDeepScrapeMessageHandler
             $newNotes[] = "Contacts found: " . implode(', ', array_slice($result['contact_names'], 0, 5));
         }
         
-        if (!empty($result['social_links'])) {
-            foreach ($result['social_links'] as $social) {
-                if ($social['platform'] === 'linkedin' && !$lead->getLeadUrl()) {
-                    // Could set LinkedIn company URL if we had that field on Lead
-                    $newNotes[] = "LinkedIn: " . $social['url'];
-                    break;
-                }
-            }
-        }
-        
         if (!empty($newNotes)) {
             $notes .= "\n[" . date('Y-m-d H:i') . "] Deep scrape results:\n" . implode("\n", $newNotes);
             $lead->setNotesAuto($notes);

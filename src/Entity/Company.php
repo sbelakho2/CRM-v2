@@ -11,6 +11,103 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'companies')]
 class Company
 {
+    // Pipeline Stage Constants
+    public const STAGE_PROSPECT = 'Prospect';
+    public const STAGE_MQL = 'MQL';        // Marketing Qualified Lead
+    public const STAGE_SQL = 'SQL';        // Sales Qualified Lead
+    public const STAGE_SQO = 'SQO';        // Sales Qualified Opportunity
+    public const STAGE_PROPOSAL = 'Proposal';
+    public const STAGE_AWARD = 'Award';
+    
+    public const VALID_STAGES = [
+        self::STAGE_PROSPECT,
+        self::STAGE_MQL,
+        self::STAGE_SQL,
+        self::STAGE_SQO,
+        self::STAGE_PROPOSAL,
+        self::STAGE_AWARD,
+    ];
+    
+    // Account Tier Constants
+    public const TIER_A = 'A';
+    public const TIER_B = 'B';
+    public const TIER_C = 'C';
+    
+    public const VALID_TIERS = [
+        self::TIER_A,
+        self::TIER_B,
+        self::TIER_C,
+    ];
+    
+    // Sector Constants - Expanded to cover all major EMS/PCBA markets
+    public const SECTOR_AUTOMOTIVE = 'Automotive';
+    public const SECTOR_INDUSTRIAL = 'Industrial';
+    public const SECTOR_AEROSPACE = 'Aerospace';
+    public const SECTOR_RAIL = 'Rail';
+    public const SECTOR_RENEWABLES = 'Renewables';
+    public const SECTOR_POWER_ELECTRONICS = 'Power Electronics';
+    public const SECTOR_MEDICAL_DEVICES = 'Medical Devices';
+    public const SECTOR_DEFENSE = 'Defense';
+    public const SECTOR_TELECOMMUNICATIONS = 'Telecommunications';
+    public const SECTOR_DATA_CENTER = 'Data Center';
+    public const SECTOR_CONSUMER_ELECTRONICS = 'Consumer Electronics';
+    public const SECTOR_ENERGY_STORAGE = 'Energy Storage';
+    public const SECTOR_AGRICULTURE = 'Agriculture & AgTech';
+    public const SECTOR_MARINE = 'Marine & Shipbuilding';
+    public const SECTOR_HVAC = 'HVAC & Building Automation';
+    public const SECTOR_LIGHTING = 'Lighting & LED';
+    public const SECTOR_EV_CHARGING = 'EV Charging Infrastructure';
+    public const SECTOR_SMART_GRID = 'Smart Grid';
+    public const SECTOR_IOT = 'IoT & Connected Devices';
+    public const SECTOR_OTHER = 'Other';
+    
+    public const VALID_SECTORS = [
+        self::SECTOR_AUTOMOTIVE,
+        self::SECTOR_INDUSTRIAL,
+        self::SECTOR_AEROSPACE,
+        self::SECTOR_RAIL,
+        self::SECTOR_RENEWABLES,
+        self::SECTOR_POWER_ELECTRONICS,
+        self::SECTOR_MEDICAL_DEVICES,
+        self::SECTOR_DEFENSE,
+        self::SECTOR_TELECOMMUNICATIONS,
+        self::SECTOR_DATA_CENTER,
+        self::SECTOR_CONSUMER_ELECTRONICS,
+        self::SECTOR_ENERGY_STORAGE,
+        self::SECTOR_AGRICULTURE,
+        self::SECTOR_MARINE,
+        self::SECTOR_HVAC,
+        self::SECTOR_LIGHTING,
+        self::SECTOR_EV_CHARGING,
+        self::SECTOR_SMART_GRID,
+        self::SECTOR_IOT,
+        self::SECTOR_OTHER,
+    ];
+    
+    // Human-readable sector labels
+    public const SECTOR_LABELS = [
+        self::SECTOR_AUTOMOTIVE => 'Automotive',
+        self::SECTOR_INDUSTRIAL => 'Industrial',
+        self::SECTOR_AEROSPACE => 'Aerospace & Aviation',
+        self::SECTOR_RAIL => 'Rail & Transportation',
+        self::SECTOR_RENEWABLES => 'Renewables & Clean Energy',
+        self::SECTOR_POWER_ELECTRONICS => 'Power Electronics',
+        self::SECTOR_MEDICAL_DEVICES => 'Medical Devices & Healthcare',
+        self::SECTOR_DEFENSE => 'Defense & Security',
+        self::SECTOR_TELECOMMUNICATIONS => 'Telecommunications',
+        self::SECTOR_DATA_CENTER => 'Data Center & Cloud',
+        self::SECTOR_CONSUMER_ELECTRONICS => 'Consumer Electronics',
+        self::SECTOR_ENERGY_STORAGE => 'Energy Storage & Battery',
+        self::SECTOR_AGRICULTURE => 'Agriculture & AgTech',
+        self::SECTOR_MARINE => 'Marine & Shipbuilding',
+        self::SECTOR_HVAC => 'HVAC & Building Automation',
+        self::SECTOR_LIGHTING => 'Lighting & LED',
+        self::SECTOR_EV_CHARGING => 'EV Charging Infrastructure',
+        self::SECTOR_SMART_GRID => 'Smart Grid & Utilities',
+        self::SECTOR_IOT => 'IoT & Connected Devices',
+        self::SECTOR_OTHER => 'Other',
+    ];
+    
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -124,6 +221,13 @@ class Company
 
     public function setAccountTier(string $accountTier): self
     {
+        if (!in_array($accountTier, self::VALID_TIERS, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid account tier "%s". Valid tiers are: %s',
+                $accountTier,
+                implode(', ', self::VALID_TIERS)
+            ));
+        }
         $this->accountTier = $accountTier;
         return $this;
     }
@@ -146,7 +250,47 @@ class Company
 
     public function setPipelineStage(string $pipelineStage): self
     {
+        if (!in_array($pipelineStage, self::VALID_STAGES, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid pipeline stage "%s". Valid stages are: %s',
+                $pipelineStage,
+                implode(', ', self::VALID_STAGES)
+            ));
+        }
         $this->pipelineStage = $pipelineStage;
+        return $this;
+    }
+    
+    /**
+     * Check if the company is in a won state
+     */
+    public function isWon(): bool
+    {
+        return $this->pipelineStage === self::STAGE_AWARD;
+    }
+    
+    /**
+     * Check if the company is in an active pipeline (not prospect, not won)
+     */
+    public function isInActivePipeline(): bool
+    {
+        return in_array($this->pipelineStage, [
+            self::STAGE_MQL,
+            self::STAGE_SQL,
+            self::STAGE_SQO,
+            self::STAGE_PROPOSAL,
+        ], true);
+    }
+    
+    /**
+     * Advance to the next pipeline stage
+     */
+    public function advanceStage(): self
+    {
+        $currentIndex = array_search($this->pipelineStage, self::VALID_STAGES, true);
+        if ($currentIndex !== false && $currentIndex < count(self::VALID_STAGES) - 1) {
+            $this->pipelineStage = self::VALID_STAGES[$currentIndex + 1];
+        }
         return $this;
     }
 

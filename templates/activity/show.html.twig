@@ -3,133 +3,120 @@
 {% block title %}{{ 'activity.view_activity'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-page">
-    <div class="rams-page__container rams-page__container--narrow">
-        
-        {# Breadcrumb #}
-        <nav class="rams-breadcrumb">
-            <ol class="rams-breadcrumb__list">
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item"><a href="{{ path('app_activity_index') }}" class="rams-breadcrumb__link">{{ 'activity.title'|trans }}</a></li>
-                <li class="rams-breadcrumb__separator">/</li>
-                <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</li>
-            </ol>
-        </nav>
+<div class="rams-stack rams-gap-6">
+    {# Breadcrumb #}
+    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_activity_index') }}" class="rams-breadcrumb__link">{{ 'activity.title'|trans }}</a></li>
+            <li class="rams-breadcrumb__separator">/</li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</li>
+        </ol>
+    </nav>
 
-        {# Header #}
-        <div class="rams-page__header rams-page__header--with-icon">
-            <div class="rams-page__icon rams-page__icon--{{ activity.type|lower|replace({' ': '-', '-': '-'}) }}">
-                <svg class="rams-icon rams-icon--lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div class="rams-flex rams-items-center rams-gap-4">
+            <div class="rams-badge rams-badge--lg rams-badge--circle rams-badge--info">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
             </div>
-            <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</h1>
-                <div class="rams-page__meta">
-                    <span>{{ activity.activityDate|date('F d, Y') }}</span>
+            <div>
+                <h1 class="rams-page-title">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</h1>
+                <div class="rams-flex rams-items-center rams-gap-2 rams-mt-1">
+                    <span class="rams-text-muted rams-text-sm">{{ activity.activityDate|date('F d, Y') }}</span>
                     {% if activity.outcome %}
-                        <span class="rams-page__meta-separator">·</span>
-                        <span class="rams-badge rams-badge--{{ activity.outcome|lower|replace({' ': '-'}) }}">
+                        <span class="rams-text-muted rams-text-xs">·</span>
+                        <span class="rams-badge rams-badge--success">
                             {{ ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans }}
                         </span>
                     {% endif %}
                 </div>
             </div>
-            
-            <div class="rams-page__actions">
+        </div>
+        
+        <div class="rams-page-actions">
+            <div class="rams-btn-group">
                 <a href="{{ path('app_activity_edit', {id: activity.id}) }}" class="rams-btn rams-btn--secondary">
-                    <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                     </svg>
                     {{ 'common.edit'|trans }}
                 </a>
                 <form method="post" action="{{ path('app_activity_delete', {id: activity.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'activity.confirm_delete'|trans }}', {variant: 'danger'})">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ activity.id) }}">
                     <button type="submit" class="rams-btn rams-btn--danger">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
                         </svg>
                         {{ 'common.delete'|trans }}
                     </button>
                 </form>
             </div>
         </div>
+    </div>
 
-        {# Flash Messages #}
-        {% for label, messages in app.flashes %}
-            {% for message in messages %}
-                <div class="rams-andon rams-andon--{{ label == 'success' ? 'success' : 'info' }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endfor %}
-
-        {# Main Content #}
-        <div class="rams-module">
-            <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'activity.details'|trans }}</h2>
-            </div>
-            <div class="rams-module__content">
-                <dl class="rams-detail-grid">
-                    <div class="rams-detail-grid__item">
-                        <dt class="rams-dymo">{{ 'activity.company'|trans }}</dt>
-                        <dd class="rams-detail-grid__value">
-                            {% if activity.company %}
-                                <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="rams-link">
-                                    {{ activity.company.name }}
-                                </a>
-                            {% else %}
-                                <span class="rams-text--muted">{{ 'common.n_a'|trans }}</span>
-                            {% endif %}
-                        </dd>
-                    </div>
-                    <div class="rams-detail-grid__item">
-                        <dt class="rams-dymo">{{ 'activity.contact'|trans }}</dt>
-                        <dd class="rams-detail-grid__value">
-                            {% if activity.contact %}
-                                <a href="{{ path('app_contact_show', {id: activity.contact.id}) }}" class="rams-link">
-                                    {{ activity.contact.firstName }} {{ activity.contact.lastName }}
-                                </a>
-                            {% else %}
-                                <span class="rams-text--muted">{{ 'common.n_a'|trans }}</span>
-                            {% endif %}
-                        </dd>
-                    </div>
-                    <div class="rams-detail-grid__item">
-                        <dt class="rams-dymo">{{ 'activity.type'|trans }}</dt>
-                        <dd class="rams-detail-grid__value">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</dd>
-                    </div>
-                    <div class="rams-detail-grid__item">
-                        <dt class="rams-dymo">{{ 'activity.activity_date'|trans }}</dt>
-                        <dd class="rams-detail-grid__value">{{ activity.activityDate|date('F d, Y') }}</dd>
-                    </div>
-                    <div class="rams-detail-grid__item">
-                        <dt class="rams-dymo">{{ 'activity.logged_by'|trans }}</dt>
-                        <dd class="rams-detail-grid__value">{{ activity.user.firstName }} {{ activity.user.lastName }}</dd>
-                    </div>
-                    <div class="rams-detail-grid__item">
-                        <dt class="rams-dymo">{{ 'activity.outcome'|trans }}</dt>
-                        <dd class="rams-detail-grid__value">{{ activity.outcome ? ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans : ('common.n_a'|trans) }}</dd>
-                    </div>
-                </dl>
-            </div>
+    {# Main Content #}
+    <div class="rams-module rams-module--narrow rams-mx-auto">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'activity.details'|trans }}</h2>
         </div>
-
-        {# Notes Section #}
-        {% if activity.notes %}
-            <div class="rams-module">
-                <div class="rams-module__header">
-                    <h2 class="rams-module__title">{{ 'common.notes'|trans }}</h2>
+        <div class="rams-module__content">
+            <dl class="rams-definition-list rams-grid rams-grid--2">
+                <div class="rams-definition-list__item">
+                    <dt class="rams-definition-list__term">{{ 'activity.company'|trans }}</dt>
+                    <dd class="rams-definition-list__desc">
+                        {% if activity.company %}
+                            <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="rams-link">
+                                {{ activity.company.name }}
+                            </a>
+                        {% else %}
+                            <span class="rams-text-muted">—</span>
+                        {% endif %}
+                    </dd>
                 </div>
-                <div class="rams-module__content">
-                    <div class="rams-prose">
-                        <p>{{ activity.notes }}</p>
+                <div class="rams-definition-list__item">
+                    <dt class="rams-definition-list__term">{{ 'activity.contact'|trans }}</dt>
+                    <dd class="rams-definition-list__desc">
+                        {% if activity.contact %}
+                            <a href="{{ path('app_contact_show', {id: activity.contact.id}) }}" class="rams-link">
+                                {{ activity.contact.firstName }} {{ activity.contact.lastName }}
+                            </a>
+                        {% else %}
+                            <span class="rams-text-muted">—</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="rams-definition-list__item">
+                    <dt class="rams-definition-list__term">{{ 'activity.type'|trans }}</dt>
+                    <dd class="rams-definition-list__desc uppercase font-mono rams-text-xs">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</dd>
+                </div>
+                <div class="rams-definition-list__item">
+                    <dt class="rams-definition-list__term">{{ 'activity.activity_date'|trans }}</dt>
+                    <dd class="rams-definition-list__desc">{{ activity.activityDate|date('F d, Y') }}</dd>
+                </div>
+                <div class="rams-definition-list__item">
+                    <dt class="rams-definition-list__term">{{ 'activity.logged_by'|trans }}</dt>
+                    <dd class="rams-definition-list__desc font-mono rams-text-xs">{{ activity.user.firstName }} {{ activity.user.lastName }}</dd>
+                </div>
+                <div class="rams-definition-list__item">
+                    <dt class="rams-definition-list__term">{{ 'activity.outcome'|trans }}</dt>
+                    <dd class="rams-definition-list__desc">{{ activity.outcome ? ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans : '—' }}</dd>
+                </div>
+            </dl>
+
+            {% if activity.notes %}
+                <div class="rams-divider rams-my-4"></div>
+                <div class="rams-stack rams-gap-1">
+                    <span class="rams-definition-list__term">{{ 'common.notes'|trans }}</span>
+                    <div class="rams-text-sm rams-text-muted rams-bg-panel rams-p-3 rams-border rams-rounded">
+                        {{ activity.notes|nl2br }}
                     </div>
                 </div>
-            </div>
-        {% endif %}
-
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

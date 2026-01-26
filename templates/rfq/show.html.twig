@@ -3,37 +3,44 @@
 {% block title %}{{ rfq.company.name }} - {{ 'rfq.show.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-container">
-    {# Header #}
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
     <div class="rams-page-header">
         <div>
-            <nav class="rams-breadcrumb rams-breadcrumb--inline">
-                <a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb__separator">/</span>
-                <a href="{{ path('app_rfq_index') }}" class="rams-breadcrumb__link">{{ 'rfq.index.title'|trans }}</a>
-                <span class="rams-breadcrumb__separator">/</span>
-                <span class="rams-breadcrumb__current">{{ rfq.company.name }}</span>
+            <nav class="rams-breadcrumb rams-mb-2">
+                <ol class="rams-breadcrumb__list">
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_rfq_index') }}" class="rams-breadcrumb__link">{{ 'rfq.index.title'|trans }}</a></li>
+                    <li class="rams-breadcrumb__separator">/</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ rfq.company.name }}</li>
+                </ol>
             </nav>
             <h1 class="rams-page-title">{{ rfq.company.name }}</h1>
         </div>
-        <div class="rams-btn-group">
-            <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn rams-btn--secondary">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
-                </svg>
-                {{ 'common.edit'|trans }}
-            </a>
-            <form method="post" action="{{ path('app_rfq_delete', {id: rfq.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'rfq.confirm.delete'|trans }}', {variant: 'danger'});" class="rams-inline-block">
-                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ rfq.id) }}">
-                <button type="submit" class="rams-btn rams-btn--danger">
-                    {{ 'common.delete'|trans }}
-                </button>
-            </form>
+        <div class="rams-page-actions">
+            <div class="rams-btn-group">
+                <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn rams-btn--secondary">
+                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
+                    </svg>
+                    {{ 'common.edit'|trans }}
+                </a>
+                <form method="post" action="{{ path('app_rfq_delete', {id: rfq.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'rfq.confirm.delete'|trans }}', {variant: 'danger'});" class="rams-inline-block">
+                    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ rfq.id) }}">
+                    <button type="submit" class="rams-btn rams-btn--danger">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
+                        </svg>
+                        {{ 'common.delete'|trans }}
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
-    <div class="rams-grid rams-grid--sidebar">
-        <div class="rams-grid__main">
+    <div class="rams-grid rams-grid--3 rams-gap-6">
+        <div class="rams-grid-span-2 rams-stack rams-gap-6">
             {# RFQ Details Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
@@ -41,17 +48,11 @@
                     
                     {# Type Badge #}
                     {% if rfq.type == 'NPI' %}
-                        <span class="rams-badge rams-badge--npi">
-                            <svg class="rams-mr-2" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M8 2L9.5 6.5L14 8L9.5 9.5L8 14L6.5 9.5L2 8L6.5 6.5L8 2Z"/>
-                            </svg>
+                        <span class="rams-badge rams-badge--purple">
                             {{ 'rfq.type.npi'|trans }}
                         </span>
                     {% elseif rfq.type == 'Framework Agreement' %}
-                        <span class="rams-badge rams-badge--framework">
-                            <svg class="rams-mr-2" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="10" height="10" rx="1"/>
-                            </svg>
+                        <span class="rams-badge rams-badge--info">
                             {{ 'rfq.type.framework'|trans }}
                         </span>
                     {% else %}
@@ -59,35 +60,35 @@
                     {% endif %}
                 </div>
                 <div class="rams-module__content">
-                    <dl class="rams-detail-list rams-detail-list--grid">
-                        <div class="rams-detail-list__item">
-                            <dt class="rams-dymo">{{ 'rfq.fields.company'|trans }}</dt>
-                            <dd>
+                    <dl class="rams-definition-list rams-grid rams-grid--2">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'rfq.fields.company'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
                                 <a href="{{ path('app_company_show', {id: rfq.company.id}) }}" class="rams-link">{{ rfq.company.name }}</a>
                             </dd>
                         </div>
 
                         {% if rfq.rfqNumber %}
-                            <div class="rams-detail-list__item">
-                                <dt class="rams-dymo">{{ 'rfq.fields.rfq_number'|trans }}</dt>
-                                <dd>{{ rfq.rfqNumber }}</dd>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'rfq.fields.rfq_number'|trans }}</dt>
+                                <dd class="rams-definition-list__desc font-mono">{{ rfq.rfqNumber }}</dd>
                             </div>
                         {% endif %}
 
                         {% if rfq.rfqDate %}
-                            <div class="rams-detail-list__item">
-                                <dt class="rams-dymo">{{ 'rfq.fields.rfq_date'|trans }}</dt>
-                                <dd>{{ rfq.rfqDate|date('d F Y') }}</dd>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'rfq.fields.rfq_date'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">{{ rfq.rfqDate|date('d F Y') }}</dd>
                             </div>
                         {% endif %}
 
-                        <div class="rams-detail-list__item">
-                            <dt class="rams-dymo">{{ 'rfq.fields.status'|trans }}</dt>
-                            <dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'rfq.fields.status'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
                                 {% if rfq.status == 'Won' %}
                                     <span class="rams-badge rams-badge--success">{{ rfq.status }}</span>
                                 {% elseif rfq.status == 'Lost' %}
-                                    <span class="rams-badge rams-badge--error">{{ rfq.status }}</span>
+                                    <span class="rams-badge rams-badge--danger">{{ rfq.status }}</span>
                                 {% elseif rfq.status == 'Submitted' %}
                                     <span class="rams-badge rams-badge--warning">{{ rfq.status }}</span>
                                 {% elseif rfq.status == 'In Review' %}
@@ -99,45 +100,47 @@
                         </div>
 
                         {% if rfq.estimatedValue %}
-                            <div class="rams-detail-list__item">
-                                <dt class="rams-dymo">{{ 'rfq.fields.estimated_value'|trans }}</dt>
-                                <dd><span class="rams-metric rams-metric--currency rams-metric--large">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</span></dd>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'rfq.fields.estimated_value'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">
+                                    <span class="rams-metric__value rams-text-xl">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</span>
+                                </dd>
                             </div>
                         {% endif %}
 
                         {% if rfq.volumeAnnual %}
-                            <div class="rams-detail-list__item">
-                                <dt class="rams-dymo">{{ 'rfq.fields.annual_volume'|trans }}</dt>
-                                <dd>{{ rfq.volumeAnnual|number_format(0, '.', ',') }} {{ 'rfq.fields.units_per_year'|trans }}</dd>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'rfq.fields.annual_volume'|trans }}</dt>
+                                <dd class="rams-definition-list__desc rams-text-bold">{{ rfq.volumeAnnual|number_format(0, '.', ',') }} <span class="rams-text-2xs uppercase rams-text-muted">{{ 'rfq.fields.units_per_year'|trans }}</span></dd>
                             </div>
                         {% endif %}
 
                         {% if rfq.sopDate %}
-                            <div class="rams-detail-list__item">
-                                <dt class="rams-dymo">{{ 'rfq.fields.sop_date'|trans }}</dt>
-                                <dd>{{ rfq.sopDate|date('F Y') }}</dd>
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'rfq.fields.sop_date'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">{{ rfq.sopDate|date('F Y') }}</dd>
                             </div>
                         {% endif %}
 
-                        <div class="rams-detail-list__item">
-                            <dt class="rams-dymo">{{ 'common.created'|trans }}</dt>
-                            <dd>{{ rfq.createdAt|date('d F Y, H:i') }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.created'|trans }}</dt>
+                            <dd class="rams-definition-list__desc rams-text-xs font-mono">{{ rfq.createdAt|date('d F Y, H:i') }}</dd>
                         </div>
                     </dl>
 
                     {% if rfq.technicalScope %}
-                        <div class="rams-divider"></div>
-                        <div class="rams-detail-list__item rams-detail-list__item--full">
-                            <dt class="rams-dymo">{{ 'rfq.fields.technical_scope'|trans }}</dt>
-                            <dd class="rams-prose">{{ rfq.technicalScope|nl2br }}</dd>
+                        <div class="rams-divider rams-my-4"></div>
+                        <div class="rams-stack rams-gap-1">
+                            <span class="rams-definition-list__term">{{ 'rfq.fields.technical_scope'|trans }}</span>
+                            <div class="rams-text-sm rams-text-muted rams-bg-panel rams-p-3 rams-border rams-rounded">{{ rfq.technicalScope|nl2br }}</div>
                         </div>
                     {% endif %}
 
                     {% if rfq.notes %}
-                        <div class="rams-divider"></div>
-                        <div class="rams-detail-list__item rams-detail-list__item--full">
-                            <dt class="rams-dymo">{{ 'common.notes'|trans }}</dt>
-                            <dd class="rams-prose">{{ rfq.notes|nl2br }}</dd>
+                        <div class="rams-divider rams-my-4"></div>
+                        <div class="rams-stack rams-gap-1">
+                            <span class="rams-definition-list__term">{{ 'common.notes'|trans }}</span>
+                            <div class="rams-text-sm rams-text-muted rams-bg-panel rams-p-3 rams-border rams-rounded">{{ rfq.notes|nl2br }}</div>
                         </div>
                     {% endif %}
                 </div>
@@ -149,78 +152,58 @@
                     <h2 class="rams-module__title">{{ 'rfq.nda.workflow'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-workflow">
+                    <div class="rams-grid rams-grid--2 rams-gap-6">
                         {# NDA Sent #}
-                        <div class="rams-workflow__step">
-                            <div class="rams-workflow__indicator">
-                                {% if rfq.ndaSent %}
-                                    <div class="rams-andon rams-andon--success">
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M3 8L6 11L13 4"/>
-                                        </svg>
-                                    </div>
-                                {% else %}
-                                    <div class="rams-andon rams-andon--default">
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="8" cy="8" r="6"/>
-                                        </svg>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="rams-workflow__content">
-                                <h3 class="rams-workflow__title">{{ 'rfq.nda.sent'|trans }}</h3>
-                                {% if rfq.ndaSent %}
-                                    <p class="rams-text--success">{{ 'rfq.nda.sent_on'|trans({'%date%': rfq.ndaDate|date('d F Y')}) }}</p>
-                                {% else %}
-                                    <p class="rams-text--muted">{{ 'rfq.nda.not_sent_yet'|trans }}</p>
-                                    <form method="post" action="{{ path('app_rfq_nda_sent', {id: rfq.id}) }}" class="rams-workflow__action">
-                                        <input type="hidden" name="_token" value="{{ csrf_token('nda_sent' ~ rfq.id) }}">
-                                        <button type="submit" class="rams-btn rams-btn--secondary rams-btn--small">
-                                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
-                                            </svg>
-                                            {{ 'rfq.nda.mark_as_sent'|trans }}
-                                        </button>
-                                    </form>
-                                {% endif %}
+                        <div class="rams-module rams-module--inset rams-p-4">
+                            <div class="rams-flex rams-items-start rams-gap-3">
+                                <div class="rams-andon">
+                                    <span class="rams-andon__light rams-andon__light--{{ rfq.ndaSent ? 'green' : '' }}"></span>
+                                </div>
+                                <div class="rams-flex-1">
+                                    <h3 class="rams-text-sm rams-text-bold uppercase rams-mb-1">{{ 'rfq.nda.sent'|trans }}</h3>
+                                    {% if rfq.ndaSent %}
+                                        <p class="rams-text-xs rams-text-success">{{ 'rfq.nda.sent_on'|trans({'%date%': rfq.ndaDate|date('d F Y')}) }}</p>
+                                    {% else %}
+                                        <p class="rams-text-xs rams-text-muted rams-mb-3">{{ 'rfq.nda.not_sent_yet'|trans }}</p>
+                                        <form method="post" action="{{ path('app_rfq_nda_sent', {id: rfq.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('nda_sent' ~ rfq.id) }}">
+                                            <button type="submit" class="rams-btn rams-btn--secondary rams-btn--sm rams-w-full">
+                                                <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
+                                                </svg>
+                                                {{ 'rfq.nda.mark_as_sent'|trans }}
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
 
                         {# NDA Executed #}
-                        <div class="rams-workflow__step">
-                            <div class="rams-workflow__indicator">
-                                {% if rfq.ndaExecuted %}
-                                    <div class="rams-andon rams-andon--success">
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M3 8L6 11L13 4"/>
-                                        </svg>
-                                    </div>
-                                {% else %}
-                                    <div class="rams-andon rams-andon--default">
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="8" cy="8" r="6"/>
-                                        </svg>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="rams-workflow__content">
-                                <h3 class="rams-workflow__title">{{ 'rfq.nda.executed'|trans }}</h3>
-                                {% if rfq.ndaExecuted %}
-                                    <p class="rams-text--success">{{ 'rfq.nda.signed_and_executed'|trans }}</p>
-                                {% else %}
-                                    <p class="rams-text--muted">{{ 'rfq.nda.awaiting_signature'|trans }}</p>
-                                    {% if rfq.ndaSent %}
-                                        <form method="post" action="{{ path('app_rfq_nda_executed', {id: rfq.id}) }}" class="rams-workflow__action">
-                                            <input type="hidden" name="_token" value="{{ csrf_token('nda_executed' ~ rfq.id) }}">
-                                            <button type="submit" class="rams-btn rams-btn--secondary rams-btn--small">
-                                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
-                                                </svg>
-                                                {{ 'rfq.nda.mark_as_executed'|trans }}
-                                            </button>
-                                        </form>
+                        <div class="rams-module rams-module--inset rams-p-4">
+                            <div class="rams-flex rams-items-start rams-gap-3">
+                                <div class="rams-andon">
+                                    <span class="rams-andon__light rams-andon__light--{{ rfq.ndaExecuted ? 'green' : '' }}"></span>
+                                </div>
+                                <div class="rams-flex-1">
+                                    <h3 class="rams-text-sm rams-text-bold uppercase rams-mb-1">{{ 'rfq.nda.executed'|trans }}</h3>
+                                    {% if rfq.ndaExecuted %}
+                                        <p class="rams-text-xs rams-text-success">{{ 'rfq.nda.signed_and_executed'|trans }}</p>
+                                    {% else %}
+                                        <p class="rams-text-xs rams-text-muted rams-mb-3">{{ 'rfq.nda.awaiting_signature'|trans }}</p>
+                                        {% if rfq.ndaSent %}
+                                            <form method="post" action="{{ path('app_rfq_nda_executed', {id: rfq.id}) }}">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('nda_executed' ~ rfq.id) }}">
+                                                <button type="submit" class="rams-btn rams-btn--secondary rams-btn--sm rams-w-full">
+                                                    <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
+                                                    </svg>
+                                                    {{ 'rfq.nda.mark_as_executed'|trans }}
+                                                </button>
+                                            </form>
+                                        {% endif %}
                                     {% endif %}
-                                {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -229,14 +212,14 @@
         </div>
 
         {# Sidebar #}
-        <div class="rams-grid__sidebar">
+        <div class="rams-stack rams-gap-6">
             {# Status Update Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="rams-module__title">{{ 'rfq.actions.update_status'|trans }}</h3>
+                    <h2 class="rams-module__title">{{ 'rfq.actions.update_status'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <form method="post" action="{{ path('app_rfq_update_status', {id: rfq.id}) }}">
+                    <form method="post" action="{{ path('app_rfq_update_status', {id: rfq.id}) }}" class="rams-form">
                         <div class="rams-form__group">
                             <select name="status" class="rams-form__select">
                                 <option value="Pending" {% if rfq.status == 'Pending' %}selected{% endif %}>{{ 'rfq.status.pending'|trans }}</option>
@@ -246,7 +229,7 @@
                                 <option value="Lost" {% if rfq.status == 'Lost' %}selected{% endif %}>{{ 'rfq.status.lost'|trans }}</option>
                             </select>
                         </div>
-                        <button type="submit" class="rams-btn rams-btn--secondary rams-btn--full">{{ 'rfq.actions.update_status'|trans }}</button>
+                        <button type="submit" class="rams-btn rams-btn--secondary rams-w-full">{{ 'rfq.actions.update_status'|trans }}</button>
                     </form>
                 </div>
             </div>
@@ -254,37 +237,28 @@
             {# Quick Actions Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="rams-module__title">{{ 'common.quick_actions'|trans }}</h3>
+                    <h2 class="rams-module__title">{{ 'common.quick_actions'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-action-list">
-                        <a href="{{ path('app_company_show', {id: rfq.company.id}) }}" class="rams-action-item">
-                            <div class="rams-andon rams-andon--info">
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="3" y="3" width="10" height="10" rx="1"/>
-                                </svg>
-                            </div>
+                    <div class="rams-stack rams-gap-2">
+                        <a href="{{ path('app_company_show', {id: rfq.company.id}) }}" class="rams-btn rams-btn--secondary rams-w-full">
+                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 13V5L8 2L14 5V13"/><rect x="5" y="8" width="2" height="5"/><rect x="9" y="8" width="2" height="5"/>
+                            </svg>
                             {{ 'rfq.actions.view_company'|trans }}
                         </a>
 
-                        <a href="{{ path('app_activity_new', {company: rfq.company.id}) }}" class="rams-action-item">
-                            <div class="rams-andon rams-andon--secondary">
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="8" cy="8" r="6"/>
-                                    <path d="M8 4V8L11 11"/>
-                                </svg>
-                            </div>
+                        <a href="{{ path('app_activity_new', {company: rfq.company.id}) }}" class="rams-btn rams-btn--secondary rams-w-full">
+                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="8" cy="8" r="6"/><path d="M8 4V8L11 11"/>
+                            </svg>
                             {{ 'activity.actions.log'|trans }}
                         </a>
 
-                        <a href="{{ path('app_rfq_pipeline') }}" class="rams-action-item">
-                            <div class="rams-andon rams-andon--success">
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="2" y="3" width="3" height="10" rx="1"/>
-                                    <rect x="6.5" y="3" width="3" height="10" rx="1"/>
-                                    <rect x="11" y="3" width="3" height="10" rx="1"/>
-                                </svg>
-                            </div>
+                        <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-btn--secondary rams-w-full">
+                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6 7H10M6 10H8"/>
+                            </svg>
                             {{ 'rfq.actions.view_pipeline'|trans }}
                         </a>
                     </div>
@@ -293,16 +267,14 @@
 
             {# RFQ Won Celebration #}
             {% if rfq.status == 'Won' %}
-                <div class="rams-module rams-module--success">
+                <div class="rams-module rams-bg-success-subtle rams-border-success">
                     <div class="rams-module__content">
-                        <div class="rams-celebration">
-                            <div class="rams-andon rams-andon--success rams-andon--large">
-                                <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 8L6 11L13 4"/>
-                                </svg>
+                        <div class="rams-flex rams-flex-col rams-items-center rams-text-center rams-p-4">
+                            <div class="rams-andon rams-andon--large rams-mb-3">
+                                <span class="rams-andon__light rams-andon__light--green rams-pulse"></span>
                             </div>
-                            <h3 class="rams-celebration__title">{{ 'rfq.won.title'|trans }}</h3>
-                            <p class="rams-celebration__description">{{ 'rfq.won.description'|trans }}</p>
+                            <h3 class="rams-text-lg rams-text-success rams-text-bold uppercase font-mono">{{ 'rfq.won.title'|trans }}</h3>
+                            <p class="rams-text-xs rams-text-muted rams-mt-2">{{ 'rfq.won.description'|trans }}</p>
                         </div>
                     </div>
                 </div>

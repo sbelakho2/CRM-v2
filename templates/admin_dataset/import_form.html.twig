@@ -9,106 +9,111 @@
         <p class="rams-page-subtitle">{{ 'admin.datasets.import_subtitle'|trans }}</p>
     </div>
 
-    <div class="rams-module rams-module--narrow">
-        <div class="rams-module__content">
-            {% if errors is defined and errors %}
-                <div class="rams-alert rams-alert--error">
-                    <h3 class="rams-alert__title">{{ 'admin.datasets.import_errors'|trans }}:</h3>
-                    <ul class="rams-alert__list">
-                        {% for error in errors %}
-                            <li>{{ error }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endif %}
-
-            <form method="POST" enctype="multipart/form-data" class="rams-form">
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'admin.datasets.dataset_name'|trans }}</label>
-                    <input type="text" name="dataset_name" class="rams-input" placeholder="{{ 'admin.datasets.dataset_name_placeholder'|trans }}" required>
-                    <p class="rams-text-muted">{{ 'admin.datasets.dataset_name_hint'|trans }}</p>
-                </div>
-
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'admin.datasets.dataset_type'|trans }}</label>
-                    <select name="dataset_type" class="rams-select" required>
-                        <option value="">-- {{ 'admin.datasets.select_type'|trans }} --</option>
-                        <option value="pricing">{{ 'admin.datasets.type_pricing'|trans }}</option>
-                        <option value="tariff">{{ 'admin.datasets.type_tariff'|trans }}</option>
-                        <option value="freight">{{ 'admin.datasets.type_freight'|trans }}</option>
-                        <option value="capacity">{{ 'admin.datasets.type_capacity'|trans }}</option>
-                        <option value="compliance">{{ 'admin.datasets.type_compliance'|trans }}</option>
-                        <option value="other">{{ 'admin.datasets.type_other'|trans }}</option>
-                    </select>
-                </div>
-
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'admin.datasets.upload_file'|trans }}</label>
-                    <div class="rams-file-upload">
-                        <input type="file" name="dataset_file" class="rams-sr-only" id="file-input" accept=".xlsx,.xls,.csv,.json" required>
-                        <label for="file-input" class="rams-file-upload__label">
-                            <p class="rams-file-upload__text">📁 {{ 'admin.datasets.upload_hint'|trans }}</p>
-                            <p class="rams-text-muted">{{ 'admin.datasets.supported_formats'|trans }}</p>
-                        </label>
+    <div class="rams-grid rams-grid--2 rams-gap-6">
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'admin.datasets.dataset_details'|trans|default('Dataset Details') }}</h2>
+            </div>
+            <div class="rams-module__content">
+                {% if errors is defined and errors %}
+                    <div class="rams-alert rams-alert--error rams-mb-4">
+                        <h3 class="rams-alert__title">{{ 'admin.datasets.import_errors'|trans }}:</h3>
+                        <ul class="rams-alert__list">
+                            {% for error in errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
                     </div>
-                </div>
+                {% endif %}
 
-                <div class="rams-form-group">
-                    <label class="rams-label">{{ 'admin.datasets.description'|trans }}</label>
-                    <textarea name="description" rows="4" class="rams-textarea" placeholder="{{ 'admin.datasets.description_placeholder'|trans }}"></textarea>
-                </div>
-
-                <div class="rams-form-group">
-                    <label class="rams-checkbox-label">
-                        <input type="checkbox" name="replace_existing" class="rams-checkbox">
-                        <span>{{ 'admin.datasets.replace_existing'|trans }}</span>
-                    </label>
-                    <p class="rams-text-muted">{{ 'admin.datasets.replace_hint'|trans }}</p>
-                </div>
-
-                <div class="rams-module rams-module--inset">
-                    <div class="rams-module__content">
-                        <h3 class="rams-module__title">{{ 'admin.datasets.import_options'|trans }}</h3>
-                        <label class="rams-checkbox-label">
-                            <input type="checkbox" name="validate_data" checked class="rams-checkbox">
-                            <span>{{ 'admin.datasets.validate_data'|trans }}</span>
-                        </label>
-                        <label class="rams-checkbox-label">
-                            <input type="checkbox" name="backup_existing" checked class="rams-checkbox">
-                            <span>{{ 'admin.datasets.backup_existing'|trans }}</span>
-                        </label>
-                        <label class="rams-checkbox-label">
-                            <input type="checkbox" name="notify_team" class="rams-checkbox">
-                            <span>{{ 'admin.datasets.notify_team'|trans }}</span>
-                        </label>
+                <form method="POST" enctype="multipart/form-data" class="rams-form">
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'admin.datasets.dataset_name'|trans }}</label>
+                        <input type="text" name="dataset_name" class="rams-form__input" placeholder="{{ 'admin.datasets.dataset_name_placeholder'|trans }}" required>
+                        <p class="rams-form__hint">{{ 'admin.datasets.dataset_name_hint'|trans }}</p>
                     </div>
-                </div>
 
-                <div class="rams-module__footer">
-                    <button type="submit" class="rams-btn rams-btn--primary">
-                        ⬆️ {{ 'admin.datasets.upload_import'|trans }}
-                    </button>
-                    <a href="{{ path('admin_dataset_index') }}" class="rams-btn rams-btn--ghost">
-                        {{ 'common.cancel'|trans }}
-                    </a>
-                </div>
-            </form>
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'admin.datasets.dataset_type'|trans }}</label>
+                        <select name="dataset_type" class="rams-form__select" required>
+                            <option value="">-- {{ 'admin.datasets.select_type'|trans }} --</option>
+                            <option value="pricing">{{ 'admin.datasets.type_pricing'|trans }}</option>
+                            <option value="tariff">{{ 'admin.datasets.type_tariff'|trans }}</option>
+                            <option value="freight">{{ 'admin.datasets.type_freight'|trans }}</option>
+                            <option value="capacity">{{ 'admin.datasets.type_capacity'|trans }}</option>
+                            <option value="compliance">{{ 'admin.datasets.type_compliance'|trans }}</option>
+                            <option value="other">{{ 'admin.datasets.type_other'|trans }}</option>
+                        </select>
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'admin.datasets.upload_file'|trans }}</label>
+                        <div class="rams-upload-zone" onclick="document.getElementById('file-input').click()">
+                            <input type="file" name="dataset_file" class="rams-sr-only" id="file-input" accept=".xlsx,.xls,.csv,.json" required onchange="updateFileName(this)">
+                            <div class="rams-upload-zone__icon">📁</div>
+                            <p class="rams-upload-zone__title">{{ 'admin.datasets.upload_hint'|trans }}</p>
+                            <p class="rams-upload-zone__hint">{{ 'admin.datasets.supported_formats'|trans }}</p>
+                            <div id="file-name-display" class="rams-upload-zone__filename"></div>
+                        </div>
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'admin.datasets.description'|trans }}</label>
+                        <textarea name="description" rows="4" class="rams-form__textarea" placeholder="{{ 'admin.datasets.description_placeholder'|trans }}"></textarea>
+                    </div>
+
+                    <div class="rams-form__actions">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M8 12V2M4 6L8 2L12 6"/>
+                            </svg>
+                            {{ 'admin.datasets.upload_import'|trans }}
+                        </button>
+                        <a href="{{ path('admin_dataset_index') }}" class="rams-btn rams-btn--ghost">
+                            {{ 'common.cancel'|trans }}
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
 
-    <!-- Instructions -->
-    <div class="rams-module rams-module--inset rams-module--narrow">
-        <div class="rams-module__content">
-            <h2 class="rams-module__title">{{ 'admin.datasets.import_instructions'|trans }}</h2>
-            <ol class="rams-list rams-list--ordered">
-                <li>{{ 'admin.datasets.instruction_1'|trans }}</li>
-                <li>{{ 'admin.datasets.instruction_2'|trans }}</li>
-                <li>{{ 'admin.datasets.instruction_3'|trans }}</li>
-                <li>{{ 'admin.datasets.instruction_4'|trans }}</li>
-                <li>{{ 'admin.datasets.instruction_5'|trans }}</li>
-                <li>{{ 'admin.datasets.instruction_6'|trans }}</li>
-                <li>{{ 'admin.datasets.instruction_7'|trans }}</li>
-            </ol>
+        <div class="rams-stack rams-gap-6">
+            <div class="rams-module rams-module--inset">
+                <div class="rams-module__content">
+                    <h3 class="rams-module__title rams-mb-3">{{ 'admin.datasets.import_options'|trans }}</h3>
+                    <div class="rams-stack rams-gap-2">
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="replace_existing" class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">{{ 'admin.datasets.replace_existing'|trans }}</span>
+                        </label>
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="validate_data" checked class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">{{ 'admin.datasets.validate_data'|trans }}</span>
+                        </label>
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="backup_existing" checked class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">{{ 'admin.datasets.backup_existing'|trans }}</span>
+                        </label>
+                        <label class="rams-form__checkbox-container">
+                            <input type="checkbox" name="notify_team" class="rams-form__checkbox-input">
+                            <span class="rams-form__checkbox-label">{{ 'admin.datasets.notify_team'|trans }}</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rams-module rams-module--info">
+                <div class="rams-module__content">
+                    <h2 class="rams-module__title rams-mb-3">{{ 'admin.datasets.import_instructions'|trans }}</h2>
+                    <ol class="rams-list rams-list--ordered rams-text-sm">
+                        <li>{{ 'admin.datasets.instruction_1'|trans }}</li>
+                        <li>{{ 'admin.datasets.instruction_2'|trans }}</li>
+                        <li>{{ 'admin.datasets.instruction_3'|trans }}</li>
+                        <li>{{ 'admin.datasets.instruction_4'|trans }}</li>
+                        <li>{{ 'admin.datasets.instruction_5'|trans }}</li>
+                    </ol>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -116,7 +121,7 @@
 <script>
 // Drag and drop support
 const fileInput = document.getElementById('file-input');
-const dropZone = document.querySelector('.border-dashed');
+const dropZone = document.querySelector('.rams-upload-zone');
 
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     dropZone.addEventListener(eventName, preventDefaults, false);
@@ -133,6 +138,16 @@ function handleDrop(e) {
     let dt = e.dataTransfer;
     let files = dt.files;
     fileInput.files = files;
+    updateFileName(fileInput);
+}
+
+function updateFileName(input) {
+    const display = document.getElementById('file-name-display');
+    if (input.files && input.files.length > 0) {
+        display.textContent = input.files[0].name;
+    } else {
+        display.textContent = '';
+    }
 }
 </script>
 {% endblock %}

@@ -3,117 +3,123 @@
 {% block title %}{{ 'lead_discovery.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-page">
-    <div class="rams-page__container rams-page__container--narrow">
-        
-        {# Header #}
-        <div class="rams-page__header">
-            <div class="rams-page__header-content">
-                <h1 class="rams-page__title">{{ 'lead_discovery.title'|trans }}</h1>
-                <p class="rams-page__subtitle">{{ 'lead_discovery.subtitle'|trans }}</p>
-            </div>
+<div class="rams-stack rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'lead_discovery.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'lead_discovery.subtitle'|trans }}</p>
         </div>
+    </div>
 
-        {# Search Form Module #}
-        <div class="rams-module">
-            <div class="rams-module__content">
-                <form method="post" action="{{ path('lead_discovery_search') }}" class="rams-form">
-                    <div class="rams-form__group">
-                        <label for="query" class="rams-dymo">
-                            {{ 'lead_discovery.search_query'|trans }}
-                        </label>
-                        <input 
-                            type="text" 
-                            name="query" 
-                            id="query" 
-                            class="rams-form__input"
-                            placeholder="{{ 'lead_discovery.query_placeholder'|trans }}"
-                            required
-                        >
-                        <p class="rams-form__hint">
-                            {{ 'lead_discovery.query_hint'|trans }}
-                        </p>
-                    </div>
-
-                    <div class="rams-form__grid rams-form__grid--2col">
+    {# Search Form Module #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'lead_discovery.search_companies'|trans }}</h2>
+        </div>
+        <div class="rams-module__content">
+            <form method="post" action="{{ path('lead_discovery_search') }}" class="rams-form">
+                <div class="rams-grid rams-grid--2 rams-gap-6">
+                    <div class="rams-stack rams-gap-4">
                         <div class="rams-form__group">
-                            <label for="sector" class="rams-dymo">
-                                {{ 'lead_discovery.sector'|trans }} <span class="rams-form__optional">({{ 'common.optional'|trans }})</span>
+                            <label for="query" class="rams-form__label rams-dymo">
+                                {{ 'lead_discovery.search_query'|trans }}
                             </label>
-                            <select name="sector" id="sector" class="rams-form__select">
-                                <option value="all">{{ 'lead_discovery.all_sectors'|trans }}</option>
-                                <option value="aerospace">{{ 'lead_discovery.sector_aerospace'|trans }}</option>
-                                <option value="automotive">{{ 'lead_discovery.sector_automotive'|trans }}</option>
-                                <option value="electronics">{{ 'lead_discovery.sector_electronics'|trans }}</option>
-                                <option value="manufacturing">{{ 'lead_discovery.sector_manufacturing'|trans }}</option>
-                                <option value="energy">{{ 'lead_discovery.sector_energy'|trans }}</option>
-                                <option value="pharmaceutical">{{ 'lead_discovery.sector_pharmaceutical'|trans }}</option>
-                            </select>
+                            <input 
+                                type="text" 
+                                name="query" 
+                                id="query" 
+                                class="rams-form__input"
+                                placeholder="{{ 'lead_discovery.query_placeholder'|trans }}"
+                                required
+                            >
+                            <p class="rams-form__hint">
+                                {{ 'lead_discovery.query_hint'|trans }}
+                            </p>
                         </div>
 
-                        <div class="rams-form__group">
-                            <label for="limit" class="rams-dymo">
-                                {{ 'lead_discovery.num_results'|trans }}
-                            </label>
-                            <select name="limit" id="limit" class="rams-form__select">
-                                <option value="5">5 {{ 'lead_discovery.results_label'|trans }}</option>
-                                <option value="10" selected>10 {{ 'lead_discovery.results_label'|trans }}</option>
-                                <option value="20">20 {{ 'lead_discovery.results_label'|trans }}</option>
-                                <option value="50">50 {{ 'lead_discovery.results_label'|trans }}</option>
-                            </select>
+                        <div class="rams-grid rams-grid--2 rams-gap-4">
+                            <div class="rams-form__group">
+                                <label for="sector" class="rams-form__label rams-dymo">
+                                    {{ 'lead_discovery.sector'|trans }}
+                                </label>
+                                <select name="sector" id="sector" class="rams-form__select">
+                                    <option value="all">{{ 'lead_discovery.all_sectors'|trans }}</option>
+                                    <option value="aerospace">{{ 'lead_discovery.sector_aerospace'|trans }}</option>
+                                    <option value="automotive">{{ 'lead_discovery.sector_automotive'|trans }}</option>
+                                    <option value="electronics">{{ 'lead_discovery.sector_electronics'|trans }}</option>
+                                    <option value="manufacturing">{{ 'lead_discovery.sector_manufacturing'|trans }}</option>
+                                    <option value="energy">{{ 'lead_discovery.sector_energy'|trans }}</option>
+                                    <option value="pharmaceutical">{{ 'lead_discovery.sector_pharmaceutical'|trans }}</option>
+                                </select>
+                            </div>
+
+                            <div class="rams-form__group">
+                                <label for="limit" class="rams-form__label rams-dymo">
+                                    {{ 'lead_discovery.num_results'|trans }}
+                                </label>
+                                <select name="limit" id="limit" class="rams-form__select">
+                                    <option value="5">5 {{ 'lead_discovery.results_label'|trans }}</option>
+                                    <option value="10" selected>10 {{ 'lead_discovery.results_label'|trans }}</option>
+                                    <option value="20">20 {{ 'lead_discovery.results_label'|trans }}</option>
+                                    <option value="50">50 {{ 'lead_discovery.results_label'|trans }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="rams-form__actions">
+                            <button type="submit" class="rams-btn rams-btn--primary">
+                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                                {{ 'lead_discovery.search_companies'|trans }}
+                            </button>
+
+                            <a href="{{ path('app_lead_index') }}" class="rams-btn rams-btn--ghost">
+                                {{ 'lead_discovery.back_to_leads'|trans }}
+                            </a>
                         </div>
                     </div>
 
-                    <div class="rams-module__footer">
-                        <button type="submit" class="rams-btn rams-btn--primary">
-                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                            {{ 'lead_discovery.search_companies'|trans }}
-                        </button>
+                    <div class="rams-stack rams-gap-6">
+                        {# Example Searches #}
+                        <div class="rams-module rams-module--nested">
+                            <div class="rams-module__header">
+                                <h3 class="rams-module__title">{{ 'lead_discovery.example_searches'|trans }}</h3>
+                            </div>
+                            <div class="rams-module__content">
+                                <div class="rams-flex rams-flex-wrap rams-gap-2">
+                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
+                                        {{ 'lead_discovery.example_search_aerospace'|trans }}
+                                    </button>
+                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
+                                        {{ 'lead_discovery.example_search_automotive'|trans }}
+                                    </button>
+                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
+                                        {{ 'lead_discovery.example_search_electronics'|trans }}
+                                    </button>
+                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
+                                        {{ 'lead_discovery.example_search_manufacturing'|trans }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
 
-                        <a href="{{ path('app_lead_index') }}" class="rams-btn rams-btn--ghost">
-                            {{ 'lead_discovery.back_to_leads'|trans }}
-                        </a>
+                        {# Info Box #}
+                        <div class="rams-module rams-module--nested rams-module--info">
+                            <div class="rams-module__content">
+                                <h3 class="rams-module__title rams-mb-2">ℹ️ {{ 'lead_discovery.about_api'|trans }}</h3>
+                                <ul class="rams-stack rams-gap-1 rams-text-xs rams-text-muted" style="list-style: disc; padding-left: 1rem;">
+                                    <li>{{ 'lead_discovery.api_free_tier'|trans }}</li>
+                                    <li>{{ 'lead_discovery.api_paid_tier'|trans }} {{ paid_tier_cost|format_currency(paid_tier_currency) }} {{ 'lead_discovery.api_paid_tier_suffix'|trans }}</li>
+                                    <li>{{ 'lead_discovery.api_dedup'|trans }}</li>
+                                    <li>{{ 'lead_discovery.api_preview'|trans }}</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                </form>
-            </div>
-        </div>
-
-        {# Info Box #}
-        <div class="rams-andon rams-andon--info">
-            <div class="rams-andon__content">
-                <h3 class="rams-andon__title">{{ 'lead_discovery.about_api'|trans }}</h3>
-                <ul class="rams-andon__list">
-                    <li>{{ 'lead_discovery.api_free_tier'|trans }}</li>
-                    <li>{{ 'lead_discovery.api_paid_tier'|trans }} {{ paid_tier_cost|format_currency(paid_tier_currency) }} {{ 'lead_discovery.api_paid_tier_suffix'|trans }}</li>
-                    <li>{{ 'lead_discovery.api_dedup'|trans }}</li>
-                    <li>{{ 'lead_discovery.api_preview'|trans }}</li>
-                </ul>
-            </div>
-        </div>
-
-        {# Example Searches #}
-        <div class="rams-module">
-            <div class="rams-module__header">
-                <h3 class="rams-module__title">{{ 'lead_discovery.example_searches'|trans }}</h3>
-            </div>
-            <div class="rams-module__content">
-                <div class="rams-example-list">
-                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-example-list__item">
-                        {{ 'lead_discovery.example_search_aerospace'|trans }}
-                    </button>
-                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-example-list__item">
-                        {{ 'lead_discovery.example_search_automotive'|trans }}
-                    </button>
-                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-example-list__item">
-                        {{ 'lead_discovery.example_search_electronics'|trans }}
-                    </button>
-                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-example-list__item">
-                        {{ 'lead_discovery.example_search_manufacturing'|trans }}
-                    </button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>

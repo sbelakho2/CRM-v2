@@ -12,6 +12,7 @@ use Psr\Log\LoggerInterface;
  * Main service to discover companies based on sectors and criteria from Tracker.xlsx
  * 
  * Enhanced with automatic competitor learning from scraped content.
+ * Uses Google Search API for company discovery.
  */
 class CompanyDiscoveryService
 {
@@ -36,7 +37,6 @@ class CompanyDiscoveryService
     public function __construct(
         private EntityManagerInterface $em,
         private CompanyRepository $companyRepo,
-        private LinkedInScraperService $linkedInScraper,
         private GoogleDorkService $googleDork,
         private LoggerInterface $logger,
         private ?CompetitorLearnerService $competitorLearner = null
@@ -57,10 +57,6 @@ class CompanyDiscoveryService
         // Use Google Dorks to find companies
         $googleResults = $this->googleDork->searchCompanies($sector, $location);
         $discovered = array_merge($discovered, $googleResults);
-
-        // Use LinkedIn to find companies
-        $linkedInResults = $this->linkedInScraper->searchCompanies($sector, $location);
-        $discovered = array_merge($discovered, $linkedInResults);
 
         // Deduplicate and save
         $savedCompanies = $this->saveDiscoveredCompanies($discovered, $sector, $location);
@@ -103,6 +99,11 @@ class CompanyDiscoveryService
         $savedCompanies = [];
 
         foreach ($discoveredData as $data) {
+            // Skip if not a proper company data array
+            if (!is_array($data) || !isset($data['name'])) {
+                continue;
+            }
+            
             // Check if company already exists
             $existing = $this->companyRepo->findOneBy(['name' => $data['name']]);
             
@@ -117,7 +118,6 @@ class CompanyDiscoveryService
             $company->setSector($sector);
             $company->setPhysicalSite($location);
             $company->setWebsite($data['website'] ?? null);
-            $company->setLinkedinCompanyUrl($data['linkedin_url'] ?? null);
             $company->setPipelineStage('Prospect');
             $company->setAccountTier('C'); // Default to C tier
             $company->setSourceNotes('Auto-discovered by webcrawler on ' . date('Y-m-d'));
@@ -157,14 +157,6 @@ class CompanyDiscoveryService
      */
     public function enrichCompanyData(Company $company): void
     {
-        // Find LinkedIn profile if missing
-        if (!$company->getLinkedinCompanyUrl()) {
-            $linkedInUrl = $this->linkedInScraper->findCompanyProfile($company->getName());
-            if ($linkedInUrl) {
-                $company->setLinkedinCompanyUrl($linkedInUrl);
-            }
-        }
-
         // Find website if missing
         if (!$company->getWebsite()) {
             $website = $this->googleDork->findCompanyWebsite($company->getName());
