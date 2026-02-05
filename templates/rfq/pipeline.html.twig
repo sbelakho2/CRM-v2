@@ -3,7 +3,7 @@
 {% block title %}{{ 'rfq.pipeline.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-container rams-container--wide">
+<div class="rams-page rams-page--wide">
     {# Header #}
     <div class="rams-page-header">
         <div>
@@ -11,13 +11,13 @@
             <p class="rams-page-subtitle">{{ 'rfq.pipeline.subtitle'|trans }}</p>
         </div>
         <div class="rams-btn-group">
-            <a href="{{ path('app_rfq_index') }}" class="rams-btn rams-btn--secondary">
+            <a href="{{ path('app_rfq_index') }}" class="rams-btn">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M2 3H14M2 8H14M2 13H14"/>
                 </svg>
                 {{ 'rfq.actions.list_view'|trans }}
             </a>
-            <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
+            <a href="{{ path('app_rfq_new') }}" class="rams-btn--primary">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 3V13M3 8H13"/>
                 </svg>
@@ -53,8 +53,8 @@
                 <div class="rams-form__group rams-form__group--actions">
                     <label class="rams-dymo">&nbsp;</label>
                     <div class="rams-btn-group">
-                        <button type="submit" class="rams-btn rams-btn--primary">{{ 'common.apply_filters'|trans }}</button>
-                        <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-btn--secondary">{{ 'common.clear'|trans }}</a>
+                        <button type="submit" class="rams-btn--primary">{{ 'common.apply_filters'|trans }}</button>
+                        <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn">{{ 'common.clear'|trans }}</a>
                     </div>
                 </div>
             </form>

@@ -1,0 +1,92 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}My Booking Link - CRM{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-page__header">
+        <div class="rams-page__header-content">
+             <div class="rams-breadcrumb">
+                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <a href="{{ path('meeting_index') }}">Meetings</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <span>My Link</span>
+            </div>
+            <h1 class="rams-page__title">My Booking Link</h1>
+        </div>
+    </div>
+
+    <div class="rams-grid rams-grid--1" style="max-width: 700px; margin: 0 auto;">
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3>Your Personal Booking Link</h3>
+            </div>
+            <div class="rams-module__content">
+                <p class="rams-rams-text--muted rams-mb-4">
+                    Share this link with prospects so they can book meetings with you. 
+                    Only your available time slots will be visible.
+                </p>
+                
+                <div class="rams-form__input-group rams-mb-6">
+                    <input type="text" class="rams-form__input" value="{{ bookingUrl }}" readonly id="booking-link">
+                    <button type="button" class="rams-btn" onclick="copyLink()">
+                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="4" y="4" width="8" height="8" rx="1"/><path d="M12 4V2H2V12H4"/>
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+                
+                <div class="rams-actions">
+                    <a href="{{ bookingUrl }}" target="_blank" class="rams-btn--primary">
+                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M10 4H14V8M14 4L8 10"/>
+                        </svg>
+                        Preview My Page
+                    </a>
+                    <button type="button" class="rams-btn" onclick="shareLink()">
+                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="4" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="12" cy="12" r="2"/><path d="M10 5L6 7M6 9L10 11"/>
+                        </svg>
+                        Share
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="rams-module rams-mt-4">
+            <div class="rams-module__header">
+                <h3>Tips</h3>
+            </div>
+            <div class="rams-module__content">
+                <ul class="rams-list">
+                    <li class="rams-list__item">Add this link to your email signature</li>
+                    <li class="rams-list__item">Include it in proposal documents</li>
+                    <li class="rams-list__item">Make sure you have available slots before sharing</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyLink() {
+    const input = document.getElementById('booking-link');
+    input.select();
+    document.execCommand('copy');
+    alert('Link copied to clipboard!');
+}
+
+function shareLink() {
+    if (navigator.share) {
+        navigator.share({
+            title: 'Book a meeting with me',
+            url: document.getElementById('booking-link').value
+        });
+    } else {
+        copyLink();
+    }
+}
+</script>
+{% endblock %}

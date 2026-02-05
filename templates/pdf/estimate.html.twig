@@ -16,7 +16,7 @@
             padding: 15pt;
         }
         .header {
-            border-bottom: 3px solid #FFBE00;
+            rams-border-bottom: 3px solid #FFBE00;
             padding-bottom: 12pt;
             margin-bottom: 18pt;
         }
@@ -47,7 +47,7 @@
             margin-bottom: 5pt;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            border-bottom: 2px solid #FFBE00;
+            rams-border-bottom: 2px solid #FFBE00;
             padding-bottom: 3pt;
         }
         h1 {
@@ -55,7 +55,7 @@
             color: #1a1a1a;
             margin: 0 0 15pt 0;
             padding-bottom: 6pt;
-            border-bottom: 3px solid #FFBE00;
+            rams-border-bottom: 3px solid #FFBE00;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
@@ -64,7 +64,7 @@
             color: #1a1a1a;
             margin: 18pt 0 10pt 0;
             padding-bottom: 4pt;
-            border-bottom: 2px solid #3a3a3a;
+            rams-border-bottom: 2px solid #3a3a3a;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
@@ -77,7 +77,7 @@
         }
         table {
             width: 100%;
-            border-collapse: collapse;
+            rams-border-collapse: collapse;
             margin: 10pt 0;
         }
         th {
@@ -88,20 +88,20 @@
             font-size: 8pt;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            border: 1px solid #3a3a3a;
+            rams-border: 1px solid #3a3a3a;
         }
         td {
             padding: 6pt 8pt;
-            border: 1px solid #d0d0d0;
+            rams-border: 1px solid #d0d0d0;
             font-size: 9pt;
             vertical-align: top;
         }
         tr:nth-child(even) td {
             background: #f9f9f9;
         }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .text-muted { color: #5a5a5a; }
+        .rams-text--right { text-align: right; }
+        .rams-text--center { text-align: center; }
+        .rams-text--muted { color: #5a5a5a; }
         .small { font-size: 8pt; }
         .total-row {
             background: #1a1a1a !important;
@@ -109,7 +109,7 @@
         .total-row td {
             color: #FFBE00 !important;
             font-weight: bold;
-            border-color: #2a2a2a;
+            rams-border-color: #2a2a2a;
         }
         .subtotal-row {
             background: #3a3a3a !important;
@@ -117,21 +117,21 @@
         .subtotal-row td {
             color: #ffffff !important;
             font-weight: 600;
-            border-color: #4a4a4a;
+            rams-border-color: #4a4a4a;
         }
         .info-table {
-            border: none;
+            rams-border: none;
             background: #f5f5f5;
             margin-bottom: 15pt;
         }
         .info-table td {
-            border: none;
+            rams-border: none;
             padding: 10pt 12pt;
         }
         .badge {
             display: inline-block;
             padding: 2pt 6pt;
-            border-radius: 2pt;
+            rams-border-radius: 2pt;
             font-size: 7pt;
             font-weight: 600;
             text-transform: uppercase;
@@ -151,7 +151,7 @@
         }
         .warning-box {
             background: #fef9e7;
-            border-left: 4px solid #FFBE00;
+            rams-border-left: 4px solid #FFBE00;
             padding: 12pt;
             margin: 15pt 0;
             font-size: 9pt;
@@ -173,7 +173,7 @@
         .footer {
             margin-top: 25pt;
             padding-top: 10pt;
-            border-top: 2px solid #FFBE00;
+            rams-border-top: 2px solid #FFBE00;
             font-size: 8pt;
             color: #4a4a4a;
             text-align: center;
@@ -239,19 +239,19 @@
             {# Goods Value #}
             <tr>
                 <td><strong>{{ 'pdf.estimate.goods_value_fob'|trans }}</strong></td>
-                <td class="text-center">-</td>
-                    <td class="text-right">{{ estimate.goodsValue|format_currency(estimate.currency, estimate.currency, 2) }}</td>
+                <td class="rams-text--center">-</td>
+                    <td class="rams-text--right">{{ estimate.goodsValue|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             
             {# Freight Cost #}
             {% if freightCost is defined and freightCost > 0 %}
             <tr>
                 <td>{{ 'pdf.estimate.freight_cost'|trans }}</td>
-                <td class="text-center">
+                <td class="rams-text--center">
                     {{ freightMode ?? ('pdf.estimate.freight_mode_air'|trans) }}<br>
-                    <span class="small text-muted">{{ transitDays ?? 5 }} {{ 'pdf.estimate.days'|trans }}</span>
+                    <span class="small rams-text--muted">{{ transitDays ?? 5 }} {{ 'pdf.estimate.days'|trans }}</span>
                 </td>
-                    <td class="text-right">{{ freightCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
+                    <td class="rams-text--right">{{ freightCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
@@ -259,8 +259,8 @@
             {% if insuranceCost is defined and insuranceCost > 0 %}
             <tr>
                 <td>{{ 'pdf.estimate.insurance'|trans }}</td>
-                <td class="text-center">-</td>
-                    <td class="text-right">{{ insuranceCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
+                <td class="rams-text--center">-</td>
+                    <td class="rams-text--right">{{ insuranceCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
@@ -268,7 +268,7 @@
             {% if estimate.incoterm in ['CIF', 'DDP'] %}
             <tr class="subtotal-row">
                 <td colspan="2"><strong>{{ 'pdf.estimate.cif_value'|trans }}</strong></td>
-                    <td class="text-right"><strong>{{ cifValue|format_currency(estimate.currency, estimate.currency, 2) }}</strong></td>
+                    <td class="rams-text--right"><strong>{{ cifValue|format_currency(estimate.currency, estimate.currency, 2) }}</strong></td>
             </tr>
             {% endif %}
             
@@ -276,7 +276,7 @@
             {% if dutyCost is defined and dutyCost > 0 %}
             <tr>
                 <td>{{ 'pdf.estimate.import_duty'|trans }}</td>
-                <td class="text-center">
+                <td class="rams-text--center">
                     {{ dutyRate|number_format(1) }}%<br>
                     {% if ftaApplied %}
                     <span class="badge badge-success">{{ 'pdf.estimate.badge_fta'|trans }}</span>
@@ -284,7 +284,7 @@
                     <span class="badge badge-warning">{{ 'pdf.estimate.badge_mfn'|trans }}</span>
                     {% endif %}
                 </td>
-                    <td class="text-right">{{ dutyCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
+                    <td class="rams-text--right">{{ dutyCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
@@ -292,8 +292,8 @@
             {% if vatCost is defined and vatCost > 0 %}
             <tr>
                 <td>{{ 'pdf.estimate.vat_tax'|trans }}</td>
-                <td class="text-center">{{ vatRate|number_format(1) }}%</td>
-                    <td class="text-right">{{ vatCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
+                <td class="rams-text--center">{{ vatRate|number_format(1) }}%</td>
+                    <td class="rams-text--right">{{ vatCost|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
@@ -301,15 +301,15 @@
             {% if brokerFee is defined and brokerFee > 0 %}
             <tr>
                 <td>{{ 'pdf.estimate.broker_fee'|trans }}</td>
-                <td class="text-center">-</td>
-                    <td class="text-right">{{ brokerFee|format_currency(estimate.currency, estimate.currency, 2) }}</td>
+                <td class="rams-text--center">-</td>
+                    <td class="rams-text--right">{{ brokerFee|format_currency(estimate.currency, estimate.currency, 2) }}</td>
             </tr>
             {% endif %}
             
             {# Total Landed Cost #}
             <tr class="total-row">
                 <td colspan="2">{{ 'pdf.estimate.total_landed_cost'|trans }}</td>
-                <td class="text-right"><strong>{{ estimate.totalLandedCost|default(totalCost|default(totals.total|default(0)))|format_currency(estimate.currency, estimate.currency, 2) }}</strong></td>
+                <td class="rams-text--right"><strong>{{ estimate.totalLandedCost|default(totalCost|default(totals.total|default(0)))|format_currency(estimate.currency, estimate.currency, 2) }}</strong></td>
             </tr>
         </tbody>
     </table>

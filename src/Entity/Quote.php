@@ -24,6 +24,14 @@ class Quote
     #[ORM\JoinColumn(nullable: false)]
     private ?Company $company = null;
 
+    #[ORM\ManyToOne(targetEntity: Contact::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Contact $contact = null;
+
+    #[ORM\ManyToOne(targetEntity: RFQ::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?RFQ $rfq = null;
+
     #[ORM\Column(length: 50, unique: true)]
     private ?string $quoteNumber = null; // QTE-2025-001
 
@@ -129,6 +137,28 @@ class Quote
     public function setCompany(?Company $company): self
     {
         $this->company = $company;
+        return $this;
+    }
+
+    public function getContact(): ?Contact
+    {
+        return $this->contact;
+    }
+
+    public function setContact(?Contact $contact): self
+    {
+        $this->contact = $contact;
+        return $this;
+    }
+
+    public function getRfq(): ?RFQ
+    {
+        return $this->rfq;
+    }
+
+    public function setRfq(?RFQ $rfq): self
+    {
+        $this->rfq = $rfq;
         return $this;
     }
 

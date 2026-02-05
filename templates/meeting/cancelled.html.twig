@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Meeting Cancelled - CRM{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-grid rams-grid--1 rams-place-rams-items-center" style="min-height: 60vh;">
+        <div class="rams-module" style="max-width: 500px; width: 100%;">
+            <div class="rams-module__content rams-rams-text--center rams-p-8">
+                <div class="rams-mb-6">
+                    <svg class="rams-icon rams-icon--2xl rams-rams-text--success" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                         <circle cx="8" cy="8" r="6"/><path d="M6 8L7 9L10 6"/>
+                    </svg>
+                </div>
+                
+                <h1 class="rams-text-2xl rams-rams-text--bold rams-mb-4">Meeting Cancelled</h1>
+                <p class="rams-rams-text--muted rams-mb-8">Your meeting has been successfully cancelled.</p>
+                
+                <div class="rams-bg-surface-alt rams-p-6 rams-rounded-lg rams-rams-text--left rams-mb-8">
+                    <strong class="rams-block rams-mb-2">{{ slot.title }}</strong>
+                    <span class="rams-rams-text--muted rams-text--sm">
+                        {{ slot.startTime|date('l, F j, Y') }} at {{ slot.startTime|date('H:i') }}
+                    </span>
+                </div>
+                
+                <p class="rams-rams-text--muted rams-rams-text--sm">
+                    The meeting organizer has been notified of this cancellation.
+                </p>
+                
+                 <div class="rams-actions rams-justify-center rams-mt-8">
+                    <a href="{{ path('app_dashboard') }}" class="rams-btn--primary">Return to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -13,11 +13,11 @@
                 </h3>
                 <div class="rams-btn-group">
                     {% if totalCount > maxDisplay %}
-                        <a href="{{ path('app_guidance_all') }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                        <a href="{{ path('app_guidance_all') }}" class="rams-btn--ghost rams-btn--sm">
                             {{ 'common.view'|trans }} {{ 'common.all'|trans }} ({{ totalCount }})
                         </a>
                     {% endif %}
-                    <button type="button" onclick="clearAllGuidanceNotifications()" class="rams-btn rams-btn--ghost rams-btn--sm">
+                    <button type="button" onclick="clearAllGuidanceNotifications()" class="rams-btn--ghost rams-btn--sm">
                         {{ 'guidance.clear_all'|trans }}
                     </button>
                 </div>
@@ -51,7 +51,7 @@
                 {# Action Buttons #}
                 <div class="rams-alert__actions">
                     {% if notification.actionUrl and notification.actionLabel %}
-                        <a href="{{ notification.actionUrl }}" class="rams-btn rams-btn--primary rams-btn--sm">
+                        <a href="{{ notification.actionUrl }}" class="rams-btn--primary rams-btn--sm">
                             {{ notification.actionLabel }}
                             <svg class="rams-btn__icon--end" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -59,7 +59,7 @@
                         </a>
                     {% endif %}
                     {# Dismiss Button #}
-                    <button type="button" onclick="dismissGuidanceNotification(this)" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.close'|trans }}">
+                    <button type="button" onclick="dismissGuidanceNotification(this)" class="rams-btn--ghost rams-btn--sm" title="{{ 'common.close'|trans }}">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>

@@ -1,0 +1,157 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Generate Meeting Slots - CRM{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-page__header">
+        <div class="rams-page__header-content">
+            <div class="rams-breadcrumb">
+                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <a href="{{ path('meeting_index') }}">Meetings</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <span>Generate Slots</span>
+            </div>
+            <h1 class="rams-page__title">Generate Recurring Slots</h1>
+            <p class="rams-page__subtitle">Create multiple meeting slots at once based on your availability.</p>
+        </div>
+    </div>
+    
+    <form method="post" class="rams-form">
+        <div class="rams-grid rams-grid--3 rams-gap-6">
+            <div class="rams-grid-span-2">
+                <div class="rams-module">
+                    <div class="rams-module__header">
+                        <h3>Meeting Template</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">Meeting Title</label>
+                            <input type="text" name="title" class="rams-form__input" value="30-min Discovery Call" required>
+                        </div>
+                        
+                        <div class="rams-grid rams-grid--2 rams-gap-4">
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">Meeting Type</label>
+                                <select name="meetingType" class="rams-form__select">
+                                    {% for label, value in meetingTypes %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">Duration</label>
+                                <select name="duration" class="rams-form__select">
+                                    {% for label, value in durations %}
+                                    <option value="{{ value }}" {% if value == 30 %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="rams-grid rams-grid--2 rams-gap-4">
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">Location</label>
+                                <input type="text" name="location" class="rams-form__input" placeholder="Virtual or Room name">
+                            </div>
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">Meeting URL</label>
+                                <input type="url" name="meetingUrl" class="rams-form__input" placeholder="https://zoom.us/j/...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rams-module rams-mt-4">
+                    <div class="rams-module__header">
+                        <h3>Schedule</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">Days of Week</label>
+                            <div class="rams-checkbox-group rams-flex rams-flex-wrap rams-gap-4">
+                                <label class="rams-flex rams-items-center rams-gap-2">
+                                    <input type="checkbox" name="weekdays[]" value="1" checked> <span>Mon</span>
+                                </label>
+                                <label class="rams-flex rams-items-center rams-gap-2">
+                                    <input type="checkbox" name="weekdays[]" value="2" checked> <span>Tue</span>
+                                </label>
+                                <label class="rams-flex rams-items-center rams-gap-2">
+                                    <input type="checkbox" name="weekdays[]" value="3" checked> <span>Wed</span>
+                                </label>
+                                <label class="rams-flex rams-items-center rams-gap-2">
+                                    <input type="checkbox" name="weekdays[]" value="4" checked> <span>Thu</span>
+                                </label>
+                                <label class="rams-flex rams-items-center rams-gap-2">
+                                    <input type="checkbox" name="weekdays[]" value="5" checked> <span>Fri</span>
+                                </label>
+                                <label class="rams-flex rams-items-center rams-gap-2">
+                                    <input type="checkbox" name="weekdays[]" value="6"> <span>Sat</span>
+                                </label>
+                                <label class="rams-flex rams-items-center rams-gap-2">
+                                    <input type="checkbox" name="weekdays[]" value="0"> <span>Sun</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="rams-grid rams-grid--3 rams-gap-4">
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">Start Time</label>
+                                <input type="time" name="startTime" class="rams-form__input" value="09:00" required>
+                            </div>
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">End Time</label>
+                                <input type="time" name="endTime" class="rams-form__input" value="17:00" required>
+                            </div>
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">Interval (mins)</label>
+                                <select name="interval" class="rams-form__select">
+                                    <option value="60">60 mins</option>
+                                    <option value="45">45 mins</option>
+                                    <option value="30">30 mins</option>
+                                    <option value="15">15 mins</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="rams-grid rams-grid--2 rams-gap-4">
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">Date Range</label>
+                                <input type="date" name="startDate" class="rams-form__input" value="{{ 'now'|date('Y-m-d') }}" required>
+                            </div>
+                            <div class="rams-form__group">
+                                <label class="rams-form__label">Until</label>
+                                <input type="date" name="endDate" class="rams-form__input" value="{{ '+1 month'|date('Y-m-d') }}" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rams-actions">
+                    <button type="submit" class="rams-btn--primary">
+                        <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                             <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
+                        </svg>
+                        Generate Slots
+                    </button>
+                    <a href="{{ path('meeting_index') }}" class="rams-btn--ghost">Cancel</a>
+                </div>
+            </div>
+            
+            <div>
+                <div class="rams-module">
+                    <div class="rams-module__header">
+                        <h3>Bulk Generation</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <p class="rams-rams-text--sm rams-rams-text--muted">
+                            This tool will check your existing slots and only create new slots where you don't already have one scheduled.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

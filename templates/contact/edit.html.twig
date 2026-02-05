@@ -72,14 +72,14 @@
 
                 {# Contact Details Section #}
                 <div class="rams-stack rams-gap-4">
-                    <h3 class="rams-module__title rams-text-xs">{{ 'contact.new.contact_details'|trans }}</h3>
+                    <h3 class="rams-module__title rams-rams-text--xs">{{ 'contact.new.contact_details'|trans }}</h3>
                     
                     {# Email and Phone Row #}
                     <div class="rams-grid rams-grid--2 rams-gap-4">
                         <div class="rams-form__group">
                             {{ form_label(form.email, 'contact.fields.email'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                             <div class="rams-flex rams-items-center rams-gap-2">
-                                <span class="rams-text-lg">📧</span>
+                                <span class="rams-rams-text--lg">📧</span>
                                 {{ form_widget(form.email, {'attr': {'class': 'rams-form__input'}}) }}
                             </div>
                             {{ form_errors(form.email) }}
@@ -87,7 +87,7 @@
                         <div class="rams-form__group">
                             {{ form_label(form.phone, 'contact.fields.phone'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                             <div class="rams-flex rams-items-center rams-gap-2">
-                                <span class="rams-text-lg">📞</span>
+                                <span class="rams-rams-text--lg">📞</span>
                                 {{ form_widget(form.phone, {'attr': {'class': 'rams-form__input'}}) }}
                             </div>
                             {{ form_errors(form.phone) }}
@@ -96,13 +96,13 @@
                 </div>
 
                 <div class="rams-form__actions">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn--primary">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                         {{ 'contact.actions.update'|trans }}
                     </button>
-                    <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="rams-btn rams-btn--ghost">
+                    <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="rams-btn--ghost">
                         {{ 'common.cancel'|trans }}
                     </a>
                 </div>

@@ -5,17 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ 'quote.live.title'|trans }} {{ quote.quoteNumber }}</title>
     <link rel="stylesheet" href="{{ asset('build/app.css') }}">
-    {# Page-specific overrides - component styles are in sensei-rams.css (Sections 44-45) #}
-    <style>
-        body { background: var(--rams-bg-tertiary, #f5f5f5); min-height: 100vh; }
-        .rams-quote-card { max-width: 1000px; margin: 0 auto; }
-    </style>
+
 </head>
 <body>
-    <div class="rams-container rams-py-lg">
-        <div class="rams-quote-card rams-module">
+    <div class="rams-page">
+        <div class="rams-module">
             {# Header #}
-            <div class="rams-module__header rams-module__header--primary">
+            <div class="rams-module__header rams-bg-chassis">
                 <div class="rams-module__header--row">
                     <div>
                         <h2 class="rams-heading rams-heading--2 rams-text--white">{{ 'quote.live.title'|trans }} {{ quote.quoteNumber }}</h2>
@@ -30,7 +26,7 @@
 
             <div class="rams-module__content">
                 {# Summary Info #}
-                <div class="rams-grid rams-grid--cols-3 rams-grid--gap-md rams-mb-lg">
+                <div class="rams-grid rams-grid--3 rams-gap-4 rams-mb-lg">
                     <div class="rams-text--center">
                         <span class="rams-dymo">{{ 'quote.copilot.bom_lines'|trans }}</span>
                         <p class="rams-metric rams-metric--lg">{{ tierPricing.bom_line_count }}</p>
@@ -49,20 +45,20 @@
                 <h5 class="rams-heading rams-heading--4 rams-mb-sm">{{ 'quote.live.select_quantity'|trans }}</h5>
                 <p class="rams-text rams-text--sm rams-text--muted rams-mb-md">{{ 'quote.live.select_quantity_hint'|trans }}</p>
 
-                <div class="rams-grid rams-grid--cols-4 rams-grid--gap-sm rams-mb-lg" id="tierCards">
+                <div class="rams-grid rams-grid--4 rams-gap-2 rams-mb-lg" id="tierCards">
                     {% for tier in tierPricing.tiers %}
-                        <div class="rams-tier-card rams-module rams-module--compact {% if loop.first %}rams-tier-card--selected{% endif %}" 
+                        <div class="rams-module rams-module--compact rams-module--hoverable rams-module rams-module--compact {% if loop.first %}rams-module rams-module--compact rams-module--hoverable--selected{% endif %}" 
                              data-quantity="{{ tier.quantity }}"
                              onclick="selectTier(this, {{ tier.quantity }})">
                             {% if tier.savings_vs_minimum.percent > 0 %}
-                                <span class="rams-savings-badge rams-badge rams-badge--green rams-badge--sm">
+                                <span class="rams-badge rams-badge--success rams-badge rams-badge--green rams-badge--sm">
                                     ↓ {{ tier.savings_vs_minimum.percent }}%
                                 </span>
                             {% endif %}
                             <div class="rams-module__content rams-text--center">
                                 <p class="rams-metric rams-metric--md">{{ tier.quantity|number_format }}</p>
                                 <span class="rams-text rams-text--xs rams-text--muted">{{ 'quote.live.units'|trans }}</span>
-                                <div class="rams-price-highlight">{{ tier.unit_price|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</div>
+                                <div class="rams-text--xl rams-text--success">{{ tier.unit_price|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</div>
                                 <span class="rams-text rams-text--xs rams-text--muted">{{ 'quote.live.per_unit'|trans }}</span>
                                 <hr class="rams-divider">
                                 <p class="rams-text rams-text--bold rams-text--success">{{ tier.extended_price|format_currency(tierPricing.currency, tierPricing.currency, 2) }}</p>
@@ -75,7 +71,7 @@
                 {# Selected Tier Details #}
                 <div class="rams-module rams-module--nested rams-module--muted rams-mb-lg" id="tierDetails">
                     <div class="rams-module__content">
-                        <div class="rams-grid rams-grid--cols-2 rams-grid--gap-lg">
+                        <div class="rams-grid rams-grid--2 rams-gap-6">
                             <div>
                                 <h5 class="rams-heading rams-heading--4">{{ 'quote.live.selected'|trans }}: <span id="selectedQty">{{ tierPricing.tiers[0].quantity|number_format }}</span> {{ 'quote.live.units'|trans }}</h5>
                                 <dl class="rams-definition-list rams-definition-list--compact">
@@ -105,8 +101,8 @@
                                         <span class="rams-text rams-text--bold">{{ lt.total_days }} {{ 'quote.live.days'|trans }}</span>
                                         <span class="rams-text rams-text--sm rams-text--muted">({{ 'quote.live.est'|trans }} {{ lt.estimate_date }})</span>
                                     </div>
-                                    <div class="rams-lead-time-bar rams-mb-sm">
-                                        <div class="rams-lead-time-fill rams-lead-time-fill--{% if lt.confidence == 'high' %}fast{% elseif lt.confidence == 'medium' %}medium{% else %}slow{% endif %}"></div>
+                                    <div class="rams-progress rams-progress--compact rams-mb-sm">
+                                        <div class="rams-progress__bar rams-progress__bar--{% if lt.confidence == 'high' %}fast{% elseif lt.confidence == 'medium' %}medium{% else %}slow{% endif %}"></div>
                                     </div>
                                     <span class="rams-text rams-text--xs rams-text--muted">
                                         {{ 'quote.live.procurement'|trans }}: {{ lt.procurement_days }}d | {{ 'quote.live.assembly'|trans }}: {{ lt.assembly_days }}d
@@ -129,10 +125,10 @@
 
                 {# Action Buttons #}
                 <div class="rams-form__actions rams-form__actions--center">
-                    <button class="rams-btn rams-btn--secondary rams-btn--lg" onclick="requestCustomQuote()">
+                    <button class="rams-btn--lg" onclick="requestCustomQuote()">
                         💬 {{ 'quote.live.request_changes'|trans }}
                     </button>
-                    <button class="rams-btn rams-btn--primary rams-btn--lg" onclick="acceptQuote()">
+                    <button class="rams-btn--primary rams-btn--lg" onclick="acceptQuote()">
                         ✓ {{ 'quote.live.accept'|trans }}
                     </button>
                 </div>
@@ -169,8 +165,8 @@
                 </form>
             </div>
             <div class="rams-modal__footer">
-                <button type="button" class="rams-btn rams-btn--secondary" onclick="closeModal('requestModal')">{{ 'common.cancel'|trans }}</button>
-                <button type="button" class="rams-btn rams-btn--primary" onclick="submitRequest()">{{ 'common.submit'|trans }}</button>
+                <button type="button" class="rams-btn" onclick="closeModal('requestModal')">{{ 'common.cancel'|trans }}</button>
+                <button type="button" class="rams-btn--primary" onclick="submitRequest()">{{ 'common.submit'|trans }}</button>
             </div>
         </div>
     </div>
@@ -206,13 +202,15 @@
                 </form>
             </div>
             <div class="rams-modal__footer">
-                <button type="button" class="rams-btn rams-btn--secondary" onclick="closeModal('acceptModal')">{{ 'common.cancel'|trans }}</button>
-                <button type="button" class="rams-btn rams-btn--primary" onclick="submitAcceptance()">
+                <button type="button" class="rams-btn" onclick="closeModal('acceptModal')">{{ 'common.cancel'|trans }}</button>
+                <button type="button" class="rams-btn--primary" onclick="submitAcceptance()">
                     ✓ {{ 'quote.live.confirm_acceptance'|trans }}
                 </button>
             </div>
         </div>
     </div>
+
+    {% include 'components/alert_modal.html.twig' %}
 
     <script>
         const token = '{{ token }}';
@@ -244,8 +242,8 @@
         }
         
         function selectTier(element, quantity) {
-            document.querySelectorAll('.rams-tier-card').forEach(card => card.classList.remove('rams-tier-card--selected'));
-            element.classList.add('rams-tier-card--selected');
+            document.querySelectorAll('.rams-module rams-module--compact rams-module--hoverable').forEach(card => card.classList.remove('rams-module rams-module--compact rams-module--hoverable--selected'));
+            element.classList.add('rams-module rams-module--compact rams-module--hoverable--selected');
             
             const tier = tierData.find(t => t.quantity === quantity);
             if (!tier) return;
@@ -268,8 +266,8 @@
                     <span class="rams-text rams-text--bold">${lt.total_days} ${i18n.daysLabel}</span>
                     <span class="rams-text rams-text--sm rams-text--muted">(${i18n.estimateLabel} ${lt.estimate_date})</span>
                 </div>
-                <div class="rams-lead-time-bar rams-mb-sm">
-                    <div class="rams-lead-time-fill rams-lead-time-fill--${ltClass}"></div>
+                <div class="rams-progress rams-progress--compact rams-mb-sm">
+                    <div class="rams-progress__bar rams-progress__bar--${ltClass}"></div>
                 </div>
                 <span class="rams-text rams-text--xs rams-text--muted">${i18n.procurementLabel}: ${lt.procurement_days}${i18n.daysShort} | ${i18n.assemblyLabel}: ${lt.assembly_days}${i18n.daysShort}</span>
             `;
@@ -335,7 +333,7 @@
             .then(response => response.json())
             .then(result => {
                 closeModal('acceptModal');
-                document.querySelector('.rams-quote-card .rams-module__content').innerHTML = `
+                document.querySelector('..rams-module__content').innerHTML = `
                     <div class="rams-text--center rams-py-xl">
                         <div class="rams-text--success rams-text-6xl">✓</div>
                         <h2 class="rams-heading rams-heading--2 rams-mt-md">${i18n.acceptedTitle}</h2>

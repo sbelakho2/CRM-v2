@@ -1,0 +1,383 @@
+<?php
+
+namespace App\Controller;
+
+use App\Entity\Task;
+use App\Form\TaskType;
+use App\Repository\TaskRepository;
+use App\Repository\CompanyRepository;
+use App\Repository\UserRepository;
+use App\Service\GuidanceNotificationService;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+
+#[Route('/tasks')]
+class TaskController extends AbstractController
+{
+    public function __construct(
+        private TaskRepository $taskRepository,
+        private EntityManagerInterface $entityManager,
+        private GuidanceNotificationService $guidanceService,
+        private UserRepository $userRepository,
+        private CompanyRepository $companyRepository
+    ) {}
+
+    #[Route('', name: 'app_task_index', methods: ['GET'])]
+    public function index(Request $request): Response
+    {
+        $user = $this->getUser();
+        $view = $request->query->get('view', 'list');
+        $status = $request->query->get('status');
+        $priority = $request->query->get('priority');
+        $assignee = $request->query->get('assignee');
+        $company = $request->query->get('company');
+        $search = $request->query->get('search');
+        $showAll = $request->query->getBoolean('all', false);
+
+        $qb = $this->taskRepository->createQueryBuilder('t')
+            ->leftJoin('t.assignedTo', 'a')
+            ->leftJoin('t.createdBy', 'cb')
+            ->leftJoin('t.company', 'c')
+            ->leftJoin('t.contact', 'co')
+            ->addSelect('a', 'cb', 'c', 'co')
+            ->orderBy('t.dueDate', 'ASC')
+            ->addOrderBy('t.priority', 'DESC');
+
+        // Filter by user unless showing all
+        if (!$showAll && !$this->isGranted('ROLE_ADMIN')) {
+            $qb->andWhere('t.assignedTo = :user OR t.createdBy = :user')
+               ->setParameter('user', $user);
+        }
+
+        if ($status) {
+            $qb->andWhere('t.status = :status')
+               ->setParameter('status', $status);
+        }
+
+        if ($priority) {
+            $qb->andWhere('t.priority = :priority')
+               ->setParameter('priority', $priority);
+        }
+
+        if ($assignee) {
+            $qb->andWhere('t.assignedTo = :assignee')
+               ->setParameter('assignee', $assignee);
+        }
+
+        if ($company) {
+            $qb->andWhere('t.company = :company')
+               ->setParameter('company', $company);
+        }
+
+        if ($search) {
+            $qb->andWhere('t.title LIKE :search OR t.description LIKE :search')
+               ->setParameter('search', '%' . $search . '%');
+        }
+
+        $tasks = $qb->getQuery()->getResult();
+
+        // Get statistics
+        $stats = $this->taskRepository->getStatistics($showAll ? null : $user);
+
+        // Get users and companies for filters
+        $users = $this->userRepository->findBy(['active' => true], ['firstName' => 'ASC']);
+        $companies = $this->companyRepository->findBy([], ['name' => 'ASC']);
+
+        return $this->render('task/index.html.twig', [
+            'tasks' => $tasks,
+            'stats' => $stats,
+            'view' => $view,
+            'users' => $users,
+            'companies' => $companies,
+            'current_status' => $status,
+            'current_priority' => $priority,
+            'current_assignee' => $assignee,
+            'current_company' => $company,
+            'current_search' => $search,
+            'show_all' => $showAll,
+            'statuses' => Task::STATUS_LABELS,
+            'priorities' => Task::PRIORITY_LABELS,
+        ]);
+    }
+
+    #[Route('/kanban', name: 'app_task_kanban', methods: ['GET'])]
+    public function kanban(Request $request): Response
+    {
+        $user = $this->getUser();
+        $showAll = $request->query->getBoolean('all', false);
+
+        $tasksByStatus = $this->taskRepository->findGroupedByStatus(
+            $showAll ? null : $user
+        );
+
+        $stats = $this->taskRepository->getStatistics($showAll ? null : $user);
+
+        return $this->render('task/kanban.html.twig', [
+            'tasksByStatus' => $tasksByStatus,
+            'stats' => $stats,
+            'statuses' => Task::STATUS_LABELS,
+            'show_all' => $showAll,
+        ]);
+    }
+
+    #[Route('/new', name: 'app_task_new', methods: ['GET', 'POST'])]
+    public function new(Request $request): Response
+    {
+        $task = new Task();
+        $task->setCreatedBy($this->getUser());
+        $task->setAssignedTo($this->getUser());
+
+        // Pre-fill from query parameters
+        if ($companyId = $request->query->get('company')) {
+            $company = $this->companyRepository->find($companyId);
+            if ($company) {
+                $task->setCompany($company);
+            }
+        }
+
+        $form = $this->createForm(TaskType::class, $task);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            // Handle tags
+            $tagsString = $form->get('tags')->getData();
+            if ($tagsString) {
+                $tags = array_map('trim', explode(',', $tagsString));
+                $task->setTags($tags);
+            }
+
+            $this->entityManager->persist($task);
+            $this->entityManager->flush();
+
+            $this->addFlash('success', 'Task created successfully.');
+
+            // Redirect based on where we came from
+            if ($request->query->get('redirect') === 'kanban') {
+                return $this->redirectToRoute('app_task_kanban');
+            }
+
+            return $this->redirectToRoute('app_task_show', ['id' => $task->getId()]);
+        }
+
+        return $this->render('task/new.html.twig', [
+            'task' => $task,
+            'form' => $form,
+        ]);
+    }
+
+    #[Route('/{id}', name: 'app_task_show', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function show(Task $task): Response
+    {
+        return $this->render('task/show.html.twig', [
+            'task' => $task,
+        ]);
+    }
+
+    #[Route('/{id}/edit', name: 'app_task_edit', methods: ['GET', 'POST'])]
+    public function edit(Request $request, Task $task): Response
+    {
+        $form = $this->createForm(TaskType::class, $task);
+        
+        // Pre-fill tags field
+        if ($task->getTags()) {
+            $form->get('tags')->setData(implode(', ', $task->getTags()));
+        }
+        
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            // Handle tags
+            $tagsString = $form->get('tags')->getData();
+            if ($tagsString) {
+                $tags = array_map('trim', explode(',', $tagsString));
+                $task->setTags($tags);
+            } else {
+                $task->setTags(null);
+            }
+
+            $task->setUpdatedAt(new \DateTime());
+            $this->entityManager->flush();
+
+            $this->addFlash('success', 'Task updated successfully.');
+
+            return $this->redirectToRoute('app_task_show', ['id' => $task->getId()]);
+        }
+
+        return $this->render('task/edit.html.twig', [
+            'task' => $task,
+            'form' => $form,
+        ]);
+    }
+
+    #[Route('/{id}/delete', name: 'app_task_delete', methods: ['POST'])]
+    public function delete(Request $request, Task $task): Response
+    {
+        if ($this->isCsrfTokenValid('delete' . $task->getId(), $request->request->get('_token'))) {
+            $this->entityManager->remove($task);
+            $this->entityManager->flush();
+
+            $this->addFlash('success', 'Task deleted successfully.');
+        }
+
+        return $this->redirectToRoute('app_task_index');
+    }
+
+    #[Route('/{id}/complete', name: 'app_task_complete', methods: ['POST'])]
+    public function complete(Request $request, Task $task): Response
+    {
+        if ($this->isCsrfTokenValid('complete' . $task->getId(), $request->request->get('_token'))) {
+            $task->setStatus(Task::STATUS_DONE);
+            $task->setCompletedAt(new \DateTime());
+            $task->setUpdatedAt(new \DateTime());
+            $this->entityManager->flush();
+
+            $this->addFlash('success', 'Task marked as complete.');
+        }
+
+        $referer = $request->headers->get('referer');
+        if ($referer) {
+            return $this->redirect($referer);
+        }
+
+        return $this->redirectToRoute('app_task_index');
+    }
+
+    #[Route('/api/update-status', name: 'app_task_api_update_status', methods: ['POST'])]
+    public function apiUpdateStatus(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!$data || !isset($data['taskId']) || !isset($data['status'])) {
+            return new JsonResponse(['error' => 'Invalid request'], 400);
+        }
+
+        $task = $this->taskRepository->find($data['taskId']);
+        if (!$task) {
+            return new JsonResponse(['error' => 'Task not found'], 404);
+        }
+
+        if (!in_array($data['status'], Task::STATUSES)) {
+            return new JsonResponse(['error' => 'Invalid status'], 400);
+        }
+
+        $task->setStatus($data['status']);
+        $task->setUpdatedAt(new \DateTime());
+        
+        if ($data['status'] === Task::STATUS_DONE) {
+            $task->setCompletedAt(new \DateTime());
+        }
+
+        if (isset($data['sortOrder'])) {
+            $task->setSortOrder((int) $data['sortOrder']);
+        }
+
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'task' => [
+                'id' => $task->getId(),
+                'status' => $task->getStatus(),
+                'statusLabel' => $task->getStatusLabel(),
+            ]
+        ]);
+    }
+
+    #[Route('/api/reorder', name: 'app_task_api_reorder', methods: ['POST'])]
+    public function apiReorder(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!$data || !isset($data['tasks'])) {
+            return new JsonResponse(['error' => 'Invalid request'], 400);
+        }
+
+        foreach ($data['tasks'] as $taskData) {
+            $task = $this->taskRepository->find($taskData['id']);
+            if ($task) {
+                $task->setSortOrder($taskData['sortOrder']);
+                if (isset($taskData['status'])) {
+                    $task->setStatus($taskData['status']);
+                    if ($taskData['status'] === Task::STATUS_DONE) {
+                        $task->setCompletedAt(new \DateTime());
+                    }
+                }
+                $task->setUpdatedAt(new \DateTime());
+            }
+        }
+
+        $this->entityManager->flush();
+
+        return new JsonResponse(['success' => true]);
+    }
+
+    #[Route('/my-day', name: 'app_task_my_day', methods: ['GET'])]
+    public function myDay(): Response
+    {
+        $user = $this->getUser();
+
+        $overdueTasks = $this->taskRepository->findOverdue($user);
+        $todayTasks = $this->taskRepository->findDueToday($user);
+        $weekTasks = $this->taskRepository->findDueThisWeek($user);
+        $stats = $this->taskRepository->getStatistics($user);
+
+        return $this->render('task/my_day.html.twig', [
+            'overdueTasks' => $overdueTasks,
+            'todayTasks' => $todayTasks,
+            'weekTasks' => $weekTasks,
+            'stats' => $stats,
+        ]);
+    }
+
+    #[Route('/quick-add', name: 'app_task_quick_add', methods: ['POST'])]
+    public function quickAdd(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!$data || empty($data['title'])) {
+            return new JsonResponse(['error' => 'Title is required'], 400);
+        }
+
+        $task = new Task();
+        $task->setTitle($data['title']);
+        $task->setCreatedBy($this->getUser());
+        $task->setAssignedTo($this->getUser());
+        
+        if (isset($data['dueDate'])) {
+            $task->setDueDate(new \DateTime($data['dueDate']));
+        }
+        
+        if (isset($data['priority'])) {
+            $task->setPriority($data['priority']);
+        }
+        
+        if (isset($data['type'])) {
+            $task->setType($data['type']);
+        }
+
+        if (isset($data['companyId'])) {
+            $company = $this->companyRepository->find($data['companyId']);
+            if ($company) {
+                $task->setCompany($company);
+            }
+        }
+
+        $this->entityManager->persist($task);
+        $this->entityManager->flush();
+
+        return new JsonResponse([
+            'success' => true,
+            'task' => [
+                'id' => $task->getId(),
+                'title' => $task->getTitle(),
+                'status' => $task->getStatus(),
+                'priority' => $task->getPriority(),
+                'dueDate' => $task->getDueDate()?->format('Y-m-d'),
+            ]
+        ]);
+    }
+}

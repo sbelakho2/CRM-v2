@@ -1,0 +1,482 @@
+{# PDF Sourcing Risk Report Template - Sensei-Rams Industrial Functionalist Design System #}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'pdf.sourcing_risk.title'|trans|default('Sourcing Risk Analysis') }} - {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</title>
+    {% include 'pdf/base.css.twig' %}
+    <style>
+        .risk-gauge {
+            display: flex;
+            align-items: center;
+            gap: 15pt;
+            margin: 15pt 0;
+        }
+        .risk-score-large {
+            width: 100pt;
+            height: 100pt;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border: 8pt solid var(--rams-panel);
+        }
+        .risk-score-large.low { border-color: #2D8C3C; }
+        .risk-score-large.medium { border-color: #FFBE00; }
+        .risk-score-large.high { border-color: #FF5722; }
+        .risk-score-large.critical { border-color: #D62D2D; }
+        .risk-value {
+            font-size: 28pt;
+            font-weight: bold;
+        }
+        .risk-label {
+            font-size: 9pt;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--rams-muted);
+        }
+        .risk-bar {
+            height: 8pt;
+            background: var(--rams-panel);
+            border-radius: 4pt;
+            overflow: hidden;
+            flex: 1;
+        }
+        .risk-bar-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .risk-bar-fill.low { background: #2D8C3C; }
+        .risk-bar-fill.medium { background: #FFBE00; }
+        .risk-bar-fill.high { background: #FF5722; }
+        .risk-bar-fill.critical { background: #D62D2D; }
+        .risk-category {
+            border: 1px solid var(--rams-border);
+            margin: 12pt 0;
+            background: white;
+        }
+        .risk-category-header {
+            background: var(--rams-panel);
+            padding: 10pt 12pt;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--rams-border);
+        }
+        .risk-category-header h4 {
+            margin: 0;
+            font-size: 11pt;
+        }
+        .risk-badge {
+            display: inline-block;
+            padding: 3pt 10pt;
+            border-radius: 10pt;
+            font-size: 8pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .risk-badge.low { background: #e8f5ea; color: #2D8C3C; }
+        .risk-badge.medium { background: #fff8e5; color: #b38600; }
+        .risk-badge.high { background: #ffeee8; color: #FF5722; }
+        .risk-badge.critical { background: #fdeaea; color: #D62D2D; }
+        .risk-category-body {
+            padding: 12pt;
+        }
+        .supplier-card {
+            display: flex;
+            gap: 12pt;
+            padding: 10pt;
+            margin: 8pt 0;
+            background: var(--rams-panel);
+            border-radius: 3pt;
+        }
+        .supplier-logo {
+            width: 40pt;
+            height: 40pt;
+            background: white;
+            border-radius: 4pt;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16pt;
+            font-weight: bold;
+            color: var(--rams-muted);
+        }
+        .supplier-info { flex: 1; }
+        .supplier-name {
+            font-weight: 600;
+            color: var(--rams-foreground);
+        }
+        .supplier-details {
+            font-size: 9pt;
+            color: var(--rams-muted);
+        }
+        .supplier-metrics {
+            text-align: right;
+        }
+        .heat-map {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15pt 0;
+        }
+        .heat-map th, .heat-map td {
+            padding: 8pt;
+            text-align: center;
+            font-size: 9pt;
+        }
+        .heat-map .risk-low { background: #e8f5ea; }
+        .heat-map .risk-medium { background: #fff8e5; }
+        .heat-map .risk-high { background: #ffeee8; }
+        .heat-map .risk-critical { background: #fdeaea; }
+        .mitigation-item {
+            display: flex;
+            gap: 10pt;
+            padding: 10pt;
+            margin: 8pt 0;
+            background: var(--rams-panel);
+            border-left: 3px solid var(--rams-orange);
+        }
+        .mitigation-priority {
+            width: 24pt;
+            height: 24pt;
+            border-radius: 50%;
+            background: var(--rams-orange);
+            color: var(--rams-foreground);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 10pt;
+        }
+        .stats-grid {
+            display: flex;
+            gap: 10pt;
+            margin: 15pt 0;
+        }
+        .stat-box {
+            flex: 1;
+            background: var(--rams-panel);
+            padding: 12pt;
+            text-align: center;
+            border-bottom: 3px solid var(--rams-dark);
+        }
+        .stat-value {
+            font-size: 18pt;
+            font-weight: bold;
+            color: var(--rams-foreground);
+        }
+        .stat-label {
+            font-size: 8pt;
+            color: var(--rams-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header clearfix">
+        <div style="float: left;">
+            <h2>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</h2>
+            <p>{{ 'pdf.sourcing_risk.subtitle'|trans|default('Supply Chain Risk Assessment') }}</p>
+        </div>
+        <div class="doc-info">
+            <strong>{{ 'pdf.sourcing_risk.report'|trans|default('RISK ANALYSIS') }}</strong>
+            Quote: {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}<br>
+            Date: {{ "now"|date('Y-m-d') }}<br>
+            Analyst: {{ analyst ?? 'Risk Engine v3' }}
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+
+    {# Overall Risk Score #}
+    {% set overallRisk = riskData.overallScore ?? 35 %}
+    {% set riskLevel = overallRisk < 25 ? 'low' : (overallRisk < 50 ? 'medium' : (overallRisk < 75 ? 'high' : 'critical')) %}
+    
+    <h3>{{ 'pdf.sourcing_risk.overall'|trans|default('Overall Supply Chain Risk') }}</h3>
+    
+    <div class="risk-gauge">
+        <div class="risk-score-large {{ riskLevel }}">
+            <span class="risk-value">{{ overallRisk }}</span>
+            <span class="risk-label">/ 100</span>
+        </div>
+        <div style="flex: 1;">
+            <div style="font-size: 14pt; font-weight: 600; margin-bottom: 5pt;">
+                {{ 'pdf.sourcing_risk.level'|trans|default('Risk Level') }}: 
+                <span class="risk-badge {{ riskLevel }}">{{ riskLevel|upper }}</span>
+            </div>
+            <p style="color: var(--rams-muted); font-size: 10pt; margin: 5pt 0;">
+                {% if riskLevel == 'low' %}
+                    {{ 'pdf.sourcing_risk.low_desc'|trans|default('Supply chain is stable with minimal disruption risk. Standard procurement procedures apply.') }}
+                {% elseif riskLevel == 'medium' %}
+                    {{ 'pdf.sourcing_risk.medium_desc'|trans|default('Moderate risk identified. Recommend securing critical components and monitoring lead times.') }}
+                {% elseif riskLevel == 'high' %}
+                    {{ 'pdf.sourcing_risk.high_desc'|trans|default('Elevated supply risk. Immediate action recommended for high-risk components.') }}
+                {% else %}
+                    {{ 'pdf.sourcing_risk.critical_desc'|trans|default('Critical supply chain exposure. Emergency mitigation required. Executive review recommended.') }}
+                {% endif %}
+            </p>
+            <div class="risk-bar">
+                <div class="risk-bar-fill {{ riskLevel }}" style="width: {{ overallRisk }}%;"></div>
+            </div>
+        </div>
+    </div>
+
+    {# Risk Summary Stats #}
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-value">{{ riskData.singleSourceParts ?? 4 }}</div>
+            <div class="stat-label">{{ 'pdf.sourcing_risk.single_source'|trans|default('Single Source') }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">{{ riskData.longLeadParts ?? 7 }}</div>
+            <div class="stat-label">{{ 'pdf.sourcing_risk.long_lead'|trans|default('Long Lead (>12wk)') }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">{{ riskData.eolParts ?? 2 }}</div>
+            <div class="stat-label">{{ 'pdf.sourcing_risk.eol_nrnd'|trans|default('EOL/NRND') }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">{{ riskData.allocationParts ?? 3 }}</div>
+            <div class="stat-label">{{ 'pdf.sourcing_risk.allocation'|trans|default('On Allocation') }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">{{ (riskData.geoConcentration ?? 68)|number_format(0) }}%</div>
+            <div class="stat-label">{{ 'pdf.sourcing_risk.geo_concentration'|trans|default('Asia-Pacific') }}</div>
+        </div>
+    </div>
+
+    {# Risk Categories #}
+    <h3>{{ 'pdf.sourcing_risk.by_category'|trans|default('Risk by Category') }}</h3>
+
+    {# Supply Availability Risk #}
+    <div class="risk-category">
+        <div class="risk-category-header">
+            <h4>{{ 'pdf.sourcing_risk.availability'|trans|default('Supply Availability') }}</h4>
+            <span class="risk-badge {{ (riskData.availabilityLevel ?? 'medium') }}">{{ riskData.availabilityScore ?? 42 }}/100</span>
+        </div>
+        <div class="risk-category-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">MPN</th>
+                        <th style="width: 15%;">{{ 'pdf.sourcing_risk.manufacturer'|trans|default('Mfr') }}</th>
+                        <th class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.stock'|trans|default('Stock') }}</th>
+                        <th class="rams-text--center" style="width: 12%;">{{ 'pdf.sourcing_risk.lead_time'|trans|default('Lead Time') }}</th>
+                        <th class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.sources'|trans|default('Sources') }}</th>
+                        <th class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.risk'|trans|default('Risk') }}</th>
+                        <th style="width: 23%;">{{ 'pdf.sourcing_risk.notes'|trans|default('Notes') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in riskData.availabilityRisks ?? [] %}
+                    <tr class="heat-map risk-{{ part.level ?? 'low' }}">
+                        <td><strong>{{ part.mpn ?? 'N/A' }}</strong></td>
+                        <td>{{ part.manufacturer ?? 'N/A' }}</td>
+                        <td class="rams-text--center">{{ part.stock ?? 0 }}</td>
+                        <td class="rams-text--center">{{ part.leadTime ?? 'N/A' }}</td>
+                        <td class="rams-text--center">{{ part.sourceCount ?? 1 }}</td>
+                        <td class="rams-text--center"><span class="risk-badge {{ part.level ?? 'low' }}">{{ (part.level ?? 'Low')|upper }}</span></td>
+                        <td>{{ part.notes ?? '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr class="heat-map risk-high">
+                        <td><strong>STM32F407VET6</strong></td>
+                        <td>STMicroelectronics</td>
+                        <td class="rams-text--center">120</td>
+                        <td class="rams-text--center">16 weeks</td>
+                        <td class="rams-text--center">1</td>
+                        <td class="rams-text--center"><span class="risk-badge high">HIGH</span></td>
+                        <td>Single source, constrained</td>
+                    </tr>
+                    <tr class="heat-map risk-medium">
+                        <td><strong>TPS62130RGTR</strong></td>
+                        <td>Texas Instruments</td>
+                        <td class="rams-text--center">2,400</td>
+                        <td class="rams-text--center">12 weeks</td>
+                        <td class="rams-text--center">2</td>
+                        <td class="rams-text--center"><span class="risk-badge medium">MEDIUM</span></td>
+                        <td>Extended lead time</td>
+                    </tr>
+                    <tr class="heat-map risk-critical">
+                        <td><strong>TAJC106K025RNJ</strong></td>
+                        <td>AVX</td>
+                        <td class="rams-text--center">0</td>
+                        <td class="rams-text--center">EOL</td>
+                        <td class="rams-text--center">1</td>
+                        <td class="rams-text--center"><span class="risk-badge critical">CRITICAL</span></td>
+                        <td>End of life - require alt</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# Supplier Concentration Risk #}
+    <div class="risk-category">
+        <div class="risk-category-header">
+            <h4>{{ 'pdf.sourcing_risk.supplier_concentration'|trans|default('Supplier Concentration') }}</h4>
+            <span class="risk-badge {{ (riskData.concentrationLevel ?? 'medium') }}">{{ riskData.concentrationScore ?? 38 }}/100</span>
+        </div>
+        <div class="risk-category-body">
+            {% for supplier in riskData.topSuppliers ?? [] %}
+            <div class="supplier-card">
+                <div class="supplier-logo">{{ supplier.initials ?? 'XX' }}</div>
+                <div class="supplier-info">
+                    <div class="supplier-name">{{ supplier.name ?? 'Unknown Supplier' }}</div>
+                    <div class="supplier-details">
+                        {{ supplier.partCount ?? 0 }} parts ({{ supplier.percentage ?? 0 }}% of BOM value) • 
+                        {{ supplier.region ?? 'Unknown Region' }}
+                    </div>
+                </div>
+                <div class="supplier-metrics">
+                    <span class="risk-badge {{ supplier.riskLevel ?? 'low' }}">{{ (supplier.riskLevel ?? 'Low')|upper }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="supplier-card">
+                <div class="supplier-logo">DK</div>
+                <div class="supplier-info">
+                    <div class="supplier-name">Digi-Key Electronics</div>
+                    <div class="supplier-details">28 parts (42% of BOM value) • North America</div>
+                </div>
+                <div class="supplier-metrics">
+                    <span class="risk-badge low">LOW</span>
+                </div>
+            </div>
+            <div class="supplier-card">
+                <div class="supplier-logo">MO</div>
+                <div class="supplier-info">
+                    <div class="supplier-name">Mouser Electronics</div>
+                    <div class="supplier-details">22 parts (31% of BOM value) • North America</div>
+                </div>
+                <div class="supplier-metrics">
+                    <span class="risk-badge low">LOW</span>
+                </div>
+            </div>
+            <div class="supplier-card">
+                <div class="supplier-logo">AR</div>
+                <div class="supplier-info">
+                    <div class="supplier-name">Arrow Electronics</div>
+                    <div class="supplier-details">15 parts (18% of BOM value) • Global</div>
+                </div>
+                <div class="supplier-metrics">
+                    <span class="risk-badge medium">MEDIUM</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# Geographic Risk Heat Map #}
+    <h3>{{ 'pdf.sourcing_risk.geographic'|trans|default('Geographic Risk Distribution') }}</h3>
+    <table class="heat-map">
+        <thead>
+            <tr>
+                <th style="width: 25%;">{{ 'pdf.sourcing_risk.region'|trans|default('Region') }}</th>
+                <th class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.parts'|trans|default('Parts') }}</th>
+                <th class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.value_pct'|trans|default('Value %') }}</th>
+                <th class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.risk_score'|trans|default('Risk Score') }}</th>
+                <th style="width: 30%;">{{ 'pdf.sourcing_risk.primary_concern'|trans|default('Primary Concern') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for region in riskData.geoRisks ?? [] %}
+            <tr class="risk-{{ region.level ?? 'low' }}">
+                <td><strong>{{ region.name ?? 'Unknown' }}</strong></td>
+                <td class="rams-text--center">{{ region.partCount ?? 0 }}</td>
+                <td class="rams-text--center">{{ region.valuePct ?? 0 }}%</td>
+                <td class="rams-text--center">{{ region.score ?? 0 }}/100</td>
+                <td>{{ region.concern ?? 'None identified' }}</td>
+            </tr>
+            {% else %}
+            <tr class="risk-medium">
+                <td><strong>China</strong></td>
+                <td class="rams-text--center">18</td>
+                <td class="rams-text--center">28%</td>
+                <td class="rams-text--center">55/100</td>
+                <td>Tariff exposure, logistics delays</td>
+            </tr>
+            <tr class="risk-low">
+                <td><strong>Taiwan</strong></td>
+                <td class="rams-text--center">12</td>
+                <td class="rams-text--center">22%</td>
+                <td class="rams-text--center">32/100</td>
+                <td>Semiconductor concentration</td>
+            </tr>
+            <tr class="risk-low">
+                <td><strong>Japan</strong></td>
+                <td class="rams-text--center">8</td>
+                <td class="rams-text--center">15%</td>
+                <td class="rams-text--center">18/100</td>
+                <td>Stable supply chain</td>
+            </tr>
+            <tr class="risk-low">
+                <td><strong>USA / Europe</strong></td>
+                <td class="rams-text--center">22</td>
+                <td class="rams-text--center">35%</td>
+                <td class="rams-text--center">12/100</td>
+                <td>Minimal concerns</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# Risk Mitigation Recommendations #}
+    <h3>{{ 'pdf.sourcing_risk.mitigation'|trans|default('Risk Mitigation Recommendations') }}</h3>
+    
+    {% for rec in riskData.mitigations ?? [] %}
+    <div class="mitigation-item">
+        <div class="mitigation-priority">{{ loop.index }}</div>
+        <div style="flex: 1;">
+            <strong>{{ rec.title ?? 'Recommendation' }}</strong><br>
+            <span style="color: var(--rams-muted); font-size: 9pt;">{{ rec.description ?? 'No description available.' }}</span>
+            {% if rec.impact is defined %}
+            <div style="margin-top: 5pt;">
+                <span class="risk-badge {{ rec.impact ?? 'medium' }}">{{ rec.impactLabel ?? 'Impact: Medium' }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="mitigation-item">
+        <div class="mitigation-priority">1</div>
+        <div style="flex: 1;">
+            <strong>Qualify Alternate Sources for Single-Source Parts</strong><br>
+            <span style="color: var(--rams-muted); font-size: 9pt;">4 parts identified as single-source. Cross-reference with pin-compatible alternatives to reduce dependency.</span>
+            <div style="margin-top: 5pt;"><span class="risk-badge high">High Priority</span></div>
+        </div>
+    </div>
+    <div class="mitigation-item">
+        <div class="mitigation-priority">2</div>
+        <div style="flex: 1;">
+            <strong>Secure Buffer Stock for Long-Lead Components</strong><br>
+            <span style="color: var(--rams-muted); font-size: 9pt;">7 parts have lead times exceeding 12 weeks. Recommend purchasing 3-6 month safety stock.</span>
+            <div style="margin-top: 5pt;"><span class="risk-badge high">High Priority</span></div>
+        </div>
+    </div>
+    <div class="mitigation-item">
+        <div class="mitigation-priority">3</div>
+        <div style="flex: 1;">
+            <strong>Address EOL Components Immediately</strong><br>
+            <span style="color: var(--rams-muted); font-size: 9pt;">2 parts are end-of-life. Execute last-time buy or approve alternatives before production.</span>
+            <div style="margin-top: 5pt;"><span class="risk-badge critical">Critical</span></div>
+        </div>
+    </div>
+    <div class="mitigation-item">
+        <div class="mitigation-priority">4</div>
+        <div style="flex: 1;">
+            <strong>Diversify Geographic Sourcing</strong><br>
+            <span style="color: var(--rams-muted); font-size: 9pt;">68% of component value sourced from Asia-Pacific. Consider domestic alternatives for critical parts.</span>
+            <div style="margin-top: 5pt;"><span class="risk-badge medium">Medium Priority</span></div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="footer">
+        <strong>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</strong> • {{ 'pdf.sourcing_risk.footer'|trans|default('Supply Chain Risk Analysis') }}<br>
+        {{ 'pdf.generated_on'|trans|default('Generated') }}: {{ "now"|date('Y-m-d H:i') }} UTC • {{ 'pdf.sourcing_risk.engine'|trans|default('Risk Analysis Engine v3.2') }}
+    </div>
+</body>
+</html>

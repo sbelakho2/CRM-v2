@@ -18,7 +18,7 @@
     </div>
 
     {# 90-Day KPI Cards #}
-    <div class="rams-metrics-grid rams-metrics-grid--4col">
+    <div class="rams-grid rams-grid--4">
         {# Pipeline Value #}
         <div class="rams-module rams-module--inset">
             <div class="rams-module__content">
@@ -151,7 +151,7 @@
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
                             <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
-                            <span class="rams-text-sm">{{ 'activity.types.call'|trans }}</span>
+                            <span class="rams-rams-text--sm">{{ 'activity.types.call'|trans }}</span>
                         </div>
                         <span class="rams-badge font-mono">{{ weekly_metrics.calls_made }}</span>
                     </div>
@@ -159,7 +159,7 @@
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
                             <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
-                            <span class="rams-text-sm">{{ 'activity.types.email'|trans }}</span>
+                            <span class="rams-rams-text--sm">{{ 'activity.types.email'|trans }}</span>
                         </div>
                         <span class="rams-badge font-mono">{{ weekly_metrics.emails_sent }}</span>
                     </div>
@@ -167,7 +167,7 @@
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
                             <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
-                            <span class="rams-text-sm">{{ 'activity.types.meeting'|trans }}</span>
+                            <span class="rams-rams-text--sm">{{ 'activity.types.meeting'|trans }}</span>
                         </div>
                         <span class="rams-badge font-mono">{{ weekly_metrics.meetings_held }}</span>
                     </div>
@@ -175,7 +175,7 @@
                     <div class="rams-flex rams-justify-between rams-items-center">
                         <div class="rams-flex rams-items-center rams-gap-3">
                             <div class="rams-andon"><span class="rams-andon__light rams-andon__light--yellow"></span></div>
-                            <span class="rams-text-sm">{{ 'supplier_portal.title'|trans }}</span>
+                            <span class="rams-rams-text--sm">{{ 'supplier_portal.title'|trans }}</span>
                         </div>
                         <span class="rams-badge font-mono">{{ weekly_metrics.portal_signups }}</span>
                     </div>
@@ -187,7 +187,7 @@
         <div class="rams-module rams-grid-span-2">
             <div class="rams-module__header">
                 <h2 class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</h2>
-                <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
+                <a href="{{ path('app_activity_index') }}" class="rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
             </div>
             <div class="rams-module__content">
                 <div class="rams-grid rams-grid--2 rams-gap-4">
@@ -205,14 +205,14 @@
                             {% endif %}
                         </div>
                         <div class="rams-flex-1 rams-overflow-hidden">
-                            <p class="rams-text-xs rams-text-bold uppercase font-mono rams-mb-0">{{ activity.type }}</p>
-                            <p class="rams-text-3xs rams-text-muted rams-truncate rams-mb-0">{{ activity.company.name }}</p>
+                            <p class="rams-rams-text--xs rams-text-bold uppercase font-mono rams-mb-0">{{ activity.type }}</p>
+                            <p class="rams-text-3xs rams-rams-text--muted rams-truncate rams-mb-0">{{ activity.company.name }}</p>
                         </div>
-                        <span class="rams-text-3xs rams-text-muted font-mono uppercase">{{ activity.activityDate|date('M d') }}</span>
+                        <span class="rams-text-3xs rams-rams-text--muted font-mono uppercase">{{ activity.activityDate|date('M d') }}</span>
                     </div>
                     {% else %}
                     <div class="rams-grid-span-2 rams-empty-state rams-p-4">
-                        <p class="rams-text-muted rams-text-xs">{{ 'activity.no_activities'|trans }}</p>
+                        <p class="rams-rams-text--muted rams-rams-text--xs">{{ 'activity.no_activities'|trans }}</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -222,7 +222,7 @@
 
     {# Compliance Alerts Widget #}
     {% if compliance_alert_counts.total > 0 or compliance_alert_counts.snoozed > 0 %}
-    <div class="rams-module rams-module--warning">
+    <div class="rams-module rams-module rams-border-warning">
         <div class="rams-module__header">
             <h2 class="rams-module__title">
                 <span class="rams-andon rams-mr-2"><span class="rams-andon__light rams-andon__light--yellow"></span></span>
@@ -243,7 +243,7 @@
                         😴 {{ compliance_alert_counts.snoozed }} {{ 'compliance.snoozed'|trans|default('Snoozed') }}
                     </span>
                 {% endif %}
-                <a href="{{ path('app_compliance_index') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
+                <a href="{{ path('app_compliance_index') }}" class="rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
             </div>
         </div>
         <div class="rams-module__content">
@@ -261,16 +261,16 @@
                             {% endif %}
                         </div>
                         <div>
-                            <p class="rams-text-xs rams-text-bold rams-mb-0">{{ doc.name }}</p>
-                            <p class="rams-text-3xs rams-text-muted rams-mb-0">
+                            <p class="rams-rams-text--xs rams-text-bold rams-mb-0">{{ doc.name }}</p>
+                            <p class="rams-text-3xs rams-rams-text--muted rams-mb-0">
                                 {{ doc.company ? doc.company.name : 'No Company' }}
                             </p>
                         </div>
                     </div>
                     <div class="rams-flex rams-items-center rams-gap-2">
-                        <div class="rams-text-right">
+                        <div class="rams-rams-text--right">
                             {% if doc.expiryDate %}
-                                <span class="rams-text-3xs font-mono {% if doc.isExpired %}rams-text-danger{% elseif doc.isExpiringSoon %}rams-text-warning{% endif %}">
+                                <span class="rams-text-3xs font-mono {% if doc.isExpired %}rams-rams-text--danger{% elseif doc.isExpiringSoon %}rams-rams-text--warning{% endif %}">
                                     {{ doc.expiryMessage }}
                                 </span>
                             {% elseif not doc.provided %}
@@ -281,7 +281,7 @@
                         <form method="POST" action="{{ path('app_compliance_snooze', {id: doc.id}) }}" class="rams-inline-form">
                             <input type="hidden" name="_token" value="{{ csrf_token('snooze' ~ doc.id) }}">
                             <input type="hidden" name="days" value="7">
-                            <button type="submit" class="rams-btn rams-btn--ghost rams-btn--xs" title="{{ 'compliance.snooze_7_days'|trans|default('Snooze for 7 days') }}">
+                            <button type="submit" class="rams-btn--ghost rams-btn--xs" title="{{ 'compliance.snooze_7_days'|trans|default('Snooze for 7 days') }}">
                                 😴
                             </button>
                         </form>
@@ -349,13 +349,13 @@ new Chart(sectorCtx, {
         scales: {
             x: {
                 grid: { display: false },
-                border: { display: false },
+                rams-border: { display: false },
                 ticks: { color: ramsColors.muted }
             },
             y: {
                 beginAtZero: true,
                 grid: { color: ramsColors.line },
-                border: { display: false },
+                rams-border: { display: false },
                 ticks: { color: ramsColors.muted, precision: 0 }
             }
         }

@@ -3,7 +3,7 @@
 {% block title %}{{ 'contact.index.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-container">
+<div class="rams-page">
         
     {# Header with Create Button #}
     <div class="rams-page-header">
@@ -11,7 +11,7 @@
             <h1 class="rams-page-title">{{ 'contact.index.title'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'contact.index.subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('app_contact_new') }}" class="rams-btn rams-btn--primary">
+        <a href="{{ path('app_contact_new') }}" class="rams-btn--primary">
             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
@@ -64,13 +64,13 @@
 
                 {# Filter Actions #}
                 <div class="rams-btn-group">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn--primary">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                         </svg>
                         {{ 'common.apply_filters'|trans }}
                     </button>
-                    <a href="{{ path('app_contact_index') }}" class="rams-btn rams-btn--secondary">
+                    <a href="{{ path('app_contact_index') }}" class="rams-btn">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
@@ -161,7 +161,7 @@
                                 </div>
                             </td>
                             <td class="rams-table__cell rams-table__cell--actions">
-                                <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.view'|trans }}</a>
+                                <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="rams-btn--ghost">{{ 'common.view'|trans }}</a>
                             </td>
                         </tr>
                     {% else %}
@@ -174,7 +174,7 @@
                                     </svg>
                                     <h3 class="rams-empty-state__title">{{ 'contact.empty.title'|trans }}</h3>
                                     <p class="rams-empty-state__description">{{ 'contact.empty.description'|trans }}</p>
-                                    <a href="{{ path('app_contact_new') }}" class="rams-btn rams-btn--primary">
+                                    <a href="{{ path('app_contact_new') }}" class="rams-btn--primary">
                                         <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                         </svg>

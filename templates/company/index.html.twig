@@ -11,7 +11,7 @@
             <p class="rams-page-subtitle">{{ 'common.filter'|trans }} {{ 'company.title'|trans|lower }}</p>
         </div>
         <div class="rams-page-actions">
-            <a href="{{ path('app_company_new') }}" class="rams-btn rams-btn--primary">
+            <a href="{{ path('app_company_new') }}" class="rams-btn--primary">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -89,7 +89,7 @@
 
                 {# Filter Actions #}
                 <div class="rams-flex rams-gap-2">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn--primary">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                         </svg>
@@ -117,7 +117,7 @@
 
     {# Results Count #}
     <div class="rams-flex rams-justify-between rams-items-center">
-        <span class="rams-text-muted">
+        <span class="rams-rams-text--muted">
             {{ 'pagination.showing'|trans }} <span class="rams-badge">{{ companies|length }}</span> {{ 'company.title'|trans|lower }}
         </span>
     </div>
@@ -158,7 +158,7 @@
 
                     {# Region #}
                     {% if company.region %}
-                        <div class="rams-flex rams-items-center rams-gap-2 rams-text-muted rams-text-xs">
+                        <div class="rams-flex rams-items-center rams-gap-2 rams-rams-text--muted rams-rams-text--xs">
                             <svg class="rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -189,13 +189,13 @@
         {% else %}
             <div class="rams-module rams-grid-span-3">
                 <div class="rams-module__content rams-flex rams-flex-col rams-items-center rams-p-8">
-                    <svg class="rams-icon--2xl rams-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="rams-icon--2xl rams-rams-text--muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                     </svg>
                     <h3 class="rams-mt-4 rams-text-base rams-font-semibold">{{ 'company.no_companies'|trans }}</h3>
-                    <p class="rams-text-muted rams-mt-1 rams-text-sm">{{ 'company.create_first'|trans }}</p>
+                    <p class="rams-rams-text--muted rams-mt-1 rams-rams-text--sm">{{ 'company.create_first'|trans }}</p>
                     <div class="rams-mt-4">
-                        <a href="{{ path('app_company_new') }}" class="rams-btn rams-btn--primary">
+                        <a href="{{ path('app_company_new') }}" class="rams-btn--primary">
                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>

@@ -11,7 +11,7 @@
             <p class="rams-page-subtitle">{{ 'email_campaign.subtitle'|trans }}</p>
         </div>
         <div class="rams-page-actions">
-            <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary">
+            <a href="{{ path('app_email_campaign_new') }}" class="rams-btn--primary">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -62,7 +62,7 @@
                 </svg>
                 <h3 class="rams-empty-state__title">{{ 'email_campaign.no_campaigns'|trans }}</h3>
                 <p class="rams-empty-state__description">{{ 'email_campaign.create_first'|trans }}</p>
-                <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary rams-mt-4">
+                <a href="{{ path('app_email_campaign_new') }}" class="rams-btn--primary rams-mt-4">
                     {{ 'email_campaign.create_campaign'|trans }}
                 </a>
             </div>
@@ -85,19 +85,19 @@
                                     </span>
                                 </div>
                                 {% if campaign.description %}
-                                    <p class="rams-text-muted rams-text-sm">{{ campaign.description }}</p>
+                                    <p class="rams-rams-text--muted rams-rams-text--sm">{{ campaign.description }}</p>
                                 {% endif %}
                                 <span class="rams-dymo rams-mt-2">{{ campaign.touchCount }}-{{ 'email_campaign.touch_sequence'|trans }}</span>
                             </div>
                             
                             <div class="rams-btn-group" onclick="event.stopPropagation()">
-                                <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-btn--ghost rams-btn--sm">
                                     {{ 'email_campaign.send_emails'|trans }}
                                 </a>
-                                <a href="{{ path('app_email_campaign_analytics', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                <a href="{{ path('app_email_campaign_analytics', {id: campaign.id}) }}" class="rams-btn--ghost rams-btn--sm">
                                     {{ 'email_campaign.analytics.title'|trans }}
                                 </a>
-                                <a href="{{ path('app_email_campaign_edit', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                <a href="{{ path('app_email_campaign_edit', {id: campaign.id}) }}" class="rams-btn--ghost rams-btn--sm">
                                     {{ 'common.edit'|trans }}
                                 </a>
                             </div>
@@ -107,23 +107,23 @@
                         <div class="rams-grid rams-grid--5 rams-gap-4">
                             <div class="rams-metric">
                                 <span class="rams-metric__label">{{ 'email_campaign.total_sent'|trans }}</span>
-                                <span class="rams-metric__value rams-text-lg">{{ metrics.total_sent }}</span>
+                                <span class="rams-metric__value rams-rams-text--lg">{{ metrics.total_sent }}</span>
                             </div>
                             <div class="rams-metric">
                                 <span class="rams-metric__label">{{ 'email_campaign.open_rate'|trans }}</span>
-                                <span class="rams-metric__value rams-text-lg rams-text-success">{{ metrics.open_rate|number_format(1) }}%</span>
+                                <span class="rams-metric__value rams-rams-text--lg rams-rams-text--success">{{ metrics.open_rate|number_format(1) }}%</span>
                             </div>
                             <div class="rams-metric">
                                 <span class="rams-metric__label">{{ 'email_campaign.click_rate'|trans }}</span>
-                                <span class="rams-metric__value rams-text-lg rams-text-info">{{ metrics.click_rate|number_format(1) }}%</span>
+                                <span class="rams-metric__value rams-rams-text--lg rams-rams-text--info">{{ metrics.click_rate|number_format(1) }}%</span>
                             </div>
                             <div class="rams-metric">
                                 <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans }}</span>
-                                <span class="rams-metric__value rams-text-lg rams-text-primary">{{ metrics.reply_rate|number_format(1) }}%</span>
+                                <span class="rams-metric__value rams-rams-text--lg rams-text-primary">{{ metrics.reply_rate|number_format(1) }}%</span>
                             </div>
                             <div class="rams-metric">
                                 <span class="rams-metric__label">{{ 'email_campaign.bounce_rate'|trans }}</span>
-                                <span class="rams-metric__value rams-text-lg rams-text-danger">{{ metrics.bounce_rate|number_format(1) }}%</span>
+                                <span class="rams-metric__value rams-rams-text--lg rams-rams-text--danger">{{ metrics.bounce_rate|number_format(1) }}%</span>
                             </div>
                         </div>
                     </div>

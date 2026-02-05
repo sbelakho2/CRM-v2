@@ -6,23 +6,23 @@
 {{ parent() }}
 <style>
     /* Confidence Badge Variants - Sensei-Rams BEM Naming */
-    .rams-confidence--high { background-color: var(--rams-success-bg); border-color: var(--rams-green); }
-    .rams-confidence--medium { background-color: var(--rams-warning-bg); border-color: var(--rams-orange); }
-    .rams-confidence--low { background-color: var(--rams-warning-bg); border-color: var(--rams-orange); }
-    .rams-confidence--very-low { background-color: var(--rams-danger-bg); border-color: var(--rams-red); }
+    .rams-confidence--high { background-color: var(--rams-success-bg); rams-border-color: var(--rams-green); }
+    .rams-confidence--medium { background-color: var(--rams-warning-bg); rams-border-color: var(--rams-orange); }
+    .rams-confidence--low { background-color: var(--rams-warning-bg); rams-border-color: var(--rams-orange); }
+    .rams-confidence--very-low { background-color: var(--rams-danger-bg); rams-border-color: var(--rams-red); }
     
     /* Row State Modifiers */
     .rams-line--verified { opacity: 0.7; }
     .rams-line--needs-review { background-color: var(--rams-warning-bg); }
     
     /* Lifecycle Indicators */
-    .rams-lifecycle--critical { background-color: var(--rams-danger-bg); border-left: 4px solid var(--rams-red); }
-    .rams-lifecycle--warning { background-color: var(--rams-warning-bg); border-left: 4px solid var(--rams-orange); }
+    .rams-lifecycle--critical { background-color: var(--rams-danger-bg); rams-border-left: 4px solid var(--rams-red); }
+    .rams-lifecycle--warning { background-color: var(--rams-warning-bg); rams-border-left: 4px solid var(--rams-orange); }
     .rams-lifecycle-badge--critical {
         background-color: var(--rams-red);
         color: white;
         padding: 2px 6px;
-        border-radius: var(--radius-sm);
+        rams-border-radius: var(--radius-sm);
         font-size: 10px;
         font-weight: bold;
         animation: rams-pulse 2s infinite;
@@ -31,7 +31,7 @@
         background-color: var(--rams-orange);
         color: white;
         padding: 2px 6px;
-        border-radius: var(--radius-sm);
+        rams-border-radius: var(--radius-sm);
         font-size: 10px;
         font-weight: bold;
     }
@@ -46,23 +46,23 @@
         z-index: 100;
         min-width: 350px;
         background: var(--rams-panel);
-        border: 1px solid var(--rams-line);
-        border-radius: var(--radius-md);
+        rams-border: 1px solid var(--rams-line);
+        rams-border-radius: var(--radius-md);
         box-shadow: var(--shadow-inset);
         padding: 8px 0;
     }
     .rams-alternatives-dropdown:hover .rams-alternatives-menu { display: block; }
     .alt-item {
         padding: 8px 12px;
-        border-bottom: 1px solid var(--rams-border-light, #f3f4f6);
+        rams-border-bottom: 1px solid var(--rams-border-light, #f3f4f6);
         cursor: pointer;
         transition: background-color 0.15s;
     }
     .alt-item:hover { background-color: var(--rams-bg-secondary, #f9fafb); }
-    .alt-item:last-child { border-bottom: none; }
+    .alt-item:last-child { rams-border-bottom: none; }
     
     .diff-match { color: var(--rams-success); font-weight: 500; }
-    .diff-insert { color: var(--rams-danger); background-color: var(--rams-danger-bg); padding: 0 2px; border-radius: 2px; font-weight: 600; }
+    .diff-insert { color: var(--rams-danger); background-color: var(--rams-danger-bg); padding: 0 2px; rams-border-radius: 2px; font-weight: 600; }
     .diff-delete { color: var(--rams-danger); text-decoration: line-through; opacity: 0.7; }
     .diff-container { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.5px; }
 </style>
@@ -87,16 +87,16 @@
         </div>
         <div class="rams-page-actions">
             <div class="rams-btn-group">
-                <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn rams-btn--secondary">
+                <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn">
                     <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M8 12V2M4 6L8 2L12 6"/>
                     </svg>
                     {{ 'common.export_csv'|trans }}
                 </a>
-                <button id="verify-all-high-btn" class="rams-btn rams-btn--secondary">
+                <button id="verify-all-high-btn" class="rams-btn">
                     {{ 'quote.review.verify_all_high'|trans }}
                 </button>
-                <button id="approve-quote-btn" class="rams-btn rams-btn--primary"
+                <button id="approve-quote-btn" class="rams-btn--primary"
                     {% if not stats.ready_for_approval %}disabled{% endif %}>
                     <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 8L6 11L13 4"/>
@@ -321,12 +321,12 @@
                                 <td class="rams-table__cell rams-table__cell--actions">
                                     <div class="rams-btn-group">
                                         {% if not line.manuallyVerified %}
-                                            <button onclick="verifyLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-btn--sm rams-text--success" title="{{ 'quote.review.verify_match'|trans }}">✓</button>
+                                            <button onclick="verifyLine({{ line.id }})" class="rams-btn--ghost rams-btn--sm rams-text--success" title="{{ 'quote.review.verify_match'|trans }}">✓</button>
                                         {% endif %}
-                                        <button onclick="openOverrideModal({{ line.id }}, '{{ (line.mpn ?? '')|e('js') }}', {{ line.unitPrice ?? 0 }})" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'quote.review.enter_manual_price'|trans }}">{{ quote.currency ?? display_currency() }}</button>
-                                        <button onclick="repriceLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-btn--sm rams-text--warning" title="{{ 'quote.review.reprice'|trans }}">↻</button>
+                                        <button onclick="openOverrideModal({{ line.id }}, '{{ (line.mpn ?? '')|e('js') }}', {{ line.unitPrice ?? 0 }})" class="rams-btn--ghost rams-btn--sm" title="{{ 'quote.review.enter_manual_price'|trans }}">{{ quote.currency ?? display_currency() }}</button>
+                                        <button onclick="repriceLine({{ line.id }})" class="rams-btn--ghost rams-btn--sm rams-text--warning" title="{{ 'quote.review.reprice'|trans }}">↻</button>
                                         {% if line.unitPrice and not line.manuallyVerified %}
-                                            <button onclick="rejectLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-btn--sm rams-text--danger" title="{{ 'quote.review.reject_match'|trans }}">✗</button>
+                                            <button onclick="rejectLine({{ line.id }})" class="rams-btn--ghost rams-btn--sm rams-text--danger" title="{{ 'quote.review.reject_match'|trans }}">✗</button>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -372,8 +372,8 @@
             </form>
         </div>
         <div class="rams-modal__footer">
-            <button type="button" onclick="closeOverrideModal()" class="rams-btn rams-btn--secondary">{{ 'common.cancel'|trans }}</button>
-            <button type="submit" form="override-form" class="rams-btn rams-btn--primary">{{ 'quote.review.apply_override'|trans }}</button>
+            <button type="button" onclick="closeOverrideModal()" class="rams-btn">{{ 'common.cancel'|trans }}</button>
+            <button type="submit" form="override-form" class="rams-btn--primary">{{ 'quote.review.apply_override'|trans }}</button>
         </div>
     </div>
 </div>

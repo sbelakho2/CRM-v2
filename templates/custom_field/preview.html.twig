@@ -1,0 +1,95 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Preview: {{ entityType|title }}{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-page-header">
+        <div class="rams-page-header__content">
+            <h1 class="rams-page-header__title">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.75rem;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                 Form Preview: {{ entityType|title }}
+            </h1>
+            <nav class="rams-breadcrumb">
+                <a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__item">Dashboard</a>
+                <span class="rams-breadcrumb__separator">/</span>
+                <a href="{{ path('custom_field_index', {entity: entityType}) }}" class="rams-breadcrumb__item">Custom Fields</a>
+                <span class="rams-breadcrumb__separator">/</span>
+                <span class="rams-breadcrumb__item active">Preview</span>
+            </nav>
+        </div>
+        <div class="rams-page-header__actions">
+             <a href="{{ path('custom_field_index', {entity: entityType}) }}" class="rams-btn">Back to List</a>
+             <a href="{{ path('custom_field_new', {entity: entityType}) }}" class="rams-btn--primary">Add Field</a>
+        </div>
+    </div>
+
+    <div class="rams-page-content">
+        <div class="rams-alert rams-alert--info rams-mb-6">
+            This is a preview of how custom fields will render in the {{ entityType }} form.
+        </div>
+
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3>{{ entityType|title }} Information</h3>
+            </div>
+            <div class="rams-module__content">
+                {% if groupedFields|length > 0 %}
+                    {% for groupName, fields in groupedFields %}
+                         <div class="rams-mb-6 last:rams-mb-0">
+                            <h4 class="rams-text--sm rams-text--bold uppercase tracking-wide text-gray-500 rams-mb-4 rams-pb-2 rams-border-b rams-border-gray-200">
+                                {{ groupName }}
+                            </h4>
+                            <div class="rams-grid--2">
+                                {% for field in fields %}
+                                    <div class="rams-form__group">
+                                        <label class="rams-form__label">
+                                            {{ field.label }}
+                                            {% if field.required %}<span class="text-red-500">*</span>{% endif %}
+                                        </label>
+
+                                        {% if field.fieldType == 'textarea' %}
+                                            <textarea class="rams-form__textarea" rows="3" placeholder="{{ field.placeholder }}" disabled>{{ field.defaultValue }}</textarea>
+                                        {% elseif field.fieldType == 'select' %}
+                                            <select class="rams-form__select" disabled>
+                                                <option selected>{{ field.placeholder ?: 'Select...' }}</option>
+                                                {% for option in field.options %}
+                                                    <option>{{ option.label|default(option) }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        {% elseif field.fieldType == 'multiselect' %}
+                                            <select class="rams-form__select" multiple disabled>
+                                                {% for option in field.options %}
+                                                    <option>{{ option.label|default(option) }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        {% elseif field.fieldType == 'boolean' %}
+                                            <label class="rams-checkbox-label">
+                                                <input type="checkbox" class="rams-checkbox" disabled {{ field.defaultValue ? 'checked' : '' }}>
+                                                <span class="rams-checkbox-text">{{ field.description ?: 'Yes' }}</span>
+                                            </label>
+                                        {% elseif field.fieldType == 'date' %}
+                                            <input type="date" class="rams-form__input" disabled value="{{ field.defaultValue }}">
+                                        {% else %}
+                                            <input type="text" class="rams-form__input" placeholder="{{ field.placeholder }}" disabled value="{{ field.defaultValue }}">
+                                        {% endif %}
+
+                                        {% if field.description and field.fieldType != 'boolean' %}
+                                            <div class="rams-form-help">{{ field.description }}</div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="rams-text--center rams-py-12 rams-text--muted">
+                        <p class="rams-mb-4">No custom fields defined for this entity.</p>
+                        <a href="{{ path('custom_field_new', {entity: entityType}) }}" class="rams-btn--primary">Create Field</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

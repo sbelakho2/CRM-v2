@@ -29,23 +29,149 @@ yarn-error.log
 /public/uploads/
 ###< vich/uploader-bundle ###
 
-# IDE
+# ========================================
+# Environment & Secrets
+# ========================================
+.env
+.env.*
+!.env.example
+
+# ========================================
+# IDE & Editors
+# ========================================
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+.classpath
+nbproject/
 
-# OS
+# ========================================
+# OS Generated Files
+# ========================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Composer
+# ========================================
+# Composer & PHP
+# ========================================
 /composer.phar
+composer.lock
 
-# Logs
+# ========================================
+# Node.js / npm / pnpm / yarn
+# ========================================
+pnpm-debug.log*
+.pnpm-debug.log
+yarn-error.log
+.yarn/
+.pnp.*
+
+# ========================================
+# Python Virtual Environments & Cache
+# ========================================
+.venv/
+venv/
+ENV/
+.Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.eggs/
+*.egg-info/
+*.egg
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ML-specific ignores
+/ml/venv/
+/ml/__pycache__/
+/ml/models/
+/ml/*.pt
+/ml/*.onnx
+/ml/*.onnx.data
+
+# ========================================
+# Testing & Coverage
+# ========================================
+/coverage/
+/test-results/
+/playwright-report/
+/blob-report/
+.nyc_output/
+junit.xml
+*.lcov
+
+# ========================================
+# QA & Tooling Caches
+# ========================================
+.php-cs-fixer.cache
+.phpstan.cache
+.psalm/
+.psalm-cache/
+.rector-cache/
+.cache/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+
+# ========================================
+# Logs & Debug
+# ========================================
 *.log
+logs/
+*.pid
+*.seed
+*.pid.lock
 
-# Backup files
+# ========================================
+# Database Files
+# ========================================
+*.db
+*.sqlite
+*.sqlite3
+/var/*.db
+
+# ========================================
+# Build Artifacts & Distribution
+# ========================================
+*.zip
+*.tar.gz
+*.tgz
+/dist/
+/build/
+
+# ========================================
+# Backups & Temporary Files
+# ========================================
 *.bak
 *.backup
+*.tmp
+*.temp
+*~
+\#*\#
+
+# ========================================
+# Secrets & Credentials (safety net)
+# ========================================
+*.pem
+*.key
+*.p12
+*.pfx
+!config/jwt/*.pem
+secrets.json
+credentials.json

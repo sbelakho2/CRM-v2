@@ -1,0 +1,77 @@
+{{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
+    <div class="rams-grid">
+        <div class="rams-grid-col-2">
+            <!-- Basic Settings -->
+            <div class="rams-module">
+                <div class="rams-module__header">
+                     <h3>Report Details</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-form__group">
+                        {{ form_label(form.name, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                        {{ form_widget(form.name, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.name) }}
+                    </div>
+                    
+                    <div class="rams-form__group">
+                        {{ form_label(form.description, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                        {{ form_widget(form.description, {'attr': {'class': 'rams-form__textarea', 'rows': '3'}}) }}
+                        {{ form_errors(form.description) }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Configuration</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-grid--2">
+                        <div class="rams-form__group">
+                             {{ form_label(form.entityClass, 'Data Source', {'label_attr': {'class': 'rams-form__label'}}) }}
+                             {{ form_widget(form.entityClass, {'attr': {'class': 'rams-form__select'}}) }}
+                             <div class="rams-form-help">Select the primary data source for this report.</div>
+                             {{ form_errors(form.entityClass) }}
+                        </div>
+
+                         <div class="rams-form__group">
+                             {{ form_label(form.reportType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                             {{ form_widget(form.reportType, {'attr': {'class': 'rams-form__select'}}) }}
+                             <div class="rams-form-help">Choose how to visualize the data.</div>
+                             {{ form_errors(form.reportType) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rams-grid-col-1">
+             <!-- Options -->
+             <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Options</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-form__group">
+                        <label class="rams-checkbox-label">
+                            {{ form_widget(form.isPublic) }}
+                            <span class="rams-checkbox-text">Public Report</span>
+                        </label>
+                        <div class="rams-form-help rams-text--xs rams-mt-1">Visible to all users</div>
+                    </div>
+                    
+                     <div class="rams-form__group">
+                        <label class="rams-checkbox-label">
+                            {{ form_widget(form.isFavorite) }}
+                            <span class="rams-checkbox-text">Add to Favorites</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="rams-module__footer">
+                     <button class="rams-btn--primary rams-w-full">{{ button_label|default('Save Report') }}</button>
+                </div>
+             </div>
+        </div>
+    </div>
+{{ form_end(form) }}

@@ -3,7 +3,7 @@
 {% block title %}{{ 'rfq.index.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-container">
+<div class="rams-page">
     {# Header #}
     <div class="rams-page-header">
         <div>
@@ -11,13 +11,13 @@
             <p class="rams-page-subtitle">{{ 'rfq.index.subtitle'|trans }}</p>
         </div>
         <div class="rams-btn-group">
-            <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-btn--secondary">
+            <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
                 </svg>
                 {{ 'rfq.actions.pipeline_view'|trans }}
             </a>
-            <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
+            <a href="{{ path('app_rfq_new') }}" class="rams-btn--primary">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -73,8 +73,8 @@
                 <div class="rams-form__group rams-form__group--actions">
                     <label class="rams-dymo">&nbsp;</label>
                     <div class="rams-btn-group">
-                        <button type="submit" class="rams-btn rams-btn--primary">{{ 'common.apply'|trans }}</button>
-                        <a href="{{ path('app_rfq_index') }}" class="rams-btn rams-btn--secondary">{{ 'common.clear'|trans }}</a>
+                        <button type="submit" class="rams-btn--primary">{{ 'common.apply'|trans }}</button>
+                        <a href="{{ path('app_rfq_index') }}" class="rams-btn">{{ 'common.clear'|trans }}</a>
                     </div>
                 </div>
             </form>
@@ -83,14 +83,14 @@
 
     {# RFQ List #}
     {% if rfqs|length > 0 %}
-        <div class="rams-card-list">
+        <div class="rams-stack rams-gap-4">
             {% for rfq in rfqs %}
                 <div class="rams-module rams-module--hoverable">
                     <div class="rams-module__content">
-                        <div class="rams-rfq-card">
-                            <div class="rams-rfq-card__main">
-                                <div class="rams-rfq-card__header">
-                                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-rfq-card__title">
+                        <div class="rams-flex rams-justify-between rams-items-start">
+                            <div class="rams-flex-1">
+                                <div class="rams-flex rams-items-center rams-gap-2 rams-mb-2">
+                                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-text--lg rams-text--bold">
                                         {{ rfq.company.name }}
                                     </a>
                                     
@@ -127,30 +127,30 @@
                                     {% endif %}
                                 </div>
 
-                                <div class="rams-rfq-card__details">
+                                <div class="rams-flex rams-gap-4 rams-text--sm">
                                     {% if rfq.rfqNumber %}
-                                        <div class="rams-rfq-card__detail">
+                                        <div class="rams-flex rams-gap-1">
                                             <span class="rams-text--muted">{{ 'rfq.fields.rfq_number'|trans }}:</span>
                                             <span class="rams-text--strong">{{ rfq.rfqNumber }}</span>
                                         </div>
                                     {% endif %}
 
                                     {% if rfq.estimatedValue %}
-                                        <div class="rams-rfq-card__detail">
+                                        <div class="rams-flex rams-gap-1">
                                             <span class="rams-text--muted">{{ 'rfq.fields.value'|trans }}:</span>
                                             <span class="rams-metric rams-metric--currency">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</span>
                                         </div>
                                     {% endif %}
 
                                     {% if rfq.volumeAnnual %}
-                                        <div class="rams-rfq-card__detail">
+                                        <div class="rams-flex rams-gap-1">
                                             <span class="rams-text--muted">{{ 'rfq.fields.volume'|trans }}:</span>
                                             <span class="rams-text--strong">{{ rfq.volumeAnnual|number_format(0, '.', ',') }}/{{ 'common.year'|trans }}</span>
                                         </div>
                                     {% endif %}
 
                                     {% if rfq.sopDate %}
-                                        <div class="rams-rfq-card__detail">
+                                        <div class="rams-flex rams-gap-1">
                                             <span class="rams-text--muted">{{ 'rfq.fields.sop'|trans }}:</span>
                                             <span class="rams-text--strong">{{ rfq.sopDate|date('M Y') }}</span>
                                         </div>
@@ -158,7 +158,7 @@
                                 </div>
 
                                 {# NDA Status #}
-                                <div class="rams-rfq-card__nda">
+                                <div class="rams-mt-2">
                                     {% if rfq.ndaExecuted %}
                                         <span class="rams-badge rams-badge--success rams-badge--small">
                                             <svg class="rams-mr-1" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
@@ -186,14 +186,14 @@
                                 </div>
                             </div>
 
-                            <div class="rams-rfq-card__actions">
-                                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}">
+                            <div class="rams-flex rams-gap-2">
+                                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}">
                                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M2 8C2 8 4 4 8 4C12 4 14 8 14 8C14 8 12 12 8 12C4 12 2 8 2 8Z"/>
                                         <circle cx="8" cy="8" r="2"/>
                                     </svg>
                                 </a>
-                                <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
+                                <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
                                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                                     </svg>
@@ -216,7 +216,7 @@
                     </div>
                     <h3 class="rams-empty-state__title">{{ 'rfq.empty.title'|trans }}</h3>
                     <p class="rams-empty-state__description">{{ 'rfq.empty.description'|trans }}</p>
-                    <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
+                    <a href="{{ path('app_rfq_new') }}" class="rams-btn--primary">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3V13M3 8H13"/>
                         </svg>

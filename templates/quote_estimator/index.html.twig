@@ -5,16 +5,16 @@
 {% block body %}
 <div class="rams-stack rams-stack--lg">
     {# Page Header #}
-    <header class="rams-module__header rams-module__header--border-bottom">
+    <header class="rams-module__header rams-module__header--rams-border-bottom">
         <h1 class="rams-heading rams-heading--1">{{ 'quote.estimator.title'|trans }}</h1>
         <p class="rams-text rams-text--muted">{{ 'quote.estimator.subtitle'|trans }}</p>
     </header>
 
-    <div class="rams-container rams-container--md">
+    <div class="rams-page">
         <div class="rams-module">
             <div class="rams-module__content">
                 {% if errors is defined and errors %}
-                    <div class="rams-andon rams-andon--red">
+                    <div class="rams-module rams-module--alert">
                         <h3 class="rams-heading rams-heading--4">{{ 'common.error'|trans }}:</h3>
                         {% for error in errors %}
                             <p class="rams-text rams-text--sm">{{ error }}</p>
@@ -23,7 +23,7 @@
                 {% endif %}
 
                 <form method="POST" action="{{ path('quote_estimator_calculate') }}">
-                    <div class="rams-grid rams-grid--cols-2 rams-grid--gap-md">
+                    <div class="rams-grid rams-grid--2 rams-gap-4">
                         <div class="rams-form__group">
                             <label class="rams-form__label rams-dymo">{{ 'quote.estimator.customer_name'|trans }}</label>
                             <input type="text" name="customer_name" class="rams-form__input" placeholder="{{ 'quote.estimator.customer_name_placeholder'|trans }}">
@@ -51,21 +51,21 @@
                     </div>
 
                     <div class="rams-form__actions">
-                        <button type="submit" name="action" value="estimate" class="rams-btn rams-btn--primary">
+                        <button type="submit" name="action" value="estimate" class="rams-btn--primary">
                             {{ 'quote.estimator.generate_quote'|trans }}
                         </button>
-                        <button type="submit" name="action" value="save" class="rams-btn rams-btn--secondary">
+                        <button type="submit" name="action" value="save" class="rams-btn">
                             {{ 'quote.estimator.save_for_later'|trans }}
                         </button>
                     </div>
                 </form>
 
-                <div class="rams-module rams-module--nested rams-module--muted">
+                <div class="rams-module rams-bg-soft">
                     <div class="rams-module__header">
                         <h3 class="rams-heading rams-heading--4">{{ 'quote.estimator.how_to_use'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
-                        <ul class="rams-list rams-list--disc">
+                        <ul class="rams-list rams-list--bullet">
                             <li class="rams-list__item">{{ 'quote.estimator.instruction_1'|trans }}</li>
                             <li class="rams-list__item">{{ 'quote.estimator.instruction_2'|trans }}</li>
                             <li class="rams-list__item">{{ 'quote.estimator.instruction_3'|trans }}</li>

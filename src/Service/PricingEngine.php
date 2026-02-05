@@ -9,7 +9,7 @@ use App\Service\Integration\MultiDistributorSourcingService;
 use Psr\Log\LoggerInterface;
 
 /**
- * Pricing Engine - Enhanced with Multi-Distributor Waterfall
+ * Pricing Engine - Enhanced with Multi-Distributor Waterfall + AI Imputation
  * 
  * Implements intelligent API waterfall for part pricing with:
  * - Confidence scoring for part matches
@@ -18,13 +18,16 @@ use Psr\Log\LoggerInterface;
  * - Alternative parts visibility (top 3 alternatives)
  * - Lifecycle status tracking (NRND, Obsolete warnings)
  * - Direct search URL generation for transparency
+ * - AI-powered price imputation when APIs fail
+ * - Quote win probability prediction
  * 
  * Waterfall Strategy:
  * 1. Mouser API (preferred - official distributor)
  * 2. DigiKey API (fallback or if Mouser confidence < 80%)
  * 3. Nexar API (aggregator - multiple distributors)
  * 4. Internal pricebook (historical data)
- * 5. Manual override required for unmatched parts
+ * 5. AI Price Imputation (ML-based estimation)
+ * 6. Manual override required for unmatched parts
  * 
  * The engine now tracks WHY a distributor was chosen and provides
  * alternatives so users can make informed decisions.
@@ -37,6 +40,7 @@ class PricingEngine
         private NexarApiClient $nexarClient,
         private MultiDistributorSourcingService $multiDistributor,
         private CurrencyConverter $currencyConverter,
+        private PriceImputationService $priceImputation,
         private LoggerInterface $logger
     ) {}
 
@@ -98,6 +102,50 @@ class PricingEngine
                 'confidence' => $result['confidence']['level'] ?? 'N/A'
             ]);
             return $result;
+        }
+        
+        // Last resort: AI-powered price imputation
+        $imputation = $this->priceImputation->imputePrice([
+            'mpn' => $mpn,
+            'manufacturer' => $manufacturer ?? '',
+            'description' => $description ?? '',
+            'quantity' => 1,
+        ]);
+        
+        if ($imputation['confidence'] >= 0.5) {
+            $this->logger->info('AI price imputation used', [
+                'mpn' => $mpn,
+                'imputed_price' => $imputation['price'],
+                'confidence' => $imputation['confidence'],
+                'method' => $imputation['method'],
+            ]);
+            
+            return [
+                'mpn' => $mpn,
+                'manufacturer' => $manufacturer,
+                'description' => $description,
+                'pricing' => [
+                    ['quantity' => 1, 'unit_price' => $imputation['price']],
+                ],
+                'stock' => 0,
+                'source' => 'ai_imputation',
+                'confidence' => [
+                    'score' => (int) ($imputation['confidence'] * 100),
+                    'level' => $imputation['confidence'] >= 0.7 ? 'MEDIUM' : 'LOW',
+                    'requiresReview' => true,
+                    'reasons' => ['AI-estimated price based on component category and package'],
+                    'warnings' => ['Price is ML-estimated, not from distributor API'],
+                ],
+                'alternatives' => [],
+                'lifecycle_warning' => null,
+                'search_url' => null,
+                'waterfall_info' => [
+                    'triggered' => true,
+                    'reason' => 'All API sources failed - using ML-based price estimation',
+                    'sources_checked' => ['mouser', 'digikey', 'nexar', 'ai_imputation'],
+                ],
+                'imputation_factors' => $imputation['factors'],
+            ];
         }
         
         $this->logger->warning('No pricing found in any API', ['mpn' => $mpn]);

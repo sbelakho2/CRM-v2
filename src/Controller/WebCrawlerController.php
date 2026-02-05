@@ -11,8 +11,10 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/webcrawler')]
+#[IsGranted('ROLE_USER')]
 class WebCrawlerController extends AbstractController
 {
     private const TARGET_SECTORS = [

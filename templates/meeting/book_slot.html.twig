@@ -1,0 +1,82 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Book: {{ slot.title }} - CRM{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-page__header">
+        <h1 class="rams-page__title">Confirm Booking</h1>
+    </div>
+    
+    <div class="rams-grid rams-grid--2 rams-gap-6">
+        <!-- Summary Column -->
+        <div>
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Meeting Summary</h3>
+                </div>
+                <div class="rams-module__content">
+                    <h2 class="rams-rams-text--xl rams-rams-text--bold rams-mb-4">{{ slot.title }}</h2>
+                    
+                    <dl class="rams-dl">
+                        <dt>Date</dt>
+                        <dd>{{ slot.startTime|date('l, F j, Y') }}</dd>
+                        
+                        <dt>Time</dt>
+                        <dd>{{ slot.startTime|date('H:i') }} - {{ slot.endTime|date('H:i') }} ({{ slot.formattedDuration }})</dd>
+                        
+                        <dt>Timezone</dt>
+                        <dd>{{ slot.timezone }}</dd>
+                        
+                        {% if slot.location %}
+                        <dt>Location</dt>
+                        <dd>{{ slot.location }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Form Column -->
+        <div>
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Your Details</h3>
+                </div>
+                <div class="rams-module__content">
+                    <form method="post" class="rams-form">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">Full Name</label>
+                            <input type="text" name="name" class="rams-form__input" required placeholder="John Doe">
+                        </div>
+                        
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">Email Address</label>
+                            <input type="email" name="email" class="rams-form__input" required placeholder="john@company.com">
+                        </div>
+                        
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">Phone Number (Optional)</label>
+                            <input type="tel" name="phone" class="rams-form__input" placeholder="+1 (555) 000-0000">
+                        </div>
+                        
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">Company (Optional)</label>
+                            <input type="text" name="company" class="rams-form__input" placeholder="Company Inc.">
+                        </div>
+                        
+                        <div class="rams-form__group">
+                            <label class="rams-form__label">Notes (Optional)</label>
+                            <textarea name="notes" class="rams-form__input" rows="3" placeholder="Anything we should know?"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="rams-btn--primary rams-w-full">
+                            Confirm Booking
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

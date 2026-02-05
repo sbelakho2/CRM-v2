@@ -22,7 +22,7 @@
 
         <form method="post" action="{{ path('app_compliance_generate_pack', {id: company.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'compliance.regenerate_confirm'|trans }}', {variant: 'warning'})">
             <input type="hidden" name="_token" value="{{ csrf_token('generate' ~ company.id) }}">
-            <button type="submit" class="rams-btn rams-btn--secondary">
+            <button type="submit" class="rams-btn">
                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C10.7614 2 13 4.23858 13 7"/>
                     <path d="M10 7L13 7L13 4"/>
@@ -46,7 +46,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'common.upload'|trans }}</span>
-                    <span class="rams-metric__value rams-text-info">{{ stats.uploaded }}</span>
+                    <span class="rams-metric__value rams-rams-text--info">{{ stats.uploaded }}</span>
                 </div>
             </div>
         </div>
@@ -54,7 +54,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'compliance.passed'|trans }}</span>
-                    <span class="rams-metric__value rams-text-success">{{ stats.approved }}</span>
+                    <span class="rams-metric__value rams-rams-text--success">{{ stats.approved }}</span>
                 </div>
             </div>
         </div>
@@ -62,7 +62,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'common.pending'|trans }}</span>
-                    <span class="rams-metric__value rams-text-warning">{{ stats.pending }}</span>
+                    <span class="rams-metric__value rams-rams-text--warning">{{ stats.pending }}</span>
                 </div>
             </div>
         </div>
@@ -120,7 +120,7 @@
                             </div>
 
                             {% if document.fileName %}
-                                <div class="rams-flex rams-flex-wrap rams-gap-4 rams-text-xs rams-text-muted">
+                                <div class="rams-flex rams-flex-wrap rams-gap-4 rams-rams-text--xs rams-rams-text--muted">
                                     <div class="rams-flex rams-items-center rams-gap-1">
                                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor">
                                             <path d="M3 3H13V13H3V3Z" stroke-width="1.5"/>
@@ -137,7 +137,7 @@
                                         </div>
                                     {% endif %}
                                     {% if document.expiryDate %}
-                                        <div class="rams-flex rams-items-center rams-gap-1 {{ document.expiryDate < date() ? 'rams-text-danger' : '' }}">
+                                        <div class="rams-flex rams-items-center rams-gap-1 {{ document.expiryDate < date() ? 'rams-rams-text--danger' : '' }}">
                                             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor">
                                                 <path d="M3 5H13M3 11H13" stroke-width="1.5"/>
                                             </svg>
@@ -151,7 +151,7 @@
                         <div class="rams-list-item__actions">
                             {% if document.fileName %}
                                 <a href="{{ path('app_compliance_download', {id: document.id}) }}" 
-                                   class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.download'|trans }}">
+                                   class="rams-btn--ghost rams-btn--sm" title="{{ 'common.download'|trans }}">
                                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
@@ -160,7 +160,7 @@
                                 <form method="post" action="{{ path('app_compliance_delete', {id: document.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'compliance.remove_confirm'|trans }}', {variant: 'danger'})">
                                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ document.id) }}">
                                     <button type="submit"
-                                            class="rams-btn rams-btn--ghost rams-btn--sm rams-text-danger" title="{{ 'common.remove'|trans }}">
+                                            class="rams-btn--ghost rams-btn--sm rams-rams-text--danger" title="{{ 'common.remove'|trans }}">
                                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                         </svg>
@@ -169,7 +169,7 @@
                             {% else %}
                                 <form method="post" action="{{ path('app_compliance_upload', {id: document.id}) }}" enctype="multipart/form-data" class="rams-inline-block">
                                     <input type="file" name="file" class="rams-sr-only" id="file-{{ document.id }}" onchange="this.form.submit()">
-                                    <label for="file-{{ document.id }}" class="rams-btn rams-btn--primary rams-btn--sm" style="cursor:pointer">
+                                    <label for="file-{{ document.id }}" class="rams-btn--primary rams-btn--sm" style="cursor:pointer">
                                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4m0 0L8 8m4-4v12"/>
                                         </svg>
@@ -180,10 +180,10 @@
 
                             <form method="post" action="{{ path('app_compliance_toggle_required', {id: document.id}) }}" class="rams-inline-block">
                                 <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ document.id) }}">
-                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm" 
+                                <button type="submit" class="rams-btn--ghost rams-btn--sm" 
                                         title="{{ document.required ? 'compliance.mark_optional'|trans : 'compliance.mark_required'|trans }}">
                                     {% if document.required %}
-                                        <svg class="rams-btn__icon rams-text-success" fill="currentColor" viewBox="0 0 24 24">
+                                        <svg class="rams-btn__icon rams-rams-text--success" fill="currentColor" viewBox="0 0 24 24">
                                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                                         </svg>
                                     {% else %}

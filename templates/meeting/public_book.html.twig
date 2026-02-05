@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Book a Meeting with {{ owner.firstName|default(owner.email) }} - CRM{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-page__header rams-rams-text--center">
+        <h1 class="rams-page__title">Book a Meeting</h1>
+        <p class="rams-page__subtitle">Schedule a meeting with {{ owner.firstName|default(owner.email) }}</p>
+    </div>
+    
+    <div class="rams-grid rams-grid--1" style="max-width: 800px; margin: 0 auto;">
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3>Available Times</h3>
+            </div>
+            <div class="rams-module__content">
+                {% if slotsByDate|length > 0 %}
+                    {% for dateKey, slots in slotsByDate %}
+                    <div class="rams-mb-6">
+                        <div class="rams-border-b rams-border-rams-border rams-rams-text--bold rams-pb-2 rams-mb-3">
+                            {{ dateKey|date('l, F j, Y') }}
+                        </div>
+                        <div class="rams-grid rams-grid--auto-fill-120 rams-gap-3">
+                            {% for slot in slots %}
+                            <a href="{{ path('meeting_book_slot', {token: slot.bookingToken}) }}" class="rams-btn--outline rams-btn--sm rams-flex-col rams-h-auto rams-py-3">
+                                <span class="rams-rams-text--lg rams-rams-text--bold">{{ slot.startTime|date('H:i') }}</span>
+                                <span class="rams-rams-text--xs rams-rams-text--muted">{{ slot.formattedDuration }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="rams-empty-state">
+                        <svg class="rams-icon rams-icon--2xl rams-rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="8" cy="8" r="6"/><path d="M8 4V8L6 10"/>
+                        </svg>
+                        <h3>No slots available</h3>
+                        <p>There are no meeting slots available at this time. Please check back later.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

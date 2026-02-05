@@ -20,7 +20,7 @@
             <p class="rams-page-subtitle">{{ 'quote.estimator.estimate_number'|trans }} #{{ estimate.estimateNumber }}</p>
         </div>
         <div class="rams-page-actions">
-            <button onclick="window.print()" class="rams-btn rams-btn--secondary">
+            <button onclick="window.print()" class="rams-btn">
                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M4 6V2H12V6M4 11H12M3 6H13V12H3V6Z"/>
                 </svg>
@@ -29,7 +29,7 @@
         </div>
     </div>
     
-    <div class="rams-metrics-grid rams-metrics-grid--3col">
+    <div class="rams-grid rams-grid--3col">
         {# Customer Info #}
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content">
@@ -83,7 +83,7 @@
                     {% endif %}
                     <div class="rams-definition-list__item">
                         <dt class="rams-definition-list__term">{{ 'quote.created_at'|trans }}</dt>
-                        <dd class="rams-definition-list__desc font-mono rams-text-xs">{{ estimate.createdAt|date('M d, Y H:i') }}</dd>
+                        <dd class="rams-definition-list__desc font-mono rams-rams-text--xs">{{ estimate.createdAt|date('M d, Y H:i') }}</dd>
                     </div>
                 </dl>
             </div>
@@ -98,14 +98,14 @@
             <div class="rams-alert rams-alert--warning rams-mb-6">
                 <div class="rams-alert__content">
                     <h3 class="rams-alert__title">{{ 'quote.estimator.pricing_in_progress'|trans }}</h3>
-                    <p class="rams-text-sm">{{ 'quote.estimator.pricing_message'|trans }}</p>
+                    <p class="rams-rams-text--sm">{{ 'quote.estimator.pricing_message'|trans }}</p>
                 </div>
             </div>
 
             {% if quoteData.special_requirements %}
                 <div class="rams-stack rams-gap-2">
-                    <span class="rams-definition-list__term uppercase rams-text-xs font-mono">{{ 'quote.estimator.special_requirements'|trans }}</span>
-                    <div class="rams-text-sm rams-text-muted rams-bg-panel rams-p-4 rams-border rams-rounded">
+                    <span class="rams-definition-list__term uppercase rams-rams-text--xs font-mono">{{ 'quote.estimator.special_requirements'|trans }}</span>
+                    <div class="rams-rams-text--sm rams-rams-text--muted rams-bg-panel rams-p-4 rams-border rams-rounded">
                         {{ quoteData.special_requirements|nl2br }}
                     </div>
                 </div>
@@ -115,7 +115,7 @@
 
     {# Actions #}
     <div class="rams-flex rams-justify-center rams-gap-4 rams-mt-4">
-        <a href="{{ path('quote_estimator_index') }}" class="rams-btn rams-btn--secondary">
+        <a href="{{ path('quote_estimator_index') }}" class="rams-btn">
             <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 8H4M8 4L4 8L8 12"/>
             </svg>

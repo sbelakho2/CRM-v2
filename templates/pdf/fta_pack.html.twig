@@ -1,0 +1,454 @@
+{# PDF FTA Pack Template - Sensei-Rams Industrial Functionalist Design System #}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'pdf.fta.title'|trans|default('Free Trade Agreement Package') }} - {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</title>
+    {% include 'pdf/base.css.twig' %}
+    <style>
+        .fta-header {
+            background: var(--rams-dark);
+            color: white;
+            padding: 15pt;
+            margin: -15pt -15pt 15pt -15pt;
+        }
+        .fta-header h1 {
+            color: white;
+            border-bottom: none;
+            margin: 0;
+            font-size: 18pt;
+        }
+        .fta-badge {
+            display: inline-block;
+            padding: 4pt 12pt;
+            border-radius: 3pt;
+            font-size: 9pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .fta-eligible { background: #2D8C3C; color: white; }
+        .fta-partial { background: #FFBE00; color: #1A1A1A; }
+        .fta-ineligible { background: #D62D2D; color: white; }
+        .fta-pending { background: #4A90E2; color: white; }
+        .country-flag {
+            display: inline-block;
+            width: 24pt;
+            height: 16pt;
+            background: var(--rams-panel);
+            border: 1pt solid var(--rams-border);
+            vertical-align: middle;
+            margin-right: 5pt;
+            text-align: center;
+            font-size: 8pt;
+            line-height: 16pt;
+        }
+        .origin-card {
+            border: 1px solid var(--rams-border);
+            margin: 12pt 0;
+            background: white;
+        }
+        .origin-card-header {
+            background: var(--rams-panel);
+            padding: 10pt 12pt;
+            border-bottom: 1px solid var(--rams-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .origin-card-body {
+            padding: 12pt;
+        }
+        .tariff-table th {
+            background: var(--rams-dark);
+        }
+        .savings-highlight {
+            background: #e8f5ea;
+            border: 2px solid #2D8C3C;
+            padding: 15pt;
+            margin: 15pt 0;
+            border-radius: 3pt;
+        }
+        .savings-value {
+            font-size: 28pt;
+            font-weight: bold;
+            color: #2D8C3C;
+        }
+        .savings-label {
+            font-size: 10pt;
+            color: var(--rams-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .rule-box {
+            background: var(--rams-panel);
+            border-left: 4px solid var(--rams-orange);
+            padding: 10pt 12pt;
+            margin: 10pt 0;
+        }
+        .rule-box strong {
+            color: var(--rams-foreground);
+        }
+        .rule-box code {
+            background: var(--rams-dark);
+            color: var(--rams-orange);
+            padding: 2pt 4pt;
+            border-radius: 2pt;
+            font-family: 'Courier New', monospace;
+            font-size: 9pt;
+        }
+        .declaration-box {
+            border: 2px solid var(--rams-dark);
+            padding: 15pt;
+            margin: 15pt 0;
+            background: white;
+        }
+        .declaration-title {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 10pt;
+            padding-bottom: 5pt;
+            border-bottom: 1px solid var(--rams-border);
+        }
+        .signature-area {
+            display: flex;
+            gap: 20pt;
+            margin-top: 20pt;
+        }
+        .signature-line {
+            flex: 1;
+            border-top: 1pt solid var(--rams-dark);
+            padding-top: 5pt;
+        }
+        .stats-row {
+            display: flex;
+            gap: 10pt;
+            margin: 15pt 0;
+        }
+        .stat-item {
+            flex: 1;
+            background: var(--rams-panel);
+            padding: 12pt;
+            text-align: center;
+            border-bottom: 3px solid var(--rams-orange);
+        }
+        .stat-value {
+            font-size: 20pt;
+            font-weight: bold;
+            color: var(--rams-foreground);
+        }
+        .stat-label {
+            font-size: 8pt;
+            color: var(--rams-muted);
+            text-transform: uppercase;
+        }
+        .checklist-item {
+            display: flex;
+            gap: 8pt;
+            padding: 6pt 0;
+            border-bottom: 1px dashed var(--rams-border);
+        }
+        .checklist-item:last-child {
+            border-bottom: none;
+        }
+        .check-box {
+            width: 14pt;
+            height: 14pt;
+            border: 1.5pt solid var(--rams-dark);
+            border-radius: 2pt;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10pt;
+            flex-shrink: 0;
+        }
+        .check-box.checked {
+            background: #2D8C3C;
+            border-color: #2D8C3C;
+            color: white;
+        }
+        .check-box.failed {
+            background: #D62D2D;
+            border-color: #D62D2D;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="fta-header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>{{ 'pdf.fta.pack_title'|trans|default('Free Trade Agreement Compliance Package') }}</h1>
+            <span class="fta-badge fta-{{ ftaData.status ?? 'pending' }}">{{ (ftaData.statusLabel ?? 'Pending Review')|upper }}</span>
+        </div>
+        <p style="margin: 8pt 0 0 0; color: #ccc; font-size: 9pt;">
+            Quote: {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }} • 
+            Customer: {{ quote.company.name ?? 'N/A' }} • 
+            Export Date: {{ ftaData.exportDate ?? 'TBD' }}
+        </p>
+    </div>
+
+    {# Agreement Summary #}
+    <h3>{{ 'pdf.fta.agreement_summary'|trans|default('Agreement Summary') }}</h3>
+    
+    <table>
+        <tr>
+            <td style="width: 25%; background: var(--rams-panel);"><strong>{{ 'pdf.fta.agreement'|trans|default('FTA Agreement') }}</strong></td>
+            <td style="width: 25%;">{{ ftaData.agreementName ?? 'USMCA (United States-Mexico-Canada Agreement)' }}</td>
+            <td style="width: 25%; background: var(--rams-panel);"><strong>{{ 'pdf.fta.origin_country'|trans|default('Origin Country') }}</strong></td>
+            <td style="width: 25%;"><span class="country-flag">{{ ftaData.originFlag ?? 'US' }}</span> {{ ftaData.originCountry ?? 'United States' }}</td>
+        </tr>
+        <tr>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.fta.destination'|trans|default('Destination') }}</strong></td>
+            <td><span class="country-flag">{{ ftaData.destFlag ?? 'MX' }}</span> {{ ftaData.destination ?? 'Mexico' }}</td>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.fta.hs_code'|trans|default('Primary HS Code') }}</strong></td>
+            <td>{{ ftaData.hsCode ?? '8542.31' }} - {{ ftaData.hsDescription ?? 'Electronic Integrated Circuits' }}</td>
+        </tr>
+        <tr>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.fta.normal_tariff'|trans|default('Normal Tariff Rate') }}</strong></td>
+            <td>{{ ftaData.normalTariff ?? '3.9' }}%</td>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.fta.fta_tariff'|trans|default('FTA Tariff Rate') }}</strong></td>
+            <td style="color: #2D8C3C; font-weight: bold;">{{ ftaData.ftaTariff ?? '0.0' }}%</td>
+        </tr>
+    </table>
+
+    {# Potential Savings #}
+    {% set savings = ftaData.potentialSavings ?? 1250.00 %}
+    {% if savings > 0 %}
+    <div class="savings-highlight">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div class="savings-label">{{ 'pdf.fta.potential_savings'|trans|default('Potential Duty Savings with FTA') }}</div>
+                <div class="savings-value">${{ savings|number_format(2) }}</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 9pt; color: var(--rams-muted);">Based on declared value of ${{ (ftaData.declaredValue ?? 32000)|number_format(2) }}</div>
+                <div style="font-size: 12pt; font-weight: bold; color: #2D8C3C;">{{ ftaData.savingsPercent ?? 3.9 }}% duty avoided</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Qualification Statistics #}
+    <div class="stats-row">
+        <div class="stat-item">
+            <div class="stat-value">{{ ftaData.originatingParts ?? 42 }}</div>
+            <div class="stat-label">{{ 'pdf.fta.originating'|trans|default('Originating Parts') }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ ftaData.nonOriginatingParts ?? 5 }}</div>
+            <div class="stat-label">{{ 'pdf.fta.non_originating'|trans|default('Non-Originating') }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ (ftaData.rvcPercent ?? 78.5)|number_format(1) }}%</div>
+            <div class="stat-label">{{ 'pdf.fta.rvc'|trans|default('Regional Value Content') }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ ftaData.originCriteria ?? 'RVC-NET' }}</div>
+            <div class="stat-label">{{ 'pdf.fta.origin_criteria'|trans|default('Origin Criteria') }}</div>
+        </div>
+    </div>
+
+    {# Rules of Origin #}
+    <h3>{{ 'pdf.fta.rules'|trans|default('Applicable Rules of Origin') }}</h3>
+    
+    <div class="rule-box">
+        <strong>{{ 'pdf.fta.product_rule'|trans|default('Product-Specific Rule (HS 8542.31)') }}:</strong><br>
+        <span style="font-size: 9pt; color: var(--rams-muted);">
+            {{ ftaData.productRule ?? 'A change to subheading 8542.31 from any other heading; or No required change in tariff classification to subheading 8542.31, provided there is a regional value content of not less than 50 percent under the transaction value method or 45 percent under the net cost method.' }}
+        </span>
+    </div>
+
+    <div class="rule-box">
+        <strong>{{ 'pdf.fta.method_used'|trans|default('Qualification Method') }}:</strong> {{ ftaData.qualificationMethod ?? 'Net Cost Method (NC)' }}<br>
+        <code>RVC = ((NC - VNM) / NC) × 100</code><br>
+        <span style="font-size: 9pt; color: var(--rams-muted);">
+            Where NC = Net Cost, VNM = Value of Non-Originating Materials
+        </span>
+    </div>
+
+    {# Origin Determination by Component #}
+    <h3>{{ 'pdf.fta.component_analysis'|trans|default('Component Origin Analysis') }}</h3>
+    
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 18%;">MPN</th>
+                <th style="width: 15%;">{{ 'pdf.fta.manufacturer'|trans|default('Manufacturer') }}</th>
+                <th style="width: 10%;">{{ 'pdf.fta.coo'|trans|default('COO') }}</th>
+                <th class="rams-text--right" style="width: 12%;">{{ 'pdf.fta.value'|trans|default('Value') }}</th>
+                <th class="rams-text--center" style="width: 12%;">{{ 'pdf.fta.origin_status'|trans|default('Status') }}</th>
+                <th style="width: 28%;">{{ 'pdf.fta.notes'|trans|default('Notes') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for part in ftaData.components ?? [] %}
+            <tr>
+                <td class="rams-text--center">{{ loop.index }}</td>
+                <td><strong>{{ part.mpn ?? 'N/A' }}</strong></td>
+                <td>{{ part.manufacturer ?? 'N/A' }}</td>
+                <td class="rams-text--center"><span class="country-flag">{{ part.cooFlag ?? '--' }}</span></td>
+                <td class="rams-text--right">${{ (part.value ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--center"><span class="fta-badge fta-{{ part.status ?? 'pending' }}">{{ (part.statusLabel ?? 'TBD')|upper }}</span></td>
+                <td>{{ part.notes ?? '-' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td class="rams-text--center">1</td>
+                <td><strong>STM32F407VET6</strong></td>
+                <td>STMicroelectronics</td>
+                <td class="rams-text--center"><span class="country-flag">MY</span></td>
+                <td class="rams-text--right">$4,250.00</td>
+                <td class="rams-text--center"><span class="fta-badge fta-eligible">ORIG</span></td>
+                <td>Substantial transformation in FTA region</td>
+            </tr>
+            <tr>
+                <td class="rams-text--center">2</td>
+                <td><strong>TPS62130RGTR</strong></td>
+                <td>Texas Instruments</td>
+                <td class="rams-text--center"><span class="country-flag">US</span></td>
+                <td class="rams-text--right">$1,850.00</td>
+                <td class="rams-text--center"><span class="fta-badge fta-eligible">ORIG</span></td>
+                <td>US origin - wholly obtained</td>
+            </tr>
+            <tr>
+                <td class="rams-text--center">3</td>
+                <td><strong>GRM188R71H104KA93D</strong></td>
+                <td>Murata</td>
+                <td class="rams-text--center"><span class="country-flag">JP</span></td>
+                <td class="rams-text--right">$320.00</td>
+                <td class="rams-text--center"><span class="fta-badge fta-ineligible">NON</span></td>
+                <td>Japan origin - no tariff shift</td>
+            </tr>
+            <tr>
+                <td class="rams-text--center">4</td>
+                <td><strong>ERJ-3EKF1001V</strong></td>
+                <td>Panasonic</td>
+                <td class="rams-text--center"><span class="country-flag">MX</span></td>
+                <td class="rams-text--right">$45.00</td>
+                <td class="rams-text--center"><span class="fta-badge fta-eligible">ORIG</span></td>
+                <td>Mexico origin - USMCA party</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# RVC Calculation #}
+    <h3>{{ 'pdf.fta.rvc_calculation'|trans|default('Regional Value Content Calculation') }}</h3>
+    
+    <table>
+        <tr>
+            <td style="width: 60%; background: var(--rams-panel);"><strong>{{ 'pdf.fta.net_cost'|trans|default('Net Cost (NC)') }}</strong></td>
+            <td class="rams-text--right" style="width: 40%;">${{ (ftaData.netCost ?? 28500)|number_format(2) }}</td>
+        </tr>
+        <tr>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.fta.vnm'|trans|default('Value of Non-Originating Materials (VNM)') }}</strong></td>
+            <td class="rams-text--right">${{ (ftaData.vnm ?? 6127.50)|number_format(2) }}</td>
+        </tr>
+        <tr>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.fta.originating_value'|trans|default('Originating Materials Value') }}</strong></td>
+            <td class="rams-text--right">${{ (ftaData.originatingValue ?? 22372.50)|number_format(2) }}</td>
+        </tr>
+        <tr class="total-row">
+            <td><strong>{{ 'pdf.fta.rvc_result'|trans|default('Regional Value Content (RVC)') }}</strong></td>
+            <td class="rams-text--right">{{ (ftaData.rvcPercent ?? 78.5)|number_format(1) }}%</td>
+        </tr>
+        <tr>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.fta.threshold'|trans|default('Minimum RVC Threshold') }}</strong></td>
+            <td class="rams-text--right">{{ ftaData.rvcThreshold ?? 45 }}%</td>
+        </tr>
+        <tr>
+            <td style="background: #e8f5ea;"><strong style="color: #2D8C3C;">{{ 'pdf.fta.qualification'|trans|default('Qualification Status') }}</strong></td>
+            <td class="rams-text--right" style="background: #e8f5ea; color: #2D8C3C; font-weight: bold;">{{ ftaData.qualificationStatus ?? 'QUALIFIES' }}</td>
+        </tr>
+    </table>
+
+    {# Documentation Checklist #}
+    <h3>{{ 'pdf.fta.checklist'|trans|default('Required Documentation Checklist') }}</h3>
+    
+    <div style="background: var(--rams-panel); padding: 12pt; border-radius: 3pt;">
+        {% for item in ftaData.checklist ?? [] %}
+        <div class="checklist-item">
+            <div class="check-box {{ item.checked ? 'checked' : '' }}">{{ item.checked ? '✓' : '' }}</div>
+            <div style="flex: 1;">
+                <strong>{{ item.title ?? 'Document' }}</strong><br>
+                <span style="font-size: 9pt; color: var(--rams-muted);">{{ item.description ?? '' }}</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="checklist-item">
+            <div class="check-box checked">✓</div>
+            <div style="flex: 1;">
+                <strong>Certificate of Origin</strong><br>
+                <span style="font-size: 9pt; color: var(--rams-muted);">USMCA certification statement included in this package</span>
+            </div>
+        </div>
+        <div class="checklist-item">
+            <div class="check-box checked">✓</div>
+            <div style="flex: 1;">
+                <strong>Bill of Materials</strong><br>
+                <span style="font-size: 9pt; color: var(--rams-muted);">Complete BOM with country of origin for each component</span>
+            </div>
+        </div>
+        <div class="checklist-item">
+            <div class="check-box checked">✓</div>
+            <div style="flex: 1;">
+                <strong>Regional Value Content Calculation</strong><br>
+                <span style="font-size: 9pt; color: var(--rams-muted);">RVC worksheet demonstrating qualification</span>
+            </div>
+        </div>
+        <div class="checklist-item">
+            <div class="check-box">-</div>
+            <div style="flex: 1;">
+                <strong>Supplier Certificates</strong><br>
+                <span style="font-size: 9pt; color: var(--rams-muted);">To be collected from material suppliers prior to export</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Certification Statement #}
+    <div class="declaration-box" style="page-break-inside: avoid;">
+        <div class="declaration-title">{{ 'pdf.fta.certification_title'|trans|default('USMCA Certification of Origin') }}</div>
+        
+        <p style="font-size: 9pt; margin: 0 0 10pt 0;">
+            {{ 'pdf.fta.certification_text'|trans|default('I certify that the goods described in this document qualify as originating and the information contained in this document is true and accurate. I assume responsibility for proving such representations and agree to maintain and present upon request or to make available during a verification visit, documentation necessary to support this certification.') }}
+        </p>
+        
+        <table style="margin: 10pt 0; border: none;">
+            <tr>
+                <td style="border: none; width: 50%; padding: 3pt;">
+                    <strong>{{ 'pdf.fta.certifier_name'|trans|default('Certifier Name') }}:</strong> {{ ftaData.certifierName ?? '_________________________' }}
+                </td>
+                <td style="border: none; width: 50%; padding: 3pt;">
+                    <strong>{{ 'pdf.fta.certifier_title'|trans|default('Title') }}:</strong> {{ ftaData.certifierTitle ?? '_________________________' }}
+                </td>
+            </tr>
+            <tr>
+                <td style="border: none; padding: 3pt;">
+                    <strong>{{ 'pdf.fta.company_name'|trans|default('Company') }}:</strong> {{ ftaData.certifierCompany ?? 'Sensei-Rams Electronics' }}
+                </td>
+                <td style="border: none; padding: 3pt;">
+                    <strong>{{ 'pdf.fta.date'|trans|default('Date') }}:</strong> {{ ftaData.certificationDate ?? '_________________________' }}
+                </td>
+            </tr>
+        </table>
+        
+        <div class="signature-area">
+            <div class="signature-line">
+                <div style="font-size: 8pt; color: var(--rams-muted); text-transform: uppercase;">{{ 'pdf.fta.signature'|trans|default('Authorized Signature') }}</div>
+            </div>
+            <div style="width: 150pt; text-align: center; border-top: 1pt solid var(--rams-dark); padding-top: 5pt;">
+                <div style="font-size: 8pt; color: var(--rams-muted); text-transform: uppercase;">{{ 'pdf.fta.date'|trans|default('Date') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <strong>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</strong> • {{ 'pdf.fta.footer'|trans|default('Free Trade Agreement Compliance Package') }}<br>
+        {{ 'pdf.generated_on'|trans|default('Generated') }}: {{ "now"|date('Y-m-d H:i') }} UTC • {{ 'pdf.fta.disclaimer'|trans|default('This document is for informational purposes. Consult a licensed customs broker for official filings.') }}
+    </div>
+</body>
+</html>

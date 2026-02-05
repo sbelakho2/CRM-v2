@@ -45,25 +45,25 @@
                 <div class="rams-stack rams-gap-4">
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'user.full_name'|trans }}</label>
-                        <p class="rams-dymo rams-text-lg">{{ user.fullName }}</p>
+                        <p class="rams-dymo rams-rams-text--lg">{{ user.fullName }}</p>
                     </div>
 
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'common.email'|trans }}</label>
-                        <p class="rams-dymo rams-text-lg">{{ user.email }}</p>
+                        <p class="rams-dymo rams-rams-text--lg">{{ user.email }}</p>
                     </div>
 
                     {% if user.role %}
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'user.role'|trans }}</label>
-                        <p class="rams-dymo rams-text-lg">{{ user.role }}</p>
+                        <p class="rams-dymo rams-rams-text--lg">{{ user.role }}</p>
                     </div>
                     {% endif %}
 
                     {% if user.territory %}
                     <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'user.territory'|trans }}</label>
-                        <p class="rams-dymo rams-text-lg">{{ user.territory }}</p>
+                        <p class="rams-dymo rams-rams-text--lg">{{ user.territory }}</p>
                     </div>
                     {% endif %}
 
@@ -114,7 +114,7 @@
                     </div>
 
                     <div class="rams-module__footer rams-flex rams-justify-end">
-                        <button type="submit" class="rams-btn rams-btn--primary">
+                        <button type="submit" class="rams-btn--primary">
                             {{ 'profile.update_password'|trans }}
                         </button>
                     </div>
@@ -151,7 +151,7 @@
                     </div>
 
                     <div class="rams-module__footer rams-flex rams-justify-end">
-                        <button type="submit" class="rams-btn rams-btn--primary">
+                        <button type="submit" class="rams-btn--primary">
                             {{ 'profile.update_preferences'|trans }}
                         </button>
                     </div>

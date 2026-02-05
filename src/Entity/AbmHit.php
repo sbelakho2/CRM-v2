@@ -20,6 +20,10 @@ class AbmHit
     #[ORM\JoinColumn(nullable: true)]
     private ?Company $company = null;
 
+    #[ORM\ManyToOne(targetEntity: AbmAccount::class, inversedBy: 'abmHits')]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?AbmAccount $abmAccount = null;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $timestamp = null;
 
@@ -173,6 +177,17 @@ class AbmHit
     public function setNotes(?string $notes): self
     {
         $this->notes = $notes;
+        return $this;
+    }
+
+    public function getAbmAccount(): ?AbmAccount
+    {
+        return $this->abmAccount;
+    }
+
+    public function setAbmAccount(?AbmAccount $abmAccount): self
+    {
+        $this->abmAccount = $abmAccount;
         return $this;
     }
 }

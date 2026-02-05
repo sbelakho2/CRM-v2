@@ -28,14 +28,14 @@
         </div>
         <div class="rams-page-actions">
             <div class="rams-btn-group">
-                <a href="{{ path('app_playbook_edit', {id: playbook.id}) }}" class="rams-btn rams-btn--secondary">
+                <a href="{{ path('app_playbook_edit', {id: playbook.id}) }}" class="rams-btn">
                     <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                     </svg>
                     {{ 'common.edit'|trans }}
                 </a>
                 <form action="{{ path('app_playbook_delete', {id: playbook.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'playbook.delete_confirm'|trans }}', {variant: 'danger'})">
-                    <button type="submit" class="rams-btn rams-btn--danger">
+                    <button type="submit" class="rams-btn--danger">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
                         </svg>
@@ -80,7 +80,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'common.completed'|trans }}</span>
-                    <span class="rams-metric__value rams-text-success">{{ stats.completed }}</span>
+                    <span class="rams-metric__value rams-rams-text--success">{{ stats.completed }}</span>
                 </div>
             </div>
         </div>
@@ -88,7 +88,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'common.failed'|trans }}</span>
-                    <span class="rams-metric__value rams-text-danger">{{ stats.failed }}</span>
+                    <span class="rams-metric__value rams-rams-text--danger">{{ stats.failed }}</span>
                 </div>
             </div>
         </div>
@@ -96,7 +96,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'playbook.success_rate'|trans }}</span>
-                    <span class="rams-metric__value rams-text-info">
+                    <span class="rams-metric__value rams-rams-text--info">
                         {% if stats.total_runs > 0 %}
                             {{ ((stats.completed / stats.total_runs) * 100)|number_format(0) }}%
                         {% else %}
@@ -125,12 +125,12 @@
                             container.innerHTML = '<div class="rams-stack rams-gap-2">' + rules.map(rule => `
                                 <div class="rams-flex rams-items-center rams-gap-3 rams-p-2 rams-bg-panel rams-border rams-rounded">
                                     <span class="rams-badge font-mono">${rule.field || ''}</span>
-                                    <span class="rams-text-muted rams-text-xs font-mono uppercase">${rule.operator || ''}</span>
+                                    <span class="rams-rams-text--muted rams-rams-text--xs font-mono uppercase">${rule.operator || ''}</span>
                                     <span class="rams-badge rams-badge--info font-mono">${rule.value || ''}</span>
                                 </div>
                             `).join('') + '</div>';
                         } else {
-                            container.innerHTML = '<div class="rams-empty-state rams-p-4"><p class="rams-text-muted rams-text-xs">{{ 'playbook.no_trigger_rules'|trans }}</p></div>';
+                            container.innerHTML = '<div class="rams-empty-state rams-p-4"><p class="rams-rams-text--muted rams-rams-text--xs">{{ 'playbook.no_trigger_rules'|trans }}</p></div>';
                         }
                     } catch(e) { 
                         document.getElementById('trigger-rules-display').innerHTML = '<div class="rams-alert rams-alert--error">{{ 'common.error'|trans }}</div>';
@@ -160,8 +160,8 @@
                                     for (const [key, value] of Object.entries(action.params)) {
                                         paramsHtml += `
                                             <div>
-                                                <span class="rams-text-3xs uppercase rams-text-muted rams-block font-mono">${key.replace(/_/g, ' ')}</span>
-                                                <span class="rams-text-xs rams-text-bold font-mono">${value}</span>
+                                                <span class="rams-text-3xs uppercase rams-rams-text--muted rams-block font-mono">${key.replace(/_/g, ' ')}</span>
+                                                <span class="rams-rams-text--xs rams-text-bold font-mono">${value}</span>
                                             </div>
                                         `;
                                     }
@@ -171,14 +171,14 @@
                                     <div class="rams-p-3 rams-bg-panel rams-border rams-rounded">
                                         <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
                                             <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
-                                            <span class="rams-text-sm rams-text-bold uppercase font-mono">${(action.type || '').replace(/_/g, ' ')}</span>
+                                            <span class="rams-rams-text--sm rams-text-bold uppercase font-mono">${(action.type || '').replace(/_/g, ' ')}</span>
                                         </div>
                                         ${paramsHtml}
                                     </div>
                                 `;
                             }).join('') + '</div>';
                         } else {
-                            container.innerHTML = '<div class="rams-empty-state rams-p-4"><p class="rams-text-muted rams-text-xs">{{ 'playbook.no_actions'|trans }}</p></div>';
+                            container.innerHTML = '<div class="rams-empty-state rams-p-4"><p class="rams-rams-text--muted rams-rams-text--xs">{{ 'playbook.no_actions'|trans }}</p></div>';
                         }
                     } catch(e) { 
                         document.getElementById('actions-display').innerHTML = '<div class="rams-alert rams-alert--error">{{ 'common.error'|trans }}</div>';
@@ -209,7 +209,7 @@
                         <tbody class="rams-table__body">
                             {% for run in runs %}
                                 <tr class="rams-table__row">
-                                    <td class="rams-table__cell rams-text-xs font-mono">{{ run.triggeredAt|date('M d, Y H:i:s') }}</td>
+                                    <td class="rams-table__cell rams-rams-text--xs font-mono">{{ run.triggeredAt|date('M d, Y H:i:s') }}</td>
                                     <td class="rams-table__cell">
                                         <span class="rams-badge
                                             {% if run.status == 'completed' %}rams-badge--success
@@ -220,7 +220,7 @@
                                         </span>
                                     </td>
                                     <td class="rams-table__cell rams-text-bold font-mono">{{ run.actionsExecuted|default(0) }}</td>
-                                    <td class="rams-table__cell rams-text-muted rams-text-xs">{{ run.outcome ?: 'common.n_a'|trans }}</td>
+                                    <td class="rams-table__cell rams-rams-text--muted rams-rams-text--xs">{{ run.outcome ?: 'common.n_a'|trans }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -228,7 +228,7 @@
                 </div>
             {% else %}
                 <div class="rams-empty-state rams-p-8">
-                    <p class="rams-text-muted rams-text-sm">{{ 'playbook.no_executions'|trans }}</p>
+                    <p class="rams-rams-text--muted rams-rams-text--sm">{{ 'playbook.no_executions'|trans }}</p>
                 </div>
             {% endif %}
         </div>
@@ -237,7 +237,7 @@
     {# Metadata #}
     <div class="rams-module rams-module--inset">
         <div class="rams-module__content">
-            <div class="rams-flex rams-justify-between rams-text-muted rams-text-xs font-mono">
+            <div class="rams-flex rams-justify-between rams-rams-text--muted rams-rams-text--xs font-mono">
                 <span>{{ 'playbook.created'|trans }}: {{ playbook.createdAt|date('Y-m-d H:i') }}</span>
                 <span>{{ 'playbook.last_updated'|trans }}: {{ playbook.updatedAt|date('Y-m-d H:i') }}</span>
             </div>

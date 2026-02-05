@@ -1,0 +1,87 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}My Day - Tasks - CRM{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-page__header">
+        <div class="rams-page__header-content">
+             <div class="rams-breadcrumb">
+                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <a href="{{ path('app_task_index') }}">Tasks</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <span>My Day</span>
+            </div>
+            <h1 class="rams-page__title">My Day</h1>
+            <p class="rams-page__subtitle">{{ 'now'|date('l, F j, Y') }}</p>
+        </div>
+    </div>
+
+    <div class="rams-grid rams-grid--3 rams-gap-6">
+        <div class="rams-grid-span-2">
+            <!-- Quick Add -->
+            <div class="rams-module rams-mb-6">
+                <div class="rams-module__content">
+                     <form method="post" action="{{ path('app_task_quick_add') }}" class="rams-flex rams-gap-2">
+                        <input type="text" name="title" class="rams-form__input" placeholder="Add a task for today..." required>
+                        <button type="submit" class="rams-btn--primary">
+                            <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M8 2V14M2 8H14"/>
+                            </svg>
+                            Add
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Overdue -->
+             {% if overdue_tasks|length > 0 %}
+            <div class="rams-mb-6">
+                <h3 class="rams-rams-text--danger rams-rams-text--bold rams-mb-3">Overdue</h3>
+                <div class="rams-flex rams-flex-col rams-gap-2">
+                    {% for task in overdue_tasks %}
+                        {{ include('task/_task_item_row.html.twig', {task: task, overdue: true}) }}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Today -->
+            <div class="rams-mb-6">
+                <h3 class="rams-rams-text--bold rams-mb-3">Today</h3>
+                <div class="rams-flex rams-flex-col rams-gap-2">
+                    {% for task in today_tasks %}
+                        {{ include('task/_task_item_row.html.twig', {task: task}) }}
+                    {% else %}
+                        <div class="rams-empty-state">
+                            <p>No tasks scheduled for today.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <!-- Stats or Calendar side view? -->
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Focus</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-grid rams-grid--4 rams-grid--1 rams-gap-4">
+                        <div class="rams-stat-card">
+                            <div class="rams-stat-card__value">{{ completed_today|default(0) }}</div>
+                            <div class="rams-stat-card__label">Completed Today</div>
+                        </div>
+                         <div class="rams-stat-card rams-stat-card--warning">
+                            <div class="rams-stat-card__value">{{ remaining_today|default(0) }}</div>
+                            <div class="rams-stat-card__label">Remaining</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -68,13 +68,13 @@
                 </div>
 
                 <div class="rams-form__actions">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn--primary">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
                         {{ 'common.save'|trans }}
                     </button>
-                    <a href="{{ path('app_webinar_show', {id: webinar.id}) }}" class="rams-btn rams-btn--secondary">
+                    <a href="{{ path('app_webinar_show', {id: webinar.id}) }}" class="rams-btn">
                         {{ 'common.cancel'|trans }}
                     </a>
                 </div>

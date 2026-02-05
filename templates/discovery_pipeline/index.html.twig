@@ -14,7 +14,7 @@
             
             {# Export Dropdown #}
             <div class="rams-dropdown-container" id="export-dropdown">
-                <button type="button" onclick="toggleExportDropdown()" class="rams-btn rams-btn--primary" aria-expanded="false" aria-haspopup="true">
+                <button type="button" onclick="toggleExportDropdown()" class="rams-btn--primary" aria-expanded="false" aria-haspopup="true">
                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
@@ -54,7 +54,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'discovery_pipeline.total_leads'|trans }}</span>
-                    <span class="rams-metric__value rams-text-info">{{ stats.total_leads }}</span>
+                    <span class="rams-metric__value rams-rams-text--info">{{ stats.total_leads }}</span>
                 </div>
             </div>
         </div>
@@ -62,7 +62,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'discovery_pipeline.today'|trans }}</span>
-                    <span class="rams-metric__value rams-text-success">{{ stats.today_leads }}</span>
+                    <span class="rams-metric__value rams-rams-text--success">{{ stats.today_leads }}</span>
                 </div>
             </div>
         </div>
@@ -86,7 +86,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'discovery_pipeline.enrichment_rate'|trans }}</span>
-                    <span class="rams-metric__value rams-text-warning">{{ stats.enrichment_rate }}%</span>
+                    <span class="rams-metric__value rams-rams-text--warning">{{ stats.enrichment_rate }}%</span>
                 </div>
             </div>
         </div>
@@ -94,7 +94,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'discovery_pipeline.pending_review'|trans }}</span>
-                    <span class="rams-metric__value rams-text-danger">{{ stats.pending_review }}</span>
+                    <span class="rams-metric__value rams-rams-text--danger">{{ stats.pending_review }}</span>
                 </div>
             </div>
         </div>
@@ -170,10 +170,10 @@
                     </div>
                     
                     <div class="rams-form__actions">
-                        <button type="button" id="preview-btn" class="rams-btn rams-btn--secondary">
+                        <button type="button" id="preview-btn" class="rams-btn">
                             {{ 'discovery_pipeline.preview_results'|trans }}
                         </button>
-                        <button type="submit" id="run-btn" class="rams-btn rams-btn--primary">
+                        <button type="submit" id="run-btn" class="rams-btn--primary">
                             {{ 'discovery_pipeline.run_pipeline_btn'|trans }}
                         </button>
                     </div>
@@ -193,7 +193,7 @@
                 <h2 class="rams-module__title">✨ {{ 'discovery_pipeline.enrich_existing'|trans }}</h2>
             </div>
             <div class="rams-module__content">
-                <p class="rams-text-muted rams-text-sm rams-mb-4">
+                <p class="rams-rams-text--muted rams-rams-text--sm rams-mb-4">
                     {{ 'discovery_pipeline.enrich_description'|trans }}
                 </p>
                 
@@ -212,7 +212,7 @@
                     </div>
                     
                     <div class="rams-form__actions">
-                        <button type="submit" class="rams-btn rams-btn--primary">
+                        <button type="submit" class="rams-btn--primary">
                             {{ 'discovery_pipeline.start_enrichment'|trans }}
                         </button>
                     </div>
@@ -238,7 +238,7 @@
                             <th class="rams-table__cell">{{ 'company.title_singular'|trans }}</th>
                             <th class="rams-table__cell">{{ 'company.website'|trans }}</th>
                             <th class="rams-table__cell">{{ 'common.description'|trans }}</th>
-                            <th class="rams-table__cell rams-text-center">{{ 'common.status'|trans }}</th>
+                            <th class="rams-table__cell rams-rams-text--center">{{ 'common.status'|trans }}</th>
                         </tr>
                     </thead>
                     <tbody id="preview-table-body">
@@ -624,10 +624,10 @@ function exportCustomLeads() {
                 </div>
                 
                 <div class="rams-modal__footer">
-                    <button type="button" onclick="closeExportModal()" class="rams-btn rams-btn--secondary">
+                    <button type="button" onclick="closeExportModal()" class="rams-btn">
                         ${i18n.cancel}
                     </button>
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn--primary">
                         ${i18n.exportCsv}
                     </button>
                 </div>

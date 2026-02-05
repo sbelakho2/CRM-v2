@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\AbmAccountRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AbmAccountRepository::class)]
@@ -50,10 +52,18 @@ class AbmAccount
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
+    #[ORM\ManyToOne(targetEntity: Company::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Company $company = null;
+
+    #[ORM\OneToMany(mappedBy: 'abmAccount', targetEntity: AbmHit::class)]
+    private Collection $abmHits;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
         $this->firstSeenAt = new \DateTime();
+        $this->abmHits = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -179,6 +189,44 @@ class AbmAccount
     public function setUpdatedAt(?\DateTimeInterface $updatedAt): self
     {
         $this->updatedAt = $updatedAt;
+        return $this;
+    }
+
+    public function getCompany(): ?Company
+    {
+        return $this->company;
+    }
+
+    public function setCompany(?Company $company): self
+    {
+        $this->company = $company;
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AbmHit>
+     */
+    public function getAbmHits(): Collection
+    {
+        return $this->abmHits;
+    }
+
+    public function addAbmHit(AbmHit $abmHit): self
+    {
+        if (!$this->abmHits->contains($abmHit)) {
+            $this->abmHits->add($abmHit);
+            $abmHit->setAbmAccount($this);
+        }
+        return $this;
+    }
+
+    public function removeAbmHit(AbmHit $abmHit): self
+    {
+        if ($this->abmHits->removeElement($abmHit)) {
+            if ($abmHit->getAbmAccount() === $this) {
+                $abmHit->setAbmAccount(null);
+            }
+        }
         return $this;
     }
 }

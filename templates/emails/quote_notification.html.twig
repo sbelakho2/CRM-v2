@@ -13,7 +13,7 @@
                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; overflow: hidden;">
                     <!-- Header -->
                     <tr>
-                        <td style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
+                        <td style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; rams-border-bottom: 4px solid #FFBE00;">
                             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.02em;">📋 {{ 'emails.quote_notification.subject'|trans }}</h1>
                             <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ 'app.company'|trans }}</p>
                         </td>
@@ -31,38 +31,38 @@
                             </p>
                             
                             <!-- Quote Summary Box -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-left: 4px solid #FFBE00; margin: 25px 0;">
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; rams-border-left: 4px solid #FFBE00; margin: 25px 0;">
                                 <tr>
                                     <td style="padding: 25px;">
-                                        <h2 style="margin: 0 0 20px; color: #1a1a1a; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #3a3a3a; padding-bottom: 10px;">{{ 'emails.quote_notification.quote_summary'|trans }}</h2>
+                                        <h2 style="margin: 0 0 20px; color: #1a1a1a; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; rams-border-bottom: 2px solid #3a3a3a; padding-bottom: 10px;">{{ 'emails.quote_notification.quote_summary'|trans }}</h2>
                                         <table width="100%" cellpadding="0" cellspacing="0">
                                             <tr>
                                                 <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; width: 40%;">{{ 'emails.quote_notification.quote_number'|trans }}:</td>
                                                 <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.date'|trans }}:</td>
-                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.createdAt|date('F d, Y') }}</td>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; rams-border-top: 1px solid #e0e0e0;">{{ 'common.date'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; rams-border-top: 1px solid #e0e0e0;">{{ quote.createdAt|date('F d, Y') }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.valid_until'|trans }}:</td>
-                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.createdAt|date_modify('+30 days')|date('F d, Y') }}</td>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; rams-border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.valid_until'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; rams-border-top: 1px solid #e0e0e0;">{{ quote.createdAt|date_modify('+30 days')|date('F d, Y') }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.quantity'|trans }}:</td>
-                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.quantity ?? ('common.n_a'|trans) }}</td>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; rams-border-top: 1px solid #e0e0e0;">{{ 'common.quantity'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; rams-border-top: 1px solid #e0e0e0;">{{ quote.quantity ?? ('common.n_a'|trans) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.ship_to'|trans }}:</td>
-                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.shipToCountry ?? ('common.n_a'|trans) }}</td>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; rams-border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.ship_to'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; rams-border-top: 1px solid #e0e0e0;">{{ quote.shipToCountry ?? ('common.n_a'|trans) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.total'|trans }}:</td>
-                                                <td style="padding: 8px 0; color: #FFBE00; font-size: 20px; font-weight: 700; border-top: 1px solid #e0e0e0;">{{ quote.totalCost|default(0)|format_currency(quote.currency, quote.currency, 2) }}</td>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; rams-border-top: 1px solid #e0e0e0;">{{ 'common.total'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #FFBE00; font-size: 20px; font-weight: 700; rams-border-top: 1px solid #e0e0e0;">{{ quote.totalCost|default(0)|format_currency(quote.currency, quote.currency, 2) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.coverage'|trans }}:</td>
-                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.coveragePercent|default(0)|number_format(1) }}% {{ 'emails.quote_notification.components_sourced'|trans }}</td>
+                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; rams-border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.coverage'|trans }}:</td>
+                                                <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; rams-border-top: 1px solid #e0e0e0;">{{ quote.coveragePercent|default(0)|number_format(1) }}% {{ 'emails.quote_notification.components_sourced'|trans }}</td>
                                             </tr>
                                         </table>
                                     </td>
@@ -83,7 +83,7 @@
                             </table>
                             
                             <!-- What's Next Section -->
-                            <h3 style="margin: 0 0 15px; color: #1a1a1a; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #FFBE00; padding-bottom: 8px; display: inline-block;">{{ 'emails.quote_notification.whats_next'|trans }}</h3>
+                            <h3 style="margin: 0 0 15px; color: #1a1a1a; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; rams-border-bottom: 2px solid #FFBE00; padding-bottom: 8px; display: inline-block;">{{ 'emails.quote_notification.whats_next'|trans }}</h3>
                             <ul style="margin: 0 0 25px; padding-left: 20px; color: #3a3a3a; font-size: 14px; line-height: 1.8;">
                                 <li>{{ 'emails.quote_notification.step_review'|trans }}</li>
                                 <li>{{ 'emails.quote_notification.step_verify'|trans }}</li>
@@ -120,7 +120,7 @@
 
                     <!-- Footer -->
                     <tr>
-                        <td style="padding: 30px 40px; background-color: #1a1a1a; border-top: 4px solid #FFBE00;">
+                        <td style="padding: 30px 40px; background-color: #1a1a1a; rams-border-top: 4px solid #FFBE00;">
                             <p style="margin: 0 0 10px; color: #ffffff; font-size: 14px; text-align: center; font-weight: 600;">
                                 {{ 'app.company'|trans }}
                             </p>

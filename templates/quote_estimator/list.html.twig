@@ -5,12 +5,12 @@
 {% block body %}
 <div class="rams-stack rams-stack--lg">
     {# Header #}
-    <header class="rams-module__header rams-module__header--row rams-module__header--border-bottom">
+    <header class="rams-module__header rams-module__header--row rams-module__header--rams-border-bottom">
         <div>
             <h1 class="rams-heading rams-heading--1">{{ pageTitle }}</h1>
             <p class="rams-text rams-text--muted">{{ 'quote.estimator.list_subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('quote_estimator_index') }}" class="rams-btn rams-btn--secondary">
+        <a href="{{ path('quote_estimator_index') }}" class="rams-btn">
             <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M8 3V13M3 8H13"/>
             </svg>
@@ -31,7 +31,7 @@
                         class="rams-form__input"
                     >
                 </div>
-                <button type="submit" class="rams-btn rams-btn--secondary">
+                <button type="submit" class="rams-btn">
                     <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="7" cy="7" r="4"/>
                         <path d="M11 11L14 14"/>
@@ -39,7 +39,7 @@
                     {{ 'common.search'|trans }}
                 </button>
                 {% if search %}
-                    <a href="{{ path('quote_estimator_list') }}" class="rams-btn rams-btn--ghost">
+                    <a href="{{ path('quote_estimator_list') }}" class="rams-btn--ghost">
                         {{ 'common.clear'|trans }}
                     </a>
                 {% endif %}
@@ -48,7 +48,7 @@
     </div>
 
     {# Statistics #}
-    <div class="rams-grid rams-grid--cols-3 rams-grid--gap-md">
+    <div class="rams-grid rams-grid--3 rams-gap-4">
         <div class="rams-module">
             <div class="rams-module__content">
                 <span class="rams-dymo">{{ 'quote.estimator.total_estimates'|trans }}</span>
@@ -126,10 +126,10 @@
                                 </td>
                                 <td class="rams-table__cell">
                                     <div class="rams-btn-group">
-                                        <a href="{{ path('quote_estimator_results', {id: estimate.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                        <a href="{{ path('quote_estimator_results', {id: estimate.id}) }}" class="rams-btn--ghost rams-btn--sm">
                                             {{ 'common.view'|trans }}
                                         </a>
-                                        <button onclick="deleteEstimate({{ estimate.id }})" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">
+                                        <button onclick="deleteEstimate({{ estimate.id }})" class="rams-btn--ghost rams-btn--sm rams-btn--danger">
                                             {{ 'common.delete'|trans }}
                                         </button>
                                     </div>
@@ -152,7 +152,7 @@
                         {{ 'quote.estimator.no_estimates_start'|trans }}
                     {% endif %}
                 </p>
-                <a href="{{ path('quote_estimator_index') }}" class="rams-btn rams-btn--secondary">
+                <a href="{{ path('quote_estimator_index') }}" class="rams-btn">
                     {{ 'quote.estimator.create_new'|trans }}
                 </a>
             </div>

@@ -1,0 +1,114 @@
+{{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
+    <div class="rams-grid rams-grid--3 rams-gap-6">
+        <div class="rams-grid-span-2">
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Meeting Details</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-form__group">
+                        {{ form_label(form.title, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                        {{ form_widget(form.title, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.title) }}
+                    </div>
+                    
+                    <div class="rams-form__group">
+                        {{ form_label(form.description, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                        {{ form_widget(form.description, {'attr': {'class': 'rams-form__input', 'rows': 3}}) }}
+                        {{ form_errors(form.description) }}
+                    </div>
+                    
+                    <div class="rams-grid rams-grid--2 rams-gap-4">
+                        <div class="rams-form__group">
+                            {{ form_label(form.meetingType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.meetingType, {'attr': {'class': 'rams-form__select'}}) }}
+                            {{ form_errors(form.meetingType) }}
+                        </div>
+                        <div class="rams-form__group">
+                            {{ form_label(form.durationMinutes, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.durationMinutes, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.durationMinutes) }}
+                        </div>
+                    </div>
+                    
+                    <div class="rams-grid rams-grid--2 rams-gap-4">
+                        <div class="rams-form__group">
+                            {{ form_label(form.startTime, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.startTime, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.startTime) }}
+                        </div>
+                        <div class="rams-form__group">
+                            {{ form_label(form.timezone, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.timezone, {'attr': {'class': 'rams-form__select'}}) }}
+                            {{ form_errors(form.timezone) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="rams-module rams-mt-4">
+                <div class="rams-module__header">
+                    <h3>Location & Video</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-form__group">
+                        {{ form_label(form.location, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                        {{ form_widget(form.location, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.location) }}
+                    </div>
+                    
+                    <div class="rams-grid rams-grid--2 rams-gap-4">
+                        <div class="rams-form__group">
+                            {{ form_label(form.meetingProvider, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.meetingProvider, {'attr': {'class': 'rams-form__select'}}) }}
+                            {{ form_errors(form.meetingProvider) }}
+                        </div>
+                        <div class="rams-form__group">
+                            {{ form_label(form.meetingUrl, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.meetingUrl, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.meetingUrl) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rams-actions">
+                <button type="submit" class="rams-btn--primary">
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
+                    </svg>
+                    {{ button_label|default('Save Slot') }}
+                </button>
+                <a href="{{ path('meeting_index') }}" class="rams-btn--ghost">Cancel</a>
+            </div>
+        </div>
+        
+        <!-- Sidebar Help -->
+        <div>
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Slot Configuration</h3>
+                </div>
+                <div class="rams-module__content">
+                    <p class="rams-rams-text--sm rams-rams-text--muted rams-mb-4">
+                        Configure your available time slots. These will be visible on your public booking page.
+                    </p>
+                    <ul class="rams-list">
+                        <li class="rams-list__item">
+                            <svg class="rams-icon rams-rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
+                            </svg>
+                            <span>Duration includes buffer time</span>
+                        </li>
+                        <li class="rams-list__item">
+                            <svg class="rams-icon rams-rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="2" y="3" width="12" height="10" rx="2"/><path d="M8 7V13M4 10H12"/>
+                            </svg>
+                            <span>Video links are auto-generated</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+{{ form_end(form) }}

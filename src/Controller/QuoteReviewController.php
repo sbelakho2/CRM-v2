@@ -29,6 +29,7 @@ use Psr\Log\LoggerInterface;
  * Workflow: BOM Upload → Draft Quote → REVIEW → Approved Quote → Published
  */
 #[Route('/quote-review')]
+#[IsGranted('ROLE_USER')]
 class QuoteReviewController extends AbstractController
 {
     public function __construct(

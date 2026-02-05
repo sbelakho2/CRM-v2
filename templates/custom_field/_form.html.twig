@@ -1,0 +1,128 @@
+{{ form_start(form, {'attr': {'class': 'rams-form', 'id': 'custom-field-form'}}) }}
+    <div class="rams-grid">
+        <div class="rams-grid-col-2">
+            <!-- Field Definition -->
+             <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Field Definition</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-form__group">
+                         {{ form_label(form.label, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                         {{ form_widget(form.label, {'attr': {'class': 'rams-form__input'}}) }}
+                         {{ form_errors(form.label) }}
+                    </div>
+
+                    <div class="rams-grid--2">
+                        <div class="rams-form__group">
+                             {{ form_label(form.fieldKey, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                             {{ form_widget(form.fieldKey, {'attr': {'class': 'rams-form__input'}}) }}
+                             <div class="rams-form-help">Unique key (e.g. 'budget_q4')</div>
+                             {{ form_errors(form.fieldKey) }}
+                        </div>
+                         <div class="rams-form__group">
+                             {{ form_label(form.fieldGroup, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                             {{ form_widget(form.fieldGroup, {'attr': {'class': 'rams-form__input'}}) }}
+                             <div class="rams-form-help">Group name (e.g. 'Financials')</div>
+                             {{ form_errors(form.fieldGroup) }}
+                        </div>
+                    </div>
+                    
+                    <div class="rams-form__group">
+                         {{ form_label(form.fieldType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                         {{ form_widget(form.fieldType, {'attr': {'class': 'rams-form__select', 'data-action': 'toggle-options'}}) }}
+                         {{ form_errors(form.fieldType) }}
+                    </div>
+
+                     <!-- Options for Select/Multiselect -->
+                     <div id="field-options-container" class="rams-alert rams-alert hidden">
+                        <div class="rams-form__group">
+                            {{ form_label(form.options, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.options, {'attr': {'class': 'rams-form__textarea', 'rows': '4'}}) }}
+                            <div class="rams-form-help">One option per line. Format: value or label=value</div>
+                            {{ form_errors(form.options) }}
+                        </div>
+                     </div>
+
+                     <div class="rams-form__group">
+                         {{ form_label(form.placeholder, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                         {{ form_widget(form.placeholder, {'attr': {'class': 'rams-form__input'}}) }}
+                         {{ form_errors(form.placeholder) }}
+                    </div>
+                     <div class="rams-form__group">
+                         {{ form_label(form.defaultValue, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                         {{ form_widget(form.defaultValue, {'attr': {'class': 'rams-form__input'}}) }}
+                         {{ form_errors(form.defaultValue) }}
+                    </div>
+                </div>
+             </div>
+        </div>
+
+        <div class="rams-grid-col-1">
+             <!-- Configuration -->
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3>Configuration</h3>
+                </div>
+                <div class="rams-module__content">
+                     <div class="rams-form__group">
+                        <label class="rams-checkbox-label">
+                            {{ form_widget(form.entityType, {'attr': {'class': 'hidden'}}) }} 
+                            {# entityType usually hidden or disabled in edit, mostly likely set via route context or hidden input if handled by controller #}
+                        </label>
+                         {% if form.entityType.vars.choices is defined %}
+                             {# If it's a select in create mode #}
+                             {{ form_label(form.entityType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                             {{ form_widget(form.entityType, {'attr': {'class': 'rams-form__select'}}) }}
+                         {% else %}
+                            <div class="rams-text--sm rams-text--muted">Entity: <strong>{{ form.entityType.vars.value|default('Global') }}</strong></div>
+                         {% endif %}
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-checkbox-label">
+                            {{ form_widget(form.required) }}
+                            <span class="rams-checkbox-text">Required Field</span>
+                        </label>
+                    </div>
+                     <div class="rams-form__group">
+                        <label class="rams-checkbox-label">
+                            {{ form_widget(form.searchable) }}
+                            <span class="rams-checkbox-text">Searchable</span>
+                        </label>
+                    </div>
+                    
+                    <div class="rams-form__group">
+                         {{ form_label(form.description, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                         {{ form_widget(form.description, {'attr': {'class': 'rams-form__textarea', 'rows': '3'}}) }}
+                         <div class="rams-form-help">Help text shown to users.</div>
+                    </div>
+                </div>
+                <div class="rams-module__footer">
+                     <button class="rams-btn--primary rams-w-full">{{ button_label|default('Save Field') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{{ form_end(form) }}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.querySelector('[data-action="toggle-options"]');
+        const optionsContainer = document.getElementById('field-options-container');
+        
+        function toggleOptions() {
+            const val = typeSelect.value;
+            if (['select', 'multiselect', 'radio'].includes(val)) {
+                optionsContainer.classList.remove('hidden');
+            } else {
+                optionsContainer.classList.add('hidden');
+            }
+        }
+        
+        if(typeSelect) {
+            typeSelect.addEventListener('change', toggleOptions);
+            toggleOptions(); // Initial check
+        }
+    });
+</script>

@@ -69,7 +69,7 @@
                     
                     <div id="trigger-rules" class="rams-stack rams-gap-2"></div>
                     
-                    <button type="button" onclick="addTriggerRule()" class="rams-btn rams-btn--secondary">
+                    <button type="button" onclick="addTriggerRule()" class="rams-btn">
                         <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3V13M3 8H13"/>
                         </svg>
@@ -86,7 +86,7 @@
                     
                     <div id="actions-list" class="rams-stack rams-gap-2"></div>
                     
-                    <button type="button" onclick="addAction()" class="rams-btn rams-btn--secondary">
+                    <button type="button" onclick="addAction()" class="rams-btn">
                         <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3V13M3 8H13"/>
                         </svg>
@@ -103,13 +103,13 @@
                 </div>
 
                 <div class="rams-form__actions">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn--primary">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                         {{ 'playbook.save_changes'|trans }}
                     </button>
-                    <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.cancel'|trans }}</a>
+                    <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-btn--ghost">{{ 'common.cancel'|trans }}</a>
                 </div>
             </form>
         </div>
@@ -164,7 +164,7 @@ triggerRules.forEach((rule, index) => {
             <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>${i18n.operatorContains}</option>
         </select>
         <input type="text" class="rams-form__input rams-flex-1" placeholder="${i18n.valuePlaceholder}" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
-        <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
+        <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn--ghost rams-rams-text--danger">×</button>
     `;
     
     document.getElementById('trigger-rules').appendChild(ruleDiv);
@@ -190,7 +190,7 @@ actions.forEach((action, index) => {
                 <option value="">${i18n.selectAction}</option>
                 ${actionOptions}
             </select>
-            <button type="button" onclick="removeAction(${actionId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
+            <button type="button" onclick="removeAction(${actionId})" class="rams-btn--ghost rams-rams-text--danger">×</button>
         </div>
         <div id="action-params-${actionId}" class="rams-stack rams-gap-2"></div>
     `;
@@ -230,7 +230,7 @@ function addTriggerRule(existingRule = null) {
             <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>${i18n.operatorContains}</option>
         </select>
         <input type="text" class="rams-form__input rams-flex-1" placeholder="${i18n.valuePlaceholder}" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
-        <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
+        <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn--ghost rams-rams-text--danger">×</button>
     `;
     
     document.getElementById('trigger-rules').appendChild(ruleDiv);
@@ -276,7 +276,7 @@ function addAction(existingAction = null) {
                 <option value="">${i18n.selectAction}</option>
                 ${actionOptions}
             </select>
-            <button type="button" onclick="removeAction(${actionId})" class="rams-btn rams-btn--ghost rams-text-danger">×</button>
+            <button type="button" onclick="removeAction(${actionId})" class="rams-btn--ghost rams-rams-text--danger">×</button>
         </div>
         <div id="action-params-${actionId}" class="rams-stack rams-gap-2"></div>
     `;
@@ -311,7 +311,7 @@ function renderActionParams(actionId, type, existingParams) {
     
     container.innerHTML = actionDef.params.map(p => `
         <div class="rams-form__group">
-            <label class="rams-form__label rams-text-xs">${p.label}</label>
+            <label class="rams-form__label rams-rams-text--xs">${p.label}</label>
             <input type="${p.type || 'text'}" class="rams-form__input" 
                    placeholder="${p.placeholder || ''}" 
                    value="${existingParams[p.name] || ''}"

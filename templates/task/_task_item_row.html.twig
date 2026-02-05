@@ -1,0 +1,27 @@
+<div class="rams-module rams-flex rams-items-center rams-p-4 rams-border-l-4 {{ overdue|default(false) ? 'rams-border-l-danger' : 'rams-border-l-primary' }} rams-hover-shadow">
+    <div class="rams-flex-shrink-0 rams-mr-4">
+        <form method="post" action="{{ path('app_task_toggle', {id: task.id}) }}">
+            <input type="checkbox" class="rams-checkbox" onchange="this.form.submit()" {{ task.status == 'done' ? 'checked' : '' }}>
+        </form>
+    </div>
+    <div class="rams-flex-grow">
+        <div class="rams-flex rams-items-center rams-gap-2">
+            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-link {{ task.status == 'done' ? 'rams-rams-text--muted rams-line-through' : 'rams-font-medium' }}">
+                {{ task.title }}
+            </a>
+            {% if task.priority == 'high' %}
+                <span class="rams-badge rams-badge--danger rams-badge--xs">High</span>
+            {% endif %}
+        </div>
+        {% if task.description %}
+            <p class="rams-rams-text--xs rams-rams-text--muted rams-truncate rams-mt-1" style="max-width: 500px;">{{ task.description }}</p>
+        {% endif %}
+    </div>
+    <div class="rams-flex-shrink-0 rams-rams-text--right">
+        {% if task.dueTime %}
+            <div class="rams-rams-text--sm {{ overdue|default(false) ? 'rams-rams-text--danger' : 'rams-rams-text--muted' }}">
+                {{ task.dueTime|date('H:i') }}
+            </div>
+        {% endif %}
+    </div>
+</div>

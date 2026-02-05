@@ -26,7 +26,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'lead.pending_review'|trans }}</span>
-                    <span class="rams-metric__value rams-text-warning">{{ stats.pending }}</span>
+                    <span class="rams-metric__value rams-rams-text--warning">{{ stats.pending }}</span>
                 </div>
             </div>
         </div>
@@ -34,7 +34,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'lead.approved_leads'|trans }}</span>
-                    <span class="rams-metric__value rams-text-success">{{ stats.approved }}</span>
+                    <span class="rams-metric__value rams-rams-text--success">{{ stats.approved }}</span>
                 </div>
             </div>
         </div>
@@ -76,14 +76,14 @@
                 </div>
 
                 <div class="rams-form__actions">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn--primary">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                         {{ 'webcrawler.start_discovery'|trans }}
                     </button>
-                    <a href="{{ path('app_webcrawler_keyword_expansion') }}" class="rams-btn rams-btn--secondary">{{ 'webcrawler.keyword_expansion'|trans }}</a>
-                    <a href="{{ path('app_webcrawler_dork_generator') }}" class="rams-btn rams-btn--secondary">{{ 'webcrawler.dork_generator'|trans }}</a>
+                    <a href="{{ path('app_webcrawler_keyword_expansion') }}" class="rams-btn">{{ 'webcrawler.keyword_expansion'|trans }}</a>
+                    <a href="{{ path('app_webcrawler_dork_generator') }}" class="rams-btn">{{ 'webcrawler.dork_generator'|trans }}</a>
                 </div>
             </form>
 
@@ -99,7 +99,7 @@
                     <div class="rams-andon">
                         <span class="rams-andon__light rams-andon__light--yellow rams-pulse"></span>
                     </div>
-                    <p class="rams-mt-2 rams-text-muted">{{ 'webcrawler.discovering'|trans }}</p>
+                    <p class="rams-mt-2 rams-rams-text--muted">{{ 'webcrawler.discovering'|trans }}</p>
                 </div>
             </div>
         </div>
@@ -132,14 +132,14 @@
                                     <td class="rams-table__cell rams-text-bold">{{ lead.companyName }}</td>
                                     <td class="rams-table__cell">
                                         {% if lead.websiteRoot %}
-                                            <a href="{{ lead.websiteRoot }}" target="_blank" class="rams-link rams-text-xs">
+                                            <a href="{{ lead.websiteRoot }}" target="_blank" class="rams-link rams-rams-text--xs">
                                                 {{ lead.websiteRoot|replace({'https://': '', 'http://': '', 'www.': ''}) }}
                                             </a>
                                         {% else %}
-                                            <span class="rams-text-muted rams-text-xs">—</span>
+                                            <span class="rams-rams-text--muted rams-rams-text--xs">—</span>
                                         {% endif %}
                                     </td>
-                                    <td class="rams-table__cell rams-text-xs">{{ region_labels[lead.regionTag]|default(lead.regionTag ?? 'common.unknown'|trans) }}</td>
+                                    <td class="rams-table__cell rams-rams-text--xs">{{ region_labels[lead.regionTag]|default(lead.regionTag ?? 'common.unknown'|trans) }}</td>
                                     <td class="rams-table__cell">
                                         <span class="rams-badge {% if lead.leadScore >= 80 %}rams-badge--success{% elseif lead.leadScore >= 60 %}rams-badge--warning{% else %}rams-badge--info{% endif %}">
                                             {{ lead.leadScore }}
@@ -151,9 +151,9 @@
                                             <span class="rams-andon__text">{{ ('lead.statuses.' ~ lead.reviewStatus)|trans }}</span>
                                         </div>
                                     </td>
-                                    <td class="rams-table__cell rams-text-muted rams-text-xs">{{ lead.createdAt|date('M d, Y') }}</td>
+                                    <td class="rams-table__cell rams-rams-text--muted rams-rams-text--xs">{{ lead.createdAt|date('M d, Y') }}</td>
                                     <td class="rams-table__cell rams-table__cell--actions">
-                                        <a href="{{ path('app_lead_review') }}?id={{ lead.id }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'lead.review'|trans }}</a>
+                                        <a href="{{ path('app_lead_review') }}?id={{ lead.id }}" class="rams-btn--ghost rams-btn--sm">{{ 'lead.review'|trans }}</a>
                                     </td>
                                 </tr>
                             {% endfor %}

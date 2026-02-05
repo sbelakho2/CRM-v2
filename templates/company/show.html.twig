@@ -33,7 +33,7 @@
         </div>
         <div class="rams-page-actions">
             <div class="rams-btn-group">
-                <a href="{{ path('app_company_edit', {id: company.id}) }}" class="rams-btn rams-btn--secondary">
+                <a href="{{ path('app_company_edit', {id: company.id}) }}" class="rams-btn">
                     <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                     </svg>
@@ -41,7 +41,7 @@
                 </a>
                 <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'messages.delete_confirm'|trans }}', {variant: 'danger'});" class="rams-inline-block">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ company.id) }}">
-                    <button type="submit" class="rams-btn rams-btn--danger">
+                    <button type="submit" class="rams-btn--danger">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
                         </svg>
@@ -100,7 +100,7 @@
             <div class="rams-module">
                 <div class="rams-module__header">
                     <h2 class="rams-module__title">{{ 'contact.title'|trans }}</h2>
-                    <a href="{{ path('app_contact_new', {company_id: company.id}) }}" class="rams-btn rams-btn--secondary rams-btn--sm">
+                    <a href="{{ path('app_contact_new', {company_id: company.id}) }}" class="rams-btn--sm">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3V13M3 8H13"/>
                         </svg>
@@ -125,13 +125,13 @@
                                             <p class="rams-text--muted rams-text--xs">{{ contact.jobTitle }}</p>
                                         </div>
                                         {% if contact.email %}
-                                            <a href="mailto:{{ contact.email }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.email'|trans }}">
+                                            <a href="mailto:{{ contact.email }}" class="rams-btn--ghost rams-btn--sm" title="{{ 'common.email'|trans }}">
                                                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                     <path d="M2 4L8 8L14 4V12H2V4Z"/>
                                                 </svg>
                                             </a>
                                         {% endif %}
-                                        <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                        <a href="{{ path('app_contact_show', {id: contact.id}) }}" class="rams-btn--ghost rams-btn--sm">
                                             {{ 'common.view'|trans }}
                                         </a>
                                     </div>
@@ -146,7 +146,7 @@
             <div class="rams-module">
                 <div class="rams-module__header">
                     <h2 class="rams-module__title">{{ 'dashboard.recent_activity'|trans }}</h2>
-                    <a href="{{ path('app_activity_index', {company: company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
+                    <a href="{{ path('app_activity_index', {company: company.id}) }}" class="rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
                 </div>
                 <div class="rams-module__content">
                     {% if company.activities is empty %}
@@ -214,7 +214,7 @@
                             </a>
                         {% endif %}
                         
-                        <a href="{{ path('app_rfq_new', {company: company.id}) }}" class="rams-btn rams-btn--primary rams-w-full rams-mt-2">
+                        <a href="{{ path('app_rfq_new', {company: company.id}) }}" class="rams-btn--primary rams-w-full rams-mt-2">
                             {{ 'rfq.actions.new'|trans }}
                         </a>
                     </div>
@@ -229,15 +229,15 @@
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-3">
                         <div class="rams-flex rams-justify-between rams-items-center">
-                            <span class="rams-text-xs rams-text-muted uppercase">{{ 'company.contacts_count'|trans }}</span>
+                            <span class="rams-rams-text--xs rams-rams-text--muted uppercase">{{ 'company.contacts_count'|trans }}</span>
                             <span class="rams-badge">{{ company.contacts|length }}</span>
                         </div>
                         <div class="rams-flex rams-justify-between rams-items-center">
-                            <span class="rams-text-xs rams-text-muted uppercase">{{ 'company.activities_count'|trans }}</span>
+                            <span class="rams-rams-text--xs rams-rams-text--muted uppercase">{{ 'company.activities_count'|trans }}</span>
                             <span class="rams-badge">{{ company.activities|length }}</span>
                         </div>
                         <div class="rams-flex rams-justify-between rams-items-center">
-                            <span class="rams-text-xs rams-text-muted uppercase">{{ 'company.rfqs_count'|trans }}</span>
+                            <span class="rams-rams-text--xs rams-rams-text--muted uppercase">{{ 'company.rfqs_count'|trans }}</span>
                             <span class="rams-badge">{{ company.rfqs|length }}</span>
                         </div>
                     </div>

@@ -14,7 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * QuoteCoPilotService
  * 
- * Automated quote generation from BOM uploads.
+ * Automated quote generation from BOM uploads with AI-powered enhancements.
  * 
  * Core workflow:
  * 1. Parse BOM file (CSV, Excel, or Altium/KiCad exports)
@@ -23,19 +23,22 @@ use Doctrine\ORM\EntityManagerInterface;
  *    - DigiKey API (fallback)
  *    - Nexar API (electronics search engine)
  *    - Alibaba API (for non-electronic components)
-        private PricingEngine $pricingEngine,
-        private CurrencyPreferenceService $currencyPreferenceService
- *    - Price imputation (ML-based estimation for unmapped parts)
+ *    - AI Price Imputation (ML-based estimation for unmapped parts)
  * 3. Calculate coverage % (sourced vs total line items)
  * 4. Generate procurement exceptions report
- * 5. Check auto-publish criteria (>90% coverage, no critical exceptions)
- * 6. Create Quote entity with all BomLine children
+ * 5. Calculate AI win probability prediction
+ * 6. Check auto-publish criteria (>90% coverage, no critical exceptions)
+ * 7. Create Quote entity with all BomLine children
  * 
  * Auto-publish rules:
  * - Coverage >= 90%
  * - No CRITICAL severity exceptions
  * - All high-value parts sourced (>$50 unit price)
  * - Lead time < 12 weeks for all parts
+ * 
+ * AI Enhancements:
+ * - PriceImputationService: ML-based price estimation when APIs fail
+ * - QuoteWinPredictorService: Predict quote win probability
  * 
  * Used by:
  * - QuoteCoPilotController for BOM uploads
@@ -51,7 +54,8 @@ class QuoteCoPilotService
         private HtsClassificationService $htsClassificationService,
         private BOMParser $bomParser,
         private PricingEngine $pricingEngine,
-        private CurrencyPreferenceService $currencyPreferenceService
+        private CurrencyPreferenceService $currencyPreferenceService,
+        private QuoteWinPredictorService $winPredictor
     ) {}
 
     /**
@@ -85,23 +89,35 @@ class QuoteCoPilotService
         if (!empty($validationErrors)) {
             throw new \RuntimeException('BOM validation failed: ' . implode(', ', $validationErrors));
         }
-        
-        // 2. Create Quote entity
-        $quote = new Quote();
-        $quote->setCompanyId($companyId);
-        $quote->setContactId($contactId);
-        $quote->setStatus('DRAFT');
-        $quote->setCreatedAt(new \DateTime());
 
-        $quoteCurrency = $metadata['currency'] ?? null;
-
-        if (!$quoteCurrency && isset($metadata['rfq_id'])) {
-            $rfq = $this->entityManager->getRepository(RFQ::class)->find($metadata['rfq_id']);
-            $quoteCurrency = $rfq?->getCurrency();
+        // 2. Fetch related entities
+        $company = $this->entityManager->getRepository(\App\Entity\Company::class)->find($companyId);
+        if (!$company) {
+            throw new \RuntimeException('Company not found: ' . $companyId);
         }
 
+        $contact = null;
+        if ($contactId) {
+            $contact = $this->entityManager->getRepository(\App\Entity\Contact::class)->find($contactId);
+        }
+
+        $rfq = null;
+        $quoteCurrency = $metadata['currency'] ?? null;
+        if (isset($metadata['rfq_id'])) {
+            $rfq = $this->entityManager->getRepository(RFQ::class)->find($metadata['rfq_id']);
+            if ($rfq && !$quoteCurrency) {
+                $quoteCurrency = $rfq->getCurrency();
+            }
+        }
+
+        // 3. Create Quote entity with proper relationships
+        $quote = new Quote();
+        $quote->setCompany($company);
+        $quote->setContact($contact);
+        $quote->setRfq($rfq);
+        $quote->setStatus('DRAFT');
+        $quote->setCreatedAt(new \DateTime());
         $quote->setCurrency($quoteCurrency ?: $this->currencyPreferenceService->getDisplayCurrency());
-        $quote->setRfqId($metadata['rfq_id'] ?? null);
         $this->entityManager->persist($quote);
         $this->entityManager->flush(); // Get quote ID
         
@@ -141,18 +157,30 @@ class QuoteCoPilotService
         
         // 5. Calculate quote totals
         $totals = $this->pricingEngine->calculateQuoteTotals($processedLines, 25.0, $quote->getCurrency());
-        $quote->setSubtotal($totals['subtotal']);
-        $quote->setTotal($totals['total']);
+        $quote->setTotalCost((string) $totals['total']);
         
-        // 6. Check auto-publish criteria
+        // 6. Calculate AI win probability prediction
+        $winPrediction = $this->winPredictor->predictWinProbability($quote);
+        $quote->setMetadata(array_merge($quote->getMetadata() ?? [], [
+            'win_prediction' => [
+                'probability' => $winPrediction['probability'],
+                'grade' => $winPrediction['grade'],
+                'confidence' => $winPrediction['confidence'],
+                'recommendation' => $winPrediction['recommendation'],
+                'calculated_at' => (new \DateTime())->format('c'),
+            ],
+        ]));
+        
+        // 7. Check auto-publish criteria
         $publishCheck = $this->pricingEngine->canAutoPublish($stats, $processedLines);
         
         if ($publishCheck['can_publish']) {
             $quote->setStatus('PUBLISHED');
-            $quote->setPublishedAt(new \DateTime());
+            $quote->setAutoPublished(true);
+            $quote->setUpdatedAt(new \DateTime());
         }
         
-        // 7. Flush all changes
+        // 8. Flush all changes
         $this->entityManager->flush();
         
         return [
@@ -163,6 +191,7 @@ class QuoteCoPilotService
             'bomLineCount' => $stats['total_lines'],
             'stats' => $stats,
             'totals' => $totals,
+            'winPrediction' => $winPrediction,
         ];
     }
 

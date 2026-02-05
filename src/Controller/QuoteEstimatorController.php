@@ -16,6 +16,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * QuoteEstimatorController
@@ -36,6 +37,7 @@ use Symfony\Component\Routing\Annotation\Route;
  * - GET  /quote-estimator/{id}/pdf - Download estimate PDF
  */
 #[Route('/quote-estimator')]
+#[IsGranted('ROLE_USER')]
 class QuoteEstimatorController extends AbstractController
 {
     public function __construct(
@@ -156,13 +158,26 @@ class QuoteEstimatorController extends AbstractController
             'created_by' => $this->getUser() ? $this->getUser()->getId() : null,
         ];
         
-        // For now, use a placeholder company (first one in DB) or null
+        // Try to find company by customer name (case-insensitive partial match)
         $companyRepo = $this->entityManager->getRepository(\App\Entity\Company::class);
-        $defaultCompany = $companyRepo->findOneBy([]);
+        $matchedCompany = $companyRepo->createQueryBuilder('c')
+            ->where('LOWER(c.name) LIKE LOWER(:name)')
+            ->setParameter('name', '%' . $customerName . '%')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
         
         $estimate = new Estimate();
-        if ($defaultCompany) {
-            $estimate->setCompany($defaultCompany);
+        if ($matchedCompany) {
+            $estimate->setCompany($matchedCompany);
+        } else {
+            // No matching company found - create a prospect company for this estimate
+            $prospectCompany = new \App\Entity\Company();
+            $prospectCompany->setName($customerName);
+            $prospectCompany->setType('Prospect');
+            $prospectCompany->setCreatedAt(new \DateTime());
+            $this->entityManager->persist($prospectCompany);
+            $estimate->setCompany($prospectCompany);
         }
         $estimate->setOriginCountry('MA'); // Morocco default
         $estimate->setDestinationCountry('US'); // Default
@@ -238,7 +253,7 @@ class QuoteEstimatorController extends AbstractController
             
         } catch (\Exception $e) {
             $this->addFlash('error', 'PDF generation failed: ' . $e->getMessage());
-            return $this->redirectToRoute('quote_estimator_detail', ['id' => $id]);
+            return $this->redirectToRoute('quote_estimator_results', ['id' => $id]);
         }
     }
 

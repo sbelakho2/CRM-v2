@@ -1,0 +1,320 @@
+{# PDF Cost Breakdown Template - Sensei-Rams Industrial Functionalist Design System #}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'pdf.cost_breakdown.title'|trans|default('Cost Breakdown Report') }} - {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</title>
+    {% include 'pdf/base.css.twig' %}
+    <style>
+        .cost-section {
+            margin: 15pt 0;
+            padding: 12pt;
+            background: #f9f9f9;
+            border-left: 4px solid var(--rams-orange);
+        }
+        .cost-section h4 {
+            margin: 0 0 8pt 0;
+            color: var(--rams-foreground);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 10pt;
+        }
+        .cost-bar {
+            height: 18pt;
+            background: var(--rams-panel);
+            border-radius: 2pt;
+            overflow: hidden;
+            margin: 4pt 0;
+        }
+        .cost-bar-fill {
+            height: 100%;
+            background: var(--rams-steel);
+            display: inline-block;
+        }
+        .cost-bar-fill.material { background: #4A90E2; }
+        .cost-bar-fill.labor { background: #2D8C3C; }
+        .cost-bar-fill.overhead { background: #FFBE00; }
+        .cost-bar-fill.margin { background: #D62D2D; }
+        .cost-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15pt;
+            margin: 10pt 0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5pt;
+            font-size: 8pt;
+        }
+        .legend-dot {
+            width: 10pt;
+            height: 10pt;
+            border-radius: 2pt;
+        }
+        .highlight-value {
+            font-size: 18pt;
+            font-weight: bold;
+            color: var(--rams-foreground);
+        }
+        .highlight-label {
+            font-size: 8pt;
+            color: var(--rams-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .summary-grid {
+            display: flex;
+            justify-content: space-between;
+            gap: 15pt;
+            margin: 15pt 0;
+        }
+        .summary-card {
+            flex: 1;
+            background: var(--rams-panel);
+            padding: 12pt;
+            text-align: center;
+            border-bottom: 3px solid var(--rams-orange);
+        }
+    </style>
+</head>
+<body>
+    <div class="header clearfix">
+        <div style="float: left;">
+            <h2>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</h2>
+            <p>{{ 'pdf.cost_breakdown.subtitle'|trans|default('Cost Analysis & Breakdown') }}</p>
+        </div>
+        <div class="doc-info">
+            <strong>{{ 'pdf.cost_breakdown.report'|trans|default('COST BREAKDOWN') }}</strong>
+            Quote: {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}<br>
+            Date: {{ "now"|date('Y-m-d') }}<br>
+            Revision: {{ quote.revision ?? 1 }}
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+
+    {# Executive Summary #}
+    <h3>{{ 'pdf.cost_breakdown.executive_summary'|trans|default('Executive Summary') }}</h3>
+    
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="highlight-value">${{ (costData.materialCost ?? 0)|number_format(2, '.', ',') }}</div>
+            <div class="highlight-label">{{ 'pdf.cost_breakdown.material_cost'|trans|default('Material Cost') }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="highlight-value">${{ (costData.assemblyCost ?? 0)|number_format(2, '.', ',') }}</div>
+            <div class="highlight-label">{{ 'pdf.cost_breakdown.assembly_cost'|trans|default('Assembly Cost') }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="highlight-value">${{ (costData.nreCost ?? 0)|number_format(2, '.', ',') }}</div>
+            <div class="highlight-label">{{ 'pdf.cost_breakdown.nre_cost'|trans|default('NRE Cost') }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="highlight-value">${{ (costData.totalCost ?? 0)|number_format(2, '.', ',') }}</div>
+            <div class="highlight-label">{{ 'pdf.cost_breakdown.total_cost'|trans|default('Total Cost') }}</div>
+        </div>
+    </div>
+
+    {# Cost Distribution Visual #}
+    <div class="cost-section">
+        <h4>{{ 'pdf.cost_breakdown.distribution'|trans|default('Cost Distribution') }}</h4>
+        {% set total = costData.totalCost ?? 1 %}
+        {% set materialPct = ((costData.materialCost ?? 0) / total * 100)|round(1) %}
+        {% set laborPct = ((costData.assemblyCost ?? 0) / total * 100)|round(1) %}
+        {% set overheadPct = ((costData.overheadCost ?? 0) / total * 100)|round(1) %}
+        {% set marginPct = ((costData.marginAmount ?? 0) / total * 100)|round(1) %}
+        
+        <div class="cost-bar">
+            <span class="cost-bar-fill material" style="width: {{ materialPct }}%;"></span>
+            <span class="cost-bar-fill labor" style="width: {{ laborPct }}%;"></span>
+            <span class="cost-bar-fill overhead" style="width: {{ overheadPct }}%;"></span>
+            <span class="cost-bar-fill margin" style="width: {{ marginPct }}%;"></span>
+        </div>
+        
+        <div class="cost-legend">
+            <div class="legend-item">
+                <span class="legend-dot" style="background: #4A90E2;"></span>
+                {{ 'pdf.cost_breakdown.material'|trans|default('Material') }} ({{ materialPct }}%)
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot" style="background: #2D8C3C;"></span>
+                {{ 'pdf.cost_breakdown.labor'|trans|default('Labor/Assembly') }} ({{ laborPct }}%)
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot" style="background: #FFBE00;"></span>
+                {{ 'pdf.cost_breakdown.overhead'|trans|default('Overhead') }} ({{ overheadPct }}%)
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot" style="background: #D62D2D;"></span>
+                {{ 'pdf.cost_breakdown.margin'|trans|default('Margin') }} ({{ marginPct }}%)
+            </div>
+        </div>
+    </div>
+
+    {# Material Cost Breakdown #}
+    <h3>{{ 'pdf.cost_breakdown.material_breakdown'|trans|default('Material Cost Breakdown') }}</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 18%;">MPN</th>
+                <th style="width: 15%;">{{ 'pdf.cost_breakdown.manufacturer'|trans|default('Manufacturer') }}</th>
+                <th style="width: 25%;">{{ 'pdf.cost_breakdown.description'|trans|default('Description') }}</th>
+                <th class="rams-text--right" style="width: 8%;">{{ 'pdf.cost_breakdown.qty'|trans|default('Qty') }}</th>
+                <th class="rams-text--right" style="width: 12%;">{{ 'pdf.cost_breakdown.unit_cost'|trans|default('Unit Cost') }}</th>
+                <th class="rams-text--right" style="width: 12%;">{{ 'pdf.cost_breakdown.ext_cost'|trans|default('Ext. Cost') }}</th>
+                <th class="rams-text--center" style="width: 5%;">%</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set materialTotal = costData.materialCost ?? 0 %}
+            {% for line in bomLines %}
+            {% set extCost = (line.quantity ?? 1) * (line.unitPrice ?? 0) %}
+            {% set pctOfTotal = materialTotal > 0 ? (extCost / materialTotal * 100) : 0 %}
+            <tr{% if pctOfTotal > 10 %} style="background: #fff8e5;"{% endif %}>
+                <td class="rams-text--center">{{ loop.index }}</td>
+                <td><strong>{{ line.mpn ?? 'N/A' }}</strong></td>
+                <td>{{ line.manufacturer ?? 'N/A' }}</td>
+                <td>{{ line.description ?? 'N/A' }}</td>
+                <td class="rams-text--right">{{ line.quantity|number_format(0) }}</td>
+                <td class="rams-text--right">${{ (line.unitPrice ?? 0)|number_format(4) }}</td>
+                <td class="rams-text--right">${{ extCost|number_format(2) }}</td>
+                <td class="rams-text--center">{{ pctOfTotal|number_format(1) }}%</td>
+            </tr>
+            {% endfor %}
+            <tr class="subtotal-row">
+                <td colspan="5"></td>
+                <td class="rams-text--right">{{ 'pdf.cost_breakdown.subtotal'|trans|default('SUBTOTAL') }}</td>
+                <td class="rams-text--right">${{ materialTotal|number_format(2) }}</td>
+                <td class="rams-text--center">100%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {# Assembly & NRE Costs #}
+    <h3>{{ 'pdf.cost_breakdown.manufacturing'|trans|default('Manufacturing Costs') }}</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 35%;">{{ 'pdf.cost_breakdown.category'|trans|default('Cost Category') }}</th>
+                <th style="width: 35%;">{{ 'pdf.cost_breakdown.description'|trans|default('Description') }}</th>
+                <th class="rams-text--right" style="width: 15%;">{{ 'pdf.cost_breakdown.quantity'|trans|default('Quantity') }}</th>
+                <th class="rams-text--right" style="width: 15%;">{{ 'pdf.cost_breakdown.amount'|trans|default('Amount') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>{{ 'pdf.cost_breakdown.pcb_fabrication'|trans|default('PCB Fabrication') }}</strong></td>
+                <td>{{ costData.pcbSpec ?? 'Standard 4-layer FR4' }}</td>
+                <td class="rams-text--right">{{ quote.quantity ?? 1 }} pcs</td>
+                <td class="rams-text--right">${{ (costData.pcbCost ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td><strong>{{ 'pdf.cost_breakdown.smt_assembly'|trans|default('SMT Assembly') }}</strong></td>
+                <td>{{ costData.smtPlacements ?? 0 }} placements × {{ quote.quantity ?? 1 }} units</td>
+                <td class="rams-text--right">{{ (costData.smtPlacements ?? 0) * (quote.quantity ?? 1) }}</td>
+                <td class="rams-text--right">${{ (costData.smtCost ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td><strong>{{ 'pdf.cost_breakdown.tht_assembly'|trans|default('THT Assembly') }}</strong></td>
+                <td>{{ costData.thtPlacements ?? 0 }} hand insertions × {{ quote.quantity ?? 1 }} units</td>
+                <td class="rams-text--right">{{ (costData.thtPlacements ?? 0) * (quote.quantity ?? 1) }}</td>
+                <td class="rams-text--right">${{ (costData.thtCost ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td><strong>{{ 'pdf.cost_breakdown.test_inspection'|trans|default('Test & Inspection') }}</strong></td>
+                <td>{{ costData.testType ?? 'ICT + AOI' }}</td>
+                <td class="rams-text--right">{{ quote.quantity ?? 1 }} pcs</td>
+                <td class="rams-text--right">${{ (costData.testCost ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr class="subtotal-row">
+                <td colspan="3">{{ 'pdf.cost_breakdown.assembly_subtotal'|trans|default('ASSEMBLY SUBTOTAL') }}</td>
+                <td class="rams-text--right">${{ (costData.assemblyCost ?? 0)|number_format(2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {# NRE Breakdown #}
+    <h3>{{ 'pdf.cost_breakdown.nre'|trans|default('Non-Recurring Engineering (NRE)') }}</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40%;">{{ 'pdf.cost_breakdown.item'|trans|default('NRE Item') }}</th>
+                <th style="width: 40%;">{{ 'pdf.cost_breakdown.notes'|trans|default('Notes') }}</th>
+                <th class="rams-text--right" style="width: 20%;">{{ 'pdf.cost_breakdown.amount'|trans|default('Amount') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>{{ 'pdf.cost_breakdown.stencil'|trans|default('Stencil Fabrication') }}</strong></td>
+                <td>{{ costData.stencilType ?? 'Framed stainless steel' }}</td>
+                <td class="rams-text--right">${{ (costData.stencilCost ?? 180)|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td><strong>{{ 'pdf.cost_breakdown.programming'|trans|default('Programming Setup') }}</strong></td>
+                <td>{{ costData.programmingNote ?? 'Pick & place programming' }}</td>
+                <td class="rams-text--right">${{ (costData.programmingCost ?? 350)|number_format(2) }}</td>
+            </tr>
+            {% if costData.testFixtureCost is defined and costData.testFixtureCost > 0 %}
+            <tr>
+                <td><strong>{{ 'pdf.cost_breakdown.test_fixture'|trans|default('Test Fixture') }}</strong></td>
+                <td>{{ costData.testFixtureNote ?? 'ICT bed of nails fixture' }}</td>
+                <td class="rams-text--right">${{ costData.testFixtureCost|number_format(2) }}</td>
+            </tr>
+            {% endif %}
+            <tr class="subtotal-row">
+                <td colspan="2">{{ 'pdf.cost_breakdown.nre_total'|trans|default('NRE TOTAL') }}</td>
+                <td class="rams-text--right">${{ (costData.nreCost ?? 0)|number_format(2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {# Grand Total #}
+    <table style="margin-top: 20pt;">
+        <thead>
+            <tr>
+                <th style="width: 50%;">{{ 'pdf.cost_breakdown.summary'|trans|default('Cost Summary') }}</th>
+                <th class="rams-text--right" style="width: 25%;">{{ 'pdf.cost_breakdown.per_unit'|trans|default('Per Unit') }}</th>
+                <th class="rams-text--right" style="width: 25%;">{{ 'pdf.cost_breakdown.total'|trans|default('Total') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ 'pdf.cost_breakdown.material_cost'|trans|default('Material Cost') }}</td>
+                <td class="rams-text--right">${{ ((costData.materialCost ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
+                <td class="rams-text--right">${{ (costData.materialCost ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td>{{ 'pdf.cost_breakdown.assembly_cost'|trans|default('Assembly Cost') }}</td>
+                <td class="rams-text--right">${{ ((costData.assemblyCost ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
+                <td class="rams-text--right">${{ (costData.assemblyCost ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td>{{ 'pdf.cost_breakdown.nre_amortized'|trans|default('NRE (Amortized)') }}</td>
+                <td class="rams-text--right">${{ ((costData.nreCost ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
+                <td class="rams-text--right">${{ (costData.nreCost ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr class="subtotal-row">
+                <td>{{ 'pdf.cost_breakdown.cost_subtotal'|trans|default('COST SUBTOTAL') }}</td>
+                <td class="rams-text--right">${{ ((costData.costSubtotal ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
+                <td class="rams-text--right">${{ (costData.costSubtotal ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr>
+                <td>{{ 'pdf.cost_breakdown.margin'|trans|default('Margin') }} ({{ (costData.marginPercent ?? 15)|number_format(1) }}%)</td>
+                <td class="rams-text--right">${{ ((costData.marginAmount ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
+                <td class="rams-text--right">${{ (costData.marginAmount ?? 0)|number_format(2) }}</td>
+            </tr>
+            <tr class="total-row">
+                <td>{{ 'pdf.cost_breakdown.sell_price'|trans|default('SELL PRICE') }}</td>
+                <td class="rams-text--right">${{ ((costData.totalCost ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
+                <td class="rams-text--right">${{ (costData.totalCost ?? 0)|number_format(2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <strong>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</strong> • {{ 'pdf.cost_breakdown.confidential'|trans|default('CONFIDENTIAL - Internal Use Only') }}<br>
+        {{ 'pdf.generated_on'|trans|default('Generated') }}: {{ "now"|date('Y-m-d H:i') }} UTC
+    </div>
+</body>
+</html>

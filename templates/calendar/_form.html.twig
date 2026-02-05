@@ -1,0 +1,98 @@
+{{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
+    <div class="rams-grid rams-grid--2" style="grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+        <!-- Event Details -->
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3 class="rams-module__title">Event Details</h3>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-form__group">
+                    {{ form_label(form.title, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                    {{ form_widget(form.title, {'attr': {'class': 'rams-form__input'}}) }}
+                    {{ form_errors(form.title) }}
+                </div>
+
+                <div class="rams-form__row rams-form__row--2">
+                        <div class="rams-form__group">
+                        {{ form_label(form.eventType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                        {{ form_widget(form.eventType, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.eventType) }}
+                    </div>
+                    <div class="rams-form__group">
+                        {{ form_label(form.status, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                        {{ form_widget(form.status, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.status) }}
+                    </div>
+                </div>
+
+                <div class="rams-form__group">
+                    {{ form_label(form.description, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                    {{ form_widget(form.description, {'attr': {'class': 'rams-form__textarea', 'rows': '4'}}) }}
+                    {{ form_errors(form.description) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="rams-stack">
+            <!-- Date & Time -->
+            <div class="rams-module" style="margin-bottom: 1.5rem;">
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">Date & Time</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-form__group">
+                        <label class="rams-form__checkbox">
+                            {{ form_widget(form.allDay, {'attr': {'class': 'rams-form__checkbox-input'}}) }}
+                            <span class="rams-form__checkbox-label">All Day Event</span>
+                        </label>
+                    </div>
+
+                    <div class="rams-form__row rams-form__row--2">
+                        <div class="rams-form__group">
+                            {{ form_label(form.start, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.start, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.start) }}
+                        </div>
+                        <div class="rams-form__group">
+                            {{ form_label(form.end, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.end, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.end) }}
+                        </div>
+                    </div>
+                    
+                    {% if form.recurrence is defined %}
+                    <div class="rams-alert rams-alert--info">
+                        {{ form_widget(form.recurrence) }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Metadata / Actions -->
+             <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">Settings</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-form__group">
+                         {{ form_label(form.location, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                         {{ form_widget(form.location, {'attr': {'class': 'rams-form__input'}}) }}
+                         {{ form_errors(form.location) }}
+                    </div>
+                     <div class="rams-form__group">
+                         {{ form_label(form.url, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                         {{ form_widget(form.url, {'attr': {'class': 'rams-form__input'}}) }}
+                         {{ form_errors(form.url) }}
+                    </div>
+                    <div class="rams-form__group">
+                        <label class="rams-form__label">Color Code</label>
+                        {{ form_widget(form.backgroundColor, {'attr': {'class': 'rams-form__input', 'type': 'color', 'style': 'height: 48px; padding: 2px;'}}) }}
+                    </div>
+                </div>
+                 <div class="rams-module__footer">
+                     <button class="rams-btn--primary rams-w-full">{{ button_label|default('Save Event') }}</button>
+                 </div>
+             </div>
+        </div>
+    </div>
+{{ form_end(form) }}

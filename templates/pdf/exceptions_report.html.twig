@@ -1,0 +1,397 @@
+{# PDF Exceptions Report Template - Sensei-Rams Industrial Functionalist Design System #}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'pdf.exceptions.title'|trans|default('Procurement Exceptions Report') }} - {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</title>
+    {% include 'pdf/base.css.twig' %}
+    <style>
+        .exception-card {
+            border: 1px solid var(--rams-border);
+            margin: 12pt 0;
+            page-break-inside: avoid;
+        }
+        .exception-header {
+            background: var(--rams-dark);
+            color: white;
+            padding: 8pt 12pt;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .exception-header h4 {
+            margin: 0;
+            color: white;
+            font-size: 10pt;
+        }
+        .exception-body {
+            padding: 12pt;
+            background: white;
+        }
+        .exception-type {
+            display: inline-block;
+            padding: 2pt 8pt;
+            border-radius: 2pt;
+            font-size: 8pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .type-no-stock { background: #D62D2D; color: white; }
+        .type-long-lead { background: #FFBE00; color: #1A1A1A; }
+        .type-eol { background: #8B4513; color: white; }
+        .type-moq { background: #4A90E2; color: white; }
+        .type-price { background: #9C27B0; color: white; }
+        .type-alt-required { background: #FF5722; color: white; }
+        .type-custom { background: #607D8B; color: white; }
+        .alt-section {
+            background: var(--rams-panel);
+            border-left: 3px solid var(--rams-orange);
+            padding: 10pt;
+            margin-top: 10pt;
+        }
+        .alt-section h5 {
+            margin: 0 0 8pt 0;
+            font-size: 9pt;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--rams-foreground);
+        }
+        .alt-part {
+            display: flex;
+            gap: 10pt;
+            padding: 5pt 0;
+            border-bottom: 1px dashed var(--rams-border);
+        }
+        .alt-part:last-child {
+            border-bottom: none;
+        }
+        .summary-grid {
+            display: flex;
+            gap: 12pt;
+            margin: 15pt 0;
+        }
+        .summary-item {
+            flex: 1;
+            background: var(--rams-panel);
+            padding: 10pt;
+            text-align: center;
+            border-bottom: 3px solid var(--rams-orange);
+        }
+        .summary-value {
+            font-size: 20pt;
+            font-weight: bold;
+            color: var(--rams-foreground);
+        }
+        .summary-label {
+            font-size: 8pt;
+            color: var(--rams-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .impact-high { color: #D62D2D; }
+        .impact-medium { color: #FFBE00; }
+        .impact-low { color: #2D8C3C; }
+        .action-required {
+            background: #fff8e5;
+            border: 1px solid #FFBE00;
+            padding: 8pt 12pt;
+            margin: 10pt 0;
+            border-radius: 3pt;
+        }
+        .action-required strong {
+            color: #b38600;
+        }
+        .resolution-option {
+            background: white;
+            border: 1px solid var(--rams-border);
+            padding: 8pt;
+            margin: 5pt 0;
+            border-radius: 2pt;
+        }
+        .resolution-option:hover {
+            border-color: var(--rams-orange);
+        }
+        .option-label {
+            font-weight: 600;
+            color: var(--rams-foreground);
+        }
+        .option-impact {
+            font-size: 8pt;
+            color: var(--rams-muted);
+            margin-top: 3pt;
+        }
+    </style>
+</head>
+<body>
+    <div class="header clearfix">
+        <div style="float: left;">
+            <h2>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</h2>
+            <p>{{ 'pdf.exceptions.subtitle'|trans|default('Procurement Exceptions & Resolution') }}</p>
+        </div>
+        <div class="doc-info">
+            <strong>{{ 'pdf.exceptions.report'|trans|default('EXCEPTIONS REPORT') }}</strong>
+            Quote: {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}<br>
+            Date: {{ "now"|date('Y-m-d') }}<br>
+            Status: {{ (quote.status ?? 'draft')|upper }}
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+
+    {# Executive Summary #}
+    <h3>{{ 'pdf.exceptions.summary'|trans|default('Exception Summary') }}</h3>
+    
+    <div class="summary-grid">
+        <div class="summary-item">
+            <div class="summary-value impact-high">{{ exceptionData.criticalCount ?? 0 }}</div>
+            <div class="summary-label">{{ 'pdf.exceptions.critical'|trans|default('Critical') }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value impact-medium">{{ exceptionData.warningCount ?? 0 }}</div>
+            <div class="summary-label">{{ 'pdf.exceptions.warnings'|trans|default('Warnings') }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value">{{ exceptionData.totalExceptions ?? 0 }}</div>
+            <div class="summary-label">{{ 'pdf.exceptions.total'|trans|default('Total Issues') }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value">${{ (exceptionData.impactValue ?? 0)|number_format(2) }}</div>
+            <div class="summary-label">{{ 'pdf.exceptions.impact'|trans|default('Cost Impact') }}</div>
+        </div>
+    </div>
+
+    {% if exceptionData.actionRequired is defined and exceptionData.actionRequired %}
+    <div class="action-required">
+        <strong>⚠ {{ 'pdf.exceptions.action_required'|trans|default('Action Required') }}:</strong>
+        {{ exceptionData.actionSummary|default('Customer approval needed for exception handling before quote can be finalized.') }}
+    </div>
+    {% endif %}
+
+    {# Exception Categories Summary #}
+    <h3>{{ 'pdf.exceptions.by_category'|trans|default('Exceptions by Category') }}</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 25%;">{{ 'pdf.exceptions.category'|trans|default('Category') }}</th>
+                <th class="rams-text--center" style="width: 10%;">{{ 'pdf.exceptions.count'|trans|default('Count') }}</th>
+                <th style="width: 25%;">{{ 'pdf.exceptions.impact_level'|trans|default('Impact') }}</th>
+                <th class="rams-text--right" style="width: 20%;">{{ 'pdf.exceptions.cost_impact'|trans|default('Cost Impact') }}</th>
+                <th class="rams-text--right" style="width: 20%;">{{ 'pdf.exceptions.lead_impact'|trans|default('Lead Time') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for category in exceptionData.categories ?? [] %}
+            <tr>
+                <td><span class="exception-type type-{{ category.type ?? 'custom' }}">{{ category.name ?? 'Other' }}</span></td>
+                <td class="rams-text--center">{{ category.count ?? 0 }}</td>
+                <td><span class="impact-{{ category.impact ?? 'low' }}">{{ (category.impact ?? 'Low')|capitalize }}</span></td>
+                <td class="rams-text--right">{% if category.costImpact is defined %}${{ category.costImpact|number_format(2) }}{% else %}—{% endif %}</td>
+                <td class="rams-text--right">{% if category.leadImpact is defined %}+{{ category.leadImpact }} days{% else %}—{% endif %}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td><span class="exception-type type-no-stock">No Stock</span></td>
+                <td class="rams-text--center">3</td>
+                <td><span class="impact-high">High</span></td>
+                <td class="rams-text--right">$245.00</td>
+                <td class="rams-text--right">+14 days</td>
+            </tr>
+            <tr>
+                <td><span class="exception-type type-long-lead">Long Lead</span></td>
+                <td class="rams-text--center">5</td>
+                <td><span class="impact-medium">Medium</span></td>
+                <td class="rams-text--right">—</td>
+                <td class="rams-text--right">+21 days</td>
+            </tr>
+            <tr>
+                <td><span class="exception-type type-eol">EOL/NRND</span></td>
+                <td class="rams-text--center">2</td>
+                <td><span class="impact-high">High</span></td>
+                <td class="rams-text--right">$180.00</td>
+                <td class="rams-text--right">+7 days</td>
+            </tr>
+            <tr>
+                <td><span class="exception-type type-moq">MOQ Issue</span></td>
+                <td class="rams-text--center">4</td>
+                <td><span class="impact-low">Low</span></td>
+                <td class="rams-text--right">$125.00</td>
+                <td class="rams-text--right">—</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# Detailed Exceptions #}
+    <h3>{{ 'pdf.exceptions.detailed'|trans|default('Detailed Exception List') }}</h3>
+    
+    {% for exception in exceptions ?? [] %}
+    <div class="exception-card">
+        <div class="exception-header">
+            <h4>Line {{ exception.lineNumber ?? loop.index }}: {{ exception.mpn ?? 'Unknown MPN' }}</h4>
+            <span class="exception-type type-{{ exception.type ?? 'custom' }}">{{ exception.typeName ?? 'Exception' }}</span>
+        </div>
+        <div class="exception-body">
+            <table style="margin: 0; border: none;">
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0; width: 120pt;"><strong>{{ 'pdf.exceptions.manufacturer'|trans|default('Manufacturer') }}:</strong></td>
+                    <td style="border: none; padding: 2pt 0;">{{ exception.manufacturer ?? 'N/A' }}</td>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0; width: 120pt;"><strong>{{ 'pdf.exceptions.required_qty'|trans|default('Required Qty') }}:</strong></td>
+                    <td style="border: none; padding: 2pt 0;">{{ exception.requiredQty ?? 0 }}</td>
+                </tr>
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0;"><strong>{{ 'pdf.exceptions.description'|trans|default('Description') }}:</strong></td>
+                    <td style="border: none; padding: 2pt 0;" colspan="3">{{ exception.description ?? 'N/A' }}</td>
+                </tr>
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0;"><strong>{{ 'pdf.exceptions.issue'|trans|default('Issue') }}:</strong></td>
+                    <td style="border: none; padding: 2pt 0;" colspan="3"><span class="impact-{{ exception.severity ?? 'medium' }}">{{ exception.issue ?? 'Exception requires resolution' }}</span></td>
+                </tr>
+            </table>
+
+            {# Resolution Options #}
+            {% if exception.resolutionOptions is defined and exception.resolutionOptions|length > 0 %}
+            <div class="alt-section">
+                <h5>{{ 'pdf.exceptions.resolution_options'|trans|default('Resolution Options') }}</h5>
+                {% for option in exception.resolutionOptions %}
+                <div class="resolution-option">
+                    <div class="option-label">{{ loop.index }}. {{ option.name ?? 'Option' }}</div>
+                    <div class="option-impact">
+                        {% if option.costDelta is defined %}Cost: {% if option.costDelta >= 0 %}+{% endif %}${{ option.costDelta|number_format(2) }} | {% endif %}
+                        {% if option.leadDelta is defined %}Lead Time: {% if option.leadDelta >= 0 %}+{% endif %}{{ option.leadDelta }} days | {% endif %}
+                        {{ option.notes ?? '' }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Alternative Parts #}
+            {% if exception.alternatives is defined and exception.alternatives|length > 0 %}
+            <div class="alt-section">
+                <h5>{{ 'pdf.exceptions.alternatives'|trans|default('Suggested Alternatives') }}</h5>
+                {% for alt in exception.alternatives %}
+                <div class="alt-part">
+                    <div style="flex: 1;">
+                        <strong>{{ alt.mpn ?? 'N/A' }}</strong><br>
+                        <span style="font-size: 8pt; color: var(--rams-muted);">{{ alt.manufacturer ?? 'N/A' }}</span>
+                    </div>
+                    <div style="flex: 2; font-size: 9pt;">{{ alt.description ?? 'N/A' }}</div>
+                    <div style="width: 80pt; text-align: right;">
+                        ${{ (alt.unitPrice ?? 0)|number_format(4) }}<br>
+                        <span style="font-size: 8pt; color: var(--rams-muted);">{{ alt.stock ?? 0 }} in stock</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    {# Sample exception cards for demonstration #}
+    <div class="exception-card">
+        <div class="exception-header">
+            <h4>Line 7: STM32F407VET6</h4>
+            <span class="exception-type type-long-lead">Long Lead</span>
+        </div>
+        <div class="exception-body">
+            <table style="margin: 0; border: none;">
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0; width: 120pt;"><strong>Manufacturer:</strong></td>
+                    <td style="border: none; padding: 2pt 0;">STMicroelectronics</td>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0; width: 120pt;"><strong>Required Qty:</strong></td>
+                    <td style="border: none; padding: 2pt 0;">500</td>
+                </tr>
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0;"><strong>Description:</strong></td>
+                    <td style="border: none; padding: 2pt 0;" colspan="3">ARM Cortex-M4 MCU, 168MHz, 512KB Flash, LQFP100</td>
+                </tr>
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0;"><strong>Issue:</strong></td>
+                    <td style="border: none; padding: 2pt 0;" colspan="3"><span class="impact-medium">Factory lead time is 16 weeks. Only 120 units available immediately.</span></td>
+                </tr>
+            </table>
+            <div class="alt-section">
+                <h5>Resolution Options</h5>
+                <div class="resolution-option">
+                    <div class="option-label">1. Partial Shipment</div>
+                    <div class="option-impact">Ship 120 units now, balance in 16 weeks | No cost impact</div>
+                </div>
+                <div class="resolution-option">
+                    <div class="option-label">2. Expedite Order</div>
+                    <div class="option-impact">Cost: +$450.00 | Lead Time: 8 weeks | Premium freight included</div>
+                </div>
+                <div class="resolution-option">
+                    <div class="option-label">3. Substitute with STM32F417VET6</div>
+                    <div class="option-impact">Cost: +$0.35/unit | 600 in stock | Pin-compatible upgrade</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="exception-card">
+        <div class="exception-header">
+            <h4>Line 12: TAJC106K025RNJ</h4>
+            <span class="exception-type type-eol">EOL</span>
+        </div>
+        <div class="exception-body">
+            <table style="margin: 0; border: none;">
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0; width: 120pt;"><strong>Manufacturer:</strong></td>
+                    <td style="border: none; padding: 2pt 0;">AVX</td>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0; width: 120pt;"><strong>Required Qty:</strong></td>
+                    <td style="border: none; padding: 2pt 0;">2,000</td>
+                </tr>
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0;"><strong>Description:</strong></td>
+                    <td style="border: none; padding: 2pt 0;" colspan="3">Tantalum Capacitor 10µF 25V 10% Case C</td>
+                </tr>
+                <tr>
+                    <td style="border: none; padding: 2pt 10pt 2pt 0;"><strong>Issue:</strong></td>
+                    <td style="border: none; padding: 2pt 0;" colspan="3"><span class="impact-high">Part is End-of-Life. Last time buy available through Q2 2025.</span></td>
+                </tr>
+            </table>
+            <div class="alt-section">
+                <h5>Suggested Alternatives</h5>
+                <div class="alt-part">
+                    <div style="flex: 1;">
+                        <strong>TAJC106M025RNJ</strong><br>
+                        <span style="font-size: 8pt; color: var(--rams-muted);">AVX (Current Production)</span>
+                    </div>
+                    <div style="flex: 2; font-size: 9pt;">Tantalum Capacitor 10µF 25V 20% Case C - Active</div>
+                    <div style="width: 80pt; text-align: right;">
+                        $0.1850<br>
+                        <span style="font-size: 8pt; color: var(--rams-muted);">15,000 in stock</span>
+                    </div>
+                </div>
+                <div class="alt-part">
+                    <div style="flex: 1;">
+                        <strong>T491C106K025AT</strong><br>
+                        <span style="font-size: 8pt; color: var(--rams-muted);">KEMET</span>
+                    </div>
+                    <div style="flex: 2; font-size: 9pt;">Tantalum Capacitor 10µF 25V 10% Case C - Active</div>
+                    <div style="width: 80pt; text-align: right;">
+                        $0.1920<br>
+                        <span style="font-size: 8pt; color: var(--rams-muted);">8,500 in stock</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {# Next Steps #}
+    <h3>{{ 'pdf.exceptions.next_steps'|trans|default('Next Steps') }}</h3>
+    <div style="background: var(--rams-panel); padding: 12pt; border-left: 4px solid var(--rams-orange);">
+        <ol style="margin: 0; padding-left: 15pt;">
+            <li style="margin-bottom: 8pt;">{{ 'pdf.exceptions.step1'|trans|default('Review each exception and select preferred resolution option.') }}</li>
+            <li style="margin-bottom: 8pt;">{{ 'pdf.exceptions.step2'|trans|default('Confirm alternative part approvals with engineering team.') }}</li>
+            <li style="margin-bottom: 8pt;">{{ 'pdf.exceptions.step3'|trans|default('Contact your sales representative with decisions.') }}</li>
+            <li>{{ 'pdf.exceptions.step4'|trans|default('Revised quote will be issued within 24 hours of confirmation.') }}</li>
+        </ol>
+    </div>
+
+    <div class="footer">
+        <strong>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</strong> • {{ 'pdf.exceptions.footer'|trans|default('Procurement Exceptions Report') }}<br>
+        {{ 'pdf.generated_on'|trans|default('Generated') }}: {{ "now"|date('Y-m-d H:i') }} UTC
+    </div>
+</body>
+</html>

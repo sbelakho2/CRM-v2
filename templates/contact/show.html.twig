@@ -25,11 +25,11 @@
                 <h1 class="rams-page-title">{{ contact.firstName }} {{ contact.lastName }}</h1>
                 <div class="rams-flex rams-items-center rams-gap-2 rams-mt-1">
                     {% if contact.jobTitle %}
-                        <span class="rams-text-muted rams-text-sm">{{ contact.jobTitle }}</span>
+                        <span class="rams-rams-text--muted rams-rams-text--sm">{{ contact.jobTitle }}</span>
                     {% endif %}
                     {% if contact.company %}
-                        <span class="rams-text-muted rams-text-xs">·</span>
-                        <a href="{{ path('app_company_show', {id: contact.company.id}) }}" class="rams-link rams-text-sm">
+                        <span class="rams-rams-text--muted rams-rams-text--xs">·</span>
+                        <a href="{{ path('app_company_show', {id: contact.company.id}) }}" class="rams-link rams-rams-text--sm">
                             {{ contact.company.name }}
                         </a>
                     {% endif %}
@@ -42,7 +42,7 @@
         
         <div class="rams-page-actions">
             <div class="rams-btn-group">
-                <a href="{{ path('app_contact_edit', {id: contact.id}) }}" class="rams-btn rams-btn--secondary">
+                <a href="{{ path('app_contact_edit', {id: contact.id}) }}" class="rams-btn">
                     <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                     </svg>
@@ -50,7 +50,7 @@
                 </a>
                 <form method="post" action="{{ path('app_contact_delete', {id: contact.id}) }}" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'contact.confirm.delete'|trans }}', {variant: 'danger'})">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ contact.id) }}">
-                    <button type="submit" class="rams-btn rams-btn--danger">
+                    <button type="submit" class="rams-btn--danger">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
                         </svg>
@@ -95,7 +95,7 @@
                                         {{ contact.company.name }}
                                     </a>
                                 {% else %}
-                                    <span class="rams-text-muted">—</span>
+                                    <span class="rams-rams-text--muted">—</span>
                                 {% endif %}
                             </dd>
                         </div>
@@ -111,12 +111,12 @@
             <div class="rams-module">
                 <div class="rams-module__header">
                     <h2 class="rams-module__title">{{ 'contact.show.recent_activities'|trans }}</h2>
-                    <a href="{{ path('app_activity_new', {contact: contact.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">+ {{ 'activity.actions.log'|trans }}</a>
+                    <a href="{{ path('app_activity_new', {contact: contact.id}) }}" class="rams-btn--ghost rams-btn--sm">+ {{ 'activity.actions.log'|trans }}</a>
                 </div>
                 <div class="rams-module__content">
                     {% if contact.activities is empty %}
                         <div class="rams-empty-state">
-                            <p class="rams-text-muted rams-text-sm">{{ 'activity.empty.no_activities'|trans }}</p>
+                            <p class="rams-rams-text--muted rams-rams-text--sm">{{ 'activity.empty.no_activities'|trans }}</p>
                         </div>
                     {% else %}
                         <div class="rams-stack rams-gap-4">
@@ -127,13 +127,13 @@
                                     </div>
                                     <div class="rams-flex-1">
                                         <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
-                                            <span class="rams-text-sm rams-text-bold uppercase font-mono">{{ activity.type }}</span>
-                                            <span class="rams-text-muted rams-text-2xs font-mono">{{ activity.activityDate|date('M d, Y') }}</span>
+                                            <span class="rams-rams-text--sm rams-text-bold uppercase font-mono">{{ activity.type }}</span>
+                                            <span class="rams-rams-text--muted rams-text-2xs font-mono">{{ activity.activityDate|date('M d, Y') }}</span>
                                         </div>
                                         {% if activity.notes %}
-                                            <p class="rams-text-muted rams-text-xs">{{ activity.notes|slice(0, 120) }}{% if activity.notes|length > 120 %}...{% endif %}</p>
+                                            <p class="rams-rams-text--muted rams-rams-text--xs">{{ activity.notes|slice(0, 120) }}{% if activity.notes|length > 120 %}...{% endif %}</p>
                                         {% endif %}
-                                        <p class="rams-text-muted rams-text-3xs font-mono rams-mt-1">{{ activity.user.firstName }} {{ activity.user.lastName }}</p>
+                                        <p class="rams-rams-text--muted rams-text-3xs font-mono rams-mt-1">{{ activity.user.firstName }} {{ activity.user.lastName }}</p>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -153,7 +153,7 @@
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-2">
                         {% if contact.email %}
-                            <a href="mailto:{{ contact.email }}" class="rams-btn rams-btn--secondary rams-w-full">
+                            <a href="mailto:{{ contact.email }}" class="rams-btn rams-w-full">
                                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M2 4L8 8L14 4V12H2V4Z"/>
                                 </svg>
@@ -161,14 +161,14 @@
                             </a>
                         {% endif %}
                         {% if contact.phone %}
-                            <a href="tel:{{ contact.phone }}" class="rams-btn rams-btn--secondary rams-w-full">
+                            <a href="tel:{{ contact.phone }}" class="rams-btn rams-w-full">
                                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M3 3H6L7 6L5 7C6 9 7 10 9 11L10 9L13 10V13C13 14 12 14 12 14C6 14 2 10 2 4C2 4 2 3 3 3Z"/>
                                 </svg>
                                 {{ 'contact.actions.call'|trans }}
                             </a>
                         {% endif %}
-                        <a href="{{ path('app_activity_new', {contact: contact.id}) }}" class="rams-btn rams-btn--primary rams-w-full rams-mt-2">
+                        <a href="{{ path('app_activity_new', {contact: contact.id}) }}" class="rams-btn--primary rams-w-full rams-mt-2">
                             {{ 'activity.actions.log'|trans }}
                         </a>
                     </div>

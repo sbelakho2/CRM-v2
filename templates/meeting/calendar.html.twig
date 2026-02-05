@@ -1,0 +1,110 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Meeting Calendar - CRM{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+<style>
+    /* Custom overrides for FullCalendar to match Rams theme */
+    .fc {
+        --fc-rams-border-color: var(--rams-border);
+        --fc-button-bg-color: var(--rams-surface);
+        --fc-button-rams-border-color: var(--rams-border);
+        --fc-button-text-color: var(--rams-text);
+        --fc-button-hover-bg-color: var(--rams-surface-hover);
+        --fc-button-hover-rams-border-color: var(--rams-border);
+        --fc-button-active-bg-color: var(--rams-primary-bg);
+        --fc-button-active-rams-border-color: var(--rams-primary);
+        --fc-event-bg-color: var(--rams-primary);
+        --fc-event-rams-border-color: var(--rams-primary);
+        --fc-today-bg-color: var(--rams-surface-alt);
+        --fc-page-bg-color: var(--rams-surface);
+        --fc-neutral-bg-color: var(--rams-surface-alt);
+        --fc-list-event-hover-bg-color: var(--rams-surface-hover);
+        font-family: inherit;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.25rem !important;
+        font-weight: 600;
+    }
+    
+    .fc-theme-standard td, .fc-theme-standard th {
+        rams-border-color: var(--rams-border);
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-page__header">
+        <div class="rams-page__header-content">
+             <div class="rams-breadcrumb">
+                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <a href="{{ path('meeting_index') }}">Meetings</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <span>Calendar</span>
+            </div>
+            <h1 class="rams-page__title">Meeting Calendar</h1>
+        </div>
+        <div class="rams-page__actions">
+             <a href="{{ path('meeting_new') }}" class="rams-btn--primary">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M8 2V14M2 8H14"/>
+                </svg>
+                New Slot
+            </a>
+        </div>
+    </div>
+    
+    <div class="rams-module">
+        <div class="rams-module__content">
+            <div id="calendar" style="min-height: 600px;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        slotMinTime: '07:00:00',
+        slotMaxTime: '20:00:00',
+        allDaySlot: false,
+        height: 'auto',
+        events: '{{ path('meeting_api_slots') }}',
+        eventClick: function(info) {
+            window.location.href = '{{ path('meeting_show', {id: '__ID__'}) }}'.replace('__ID__', info.event.id);
+        },
+        dateClick: function(info) {
+            window.location.href = '{{ path('meeting_new') }}?start=' + info.dateStr;
+        },
+        eventDidMount: function(info) {
+            const status = info.event.extendedProps.status;
+            const bookedBy = info.event.extendedProps.bookedBy;
+            
+            if (bookedBy) {
+                // Add a dot or indicator if booked
+                let dot = document.createElement('div');
+                dot.style.cssText = 'width: 8px; height: 8px; background: #fff; rams-border-radius: 50%; display: inline-block; margin-right: 4px;';
+                info.el.querySelector('.fc-event-title').prepend(dot);
+                info.el.title = `${info.event.title}\nBooked by: ${bookedBy}`;
+            }
+        }
+    });
+    calendar.render();
+});
+</script>
+{% endblock %}

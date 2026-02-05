@@ -33,10 +33,10 @@
                     <div class="rams-module__header">
                         <h2 class="rams-module__title">{{ 'email_campaign.select_contacts'|trans }}</h2>
                         <div class="rams-btn-group">
-                            <button type="button" onclick="selectAll()" class="rams-btn rams-btn--ghost rams-btn--sm">
+                            <button type="button" onclick="selectAll()" class="rams-btn--ghost rams-btn--sm">
                                 {{ 'common.select'|trans }} {{ 'common.all'|trans }}
                             </button>
-                            <button type="button" onclick="deselectAll()" class="rams-btn rams-btn--ghost rams-btn--sm">
+                            <button type="button" onclick="deselectAll()" class="rams-btn--ghost rams-btn--sm">
                                 {{ 'email_campaign.deselect_all'|trans }}
                             </button>
                         </div>
@@ -44,7 +44,7 @@
                     <div class="rams-module__content rams-module__content--flush">
                         {% if contacts is empty %}
                             <div class="rams-empty-state">
-                                <p class="rams-text-muted rams-text-sm">{{ 'email_campaign.no_contacts_found'|trans }}</p>
+                                <p class="rams-rams-text--muted rams-rams-text--sm">{{ 'email_campaign.no_contacts_found'|trans }}</p>
                             </div>
                         {% else %}
                             <div class="rams-stack">
@@ -54,8 +54,8 @@
                                         <div class="rams-flex-1">
                                             <div class="rams-flex rams-justify-between rams-items-center">
                                                 <div>
-                                                    <span class="rams-text-bold rams-text-sm rams-block">{{ contact.firstName }} {{ contact.lastName }}</span>
-                                                    <span class="rams-text-muted rams-text-xs">{{ contact.email }}</span>
+                                                    <span class="rams-text-bold rams-rams-text--sm rams-block">{{ contact.firstName }} {{ contact.lastName }}</span>
+                                                    <span class="rams-rams-text--muted rams-rams-text--xs">{{ contact.email }}</span>
                                                 </div>
                                                 {% if contact.company %}
                                                     <span class="rams-badge">{{ contact.company.name }}</span>
@@ -89,28 +89,28 @@
 
                         <div class="rams-stack rams-gap-3 rams-mt-6">
                             <div class="rams-flex rams-justify-between rams-items-center">
-                                <span class="rams-text-xs rams-text-muted uppercase">{{ 'email_campaign.campaign'|trans }}</span>
-                                <span class="rams-text-xs rams-text-bold">{{ campaign.name }}</span>
+                                <span class="rams-rams-text--xs rams-rams-text--muted uppercase">{{ 'email_campaign.campaign'|trans }}</span>
+                                <span class="rams-rams-text--xs rams-text-bold">{{ campaign.name }}</span>
                             </div>
                             <div class="rams-flex rams-justify-between rams-items-center">
-                                <span class="rams-text-xs rams-text-muted uppercase">{{ 'email_campaign.language'|trans }}</span>
-                                <span class="rams-text-xs rams-text-bold">{{ campaign.language }}</span>
+                                <span class="rams-rams-text--xs rams-rams-text--muted uppercase">{{ 'email_campaign.language'|trans }}</span>
+                                <span class="rams-rams-text--xs rams-text-bold">{{ campaign.language }}</span>
                             </div>
                             <div class="rams-flex rams-justify-between rams-items-center rams-p-3 rams-bg-panel rams-border rams-rounded">
-                                <span class="rams-text-sm">{{ 'email_campaign.selected_contacts'|trans }}</span>
-                                <span class="rams-metric__value rams-text-xl" id="selected-count">0</span>
+                                <span class="rams-rams-text--sm">{{ 'email_campaign.selected_contacts'|trans }}</span>
+                                <span class="rams-metric__value rams-rams-text--xl" id="selected-count">0</span>
                             </div>
                         </div>
                     </div>
                     <div class="rams-module__footer">
                         <div class="rams-stack rams-gap-2">
-                            <button type="submit" class="rams-btn rams-btn--primary rams-w-full">
+                            <button type="submit" class="rams-btn--primary rams-w-full">
                                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                 </svg>
                                 {{ 'email_campaign.send_emails'|trans }}
                             </button>
-                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-w-full">
+                            <a href="{{ path('app_email_campaign_show', {id: campaign.id}) }}" class="rams-btn--ghost rams-w-full">
                                 {{ 'common.cancel'|trans }}
                             </a>
                         </div>

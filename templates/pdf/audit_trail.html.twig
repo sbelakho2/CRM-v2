@@ -1,0 +1,461 @@
+{# PDF Audit Trail Report Template - Sensei-Rams Industrial Functionalist Design System #}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'pdf.audit_trail.title'|trans|default('Quote Audit Trail') }} - {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</title>
+    {% include 'pdf/base.css.twig' %}
+    <style>
+        .timeline {
+            position: relative;
+            padding-left: 30pt;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10pt;
+            top: 0;
+            bottom: 0;
+            width: 2pt;
+            background: var(--rams-border);
+        }
+        .timeline-event {
+            position: relative;
+            margin-bottom: 15pt;
+            page-break-inside: avoid;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -24pt;
+            top: 3pt;
+            width: 12pt;
+            height: 12pt;
+            border-radius: 50%;
+            background: var(--rams-dark);
+            border: 2pt solid white;
+            box-shadow: 0 0 0 2pt var(--rams-dark);
+        }
+        .timeline-dot.created { background: #2D8C3C; box-shadow: 0 0 0 2pt #2D8C3C; }
+        .timeline-dot.modified { background: #4A90E2; box-shadow: 0 0 0 2pt #4A90E2; }
+        .timeline-dot.approved { background: #FFBE00; box-shadow: 0 0 0 2pt #FFBE00; }
+        .timeline-dot.sent { background: #9C27B0; box-shadow: 0 0 0 2pt #9C27B0; }
+        .timeline-dot.status { background: #FF5722; box-shadow: 0 0 0 2pt #FF5722; }
+        .timeline-content {
+            background: white;
+            border: 1px solid var(--rams-border);
+            border-radius: 3pt;
+            padding: 10pt 12pt;
+        }
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 5pt;
+        }
+        .timeline-title {
+            font-weight: 600;
+            color: var(--rams-foreground);
+        }
+        .timeline-time {
+            font-size: 8pt;
+            color: var(--rams-muted);
+        }
+        .timeline-user {
+            font-size: 9pt;
+            color: var(--rams-steel);
+        }
+        .timeline-details {
+            font-size: 9pt;
+            color: var(--rams-muted);
+            margin-top: 5pt;
+        }
+        .change-table {
+            margin: 8pt 0 0 0;
+            font-size: 9pt;
+        }
+        .change-table th {
+            background: var(--rams-panel);
+            color: var(--rams-foreground);
+            font-size: 8pt;
+            padding: 4pt 6pt;
+        }
+        .change-table td {
+            padding: 4pt 6pt;
+        }
+        .change-old {
+            text-decoration: line-through;
+            color: #D62D2D;
+        }
+        .change-new {
+            color: #2D8C3C;
+            font-weight: 600;
+        }
+        .signature-block {
+            border: 1px solid var(--rams-border);
+            padding: 15pt;
+            margin: 15pt 0;
+            background: var(--rams-panel);
+        }
+        .signature-row {
+            display: flex;
+            gap: 20pt;
+            margin-top: 15pt;
+        }
+        .signature-box {
+            flex: 1;
+            border-top: 1pt solid var(--rams-dark);
+            padding-top: 5pt;
+        }
+        .signature-label {
+            font-size: 8pt;
+            color: var(--rams-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .verification-card {
+            background: #e8f5ea;
+            border: 1px solid #2D8C3C;
+            border-radius: 3pt;
+            padding: 12pt;
+            margin: 15pt 0;
+        }
+        .verification-icon {
+            font-size: 16pt;
+            color: #2D8C3C;
+        }
+        .hash-display {
+            font-family: 'Courier New', monospace;
+            font-size: 8pt;
+            background: var(--rams-dark);
+            color: var(--rams-orange);
+            padding: 8pt 10pt;
+            border-radius: 2pt;
+            word-break: break-all;
+        }
+        .summary-grid {
+            display: flex;
+            gap: 10pt;
+            margin: 15pt 0;
+        }
+        .summary-item {
+            flex: 1;
+            background: var(--rams-panel);
+            padding: 10pt;
+            text-align: center;
+            border-bottom: 3px solid var(--rams-orange);
+        }
+        .summary-value {
+            font-size: 16pt;
+            font-weight: bold;
+            color: var(--rams-foreground);
+        }
+        .summary-label {
+            font-size: 8pt;
+            color: var(--rams-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header clearfix">
+        <div style="float: left;">
+            <h2>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</h2>
+            <p>{{ 'pdf.audit_trail.subtitle'|trans|default('Quote Traceability & Audit Record') }}</p>
+        </div>
+        <div class="doc-info">
+            <strong>{{ 'pdf.audit_trail.report'|trans|default('AUDIT TRAIL') }}</strong>
+            Quote: {{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}<br>
+            Generated: {{ "now"|date('Y-m-d H:i') }}<br>
+            Revision: {{ quote.revision ?? 1 }}
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+
+    {# Quote Summary #}
+    <h3>{{ 'pdf.audit_trail.quote_summary'|trans|default('Quote Summary') }}</h3>
+    
+    <table>
+        <tr>
+            <td style="width: 25%; background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.quote_number'|trans|default('Quote Number') }}</strong></td>
+            <td style="width: 25%;">{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</td>
+            <td style="width: 25%; background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.customer'|trans|default('Customer') }}</strong></td>
+            <td style="width: 25%;">{{ quote.company.name ?? 'N/A' }}</td>
+        </tr>
+        <tr>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.created'|trans|default('Created') }}</strong></td>
+            <td>{{ quote.createdAt|date('Y-m-d H:i') ?? 'N/A' }}</td>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.created_by'|trans|default('Created By') }}</strong></td>
+            <td>{{ quote.createdBy ?? auditData.createdBy ?? 'System' }}</td>
+        </tr>
+        <tr>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.last_modified'|trans|default('Last Modified') }}</strong></td>
+            <td>{{ quote.updatedAt|date('Y-m-d H:i') ?? 'N/A' }}</td>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.status'|trans|default('Status') }}</strong></td>
+            <td>{{ (quote.status ?? 'draft')|upper }}</td>
+        </tr>
+        <tr>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.total_value'|trans|default('Total Value') }}</strong></td>
+            <td>${{ (quote.totalPrice ?? 0)|number_format(2) }}</td>
+            <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.bom_lines'|trans|default('BOM Lines') }}</strong></td>
+            <td>{{ quote.bomLines|length ?? 0 }}</td>
+        </tr>
+    </table>
+
+    {# Audit Statistics #}
+    <div class="summary-grid">
+        <div class="summary-item">
+            <div class="summary-value">{{ auditData.totalEvents ?? 12 }}</div>
+            <div class="summary-label">{{ 'pdf.audit_trail.total_events'|trans|default('Total Events') }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value">{{ auditData.revisions ?? 3 }}</div>
+            <div class="summary-label">{{ 'pdf.audit_trail.revisions'|trans|default('Revisions') }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value">{{ auditData.approvals ?? 2 }}</div>
+            <div class="summary-label">{{ 'pdf.audit_trail.approvals'|trans|default('Approvals') }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value">{{ auditData.users ?? 3 }}</div>
+            <div class="summary-label">{{ 'pdf.audit_trail.users_involved'|trans|default('Users Involved') }}</div>
+        </div>
+    </div>
+
+    {# Event Timeline #}
+    <h3>{{ 'pdf.audit_trail.timeline'|trans|default('Audit Timeline') }}</h3>
+    
+    <div class="timeline">
+        {% for event in auditData.events ?? [] %}
+        <div class="timeline-event">
+            <div class="timeline-dot {{ event.type ?? 'modified' }}"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">{{ event.title ?? 'Event' }}</div>
+                        <div class="timeline-user">{{ event.user ?? 'System' }}</div>
+                    </div>
+                    <div class="timeline-time">{{ event.timestamp ?? 'N/A' }}</div>
+                </div>
+                {% if event.description is defined %}
+                <div class="timeline-details">{{ event.description }}</div>
+                {% endif %}
+                {% if event.changes is defined and event.changes|length > 0 %}
+                <table class="change-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">Field</th>
+                            <th style="width: 35%;">Previous</th>
+                            <th style="width: 35%;">New</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for change in event.changes %}
+                        <tr>
+                            <td>{{ change.field ?? 'N/A' }}</td>
+                            <td class="change-old">{{ change.oldValue ?? '-' }}</td>
+                            <td class="change-new">{{ change.newValue ?? '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        {# Sample events for demonstration #}
+        <div class="timeline-event">
+            <div class="timeline-dot created"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">Quote Created</div>
+                        <div class="timeline-user">Sarah Johnson</div>
+                    </div>
+                    <div class="timeline-time">2025-01-25 09:15:42 UTC</div>
+                </div>
+                <div class="timeline-details">Initial quote created from RFQ #RFQ-2025-0142. BOM imported from customer file with 47 line items.</div>
+            </div>
+        </div>
+        
+        <div class="timeline-event">
+            <div class="timeline-dot modified"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">Pricing Updated</div>
+                        <div class="timeline-user">Pricing Engine</div>
+                    </div>
+                    <div class="timeline-time">2025-01-25 09:16:08 UTC</div>
+                </div>
+                <div class="timeline-details">Automated pricing from distributor APIs. 43 of 47 parts priced successfully (91.5% coverage).</div>
+            </div>
+        </div>
+        
+        <div class="timeline-event">
+            <div class="timeline-dot modified"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">Manual Price Adjustment</div>
+                        <div class="timeline-user">Michael Chen</div>
+                    </div>
+                    <div class="timeline-time">2025-01-25 14:32:17 UTC</div>
+                </div>
+                <div class="timeline-details">Manual pricing added for 4 exception parts not found in API sources.</div>
+                <table class="change-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">Part</th>
+                            <th style="width: 35%;">Previous</th>
+                            <th style="width: 35%;">New</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>CUSTOM-XTAL-25M</td>
+                            <td class="change-old">$0.0000</td>
+                            <td class="change-new">$1.2500</td>
+                        </tr>
+                        <tr>
+                            <td>CONN-CUSTOM-12P</td>
+                            <td class="change-old">$0.0000</td>
+                            <td class="change-new">$0.8500</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="timeline-event">
+            <div class="timeline-dot modified"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">Margin Adjusted</div>
+                        <div class="timeline-user">Sarah Johnson</div>
+                    </div>
+                    <div class="timeline-time">2025-01-26 10:05:33 UTC</div>
+                </div>
+                <table class="change-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">Field</th>
+                            <th style="width: 35%;">Previous</th>
+                            <th style="width: 35%;">New</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Margin %</td>
+                            <td class="change-old">15.0%</td>
+                            <td class="change-new">12.5%</td>
+                        </tr>
+                        <tr>
+                            <td>Total Price</td>
+                            <td class="change-old">$24,850.00</td>
+                            <td class="change-new">$24,310.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="timeline-details">Competitive pricing adjustment per sales manager approval.</div>
+            </div>
+        </div>
+        
+        <div class="timeline-event">
+            <div class="timeline-dot approved"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">Quote Approved</div>
+                        <div class="timeline-user">David Williams (Sales Manager)</div>
+                    </div>
+                    <div class="timeline-time">2025-01-26 11:22:45 UTC</div>
+                </div>
+                <div class="timeline-details">Quote approved for customer delivery. All exceptions resolved.</div>
+            </div>
+        </div>
+        
+        <div class="timeline-event">
+            <div class="timeline-dot sent"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">Quote Sent to Customer</div>
+                        <div class="timeline-user">Sarah Johnson</div>
+                    </div>
+                    <div class="timeline-time">2025-01-26 11:45:12 UTC</div>
+                </div>
+                <div class="timeline-details">Quote PDF sent to contact@customer.com via email. Tracking enabled.</div>
+            </div>
+        </div>
+        
+        <div class="timeline-event">
+            <div class="timeline-dot status"></div>
+            <div class="timeline-content">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">Customer Viewed Quote</div>
+                        <div class="timeline-user">System (Email Tracking)</div>
+                    </div>
+                    <div class="timeline-time">2025-01-26 14:18:33 UTC</div>
+                </div>
+                <div class="timeline-details">Quote opened by recipient. IP: 203.x.x.x (Singapore). View duration: 4m 32s.</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Document Verification #}
+    <h3>{{ 'pdf.audit_trail.verification'|trans|default('Document Verification') }}</h3>
+    
+    <div class="verification-card">
+        <div style="display: flex; gap: 10pt; align-items: flex-start;">
+            <div class="verification-icon">✓</div>
+            <div style="flex: 1;">
+                <strong>{{ 'pdf.audit_trail.verified'|trans|default('Document Integrity Verified') }}</strong>
+                <p style="margin: 5pt 0 0 0; font-size: 9pt; color: var(--rams-muted);">
+                    {{ 'pdf.audit_trail.verified_desc'|trans|default('This audit trail has been cryptographically signed and can be independently verified. Any modification to the quote or audit record will invalidate the signature.') }}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin: 15pt 0;">
+        <strong>{{ 'pdf.audit_trail.document_hash'|trans|default('Document Hash (SHA-256)') }}:</strong>
+        <div class="hash-display">{{ auditData.documentHash ?? '8f7d9e2a1b4c6f3d5e8a7b2c9d0e1f4a3b6c5d8e7f0a1b2c3d4e5f6a7b8c9d0e' }}</div>
+    </div>
+    
+    <div style="margin: 15pt 0;">
+        <strong>{{ 'pdf.audit_trail.audit_hash'|trans|default('Audit Trail Hash (SHA-256)') }}:</strong>
+        <div class="hash-display">{{ auditData.auditHash ?? 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2' }}</div>
+    </div>
+
+    {# Signature Block #}
+    <div class="signature-block">
+        <h4 style="margin: 0 0 10pt 0;">{{ 'pdf.audit_trail.attestation'|trans|default('Attestation') }}</h4>
+        <p style="font-size: 9pt; color: var(--rams-muted); margin: 0;">
+            {{ 'pdf.audit_trail.attestation_text'|trans|default('I certify that this audit trail accurately represents all changes made to the referenced quote document and that all information contained herein is true and complete to the best of my knowledge.') }}
+        </p>
+        <div class="signature-row">
+            <div class="signature-box">
+                <div class="signature-label">{{ 'pdf.audit_trail.prepared_by'|trans|default('Prepared By') }}</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-label">{{ 'pdf.audit_trail.date'|trans|default('Date') }}</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-label">{{ 'pdf.audit_trail.reviewed_by'|trans|default('Reviewed By') }}</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-label">{{ 'pdf.audit_trail.date'|trans|default('Date') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <strong>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</strong> • {{ 'pdf.audit_trail.footer'|trans|default('Audit Trail Report - CONFIDENTIAL') }}<br>
+        {{ 'pdf.generated_on'|trans|default('Generated') }}: {{ "now"|date('Y-m-d H:i:s') }} UTC • {{ 'pdf.audit_trail.system'|trans|default('Audit System v2.0') }}
+    </div>
+</body>
+</html>

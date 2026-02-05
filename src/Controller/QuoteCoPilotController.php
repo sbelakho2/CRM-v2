@@ -16,6 +16,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 use Psr\Log\LoggerInterface;
@@ -42,6 +43,7 @@ use Psr\Log\LoggerInterface;
  * - POST /quote-copilot/{id}/publish - Publish quote to customer
  */
 #[Route('/quote-copilot')]
+#[IsGranted('ROLE_USER')]
 class QuoteCoPilotController extends AbstractController
 {
     public function __construct(

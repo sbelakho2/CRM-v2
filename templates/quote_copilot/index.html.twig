@@ -14,14 +14,14 @@
     {% endfor %}
 
     {# Page Header #}
-    <header class="rams-module__header rams-module__header--border-bottom">
+    <header class="rams-module__header rams-module__header--rams-border-bottom">
         <h1 class="rams-heading rams-heading--1">{{ 'quote.copilot.title'|trans }}</h1>
         <p class="rams-text rams-text--muted">{{ 'quote.copilot.subtitle'|trans }}</p>
     </header>
 
-    <div class="rams-grid rams-grid--cols-3 rams-grid--gap-lg">
+    <div class="rams-grid rams-grid--3 rams-gap-6">
         {# Upload Section - 2 columns #}
-        <div class="rams-grid__span-2">
+        <div class="rams-grid-span-2">
             <div class="rams-module">
                 <div class="rams-module__header">
                     <h2 class="rams-heading rams-heading--3">{{ 'quote.copilot.upload_bom'|trans }}</h2>
@@ -49,13 +49,13 @@
                                 <p class="rams-upload-zone__title">{{ 'quote.copilot.click_to_upload'|trans }}</p>
                                 <p class="rams-upload-zone__hint">{{ 'quote.copilot.csv_format_hint'|trans }}</p>
                                 <input type="file" name="bom_file" required accept=".csv" class="rams-sr-only" id="bom-file-input" onchange="displayFileName(this)">
-                                <button type="button" class="rams-btn rams-btn--primary">{{ 'quote.copilot.choose_file'|trans }}</button>
+                                <button type="button" class="rams-btn--primary">{{ 'quote.copilot.choose_file'|trans }}</button>
                                 <div id="file-name-display" class="rams-upload-zone__filename"></div>
                             </div>
                         </div>
 
                         {# Shipment Details #}
-                        <div class="rams-module rams-module--nested">
+                        <div class="rams-module rams-module--inset">
                             <div class="rams-module__header">
                                 <h3 class="rams-heading rams-heading--4 rams-dymo">{{ 'quote.copilot.shipment_details'|trans }}</h3>
                             </div>
@@ -95,13 +95,13 @@
 
                         {# Submit Buttons #}
                         <div class="rams-form__actions">
-                            <button type="submit" class="rams-btn rams-btn--primary rams-btn--lg">
+                            <button type="submit" class="rams-btn--primary rams-btn--lg">
                                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                 </svg>
                                 {{ 'quote.copilot.generate_quote'|trans }}
                             </button>
-                            <button type="reset" onclick="document.getElementById('file-name-display').textContent = ''" class="rams-btn rams-btn--secondary rams-btn--lg">
+                            <button type="reset" onclick="document.getElementById('file-name-display').textContent = ''" class="rams-btn--lg">
                                 {{ 'common.clear'|trans }}
                             </button>
                         </div>
@@ -118,22 +118,22 @@
                     <span class="rams-dymo">{{ 'quote.copilot.how_it_works'|trans }}</span>
                 </div>
                 <div class="rams-module__content">
-                    <ol class="rams-steps">
-                        <li class="rams-steps__item">
-                            <span class="rams-steps__number">1</span>
-                            <span class="rams-steps__text">{{ 'quote.copilot.step_1'|trans }}</span>
+                    <ol class="rams-list">
+                        <li class="rams-list__item">
+                            <span class="rams-list__number">1</span>
+                            <span class="rams-list__text">{{ 'quote.copilot.step_1'|trans }}</span>
                         </li>
-                        <li class="rams-steps__item">
-                            <span class="rams-steps__number">2</span>
-                            <span class="rams-steps__text">{{ 'quote.copilot.step_2'|trans }}</span>
+                        <li class="rams-list__item">
+                            <span class="rams-list__number">2</span>
+                            <span class="rams-list__text">{{ 'quote.copilot.step_2'|trans }}</span>
                         </li>
-                        <li class="rams-steps__item">
-                            <span class="rams-steps__number">3</span>
-                            <span class="rams-steps__text">{{ 'quote.copilot.step_3'|trans }}</span>
+                        <li class="rams-list__item">
+                            <span class="rams-list__number">3</span>
+                            <span class="rams-list__text">{{ 'quote.copilot.step_3'|trans }}</span>
                         </li>
-                        <li class="rams-steps__item">
-                            <span class="rams-steps__number">4</span>
-                            <span class="rams-steps__text">{{ 'quote.copilot.step_4'|trans }}</span>
+                        <li class="rams-list__item">
+                            <span class="rams-list__number">4</span>
+                            <span class="rams-list__text">{{ 'quote.copilot.step_4'|trans }}</span>
                         </li>
                     </ol>
                 </div>
@@ -168,10 +168,10 @@
                     <span class="rams-dymo">{{ 'quote.copilot.csv_format_example'|trans }}</span>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-code-block">
+                    <div class="rams-code">
                         <code>{{ 'quote.copilot.sample_header'|trans }}</code>
-                        <code class="rams-code-block--muted">{{ 'quote.copilot.sample_row_1'|trans }}</code>
-                        <code class="rams-code-block--muted">{{ 'quote.copilot.sample_row_2'|trans }}</code>
+                        <code class="rams-code--muted">{{ 'quote.copilot.sample_row_1'|trans }}</code>
+                        <code class="rams-code--muted">{{ 'quote.copilot.sample_row_2'|trans }}</code>
                     </div>
                     <a href="/samples/sample-bom.csv" download class="rams-link rams-link--icon">
                         <svg class="rams-link__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

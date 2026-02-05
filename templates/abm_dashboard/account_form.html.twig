@@ -101,13 +101,13 @@
 
                 {# Form Actions #}
                 <div class="rams-form__actions">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" class="rams-btn--primary">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M13 3L6 13L3 9" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                         {{ account ? 'abm_dashboard.update_account'|trans : 'abm_dashboard.create_account'|trans }}
                     </button>
-                    <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn rams-btn--ghost">
+                    <a href="{{ path('abm_dashboard_accounts') }}" class="rams-btn--ghost">
                         {{ 'common.cancel'|trans }}
                     </a>
                 </div>
