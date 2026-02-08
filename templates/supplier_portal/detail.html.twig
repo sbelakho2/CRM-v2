@@ -31,15 +31,15 @@
                     <div class="rams-grid rams-grid--3 rams-gap-4">
                         <div class="rams-metric">
                             <span class="rams-metric__label">{{ 'supplier.portal.priority'|trans }}</span>
-                            <span class="rams-metric__value rams-rams-text--xl">{{ supplier.priority }}</span>
+                            <span class="rams-metric__value rams-text--xl">{{ supplier.priority }}</span>
                         </div>
                         <div class="rams-metric">
                             <span class="rams-metric__label">{{ 'supplier.portal.contact_name'|trans }}</span>
-                            <span class="rams-metric__value rams-rams-text--lg">{{ supplier.contact_name | default('common.n_a'|trans) }}</span>
+                            <span class="rams-metric__value rams-text--lg">{{ supplier.contact_name | default('common.n_a'|trans) }}</span>
                         </div>
                         <div class="rams-metric">
                             <span class="rams-metric__label">{{ 'supplier.portal.portal_sla'|trans }}</span>
-                            <span class="rams-metric__value rams-rams-text--lg">{{ supplier.portal_sla_days | default('common.n_a'|trans) }}</span>
+                            <span class="rams-metric__value rams-text--lg">{{ supplier.portal_sla_days | default('common.n_a'|trans) }}</span>
                             <span class="rams-metric__unit">{{ 'common.days'|trans|lower }}</span>
                         </div>
                     </div>
@@ -89,17 +89,17 @@
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-3">
                         <div class="rams-flex rams-justify-between rams-items-center rams-p-3 rams-bg-panel rams-border rams-rounded">
-                            <span class="rams-rams-text--sm">{{ 'supplier.portal.compliance_required'|trans }}</span>
-                            <span class="rams-text-bold rams-rams-text--sm">{{ supplier.compliance_required | default('messages.not_specified'|trans) }}</span>
+                            <span class="rams-text--sm">{{ 'supplier.portal.compliance_required'|trans }}</span>
+                            <span class="rams-text--bold rams-text--sm">{{ supplier.compliance_required | default('messages.not_specified'|trans) }}</span>
                         </div>
                         <div class="rams-flex rams-justify-between rams-items-center rams-p-3 rams-bg-panel rams-border rams-rounded">
-                            <span class="rams-rams-text--sm">{{ 'supplier.portal.compliance_provided'|trans }}</span>
+                            <span class="rams-text--sm">{{ 'supplier.portal.compliance_provided'|trans }}</span>
                             <span class="rams-badge rams-badge--{% if supplier.compliance_provided %}success{% else %}danger{% endif %}">
                                 {{ (supplier.compliance_provided ? 'common.yes' : 'common.no')|trans }}
                             </span>
                         </div>
                         <div class="rams-flex rams-justify-between rams-items-center rams-p-3 rams-bg-panel rams-border rams-rounded">
-                            <span class="rams-rams-text--sm">{{ 'supplier.portal.nda_sent'|trans }}</span>
+                            <span class="rams-text--sm">{{ 'supplier.portal.nda_sent'|trans }}</span>
                             <span class="rams-badge rams-badge--{% if supplier.nda_sent %}success{% else %}warning{% endif %}">
                                 {{ (supplier.nda_sent ? 'common.yes' : 'common.no')|trans }}
                             </span>
@@ -120,8 +120,8 @@
                     <div class="rams-stack rams-gap-4">
                         <div>
                             <div class="rams-flex rams-justify-between rams-mb-1">
-                                <span class="rams-rams-text--xs rams-rams-text--muted uppercase">{{ 'supplier.portal.on_time_delivery'|trans }}</span>
-                                <span class="rams-rams-text--xs rams-text-bold">{{ supplier.on_time_rate | default(95) }}%</span>
+                                <span class="rams-text--xs rams-text--muted rams-uppercase">{{ 'supplier.portal.on_time_delivery'|trans }}</span>
+                                <span class="rams-text--xs rams-text--bold">{{ supplier.on_time_rate | default(95) }}%</span>
                             </div>
                             <div class="rams-progress rams-progress--compact">
                                 <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ supplier.on_time_rate | default(95) }}%"></div>
@@ -129,16 +129,16 @@
                         </div>
                         <div>
                             <div class="rams-flex rams-justify-between rams-mb-1">
-                                <span class="rams-rams-text--xs rams-rams-text--muted uppercase">{{ 'supplier.portal.quality_score'|trans }}</span>
-                                <span class="rams-rams-text--xs rams-text-bold">{{ supplier.quality_score | default(88) }}/100</span>
+                                <span class="rams-text--xs rams-text--muted rams-uppercase">{{ 'supplier.portal.quality_score'|trans }}</span>
+                                <span class="rams-text--xs rams-text--bold">{{ supplier.quality_score | default(88) }}/100</span>
                             </div>
                             <div class="rams-progress rams-progress--compact">
                                 <div class="rams-progress__bar" style="width: {{ supplier.quality_score | default(88) }}%"></div>
                             </div>
                         </div>
                         <div class="rams-flex rams-justify-between">
-                            <span class="rams-rams-text--xs rams-rams-text--muted uppercase">{{ 'supplier.portal.response_time'|trans }}</span>
-                            <span class="rams-rams-text--xs rams-text-bold">{{ supplier.response_time | default('2h') }}</span>
+                            <span class="rams-text--xs rams-text--muted rams-uppercase">{{ 'supplier.portal.response_time'|trans }}</span>
+                            <span class="rams-text--xs rams-text--bold">{{ supplier.response_time | default('2h') }}</span>
                         </div>
                     </div>
                 </div>
@@ -152,16 +152,16 @@
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-2">
                         <div class="rams-module rams-module--inset rams-p-3 rams-bg-info-subtle">
-                            <span class="rams-text-2xs rams-rams-text--info uppercase rams-mb-1 rams-block">{{ 'supplier.portal.total_orders'|trans }}</span>
-                            <span class="rams-metric__value rams-rams-text--info rams-text-2xl">{{ supplier.total_orders | default(0) }}</span>
+                            <span class="rams-text-2xs rams-text--info rams-uppercase rams-mb-1 rams-block">{{ 'supplier.portal.total_orders'|trans }}</span>
+                            <span class="rams-metric__value rams-text--info rams-text-2xl">{{ supplier.total_orders | default(0) }}</span>
                         </div>
                         <div class="rams-module rams-module--inset rams-p-3 rams-bg-success-subtle">
-                            <span class="rams-text-2xs rams-rams-text--success uppercase rams-mb-1 rams-block">{{ 'supplier.portal.total_spent'|trans }}</span>
-                            <span class="rams-metric__value rams-rams-text--success rams-text-2xl">{{ supplier.total_spent|default(0)|format_currency(supplier.total_spent_currency|default(supplier.currency|default(display_currency())), null, 0) }}</span>
+                            <span class="rams-text-2xs rams-text--success rams-uppercase rams-mb-1 rams-block">{{ 'supplier.portal.total_spent'|trans }}</span>
+                            <span class="rams-metric__value rams-text--success rams-text-2xl">{{ supplier.total_spent|default(0)|format_currency(supplier.total_spent_currency|default(supplier.currency|default(display_currency())), null, 0) }}</span>
                         </div>
                         <div class="rams-module rams-module--inset rams-p-3 rams-bg-warning-subtle">
-                            <span class="rams-text-2xs rams-rams-text--warning uppercase rams-mb-1 rams-block">{{ 'supplier.portal.avg_order_value'|trans }}</span>
-                            <span class="rams-metric__value rams-rams-text--warning rams-text-2xl">{{ supplier.avg_order_value|default(0)|format_currency(supplier.avg_order_value_currency|default(supplier.currency|default(display_currency())), null, 0) }}</span>
+                            <span class="rams-text-2xs rams-text--warning rams-uppercase rams-mb-1 rams-block">{{ 'supplier.portal.avg_order_value'|trans }}</span>
+                            <span class="rams-metric__value rams-text--warning rams-text-2xl">{{ supplier.avg_order_value|default(0)|format_currency(supplier.avg_order_value_currency|default(supplier.currency|default(display_currency())), null, 0) }}</span>
                         </div>
                     </div>
                 </div>
@@ -174,7 +174,7 @@
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-2">
-                        <button class="rams-btn--primary rams-w-full">
+                        <button class="rams-btn rams-btn--primary rams-w-full">
                             {{ 'supplier.portal.view_portal'|trans }}
                         </button>
                         <button class="rams-btn rams-w-full">
@@ -183,7 +183,7 @@
                         <button class="rams-btn rams-w-full">
                             {{ 'supplier.portal.edit_details'|trans }}
                         </button>
-                        <button class="rams-btn--danger rams-btn--ghost rams-w-full">
+                        <button class="rams-btn rams-btn--danger rams-btn--ghost rams-w-full">
                             {{ 'supplier.portal.deactivate'|trans }}
                         </button>
                     </div>

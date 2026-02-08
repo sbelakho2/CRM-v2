@@ -96,8 +96,11 @@ class QuoteWinPredictorService
             $weightedScore += $score * $weight;
         }
         
-        // Calculate final probability
-        $probability = min(0.95, max(0.05, $baseRate * $industryModifier * (0.5 + $weightedScore)));
+        // Calculate final probability using linear interpolation:
+        // weightedScore=0 → baseRate*modifier, weightedScore=1 → approaches 0.95
+        // This ensures the full grade spectrum (F through A) is reachable
+        $baseProbability = $baseRate * $industryModifier;
+        $probability = min(0.95, max(0.05, $baseProbability + $weightedScore * (0.95 - $baseProbability)));
         
         // Calculate model confidence
         $confidence = $this->calculateConfidence($quote, $factors);

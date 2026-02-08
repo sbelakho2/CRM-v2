@@ -10,6 +10,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_leads_dupe', columns: ['dupe_key'])]
 #[ORM\Index(name: 'idx_leads_region', columns: ['region_tag'])]
 #[ORM\Index(name: 'idx_leads_score', columns: ['lead_score'])]
+#[ORM\Index(name: 'idx_leads_website', columns: ['website_root'])]
+#[ORM\Index(name: 'idx_leads_status', columns: ['review_status'])]
+#[ORM\Index(name: 'idx_leads_created', columns: ['created_at'])]
+#[ORM\Index(name: 'idx_leads_scraped', columns: ['last_scraped_at'])]
 class Lead
 {
     #[ORM\Id]
@@ -117,6 +121,9 @@ class Lead
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
+    
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $source = null;
     
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $scrapingMethod = null; // 'static', 'panther', 'static_fallback'
@@ -535,6 +542,14 @@ class Lead
         return $this->hasContactForm;
     }
     
+    /**
+     * Getter alias for Symfony property access (e.g. LeadNurturingService)
+     */
+    public function getHasContactForm(): bool
+    {
+        return $this->hasContactForm;
+    }
+    
     public function setHasContactForm(bool $hasContactForm): self
     {
         $this->hasContactForm = $hasContactForm;
@@ -615,52 +630,36 @@ class Lead
     }
     
     /**
-     * Set source info - stored in notesAuto field
+     * Set the lead source (proper ORM column)
      */
     public function setSource(?string $source): self
     {
-        // Prepend source info to notes
-        $currentNotes = $this->notesAuto ?? '';
-        $sourcePrefix = $source ? "[Source: {$source}]\n" : '';
-        $this->notesAuto = $sourcePrefix . $currentNotes;
+        $this->source = $source;
         return $this;
     }
     
     /**
-     * Get source from notesAuto (extracts from prefix if present)
+     * Get the lead source
      */
     public function getSource(): ?string
     {
-        if (!$this->notesAuto) {
-            return null;
-        }
-        if (preg_match('/\[Source:\s*([^\]]+)\]/', $this->notesAuto, $matches)) {
-            return trim($matches[1]);
-        }
-        return null;
+        return $this->source;
     }
     
     /**
-     * Set description - alias for first part of notesAuto
+     * Set description in notesAuto
      */
     public function setDescription(?string $description): self
     {
-        // Extract source if present, then set description with source preserved
-        $source = $this->getSource();
-        $sourcePrefix = $source ? "[Source: {$source}]\n" : '';
-        $this->notesAuto = $sourcePrefix . ($description ?? '');
+        $this->notesAuto = $description;
         return $this;
     }
     
     /**
-     * Get description - returns notesAuto without source prefix
+     * Get description from notesAuto
      */
     public function getDescription(): ?string
     {
-        if (!$this->notesAuto) {
-            return null;
-        }
-        // Remove source prefix if present
-        return preg_replace('/^\[Source:[^\]]+\]\n?/', '', $this->notesAuto);
+        return $this->notesAuto;
     }
 }

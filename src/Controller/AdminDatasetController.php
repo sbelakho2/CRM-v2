@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * AdminDatasetController
@@ -35,6 +36,7 @@ use Symfony\Component\Routing\Annotation\Route;
  * - GET  /admin/datasets/history      - Import history
  */
 #[Route('/admin/datasets')]
+#[IsGranted('ROLE_ADMIN')]
 class AdminDatasetController extends AbstractController
 {
     public function __construct(
@@ -191,7 +193,6 @@ class AdminDatasetController extends AbstractController
         // 4. Perform rollback
         try {
             $result = $this->datasetImport->rollbackDataset(
-                $datasetType,
                 $targetVersion
             );
         } catch (\Exception $e) {

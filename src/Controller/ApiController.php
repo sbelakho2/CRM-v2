@@ -6,8 +6,10 @@ use App\Repository\ContactRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api')]
+#[IsGranted('ROLE_USER')]
 class ApiController extends AbstractController
 {
     #[Route('/contacts/by-company/{companyId}', name: 'api_contacts_by_company', methods: ['GET'])]

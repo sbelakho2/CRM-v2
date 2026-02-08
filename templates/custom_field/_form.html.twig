@@ -4,7 +4,7 @@
             <!-- Field Definition -->
              <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Field Definition</h3>
+                    <h3>{{ 'custom_field.field_definition'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-form__group">
@@ -17,13 +17,13 @@
                         <div class="rams-form__group">
                              {{ form_label(form.fieldKey, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                              {{ form_widget(form.fieldKey, {'attr': {'class': 'rams-form__input'}}) }}
-                             <div class="rams-form-help">Unique key (e.g. 'budget_q4')</div>
+                             <div class="rams-form-help">{{ 'custom_field.key_help'|trans }}</div>
                              {{ form_errors(form.fieldKey) }}
                         </div>
                          <div class="rams-form__group">
                              {{ form_label(form.fieldGroup, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                              {{ form_widget(form.fieldGroup, {'attr': {'class': 'rams-form__input'}}) }}
-                             <div class="rams-form-help">Group name (e.g. 'Financials')</div>
+                             <div class="rams-form-help">{{ 'custom_field.group_help'|trans }}</div>
                              {{ form_errors(form.fieldGroup) }}
                         </div>
                     </div>
@@ -39,7 +39,7 @@
                         <div class="rams-form__group">
                             {{ form_label(form.options, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                             {{ form_widget(form.options, {'attr': {'class': 'rams-form__textarea', 'rows': '4'}}) }}
-                            <div class="rams-form-help">One option per line. Format: value or label=value</div>
+                            <div class="rams-form-help">{{ 'custom_field.options_help'|trans }}</div>
                             {{ form_errors(form.options) }}
                         </div>
                      </div>
@@ -62,7 +62,7 @@
              <!-- Configuration -->
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Configuration</h3>
+                    <h3>{{ 'custom_field.configuration'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                      <div class="rams-form__group">
@@ -75,31 +75,31 @@
                              {{ form_label(form.entityType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                              {{ form_widget(form.entityType, {'attr': {'class': 'rams-form__select'}}) }}
                          {% else %}
-                            <div class="rams-text--sm rams-text--muted">Entity: <strong>{{ form.entityType.vars.value|default('Global') }}</strong></div>
+                            <div class="rams-text--sm rams-text--muted">{{ 'custom_field.entity_label'|trans }}<strong>{{ form.entityType.vars.value|default('custom_field.global'|trans) }}</strong></div>
                          {% endif %}
                     </div>
 
                     <div class="rams-form__group">
                         <label class="rams-checkbox-label">
                             {{ form_widget(form.required) }}
-                            <span class="rams-checkbox-text">Required Field</span>
+                            <span class="rams-checkbox-text">{{ 'custom_field.required_field'|trans }}</span>
                         </label>
                     </div>
                      <div class="rams-form__group">
                         <label class="rams-checkbox-label">
                             {{ form_widget(form.searchable) }}
-                            <span class="rams-checkbox-text">Searchable</span>
+                            <span class="rams-checkbox-text">{{ 'custom_field.searchable'|trans }}</span>
                         </label>
                     </div>
                     
                     <div class="rams-form__group">
                          {{ form_label(form.description, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                          {{ form_widget(form.description, {'attr': {'class': 'rams-form__textarea', 'rows': '3'}}) }}
-                         <div class="rams-form-help">Help text shown to users.</div>
+                         <div class="rams-form-help">{{ 'custom_field.help_text_help'|trans }}</div>
                     </div>
                 </div>
                 <div class="rams-module__footer">
-                     <button class="rams-btn--primary rams-w-full">{{ button_label|default('Save Field') }}</button>
+                     <button class="rams-btn rams-btn--primary rams-w-full">{{ button_label|default('custom_field.save_field'|trans) }}</button>
                 </div>
             </div>
         </div>

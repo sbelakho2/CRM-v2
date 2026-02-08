@@ -375,6 +375,11 @@ class EmailAbTestService
         $p1 = $winningVariant['opens'] / max($n1, 1);
         $p2 = $controlVariant['opens'] / max($n2, 1);
 
+        // Guard against both variants having zero sends
+        if ($n1 === 0 || $n2 === 0) {
+            return ['significant' => false, 'confidence' => 0];
+        }
+
         // Pooled probability
         $p = ($winningVariant['opens'] + $controlVariant['opens']) / ($n1 + $n2);
 
@@ -385,14 +390,14 @@ class EmailAbTestService
             return ['significant' => false, 'confidence' => 0];
         }
 
-        // Z-score
+        // Z-score (two-proportion z-test)
         $z = abs($p1 - $p2) / $se;
 
-        // Calculate confidence level (approximation)
-        $confidence = min(99.9, 50 + ($z * 15)); // Simplified confidence calculation
+        // Convert z-score to confidence via Abramowitz & Stegun normal CDF approximation
+        $confidence = $this->zScoreToConfidence($z);
 
-        // Consider significant if z > 1.96 (95% confidence) or confidence > 95%
-        $isSignificant = $z > 1.96 || $confidence > 95;
+        // Significant at the 95% level (two-tailed: z > 1.96)
+        $isSignificant = $z > 1.96;
 
         return [
             'significant' => $isSignificant,
@@ -400,6 +405,25 @@ class EmailAbTestService
             'z_score' => round($z, 4),
             'improvement' => round((($p1 - $p2) / max($p2, 0.001)) * 100, 2), // % improvement
         ];
+    }
+
+    /**
+     * Convert z-score to confidence percentage using Abramowitz & Stegun
+     * normal CDF approximation (two-tailed).
+     * 
+     * For z = 1.96 → 95%, z = 2.576 → 99%, z = 3.29 → 99.9%
+     */
+    private function zScoreToConfidence(float $z): float
+    {
+        if ($z <= 0) {
+            return 0.0;
+        }
+        // Abramowitz & Stegun approximation of upper tail probability
+        $t = 1.0 / (1.0 + 0.2316419 * $z);
+        $d = 0.3989422804014327; // 1 / sqrt(2π)
+        $prob = $d * exp(-$z * $z / 2.0) * $t * (0.3193815 + $t * (-0.3565638 + $t * (1.781478 + $t * (-1.8212560 + $t * 1.3302744))));
+        $pValue = 2.0 * $prob; // two-tailed
+        return min(99.9, round((1.0 - $pValue) * 100, 2));
     }
 
     /**

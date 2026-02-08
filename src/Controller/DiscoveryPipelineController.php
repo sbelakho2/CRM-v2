@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -29,6 +30,7 @@ use Psr\Log\LoggerInterface;
  * Workflow: Dork Query → Search API → Dedupe → Create Leads → Deep Scrape Queue
  */
 #[Route('/discovery-pipeline')]
+#[IsGranted('ROLE_USER')]
 class DiscoveryPipelineController extends AbstractController
 {
     public function __construct(
@@ -76,6 +78,14 @@ class DiscoveryPipelineController extends AbstractController
         
         if (!$sector) {
             return new JsonResponse(['error' => 'Sector is required'], 400);
+        }
+        
+        // Validate sector against allowed values
+        $allowedSectors = array_map('strtolower', $this->getSectors());
+        if (!in_array(strtolower($sector), $allowedSectors, true)) {
+            return new JsonResponse([
+                'error' => 'Invalid sector. Allowed: ' . implode(', ', $this->getSectors())
+            ], 400);
         }
         
         $this->logger->info('Starting discovery pipeline', [
@@ -186,6 +196,14 @@ class DiscoveryPipelineController extends AbstractController
             return new JsonResponse(['error' => 'Sector is required'], 400);
         }
         
+        // Validate sector against allowed values
+        $allowedSectors = array_map('strtolower', $this->getSectors());
+        if (!in_array(strtolower($sector), $allowedSectors, true)) {
+            return new JsonResponse([
+                'error' => 'Invalid sector. Allowed: ' . implode(', ', $this->getSectors())
+            ], 400);
+        }
+        
         try {
             $searchResults = $this->googleDorkService->searchCompanies(
                 $sector, 
@@ -270,7 +288,10 @@ class DiscoveryPipelineController extends AbstractController
     private function importAsLead(array $result, string $sector, ?string $location): array
     {
         $website = $result['website'] ?? null;
-        $name = $result['name'] ?? $this->extractCompanyNameFromTitle($result['title'] ?? '');
+        $name = $result['name'] ?? $this->extractCompanyNameFromTitle(
+            $result['title'] ?? '',
+            $result['displayLink'] ?? $result['website'] ?? ''
+        );
         
         if (!$name) {
             return ['status' => 'skipped', 'reason' => 'No company name'];
@@ -326,25 +347,74 @@ class DiscoveryPipelineController extends AbstractController
     }
 
     /**
-     * Extract company name from search result title
+     * Extract company name from search result title.
+     *
+     * Falls back to domain-derived name when the title looks generic.
      */
-    private function extractCompanyNameFromTitle(string $title): string
+    private function extractCompanyNameFromTitle(string $title, string $domain = ''): string
     {
         // Remove common suffixes
-        $name = preg_replace('/\s*[-|–]\s*.*(LinkedIn|Facebook|Homepage|Home|About|Contact).*$/i', '', $title);
+        $name = preg_replace('/\s*[-|–]\s*.*(LinkedIn|Facebook|Homepage|Home|About|Contact|Careers|Jobs|News|Blog|Press).*$/i', '', $title);
         $name = preg_replace('/\s*\|\s*.*$/', '', $name);
-        
-        return trim($name);
+        $name = trim($name);
+
+        // Detect generic / junk titles
+        $genericPatterns = [
+            '/^about\s*(us)?$/i',
+            '/^home(page)?$/i',
+            '/^contact(\s+us)?$/i',
+            '/^products?$/i',
+            '/^services?$/i',
+            '/^careers?$/i',
+            '/^locations?$/i',
+            '/^capabilities\b/i',
+        ];
+
+        $isGeneric = mb_strlen($name) > 60;
+        if (!$isGeneric) {
+            foreach ($genericPatterns as $pattern) {
+                if (preg_match($pattern, $name)) {
+                    $isGeneric = true;
+                    break;
+                }
+            }
+        }
+
+        if ($isGeneric && $domain !== '') {
+            $host = preg_replace('#^https?://#', '', $domain);
+            $host = preg_replace('#[:/].*$#', '', $host);
+            $host = preg_replace('/^www\./', '', $host);
+            $host = preg_replace('/\.(co|com|org|net|gov|edu|io)\.[a-z]{2,4}$/i', '', $host);
+            $host = preg_replace('/\.[a-z]{2,6}$/i', '', $host);
+            $domainName = ucwords(str_replace(['-', '.', '_'], ' ', trim($host)));
+            if ($domainName !== '') {
+                return $domainName;
+            }
+        }
+
+        return $name;
     }
 
     /**
-     * Determine region tag from location
+     * Determine region tag from location.
+     *
+     * Maps the CountryService result to standard region tags used in
+     * crawler_config.yaml. EU_REGION (the value CountryService returns
+     * for generic 'Europe' input) is mapped to 'EU'.
      */
     private function determineRegion(?string $location): string
     {
         $normalized = $this->countryService->normalizeRegionCode($location);
 
-        return $normalized ?? 'unknown';
+        if ($normalized === null) {
+            return 'unknown';
+        }
+
+        // Map country-level ISO codes to broader region tags when needed
+        return match ($normalized) {
+            'EU_REGION' => 'EU',
+            default => $normalized,
+        };
     }
 
     private function resolveLocationLabel(?string $location): ?string
@@ -353,20 +423,14 @@ class DiscoveryPipelineController extends AbstractController
             return null;
         }
 
-        $legacy = [
-            'Tanger Free Zone' => 'Tanger Free Zone',
-            'Tanger Automotive City' => 'Tanger Automotive City',
-            'Atlantic Free Zone Kenitra' => 'Atlantic Free Zone Kenitra',
-            'Casablanca' => 'Casablanca',
-            'Nouaceur' => 'Nouaceur',
-            'Europe' => 'Europe',
-        ];
-
-        if (isset($legacy[$location])) {
-            return $legacy[$location];
+        // Check against all known target locations
+        $allLocations = CompanyDiscoveryService::getTargetLocations();
+        if (isset($allLocations[$location])) {
+            return $allLocations[$location];
         }
 
-        return $this->countryService->getRegionName($location);
+        // Return as-is if it's already a label rather than a code
+        return $this->countryService->getRegionName($location) ?? $location;
     }
 
     /**
@@ -396,26 +460,26 @@ class DiscoveryPipelineController extends AbstractController
             'Industrial',
             'Rail',
             'Renewables',
-            'Power Electronics',
             'Medical',
             'Defense',
+            'Telecom',
+            'HVAC',
+            'Marine',
+            'Power Electronics',
             'Consumer Electronics',
+            'Data Center',
+            'Energy Storage',
         ];
     }
 
     /**
-     * Get available locations
+     * Get available locations across all regions.
      */
     private function getLocations(): array
     {
-        return $this->countryService->getRegionOptions([
-            'Tanger Free Zone' => 'Tanger Free Zone',
-            'Tanger Automotive City' => 'Tanger Automotive City',
-            'Atlantic Free Zone Kenitra' => 'Atlantic Free Zone Kenitra',
-            'Casablanca' => 'Casablanca',
-            'Nouaceur' => 'Nouaceur',
-            'Europe' => 'Europe',
-        ]);
+        return $this->countryService->getRegionOptions(
+            CompanyDiscoveryService::getTargetLocations()
+        );
     }
 
     /**

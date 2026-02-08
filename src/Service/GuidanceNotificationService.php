@@ -11,10 +11,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Service to provide contextual guidance notifications for users
- * Reminds users of important next steps after completing actions
  */
 class GuidanceNotificationService
 {
@@ -23,21 +23,33 @@ class GuidanceNotificationService
     public function __construct(
         private EntityManagerInterface $em,
         private RequestStack $requestStack,
-        private UrlGeneratorInterface $urlGenerator
+        private UrlGeneratorInterface $urlGenerator,
+        private TranslatorInterface $translator
     ) {}
 
     /**
      * Add a guidance notification to the session
      * @param string $type Type of notification (success, warning, info, tip)
-     * @param string $message Notification message
+     * @param string $messageKey Translation key for the message
+     * @param array $messageParams Parameters for the translation
      * @param string|null $actionUrl URL for the action button
-     * @param string|null $actionLabel Label for the action button
+     * @param string|null $actionLabelKey Translation key for the action button label
      * @param string|null $dismissKey Unique key to identify this notification type for auto-dismissal
      */
-    private function addGuidance(string $type, string $message, ?string $actionUrl = null, ?string $actionLabel = null, ?string $dismissKey = null): void
-    {
+    private function addGuidance(
+        string $type, 
+        string $messageKey, 
+        array $messageParams = [], 
+        ?string $actionUrl = null, 
+        ?string $actionLabelKey = null, 
+        ?string $dismissKey = null
+    ): void {
         $session = $this->requestStack->getSession();
         $notifications = $session->get(self::SESSION_KEY, []);
+        
+        // Translate message and label
+        $message = $this->translator->trans($messageKey, $messageParams);
+        $actionLabel = $actionLabelKey ? $this->translator->trans($actionLabelKey) : null;
         
         // Check if this notification was permanently dismissed
         $dismissedNotifications = $session->get('dismissed_guidance', []);
@@ -430,9 +442,10 @@ class GuidanceNotificationService
         if ($pendingLeads > 0) {
             $this->addGuidance(
                 'info',
-                "📋 {$pendingLeads} lead(s) pending review. Review them to keep your pipeline flowing",
-                "/leads/review",
-                'Review Leads',
+                'guidance.pending_leads',
+                ['{count}' => $pendingLeads],
+                '/leads/review',
+                'guidance.action.review_leads',
                 "daily_pending_leads_{$user->getId()}_" . date('Y-m-d')
             );
         }
@@ -455,12 +468,13 @@ class GuidanceNotificationService
             ->getQuery()
             ->getSingleScalarResult();
 
-        if ($todayActivities === 0) {
+        if ((int) $todayActivities === 0) {
             $this->addGuidance(
                 'tip',
-                "📝 No activities logged today. Remember to track all your interactions!",
+                'guidance.no_activities',
+                [],
                 $this->urlGenerator->generate('app_activity_new'),
-                'Log Activity',
+                'guidance.action.log_activity',
                 "daily_no_activities_{$user->getId()}_" . date('Y-m-d')
             );
         }
@@ -473,16 +487,18 @@ class GuidanceNotificationService
     {
         $this->addGuidance(
             'success',
-            "📨 RFQ created for {$companyName}",
+            'guidance.rfq_created',
+            ['{name}' => $companyName],
             "/rfqs/{$rfqId}",
-            'View RFQ',
+            'guidance.action.view_rfq',
             "rfq_{$rfqId}_created"
         );
 
         if ($hasSopDate) {
             $this->addGuidance(
                 'info',
-                "📅 RFQ has SOP date set. Track production timeline carefully",
+                'guidance.rfq_sop_reminder',
+                [],
                 null,
                 null,
                 "rfq_{$rfqId}_sop_reminder"
@@ -491,17 +507,19 @@ class GuidanceNotificationService
 
         $this->addGuidance(
             'info',
-            "📋 Check if NDA is required before sharing sensitive information",
+            'guidance.rfq_nda_check',
+            [],
             "/rfqs/{$rfqId}",
-            'Manage NDA',
+            'guidance.action.manage_nda',
             "rfq_{$rfqId}_nda_check"
         );
 
         $this->addGuidance(
             'tip',
-            "💡 Log all RFQ-related activities to track progress and communication",
+            'guidance.rfq_log_activity',
+            [],
             $this->urlGenerator->generate('app_activity_new'),
-            'Log Activity',
+            'guidance.action.log_activity',
             "rfq_{$rfqId}_log_activity"
         );
     }
@@ -514,16 +532,18 @@ class GuidanceNotificationService
         if ($count > 0) {
             $this->addGuidance(
                 'success',
-                "✅ {$count} lead(s) approved successfully",
-                "/leads/review",
-                'View Leads'
+                'guidance.bulk_leads_approved',
+                ['{count}' => $count],
+                '/leads/review',
+                'guidance.action.view_leads'
             );
 
             $this->addGuidance(
                 'info',
-                "🏢 Convert approved leads to companies to start engagement and outreach",
-                "/leads/review",
-                'Convert Leads'
+                'guidance.convert_leads',
+                [],
+                '/leads/review',
+                'guidance.action.convert_leads'
             );
         }
     }
@@ -535,23 +555,26 @@ class GuidanceNotificationService
     {
         $this->addGuidance(
             'success',
-            "📧 Email campaign '{$campaignName}' created successfully",
+            'guidance.campaign_created',
+            ['{name}' => $campaignName],
             "/email-campaigns/{$campaignId}",
-            'View Campaign',
+            'guidance.action.view_campaign',
             "campaign_{$campaignId}_created"
         );
 
         $this->addGuidance(
             'info',
-            "👥 Select target contacts and send your campaign to start outreach",
+            'guidance.campaign_send',
+            [],
             "/email-campaigns/{$campaignId}/send",
-            'Send Campaign',
+            'guidance.action.send_campaign',
             "campaign_{$campaignId}_send"
         );
 
         $this->addGuidance(
             'tip',
-            "💡 Best Practice: Personalize your message and test with a small group first",
+            'guidance.campaign_best_practice',
+            [],
             null,
             null,
             "campaign_{$campaignId}_best_practice"
@@ -568,25 +591,28 @@ class GuidanceNotificationService
 
         $this->addGuidance(
             'success',
-            "✅ Campaign sent to {$sentCount} contact(s)",
+            'guidance.campaign_sent',
+            ['{count}' => $sentCount],
             "/email-campaigns/{$campaignId}/analytics",
-            'View Analytics',
+            'guidance.action.view_analytics',
             "campaign_{$campaignId}_sent"
         );
 
         $this->addGuidance(
             'info',
-            "📊 Monitor open rates and responses over the next 48 hours",
+            'guidance.campaign_monitor',
+            [],
             "/email-campaigns/{$campaignId}/analytics",
-            'Track Performance',
+            'guidance.action.track_performance',
             "campaign_{$campaignId}_monitor"
         );
 
         $this->addGuidance(
             'warning',
-            "⚡ Don't forget to log any responses or follow-ups as activities",
+            'guidance.campaign_log_responses',
+            [],
             $this->urlGenerator->generate('app_activity_new'),
-            'Log Activity',
+            'guidance.action.log_activity',
             "campaign_{$campaignId}_log_responses"
         );
     }
@@ -599,38 +625,40 @@ class GuidanceNotificationService
         $guidance = [
             'Submitted' => [
                 'type' => 'success',
-                'message' => "✅ RFQ for {$companyName} submitted. Track customer response",
-                'tip' => "📞 Follow up with the customer within 48 hours"
+                'messageKey' => 'guidance.rfq_submitted',
+                'tipKey' => 'guidance.rfq_submitted_tip'
             ],
             'Won' => [
                 'type' => 'success',
-                'message' => "🎉 RFQ Won! Congratulations on {$companyName}",
-                'tip' => "📋 Create compliance pack and move company to Award stage"
+                'messageKey' => 'guidance.rfq_won',
+                'tipKey' => 'guidance.rfq_won_tip'
             ],
             'Lost' => [
                 'type' => 'warning',
-                'message' => "📊 RFQ Lost for {$companyName}",
-                'tip' => "📝 Log reasons and lessons learned for future reference"
+                'messageKey' => 'guidance.rfq_lost',
+                'tipKey' => 'guidance.rfq_lost_tip'
             ],
             'In Review' => [
                 'type' => 'info',
-                'message' => "🔍 RFQ for {$companyName} under review",
-                'tip' => "⏰ Set timeline expectations with the customer"
+                'messageKey' => 'guidance.rfq_review',
+                'tipKey' => 'guidance.rfq_review_tip'
             ]
         ];
 
         if (isset($guidance[$newStatus])) {
             $this->addGuidance(
                 $guidance[$newStatus]['type'],
-                $guidance[$newStatus]['message'],
+                $guidance[$newStatus]['messageKey'],
+                ['{name}' => $companyName],
                 "/rfqs/{$rfqId}",
-                'View RFQ',
+                'guidance.action.view_rfq',
                 "rfq_{$rfqId}_status_{$newStatus}"
             );
 
             $this->addGuidance(
                 'tip',
-                $guidance[$newStatus]['tip'],
+                $guidance[$newStatus]['tipKey'],
+                [],
                 null,
                 null,
                 "rfq_{$rfqId}_status_tip_{$newStatus}"
@@ -645,9 +673,10 @@ class GuidanceNotificationService
     {
         $this->addGuidance(
             'success',
-            "📄 Compliance document uploaded for {$companyName}",
+            'guidance.compliance_uploaded',
+            ['{name}' => $companyName],
             "/compliance/company/{$companyId}",
-            'View Documents',
+            'guidance.action.view_documents',
             "compliance_{$companyId}_uploaded"
         );
 
@@ -658,9 +687,10 @@ class GuidanceNotificationService
         if ($complianceCount < 3) {
             $this->addGuidance(
                 'tip',
-                "💡 Consider uploading additional documents: certifications, quality standards, audit reports",
+                'guidance.compliance_tip',
+                [],
                 "/compliance/company/{$companyId}",
-                'Add More',
+                'guidance.action.add_more',
                 "compliance_{$companyId}_additional"
             );
         }
@@ -673,17 +703,19 @@ class GuidanceNotificationService
     {
         $this->addGuidance(
             'success',
-            "📋 Playbook '{$playbookName}' created successfully",
+            'guidance.playbook_created',
+            ['{name}' => $playbookName],
             "/playbooks/{$playbookId}",
-            'View Playbook',
+            'guidance.action.view_playbook',
             "playbook_{$playbookId}_created"
         );
 
         $this->addGuidance(
             'info',
-            "🎯 Assign companies to this playbook to automate your ABM workflow",
+            'guidance.playbook_assign',
+            [],
             "/playbooks",
-            'Assign Companies',
+            'guidance.action.assign_companies',
             "playbook_{$playbookId}_assign"
         );
     }
@@ -714,9 +746,10 @@ class GuidanceNotificationService
             
             $this->addGuidance(
                 'warning',
-                "📅 RFQ for {$companyName} - SOP in {$daysLeft} day(s)",
+                'guidance.rfq_sop_deadline',
+                ['{name}' => $companyName, '{days}' => $daysLeft],
                 "/rfqs/{$rfq->getId()}",
-                'Review RFQ',
+                'guidance.action.review_rfq',
                 "rfq_{$rfq->getId()}_sop_reminder_" . date('Y-m-d')
             );
         }

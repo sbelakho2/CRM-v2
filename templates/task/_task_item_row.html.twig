@@ -6,20 +6,20 @@
     </div>
     <div class="rams-flex-grow">
         <div class="rams-flex rams-items-center rams-gap-2">
-            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-link {{ task.status == 'done' ? 'rams-rams-text--muted rams-line-through' : 'rams-font-medium' }}">
+            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-link {{ task.status == 'done' ? 'rams-text--muted rams-line-through' : 'rams-font-medium' }}">
                 {{ task.title }}
             </a>
             {% if task.priority == 'high' %}
-                <span class="rams-badge rams-badge--danger rams-badge--xs">High</span>
+                <span class="rams-badge rams-badge--danger rams-badge--xs">{{ 'common.high'|trans }}</span>
             {% endif %}
         </div>
         {% if task.description %}
-            <p class="rams-rams-text--xs rams-rams-text--muted rams-truncate rams-mt-1" style="max-width: 500px;">{{ task.description }}</p>
+            <p class="rams-text--xs rams-text--muted rams-truncate rams-mt-1" style="max-width: 500px;">{{ task.description }}</p>
         {% endif %}
     </div>
-    <div class="rams-flex-shrink-0 rams-rams-text--right">
+    <div class="rams-flex-shrink-0 rams-text--right">
         {% if task.dueTime %}
-            <div class="rams-rams-text--sm {{ overdue|default(false) ? 'rams-rams-text--danger' : 'rams-rams-text--muted' }}">
+            <div class="rams-text--sm {{ overdue|default(false) ? 'rams-text--danger' : 'rams-text--muted' }}">
                 {{ task.dueTime|date('H:i') }}
             </div>
         {% endif %}

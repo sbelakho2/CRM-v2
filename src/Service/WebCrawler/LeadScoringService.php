@@ -9,13 +9,16 @@ use Psr\Log\LoggerInterface;
  * Intelligent Lead Scoring Engine
  * 
  * Scores leads 0-100 based on relevance signals:
- * - Geo (20): Morocco free zone presence
+ * - Geo (12-20): Target region presence (Morocco/US/EU/UK/Egypt/GCC)
  * - Manufacturing Fit (20): PCBA/SMT/EMS keywords
  * - Procurement (18): Supplier portal, RFQ, quality requirements
  * - Sector (12): Target industry alignment
- * - Morocco Evidence (15): Sourcing/facility evidence
+ * - Region Evidence (15): Facility/jobs/news evidence in any target region
  * - Contactability (8): Public contact info
  * - Freshness (7): Recent content updates
+ * 
+ * Supports multi-region scoring: Morocco, US (East Coast + Texas),
+ * EU (Core, Nordics, CEE), UK, Egypt, and GCC — each with config-driven weights.
  * 
  * Target: Precision @ top-50 ≥ 75%
  */
@@ -69,11 +72,19 @@ class LeadScoringService
         $breakdown = [];
         $totalScore = 0;
 
-        // 1. Geo Signal (+20): Morocco free zone presence
+        // 1. Geo Signal (12-20): Target region presence
         $geoScore = $this->scoreGeo($lead);
+        $geoMaxWeight = max(
+            $this->weights['geo_morocco'] ?? $this->weights['geo'] ?? 20,
+            $this->weights['geo_us'] ?? 16,
+            $this->weights['geo_eu'] ?? 14,
+            $this->weights['geo_uk'] ?? 12,
+            $this->weights['geo_egypt'] ?? 14,
+            $this->weights['geo_gcc'] ?? 14
+        );
         $breakdown['geo'] = [
             'score' => $geoScore,
-            'weight' => $this->weights['geo'],
+            'weight' => $geoMaxWeight,
             'signals' => $lead['geo_signals'] ?? []
         ];
         $totalScore += $geoScore;
@@ -100,19 +111,19 @@ class LeadScoringService
         $sectorScore = $this->scoreSector($lead);
         $breakdown['sector'] = [
             'score' => $sectorScore,
-            'weight' => $this->weights['sector'],
+            'weight' => $this->weights['sector_generic'] ?? $this->weights['sector'] ?? 12,
             'signals' => $lead['sector_signals'] ?? []
         ];
         $totalScore += $sectorScore;
 
-        // 5. Morocco Evidence (+15): Sourcing/facility evidence
-        $moroccoScore = $this->scoreMoroccoEvidence($lead);
-        $breakdown['morocco_evidence'] = [
-            'score' => $moroccoScore,
-            'weight' => $this->weights['morocco_evidence'],
-            'signals' => $lead['morocco_evidence'] ?? []
+        // 5. Region Evidence (+15): Facility/jobs/news in any target region
+        $regionEvidenceScore = $this->scoreRegionEvidence($lead);
+        $breakdown['region_evidence'] = [
+            'score' => $regionEvidenceScore,
+            'weight' => $this->weights['region_evidence'] ?? $this->weights['morocco_evidence'] ?? 15,
+            'signals' => $lead['region_evidence'] ?? $lead['morocco_evidence'] ?? []
         ];
-        $totalScore += $moroccoScore;
+        $totalScore += $regionEvidenceScore;
 
         // 6. Contactability (+8): Public contact info
         $contactScore = $this->scoreContactability($lead);
@@ -148,22 +159,164 @@ class LeadScoringService
 
     /**
      * Score geographic relevance (0-20)
+     * 
+     * Checks all configured target regions and returns the
+     * highest match score:
+     *   Morocco free zones / cities → geo_morocco weight (default 20)
+     *   US East Coast / Texas metros → geo_us weight (default 16)
+     *   EU countries / TLDs         → geo_eu weight (default 14)
+     *   UK                          → geo_uk weight (default 12)
+     *   Egypt zones / cities / TLDs → geo_egypt weight (default 14)
+     *   GCC free zones / cities / TLDs → geo_gcc weight (default 14)
      */
     private function scoreGeo(array $lead): int
     {
         $pageContent = strtolower($lead['page_content'] ?? '');
         $address = strtolower($lead['address'] ?? '');
-        $combined = $pageContent . ' ' . $address;
+        $regionTag = strtolower($lead['region_tag'] ?? '');
+        $siteLocation = strtolower($lead['site_location'] ?? '');
+        $combined = $pageContent . ' ' . $address . ' ' . $regionTag . ' ' . $siteLocation;
+        $url = strtolower($lead['website_root'] ?? $lead['lead_url'] ?? '');
 
-        $matches = 0;
-        foreach ($this->zones['morocco_freezones'] ?? [] as $zone) {
+        $bestScore = 0;
+        $regions = $this->config['regions'] ?? [];
+
+        // 1. Morocco free zones + cities
+        $moroccoWeight = $this->weights['geo_morocco'] ?? $this->weights['geo'] ?? 20;
+        $moroccoLocations = array_merge(
+            $this->zones['morocco_freezones'] ?? [],
+            $this->zones['morocco_cities'] ?? []
+        );
+        foreach ($moroccoLocations as $zone) {
             if (stripos($combined, strtolower($zone)) !== false) {
-                $matches++;
+                $bestScore = max($bestScore, $moroccoWeight);
+                break;
             }
         }
 
-        // Full 20 points if any free zone mentioned
-        return $matches > 0 ? 20 : 0;
+        // 2. US East Coast states + Texas metros
+        $usWeight = $this->weights['geo_us'] ?? 16;
+        foreach ($regions['usa']['east_coast_states'] ?? [] as $state) {
+            if (preg_match('/\b' . preg_quote(strtolower($state), '/') . '\b/', $combined)) {
+                $bestScore = max($bestScore, $usWeight);
+                break;
+            }
+        }
+        if ($bestScore < $usWeight) {
+            foreach ($regions['usa']['texas_metros'] ?? [] as $metro) {
+                if (stripos($combined, strtolower($metro)) !== false) {
+                    $bestScore = max($bestScore, $usWeight);
+                    break;
+                }
+            }
+        }
+
+        // 3. EU countries + TLDs
+        $euWeight = $this->weights['geo_eu'] ?? 14;
+        $euCountries = array_merge(
+            $regions['eu']['core_countries'] ?? [],
+            $regions['eu']['nordics'] ?? [],
+            $regions['eu']['cee'] ?? []
+        );
+        foreach ($euCountries as $country) {
+            if (preg_match('/\b' . preg_quote(strtolower($country), '/') . '\b/', $combined)) {
+                $bestScore = max($bestScore, $euWeight);
+                break;
+            }
+        }
+        if ($bestScore < $euWeight) {
+            foreach ($regions['eu']['tlds'] ?? [] as $tld) {
+                if (str_contains($url, $tld)) {
+                    $bestScore = max($bestScore, $euWeight);
+                    break;
+                }
+            }
+        }
+
+        // 4. UK
+        $ukWeight = $this->weights['geo_uk'] ?? 12;
+        foreach ($regions['uk']['countries'] ?? [] as $ukRegion) {
+            if (stripos($combined, strtolower($ukRegion)) !== false) {
+                $bestScore = max($bestScore, $ukWeight);
+                break;
+            }
+        }
+        if ($bestScore < $ukWeight) {
+            foreach ($regions['uk']['tlds'] ?? [] as $tld) {
+                if (str_contains($url, $tld)) {
+                    $bestScore = max($bestScore, $ukWeight);
+                    break;
+                }
+            }
+        }
+
+        // 5. Egypt industrial zones + cities + TLDs
+        $egyptWeight = $this->weights['geo_egypt'] ?? 14;
+        $egyptLocations = array_merge(
+            $this->zones['egypt_zones'] ?? [],
+            $this->zones['egypt_cities'] ?? []
+        );
+        foreach ($egyptLocations as $zone) {
+            if (stripos($combined, strtolower($zone)) !== false) {
+                $bestScore = max($bestScore, $egyptWeight);
+                break;
+            }
+        }
+        if ($bestScore < $egyptWeight) {
+            foreach ($regions['egypt']['cities'] ?? [] as $city) {
+                if (stripos($combined, strtolower($city)) !== false) {
+                    $bestScore = max($bestScore, $egyptWeight);
+                    break;
+                }
+            }
+        }
+        if ($bestScore < $egyptWeight) {
+            foreach ($regions['egypt']['tlds'] ?? [] as $tld) {
+                if (str_contains($url, $tld)) {
+                    $bestScore = max($bestScore, $egyptWeight);
+                    break;
+                }
+            }
+        }
+
+        // 6. GCC free zones + cities + country codes + TLDs
+        $gccWeight = $this->weights['geo_gcc'] ?? 14;
+        $gccLocations = array_merge(
+            $this->zones['gcc_freezones'] ?? [],
+            $this->zones['gcc_cities'] ?? []
+        );
+        foreach ($gccLocations as $zone) {
+            if (stripos($combined, strtolower($zone)) !== false) {
+                $bestScore = max($bestScore, $gccWeight);
+                break;
+            }
+        }
+        if ($bestScore < $gccWeight) {
+            foreach ($regions['gcc']['countries'] ?? [] as $country) {
+                if (preg_match('/\b' . preg_quote(strtolower($country), '/') . '\b/', $combined)) {
+                    $bestScore = max($bestScore, $gccWeight);
+                    break;
+                }
+            }
+        }
+        if ($bestScore < $gccWeight) {
+            foreach ($regions['gcc']['cities'] ?? [] as $city) {
+                if (stripos($combined, strtolower($city)) !== false) {
+                    $bestScore = max($bestScore, $gccWeight);
+                    break;
+                }
+            }
+        }
+        if ($bestScore < $gccWeight) {
+            foreach ($regions['gcc']['tlds'] ?? [] as $tld) {
+                if (str_contains($url, $tld)) {
+                    $bestScore = max($bestScore, $gccWeight);
+                    break;
+                }
+            }
+        }
+
+        return $bestScore;
     }
 
     /**
@@ -221,24 +374,31 @@ class LeadScoringService
     }
 
     /**
-     * Score Morocco sourcing evidence (0-15)
+     * Score region-specific evidence (0-15)
+     * 
+     * Awards points for evidence of real operations in any target region:
+     *   Facility pages mentioning the region  (+7)
+     *   Job postings in the region             (+5)
+     *   Press releases / news about the region (+3)
+     * 
+     * Accepts both legacy morocco_* fields and generic *_evidence fields.
      */
-    private function scoreMoroccoEvidence(array $lead): int
+    private function scoreRegionEvidence(array $lead): int
     {
         $score = 0;
 
-        // Facility pages mentioning Morocco
-        if (!empty($lead['morocco_facility'])) {
+        // Facility evidence (legacy morocco_facility OR generic facility_evidence)
+        if (!empty($lead['morocco_facility']) || !empty($lead['facility_evidence'])) {
             $score += 7;
         }
 
-        // Job postings in Morocco
-        if (!empty($lead['morocco_jobs'])) {
+        // Jobs evidence (legacy morocco_jobs OR generic jobs_evidence)
+        if (!empty($lead['morocco_jobs']) || !empty($lead['jobs_evidence'])) {
             $score += 5;
         }
 
-        // Press releases/news about Morocco
-        if (!empty($lead['morocco_news'])) {
+        // News / PR evidence (legacy morocco_news OR generic news_evidence)
+        if (!empty($lead['morocco_news']) || !empty($lead['news_evidence'])) {
             $score += 3;
         }
 
@@ -433,7 +593,7 @@ class LeadScoringService
         ];
         $totalScore += $qualityScore;
         
-        // 5. Region bonus for Morocco (max 10 points)
+        // 5. Region bonus — any target region (max 10 points)
         $regionScore = $this->scoreRegionFallback($lead);
         $breakdown['region'] = [
             'score' => $regionScore,
@@ -504,8 +664,8 @@ class LeadScoringService
             $score += min(10, count($fitSignals) * 2);
         }
         
-        // Morocco signal
-        if (!empty($lead['morocco_signal'])) {
+        // Region signal (legacy morocco_signal or generic region_signal)
+        if (!empty($lead['morocco_signal']) || !empty($lead['region_signal'])) {
             $score += 5;
         }
         
@@ -533,7 +693,8 @@ class LeadScoringService
         }
         
         $targetSectors = ['automotive', 'aerospace', 'defense', 'medical', 'industrial', 
-                          'telecommunications', 'power', 'renewables'];
+                          'telecom', 'power electronics', 'renewables', 'rail', 'hvac', 'marine',
+                          'consumer electronics', 'data center', 'energy storage'];
         
         $matches = 0;
         foreach ($sectorTags as $tag) {
@@ -576,23 +737,25 @@ class LeadScoringService
     }
     
     /**
-     * Score based on region (bonus for Morocco)
+     * Score based on region — all target regions scored equally
      */
     private function scoreRegionFallback(array $lead): int
     {
         $regionTag = strtolower($lead['region_tag'] ?? '');
         $siteLocation = strtolower($lead['site_location'] ?? '');
+        $combined = $regionTag . ' ' . $siteLocation;
         
-        // Morocco gets full bonus
-        if (str_contains($regionTag, 'morocco') || str_contains($siteLocation, 'morocco')) {
-            return 10;
-        }
-        
-        // Target regions get partial bonus
-        $targetRegions = ['eu_', 'europe', 'us_', 'america', 'uk'];
+        // All target regions get the same bonus
+        $targetRegions = [
+            'morocco', 'eu_', 'europe', 'us_', 'america',
+            'uk', 'england', 'scotland', 'wales',
+            'egypt', 'cairo', 'suez', 'alexandria',
+            'gcc', 'dubai', 'uae', 'abu dhabi', 'saudi', 'riyadh',
+            'qatar', 'doha', 'kuwait', 'oman', 'muscat', 'bahrain', 'manama',
+        ];
         foreach ($targetRegions as $target) {
-            if (str_contains($regionTag, $target)) {
-                return 5;
+            if (str_contains($combined, $target)) {
+                return 10;
             }
         }
         

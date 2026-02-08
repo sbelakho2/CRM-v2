@@ -7,6 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ActivityRepository::class)]
 #[ORM\Table(name: 'activities')]
+#[ORM\HasLifecycleCallbacks]
 class Activity
 {
     // Standardized outcome categories for analytics
@@ -86,6 +87,9 @@ class Activity
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $updatedAt = null;
 
     public function __construct()
     {
@@ -207,6 +211,23 @@ class Activity
         $this->createdAt = $createdAt;
         return $this;
     }
+
+    public function getUpdatedAt(): ?\DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTimeInterface $updatedAt): self
+    {
+        $this->updatedAt = $updatedAt;
+        return $this;
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
+    }
     
     // ============================================================
     // NEW METHODS for PlaybookEngine and enhanced analytics
@@ -230,12 +251,17 @@ class Activity
     
     public function setStatus(?string $status): self
     {
-        // Validate status if provided
-        if ($status !== null && !in_array($status, self::STATUSES)) {
-            // Accept status but normalize common variations
+        if ($status !== null) {
+            // Try to normalize common variations first
             $normalized = ucfirst(strtolower($status));
-            if (in_array($normalized, self::STATUSES)) {
+            if (in_array($normalized, self::STATUSES, true)) {
                 $status = $normalized;
+            } elseif (!in_array($status, self::STATUSES, true)) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Invalid activity status "%s". Valid statuses are: %s',
+                    $status,
+                    implode(', ', self::STATUSES)
+                ));
             }
         }
         $this->status = $status;

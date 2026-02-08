@@ -5,12 +5,32 @@ namespace App\Entity;
 use App\Repository\EmailCampaignRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: EmailCampaignRepository::class)]
 #[ORM\Table(name: 'email_campaigns')]
+#[ORM\HasLifecycleCallbacks]
 class EmailCampaign
 {
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_SENDING = 'sending';
+    public const STATUS_PAUSED = 'paused';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_CANCELLED = 'cancelled';
+
+    public const VALID_STATUSES = [
+        self::STATUS_DRAFT,
+        self::STATUS_SENDING,
+        self::STATUS_PAUSED,
+        self::STATUS_COMPLETED,
+        self::STATUS_CANCELLED,
+    ];
+
+    public const TYPE_MANUAL = 'manual';
+    public const TYPE_TRIGGERED = 'triggered';
+    public const TYPE_DRIP = 'drip';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -31,11 +51,47 @@ class EmailCampaign
     #[ORM\Column(type: 'json')]
     private array $touchTemplates = []; // Array of template IDs
 
-    #[ORM\Column(type: 'json')]
+    #[ORM\Column(type: 'json', nullable: true)]
     private array $abTestVariants = [];
 
     #[ORM\Column(type: 'boolean')]
     private bool $active = false;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $subject = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $fromName = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $fromEmail = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $bodyHtml = null;
+
+    #[ORM\Column(length: 20, options: ['default' => 'draft'])]
+    private ?string $status = self::STATUS_DRAFT;
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $type = self::TYPE_MANUAL;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $triggerType = null;
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $triggerConditions = null;
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $sendTimeOptimization = false;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $sentAt = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $createdAt = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $updatedAt = null;
 
     #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: EmailSend::class, cascade: ['persist', 'remove'])]
     private Collection $emailSends;
@@ -49,10 +105,21 @@ class EmailCampaign
     #[ORM\ManyToOne(targetEntity: EmailTemplate::class)]
     private ?EmailTemplate $template = null;
 
+    #[ORM\ManyToOne(targetEntity: EmailSegment::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?EmailSegment $segment = null;
+
     public function __construct()
     {
         $this->emailSends = new ArrayCollection();
         $this->contacts = new ArrayCollection();
+        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int
@@ -213,6 +280,152 @@ class EmailCampaign
     public function setAbTestVariants(array $variants): self
     {
         $this->abTestVariants = $variants;
+        return $this;
+    }
+
+    public function getSubject(): ?string
+    {
+        return $this->subject;
+    }
+
+    public function setSubject(?string $subject): self
+    {
+        $this->subject = $subject;
+        return $this;
+    }
+
+    public function getFromName(): ?string
+    {
+        return $this->fromName;
+    }
+
+    public function setFromName(?string $fromName): self
+    {
+        $this->fromName = $fromName;
+        return $this;
+    }
+
+    public function getFromEmail(): ?string
+    {
+        return $this->fromEmail;
+    }
+
+    public function setFromEmail(?string $fromEmail): self
+    {
+        $this->fromEmail = $fromEmail;
+        return $this;
+    }
+
+    public function getBodyHtml(): ?string
+    {
+        return $this->bodyHtml;
+    }
+
+    public function setBodyHtml(?string $bodyHtml): self
+    {
+        $this->bodyHtml = $bodyHtml;
+        return $this;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): self
+    {
+        if (!in_array($status, self::VALID_STATUSES, true)) {
+            throw new \InvalidArgumentException(sprintf('Invalid campaign status "%s". Allowed: %s', $status, implode(', ', self::VALID_STATUSES)));
+        }
+        $this->status = $status;
+        return $this;
+    }
+
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    public function setType(?string $type): self
+    {
+        $this->type = $type;
+        return $this;
+    }
+
+    public function getTriggerType(): ?string
+    {
+        return $this->triggerType;
+    }
+
+    public function setTriggerType(?string $triggerType): self
+    {
+        $this->triggerType = $triggerType;
+        return $this;
+    }
+
+    public function getTriggerConditions(): ?array
+    {
+        return $this->triggerConditions;
+    }
+
+    public function setTriggerConditions(?array $triggerConditions): self
+    {
+        $this->triggerConditions = $triggerConditions;
+        return $this;
+    }
+
+    public function isSendTimeOptimization(): bool
+    {
+        return $this->sendTimeOptimization;
+    }
+
+    public function setSendTimeOptimization(bool $sendTimeOptimization): self
+    {
+        $this->sendTimeOptimization = $sendTimeOptimization;
+        return $this;
+    }
+
+    public function getSentAt(): ?\DateTimeInterface
+    {
+        return $this->sentAt;
+    }
+
+    public function setSentAt(?\DateTimeInterface $sentAt): self
+    {
+        $this->sentAt = $sentAt;
+        return $this;
+    }
+
+    public function getCreatedAt(): ?\DateTimeInterface
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTimeInterface $createdAt): self
+    {
+        $this->createdAt = $createdAt;
+        return $this;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTimeInterface $updatedAt): self
+    {
+        $this->updatedAt = $updatedAt;
+        return $this;
+    }
+
+    public function getSegment(): ?EmailSegment
+    {
+        return $this->segment;
+    }
+
+    public function setSegment(?EmailSegment $segment): self
+    {
+        $this->segment = $segment;
         return $this;
     }
 }

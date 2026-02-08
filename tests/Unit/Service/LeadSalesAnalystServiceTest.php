@@ -149,7 +149,7 @@ class LeadSalesAnalystServiceTest extends TestCase
         }
     }
 
-    public function testCompetitivePositioningIncludesGeographicArbitrage(): void
+    public function testCompetitivePositioningIncludesGeographicDifferentiator(): void
     {
         $lead = $this->createLead([
             'sector_tags' => ['automotive'],
@@ -158,7 +158,8 @@ class LeadSalesAnalystServiceTest extends TestCase
         $result = $this->service->analyzeLead($lead);
 
         $differentiators = array_column($result['competitive_positioning'], 'differentiator');
-        $this->assertContains('Geographic Arbitrage', $differentiators);
+        // Lead has no regionTag → gets "Geographic Flexibility" (default)
+        $this->assertContains('Geographic Flexibility', $differentiators);
     }
 
     public function testDecisionMakerTargetsGenerated(): void

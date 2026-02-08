@@ -20,7 +20,7 @@
             display: flex;
             align-items: center;
             padding: 8px 16px;
-            color: var(--rams-muted, #888);
+            color: #555;
             cursor: pointer;
             font-size: 0.7rem;
             text-transform: uppercase;
@@ -29,7 +29,7 @@
             user-select: none;
             transition: color 0.15s ease;
         }
-        .rams-sidebar__group-header:hover { color: var(--rams-foreground, #fff); }
+        .rams-sidebar__group-header:hover { color: var(--rams-foreground, #1A1A1A); }
         .rams-sidebar__group-chevron {
             width: 12px;
             height: 12px;
@@ -43,11 +43,37 @@
             padding-left: 0;
             margin: 0;
             list-style: none;
-            background: rgba(0,0,0,0.15);
+            background: rgba(0,0,0,0.06);
         }
         .rams-sidebar__nav-group.is-open .rams-sidebar__nav-list--nested { display: block; }
-        .rams-sidebar__nav-list--nested .rams-sidebar__nav-link { padding-left: 32px; font-size: 0.85rem; }
-        
+        .rams-sidebar__nav-list--nested .rams-sidebar__nav-link {
+            padding-left: 32px;
+            font-size: 0.85rem;
+            color: #444;
+        }
+        .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover {
+            color: var(--rams-foreground, #1A1A1A);
+        }
+        /* Dark mode overrides for nav groups */
+        .dark .rams-sidebar__group-header,
+        [data-theme="dark"] .rams-sidebar__group-header { color: #aaa; }
+        .dark .rams-sidebar__group-header:hover,
+        [data-theme="dark"] .rams-sidebar__group-header:hover { color: #F2F2F2; }
+        .dark .rams-sidebar__nav-list--nested,
+        [data-theme="dark"] .rams-sidebar__nav-list--nested { background: rgba(0,0,0,0.15); }
+        .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link,
+        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link { color: #aaa; }
+        .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover,
+        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover { color: #F2F2F2; }
+
+        /* Fix top-level sidebar nav-link contrast in light mode */
+        .rams-sidebar__nav-link { color: #555; }
+        .rams-sidebar__nav-link:hover { color: var(--rams-foreground, #1A1A1A); }
+        .dark .rams-sidebar__nav-link,
+        [data-theme="dark"] .rams-sidebar__nav-link { color: #aaa; }
+        .dark .rams-sidebar__nav-link:hover,
+        [data-theme="dark"] .rams-sidebar__nav-link:hover { color: #F2F2F2; }
+
         /* Utility for Page Layout */
         .rams-page {
             width: 100%;
@@ -210,6 +236,15 @@
                             {% endif %}
                         </a>
                     </li>
+                            <li class="rams-sidebar__nav-item">
+                        <a href="{{ path('autonomous_sales_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'autonomous_sales' %}rams-sidebar__nav-link--active{% endif %}">
+                            <span class="rams-sidebar__nav-indicator"></span>
+                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M3 12V9M7 12V6M11 12V3"/><path d="M2 12H14"/>
+                            </svg>
+                            <span>{{ 'nav.autonomous_sales'|trans|default('Autonomous Sales') }}</span>
+                        </a>
+                    </li>
                         </ul>
                     </li>
                     <li class="rams-sidebar__nav-group">
@@ -333,6 +368,15 @@
                             <span>{{ 'nav.supplier_portal'|trans }}</span>
                         </a>
                     </li>
+                            <li class="rams-sidebar__nav-item">
+                        <a href="{{ path('currency_converter_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'currency_converter' %}rams-sidebar__nav-link--active{% endif %}">
+                            <span class="rams-sidebar__nav-indicator"></span>
+                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="6" cy="6" r="4"/><circle cx="10" cy="10" r="4"/><path d="M6 4.5V7.5M4.5 6H7.5"/>
+                            </svg>
+                            <span>{{ 'nav.currency_converter'|trans }}</span>
+                        </a>
+                    </li>
                         </ul>
                     </li>
                     <li class="rams-sidebar__nav-group">
@@ -402,18 +446,17 @@
             </div>
         </aside>
         
-        {# Status Bar #}
         <footer class="rams-status-bar" role="contentinfo">
             <div class="rams-status-bar__section">
                 <span class="rams-status-bar__item">{{ 'status_bar.station'|trans }}: SENSEI-ALPHA-01</span>
-                <span class="rams-status-bar__item">{{ 'status_bar.os_version'|trans }}: {{ 'app.version'|trans }}</span>
+                <span class="rams-status-bar__item">{{ 'status_bar.os_version'|trans }}: {{ 'app.version'|trans }}-RAMS</span>
             </div>
             <div class="rams-status-bar__section">
                 <span class="rams-status-bar__item">
                     <span class="rams-status-bar__indicator"></span>
                     {{ 'status_bar.integrity'|trans }}: {{ 'status_bar.optimal'|trans }}
                 </span>
-                <span class="rams-status-bar__item" id="system-clock"></span>
+                <span class="rams-status-bar__item tabular-nums" id="system-clock"></span>
             </div>
         </footer>
     {% endif %}

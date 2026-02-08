@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\Lead;
 use App\Service\GoogleSearchService;
+use App\Service\CountryService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,7 +22,8 @@ class SearchCompaniesCommand extends Command
 {
     public function __construct(
         private GoogleSearchService $googleSearchService,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private CountryService $countryService
     ) {
         parent::__construct();
     }
@@ -33,6 +35,7 @@ class SearchCompaniesCommand extends Command
             ->addOption('limit', 'l', InputOption::VALUE_OPTIONAL, 'Maximum number of results', 10)
             ->addOption('import', 'i', InputOption::VALUE_NONE, 'Automatically import results as leads')
             ->addOption('sector', 's', InputOption::VALUE_OPTIONAL, 'Filter by sector', null)
+            ->addOption('location', null, InputOption::VALUE_OPTIONAL, 'Target location/region (e.g. "Germany", "Texas", "Tanger Free Zone")', null)
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show results without importing')
             ->setHelp(<<<'HELP'
 The <info>app:search-companies</info> command searches for companies using Google Custom Search API.
@@ -69,6 +72,7 @@ HELP
         $limit = (int)$input->getOption('limit');
         $import = $input->getOption('import');
         $sector = $input->getOption('sector');
+        $location = $input->getOption('location');
         $dryRun = $input->getOption('dry-run');
 
         $io->title('Google Custom Search - Company Discovery');
@@ -94,11 +98,14 @@ HELP
         $io->section('Searching...');
         $io->text("Query: <comment>{$query}</comment>");
         $io->text("Limit: <comment>{$limit}</comment>");
+        if ($location) {
+            $io->text("Location: <comment>{$location}</comment>");
+        }
 
         try {
-            // Perform search
+            // Perform search — use location if provided, otherwise generic
             if ($sector) {
-                $results = $this->googleSearchService->searchBySector($sector, 'Morocco', $limit);
+                $results = $this->googleSearchService->searchBySector($sector, $location ?: 'all', $limit);
             } else {
                 $results = $this->googleSearchService->searchCompanies($query, min($limit, 10));
             }
@@ -138,7 +145,7 @@ HELP
             }
 
             if ($import || $io->confirm('Import these results as leads?', false)) {
-                $imported = $this->importLeads($results['results'], $query, $io);
+                $imported = $this->importLeads($results['results'], $query, $location, $sector, $io);
                 $io->success("Successfully imported {$imported} leads.");
             }
 
@@ -150,12 +157,14 @@ HELP
         }
     }
 
-    private function importLeads(array $results, string $source, SymfonyStyle $io): int
+    private function importLeads(array $results, string $source, ?string $location, ?string $sector, SymfonyStyle $io): int
     {
         $imported = 0;
         $skipped = 0;
 
         $io->progressStart(count($results));
+
+        $regionTag = $location ? ($this->countryService->normalizeRegionCode($location) ?? 'unknown') : 'unknown';
 
         foreach ($results as $result) {
             $website = $this->googleSearchService->extractWebsite($result);
@@ -180,6 +189,11 @@ HELP
             $lead->setSource('Google Search: ' . $source);
             $lead->setReviewStatus('new');
             $lead->setCreatedAt(new \DateTimeImmutable());
+            $lead->setSiteLocation($location);
+            $lead->setRegionTag($regionTag);
+            if ($sector) {
+                $lead->setSectorTags([$sector]);
+            }
 
             // Extract additional info from pagemap if available
             if (isset($result['pagemap']['organization'])) {

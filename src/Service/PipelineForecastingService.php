@@ -67,6 +67,13 @@ class PipelineForecastingService
      */
     public function setCustomProbabilities(array $probabilities): void
     {
+        foreach ($probabilities as $stage => $probability) {
+            if ($probability < 0.0 || $probability > 1.0) {
+                throw new \InvalidArgumentException(
+                    "Probability for stage '{$stage}' must be between 0.0 and 1.0, got {$probability}"
+                );
+            }
+        }
         $this->customProbabilities = $probabilities;
     }
     
@@ -124,8 +131,8 @@ class PipelineForecastingService
             $timeDecay = $this->calculateTimeDecay($company);
             $tierMultiplier = $this->getTierMultiplier($company);
             
-            // Calculate adjusted probability
-            $adjustedProbability = $probability * $timeDecay * $tierMultiplier;
+            // Calculate adjusted probability (clamped to [0, 1] — cannot exceed 100%)
+            $adjustedProbability = min(1.0, $probability * $timeDecay * $tierMultiplier);
             $weightedValue = $dealValue * $adjustedProbability;
             
             // Update totals
@@ -146,8 +153,8 @@ class PipelineForecastingService
             $pipeline['by_quarter'][$quarter]['unweighted'] += $dealValue;
             $pipeline['by_quarter'][$quarter]['weighted'] += $weightedValue;
             
-            // Update by rep
-            $rep = $company->getOwnerRep() ?? 'Unassigned';
+            // Update by rep (Company has no ownerRep; default to Unassigned)
+            $rep = 'Unassigned';
             if (!isset($pipeline['by_rep'][$rep])) {
                 $pipeline['by_rep'][$rep] = ['count' => 0, 'unweighted' => 0, 'weighted' => 0];
             }
@@ -279,8 +286,14 @@ class PipelineForecastingService
             if ($stage === Company::STAGE_AWARD) {
                 $wonDeals++;
                 $closedDeals++;
+            } elseif ($stage !== null) {
+                // Any non-Award company with stale activity (>90 days) counts as a lost deal
+                // This includes SQL, SQO, and Proposal stages — not just Prospect/MQL
+                $lastUpdate = $company->getUpdatedAt();
+                if ($lastUpdate && (new \DateTime())->diff($lastUpdate)->days > 90) {
+                    $closedDeals++;
+                }
             }
-            // Note: Lost deals would need a separate status field
         }
         
         if ($dealCount > 0) {
@@ -388,7 +401,7 @@ class PipelineForecastingService
         
         if (!empty($rfqs)) {
             $rfq = $rfqs[0];
-            $value = $rfq->getEstimatedValue() ?? $rfq->getTotalValue() ?? 0;
+            $value = $rfq->getEstimatedValue() ?? 0;
             if ($value > 0) {
                 return (float) $value;
             }

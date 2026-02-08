@@ -125,10 +125,10 @@
 
                 {# Action Buttons #}
                 <div class="rams-form__actions rams-form__actions--center">
-                    <button class="rams-btn--lg" onclick="requestCustomQuote()">
+                    <button class="rams-btn rams-btn--lg" onclick="requestCustomQuote()">
                         💬 {{ 'quote.live.request_changes'|trans }}
                     </button>
-                    <button class="rams-btn--primary rams-btn--lg" onclick="acceptQuote()">
+                    <button class="rams-btn rams-btn--primary rams-btn--lg" onclick="acceptQuote()">
                         ✓ {{ 'quote.live.accept'|trans }}
                     </button>
                 </div>
@@ -166,7 +166,7 @@
             </div>
             <div class="rams-modal__footer">
                 <button type="button" class="rams-btn" onclick="closeModal('requestModal')">{{ 'common.cancel'|trans }}</button>
-                <button type="button" class="rams-btn--primary" onclick="submitRequest()">{{ 'common.submit'|trans }}</button>
+                <button type="button" class="rams-btn rams-btn--primary" onclick="submitRequest()">{{ 'common.submit'|trans }}</button>
             </div>
         </div>
     </div>
@@ -203,7 +203,7 @@
             </div>
             <div class="rams-modal__footer">
                 <button type="button" class="rams-btn" onclick="closeModal('acceptModal')">{{ 'common.cancel'|trans }}</button>
-                <button type="button" class="rams-btn--primary" onclick="submitAcceptance()">
+                <button type="button" class="rams-btn rams-btn--primary" onclick="submitAcceptance()">
                     ✓ {{ 'quote.live.confirm_acceptance'|trans }}
                 </button>
             </div>

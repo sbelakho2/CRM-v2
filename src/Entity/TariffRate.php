@@ -46,6 +46,12 @@ class TariffRate
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $ftaAgreement = null; // Morocco-US FTA, USMCA, EU-Morocco, etc.
 
+    #[ORM\Column(length: 36, nullable: true)]
+    private ?string $versionId = null;
+
+    #[ORM\Column(type: 'boolean')]
+    private bool $isActive = false;
+
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
 
@@ -169,6 +175,28 @@ class TariffRate
     public function setFtaAgreement(?string $ftaAgreement): self
     {
         $this->ftaAgreement = $ftaAgreement;
+        return $this;
+    }
+
+    public function getVersionId(): ?string
+    {
+        return $this->versionId;
+    }
+
+    public function setVersionId(?string $versionId): self
+    {
+        $this->versionId = $versionId;
+        return $this;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    public function setIsActive(bool $isActive): self
+    {
+        $this->isActive = $isActive;
         return $this;
     }
 

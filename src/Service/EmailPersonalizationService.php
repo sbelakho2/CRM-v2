@@ -106,13 +106,13 @@ class EmailPersonalizationService
     private const INDUSTRY_VALUE_PROPS = [
         'automotive' => [
             'technical' => 'With ISO 9001 certification, 100% automated optical inspection, and dedicated automotive production lines, we deliver the traceability and quality documentation your Tier 1 programs demand.',
-            'business' => 'Reduce your total landed cost compared to Western European suppliers while maintaining automotive-grade quality. Our Morocco facility offers EU proximity with competitive North African economics.',
+            'business' => 'Reduce your total landed cost compared to Western European suppliers while maintaining automotive-grade quality. Our North Africa facilities offer EU proximity with competitive economics.',
             'value_focused' => 'Strong first-pass yields and proven automotive manufacturing processes mean fewer rejections and smoother production planning for your plant.',
             'relationship' => 'We partner with automotive suppliers for the long term—dedicated program managers, shared KPI dashboards, and transparent communication from prototype through series production.',
         ],
         'aerospace' => [
             'technical' => 'ISO 9001 certified with full material traceability and first-article inspection reports for your aerospace assemblies. We handle complex multilayer PCBAs and cable harnesses for demanding applications.',
-            'business' => 'Competitive pricing versus Western European suppliers, with the documentation rigor your programs require. Reduce your supply chain risk with our Morocco facility—same time zone, simplified logistics.',
+            'business' => 'Competitive pricing versus Western European suppliers, with the documentation rigor your programs require. Reduce your supply chain risk with our North Africa facilities—same time zone, simplified logistics.',
             'value_focused' => 'Zero-defect culture with 100% in-circuit testing and AOI. Complete traceability for every component installed.',
             'relationship' => 'Complex programs require partners who understand long certification cycles. We invest in customer-specific tooling and maintain qualified backup capacity for your critical assemblies.',
         ],
@@ -124,7 +124,7 @@ class EmailPersonalizationService
         ],
         'defense' => [
             'technical' => 'Full traceability, serialization, and secure data handling for demanding electronics programs. Rigorous testing protocols and counterfeit prevention practices.',
-            'business' => 'Competitive pricing with the documentation rigor your programs require. Our Morocco facility provides a nearshore manufacturing option.',
+            'business' => 'Competitive pricing with the documentation rigor your programs require. Our North Africa facilities provide a nearshore manufacturing option.',
             'value_focused' => 'Mission-critical reliability with zero tolerance for defects. 100% testing, X-ray inspection, and complete build documentation for every unit delivered.',
             'relationship' => 'Complex programs require suppliers who understand security requirements and long-term commitment. We invest in program-specific capabilities.',
         ],
@@ -158,6 +158,24 @@ class EmailPersonalizationService
             'value_focused' => 'Precision manufacturing for demanding specifications—100% testing, calibrated processes, and complete documentation.',
             'relationship' => 'Semiconductor equipment programs require partners who understand your technology roadmap. We invest in capabilities to support next-generation requirements.',
         ],
+        'rail' => [
+            'technical' => 'Railway electronics manufacturing with EN 50155 environmental awareness, conformal coating, and vibration-resistant assembly processes. We handle traction inverter sub-assemblies, signaling electronics, and onboard control systems.',
+            'business' => 'Competitive pricing for rail electronics with the documentation and traceability your rolling stock programs require. Nearshore model means shorter logistics to European rail OEMs.',
+            'value_focused' => 'Safety-critical reliability with full traceability—100% testing, HALT/HASS capability, and statistical process control across extended temperature ranges.',
+            'relationship' => 'Rail programs run for decades. We provide long-term supply continuity, obsolescence management, and support through ECOs and platform evolution.',
+        ],
+        'hvac' => [
+            'technical' => 'Power electronics expertise for HVAC controllers, VFD assemblies, and building automation systems. We handle high-current designs, thermal management, and harsh-environment qualification.',
+            'business' => 'Cost-effective manufacturing for HVAC and building automation electronics. Our flexible NRE model supports your seasonal production cycles and product range diversity.',
+            'value_focused' => 'Reliable power electronics for demanding environments—conformal coating, extended temperature qualification, and 100% functional testing standard.',
+            'relationship' => 'HVAC product lines evolve with efficiency regulations. We support your design evolution with DFM feedback and production flexibility for new platform introductions.',
+        ],
+        'marine' => [
+            'technical' => 'Marine-grade electronics manufacturing with conformal coating, salt spray awareness, and IP-rated assembly capabilities. We produce navigation systems, power management electronics, and communication equipment sub-assemblies.',
+            'business' => 'Our Tangier facility provides strategic access to Mediterranean shipping lanes with competitive manufacturing costs. Ideal for marine electronics requiring EU certification compliance.',
+            'value_focused' => 'Harsh-environment reliability through rigorous testing protocols—thermal cycling, humidity exposure, and vibration qualification for marine electronics.',
+            'relationship' => 'Marine programs require suppliers who understand certification cycles and seasonal production patterns. We provide inventory programs and flexible scheduling.',
+        ],
         'other' => [
             'technical' => 'ISO 9001 certified with flexible manufacturing capabilities for diverse electronic assemblies. We support various industries with tailored quality and documentation requirements.',
             'business' => 'Competitive nearshore manufacturing with EU proximity. Reduce your supply chain complexity while maintaining quality and delivery performance.',
@@ -171,7 +189,7 @@ class EmailPersonalizationService
     private const ROLE_PAIN_POINTS = [
         'procurement' => [
             'primary' => 'cost pressure and supply chain risk',
-            'hook' => 'Reduce your assembly costs versus Western European suppliers while reducing single-source risk with our Morocco facility.',
+            'hook' => 'Reduce your assembly costs versus Western European suppliers while reducing single-source risk with our North Africa facilities.',
             'detail' => 'Our pricing transparency and fixed-cost NRE models eliminate budget surprises. Quarterly business reviews track performance against your targets.',
         ],
         'engineering' => [
@@ -201,7 +219,7 @@ class EmailPersonalizationService
         ],
         'other' => [
             'primary' => 'finding the right manufacturing partner',
-            'hook' => 'Let us show you why leading OEMs choose our Morocco facility for their electronic assemblies.',
+            'hook' => 'Let us show you why leading OEMs choose our North Africa facilities for their electronic assemblies.',
             'detail' => 'We combine European quality standards with competitive North African economics for the best total value.',
         ],
     ];
@@ -382,6 +400,27 @@ class EmailPersonalizationService
             'similarity' => 'Semiconductor manufacturing teams in your role',
             'outcome' => 'Manufacturing teams {like yours|in semi|with precision requirements} cite {calibrated consistency|ESD excellence|zero-contamination}.',
         ],
+        'rail' => [
+            'stat' => 'Railway electronics suppliers {are choosing|have chosen|report choosing} nearshore partners for {traction|signaling|onboard} programs.',
+            'reference' => 'railway OEMs manufacturing in the EU-adjacent zone',
+            'detail' => 'EN 50155 awareness, vibration-resistant assembly, and full traceability for safety-critical rail programs.',
+            'similarity' => 'Rail supply chain teams like yours',
+            'outcome' => 'Rail procurement teams {like yours|in rolling stock|managing safety-critical programs} cite {full traceability|long-term continuity|obsolescence management}.',
+        ],
+        'hvac' => [
+            'stat' => 'HVAC and building automation manufacturers {are sourcing|report sourcing|have begun sourcing} power electronics from nearshore partners.',
+            'reference' => 'HVAC manufacturers seeking cost-effective power electronics',
+            'detail' => 'VFD assemblies, controller boards, and IoT-enabled building automation—manufactured to your quality requirements.',
+            'similarity' => 'HVAC engineering teams in your position',
+            'outcome' => 'Engineering teams {in HVAC|like yours|building for energy efficiency} report {reliable power electronics|cost savings|design flexibility}.',
+        ],
+        'marine' => [
+            'stat' => 'Marine electronics manufacturers {are evaluating|have evaluated|report evaluating} Mediterranean nearshore production.',
+            'reference' => 'marine electronics companies producing EU-certified equipment',
+            'detail' => 'Conformal-coated, IP-rated assemblies with salt-spray awareness—built for your marine environment.',
+            'similarity' => 'Marine electronics teams like yours',
+            'outcome' => 'Marine teams {like yours|in navigation/power|building for harsh environments} cite {harsh-environment reliability|EU-proximity shipping|certification support}.',
+        ],
         'other' => [
             'stat' => 'European OEMs across industries {are benefiting from|report success with|have found value in} nearshore manufacturing.',
             'reference' => 'manufacturers across industries choosing nearshore production',
@@ -399,23 +438,25 @@ class EmailPersonalizationService
         // Uses spintax {option1|option2|option3} for variation
         'reciprocity' => [
             'free_dfm_review' => '{I can offer|Happy to provide|I\'d be glad to send} a free DFM review on your {first|next|upcoming} design—{no strings attached|no commitment required|completely free}.',
-            'industry_insight' => 'I {put together|compiled|prepared} a brief {industry comparison|market analysis|benchmark report} that {might be useful|could help|may be relevant} for your planning.',
+            'industry_insight' => 'I {put together|compiled|prepared} a brief {industry comparison|market analysis|benchmark report} on {nearshore EMS trends|manufacturing cost structures|supply chain risk factors} that {might be useful|could help|may be relevant} for your planning.',
             'capacity_check' => '{Happy to|I can|Would be glad to} run a quick capacity check for your volumes—{takes about 24 hours|usually ready next day|quick turnaround}.',
-            'cost_model' => 'I can {provide|send over|put together} a preliminary landed-cost comparison {with no commitment|no strings attached|just to give you a sense of the numbers}.',
+            'cost_model' => 'I can {provide|send over|put together} a preliminary {landed-cost comparison|total-cost-of-ownership model|TCO analysis} {with no commitment|no strings attached|just to give you a sense of the numbers}.',
+            'sample_build' => '{Happy to|I can|Would be glad to} build a {sample|prototype|first-article} at our cost—{see the quality firsthand|evaluate our workmanship|assess our capability before committing}.',
         ],
         // 2. SCARCITY: Unique benefits they stand to lose
         'scarcity' => [
             'capacity' => '{Limited|A few} capacity slots {are opening|become available} in {Q2|the coming quarter}—programs typically book {8-12 weeks|2-3 months} ahead.',
-            'location' => 'The Morocco facility is {uniquely positioned|ideally located|strategically placed} for EU customers—{same time zone|real-time communication|no overnight delays}, {simplified logistics|streamlined shipping|efficient delivery}.',
+            'location' => 'Our North Africa facilities are {uniquely positioned|ideally located|strategically placed} for EU customers—{same time zone|real-time communication|no overnight delays}, {simplified logistics|streamlined shipping|efficient delivery}.',
             'expertise' => '{Few|Not many} EMS providers offer this {combination|blend|mix} of nearshore economics with European quality standards.',
             'timing' => 'Current component lead times make {early planning|advance planning|production planning} {critical|essential|important}—{earlier engagement|starting now|getting ahead} means {smoother ramp|easier transition|better outcomes}.',
         ],
-        // 3. AUTHORITY: Signal credible expertise
+        // 3. AUTHORITY: Signal credible expertise with industry-specific certifications
         'authority' => [
-            'experience' => 'The engineering team brings {decades|years|extensive} {automotive and aerospace|high-reliability|demanding industry} manufacturing experience.',
-            'certification' => 'ISO 9001 certified with {IPC-A-610 trained|certified|qualified} operators across all production lines.',
-            'process' => '{100%|Full} AOI and {in-circuit testing|functional testing|comprehensive testing} standard on all PCBA programs.',
-            'track_record' => '{Multi-year|Long-term|Ongoing} programs running for {leading|major|top-tier} European OEMs.',
+            'experience' => 'The engineering team brings {decades|years|extensive} {automotive and aerospace|high-reliability|demanding industry} manufacturing experience across {PCBA, cable harness, and system integration|multiple product categories|full box-build capability}.',
+            'certification' => 'ISO 9001 certified with {IPC-A-610 Class 2/3|IPC-A-610 certified|IPC-trained} operators, {automotive quality system|automotive-grade|industry-leading} processes, and {full AOI coverage|100% automated optical inspection|comprehensive inspection}.',
+            'process' => '{100%|Full} AOI, {in-circuit testing|functional testing|comprehensive testing}, and {X-ray inspection for BGA/QFN|X-ray capability|advanced inspection} standard on all PCBA programs.',
+            'track_record' => '{Multi-year|Long-term|Ongoing} programs running for {leading|major|top-tier} European {automotive OEMs and Tier 1 suppliers|aerospace and industrial OEMs|manufacturers}.',
+            'tangier_fz' => 'Operating from the {Tangier Free Zone|TFZ|Tangier automotive cluster} alongside {200+ international manufacturers|major multinational operations|global automotive suppliers}.',
         ],
         // 4. CONSISTENCY: Get small commitments leading to larger ones
         'consistency' => [
@@ -506,6 +547,20 @@ class EmailPersonalizationService
             'cultural' => 'Experience working with American multinationals and their requirements.',
             'proximity' => 'Closer than Asian alternatives for supply chain resilience.',
         ],
+        'mena' => [
+            'logistics' => 'Regional hub with direct shipping routes across North Africa and the Gulf.',
+            'timezone' => 'Shared timezone enables real-time collaboration across MENA markets.',
+            'trade' => 'Morocco-GCC and Pan-Arab trade agreements facilitate cross-border commerce.',
+            'cultural' => 'Arabic, French, and English proficiency with deep understanding of regional business culture.',
+            'proximity' => 'Co-located within the MENA region for faster logistics and site visits.',
+        ],
+        'morocco' => [
+            'logistics' => 'Local manufacturing eliminates import logistics—direct factory access in Tangier Free Zone.',
+            'timezone' => 'Same-city collaboration with zero shipping delays for local programs.',
+            'trade' => 'Tangier Free Zone offers duty-free manufacturing with EU and US FTA export access.',
+            'cultural' => 'Your local partner—shared language, culture, and business practices.',
+            'proximity' => 'Factory tours and engineering meetings anytime—we are your neighbors.',
+        ],
         'global' => [
             'logistics' => 'Strategic location bridging Europe, Africa, and the Americas.',
             'timezone' => 'GMT+1 provides overlap with multiple business regions.',
@@ -515,9 +570,40 @@ class EmailPersonalizationService
         ],
     ];
 
-    // ========================= COMPETITOR HOOKS (DISABLED) =========================
-    // Competitor-specific messaging removed - requires verified claims and legal review
-    private const COMPETITOR_HOOKS = [];
+    // ========================= COMPETITOR HOOKS =========================
+    // Factual positioning against common EMS competitors (no defamatory claims)
+    private const COMPETITOR_HOOKS = [
+        'jabil' => [
+            'hook' => 'Looking for the agility of a focused EMS partner with the quality standards of a global provider?',
+            'differentiator' => 'Unlike high-volume mega-EMS providers, we offer dedicated program management and engineering attention for mid-volume programs without minimum order thresholds.',
+            'value' => 'Personalized service with direct access to your production line and engineering team.',
+        ],
+        'flex' => [
+            'hook' => 'Need the reliability of a Tier 1 EMS without the complexity of a multinational supply chain?',
+            'differentiator' => 'Our nearshore model delivers the same quality certifications with shorter lead times and a single point of contact for your programs.',
+            'value' => 'Simplified supply chain with EU-adjacent manufacturing and faster decision cycles.',
+        ],
+        'celestica' => [
+            'hook' => 'Seeking aerospace-grade quality with more flexible NRE structures?',
+            'differentiator' => 'We match high-reliability manufacturing standards while offering competitive NRE terms and faster prototype turnaround for mid-volume programs.',
+            'value' => 'Same quality rigor, more flexible engagement model.',
+        ],
+        'lacroix' => [
+            'hook' => 'Looking to complement your European EMS capacity with a cost-competitive nearshore option?',
+            'differentiator' => 'North Africa-based manufacturing provides EU proximity with competitive economics—ideal as a second source or overflow capacity partner.',
+            'value' => 'Geographic diversification with maintained EU-standard quality.',
+        ],
+        'asteelflash' => [
+            'hook' => 'Exploring alternatives for your European electronics manufacturing needs?',
+            'differentiator' => 'Our Tangier Free Zone facility offers competitive pricing with EU free trade access, dedicated production lines, and engineering support.',
+            'value' => 'Cost-effective European-quality manufacturing with FTA benefits.',
+        ],
+        'cofidur' => [
+            'hook' => 'Need EMS capabilities that scale from prototype to series production?',
+            'differentiator' => 'Full PCBA, cable harness, and system integration under one roof with competitive pricing from our North Africa facilities.',
+            'value' => 'Integrated manufacturing services from a single nearshore partner.',
+        ],
+    ];
 
     // ========================= SENTENCE FUSION TEMPLATES =========================
     // CRITICAL FIX: Weave Cialdini elements into coherent paragraphs instead of concatenating
@@ -1095,11 +1181,9 @@ class EmailPersonalizationService
                 'social_proof_stat' => $socialProofData['stat'],
                 'social_proof_ref' => $socialProofData['reference'],
                 'social_proof_detail' => $socialProofData['detail'],
-                'social_proof_full' => sprintf(
-                    'A %s achieved %s with our manufacturing partnership.',
-                    $socialProofData['reference'],
+                'social_proof_full' => $this->resolveInternalSpintax(
                     $socialProofData['stat']
-                ),
+                ) . ' ' . $this->resolveInternalSpintax($socialProofData['outcome']),
                 
                 // NEW: Call to action
                 'cta' => $cta,
@@ -1942,11 +2026,12 @@ class EmailPersonalizationService
         $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
         $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
         
-        // Match offering to role/context
+        // Match offering to role/context — each role gets the most valuable free resource
         $element = match($role) {
             'engineering' => self::CIALDINI_PRINCIPLES['reciprocity']['free_dfm_review'],
             'procurement' => self::CIALDINI_PRINCIPLES['reciprocity']['cost_model'],
-            'operations' => self::CIALDINI_PRINCIPLES['reciprocity']['capacity_check'],
+            'operations', 'supply_chain' => self::CIALDINI_PRINCIPLES['reciprocity']['capacity_check'],
+            'quality' => self::CIALDINI_PRINCIPLES['reciprocity']['sample_build'],
             default => self::CIALDINI_PRINCIPLES['reciprocity']['industry_insight'],
         };
         
@@ -2036,7 +2121,8 @@ class EmailPersonalizationService
         $element = match($role) {
             'engineering' => self::CIALDINI_PRINCIPLES['authority']['process'],
             'quality' => self::CIALDINI_PRINCIPLES['authority']['certification'],
-            'management' => self::CIALDINI_PRINCIPLES['authority']['track_record'],
+            'management' => self::CIALDINI_PRINCIPLES['authority']['tangier_fz'],
+            'procurement' => self::CIALDINI_PRINCIPLES['authority']['track_record'],
             default => self::CIALDINI_PRINCIPLES['authority']['experience'],
         };
         
@@ -2291,8 +2377,13 @@ class EmailPersonalizationService
     {
         $location = strtolower($location);
         
+        // Morocco (local)
+        if (preg_match('/\b(morocco|maroc|tangier|tanger|casablanca|rabat|fes|marrakech|agadir)\b/', $location)) {
+            return 'morocco';
+        }
+        
         // EU countries
-        if (preg_match('/\b(germany|france|spain|italy|netherlands|belgium|austria|poland|czech|sweden|denmark|finland|portugal|ireland)\b/', $location)) {
+        if (preg_match('/\b(germany|france|spain|italy|netherlands|belgium|austria|poland|czech|sweden|denmark|finland|portugal|ireland|romania|hungary|greece|slovakia|slovenia|croatia|bulgaria|lithuania|latvia|estonia|luxembourg|norway|switzerland)\b/', $location)) {
             return 'eu';
         }
         
@@ -2302,8 +2393,13 @@ class EmailPersonalizationService
         }
         
         // US
-        if (preg_match('/\b(usa|united states|us|america|california|texas|michigan|ohio|florida|new york)\b/', $location)) {
+        if (preg_match('/\b(usa|united states|america|california|texas|michigan|ohio|florida|new york|illinois|pennsylvania|georgia|carolina|virginia|washington|arizona|colorado|massachusetts)\b/', $location)) {
             return 'us';
+        }
+        
+        // MENA (Middle East & North Africa) — GCC, Egypt, Tunisia, etc.
+        if (preg_match('/\b(uae|dubai|abu dhabi|saudi|arabia|qatar|doha|bahrain|kuwait|oman|egypt|cairo|tunisia|tunis|algeria|algiers|jordan|amman|lebanon|beirut|iraq|libya)\b/', $location)) {
+            return 'mena';
         }
         
         return 'global';
@@ -2477,10 +2573,19 @@ class EmailPersonalizationService
         $industry = $company ? strtolower($company->getSector() ?? 'other') : 'other';
         $role = $this->inferRoleCategory($contact->getJobTitle() ?? '');
         
-        // Build replacement values
+        // Build replacement values — reciprocity_action matches the reciprocity element's context
+        $reciprocityActions = [
+            'procurement' => 'run a preliminary cost comparison',
+            'engineering' => 'provide a free DFM review',
+            'quality' => 'share our quality documentation and audit reports',
+            'management' => 'provide a supply chain risk assessment',
+            'supply_chain' => 'run a quick capacity check for your volumes',
+            'operations' => 'run a quick capacity check for your volumes',
+            'other' => 'send over a capability overview',
+        ];
         $replacements = [
             '{reciprocity}' => $this->getReciprocityElement($contact),
-            '{reciprocity_action}' => 'provide a free DFM review',
+            '{reciprocity_action}' => $reciprocityActions[$role] ?? $reciprocityActions['other'],
             '{authority}' => $this->getAuthorityElement($contact),
             '{liking}' => $this->getLikingElement($contact),
             '{social_proof}' => $this->getSocialProofElement($contact),
@@ -2598,6 +2703,9 @@ class EmailPersonalizationService
             'telecom' => 'a telecom equipment provider',
             'renewables' => 'a solar inverter manufacturer',
             'semiconductor' => 'a semiconductor equipment OEM',
+            'rail' => 'a European rolling stock manufacturer',
+            'hvac' => 'an HVAC controls manufacturer',
+            'marine' => 'a marine electronics OEM',
             'other' => 'companies in your industry',
         ];
         

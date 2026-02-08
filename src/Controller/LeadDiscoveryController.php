@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Lead;
 use App\Service\GoogleSearchService;
+use App\Service\CountryService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,7 +18,8 @@ class LeadDiscoveryController extends AbstractController
 {
     public function __construct(
         private GoogleSearchService $googleSearchService,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private CountryService $countryService
     ) {}
 
     #[Route('/', name: 'lead_discovery_index', methods: ['GET'])]
@@ -35,6 +37,7 @@ class LeadDiscoveryController extends AbstractController
         $query = $request->request->get('query');
         $limit = (int)$request->request->get('limit', 10);
         $sector = $request->request->get('sector');
+        $location = $request->request->get('location');
 
         if (empty($query)) {
             $this->addFlash('error', 'Please enter a search query.');
@@ -42,9 +45,9 @@ class LeadDiscoveryController extends AbstractController
         }
 
         try {
-            // Perform search
+            // Perform search — use caller-supplied location (never hardcoded)
             if ($sector && $sector !== 'all') {
-                $results = $this->googleSearchService->searchBySector($sector, 'Morocco', $limit);
+                $results = $this->googleSearchService->searchBySector($sector, $location ?: 'all', $limit);
             } else {
                 $results = $this->googleSearchService->searchCompanies($query, min($limit, 10));
             }
@@ -52,9 +55,11 @@ class LeadDiscoveryController extends AbstractController
             // Calculate quota
             $quota = $this->googleSearchService->estimateQuota(1, $limit);
 
-            // Store results in session for import
+            // Store results + metadata in session for import
             $request->getSession()->set('search_results', $results['results']);
             $request->getSession()->set('search_query', $query);
+            $request->getSession()->set('search_location', $location);
+            $request->getSession()->set('search_sector', $sector);
 
             return $this->render('lead_discovery/results.html.twig', [
                 'results' => $results['results'],
@@ -75,6 +80,8 @@ class LeadDiscoveryController extends AbstractController
     {
         $results = $request->getSession()->get('search_results', []);
         $query = $request->getSession()->get('search_query', 'Unknown');
+        $location = $request->getSession()->get('search_location');
+        $sector = $request->getSession()->get('search_sector');
         $selectedIndices = $request->request->all()['selected'] ?? [];
 
         if (empty($results) || empty($selectedIndices)) {
@@ -104,14 +111,19 @@ class LeadDiscoveryController extends AbstractController
                 }
             }
 
-            // Create lead
+            // Create lead with region metadata
             $lead = new Lead();
             $lead->setCompanyName($this->cleanCompanyName($result['title']));
             $lead->setWebsiteRoot($website);
-            $lead->setDescription($result['snippet']);
             $lead->setSource('Google Search: ' . $query);
-            $lead->setReviewStatus('new');
+            $lead->setDescription($result['snippet']);
+            $lead->setReviewStatus('pending');
             $lead->setCreatedAt(new \DateTimeImmutable());
+            $lead->setSiteLocation($location);
+            $lead->setRegionTag($this->countryService->normalizeRegionCode($location) ?? 'unknown');
+            if ($sector && $sector !== 'all') {
+                $lead->setSectorTags([$sector]);
+            }
 
             $this->entityManager->persist($lead);
             $imported++;
@@ -138,6 +150,8 @@ class LeadDiscoveryController extends AbstractController
     {
         $results = $request->getSession()->get('search_results', []);
         $query = $request->getSession()->get('search_query', 'Unknown');
+        $location = $request->getSession()->get('search_location');
+        $sector = $request->getSession()->get('search_sector');
 
         if (empty($results)) {
             $this->addFlash('warning', 'No results to import.');
@@ -163,10 +177,15 @@ class LeadDiscoveryController extends AbstractController
             $lead = new Lead();
             $lead->setCompanyName($this->cleanCompanyName($result['title']));
             $lead->setWebsiteRoot($website);
-            $lead->setDescription($result['snippet']);
             $lead->setSource('Google Search: ' . $query);
-            $lead->setReviewStatus('new');
+            $lead->setDescription($result['snippet']);
+            $lead->setReviewStatus('pending');
             $lead->setCreatedAt(new \DateTimeImmutable());
+            $lead->setSiteLocation($location);
+            $lead->setRegionTag($this->countryService->normalizeRegionCode($location) ?? 'unknown');
+            if ($sector && $sector !== 'all') {
+                $lead->setSectorTags([$sector]);
+            }
 
             $this->entityManager->persist($lead);
             $imported++;

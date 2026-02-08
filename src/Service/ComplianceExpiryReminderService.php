@@ -37,7 +37,6 @@ class ComplianceExpiryReminderService
     // Document types with critical compliance impact
     private const CRITICAL_DOCUMENTS = [
         'ISO 9001',
-        'IATF 16949',
         'AS9100',
         'ISO 13485',
         'ISO 14001',
@@ -52,6 +51,7 @@ class ComplianceExpiryReminderService
     private LoggerInterface $logger;
     private ?MailerInterface $mailer;
     private string $adminEmail;
+    private string $mailerFromAddress;
     
     public function __construct(
         ComplianceDocumentRepository $documentRepository,
@@ -59,7 +59,8 @@ class ComplianceExpiryReminderService
         EntityManagerInterface $entityManager,
         LoggerInterface $logger,
         ?MailerInterface $mailer = null,
-        string $adminEmail = 'admin@example.com'
+        string $adminEmail = 'admin@example.com',
+        string $mailerFromAddress = 'noreply@example.com'
     ) {
         $this->documentRepository = $documentRepository;
         $this->companyRepository = $companyRepository;
@@ -67,6 +68,7 @@ class ComplianceExpiryReminderService
         $this->logger = $logger;
         $this->mailer = $mailer;
         $this->adminEmail = $adminEmail;
+        $this->mailerFromAddress = $mailerFromAddress;
     }
     
     /**
@@ -370,7 +372,7 @@ class ComplianceExpiryReminderService
             $body = $this->buildEmailBody($docInfo, $level);
             
             $email = (new Email())
-                ->from('noreply@crm.local')
+                ->from($this->mailerFromAddress)
                 ->to($this->adminEmail)
                 ->subject($subject)
                 ->html($body);

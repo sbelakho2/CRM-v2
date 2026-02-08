@@ -9,8 +9,11 @@
             <h1 class="rams-page-title">{{ 'admin.datasets.title_full'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'admin.datasets.subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('admin_dataset_import_form') }}" class="rams-btn--primary">
-            ➕ {{ 'admin.datasets.import_dataset'|trans }}
+        <a href="{{ path('admin_dataset_import_form') }}" class="rams-btn rams-btn--primary uppercase">
+            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 2v12M2 8h12"/>
+            </svg>
+            {{ 'admin.datasets.import_dataset'|trans }}
         </a>
     </div>
 
@@ -91,9 +94,9 @@
                                 </td>
                                 <td class="rams-table__cell rams-table__cell--actions">
                                     <div class="rams-btn-group">
-                                        <a href="#" class="rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
-                                        <a href="#" class="rams-btn--ghost rams-btn--sm">{{ 'common.export'|trans }}</a>
-                                        <a href="#" class="rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</a>
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.export'|trans }}</a>
+                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</a>
                                     </div>
                                 </td>
                             </tr>
@@ -117,7 +120,11 @@
         <a href="{{ path('admin_dataset_history') }}" class="rams-module rams-module--hoverable">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3">
-                    <span class="rams-metric__value rams-text--xl">📋</span>
+                    <span class="rams-metric__value rams-text--xl">
+                        <svg class="rams-icon rams-icon--lg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M3 3h10v10H3V3zM3 6h10M6 3v10"/>
+                        </svg>
+                    </span>
                     <div>
                         <h3 class="rams-module__title">{{ 'admin.datasets.version_history'|trans }}</h3>
                         <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.version_history_desc'|trans }}</p>
@@ -128,7 +135,11 @@
         <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--hoverable">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3">
-                    <span class="rams-metric__value rams-text--xl">⬆️</span>
+                    <span class="rams-metric__value rams-text--xl">
+                        <svg class="rams-icon rams-icon--lg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M8 2v10M4 6l4-4 4 4M2 14h12"/>
+                        </svg>
+                    </span>
                     <div>
                         <h3 class="rams-module__title">{{ 'admin.datasets.import'|trans }}</h3>
                         <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.upload_hint'|trans }}</p>
@@ -136,11 +147,15 @@
                 </div>
             </div>
         </a>
-        <div class="rams-module rams-module--hoverable" onclick="ramsAlert('Syncing started...')">
+        <div class="rams-module rams-module--hoverable" onclick="ramsAlert('{{ 'admin.datasets.syncing_started'|trans }}')">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3">
-                    <span class="rams-metric__value rams-text--xl">🔄</span>
-                    <div>
+                    <span class="rams-metric__value rams-text--xl">
+                        <svg class="rams-icon rams-icon--lg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M1 8a7 7 0 0111.95-5M15 8a7 7 0 01-11.95 5"/>
+                            <path d="M15 1v7h-7M1 15v-7h7"/>
+                        </svg>
+                    </span>
                         <h3 class="rams-module__title">{{ 'admin.datasets.sync_datasets'|trans }}</h3>
                         <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.sync_desc'|trans }}</p>
                     </div>

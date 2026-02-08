@@ -37,7 +37,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'email_campaign.open_rate'|trans }}</span>
-                    <span class="rams-metric__value rams-rams-text--success">{{ metrics.open_rate|number_format(1) }}%</span>
+                    <span class="rams-metric__value rams-text--success">{{ metrics.open_rate|number_format(1) }}%</span>
                 </div>
             </div>
         </div>
@@ -45,7 +45,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'email_campaign.click_rate'|trans }}</span>
-                    <span class="rams-metric__value rams-rams-text--info">{{ metrics.click_rate|number_format(1) }}%</span>
+                    <span class="rams-metric__value rams-text--info">{{ metrics.click_rate|number_format(1) }}%</span>
                 </div>
             </div>
         </div>
@@ -61,7 +61,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'email_campaign.bounce_rate'|trans }}</span>
-                    <span class="rams-metric__value rams-rams-text--danger">{{ metrics.bounce_rate|number_format(1) }}%</span>
+                    <span class="rams-metric__value rams-text--danger">{{ metrics.bounce_rate|number_format(1) }}%</span>
                 </div>
             </div>
         </div>
@@ -76,7 +76,7 @@
             <div class="rams-module__content">
                 {% if sendsByDate is empty %}
                     <div class="rams-empty-state">
-                        <p class="rams-rams-text--muted rams-rams-text--sm">{{ 'email_campaign.no_sends_yet'|trans }}</p>
+                        <p class="rams-text--muted rams-text--sm">{{ 'email_campaign.no_sends_yet'|trans }}</p>
                     </div>
                 {% else %}
                     <div class="rams-stack rams-gap-2">
@@ -89,12 +89,12 @@
                         
                         {% for item in sendsByDate %}
                             <div class="rams-flex rams-items-center rams-gap-3">
-                                <span class="rams-text-2xs rams-rams-text--muted rams-w-16 font-mono">{{ item.date|date('M d') }}</span>
+                                <span class="rams-text-2xs rams-text--muted rams-w-16 rams-font-mono">{{ item.date|date('M d') }}</span>
                                 <div class="rams-flex-1 rams-progress rams-progress--compact">
                                     {% set width = maxCount > 0 ? ((item.count / maxCount * 100)|round) : 0 %}
                                     <div class="rams-progress__bar" style="width: {{ width }}%"></div>
                                 </div>
-                                <span class="rams-text-2xs font-mono rams-w-8 rams-text--right">{{ item.count }}</span>
+                                <span class="rams-text-2xs rams-font-mono rams-w-8 rams-text--right">{{ item.count }}</span>
                             </div>
                         {% endfor %}
                     </div>
@@ -111,8 +111,8 @@
                 <div class="rams-stack rams-gap-4">
                     <div>
                         <div class="rams-flex rams-justify-between rams-mb-1">
-                            <span class="rams-text-2xs rams-rams-text--muted uppercase">{{ 'email_campaign.sent'|trans }}</span>
-                            <span class="rams-text-2xs font-mono">{{ metrics.total_sent }}</span>
+                            <span class="rams-text-2xs rams-text--muted rams-uppercase">{{ 'email_campaign.sent'|trans }}</span>
+                            <span class="rams-text-2xs rams-font-mono">{{ metrics.total_sent }}</span>
                         </div>
                         <div class="rams-progress">
                             <div class="rams-progress__bar" style="width: 100%"></div>
@@ -120,8 +120,8 @@
                     </div>
                     <div>
                         <div class="rams-flex rams-justify-between rams-mb-1">
-                            <span class="rams-text-2xs rams-rams-text--success uppercase">{{ 'email_campaign.opened'|trans }}</span>
-                            <span class="rams-text-2xs font-mono">{{ metrics.opened }} ({{ metrics.open_rate|number_format(1) }}%)</span>
+                            <span class="rams-text-2xs rams-text--success rams-uppercase">{{ 'email_campaign.opened'|trans }}</span>
+                            <span class="rams-text-2xs rams-font-mono">{{ metrics.opened }} ({{ metrics.open_rate|number_format(1) }}%)</span>
                         </div>
                         <div class="rams-progress">
                             <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ metrics.open_rate }}%"></div>
@@ -129,8 +129,8 @@
                     </div>
                     <div>
                         <div class="rams-flex rams-justify-between rams-mb-1">
-                            <span class="rams-text-2xs rams-rams-text--info uppercase">{{ 'email_campaign.clicked'|trans }}</span>
-                            <span class="rams-text-2xs font-mono">{{ metrics.clicked }} ({{ metrics.click_rate|number_format(1) }}%)</span>
+                            <span class="rams-text-2xs rams-text--info rams-uppercase">{{ 'email_campaign.clicked'|trans }}</span>
+                            <span class="rams-text-2xs rams-font-mono">{{ metrics.clicked }} ({{ metrics.click_rate|number_format(1) }}%)</span>
                         </div>
                         <div class="rams-progress">
                             <div class="rams-progress__bar rams-progress__bar--info" style="width: {{ metrics.click_rate }}%"></div>
@@ -138,8 +138,8 @@
                     </div>
                     <div>
                         <div class="rams-flex rams-justify-between rams-mb-1">
-                            <span class="rams-text-2xs rams-text-primary uppercase">{{ 'email_campaign.replied'|trans }}</span>
-                            <span class="rams-text-2xs font-mono">{{ metrics.replied }} ({{ metrics.reply_rate|number_format(1) }}%)</span>
+                            <span class="rams-text-2xs rams-text-primary rams-uppercase">{{ 'email_campaign.replied'|trans }}</span>
+                            <span class="rams-text-2xs rams-font-mono">{{ metrics.replied }} ({{ metrics.reply_rate|number_format(1) }}%)</span>
                         </div>
                         <div class="rams-progress">
                             <div class="rams-progress__bar rams-progress__bar--primary" style="width: {{ metrics.reply_rate }}%"></div>
@@ -158,7 +158,7 @@
         <div class="rams-module__content rams-module__content--flush">
             {% if topContacts is empty %}
                 <div class="rams-empty-state">
-                    <p class="rams-rams-text--muted rams-rams-text--sm">{{ 'email_campaign.analytics.no_engagement'|trans }}</p>
+                    <p class="rams-text--muted rams-text--sm">{{ 'email_campaign.analytics.no_engagement'|trans }}</p>
                 </div>
             {% else %}
                 <div class="rams-table-container">
@@ -177,8 +177,8 @@
                                 {% set totalEngagement = contact.opens + contact.clicks + contact.replies %}
                                 <tr class="rams-table__row">
                                     <td class="rams-table__cell">
-                                        <div class="rams-text-bold">{{ contact.firstName }} {{ contact.lastName }}</div>
-                                        <div class="rams-rams-text--muted rams-rams-text--xs">{{ contact.email }}</div>
+                                        <div class="rams-text--bold">{{ contact.firstName }} {{ contact.lastName }}</div>
+                                        <div class="rams-text--muted rams-text--xs">{{ contact.email }}</div>
                                     </td>
                                     <td class="rams-table__cell rams-text--center">
                                         <span class="rams-badge rams-badge--success">{{ contact.opens }}</span>

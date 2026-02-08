@@ -68,14 +68,14 @@
                         </div>
 
                         <div class="rams-form__actions">
-                            <button type="submit" class="rams-btn--primary">
+                            <button type="submit" class="rams-btn rams-btn--primary">
                                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                                 </svg>
                                 {{ 'lead_discovery.search_companies'|trans }}
                             </button>
 
-                            <a href="{{ path('app_lead_index') }}" class="rams-btn--ghost">
+                            <a href="{{ path('app_lead_index') }}" class="rams-btn rams-btn--ghost">
                                 {{ 'lead_discovery.back_to_leads'|trans }}
                             </a>
                         </div>
@@ -89,16 +89,16 @@
                             </div>
                             <div class="rams-module__content">
                                 <div class="rams-flex rams-flex-wrap rams-gap-2">
-                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn--sm rams-btn--ghost">
+                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
                                         {{ 'lead_discovery.example_search_aerospace'|trans }}
                                     </button>
-                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn--sm rams-btn--ghost">
+                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
                                         {{ 'lead_discovery.example_search_automotive'|trans }}
                                     </button>
-                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn--sm rams-btn--ghost">
+                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
                                         {{ 'lead_discovery.example_search_electronics'|trans }}
                                     </button>
-                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn--sm rams-btn--ghost">
+                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
                                         {{ 'lead_discovery.example_search_manufacturing'|trans }}
                                     </button>
                                 </div>
@@ -109,7 +109,7 @@
                         <div class="rams-module rams-module--nested rams-module--info">
                             <div class="rams-module__content">
                                 <h3 class="rams-module__title rams-mb-2">ℹ️ {{ 'lead_discovery.about_api'|trans }}</h3>
-                                <ul class="rams-list rams-list--bullet rams-stack rams-gap-1 rams-rams-text--xs rams-rams-text--muted">
+                                <ul class="rams-list rams-list--bullet rams-stack rams-gap-1 rams-text--xs rams-text--muted">
                                     <li>{{ 'lead_discovery.api_free_tier'|trans }}</li>
                                     <li>{{ 'lead_discovery.api_paid_tier'|trans }} {{ paid_tier_cost|format_currency(paid_tier_currency) }} {{ 'lead_discovery.api_paid_tier_suffix'|trans }}</li>
                                     <li>{{ 'lead_discovery.api_dedup'|trans }}</li>

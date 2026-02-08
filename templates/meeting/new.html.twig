@@ -1,22 +1,22 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}New Meeting Slot - CRM{% endblock %}
+{% block title %}{{ 'meeting.new_title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__header">
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
-                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <a href="{{ path('meeting_index') }}">Meetings</a>
+                <a href="{{ path('meeting_index') }}">{{ 'meeting.title'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <span>New Slot</span>
+                <span>{{ 'meeting.new_slot'|trans }}</span>
             </div>
-            <h1 class="rams-page__title">Create Meeting Slot</h1>
+            <h1 class="rams-page__title">{{ 'meeting.create_slot'|trans }}</h1>
         </div>
     </div>
     
-    {{ include('meeting/_form.html.twig', {button_label: 'Create Slot'}) }}
+    {{ include('meeting/_form.html.twig', {button_label: 'meeting.create_slot'|trans}) }}
 </div>
 {% endblock %}

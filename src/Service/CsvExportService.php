@@ -189,7 +189,7 @@ class CsvExportService
                     $line->getManualUnitPrice(),
                     $line->getEffectiveExtendedPrice(),
                     $line->getProcurementSource(),
-                    $line->getStock ?? '',
+                    $line->getStock() ?? '',
                     $line->getLeadTimeDays(),
                     $line->getAvailability(),
                     $this->getLineStatus($line),

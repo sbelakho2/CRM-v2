@@ -88,21 +88,30 @@ class ProxyRotationService
             return null;
         }
         
-        $proxy = match ($this->strategy) {
-            self::STRATEGY_RANDOM => $this->selectRandom($available),
-            self::STRATEGY_WEIGHTED => $this->selectWeighted($available),
-            default => $this->selectRoundRobin($available),
-        };
-        
-        // Check rate limit
-        if (!$this->checkRateLimit($proxy)) {
+        // Try each available proxy up to the total count to avoid infinite recursion
+        $attempts = count($available);
+        for ($i = 0; $i < $attempts; $i++) {
+            $proxy = match ($this->strategy) {
+                self::STRATEGY_RANDOM => $this->selectRandom($available),
+                self::STRATEGY_WEIGHTED => $this->selectWeighted($available),
+                default => $this->selectRoundRobin($available),
+            };
+            
+            if ($this->checkRateLimit($proxy)) {
+                $this->recordRequest($proxy);
+                return $proxy;
+            }
+            
             $this->logger->debug('Proxy rate limited, trying another', ['proxy' => $this->maskProxy($proxy)]);
-            return $this->getNextProxy(); // Recursive, but limited by available proxies
+            // Remove this proxy from available list for next iteration
+            $available = array_values(array_filter($available, fn($p) => $p !== $proxy));
+            if (empty($available)) {
+                break;
+            }
         }
         
-        $this->recordRequest($proxy);
-        
-        return $proxy;
+        $this->logger->warning('All available proxies are rate limited');
+        return null;
     }
 
     /**

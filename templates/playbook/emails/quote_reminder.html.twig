@@ -2,51 +2,51 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Quote Reminder</title>
+    <title>{{ 'emails.playbook.quote_reminder.title'|trans }}</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; background-color: #fffbeb; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; rams-border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header { rams-border-bottom: 2px solid #f59e0b; padding-bottom: 15px; margin-bottom: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { border-bottom: 2px solid #f59e0b; padding-bottom: 15px; margin-bottom: 20px; }
         .header h1 { color: #b45309; margin: 0; font-size: 24px; }
         .content { color: #374151; line-height: 1.6; }
-        .warning { background: #fef3c7; rams-border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; }
-        .highlight { background: #fef3c7; padding: 15px; rams-border-radius: 6px; margin: 15px 0; }
-        .footer { margin-top: 30px; padding-top: 20px; rams-border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
-        .btn { display: inline-block; background: #f59e0b; color: white; padding: 12px 24px; rams-border-radius: 6px; text-decoration: none; margin-top: 15px; }
+        .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; }
+        .highlight { background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
+        .btn { display: inline-block; background: #f59e0b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>💰 Quote Follow-up Required</h1>
+            <h1>{{ 'emails.playbook.quote_reminder.title'|trans }}</h1>
         </div>
         
         <div class="content">
             <div class="warning">
-                <strong>⏰ Action Required:</strong> A quote has been pending without activity.
+                <strong>{{ 'common.action_required'|trans }}:</strong> {{ 'emails.playbook.quote_reminder.subject'|trans }}
             </div>
             
             <div class="highlight">
-                <strong>Account:</strong> {{ account_name|default(company_name|default('Unknown')) }}<br>
+                <strong>{{ 'common.account'|trans }}:</strong> {{ account_name|default(company_name|default('common.unknown'|trans)) }}<br>
                 {% if domain is defined %}
-                <strong>Domain:</strong> {{ domain }}<br>
+                <strong>{{ 'common.domain'|trans }}:</strong> {{ domain }}<br>
                 {% endif %}
                 {% if quote_value is defined %}
-                <strong>Quote Value:</strong> {{ quote_value }}<br>
+                <strong>{{ 'common.value'|trans }}:</strong> {{ quote_value }}<br>
                 {% endif %}
             </div>
             
-            <p>Please follow up with the prospect to:</p>
+            <p>{{ 'emails.playbook.quote_reminder.next_steps'|trans }}:</p>
             <ul>
-                <li>Address any questions or concerns</li>
-                <li>Confirm receipt of the quote</li>
-                <li>Discuss timeline and next steps</li>
+                <li>{{ 'emails.playbook.quote_reminder.address_questions'|trans }}</li>
+                <li>{{ 'emails.playbook.quote_reminder.confirm_receipt'|trans }}</li>
+                <li>{{ 'emails.playbook.quote_reminder.discuss_timeline'|trans }}</li>
             </ul>
         </div>
         
         <div class="footer">
             <p>This is an automated reminder from your CRM system.</p>
-            <p>{{ timestamp|date('Y-m-d H:i:s') }}</p>
+            <p>{{ timestamp|default('now')|date('Y-m-d H:i:s') }}</p>
         </div>
     </div>
 </body>

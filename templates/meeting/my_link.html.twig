@@ -1,31 +1,30 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}My Booking Link - CRM{% endblock %}
+{% block title %}{{ 'meeting.my_link_title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__header">
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
-                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <a href="{{ path('meeting_index') }}">Meetings</a>
+                <a href="{{ path('meeting_index') }}">{{ 'meeting.title'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <span>My Link</span>
+                <span>{{ 'meeting.my_link'|trans }}</span>
             </div>
-            <h1 class="rams-page__title">My Booking Link</h1>
+            <h1 class="rams-page__title">{{ 'meeting.my_booking_link'|trans }}</h1>
         </div>
     </div>
 
     <div class="rams-grid rams-grid--1" style="max-width: 700px; margin: 0 auto;">
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3>Your Personal Booking Link</h3>
+                <h3>{{ 'meeting.my_booking_link'|trans }}</h3>
             </div>
             <div class="rams-module__content">
-                <p class="rams-rams-text--muted rams-mb-4">
-                    Share this link with prospects so they can book meetings with you. 
-                    Only your available time slots will be visible.
+                <p class="rams-text--muted rams-mb-4">
+                    {{ 'meeting.personal_link_desc'|trans }}
                 </p>
                 
                 <div class="rams-form__input-group rams-mb-6">
@@ -34,22 +33,22 @@
                         <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                             <rect x="4" y="4" width="8" height="8" rx="1"/><path d="M12 4V2H2V12H4"/>
                         </svg>
-                        Copy
+                        {{ 'meeting.copy'|trans }}
                     </button>
                 </div>
                 
                 <div class="rams-actions">
-                    <a href="{{ bookingUrl }}" target="_blank" class="rams-btn--primary">
+                    <a href="{{ bookingUrl }}" target="_blank" class="rams-btn rams-btn--primary">
                         <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M10 4H14V8M14 4L8 10"/>
                         </svg>
-                        Preview My Page
+                        {{ 'meeting.preview_my_page'|trans }}
                     </a>
                     <button type="button" class="rams-btn" onclick="shareLink()">
                         <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="12" cy="4" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="12" cy="12" r="2"/><path d="M10 5L6 7M6 9L10 11"/>
                         </svg>
-                        Share
+                        {{ 'meeting.share'|trans }}
                     </button>
                 </div>
             </div>
@@ -57,13 +56,13 @@
         
         <div class="rams-module rams-mt-4">
             <div class="rams-module__header">
-                <h3>Tips</h3>
+                <h3>{{ 'meeting.tips'|trans }}</h3>
             </div>
             <div class="rams-module__content">
                 <ul class="rams-list">
-                    <li class="rams-list__item">Add this link to your email signature</li>
-                    <li class="rams-list__item">Include it in proposal documents</li>
-                    <li class="rams-list__item">Make sure you have available slots before sharing</li>
+                    <li class="rams-list__item">{{ 'meeting.tip_email_signature'|trans }}</li>
+                    <li class="rams-list__item">{{ 'meeting.tip_proposal'|trans }}</li>
+                    <li class="rams-list__item">{{ 'meeting.tip_available_slots'|trans }}</li>
                 </ul>
             </div>
         </div>
@@ -75,13 +74,13 @@ function copyLink() {
     const input = document.getElementById('booking-link');
     input.select();
     document.execCommand('copy');
-    alert('Link copied to clipboard!');
+    alert('{{ 'meeting.link_copied'|trans }}');
 }
 
 function shareLink() {
     if (navigator.share) {
         navigator.share({
-            title: 'Book a meeting with me',
+            title: '{{ 'meeting.share_title'|trans }}',
             url: document.getElementById('booking-link').value
         });
     } else {

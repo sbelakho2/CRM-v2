@@ -26,21 +26,21 @@
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
                     <span class="rams-dymo">{{ 'lead.pending_review'|trans }}</span>
-                    <span class="rams-metric rams-rams-text--warning">{{ pending_count }}</span>
+                    <span class="rams-metric rams-text--warning">{{ pending_count }}</span>
                 </div>
             </div>
 
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
                     <span class="rams-dymo">{{ 'lead.approved_leads'|trans }}</span>
-                    <span class="rams-metric rams-rams-text--success">{{ approved_count }}</span>
+                    <span class="rams-metric rams-text--success">{{ approved_count }}</span>
                 </div>
             </div>
 
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
                     <span class="rams-dymo">{{ 'lead.denied_leads'|trans }}</span>
-                    <span class="rams-metric rams-rams-text--danger">{{ denied_count }}</span>
+                    <span class="rams-metric rams-text--danger">{{ denied_count }}</span>
                 </div>
             </div>
         </div>
@@ -57,7 +57,7 @@
                     <p class="rams-module__description">
                         {{ 'lead.review_leads_description'|trans }}
                     </p>
-                    <a href="{{ path('app_lead_review') }}" class="rams-btn--primary">
+                    <a href="{{ path('app_lead_review') }}" class="rams-btn rams-btn--primary">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                         </svg>
@@ -77,7 +77,7 @@
                     <p class="rams-module__description">
                         {{ 'lead.dashboard_description'|trans }}
                     </p>
-                    <a href="{{ path('app_lead_dashboard') }}" class="rams-btn--primary">
+                    <a href="{{ path('app_lead_dashboard') }}" class="rams-btn rams-btn--primary">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                         </svg>

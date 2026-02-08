@@ -8,7 +8,7 @@
     <div class="rams-page-header">
         <div>
             <h1 class="rams-page-title">{{ 'lead_discovery.results'|trans }}</h1>
-            <p class="rams-page-subtitle">{{ 'lead_discovery.query_label'|trans }}: <span class="rams-text-bold">{{ query }}</span></p>
+            <p class="rams-page-subtitle">{{ 'lead_discovery.query_label'|trans }}: <span class="rams-text--bold">{{ query }}</span></p>
         </div>
         <div class="rams-page-actions">
             <a href="{{ path('lead_discovery_index') }}" class="rams-btn">
@@ -26,7 +26,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'lead_discovery.results_found'|trans }}</span>
-                    <span class="rams-metric__value rams-rams-text--info">{{ results|length }}</span>
+                    <span class="rams-metric__value rams-text--info">{{ results|length }}</span>
                 </div>
             </div>
         </div>
@@ -34,7 +34,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'lead_discovery.search_time'|trans }}</span>
-                    <span class="rams-metric__value rams-rams-text--success">{{ searchTime|number_format(2) }}s</span>
+                    <span class="rams-metric__value rams-text--success">{{ searchTime|number_format(2) }}s</span>
                 </div>
             </div>
         </div>
@@ -42,7 +42,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'lead_discovery.queries_used'|trans }}</span>
-                    <span class="rams-metric__value rams-rams-text--warning">{{ quota.total_queries }}</span>
+                    <span class="rams-metric__value rams-text--warning">{{ quota.total_queries }}</span>
                 </div>
             </div>
         </div>
@@ -83,7 +83,7 @@
                         <div class="rams-btn-group">
                             <button 
                                 type="submit" 
-                                class="rams-btn--primary"
+                                class="rams-btn rams-btn--primary"
                                 id="importSelected"
                                 disabled
                             >
@@ -130,7 +130,7 @@
                                         <a 
                                             href="{{ result.link }}" 
                                             target="_blank" 
-                                            class="rams-link rams-link--with-icon rams-rams-text--xs"
+                                            class="rams-link rams-link--with-icon rams-text--xs"
                                         >
                                             {{ result.displayLink }}
                                             <svg class="rams-icon rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,7 +138,7 @@
                                             </svg>
                                         </a>
                                     </div>
-                                    <p class="rams-rams-text--sm rams-mb-3">
+                                    <p class="rams-text--sm rams-mb-3">
                                         {{ result.snippet|raw }}
                                     </p>
                                     

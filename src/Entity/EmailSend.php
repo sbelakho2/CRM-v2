@@ -3,12 +3,30 @@
 namespace App\Entity;
 
 use App\Repository\EmailSendRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: EmailSendRepository::class)]
 #[ORM\Table(name: 'email_sends')]
+#[ORM\HasLifecycleCallbacks]
 class EmailSend
 {
+    public const STATUS_QUEUED = 'queued';
+    public const STATUS_SENDING = 'sending';
+    public const STATUS_SENT = 'sent';
+    public const STATUS_FAILED = 'failed';
+    public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_BOUNCED = 'bounced';
+
+    public const VALID_STATUSES = [
+        self::STATUS_QUEUED,
+        self::STATUS_SENDING,
+        self::STATUS_SENT,
+        self::STATUS_FAILED,
+        self::STATUS_CANCELLED,
+        self::STATUS_BOUNCED,
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -25,7 +43,7 @@ class EmailSend
     #[ORM\Column(type: 'integer')]
     private ?int $touchNumber = null; // 1-5
 
-    #[ORM\Column(type: 'datetime')]
+    #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $sentAt = null;
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
@@ -43,9 +61,30 @@ class EmailSend
     #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $variant = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $emailAddress = null;
+
+    #[ORM\Column(length: 20, options: ['default' => 'queued'])]
+    private ?string $status = self::STATUS_QUEUED;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $scheduledAt = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $openedAt = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $clickedAt = null;
+
+    #[ORM\Column(type: 'integer', options: ['default' => 0])]
+    private int $retryCount = 0;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $failureReason = null;
+
     public function __construct()
     {
-        $this->sentAt = new \DateTime();
+        // sentAt is NOT auto-set — it should be set when the email is actually sent
     }
 
     public function getId(): ?int
@@ -149,6 +188,86 @@ class EmailSend
     public function setVariant(?string $variant): self
     {
         $this->variant = $variant;
+        return $this;
+    }
+
+    public function getEmailAddress(): ?string
+    {
+        return $this->emailAddress ?? $this->contact?->getEmail();
+    }
+
+    public function setEmailAddress(?string $emailAddress): self
+    {
+        $this->emailAddress = $emailAddress;
+        return $this;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): self
+    {
+        if (!in_array($status, self::VALID_STATUSES, true)) {
+            throw new \InvalidArgumentException(sprintf('Invalid send status "%s". Allowed: %s', $status, implode(', ', self::VALID_STATUSES)));
+        }
+        $this->status = $status;
+        return $this;
+    }
+
+    public function getScheduledAt(): ?\DateTimeInterface
+    {
+        return $this->scheduledAt;
+    }
+
+    public function setScheduledAt(?\DateTimeInterface $scheduledAt): self
+    {
+        $this->scheduledAt = $scheduledAt;
+        return $this;
+    }
+
+    public function getOpenedAt(): ?\DateTimeInterface
+    {
+        return $this->openedAt;
+    }
+
+    public function setOpenedAt(?\DateTimeInterface $openedAt): self
+    {
+        $this->openedAt = $openedAt;
+        return $this;
+    }
+
+    public function getClickedAt(): ?\DateTimeInterface
+    {
+        return $this->clickedAt;
+    }
+
+    public function setClickedAt(?\DateTimeInterface $clickedAt): self
+    {
+        $this->clickedAt = $clickedAt;
+        return $this;
+    }
+
+    public function getRetryCount(): int
+    {
+        return $this->retryCount;
+    }
+
+    public function setRetryCount(int $retryCount): self
+    {
+        $this->retryCount = $retryCount;
+        return $this;
+    }
+
+    public function getFailureReason(): ?string
+    {
+        return $this->failureReason;
+    }
+
+    public function setFailureReason(?string $failureReason): self
+    {
+        $this->failureReason = $failureReason;
         return $this;
     }
 }

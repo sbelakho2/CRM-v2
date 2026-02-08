@@ -30,7 +30,7 @@ class EmailConsentService
 
     /**
      * Request double opt-in from a contact
-     * Generates confirmation token and sends verification email
+     * Generates HMAC-signed confirmation token and sends verification email
      * 
      * @param Contact $contact The contact to verify
      * @param string $source Source of the opt-in request (form, import, manual)
@@ -38,21 +38,20 @@ class EmailConsentService
      */
     public function requestDoubleOptIn(Contact $contact, string $source = 'form'): array
     {
-        // Generate unique confirmation token
-        $token = Uuid::v4()->toRfc4122();
+        // Generate HMAC-signed token: base64(email|timestamp|hmac)
+        $timestamp = time();
+        $payload = $contact->getEmail() . '|' . $timestamp;
+        $hmac = hash_hmac('sha256', $payload, $this->getSigningSecret());
+        $token = base64_encode($payload . '|' . $hmac);
         $expiresAt = new \DateTime('+7 days');
-
-        // Store token temporarily (in production, use a separate consent_tokens table)
-        // For now, we'll rely on email verification flow
 
         $confirmUrl = sprintf(
             '%s/email/confirm-subscription/%s',
             $this->baseUrl,
-            $token
+            urlencode($token)
         );
 
         $this->logger->info("Double opt-in requested for contact {$contact->getEmail()}", [
-            'token' => $token,
             'source' => $source
         ]);
 
@@ -71,14 +70,11 @@ class EmailConsentService
      */
     public function confirmOptIn(string $token): array
     {
-        // In production, lookup token in consent_tokens table
-        // For now, simplified implementation
-        
-        // Token format: base64(email|timestamp)
+        // Token format: base64(email|timestamp|hmac)
         $decoded = base64_decode($token);
         $parts = explode('|', $decoded);
 
-        if (count($parts) !== 2) {
+        if (count($parts) !== 3) {
             return [
                 'success' => false,
                 'error' => 'invalid_token',
@@ -86,7 +82,17 @@ class EmailConsentService
             ];
         }
 
-        [$email, $timestamp] = $parts;
+        [$email, $timestamp, $hmac] = $parts;
+
+        // Verify HMAC signature
+        $expectedHmac = hash_hmac('sha256', $email . '|' . $timestamp, $this->getSigningSecret());
+        if (!hash_equals($expectedHmac, $hmac)) {
+            return [
+                'success' => false,
+                'error' => 'invalid_token',
+                'message' => 'Invalid confirmation link.'
+            ];
+        }
 
         // Check if token is expired (7 days)
         if ((time() - (int)$timestamp) > (7 * 24 * 60 * 60)) {
@@ -108,10 +114,7 @@ class EmailConsentService
             ];
         }
 
-        // Confirm consent
-        $contact->setSubscribed(true);
-
-        // Remove from unsubscribe list if present
+        // Confirm consent — remove from unsubscribe list if present
         $unsubscribe = $this->em->getRepository(EmailUnsubscribe::class)
             ->findOneBy(['email' => $contact->getEmail()]);
         
@@ -140,11 +143,6 @@ class EmailConsentService
      */
     public function hasConsent(Contact $contact): bool
     {
-        // Check if contact is subscribed
-        if (!$contact->isSubscribed()) {
-            return false;
-        }
-
         // Check if NOT in unsubscribe list
         $unsubscribe = $this->em->getRepository(EmailUnsubscribe::class)
             ->findOneBy(['email' => $contact->getEmail()]);
@@ -175,9 +173,6 @@ class EmailConsentService
         $unsubscribe->setReason($reason ?? 'User requested');
         $unsubscribe->setUnsubscribedAt(new \DateTime());
 
-        // Update contact subscribed status
-        $contact->setSubscribed(false);
-
         $this->em->persist($unsubscribe);
         $this->em->flush();
 
@@ -205,9 +200,6 @@ class EmailConsentService
 
         $this->em->remove($unsubscribe);
 
-        // Update contact subscribed status
-        $contact->setSubscribed(true);
-
         $this->em->flush();
 
         $this->logger->info("Contact {$contact->getEmail()} resubscribed");
@@ -224,8 +216,11 @@ class EmailConsentService
      */
     public function generateUnsubscribeLink(Contact $contact, ?int $campaignId = null): string
     {
-        // Generate unique token for one-click unsubscribe
-        $token = base64_encode($contact->getEmail() . '|' . time());
+        // Generate HMAC-signed token for one-click unsubscribe
+        $timestamp = time();
+        $payload = $contact->getEmail() . '|' . $timestamp;
+        $hmac = hash_hmac('sha256', $payload, $this->getSigningSecret());
+        $token = base64_encode($payload . '|' . $hmac);
         
         $params = ['token' => $token];
         if ($campaignId) {
@@ -250,14 +245,23 @@ class EmailConsentService
         $decoded = base64_decode($token);
         $parts = explode('|', $decoded);
 
-        if (count($parts) !== 2) {
+        if (count($parts) !== 3) {
             return [
                 'success' => false,
                 'error' => 'Invalid unsubscribe token'
             ];
         }
 
-        [$email, $timestamp] = $parts;
+        [$email, $timestamp, $hmac] = $parts;
+
+        // Verify HMAC signature
+        $expectedHmac = hash_hmac('sha256', $email . '|' . $timestamp, $this->getSigningSecret());
+        if (!hash_equals($expectedHmac, $hmac)) {
+            return [
+                'success' => false,
+                'error' => 'Invalid unsubscribe token'
+            ];
+        }
 
         // Token expires after 30 days
         if ((time() - (int)$timestamp) > (30 * 24 * 60 * 60)) {
@@ -311,7 +315,6 @@ class EmailConsentService
         // Current status
         $trail[] = [
             'action' => 'current_status',
-            'subscribed' => $contact->isSubscribed(),
             'has_consent' => $this->hasConsent($contact)
         ];
 
@@ -367,7 +370,6 @@ class EmailConsentService
             $contact->setLastName('User');
             $contact->setJobTitle(null);
             $contact->setPhone(null);
-            $contact->setSubscribed(false);
             
             $this->logger->info("Contact anonymized (GDPR right to be forgotten)");
         }
@@ -399,7 +401,7 @@ class EmailConsentService
             if ($send->isOpened()) {
                 $stats['emails_opened']++;
             }
-            if ($send->getClickedAt()) {
+            if ($send->isClicked()) {
                 $stats['emails_clicked']++;
             }
             if ($send->isReplied()) {
@@ -408,5 +410,13 @@ class EmailConsentService
         }
 
         return $stats;
+    }
+
+    /**
+     * Get the signing secret for token HMAC
+     */
+    private function getSigningSecret(): string
+    {
+        return $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? 'email-consent-fallback-secret';
     }
 }

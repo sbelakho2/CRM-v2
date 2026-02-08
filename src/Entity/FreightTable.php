@@ -49,6 +49,12 @@ class FreightTable
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
+    #[ORM\Column(length: 36, nullable: true)]
+    private ?string $versionId = null;
+
+    #[ORM\Column(type: 'boolean')]
+    private bool $isActive = false;
+
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
 
@@ -183,6 +189,28 @@ class FreightTable
     public function setNotes(?string $notes): self
     {
         $this->notes = $notes;
+        return $this;
+    }
+
+    public function getVersionId(): ?string
+    {
+        return $this->versionId;
+    }
+
+    public function setVersionId(?string $versionId): self
+    {
+        $this->versionId = $versionId;
+        return $this;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    public function setIsActive(bool $isActive): self
+    {
+        $this->isActive = $isActive;
         return $this;
     }
 

@@ -28,7 +28,7 @@
                 </a>
                 <form method="post" action="{{ path('app_rfq_delete', {id: rfq.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'rfq.confirm.delete'|trans }}', {variant: 'danger'});" class="rams-inline-block">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ rfq.id) }}">
-                    <button type="submit" class="rams-btn--danger">
+                    <button type="submit" class="rams-btn rams-btn--danger">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
                         </svg>
@@ -71,7 +71,7 @@
                         {% if rfq.rfqNumber %}
                             <div class="rams-definition-list__item">
                                 <dt class="rams-definition-list__term">{{ 'rfq.fields.rfq_number'|trans }}</dt>
-                                <dd class="rams-definition-list__desc font-mono">{{ rfq.rfqNumber }}</dd>
+                                <dd class="rams-definition-list__desc rams-font-mono">{{ rfq.rfqNumber }}</dd>
                             </div>
                         {% endif %}
 
@@ -103,7 +103,7 @@
                             <div class="rams-definition-list__item">
                                 <dt class="rams-definition-list__term">{{ 'rfq.fields.estimated_value'|trans }}</dt>
                                 <dd class="rams-definition-list__desc">
-                                    <span class="rams-metric__value rams-rams-text--xl">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</span>
+                                    <span class="rams-metric__value rams-text--xl">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</span>
                                 </dd>
                             </div>
                         {% endif %}
@@ -111,7 +111,7 @@
                         {% if rfq.volumeAnnual %}
                             <div class="rams-definition-list__item">
                                 <dt class="rams-definition-list__term">{{ 'rfq.fields.annual_volume'|trans }}</dt>
-                                <dd class="rams-definition-list__desc rams-text-bold">{{ rfq.volumeAnnual|number_format(0, '.', ',') }} <span class="rams-text-2xs uppercase rams-rams-text--muted">{{ 'rfq.fields.units_per_year'|trans }}</span></dd>
+                                <dd class="rams-definition-list__desc rams-text--bold">{{ rfq.volumeAnnual|number_format(0, '.', ',') }} <span class="rams-text-2xs rams-uppercase rams-text--muted">{{ 'rfq.fields.units_per_year'|trans }}</span></dd>
                             </div>
                         {% endif %}
 
@@ -124,7 +124,7 @@
 
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'common.created'|trans }}</dt>
-                            <dd class="rams-definition-list__desc rams-rams-text--xs font-mono">{{ rfq.createdAt|date('d F Y, H:i') }}</dd>
+                            <dd class="rams-definition-list__desc rams-text--xs rams-font-mono">{{ rfq.createdAt|date('d F Y, H:i') }}</dd>
                         </div>
                     </dl>
 
@@ -132,7 +132,7 @@
                         <div class="rams-divider rams-my-4"></div>
                         <div class="rams-stack rams-gap-1">
                             <span class="rams-definition-list__term">{{ 'rfq.fields.technical_scope'|trans }}</span>
-                            <div class="rams-rams-text--sm rams-rams-text--muted rams-bg-panel rams-p-3 rams-border rams-rounded">{{ rfq.technicalScope|nl2br }}</div>
+                            <div class="rams-text--sm rams-text--muted rams-bg-panel rams-p-3 rams-border rams-rounded">{{ rfq.technicalScope|nl2br }}</div>
                         </div>
                     {% endif %}
 
@@ -140,7 +140,7 @@
                         <div class="rams-divider rams-my-4"></div>
                         <div class="rams-stack rams-gap-1">
                             <span class="rams-definition-list__term">{{ 'common.notes'|trans }}</span>
-                            <div class="rams-rams-text--sm rams-rams-text--muted rams-bg-panel rams-p-3 rams-border rams-rounded">{{ rfq.notes|nl2br }}</div>
+                            <div class="rams-text--sm rams-text--muted rams-bg-panel rams-p-3 rams-border rams-rounded">{{ rfq.notes|nl2br }}</div>
                         </div>
                     {% endif %}
                 </div>
@@ -160,14 +160,14 @@
                                     <span class="rams-andon__light rams-andon__light--{{ rfq.ndaSent ? 'green' : '' }}"></span>
                                 </div>
                                 <div class="rams-flex-1">
-                                    <h3 class="rams-rams-text--sm rams-text-bold uppercase rams-mb-1">{{ 'rfq.nda.sent'|trans }}</h3>
+                                    <h3 class="rams-text--sm rams-text--bold rams-uppercase rams-mb-1">{{ 'rfq.nda.sent'|trans }}</h3>
                                     {% if rfq.ndaSent %}
-                                        <p class="rams-rams-text--xs rams-rams-text--success">{{ 'rfq.nda.sent_on'|trans({'%date%': rfq.ndaDate|date('d F Y')}) }}</p>
+                                        <p class="rams-text--xs rams-text--success">{{ 'rfq.nda.sent_on'|trans({'%date%': rfq.ndaDate|date('d F Y')}) }}</p>
                                     {% else %}
-                                        <p class="rams-rams-text--xs rams-rams-text--muted rams-mb-3">{{ 'rfq.nda.not_sent_yet'|trans }}</p>
+                                        <p class="rams-text--xs rams-text--muted rams-mb-3">{{ 'rfq.nda.not_sent_yet'|trans }}</p>
                                         <form method="post" action="{{ path('app_rfq_nda_sent', {id: rfq.id}) }}">
                                             <input type="hidden" name="_token" value="{{ csrf_token('nda_sent' ~ rfq.id) }}">
-                                            <button type="submit" class="rams-btn--sm rams-w-full">
+                                            <button type="submit" class="rams-btn rams-btn--sm rams-w-full">
                                                 <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                     <path d="M2 3L8 8L14 3M2 3V11C2 11.5 2.5 12 3 12H13C13.5 12 14 11.5 14 11V3"/>
                                                 </svg>
@@ -186,15 +186,15 @@
                                     <span class="rams-andon__light rams-andon__light--{{ rfq.ndaExecuted ? 'green' : '' }}"></span>
                                 </div>
                                 <div class="rams-flex-1">
-                                    <h3 class="rams-rams-text--sm rams-text-bold uppercase rams-mb-1">{{ 'rfq.nda.executed'|trans }}</h3>
+                                    <h3 class="rams-text--sm rams-text--bold rams-uppercase rams-mb-1">{{ 'rfq.nda.executed'|trans }}</h3>
                                     {% if rfq.ndaExecuted %}
-                                        <p class="rams-rams-text--xs rams-rams-text--success">{{ 'rfq.nda.signed_and_executed'|trans }}</p>
+                                        <p class="rams-text--xs rams-text--success">{{ 'rfq.nda.signed_and_executed'|trans }}</p>
                                     {% else %}
-                                        <p class="rams-rams-text--xs rams-rams-text--muted rams-mb-3">{{ 'rfq.nda.awaiting_signature'|trans }}</p>
+                                        <p class="rams-text--xs rams-text--muted rams-mb-3">{{ 'rfq.nda.awaiting_signature'|trans }}</p>
                                         {% if rfq.ndaSent %}
                                             <form method="post" action="{{ path('app_rfq_nda_executed', {id: rfq.id}) }}">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('nda_executed' ~ rfq.id) }}">
-                                                <button type="submit" class="rams-btn--sm rams-w-full">
+                                                <button type="submit" class="rams-btn rams-btn--sm rams-w-full">
                                                     <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                                                     </svg>
@@ -269,12 +269,12 @@
             {% if rfq.status == 'Won' %}
                 <div class="rams-module rams-bg-success-subtle rams-border-success">
                     <div class="rams-module__content">
-                        <div class="rams-flex rams-flex-col rams-items-center rams-rams-text--center rams-p-4">
+                        <div class="rams-flex rams-flex-col rams-items-center rams-text--center rams-p-4">
                             <div class="rams-andon rams-andon--large rams-mb-3">
                                 <span class="rams-andon__light rams-andon__light--green rams-pulse"></span>
                             </div>
-                            <h3 class="rams-rams-text--lg rams-rams-text--success rams-text-bold uppercase font-mono">{{ 'rfq.won.title'|trans }}</h3>
-                            <p class="rams-rams-text--xs rams-rams-text--muted rams-mt-2">{{ 'rfq.won.description'|trans }}</p>
+                            <h3 class="rams-text--lg rams-text--success rams-text--bold rams-uppercase rams-font-mono">{{ 'rfq.won.title'|trans }}</h3>
+                            <p class="rams-text--xs rams-text--muted rams-mt-2">{{ 'rfq.won.description'|trans }}</p>
                         </div>
                     </div>
                 </div>

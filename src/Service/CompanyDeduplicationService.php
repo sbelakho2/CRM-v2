@@ -318,9 +318,9 @@ class CompanyDeduplicationService
             }
         }
         
-        // Expand abbreviations
+        // Expand abbreviations (word-boundary to avoid partial matches)
         foreach (self::NAME_EXPANSIONS as $abbr => $full) {
-            $normalized = str_replace($abbr, $full, $normalized);
+            $normalized = preg_replace('/\b' . preg_quote($abbr, '/') . '\b/', $full, $normalized);
         }
         
         // Remove special characters and extra spaces
@@ -379,10 +379,16 @@ class CompanyDeduplicationService
             return 100;
         }
         
-        // Use Levenshtein distance
+        // Use Levenshtein distance (max 255 chars per PHP limitation)
         $maxLen = max(strlen($str1), strlen($str2));
         if ($maxLen === 0) {
             return 100;
+        }
+        
+        // levenshtein() crashes on strings > 255 chars; fall back to similar_text
+        if (strlen($str1) > 255 || strlen($str2) > 255) {
+            similar_text($str1, $str2, $percent);
+            return (int)round($percent);
         }
         
         $distance = levenshtein($str1, $str2);

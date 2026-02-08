@@ -1,0 +1,225 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'nav.autonomous_sales'|trans|default('Autonomous Sales') }} - {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-stack rams-gap-6">
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'nav.autonomous_sales'|trans|default('Autonomous Sales') }}</h1>
+            <p class="rams-page-subtitle">{{ 'autonomous_sales.subtitle'|trans|default('Live Thompson Sampling performance across email experiments.') }}</p>
+            <div class="rams-mt-2">
+                {% if autonomous_enabled %}
+                    <span class="rams-badge rams-badge--success">{{ 'autonomous_sales.status_enabled'|trans|default('Enabled') }}</span>
+                {% else %}
+                    <span class="rams-badge rams-badge--danger">{{ 'autonomous_sales.status_disabled'|trans|default('Disabled') }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="rams-page-header__actions">
+            <form method="post" action="{{ path('autonomous_sales_toggle') }}" class="rams-mr-2">
+                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_toggle') }}">
+                <button type="submit" class="rams-btn">
+                    {% if autonomous_enabled %}
+                        {{ 'autonomous_sales.disable'|trans|default('Turn off') }}
+                    {% else %}
+                        {{ 'autonomous_sales.enable'|trans|default('Turn on') }}
+                    {% endif %}
+                </button>
+            </form>
+            <form method="post" action="{{ path('autonomous_sales_initialize') }}" class="rams-mr-2">
+                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_initialize') }}">
+                <button type="submit" class="rams-btn" {% if not autonomous_enabled %}disabled{% endif %}>
+                    {{ 'autonomous_sales.initialize'|trans|default('Initialize system') }}
+                </button>
+            </form>
+            <form method="post" action="{{ path('autonomous_sales_seed') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_seed') }}">
+                <input type="hidden" name="seedType" value="subject_line">
+                <button type="submit" class="rams-btn" {% if not autonomous_enabled %}disabled{% endif %}>
+                    {{ 'autonomous_sales.seed_subject_lines'|trans|default('Seed subject line arms') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h3>{{ 'autonomous_sales.system_overview'|trans|default('System overview') }}</h3>
+        </div>
+        <div class="rams-module__content">
+            <div class="rams-grid rams-grid--4 rams-gap-4">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'autonomous_sales.leads_total'|trans|default('Leads total') }}</span>
+                    <span class="rams-metric__value">{{ system_stats.discovery.totalLeads|default(0) }}</span>
+                </div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'autonomous_sales.leads_pending'|trans|default('Pending review') }}</span>
+                    <span class="rams-metric__value">{{ system_stats.discovery.pendingReview|default(0) }}</span>
+                </div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'autonomous_sales.leads_scored'|trans|default('Scored leads') }}</span>
+                    <span class="rams-metric__value">{{ system_stats.discovery.scored|default(0) }}</span>
+                </div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'autonomous_sales.avg_score'|trans|default('Avg score') }}</span>
+                    <span class="rams-metric__value">{{ system_stats.scoring.averageScore|default(0) }}</span>
+                </div>
+            </div>
+            <div class="rams-divider rams-my-4"></div>
+            <div class="rams-grid rams-grid--4 rams-gap-4">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'autonomous_sales.optimizer_arms'|trans|default('Optimizer arms') }}</span>
+                    <span class="rams-metric__value">{{ system_stats.optimizer.arms|default(0) }}</span>
+                </div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'autonomous_sales.optimizer_trials'|trans|default('Optimizer trials') }}</span>
+                    <span class="rams-metric__value">{{ system_stats.optimizer.trials|default(0) }}</span>
+                </div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'autonomous_sales.optimizer_success'|trans|default('Success rate') }}</span>
+                    <span class="rams-metric__value">{{ (system_stats.optimizer.successRate|default(0) * 100)|number_format(2) }}%</span>
+                </div>
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'autonomous_sales.competitors'|trans|default('Competitor signals') }}</span>
+                    <span class="rams-metric__value">{{ system_stats.competitors.detectionsCount|default(0) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h3>{{ 'autonomous_sales.score_leads'|trans|default('Score leads') }}</h3>
+        </div>
+        <div class="rams-module__content">
+            <form method="post" action="{{ path('autonomous_sales_score_leads') }}" class="rams-grid rams-grid--4 rams-gap-4">
+                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_score_leads') }}">
+                <div>
+                    <label class="rams-form__label">{{ 'autonomous_sales.score_limit'|trans|default('Leads to score') }}</label>
+                    <input type="number" min="1" max="500" name="limit" value="50" class="rams-form__input" {% if not autonomous_enabled %}disabled{% endif %}>
+                </div>
+                <div class="rams-flex rams-items-end">
+                    <button type="submit" class="rams-btn rams-btn--primary" {% if not autonomous_enabled %}disabled{% endif %}>
+                        {{ 'autonomous_sales.run_scoring'|trans|default('Run scoring') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h3>{{ 'autonomous_sales.create_arm'|trans|default('Create bandit arm') }}</h3>
+        </div>
+        <div class="rams-module__content">
+            <form method="post" action="{{ path('autonomous_sales_arm_create') }}" class="rams-grid rams-grid--4 rams-gap-4">
+                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_arm_create') }}">
+                <div>
+                    <label class="rams-form__label">{{ 'autonomous_sales.arm_type'|trans|default('Arm type') }}</label>
+                    <select name="armType" class="rams-form__select" {% if not autonomous_enabled %}disabled{% endif %}>
+                        {% for type, label in types %}
+                            <option value="{{ type }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="rams-form__label">{{ 'autonomous_sales.arm_name'|trans|default('Arm name') }}</label>
+                    <input type="text" name="armName" class="rams-form__input" placeholder="{{ 'autonomous_sales.arm_name_placeholder'|trans|default('e.g., Direct Question') }}" required {% if not autonomous_enabled %}disabled{% endif %}>
+                </div>
+                <div>
+                    <label class="rams-form__label">{{ 'autonomous_sales.arm_value'|trans|default('Arm value') }}</label>
+                    <input type="text" name="armValue" class="rams-form__input" placeholder="{{ 'autonomous_sales.arm_value_placeholder'|trans|default('e.g., Quick question about {{company_name}}?') }}" required {% if not autonomous_enabled %}disabled{% endif %}>
+                </div>
+                <div class="rams-flex rams-items-end">
+                    <button type="submit" class="rams-btn rams-btn--primary" {% if not autonomous_enabled %}disabled{% endif %}>
+                        {{ 'common.create'|trans|default('Create') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% for type, label in types %}
+        {% set stats = bandit_stats[type] ?? {} %}
+        {% set arms = bandit_arms[type] ?? [] %}
+
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3>{{ label }}</h3>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-grid rams-grid--3 rams-gap-4 rams-mb-4">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'autonomous_sales.total_arms'|trans|default('Total arms') }}</span>
+                        <span class="rams-metric__value">{{ stats.total_arms|default(0) }}</span>
+                    </div>
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'autonomous_sales.total_trials'|trans|default('Total trials') }}</span>
+                        <span class="rams-metric__value">{{ stats.total_trials|default(0) }}</span>
+                    </div>
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'autonomous_sales.expected_rate'|trans|default('Expected rate') }}</span>
+                        <span class="rams-metric__value">{{ (stats.average_expected_rate|default(0) * 100)|number_format(2) }}%</span>
+                    </div>
+                </div>
+
+                {% if arms is empty %}
+                    <div class="rams-empty-state">
+                        <h4 class="rams-empty-state__title">{{ 'autonomous_sales.no_arms'|trans|default('No bandit arms yet.') }}</h4>
+                        <p class="rams-text--muted">{{ 'autonomous_sales.no_arms_hint'|trans|default('Create arms via the Autonomous Sales API to start learning.') }}</p>
+                    </div>
+                {% else %}
+                    <div class="rams-table-container">
+                        <table class="rams-table">
+                            <thead>
+                                <tr>
+                                    <th>{{ 'common.name'|trans|default('Name') }}</th>
+                                    <th>{{ 'autonomous_sales.value'|trans|default('Value') }}</th>
+                                    <th class="rams-text--right">{{ 'autonomous_sales.trials'|trans|default('Trials') }}</th>
+                                    <th class="rams-text--right">{{ 'autonomous_sales.successes'|trans|default('Successes') }}</th>
+                                    <th class="rams-text--right">{{ 'autonomous_sales.empirical_rate'|trans|default('Empirical rate') }}</th>
+                                    <th class="rams-text--right">{{ 'autonomous_sales.expected_rate'|trans|default('Expected rate') }}</th>
+                                    <th class="rams-text--right">{{ 'common.actions'|trans|default('Actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for arm in arms %}
+                                    <tr>
+                                        <td>{{ arm.name }}</td>
+                                        <td><code class="rams-text--xs rams-text--muted">{{ arm.value }}</code></td>
+                                        <td class="rams-text--right">{{ arm.totalTrials }}</td>
+                                        <td class="rams-text--right">{{ arm.totalSuccesses }}</td>
+                                        <td class="rams-text--right">{{ (arm.empiricalRate * 100)|number_format(2) }}%</td>
+                                        <td class="rams-text--right">{{ (arm.expectedRate * 100)|number_format(2) }}%</td>
+                                        <td class="rams-text--right">
+                                            <div class="rams-flex rams-justify-end rams-gap-2">
+                                                <form method="post" action="{{ path('autonomous_sales_arm_outcome', {id: arm.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_arm_outcome_' ~ arm.id) }}">
+                                                    <input type="hidden" name="eventType" value="open">
+                                                    <input type="hidden" name="result" value="success">
+                                                    <button type="submit" class="rams-btn rams-btn--ghost" {% if not autonomous_enabled %}disabled{% endif %}>
+                                                        {{ 'autonomous_sales.mark_success'|trans|default('Success') }}
+                                                    </button>
+                                                </form>
+                                                <form method="post" action="{{ path('autonomous_sales_arm_outcome', {id: arm.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_arm_outcome_' ~ arm.id) }}">
+                                                    <input type="hidden" name="eventType" value="open">
+                                                    <input type="hidden" name="result" value="failure">
+                                                    <button type="submit" class="rams-btn rams-btn--ghost" {% if not autonomous_enabled %}disabled{% endif %}>
+                                                        {{ 'autonomous_sales.mark_failure'|trans|default('Failure') }}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

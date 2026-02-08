@@ -52,6 +52,10 @@ services:
       $apiKey: '%env(GOOGLE_API_KEY)%'
       $searchEngineId: '%env(GOOGLE_SEARCH_ENGINE_ID)%'
 
+  App\Service\LlmEnrichmentService:
+    arguments:
+      $apiKey: '%env(default::OPENAI_API_KEY)%'
+
   App\Service\EmailTrackingSigner:
     arguments:
       $secret: '%kernel.secret%'

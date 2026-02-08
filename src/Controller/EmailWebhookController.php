@@ -60,7 +60,8 @@ class EmailWebhookController extends AbstractController
         
         if (!$send) {
             $this->logger->warning('Email send not found', ['send_id' => $sendId]);
-            return new Response('Email send not found', 404);
+            // Return 200 to prevent email provider from retrying
+            return new Response('Accepted - send not found', 200);
         }
         
         $this->logger->info('Mailgun webhook event received', [
@@ -249,7 +250,8 @@ class EmailWebhookController extends AbstractController
         
         if (!$send) {
             $this->logger->warning('Email send not found', ['send_id' => $sendId]);
-            return new Response('Email send not found', 404);
+            // Return 200 to prevent email provider from retrying
+            return new Response('Accepted - send not found', 200);
         }
         
         // Handle different record types
@@ -316,7 +318,7 @@ class EmailWebhookController extends AbstractController
         $send = $this->entityManager->getRepository(EmailSend::class)->find($sendId);
         
         if (!$send) {
-            return new Response('Email send not found', 404);
+            return new Response('Accepted - send not found', 200);
         }
         
         switch ($event) {
@@ -509,17 +511,23 @@ class EmailWebhookController extends AbstractController
         
         // Then, if this email send has an associated OutboundMessage, update autonomous sales
         if ($this->orchestrator) {
-            // Try to find OutboundMessage by campaign send ID
-            $message = $this->entityManager->getRepository(OutboundMessage::class)
-                ->findOneBy(['campaignSendId' => $sendId]);
+            // Try to find OutboundMessage linked to this send's contact and campaign
+            $outboundMessage = null;
+            if ($send && $send->getContact()) {
+                $outboundMessage = $this->entityManager->getRepository(OutboundMessage::class)
+                    ->findOneBy([
+                        'contact' => $send->getContact(),
+                        'status' => 'sent',
+                    ], ['sentAt' => 'DESC']);
+            }
             
-            if ($message) {
+            if ($outboundMessage) {
                 $replyContent = $data['reply_content'] ?? null;
-                $this->orchestrator->recordEmailEvent($message, $event, $replyContent);
+                $this->orchestrator->recordEmailEvent($outboundMessage, $event, $replyContent);
                 
                 $this->logger->info('Campaign event bridged to autonomous sales', [
                     'send_id' => $sendId,
-                    'outbound_message_id' => $message->getId(),
+                    'outbound_message_id' => $outboundMessage->getId(),
                     'event' => $event,
                 ]);
             }
@@ -536,6 +544,8 @@ class EmailWebhookController extends AbstractController
             ?: null;
 
         if (!$configuredSecret) {
+            // No secret configured — allow but log warning in non-production
+            $this->logger->warning('EMAIL_WEBHOOK_SECRET not configured — webhook endpoint is unprotected');
             return null;
         }
 

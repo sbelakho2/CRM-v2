@@ -1,74 +1,10 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Tasks - Kanban Board{% endblock %}
+{% block title %}{{ 'task.kanban_title'|trans }}{% endblock %}
 
 {% block stylesheets %}
 {{ parent() }}
-<style>
-/* Kanban Board specific styles that are not yet in global UI */
-.rams-kanban {
-    display: flex;
-    gap: 1rem;
-    overflow-x: auto;
-    padding-bottom: 1rem;
-    min-height: calc(100vh - 200px);
-}
-
-.rams-kanban__column {
-    flex: 0 0 320px;
-    background: var(--rams-surface-alt);
-    rams-border: 1px solid var(--rams-border);
-    rams-border-radius: var(--rams-radius-lg);
-    display: flex;
-    flex-direction: column;
-}
-
-.rams-kanban__header {
-    padding: 1rem;
-    rams-border-bottom: 1px solid var(--rams-border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-weight: 600;
-}
-
-.rams-kanban__body {
-    padding: 0.75rem;
-    flex: 1;
-    overflow-y: auto;
-}
-
-.rams-kanban__card {
-    background: var(--rams-surface);
-    rams-border: 1px solid var(--rams-border);
-    rams-border-radius: var(--rams-radius);
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-    cursor: grab;
-    transition: box-shadow 0.2s, rams-border-color 0.2s;
-}
-
-.rams-kanban__card:hover {
-    rams-border-color: var(--rams-primary-400);
-    box-shadow: var(--rams-shadow-sm);
-}
-
-.rams-kanban__card-title {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    display: block;
-    color: var(--rams-text);
-}
-
-.rams-kanban__card-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0.75rem;
-    font-size: 0.75rem;
-    color: var(--rams-rams-text--muted);
-}
-</style>
+{# Kanban styles now in sensei-rams.css #}
 {% endblock %}
 
 {% block body %}
@@ -76,26 +12,26 @@
      <div class="rams-page__header">
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
-                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <a href="{{ path('app_task_index') }}">Tasks</a>
+                <a href="{{ path('app_task_index') }}">{{ 'task.title'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <span>Kanban</span>
+                <span>{{ 'task.kanban'|trans }}</span>
             </div>
-            <h1 class="rams-page__title">Kanban Board</h1>
+            <h1 class="rams-page__title">{{ 'task.kanban_board'|trans }}</h1>
         </div>
         <div class="rams-page__actions">
-             <a href="{{ path('app_task_index') }}" class="rams-btn">
+             <a href="{{ path('app_task_index') }}" class="rams-btn uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6 8L7 9L10 6"/>
                 </svg>
-                List View
+                {{ 'task.list_view'|trans }}
             </a>
-            <a href="{{ path('app_task_new') }}" class="rams-btn--primary">
+            <a href="{{ path('app_task_new') }}" class="rams-btn rams-btn--primary uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 2V14M2 8H14"/>
                 </svg>
-                New Task
+                {{ 'task.new_task'|trans }}
             </a>
         </div>
     </div>
@@ -104,7 +40,7 @@
         {% for status_key, status_label in statuses %}
             <div class="rams-kanban__column">
                 <div class="rams-kanban__header">
-                    <span>{{ status_label }}</span>
+                    <span class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ status_label }}</span>
                     <span class="rams-badge rams-badge--neutral rams-badge--sm">{{ tasks_by_status[status_key]|default([])|length }}</span>
                 </div>
                 <div class="rams-kanban__body">
@@ -114,7 +50,7 @@
                             {{ task.title }}
                         </a>
                          {% if task.priority == 'high' %}
-                            <span class="rams-badge rams-badge--danger rams-badge--xs rams-mb-2">High Priority</span>
+                            <span class="rams-badge rams-badge--danger rams-badge--xs rams-mb-2">{{ 'task.high_priority'|trans }}</span>
                         {% endif %}
                         <div class="rams-kanban__card-meta">
                             <span>
@@ -125,7 +61,7 @@
                                 {% endif %}
                             </span>
                             {% if task.dueDate %}
-                                <span class="{{ task.isOverdue and task.status != 'done' ? 'rams-rams-text--danger' : '' }}">
+                                <span class="{{ task.isOverdue and task.status != 'done' ? 'rams-text--danger' : '' }}">
                                     {{ task.dueDate|date('M d') }}
                                 </span>
                             {% endif %}

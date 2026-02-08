@@ -345,11 +345,10 @@ class CommandCenterService
             // Check if PriceHistory repository exists and has data
             $priceHistoryRepo = $this->entityManager->getRepository(PriceHistory::class);
             
-            // Get recent significant price changes
+            // Get recent price records and compare with previous prices for same MPN
             $recentChanges = $priceHistoryRepo->createQueryBuilder('ph')
                 ->where('ph.recordedAt >= :threshold')
-                ->andWhere('ph.previousPrice IS NOT NULL')
-                ->andWhere('ph.previousPrice > 0')
+                ->andWhere('ph.unitPrice IS NOT NULL')
                 ->setParameter('threshold', (new \DateTime())->modify('-7 days'))
                 ->orderBy('ph.recordedAt', 'DESC')
                 ->setMaxResults(50)
@@ -357,8 +356,26 @@ class CommandCenterService
                 ->getResult();
             
             foreach ($recentChanges as $change) {
-                $previousPrice = (float) $change->getPreviousPrice();
-                $currentPrice = (float) $change->getPrice();
+                // Find previous price for same MPN to calculate change
+                $previousRecord = $priceHistoryRepo->createQueryBuilder('ph2')
+                    ->where('ph2.mpn = :mpn')
+                    ->andWhere('ph2.source = :source')
+                    ->andWhere('ph2.recordedAt < :currentDate')
+                    ->andWhere('ph2.unitPrice IS NOT NULL')
+                    ->setParameter('mpn', $change->getMpn())
+                    ->setParameter('source', $change->getSource())
+                    ->setParameter('currentDate', $change->getRecordedAt())
+                    ->orderBy('ph2.recordedAt', 'DESC')
+                    ->setMaxResults(1)
+                    ->getQuery()
+                    ->getOneOrNullResult();
+
+                if (!$previousRecord) {
+                    continue;
+                }
+
+                $previousPrice = (float) $previousRecord->getUnitPrice();
+                $currentPrice = (float) $change->getUnitPrice();
                 $currency = $change->getCurrency() ?? 'USD';
                 
                 if ($previousPrice <= 0) continue;
@@ -372,7 +389,7 @@ class CommandCenterService
                         'type' => 'price_increase',
                         'severity' => $percentChange >= 0.25 ? 'critical' : 'warning',
                         'mpn' => $change->getMpn(),
-                        'distributor' => $change->getDistributor(),
+                        'distributor' => $change->getSource(),
                         'previous_price' => round($previousPrice, 4),
                         'current_price' => round($currentPrice, 4),
                         'currency' => $currency,

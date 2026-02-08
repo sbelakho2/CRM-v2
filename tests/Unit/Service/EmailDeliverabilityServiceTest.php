@@ -15,8 +15,7 @@ class EmailDeliverabilityServiceTest extends TestCase
         $email = 'user@example.com';
 
         $send = $this->getMockBuilder(\App\Entity\EmailSend::class)
-            ->addMethods(['getEmailAddress','setStatus','setFailureReason','getRetryCount','setRetryCount'])
-            ->onlyMethods(['setBounced','getContact'])
+            ->onlyMethods(['getEmailAddress','setStatus','setFailureReason','getRetryCount','setRetryCount','setBounced','getContact'])
             ->getMock();
 
         $send->expects($this->once())->method('getEmailAddress')->willReturn($email);
@@ -42,8 +41,7 @@ class EmailDeliverabilityServiceTest extends TestCase
         $email = 'soft@example.com';
 
         $send = $this->getMockBuilder(\App\Entity\EmailSend::class)
-            ->addMethods(['getEmailAddress','setStatus','setFailureReason','getRetryCount','setRetryCount'])
-            ->onlyMethods(['setBounced','getContact'])
+            ->onlyMethods(['getEmailAddress','setStatus','setFailureReason','getRetryCount','setRetryCount','setBounced','getContact'])
             ->getMock();
 
         $send->method('getEmailAddress')->willReturn($email);
@@ -70,13 +68,10 @@ class EmailDeliverabilityServiceTest extends TestCase
     {
         $email = 'complaint@example.com';
 
-        $contact = $this->getMockBuilder(\App\Entity\Contact::class)
-            ->addMethods(['setSubscribed'])
-            ->getMock();
+        $contact = $this->createMock(\App\Entity\Contact::class);
 
         $send = $this->getMockBuilder(\App\Entity\EmailSend::class)
-            ->addMethods(['getEmailAddress','setStatus','setFailureReason'])
-            ->onlyMethods(['getContact'])
+            ->onlyMethods(['getEmailAddress','setStatus','setFailureReason','getContact'])
             ->getMock();
 
         $send->method('getEmailAddress')->willReturn($email);

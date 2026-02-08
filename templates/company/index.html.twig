@@ -11,7 +11,7 @@
             <p class="rams-page-subtitle">{{ 'common.filter'|trans }} {{ 'company.title'|trans|lower }}</p>
         </div>
         <div class="rams-page-actions">
-            <a href="{{ path('app_company_new') }}" class="rams-btn--primary">
+            <a href="{{ path('app_company_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -89,7 +89,7 @@
 
                 {# Filter Actions #}
                 <div class="rams-flex rams-gap-2">
-                    <button type="submit" class="rams-btn--primary">
+                    <button type="submit" class="rams-btn rams-btn--primary">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                         </svg>
@@ -117,7 +117,7 @@
 
     {# Results Count #}
     <div class="rams-flex rams-justify-between rams-items-center">
-        <span class="rams-rams-text--muted">
+        <span class="rams-text--muted">
             {{ 'pagination.showing'|trans }} <span class="rams-badge">{{ companies|length }}</span> {{ 'company.title'|trans|lower }}
         </span>
     </div>
@@ -158,7 +158,7 @@
 
                     {# Region #}
                     {% if company.region %}
-                        <div class="rams-flex rams-items-center rams-gap-2 rams-rams-text--muted rams-rams-text--xs">
+                        <div class="rams-flex rams-items-center rams-gap-2 rams-text--muted rams-text--xs">
                             <svg class="rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -168,11 +168,26 @@
                     {% endif %}
 
                     {# Quick Links Icons #}
-                    <div class="rams-flex rams-gap-2 rams-mt-3">
+                    <div class="rams-flex rams-gap-2 rams-mt-3 rams-items-center">
+                        {% if company.contacts|length > 0 %}
+                            <span class="rams-badge rams-badge--success" title="{{ company.contacts|length }} contacts">
+                                <svg class="rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <circle cx="8" cy="5" r="3"/><path d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
+                                </svg>
+                                {{ company.contacts|length }}
+                            </span>
+                        {% endif %}
                         {% if company.website %}
                             <span class="rams-badge" title="{{ 'company.website'|trans }}">
                                 <svg class="rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                                </svg>
+                            </span>
+                        {% endif %}
+                        {% if company.linkedinCompanyUrl %}
+                            <span class="rams-badge" title="LinkedIn" style="color: #0077b5;">
+                                <svg class="rams-icon--3xs" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                                 </svg>
                             </span>
                         {% endif %}
@@ -189,13 +204,13 @@
         {% else %}
             <div class="rams-module rams-grid-span-3">
                 <div class="rams-module__content rams-flex rams-flex-col rams-items-center rams-p-8">
-                    <svg class="rams-icon--2xl rams-rams-text--muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="rams-icon--2xl rams-text--muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                     </svg>
                     <h3 class="rams-mt-4 rams-text-base rams-font-semibold">{{ 'company.no_companies'|trans }}</h3>
-                    <p class="rams-rams-text--muted rams-mt-1 rams-rams-text--sm">{{ 'company.create_first'|trans }}</p>
+                    <p class="rams-text--muted rams-mt-1 rams-text--sm">{{ 'company.create_first'|trans }}</p>
                     <div class="rams-mt-4">
-                        <a href="{{ path('app_company_new') }}" class="rams-btn--primary">
+                        <a href="{{ path('app_company_new') }}" class="rams-btn rams-btn--primary">
                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>

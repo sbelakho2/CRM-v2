@@ -29,8 +29,8 @@ use Psr\Log\LoggerInterface;
  */
 class LeadSalesAnalystService
 {
-    // Our company's capabilities (would be configurable in production)
-    private const OUR_CAPABILITIES = [
+    // Default capabilities (overridable via constructor injection)
+    private const DEFAULT_CAPABILITIES = [
         'pcba' => true,
         'smt' => true,
         'through_hole' => true,
@@ -47,11 +47,10 @@ class LeadSalesAnalystService
         'functional_test' => true,
     ];
     
-    // Our certifications
-    private const OUR_CERTIFICATIONS = [
+    // Default certifications (overridable via constructor injection)
+    private const DEFAULT_CERTIFICATIONS = [
         'ISO 9001',
         'ISO 14001',
-        'IATF 16949',    // Automotive
         'AS9100',        // Aerospace
         'ISO 13485',     // Medical
         'IPC-A-610',     // Electronics Assembly
@@ -61,16 +60,22 @@ class LeadSalesAnalystService
         'RoHS',
     ];
     
-    // Our target sectors
-    private const TARGET_SECTORS = [
+    // Default target sectors (overridable via constructor injection)
+    private const DEFAULT_TARGET_SECTORS = [
         'automotive',
         'aerospace',
-        'defense',
-        'medical',
         'industrial',
-        'telecommunications',
-        'power_electronics',
+        'rail',
         'renewables',
+        'medical',
+        'defense',
+        'telecom',
+        'hvac',
+        'marine',
+        'power electronics',
+        'consumer electronics',
+        'data center',
+        'energy storage',
     ];
     
     // Pain point indicators based on signals
@@ -89,7 +94,7 @@ class LeadSalesAnalystService
         ],
         'supply_chain_risk' => [
             'signals' => ['supply_chain_mentions', 'shortage_news', 'diversification_interest'],
-            'pitch' => 'Morocco-based manufacturing for supply chain diversification and nearshoring',
+            'pitch' => 'Nearshore manufacturing for supply chain diversification and resilience',
         ],
         'time_to_market' => [
             'signals' => ['npi_mentions', 'fast_prototyping', 'startup', 'product_launch'],
@@ -101,9 +106,20 @@ class LeadSalesAnalystService
         ],
     ];
     
+    private array $ourCapabilities;
+    private array $ourCertifications;
+    private array $targetSectors;
+    
     public function __construct(
-        private LoggerInterface $logger
-    ) {}
+        private LoggerInterface $logger,
+        array $ourCapabilities = [],
+        array $ourCertifications = [],
+        array $targetSectors = []
+    ) {
+        $this->ourCapabilities = !empty($ourCapabilities) ? $ourCapabilities : self::DEFAULT_CAPABILITIES;
+        $this->ourCertifications = !empty($ourCertifications) ? $ourCertifications : self::DEFAULT_CERTIFICATIONS;
+        $this->targetSectors = !empty($targetSectors) ? $targetSectors : self::DEFAULT_TARGET_SECTORS;
+    }
     
     /**
      * Analyze a lead and generate sales intelligence
@@ -202,7 +218,7 @@ class LeadSalesAnalystService
             
             $normalizedCapability = $this->normalizeCapabilityName($capability);
             
-            if (isset(self::OUR_CAPABILITIES[$normalizedCapability]) && self::OUR_CAPABILITIES[$normalizedCapability]) {
+            if (isset($this->ourCapabilities[$normalizedCapability]) && $this->ourCapabilities[$normalizedCapability]) {
                 $matchedCapabilities[] = $capability;
             } else {
                 $unmatchedNeeds[] = $capability;
@@ -210,7 +226,7 @@ class LeadSalesAnalystService
         }
         
         // Find capabilities we offer that they didn't mention (upsell opportunities)
-        foreach (self::OUR_CAPABILITIES as $capability => $offered) {
+        foreach ($this->ourCapabilities as $capability => $offered) {
             if ($offered) {
                 $found = false;
                 foreach ($fitSignals as $leadCap => $hasNeed) {
@@ -251,7 +267,7 @@ class LeadSalesAnalystService
             $normalizedCert = $this->normalizeCertification($cert);
             $matched = false;
             
-            foreach (self::OUR_CERTIFICATIONS as $ourCert) {
+            foreach ($this->ourCertifications as $ourCert) {
                 if (str_contains(strtolower($ourCert), strtolower($normalizedCert)) ||
                     str_contains(strtolower($normalizedCert), strtolower($ourCert))) {
                     $matchedCerts[] = $cert;
@@ -266,7 +282,7 @@ class LeadSalesAnalystService
         }
         
         // Certifications we have that they may value
-        foreach (self::OUR_CERTIFICATIONS as $ourCert) {
+        foreach ($this->ourCertifications as $ourCert) {
             $found = false;
             foreach ($qualityStack as $theirCert) {
                 if (str_contains(strtolower($ourCert), strtolower($theirCert)) ||
@@ -303,7 +319,7 @@ class LeadSalesAnalystService
         foreach ($sectorTags as $sector) {
             $normalizedSector = strtolower(str_replace([' ', '-', '_'], '', $sector));
             
-            foreach (self::TARGET_SECTORS as $targetSector) {
+            foreach ($this->targetSectors as $targetSector) {
                 $normalizedTarget = strtolower(str_replace([' ', '-', '_'], '', $targetSector));
                 
                 if (str_contains($normalizedSector, $normalizedTarget) ||
@@ -492,13 +508,54 @@ class LeadSalesAnalystService
             ];
         }
         
-        // Morocco/nearshoring angle if applicable
-        if ($lead->getMoroccoSignal()) {
+        // Geographic presence angle — region-aware
+        $regionTag = $lead->getRegionTag();
+        if ($lead->getMoroccoSignal() || $regionTag === 'MA') {
             $starters[] = [
                 'type' => 'geographic',
                 'topic' => 'morocco_presence',
-                'opener' => "I see you already have presence in Morocco. We're located in Tangier Free Zone.",
+                'opener' => "I see you already have presence in Morocco. We operate from Tangier Free Zone and Tunisia.",
                 'follow_up' => 'Having a local partner could streamline your supply chain.',
+                'priority' => 2,
+            ];
+        } elseif ($regionTag === 'US') {
+            $starters[] = [
+                'type' => 'geographic',
+                'topic' => 'us_nearshore',
+                'opener' => 'With operations in the US, supply chain resilience is likely a priority for you.',
+                'follow_up' => 'Our nearshore manufacturing can reduce lead times compared to overseas suppliers.',
+                'priority' => 2,
+            ];
+        } elseif ($regionTag === 'EU' || $regionTag === 'EU_REGION') {
+            $starters[] = [
+                'type' => 'geographic',
+                'topic' => 'eu_fta',
+                'opener' => 'As an EU-based operation, you benefit from free-trade agreements with Morocco.',
+                'follow_up' => 'Zero-tariff access plus same-timezone communication makes us a natural partner.',
+                'priority' => 2,
+            ];
+        } elseif ($regionTag === 'GB') {
+            $starters[] = [
+                'type' => 'geographic',
+                'topic' => 'uk_partnership',
+                'opener' => 'Post-Brexit, UK manufacturers are diversifying their supply chains.',
+                'follow_up' => 'We can offer competitive manufacturing with short lead times and bilateral trade advantages.',
+                'priority' => 2,
+            ];
+        } elseif ($regionTag === 'EG') {
+            $starters[] = [
+                'type' => 'geographic',
+                'topic' => 'egypt_corridor',
+                'opener' => 'Egypt\'s industrial zones are expanding rapidly — are you scaling your electronics sourcing locally?',
+                'follow_up' => 'Our proximity in Morocco and Tunisia, with shared trade corridors, makes us a natural extension of your supply chain.',
+                'priority' => 2,
+            ];
+        } elseif (in_array($regionTag, ['AE', 'SA', 'QA', 'KW', 'OM', 'BH', 'GCC', 'GCC_REGION'])) {
+            $starters[] = [
+                'type' => 'geographic',
+                'topic' => 'gcc_diversification',
+                'opener' => 'The GCC\'s push toward industrial diversification is creating exciting new supply chain needs.',
+                'follow_up' => 'We offer competitive EMS with strong logistics links to the Gulf region.',
                 'priority' => 2,
             ];
         }
@@ -532,12 +589,67 @@ class LeadSalesAnalystService
     {
         $positioning = [];
         
-        // Morocco advantage
-        $positioning[] = [
-            'differentiator' => 'Geographic Arbitrage',
-            'message' => 'Morocco Free Zone location offers EU tariff benefits with competitive costs',
-            'vs_competitors' => 'Unlike Asian suppliers, we offer same-day communication and 3-day shipping to EU',
-        ];
+        // Region-specific advantage
+        $regionTag = $lead->getRegionTag();
+        switch ($regionTag) {
+            case 'MA':
+                $positioning[] = [
+                    'differentiator' => 'Local Presence',
+                    'message' => 'Co-located in Morocco and Tunisia Free Zones — rapid delivery and face-to-face collaboration',
+                    'vs_competitors' => 'Zero logistics overhead compared to remote suppliers',
+                ];
+                break;
+            case 'EU':
+            case 'EU_REGION':
+                $positioning[] = [
+                    'differentiator' => 'EU Free-Trade Access',
+                    'message' => 'Duty-free EU access via free-zone manufacturing with competitive nearshore costs',
+                    'vs_competitors' => 'Unlike Asian suppliers, same-day communication and 3-day shipping to EU',
+                ];
+                break;
+            case 'GB':
+                $positioning[] = [
+                    'differentiator' => 'UK Trade Advantage',
+                    'message' => 'Competitive manufacturing with UK-Morocco Association Agreement benefits',
+                    'vs_competitors' => 'Shorter lead times vs Far East, competitive rates vs EU-only suppliers',
+                ];
+                break;
+            case 'US':
+                $positioning[] = [
+                    'differentiator' => 'Nearshore Alternative',
+                    'message' => 'Nearshore manufacturing closer to US time zones with competitive costs',
+                    'vs_competitors' => 'Faster turnarounds and better communication vs Asian suppliers',
+                ];
+                break;
+            case 'EG':
+                $positioning[] = [
+                    'differentiator' => 'North Africa Corridor',
+                    'message' => 'Neighbouring manufacturing hub with established logistics to Egypt\'s industrial zones',
+                    'vs_competitors' => 'Shorter transit times and cultural alignment vs Asian or European alternatives',
+                ];
+                break;
+            case 'AE':
+            case 'SA':
+            case 'QA':
+            case 'KW':
+            case 'OM':
+            case 'BH':
+            case 'GCC':
+            case 'GCC_REGION':
+                $positioning[] = [
+                    'differentiator' => 'Gulf Gateway',
+                    'message' => 'Cost-competitive EMS with established air-freight routes to the Gulf',
+                    'vs_competitors' => 'Better value and faster delivery than Far East with growing GCC trade ties',
+                ];
+                break;
+            default:
+                $positioning[] = [
+                    'differentiator' => 'Geographic Flexibility',
+                    'message' => 'Strategic manufacturing location with multi-region trade advantages',
+                    'vs_competitors' => 'Competitive costs with proximity advantages over Far East suppliers',
+                ];
+                break;
+        }
         
         // Technology advantage
         $positioning[] = [
@@ -553,7 +665,7 @@ class LeadSalesAnalystService
             if (str_contains($sectorLower, 'auto')) {
                 $positioning[] = [
                     'differentiator' => 'Automotive Excellence',
-                    'message' => 'IATF 16949 certified with PPAP documentation',
+                    'message' => 'ISO 9001 certified with automotive-grade quality processes and PPAP support',
                     'vs_competitors' => 'Full automotive qualification support included',
                 ];
                 break;
@@ -647,7 +759,7 @@ class LeadSalesAnalystService
             $normalized = strtolower($cert);
             $weHave = false;
             
-            foreach (self::OUR_CERTIFICATIONS as $ourCert) {
+            foreach ($this->ourCertifications as $ourCert) {
                 if (str_contains(strtolower($ourCert), $normalized) ||
                     str_contains($normalized, strtolower($ourCert))) {
                     $weHave = true;
@@ -727,9 +839,12 @@ class LeadSalesAnalystService
             $priority += 10;
         }
         
-        // Boost for Morocco presence
+        // Boost for regional signal — any known region presence is valuable
+        $regionTag = $lead->getRegionTag();
         if ($lead->getMoroccoSignal()) {
-            $priority += 15;
+            $priority += 15; // Direct Morocco presence — highest geographic boost
+        } elseif ($regionTag && $regionTag !== 'unknown') {
+            $priority += 10; // Known target region
         }
         
         // Boost for defense (high-value)

@@ -27,6 +27,7 @@ class DiscoverCompaniesCommand extends Command
         $this
             ->addOption('sector', 's', InputOption::VALUE_OPTIONAL, 'Specific sector to search')
             ->addOption('location', 'l', InputOption::VALUE_OPTIONAL, 'Specific location to search')
+            ->addOption('region', 'r', InputOption::VALUE_OPTIONAL, 'Region code for --all (MA, US, EU, GB). Omit for all regions.')
             ->addOption('all', 'a', InputOption::VALUE_NONE, 'Discover all sectors and locations')
             ->setHelp(<<<'HELP'
 This command discovers companies using web crawling techniques.
@@ -63,15 +64,18 @@ HELP
 
         $sector = $input->getOption('sector');
         $location = $input->getOption('location');
+        $region = $input->getOption('region');
         $all = $input->getOption('all');
 
         if ($all) {
-            $io->section('Discovering companies across all sectors');
+            $regionLabel = $region ? strtoupper($region) : 'ALL REGIONS';
+            $io->section("Discovering companies across all sectors ({$regionLabel})");
             
             $io->warning([
                 'This will search for companies in all target sectors and locations.',
                 'This may take a long time and generate many search queries.',
-                'Consider running sector-by-sector for better control.'
+                'Consider running sector-by-sector for better control.',
+                $region ? "Limiting to region: {$regionLabel}" : 'Covering ALL regions (MA, US, EU, GB).',
             ]);
 
             if (!$io->confirm('Continue?', false)) {
@@ -79,7 +83,7 @@ HELP
             }
 
             $io->progressStart();
-            $companies = $this->discoveryService->discoverAllSectors();
+            $companies = $this->discoveryService->discoverAllSectors($region);
             $io->progressFinish();
 
             $io->success(sprintf('Discovered %d companies across all sectors', count($companies)));

@@ -202,13 +202,16 @@ class GoogleSearchService
 
     /**
      * Search for companies in a specific sector
+     *
+     * @param string $location Target location/region (e.g. 'Germany', 'Texas'). Empty = generic.
      */
-    public function searchBySector(string $sector, string $location = 'Morocco', int $limit = 10): array
+    public function searchBySector(string $sector, string $location = '', int $limit = 10): array
     {
+        $locationPart = $location && $location !== 'all' ? " {$location}" : '';
         $query = sprintf(
-            '%s manufacturing suppliers %s',
+            '%s manufacturing suppliers%s',
             $sector,
-            $location
+            $locationPart
         );
 
         return $this->searchCompanies($query, $limit);
@@ -230,12 +233,13 @@ class GoogleSearchService
     /**
      * Search for aerospace companies
      */
-    public function searchAerospaceCompanies(string $region = 'Morocco', int $limit = 10): array
+    public function searchAerospaceCompanies(string $region = '', int $limit = 10): array
     {
+        $regionPart = $region ? " {$region}" : '';
         $queries = [
-            "aerospace manufacturers {$region}",
-            "aviation parts suppliers {$region}",
-            "aircraft components {$region}",
+            "aerospace manufacturers{$regionPart}",
+            "aviation parts suppliers{$regionPart}",
+            "aircraft components{$regionPart}",
         ];
 
         $allResults = [];
@@ -306,19 +310,19 @@ class GoogleSearchService
 
     /**
      * Get quota usage estimation
-     * Note: Google Custom Search has a limit of 100 queries/day for free tier
+     * Note: Google Custom Search has a limit of 2000 queries/day (paid tier)
      */
     public function estimateQuota(int $searchCount, int $resultsPerSearch = 10): array
     {
         $totalQueries = ceil($searchCount * ($resultsPerSearch / 10));
-        $freeQueries = 100;
+        $dailyQuota = 2000;
         $costPerQuery = 0.005; // $5 per 1000 queries
 
         return [
             'total_queries' => $totalQueries,
-            'free_quota' => min($totalQueries, $freeQueries),
-            'billable_queries' => max(0, $totalQueries - $freeQueries),
-            'estimated_cost' => max(0, $totalQueries - $freeQueries) * $costPerQuery,
+            'daily_quota' => $dailyQuota,
+            'billable_queries' => $totalQueries,
+            'estimated_cost' => $totalQueries * $costPerQuery,
             'currency' => 'USD',
         ];
     }

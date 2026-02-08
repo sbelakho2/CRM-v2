@@ -1,25 +1,25 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Task: {{ task.title }} - CRM{% endblock %}
+{% block title %}{{ 'task.show_title_prefix'|trans }}{{ task.title }}{{ 'task.show_title_suffix'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__header">
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
-                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <a href="{{ path('app_task_index') }}">Tasks</a>
+                <a href="{{ path('app_task_index') }}">{{ 'task.title'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
                 <span>{{ task.title }}</span>
             </div>
             <div class="rams-flex rams-items-center rams-gap-2 rams-mt-2">
                 <h1 class="rams-page__title">{{ task.title }}</h1>
                 <span class="rams-badge rams-badge--{{ task.status == 'done' ? 'success' : (task.status == 'in_progress' ? 'warning' : 'neutral') }}">
-                    {{ task.status|replace({'_': ' '})|title }}
+                    {{ task.status|replace({'_': ' '})|upper }}
                 </span>
                 <span class="rams-badge rams-badge--{{ task.priority == 'high' ? 'danger' : (task.priority == 'medium' ? 'warning' : 'neutral') }}">
-                    {{ task.priority|title }}
+                    {{ task.priority|upper }}
                 </span>
             </div>
         </div>
@@ -27,27 +27,27 @@
             {% if task.status != 'done' %}
             <form method="post" action="{{ path('app_task_complete', {id: task.id}) }}" style="display:inline;">
                 <input type="hidden" name="_token" value="{{ csrf_token('complete' ~ task.id) }}">
-                <button class="rams-btn--success">
+                <button class="rams-btn rams-btn--success uppercase">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M3 8L6 11L13 4"/>
                     </svg>
-                    Complete
+                    {{ 'task.complete'|trans }}
                 </button>
             </form>
             {% endif %}
-            <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn">
+            <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                 </svg>
-                Edit
+                {{ 'common.edit'|trans }}
             </a>
-            <form method="post" action="{{ path('app_task_delete', {id: task.id}) }}" onsubmit="return confirm('Are you sure you want to delete this task?');" style="display:inline;">
+            <form method="post" action="{{ path('app_task_delete', {id: task.id}) }}" onsubmit="return confirm('{{ 'task.confirm_delete'|trans }}');" style="display:inline;">
                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ task.id) }}">
-                <button class="rams-btn--danger">
+                <button class="rams-btn rams-btn--danger uppercase">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M2 4H14M5 4V2H11V4M6 4V13H10V4"/>
                     </svg>
-                    Delete
+                    {{ 'common.delete'|trans }}
                 </button>
             </form>
         </div>
@@ -57,11 +57,11 @@
         <div class="rams-grid-span-2">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Description</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.description'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-bg-surface-alt rams-p-4 rams-rounded rams-border rams-border-rams-border">
-                        {{ task.description|default('No description provided.')|nl2br }}
+                    <div class="rams-bg-surface-alt rams-p-4 rounded-rams-sm rams-border rams-border-rams-line">
+                        {{ task.description|default('task.no_description'|trans)|nl2br }}
                     </div>
                 </div>
             </div>
@@ -69,14 +69,16 @@
             {% if task.company %}
             <div class="rams-module rams-mt-6">
                 <div class="rams-module__header">
-                    <h3>Related Records</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.related_records'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                     <dl class="rams-dl">
-                        <dt>Company</dt>
-                        <dd>
-                            <a href="#" class="rams-link">{{ task.company.name }}</a>
-                        </dd>
+                     <dl class="rams-definition-list">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.company'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                <a href="#" class="rams-link">{{ task.company.name }}</a>
+                            </dd>
+                        </div>
                     </dl>
                 </div>
             </div>
@@ -86,66 +88,84 @@
         <div>
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Details</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.details'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <dl class="rams-dl">
-                        <dt>Status</dt>
-                        <dd>{{ task.status|replace({'_': ' '})|title }}</dd>
+                    <dl class="rams-definition-list">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.status'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ (task.status|replace({'_': ' '}))|upper }}</dd>
+                        </div>
                         
-                        <dt>Priority</dt>
-                        <dd>{{ task.priority|title }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'task.priority'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ task.priority|upper }}</dd>
+                        </div>
                         
-                        <dt>Due Date</dt>
-                        <dd>
-                            {% if task.dueDate %}
-                                <span class="{{ task.isOverdue ? 'rams-rams-text--danger' : '' }}">
-                                    {{ task.dueDate|date('M d, Y') }}
-                                </span>
-                            {% else %}
-                                <span class="rams-rams-text--muted">No due date</span>
-                            {% endif %}
-                        </dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'task.due_date'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                {% if task.dueDate %}
+                                    <span class="{{ task.isOverdue ? 'rams-text--danger' : '' }}">
+                                        {{ task.dueDate|date('M d, Y') }}
+                                    </span>
+                                {% else %}
+                                    <span class="rams-text--muted">{{ 'task.no_due_date'|trans }}</span>
+                                {% endif %}
+                            </dd>
+                        </div>
                         
-                        <dt>Time</dt>
-                        <dd>
-                            {% if task.dueTime %}
-                                {{ task.dueTime|date('H:i') }}
-                            {% else %}
-                                <span class="rams-rams-text--muted">-</span>
-                            {% endif %}
-                        </dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.time'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                {% if task.dueTime %}
+                                    {{ task.dueTime|date('H:i') }}
+                                {% else %}
+                                    <span class="rams-text--muted">-</span>
+                                {% endif %}
+                            </dd>
+                        </div>
                         
-                        <dt>Assigned To</dt>
-                        <dd>
-                            {% if task.assignedTo %}
-                                {{ task.assignedTo.fullName|default(task.assignedTo.email) }}
-                            {% else %}
-                                <span class="rams-rams-text--muted">Unassigned</span>
-                            {% endif %}
-                        </dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'task.assigned_to'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                {% if task.assignedTo %}
+                                    {{ task.assignedTo.fullName|default(task.assignedTo.email) }}
+                                {% else %}
+                                    <span class="rams-text--muted">{{ 'task.unassigned'|trans }}</span>
+                                {% endif %}
+                            </dd>
+                        </div>
                         
-                        <dt>Estimated</dt>
-                        <dd>{{ task.estimatedMinutes ? task.estimatedMinutes ~ ' mins' : '-' }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'task.estimated'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ task.estimatedMinutes ? task.estimatedMinutes ~ ' ' ~ 'task.mins'|trans : '-' }}</dd>
+                        </div>
                     </dl>
                 </div>
             </div>
             
             <div class="rams-module rams-mt-4">
                 <div class="rams-module__header">
-                    <h3>Meta</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.meta'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <dl class="rams-dl">
-                        <dt>Created</dt>
-                        <dd>{{ task.createdAt|date('M d, Y H:i') }}</dd>
+                    <dl class="rams-definition-list">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'task.created'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ task.createdAt|date('M d, Y H:i') }}</dd>
+                        </div>
                         
-                        <dt>Updated</dt>
-                        <dd>{{ task.updatedAt|date('M d, Y H:i') }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'task.updated'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ task.updatedAt|date('M d, Y H:i') }}</dd>
+                        </div>
                         
                         {% if task.completedAt %}
-                        <dt>Completed</dt>
-                        <dd>{{ task.completedAt|date('M d, Y H:i') }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'task.completed'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ task.completedAt|date('M d, Y H:i') }}</dd>
+                        </div>
                         {% endif %}
                     </dl>
                 </div>

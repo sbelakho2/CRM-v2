@@ -56,7 +56,7 @@ class EmailAnalyticsService
             'clicked' => $clicked,
             'replied' => $replied,
             'bounced' => $bounced,
-            'deliveryRate' => $sent > 0 ? round(($sent / $total) * 100, 2) : 0,
+            'deliveryRate' => $total > 0 ? round(($sent / $total) * 100, 2) : 0,
             'openRate' => $sent > 0 ? round(($opened / $sent) * 100, 2) : 0,
             'clickRate' => $sent > 0 ? round(($clicked / $sent) * 100, 2) : 0,
             'clickToOpenRate' => $opened > 0 ? round(($clicked / $opened) * 100, 2) : 0,
@@ -198,23 +198,59 @@ class EmailAnalyticsService
         foreach ($variants as $metrics) {
             if ($metrics['sent'] === 0) continue;
             
-            $expected = $metrics['sent'] * $expectedClickRate;
-            $observed = $metrics['clicked'];
+            // Must include BOTH clicked and not-clicked cells for correct chi-square
+            $expectedClicked = $metrics['sent'] * $expectedClickRate;
+            $expectedNotClicked = $metrics['sent'] * (1 - $expectedClickRate);
+            $observedClicked = $metrics['clicked'];
+            $observedNotClicked = $metrics['sent'] - $metrics['clicked'];
             
-            if ($expected > 0) {
-                $chiSquare += pow($observed - $expected, 2) / $expected;
+            if ($expectedClicked > 0) {
+                $chiSquare += pow($observedClicked - $expectedClicked, 2) / $expectedClicked;
+            }
+            if ($expectedNotClicked > 0) {
+                $chiSquare += pow($observedNotClicked - $expectedNotClicked, 2) / $expectedNotClicked;
             }
         }
 
-        // Critical value for 95% confidence with 1 degree of freedom is 3.841
-        $isSignificant = $chiSquare > 3.841;
-        $confidence = min(99.9, 80 + ($chiSquare * 5)); // Simplified confidence calculation
+        // Degrees of freedom = (numVariants - 1) for a goodness-of-fit test
+        $df = max(1, count($variants) - 1);
+        // Chi-square critical values at 95% confidence by df
+        $criticalValues = [1 => 3.841, 2 => 5.991, 3 => 7.815, 4 => 9.488, 5 => 11.070];
+        $criticalValue = $criticalValues[$df] ?? 3.841;
+        $isSignificant = $chiSquare > $criticalValue;
+
+        // Map chi-square to confidence using lookup table for correct df
+        $confidence = $this->chiSquareToConfidence($chiSquare, $df);
 
         return [
             'isSignificant' => $isSignificant,
             'confidence' => round($confidence, 1),
             'chiSquare' => round($chiSquare, 4),
         ];
+    }
+
+    /**
+     * Convert chi-square statistic to confidence percentage via lookup table.
+     * Returns the highest confidence level whose critical value is exceeded.
+     */
+    private function chiSquareToConfidence(float $chiSquare, int $df): float
+    {
+        // Chi-square critical values: [df => [[criticalValue, confidence%], ...]]
+        $table = [
+            1 => [[0.455, 50], [1.323, 75], [2.706, 90], [3.841, 95], [5.024, 97.5], [6.635, 99], [10.828, 99.9]],
+            2 => [[1.386, 50], [2.773, 75], [4.605, 90], [5.991, 95], [7.378, 97.5], [9.210, 99], [13.816, 99.9]],
+            3 => [[2.366, 50], [4.108, 75], [6.251, 90], [7.815, 95], [9.348, 97.5], [11.345, 99], [16.266, 99.9]],
+            4 => [[3.357, 50], [5.385, 75], [7.779, 90], [9.488, 95], [11.143, 97.5], [13.277, 99], [18.467, 99.9]],
+        ];
+
+        $row = $table[$df] ?? $table[1];
+        $confidence = 0.0;
+        foreach ($row as [$threshold, $conf]) {
+            if ($chiSquare >= $threshold) {
+                $confidence = $conf;
+            }
+        }
+        return $confidence;
     }
 
     /**

@@ -44,12 +44,12 @@
                             <label class="rams-form__label rams-dymo">{{ 'quote.copilot.bom_file'|trans }}</label>
                             <div class="rams-upload-zone" onclick="document.getElementById('bom-file-input').click()">
                                 <svg class="rams-upload-zone__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
                                 </svg>
                                 <p class="rams-upload-zone__title">{{ 'quote.copilot.click_to_upload'|trans }}</p>
                                 <p class="rams-upload-zone__hint">{{ 'quote.copilot.csv_format_hint'|trans }}</p>
                                 <input type="file" name="bom_file" required accept=".csv" class="rams-sr-only" id="bom-file-input" onchange="displayFileName(this)">
-                                <button type="button" class="rams-btn--primary">{{ 'quote.copilot.choose_file'|trans }}</button>
+                                <button type="button" class="rams-btn rams-btn--primary uppercase">{{ 'quote.copilot.choose_file'|trans }}</button>
                                 <div id="file-name-display" class="rams-upload-zone__filename"></div>
                             </div>
                         </div>
@@ -95,13 +95,13 @@
 
                         {# Submit Buttons #}
                         <div class="rams-form__actions">
-                            <button type="submit" class="rams-btn--primary rams-btn--lg">
+                            <button type="submit" class="rams-btn rams-btn--primary rams-btn--lg uppercase">
                                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                 </svg>
                                 {{ 'quote.copilot.generate_quote'|trans }}
                             </button>
-                            <button type="reset" onclick="document.getElementById('file-name-display').textContent = ''" class="rams-btn--lg">
+                            <button type="reset" onclick="document.getElementById('file-name-display').textContent = ''" class="rams-btn rams-btn--lg uppercase">
                                 {{ 'common.clear'|trans }}
                             </button>
                         </div>

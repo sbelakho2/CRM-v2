@@ -13,7 +13,6 @@ class CompliancePackService
         'Certificate of Incorporation',
         'Tax Registration Certificate',
         'ISO 9001',
-        'IATF 16949',
         'ISO 14001',
         'ISO 45001',
         'Financial Statements (2 years)',
@@ -112,12 +111,20 @@ class CompliancePackService
         $base = self::REQUIRED_DOCUMENTS;
         
         $sectorSpecific = match($sector) {
-            'Automotive' => ['IATF 16949', 'APQP Documentation', 'PPAP Requirements'],
+            'Automotive' => ['APQP Documentation', 'PPAP Requirements', 'Automotive Quality System'],
             'Aerospace' => ['AS9100', 'NADCAP Certification', 'First Article Inspection'],
             'Rail' => ['IRIS Certification', 'EN 15085', 'Railway Product Certification'],
             'Renewables' => ['IEC 61215', 'IEC 61730', 'Environmental Impact Assessment'],
             'Power Electronics' => ['IEC 61508', 'UL Certification', 'EMC Compliance'],
             'Industrial' => ['CE Marking', 'ATEX Certification'],
+            'Defense' => ['ITAR Compliance', 'MIL-STD-810', 'NIST 800-171', 'DD254'],
+            'Medical' => ['ISO 13485', 'FDA 21 CFR 820', 'MDR Compliance'],
+            'Telecom' => ['TL 9000', 'NEBS GR-63/78', 'FCC Part 15'],
+            'Marine' => ['DNV GL Certification', 'IEC 60092', 'Marine Type Approval'],
+            'HVAC' => ['AHRI Certification', 'UL 1995', 'ASHRAE Standards'],
+            'Consumer Electronics' => ['FCC Certification', 'UL/CSA', 'RoHS/REACH'],
+            'Data Center' => ['TIA-942', 'ASHRAE TC 9.9', 'Energy Star'],
+            'Energy Storage' => ['UL 1973', 'IEC 62619', 'UN 38.3'],
             default => [],
         };
 

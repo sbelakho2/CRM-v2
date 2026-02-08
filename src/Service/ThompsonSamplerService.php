@@ -33,7 +33,7 @@ class ThompsonSamplerService
      * 
      * Uses Box-Muller approximation for efficiency
      */
-    public function sampleBeta(int $alpha, int $beta): float
+    public function sampleBeta(float $alpha, float $beta): float
     {
         // Use the relationship between Beta and Gamma distributions
         // Beta(α, β) = X / (X + Y) where X ~ Gamma(α, 1), Y ~ Gamma(β, 1)
@@ -50,9 +50,9 @@ class ThompsonSamplerService
     /**
      * Sample from Gamma distribution using Marsaglia and Tsang's method
      * 
-     * @param int $shape Shape parameter (must be > 0)
+     * @param float $shape Shape parameter (must be > 0)
      */
-    private function sampleGamma(int $shape): float
+    private function sampleGamma(float $shape): float
     {
         // Guard against invalid shape parameter (prevents division by zero)
         if ($shape <= 0) {
@@ -133,9 +133,10 @@ class ThompsonSamplerService
                 if ($daysSinceLastUse > 14) {
                     // Decay factor increases with time, reducing certainty
                     $decayFactor = 1 + ($daysSinceLastUse / 100);
-                    // Apply decay to both parameters (reduce certainty, not bias)
-                    $alpha = max(1, (int) round($alpha / $decayFactor));
-                    $beta = max(1, (int) round($beta / $decayFactor));
+                    // Apply decay using float arithmetic to preserve mean ratio
+                    // Integer truncation would introduce directional bias
+                    $alpha = max(1.0, $alpha / $decayFactor);
+                    $beta = max(1.0, $beta / $decayFactor);
                     
                     $this->logger->debug('Applied confidence decay', [
                         'armId' => $arm->getId(),
@@ -232,13 +233,13 @@ class ThompsonSamplerService
             return;
         }
 
-        // Amplify reply signal (2x weight compared to opens)
+        // Amplify reply signal: positive replies get 2x weight (strong buy signal)
+        // Negative replies get 1x failure (they still engaged, which is informative)
         if ($positiveReply) {
             $arm->recordSuccess();
             $arm->recordSuccess(); // Double count positive replies
         } else {
-            $arm->recordFailure();
-            $arm->recordFailure(); // Double count negative replies
+            $arm->recordFailure(); // Single count negative reply (engagement ≠ silence)
         }
 
         $this->entityManager->flush();
@@ -324,11 +325,11 @@ class ThompsonSamplerService
             ],
             [
                 'name' => 'Value Proposition',
-                'value' => 'Morocco manufacturing opportunity for {{company_name}}',
+                'value' => 'North Africa manufacturing opportunity for {{company_name}}',
             ],
             [
                 'name' => 'Capability Focus',
-                'value' => '{{company_name}}: PCBA capacity in Morocco',
+                'value' => '{{company_name}}: PCBA capacity in North Africa',
             ],
             [
                 'name' => 'Cost Focus',

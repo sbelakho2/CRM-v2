@@ -67,11 +67,7 @@ class EmailDeliverabilityService
         // Add to suppression list immediately
         $this->addToSuppressionList($emailSend->getEmailAddress(), 'spam_complaint', $reason);
 
-        // Unsubscribe the contact
-        $contact = $emailSend->getContact();
-        if ($contact) {
-            $contact->setSubscribed(false);
-        }
+        // Unsubscribe the contact via suppression list (handled by addToSuppressionList above)
 
         $this->entityManager->flush();
     }
@@ -89,7 +85,7 @@ class EmailDeliverabilityService
         }
 
         // Check if already in suppression list
-        $existing = $this->entityManager->getRepository('App\Entity\EmailUnsubscribe')
+        $existing = $this->entityManager->getRepository(\App\Entity\EmailUnsubscribe::class)
             ->findOneBy(['email' => $email]);
 
         if ($existing) {
@@ -102,7 +98,7 @@ class EmailDeliverabilityService
         $unsubscribe->setEmail($email);
         $unsubscribe->setReason($reason);
         $unsubscribe->setFeedbackText($details);
-        $unsubscribe->setUnsubscribedAt(new \DateTimeImmutable());
+        $unsubscribe->setUnsubscribedAt(new \DateTime());
 
         $this->entityManager->persist($unsubscribe);
         $this->entityManager->flush();
@@ -113,7 +109,7 @@ class EmailDeliverabilityService
      */
     public function isSuppressed(string $email): bool
     {
-        $unsubscribe = $this->entityManager->getRepository('App\Entity\EmailUnsubscribe')
+        $unsubscribe = $this->entityManager->getRepository(\App\Entity\EmailUnsubscribe::class)
             ->findOneBy(['email' => $email]);
 
         return $unsubscribe !== null;
@@ -124,7 +120,7 @@ class EmailDeliverabilityService
      */
     public function removeFromSuppressionList(string $email): bool
     {
-        $unsubscribe = $this->entityManager->getRepository('App\Entity\EmailUnsubscribe')
+        $unsubscribe = $this->entityManager->getRepository(\App\Entity\EmailUnsubscribe::class)
             ->findOneBy(['email' => $email]);
 
         if ($unsubscribe) {
@@ -141,7 +137,7 @@ class EmailDeliverabilityService
      */
     public function getSuppressionList(int $limit = 100, int $offset = 0): array
     {
-        return $this->entityManager->getRepository('App\Entity\EmailUnsubscribe')
+        return $this->entityManager->getRepository(\App\Entity\EmailUnsubscribe::class)
             ->findBy([], ['unsubscribedAt' => 'DESC'], $limit, $offset);
     }
 

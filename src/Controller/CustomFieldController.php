@@ -144,6 +144,10 @@ class CustomFieldController extends AbstractController
     public function reorder(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
+        if (!$this->isCsrfTokenValid('reorder', $data['_token'] ?? '')) {
+            return $this->json(['error' => 'Invalid CSRF token'], 403);
+        }
         
         if (!isset($data['orderedIds']) || !is_array($data['orderedIds'])) {
             return $this->json(['error' => 'Invalid data'], 400);

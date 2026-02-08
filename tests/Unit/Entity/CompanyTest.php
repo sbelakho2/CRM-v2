@@ -58,6 +58,25 @@ class CompanyTest extends TestCase
         $this->assertEquals('Automotive', $this->company->getSector());
     }
 
+    public function testSectorRejectsInvalidValue(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->company->setSector('NotARealSector');
+    }
+
+    public function testSectorAcceptsNull(): void
+    {
+        $this->company->setSector(null);
+        $this->assertNull($this->company->getSector());
+    }
+
+    public function testOnPreUpdateSetsUpdatedAt(): void
+    {
+        $this->assertNull($this->company->getUpdatedAt());
+        $this->company->onPreUpdate();
+        $this->assertInstanceOf(\DateTimeInterface::class, $this->company->getUpdatedAt());
+    }
+
     public function testAccountTierDefaults(): void
     {
         $this->assertEquals('C', $this->company->getAccountTier());

@@ -49,6 +49,7 @@ class AutonomousSalesOrchestratorService
         private SpintaxTemplateRepository $templateRepository,
         private ?MailerInterface $mailer,
         private LoggerInterface $logger,
+        private AutonomousSalesSettingsService $settingsService,
         private ?EmailPersonalizationService $personalizationService = null,
         private ?CompetitorLearnerService $competitorLearner = null,
     ) {}
@@ -73,6 +74,8 @@ class AutonomousSalesOrchestratorService
      */
     public function composeMessage(Contact $contact, array $context = [], ?string $campaignId = null): array
     {
+        $this->assertEnabled();
+
         // Get contact's company info for context
         $company = $contact->getCompany();
         
@@ -261,6 +264,8 @@ class AutonomousSalesOrchestratorService
      */
     public function getOptimalSendTime(Contact $contact): array
     {
+        $this->assertEnabled();
+
         if ($this->personalizationService) {
             return $this->personalizationService->getOptimalSendTime($contact);
         }
@@ -512,6 +517,8 @@ class AutonomousSalesOrchestratorService
      */
     public function sendEmail(OutboundMessage $message): bool
     {
+        $this->assertEnabled();
+
         if (!$this->mailer) {
             $this->logger->warning('Mailer not configured, skipping send');
             return false;
@@ -641,7 +648,9 @@ class AutonomousSalesOrchestratorService
         // If this is a reply event with content, classify it
         $classification = null;
         if ($eventType === 'reply' && $replyContent && $this->emailClassifier) {
-            $classificationResult = $this->emailClassifier->classifyReply($replyContent);
+            $replySubject = $message->getSubject() ? 'Re: ' . $message->getSubject() : '';
+            $replyFrom = $message->getContact()?->getEmail() ?? '';
+            $classificationResult = $this->emailClassifier->classifyEmail($replySubject, $replyContent, $replyFrom);
             $classification = $classificationResult['classification'];
             $message->setReplyClassification($classification);
             $result['classification'] = $classification;
@@ -682,10 +691,11 @@ class AutonomousSalesOrchestratorService
                         );
                         $result['thompson_updated'] = true;
                     } elseif (in_array($classification, $negativeClassifications, true)) {
-                        $this->thompsonSampler->recordOutcome(
+                        // Use symmetric 2× weighting for negative replies (matches positive reply amplification)
+                        $this->thompsonSampler->recordReplyOutcome(
                             $arm->getId(),
-                            false,  // Failure
-                            'reply'
+                            false,  // Negative reply
+                            $classification
                         );
                         $result['thompson_updated'] = true;
                     }
@@ -819,7 +829,12 @@ class AutonomousSalesOrchestratorService
         // Discovery stats (leads)
         $totalLeads = $this->leadRepository->count([]);
         $pendingLeads = $this->leadRepository->count(['reviewStatus' => 'pending']);
-        $scoredLeads = $this->leadRepository->count(['leadScore >= 0']);
+        $scoredLeads = (int) $this->entityManager->createQueryBuilder()
+            ->select('COUNT(l.id)')
+            ->from(Lead::class, 'l')
+            ->where('l.leadScore >= 0')
+            ->getQuery()
+            ->getSingleScalarResult();
 
         // Scoring stats
         $avgScore = $this->entityManager->createQueryBuilder()
@@ -866,6 +881,8 @@ class AutonomousSalesOrchestratorService
      */
     public function scoreLeads(int $limit = 50): array
     {
+        $this->assertEnabled();
+
         $leads = $this->leadRepository->createQueryBuilder('l')
             ->where('l.leadScore IS NULL OR l.updatedAt < :stale')
             ->setParameter('stale', new \DateTime('-7 days'))
@@ -927,6 +944,8 @@ class AutonomousSalesOrchestratorService
      */
     public function initialize(): array
     {
+        $this->assertEnabled();
+
         $templates = $this->spintaxEngine->seedDefaultTemplates();
         $arms = $this->thompsonSampler->seedDefaultSubjectLineArms();
         
@@ -941,5 +960,12 @@ class AutonomousSalesOrchestratorService
             'arms' => count($arms),
             'competitors' => count($competitors),
         ];
+    }
+
+    private function assertEnabled(): void
+    {
+        if (!$this->settingsService->isEnabled()) {
+            throw new \RuntimeException('Autonomous sales system is disabled.');
+        }
     }
 }

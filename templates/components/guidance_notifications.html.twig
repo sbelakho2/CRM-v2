@@ -13,11 +13,11 @@
                 </h3>
                 <div class="rams-btn-group">
                     {% if totalCount > maxDisplay %}
-                        <a href="{{ path('app_guidance_all') }}" class="rams-btn--ghost rams-btn--sm">
+                        <a href="{{ path('app_guidance_all') }}" class="rams-btn rams-btn--ghost rams-btn--sm">
                             {{ 'common.view'|trans }} {{ 'common.all'|trans }} ({{ totalCount }})
                         </a>
                     {% endif %}
-                    <button type="button" onclick="clearAllGuidanceNotifications()" class="rams-btn--ghost rams-btn--sm">
+                    <button type="button" onclick="clearAllGuidanceNotifications()" class="rams-btn rams-btn--ghost rams-btn--sm">
                         {{ 'guidance.clear_all'|trans }}
                     </button>
                 </div>
@@ -28,21 +28,22 @@
             <div class="rams-alert {{ 
                 notification.type == 'success' ? 'rams-alert--success' :
                 notification.type == 'warning' ? 'rams-alert--warning' :
-                notification.type == 'tip' ? 'rams-alert--info' :
-                ''
+                notification.type == 'error' ? 'rams-alert--error' :
+                'rams-alert--info'
             }} guidance-notification" data-notification-index="{{ loop.index0 }}">
                 {# Icon with Andon #}
                 <div class="rams-alert__icon">
                     <span class="rams-andon {{ 
                         notification.type == 'success' ? 'rams-andon--success' :
                         notification.type == 'warning' ? 'rams-andon--warning' :
-                        notification.type == 'tip' ? 'rams-andon--info' :
-                        ''
+                        notification.type == 'error' ? 'rams-andon--error' :
+                        'rams-andon--info'
                     }}"><span class="rams-andon__light"></span></span>
                 </div>
 
                 {# Content #}
                 <div class="rams-alert__content">
+                    <span class="rams-alert__title">{{ ('common.' ~ notification.type)|trans }}</span>
                     <p class="rams-alert__text">
                         {{ notification.message|raw }}
                     </p>
@@ -51,17 +52,14 @@
                 {# Action Buttons #}
                 <div class="rams-alert__actions">
                     {% if notification.actionUrl and notification.actionLabel %}
-                        <a href="{{ notification.actionUrl }}" class="rams-btn--primary rams-btn--sm">
+                        <a href="{{ notification.actionUrl }}" class="rams-btn rams-btn--primary rams-btn--sm">
                             {{ notification.actionLabel }}
-                            <svg class="rams-btn__icon--end" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
                         </a>
                     {% endif %}
                     {# Dismiss Button #}
-                    <button type="button" onclick="dismissGuidanceNotification(this)" class="rams-btn--ghost rams-btn--sm" title="{{ 'common.close'|trans }}">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    <button type="button" onclick="dismissGuidanceNotification(this)" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.close'|trans }}">
+                        <svg class="rams-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12"/>
                         </svg>
                     </button>
                 </div>

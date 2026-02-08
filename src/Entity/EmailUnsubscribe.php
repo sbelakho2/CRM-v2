@@ -10,8 +10,29 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'email_unsubscribe')]
 #[ORM\Index(name: 'idx_unsubscribe_contact', columns: ['contact_id'])]
 #[ORM\Index(name: 'idx_unsubscribe_email', columns: ['email'])]
+#[ORM\HasLifecycleCallbacks]
 class EmailUnsubscribe
 {
+    public const REASON_NO_LONGER_INTERESTED = 'NO_LONGER_INTERESTED';
+    public const REASON_TOO_FREQUENT = 'TOO_FREQUENT';
+    public const REASON_IRRELEVANT = 'IRRELEVANT';
+    public const REASON_NEVER_SUBSCRIBED = 'NEVER_SUBSCRIBED';
+    public const REASON_HARD_BOUNCE = 'hard_bounce';
+    public const REASON_SOFT_BOUNCE_LIMIT = 'soft_bounce_limit';
+    public const REASON_SPAM_COMPLAINT = 'spam_complaint';
+    public const REASON_MANUAL = 'MANUAL';
+
+    public const VALID_REASONS = [
+        self::REASON_NO_LONGER_INTERESTED,
+        self::REASON_TOO_FREQUENT,
+        self::REASON_IRRELEVANT,
+        self::REASON_NEVER_SUBSCRIBED,
+        self::REASON_HARD_BOUNCE,
+        self::REASON_SOFT_BOUNCE_LIMIT,
+        self::REASON_SPAM_COMPLAINT,
+        self::REASON_MANUAL,
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

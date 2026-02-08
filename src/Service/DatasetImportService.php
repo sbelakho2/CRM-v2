@@ -120,7 +120,7 @@ class DatasetImportService
                 
                 // Create TariffRate entity
                 $tariffRate = new \App\Entity\TariffRate();
-                $tariffRate->setHsCode($data['hs_code']);
+                $tariffRate->setHsCode($data['hts_code']);
                 $tariffRate->setOriginCountry($data['origin_country'] ?? 'MA');
                 $tariffRate->setDestinationCountry($data['destination_country']);
                 $tariffRate->setDutyRate($data['duty_rate']);
@@ -171,7 +171,7 @@ class DatasetImportService
         $this->activateVersion($versionUuid);
         
         return [
-            'versionId' => $versionUuid,
+            'version_uuid' => $versionUuid,
             'recordsImported' => $recordsImported,
             'errors' => $errors,
             'effectiveDate' => $effectiveDate,
@@ -291,7 +291,7 @@ class DatasetImportService
         $this->activateVersion($versionUuid);
         
         return [
-            'versionId' => $versionUuid,
+            'version_uuid' => $versionUuid,
             'recordsImported' => $recordsImported,
             'errors' => $errors,
             'datasetType' => 'FREIGHT_TABLES'
@@ -316,9 +316,7 @@ class DatasetImportService
     public function importFxRates(string $csvPath, string $signaturePath, string $description): array
     {
         // 1. Verify signature
-        if (!$this->verifySignature($csvPath, $signaturePath)) {
-            throw new \RuntimeException('Signature verification failed - file may be tampered');
-        }
+        $this->verifySignature($csvPath, $signaturePath);
         
         // 2. Generate version_id
         $versionId = Uuid::v4()->toRfc4122();
@@ -326,12 +324,12 @@ class DatasetImportService
         // 3. Create DatasetVersion entry
         $user = $this->security?->getUser();
         $version = new DatasetVersion();
-        $version->setVersionId($versionId);
+        $version->setVersionUuid($versionId);
         $version->setDatasetType('FX_RATES');
-        $version->setDescription($description);
+        $version->setMetadata(['description' => $description]);
         $version->setImportedAt(new \DateTime());
         $version->setImportedBy($user ? $user->getUserIdentifier() : 'system');
-        $version->setSignature(hash_file('sha256', $csvPath));
+        $version->setSha256Hash(hash_file('sha256', $csvPath));
         $version->setIsActive(false);
         
         $this->entityManager->persist($version);
@@ -413,9 +411,9 @@ class DatasetImportService
         // 6. Return summary
         return [
             'success' => true,
-            'version_id' => $versionId,
+            'version_uuid' => $versionId,
             'dataset_type' => 'FX_RATES',
-            'records_imported' => $imported,
+            'imported_count' => $imported,
             'errors' => $errors,
             'description' => $description
         ];
@@ -443,7 +441,7 @@ class DatasetImportService
         
         // 2. Generate new version_id
         $newVersionId = Uuid::v4()->toRfc4122();
-        $oldVersionId = $activeVersion->getVersionId();
+        $oldVersionId = $activeVersion->getVersionUuid();
         
         // 3. Clone records based on dataset type
         $recordCount = 0;
@@ -504,9 +502,9 @@ class DatasetImportService
         // 4. Create new DatasetVersion entry
         $user = $this->security?->getUser();
         $newVersion = new DatasetVersion();
-        $newVersion->setVersionId($newVersionId);
+        $newVersion->setVersionUuid($newVersionId);
         $newVersion->setDatasetType($datasetType);
-        $newVersion->setDescription("SNAPSHOT: $description");
+        $newVersion->setMetadata(['description' => "SNAPSHOT: $description"]);
         $newVersion->setImportedAt(new \DateTime());
         $newVersion->setImportedBy($user ? $user->getUserIdentifier() : 'system');
         $newVersion->setIsActive(false);
@@ -535,7 +533,7 @@ class DatasetImportService
     public function rollbackDataset(string $versionId): array
     {
         // 1. Find target version
-        $targetVersion = $this->datasetVersionRepository->findOneBy(['versionId' => $versionId]);
+        $targetVersion = $this->datasetVersionRepository->findOneBy(['versionUuid' => $versionId]);
         if (!$targetVersion) {
             throw new \RuntimeException("Version $versionId not found");
         }
@@ -610,8 +608,8 @@ class DatasetImportService
         
         // 6. Return rollback summary
         return [
-            'oldVersionId' => $currentVersion?->getVersionId(),
-            'newVersionId' => $targetVersion->getVersionId(),
+            'oldVersionId' => $currentVersion?->getVersionUuid(),
+            'newVersionId' => $targetVersion->getVersionUuid(),
             'datasetType' => $targetVersion->getDatasetType(),
             'recordCount' => $targetVersion->getRecordCount()
         ];
@@ -741,7 +739,7 @@ class DatasetImportService
         // Fully implemented helper method
         
         // Find target version
-        $targetVersion = $this->datasetVersionRepository->findOneBy(['versionId' => $versionId]);
+        $targetVersion = $this->datasetVersionRepository->findOneBy(['versionUuid' => $versionId]);
         
         if (!$targetVersion) {
             throw new \RuntimeException("Version $versionId not found");

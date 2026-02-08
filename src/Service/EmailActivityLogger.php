@@ -66,21 +66,23 @@ class EmailActivityLogger
             "Email sent: %s\nCampaign: %s\nSubject: %s",
             $contact->getEmail(),
             $campaign->getName(),
-            $campaign->getSubject()
+            $campaign->getSubject() ?? $campaign->getName()
         );
 
         // Add engagement info if available
         if ($send->isOpened()) {
+            $openTime = $send->getOpenedAt() ?? $send->getSentAt();
             $description .= sprintf(
                 "\n✓ Opened at: %s",
-                $send->getSentAt()->format('Y-m-d H:i')
+                $openTime ? $openTime->format('Y-m-d H:i') : 'unknown'
             );
         }
 
         if ($send->isClicked()) {
+            $clickTime = $send->getClickedAt() ?? $send->getSentAt();
             $description .= sprintf(
                 "\n✓ Clicked at: %s",
-                $send->getSentAt()->format('Y-m-d H:i')
+                $clickTime ? $clickTime->format('Y-m-d H:i') : 'unknown'
             );
         }
 
@@ -156,8 +158,8 @@ class EmailActivityLogger
 
         // Append new engagement
         $timestamp = match($engagementType) {
-            'opened' => $send->isOpened() ? $send->getSentAt() : null,
-            'clicked' => $send->isClicked() ? $send->getSentAt() : null,
+            'opened' => $send->getOpenedAt() ?? new \DateTime(),
+            'clicked' => $send->getClickedAt() ?? new \DateTime(),
             'replied' => null, // No timestamp for replied
             default => new \DateTime()
         };
@@ -190,16 +192,17 @@ class EmailActivityLogger
         $company = null;
         
         if ($segment) {
-            // Try to get first company from segment
-            $contacts = $this->em->getRepository(Contact::class)
-                ->createQueryBuilder('c')
-                ->innerJoin('c.company', 'co')
+            // Try to find a company through the campaign's first send
+            $firstSend = $this->em->getRepository(EmailSend::class)
+                ->createQueryBuilder('s')
+                ->where('s.campaign = :campaign')
+                ->setParameter('campaign', $campaign)
                 ->setMaxResults(1)
                 ->getQuery()
-                ->getResult();
-            
-            if (!empty($contacts)) {
-                $company = $contacts[0]->getCompany();
+                ->getOneOrNullResult();
+
+            if ($firstSend && $firstSend->getContact()) {
+                $company = $firstSend->getContact()->getCompany();
             }
         }
 
@@ -354,7 +357,7 @@ class EmailActivityLogger
                 if (strpos($description, '✓ Clicked at') !== false) {
                     $stats['emails_clicked']++;
                 }
-                if (strpos($description, '✓ Replied at') !== false) {
+                if (strpos($description, '✓ Replied') !== false) {
                     $stats['emails_replied']++;
                 }
                 

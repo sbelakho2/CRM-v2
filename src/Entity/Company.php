@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CompanyRepository::class)]
 #[ORM\Table(name: 'companies')]
+#[ORM\HasLifecycleCallbacks]
 class Company
 {
     // Pipeline Stage Constants
@@ -39,72 +40,62 @@ class Company
         self::TIER_C,
     ];
     
-    // Sector Constants - Expanded to cover all major EMS/PCBA markets
+    // Sector Constants — Top EMS/PCBA buyer verticals for Starz Electronics
+    // Short, consistent names used across all modules (form, webcrawler, compliance, etc.)
     public const SECTOR_AUTOMOTIVE = 'Automotive';
-    public const SECTOR_INDUSTRIAL = 'Industrial';
     public const SECTOR_AEROSPACE = 'Aerospace';
+    public const SECTOR_INDUSTRIAL = 'Industrial';
     public const SECTOR_RAIL = 'Rail';
     public const SECTOR_RENEWABLES = 'Renewables';
-    public const SECTOR_POWER_ELECTRONICS = 'Power Electronics';
-    public const SECTOR_MEDICAL_DEVICES = 'Medical Devices';
+    public const SECTOR_MEDICAL = 'Medical';
     public const SECTOR_DEFENSE = 'Defense';
-    public const SECTOR_TELECOMMUNICATIONS = 'Telecommunications';
-    public const SECTOR_DATA_CENTER = 'Data Center';
+    public const SECTOR_TELECOM = 'Telecom';
+    public const SECTOR_HVAC = 'HVAC';
+    public const SECTOR_MARINE = 'Marine';
+    public const SECTOR_POWER_ELECTRONICS = 'Power Electronics';
     public const SECTOR_CONSUMER_ELECTRONICS = 'Consumer Electronics';
+    public const SECTOR_DATA_CENTER = 'Data Center';
     public const SECTOR_ENERGY_STORAGE = 'Energy Storage';
-    public const SECTOR_AGRICULTURE = 'Agriculture & AgTech';
-    public const SECTOR_MARINE = 'Marine & Shipbuilding';
-    public const SECTOR_HVAC = 'HVAC & Building Automation';
-    public const SECTOR_LIGHTING = 'Lighting & LED';
-    public const SECTOR_EV_CHARGING = 'EV Charging Infrastructure';
-    public const SECTOR_SMART_GRID = 'Smart Grid';
-    public const SECTOR_IOT = 'IoT & Connected Devices';
     public const SECTOR_OTHER = 'Other';
+
+    // Backward-compatible aliases for legacy code
+    public const SECTOR_MEDICAL_DEVICES = self::SECTOR_MEDICAL;
+    public const SECTOR_TELECOMMUNICATIONS = self::SECTOR_TELECOM;
     
     public const VALID_SECTORS = [
         self::SECTOR_AUTOMOTIVE,
-        self::SECTOR_INDUSTRIAL,
         self::SECTOR_AEROSPACE,
+        self::SECTOR_INDUSTRIAL,
         self::SECTOR_RAIL,
         self::SECTOR_RENEWABLES,
-        self::SECTOR_POWER_ELECTRONICS,
-        self::SECTOR_MEDICAL_DEVICES,
+        self::SECTOR_MEDICAL,
         self::SECTOR_DEFENSE,
-        self::SECTOR_TELECOMMUNICATIONS,
-        self::SECTOR_DATA_CENTER,
-        self::SECTOR_CONSUMER_ELECTRONICS,
-        self::SECTOR_ENERGY_STORAGE,
-        self::SECTOR_AGRICULTURE,
-        self::SECTOR_MARINE,
+        self::SECTOR_TELECOM,
         self::SECTOR_HVAC,
-        self::SECTOR_LIGHTING,
-        self::SECTOR_EV_CHARGING,
-        self::SECTOR_SMART_GRID,
-        self::SECTOR_IOT,
+        self::SECTOR_MARINE,
+        self::SECTOR_POWER_ELECTRONICS,
+        self::SECTOR_CONSUMER_ELECTRONICS,
+        self::SECTOR_DATA_CENTER,
+        self::SECTOR_ENERGY_STORAGE,
         self::SECTOR_OTHER,
     ];
     
-    // Human-readable sector labels
+    // Human-readable sector labels for UI display
     public const SECTOR_LABELS = [
-        self::SECTOR_AUTOMOTIVE => 'Automotive',
-        self::SECTOR_INDUSTRIAL => 'Industrial',
+        self::SECTOR_AUTOMOTIVE => 'Automotive & EV',
         self::SECTOR_AEROSPACE => 'Aerospace & Aviation',
+        self::SECTOR_INDUSTRIAL => 'Industrial & Automation',
         self::SECTOR_RAIL => 'Rail & Transportation',
         self::SECTOR_RENEWABLES => 'Renewables & Clean Energy',
-        self::SECTOR_POWER_ELECTRONICS => 'Power Electronics',
-        self::SECTOR_MEDICAL_DEVICES => 'Medical Devices & Healthcare',
+        self::SECTOR_MEDICAL => 'Medical Devices',
         self::SECTOR_DEFENSE => 'Defense & Security',
-        self::SECTOR_TELECOMMUNICATIONS => 'Telecommunications',
-        self::SECTOR_DATA_CENTER => 'Data Center & Cloud',
-        self::SECTOR_CONSUMER_ELECTRONICS => 'Consumer Electronics',
-        self::SECTOR_ENERGY_STORAGE => 'Energy Storage & Battery',
-        self::SECTOR_AGRICULTURE => 'Agriculture & AgTech',
-        self::SECTOR_MARINE => 'Marine & Shipbuilding',
+        self::SECTOR_TELECOM => 'Telecommunications & 5G',
         self::SECTOR_HVAC => 'HVAC & Building Automation',
-        self::SECTOR_LIGHTING => 'Lighting & LED',
-        self::SECTOR_EV_CHARGING => 'EV Charging Infrastructure',
-        self::SECTOR_SMART_GRID => 'Smart Grid & Utilities',
-        self::SECTOR_IOT => 'IoT & Connected Devices',
+        self::SECTOR_MARINE => 'Marine & Shipbuilding',
+        self::SECTOR_POWER_ELECTRONICS => 'Power Electronics',
+        self::SECTOR_CONSUMER_ELECTRONICS => 'Consumer Electronics',
+        self::SECTOR_DATA_CENTER => 'Data Center & Cloud',
+        self::SECTOR_ENERGY_STORAGE => 'Energy Storage & Battery',
         self::SECTOR_OTHER => 'Other',
     ];
     
@@ -208,8 +199,15 @@ class Company
         return $this->sector;
     }
 
-    public function setSector(string $sector): self
+    public function setSector(?string $sector): self
     {
+        if ($sector !== null && !in_array($sector, self::VALID_SECTORS, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid sector "%s". Valid sectors are: %s',
+                $sector,
+                implode(', ', self::VALID_SECTORS)
+            ));
+        }
         $this->sector = $sector;
         return $this;
     }
@@ -442,6 +440,12 @@ class Company
     {
         $this->updatedAt = $updatedAt;
         return $this;
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getPhysicalSite(): ?string

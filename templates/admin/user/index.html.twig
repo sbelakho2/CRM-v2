@@ -11,7 +11,7 @@
             <p class="rams-page-subtitle">{{ 'admin.users.subtitle'|trans }}</p>
         </div>
         <div class="rams-page-actions">
-            <a href="{{ path('admin_user_new') }}" class="rams-btn--primary">
+            <a href="{{ path('admin_user_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 2v12M2 8h12"/>
                 </svg>
@@ -83,10 +83,10 @@
                     {% for user in users %}
                         <tr class="rams-table__row">
                             <td class="rams-table__cell">
-                                <span class="rams-text-bold">{{ user.firstName }} {{ user.lastName }}</span>
+                                <span class="rams-text--bold">{{ user.firstName }} {{ user.lastName }}</span>
                             </td>
                             <td class="rams-table__cell">
-                                <a href="mailto:{{ user.email }}" class="rams-link rams-rams-text--xs">{{ user.email }}</a>
+                                <a href="mailto:{{ user.email }}" class="rams-link rams-text--xs">{{ user.email }}</a>
                             </td>
                             <td class="rams-table__cell">
                                 <div class="rams-flex rams-flex-wrap rams-gap-1">
@@ -103,11 +103,11 @@
                             </td>
                             <td class="rams-table__cell rams-table__cell--actions">
                                 <div class="rams-btn-group">
-                                    <a href="{{ path('admin_user_edit', {id: user.id}) }}" class="rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</a>
+                                    <a href="{{ path('admin_user_edit', {id: user.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</a>
                                     <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'admin.users.delete_confirm'|trans }}', {variant: 'danger'})">
                                         <input type="hidden" name="_token" value="{{ csrf_token('delete_user' ~ user.id) }}">
                                         <button type="submit" 
-                                                class="rams-btn--ghost rams-btn--sm rams-btn--danger">
+                                                class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">
                                             {{ 'common.delete'|trans }}
                                         </button>
                                     </form>

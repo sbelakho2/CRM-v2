@@ -212,7 +212,7 @@ class BanditArm
     public function getDaysSinceLastUse(): int
     {
         if (!$this->lastUsedAt) {
-            return 0;
+            return 365; // Never-used arms are maximally stale → triggers exploration
         }
         $now = new \DateTime();
         $diff = $now->diff($this->lastUsedAt);

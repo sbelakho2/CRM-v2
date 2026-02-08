@@ -123,7 +123,7 @@ class ContactController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_contact_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_contact_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(Contact $contact): Response
     {
         return $this->render('contact/show.html.twig', [

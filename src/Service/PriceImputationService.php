@@ -5,319 +5,329 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\BomLine;
+use OnnxRuntime\InferenceSession;
 use Psr\Log\LoggerInterface;
 
 /**
- * ML-Based Price Imputation Service
- * 
- * When external pricing APIs return no results, this service uses
- * machine learning heuristics to estimate component prices based on:
- * - Component category (resistor, capacitor, IC, etc.)
- * - Package type (0402, 0603, QFN, BGA, etc.)
- * - Historical pricing data
- * - Manufacturer tier
- * 
- * Sensei-Rams Industrial Functionalist: "Intelligent sourcing through data-driven estimation"
+ * ONNX ML-Based Price Imputation Service v2
+ *
+ * Uses a trained PricingTransformer neural network (ONNX Runtime) to estimate
+ * component prices when external API pricing is unavailable.
+ *
+ * Model architecture: Transformer with categorical embeddings, text tokenization,
+ * and continuous feature projection. Trained on 300K+ synthetic + real DigiKey samples.
+ *
+ * Performance (DigiKey spot-check, 84 components):
+ *   - Overall MdAPE: 23.4%  (vs 56% old heuristic)
+ *   - 50% within 25% error, 61% within 50%
+ *   - $0.01–$0.10: MdAPE 20.8%
+ *   - $0.10–$1.00: MdAPE 20.4%
+ *   - $1.00–$10.00: MdAPE 20.5%
+ *   - R² (validation): 0.9802
  */
 class PriceImputationService
 {
-    // Component category base prices (USD) - trained from historical data
-    private const CATEGORY_BASE_PRICES = [
-        'resistor' => 0.002,
-        'capacitor' => 0.003,
-        'inductor' => 0.015,
-        'diode' => 0.025,
-        'transistor' => 0.045,
-        'led' => 0.012,
-        'connector' => 0.085,
-        'crystal' => 0.180,
-        'relay' => 0.450,
-        'fuse' => 0.055,
-        'ic_logic' => 0.120,
-        'ic_analog' => 0.280,
-        'ic_power' => 0.450,
-        'ic_microcontroller' => 1.250,
-        'ic_memory' => 0.850,
-        'ic_fpga' => 12.500,
-        'ic_processor' => 8.500,
-        'sensor' => 0.750,
-        'module' => 3.500,
-        'unknown' => 0.150,
-    ];
+    private const MODEL_DIR = __DIR__ . '/../../ml/models';
 
-    // Package complexity multipliers
-    private const PACKAGE_MULTIPLIERS = [
-        // Surface mount - small passives
-        '0201' => 0.8,
-        '0402' => 0.9,
-        '0603' => 1.0,
-        '0805' => 1.1,
-        '1206' => 1.2,
-        '1210' => 1.3,
-        '2010' => 1.4,
-        '2512' => 1.5,
-        // Leaded packages
-        'sot-23' => 1.1,
-        'sot-223' => 1.2,
-        'sot-89' => 1.2,
-        'to-92' => 0.9,
-        'to-220' => 1.3,
-        'to-252' => 1.4,
-        'to-263' => 1.5,
-        // QFP family
-        'qfp' => 1.8,
-        'tqfp' => 1.9,
-        'lqfp' => 2.0,
-        // QFN family
-        'qfn' => 2.2,
-        'dfn' => 2.1,
-        'wlcsp' => 2.8,
-        // BGA family
-        'bga' => 3.0,
-        'fbga' => 3.2,
-        'tbga' => 3.5,
-        'cbga' => 3.8,
-        // SOP family
-        'soic' => 1.3,
-        'sop' => 1.3,
-        'ssop' => 1.4,
-        'tssop' => 1.5,
-        'msop' => 1.6,
-        // DIP
-        'dip' => 0.8,
-        'pdip' => 0.8,
-        // Connectors
-        'header' => 1.0,
-        'socket' => 1.2,
-        'terminal' => 0.9,
-        // Default
-        'unknown' => 1.0,
-    ];
+    private ?InferenceSession $session = null;
 
-    // Manufacturer tier multipliers (premium vs commodity)
-    private const MANUFACTURER_TIERS = [
-        // Premium tier (1.3-1.5x)
-        'texas instruments' => 1.4,
-        'ti' => 1.4,
-        'analog devices' => 1.5,
-        'adi' => 1.5,
-        'maxim' => 1.4,
-        'linear technology' => 1.5,
-        'microchip' => 1.3,
-        'stmicroelectronics' => 1.2,
-        'st' => 1.2,
-        'nxp' => 1.3,
-        'infineon' => 1.3,
-        'renesas' => 1.3,
-        'on semiconductor' => 1.1,
-        'onsemi' => 1.1,
-        'vishay' => 1.1,
-        'tdk' => 1.2,
-        'murata' => 1.25,
-        'samsung' => 1.1,
-        'micron' => 1.2,
-        'xilinx' => 1.8,
-        'intel' => 1.6,
-        'nvidia' => 2.0,
-        'qualcomm' => 1.9,
-        // Standard tier (1.0x)
-        'yageo' => 1.0,
-        'walsin' => 0.95,
-        'uniroyal' => 0.9,
-        'everlight' => 0.95,
-        'suncon' => 0.9,
-        'rubycon' => 1.05,
-        'panasonic' => 1.1,
-        'nichicon' => 1.05,
-        'default' => 1.0,
-    ];
+    /** @var array<string, int> Category → encoded ID */
+    private array $categoryEncoder = [];
 
-    // Volume discount curve (quantity -> discount %)
-    private const VOLUME_DISCOUNTS = [
-        1 => 1.0,      // No discount
-        10 => 0.95,    // 5% off
-        25 => 0.90,    // 10% off
-        100 => 0.80,   // 20% off
-        500 => 0.70,   // 30% off
-        1000 => 0.62,  // 38% off
-        5000 => 0.52,  // 48% off
-        10000 => 0.45, // 55% off
-        25000 => 0.40, // 60% off
-        50000 => 0.35, // 65% off
-        100000 => 0.30, // 70% off
-    ];
+    /** @var array<string, int> Supplier → encoded ID */
+    private array $supplierEncoder = [];
+
+    /** @var array<string, int> Manufacturer → encoded ID */
+    private array $manufacturerEncoder = [];
+
+    /** @var array<string, int> Industry → encoded ID */
+    private array $industryEncoder = [];
+
+    /** @var array<string, int> Word → token ID */
+    private array $tokenizer = [];
+
+    /** Price scaler parameters for inverse transform */
+    private float $scalerMean = 0.0;
+    private float $scalerScale = 1.0;
+    private float $priceFloor = 0.001;
+
+    private int $maxTextLen = 48;
+    private bool $modelLoaded = false;
 
     public function __construct(
-        private readonly LoggerInterface $logger
-    ) {}
+        private readonly LoggerInterface $logger,
+    ) {
+    }
 
     /**
-     * Impute a price for a component when API pricing is unavailable
-     * 
-     * @param BomLine|array $component Component data (MPN, manufacturer, description, package, qty)
+     * Impute a price for a component when API pricing is unavailable.
+     *
+     * Uses ONNX neural network inference with fallback to heuristic if model unavailable.
+     *
      * @return array{price: float, confidence: float, method: string, factors: array}
      */
     public function imputePrice(BomLine|array $component): array
     {
         $data = $this->normalizeInput($component);
-        
-        // Step 1: Detect component category
-        $category = $this->detectCategory($data);
-        $basePrice = self::CATEGORY_BASE_PRICES[$category] ?? self::CATEGORY_BASE_PRICES['unknown'];
-        
-        // Step 2: Detect package type
-        $package = $this->detectPackage($data);
-        $packageMultiplier = self::PACKAGE_MULTIPLIERS[$package] ?? self::PACKAGE_MULTIPLIERS['unknown'];
-        
-        // Step 3: Detect manufacturer tier
-        $manufacturerTier = $this->getManufacturerTier($data['manufacturer'] ?? '');
-        
-        // Step 4: Apply volume discount
-        $quantity = (int) ($data['quantity'] ?? 1);
-        $volumeDiscount = $this->getVolumeDiscount($quantity);
-        
-        // Step 5: Apply obsolescence risk premium
-        $obsolescenceMultiplier = $this->estimateObsolescenceRisk($data);
-        
-        // Calculate final price
-        $imputedPrice = $basePrice 
-            * $packageMultiplier 
-            * $manufacturerTier 
-            * $volumeDiscount 
-            * $obsolescenceMultiplier;
-        
-        // Calculate confidence score based on data quality
-        $confidence = $this->calculateConfidence($data, $category, $package);
-        
-        $factors = [
-            'category' => $category,
-            'base_price' => $basePrice,
-            'package' => $package,
-            'package_multiplier' => $packageMultiplier,
-            'manufacturer_tier' => $manufacturerTier,
-            'volume_discount' => $volumeDiscount,
-            'obsolescence_multiplier' => $obsolescenceMultiplier,
-            'quantity' => $quantity,
-        ];
-        
-        $this->logger->info('Price imputation completed', [
-            'mpn' => $data['mpn'] ?? 'unknown',
-            'imputed_price' => round($imputedPrice, 5),
-            'confidence' => round($confidence, 2),
-            'factors' => $factors,
-        ]);
-        
-        return [
-            'price' => round($imputedPrice, 5),
-            'confidence' => round($confidence, 2),
-            'method' => 'ml_imputation_v1',
-            'factors' => $factors,
-        ];
+
+        // Try ONNX model first
+        if ($this->ensureModelLoaded()) {
+            try {
+                return $this->imputeWithOnnx($data);
+            } catch (\Throwable $e) {
+                $this->logger->error('ONNX inference failed, falling back to heuristic', [
+                    'mpn' => $data['mpn'] ?? 'unknown',
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Fallback: simple heuristic
+        return $this->imputeWithHeuristic($data);
     }
 
     /**
-     * Batch impute prices for multiple components
-     * 
-     * @param array $components Array of components
+     * Batch impute prices for multiple components.
+     *
      * @return array Array of imputation results keyed by index
      */
     public function batchImputePrices(array $components): array
     {
         $results = [];
-        
         foreach ($components as $index => $component) {
             $results[$index] = $this->imputePrice($component);
         }
-        
         return $results;
     }
 
     /**
-     * Normalize input from BomLine entity or array
+     * Get model information for transparency.
      */
-    private function normalizeInput(BomLine|array $component): array
+    public function getModelInfo(): array
     {
-        if ($component instanceof BomLine) {
-            return [
-                'mpn' => $component->getMpn() ?? '',
-                'manufacturer' => $component->getManufacturer() ?? '',
-                'description' => $component->getDescription() ?? '',
-                'package' => $component->getPackage() ?? '',
-                'quantity' => $component->getQuantity() ?? 1,
-            ];
-        }
-        
+        $loaded = $this->ensureModelLoaded();
+
         return [
-            'mpn' => $component['mpn'] ?? '',
-            'manufacturer' => $component['manufacturer'] ?? '',
-            'description' => $component['description'] ?? '',
-            'package' => $component['package'] ?? '',
-            'quantity' => $component['quantity'] ?? 1,
+            'version' => $loaded ? 'onnx_transformer_v2' : 'heuristic_fallback',
+            'algorithm' => $loaded ? 'PricingTransformer (ONNX)' : 'heuristic_multiplier_chain',
+            'model_loaded' => $loaded,
+            'categories' => count($this->categoryEncoder),
+            'manufacturers' => count($this->manufacturerEncoder),
+            'vocabulary_size' => count($this->tokenizer),
+            'training_data' => '200K synthetic + 52K HuggingFace + 220K DigiKey (5.5K × 40)',
+            'spot_check_mdape' => '23.4% overall (84 DigiKey components)',
+            'last_updated' => '2026-02-07',
         ];
     }
 
+    // =========================================================================
+    // ONNX INFERENCE
+    // =========================================================================
+
     /**
-     * Detect component category from MPN and description using ML heuristics
+     * Run ONNX model inference to predict price.
+     */
+    private function imputeWithOnnx(array $data): array
+    {
+        $category = $this->detectCategory($data);
+        $supplier = $this->detectSupplier($data);
+        $manufacturer = $data['manufacturer'] ?? '';
+        $industry = $data['industry'] ?? 'ems_contract';
+
+        // Encode categorical features
+        $categoryId = $this->categoryEncoder[$category] ?? 0;
+        $supplierId = $this->supplierEncoder[$supplier] ?? 0;
+        $manufacturerId = $this->resolveManufacturerId($manufacturer);
+        $industryId = $this->industryEncoder[$industry] ?? 0;
+
+        // Encode text (description + MPN)
+        $textIds = $this->encodeText(
+            ($data['description'] ?? '') . ' ' . ($data['mpn'] ?? '')
+        );
+
+        // Build continuous features (8 total, matching training pipeline)
+        $quantity = max(1, (int) ($data['quantity'] ?? 1));
+        $moq = max(1, (int) ($data['moq'] ?? 1));
+        $leadTime = (float) ($data['lead_time_days'] ?? 7);
+        $reliability = (float) ($data['reliability_score'] ?? 0.9);
+        $complexity = (float) ($data['complexity_factor'] ?? 1.0);
+        $qtyMoqRatio = $quantity / max($moq, 1);
+        $isAboveMoq = $quantity >= $moq ? 1.0 : 0.0;
+        $volumeTier = min(4, (int) floor(log10(max($quantity, 1))));
+
+        $continuous = [
+            log1p($quantity),           // log_quantity
+            log1p($moq),               // log_moq
+            $leadTime / 30.0,          // normalized lead time
+            $reliability,              // reliability score
+            $complexity,               // complexity factor
+            $qtyMoqRatio / 10.0,       // normalized qty/moq ratio
+            $isAboveMoq,              // binary: above MOQ?
+            $volumeTier / 4.0,         // normalized volume tier
+        ];
+
+        // Run inference — ONNX expects arrays wrapped in batch dimension
+        $output = $this->session->run(null, [
+            'category_id' => [$categoryId],
+            'supplier_id' => [$supplierId],
+            'manufacturer_id' => [$manufacturerId],
+            'industry_id' => [$industryId],
+            'text_ids' => [$textIds],
+            'continuous' => [$continuous],
+        ]);
+
+        // Output is scaled log-space prediction: price = exp(pred * scale + mean) - floor
+        $scaledPrediction = $output[0][0];
+        $logPrice = $scaledPrediction * $this->scalerScale + $this->scalerMean;
+        $price = exp($logPrice) - $this->priceFloor;
+        $price = max(0.0001, round($price, 6));
+
+        // Confidence based on input data quality
+        $confidence = $this->calculateConfidence($data, $category);
+
+        $this->logger->info('ONNX price imputation completed', [
+            'mpn' => $data['mpn'] ?? 'unknown',
+            'imputed_price' => $price,
+            'confidence' => round($confidence, 2),
+            'category' => $category,
+            'supplier' => $supplier,
+            'manufacturer_id' => $manufacturerId,
+            'scaled_prediction' => $scaledPrediction,
+        ]);
+
+        return [
+            'price' => $price,
+            'confidence' => round($confidence, 2),
+            'method' => 'onnx_transformer_v2',
+            'factors' => [
+                'category' => $category,
+                'supplier' => $supplier,
+                'manufacturer' => $manufacturer,
+                'industry' => $industry,
+                'quantity' => $quantity,
+                'model' => 'PricingTransformer',
+                'scaled_prediction' => round($scaledPrediction, 4),
+            ],
+        ];
+    }
+
+    // =========================================================================
+    // MODEL LOADING
+    // =========================================================================
+
+    /**
+     * Lazily load the ONNX model and all encoding artifacts.
+     */
+    private function ensureModelLoaded(): bool
+    {
+        if ($this->modelLoaded) {
+            return true;
+        }
+
+        $modelPath = self::MODEL_DIR . '/pricing_model.onnx';
+        $configPath = self::MODEL_DIR . '/pricing_config.json';
+        $tokenizerPath = self::MODEL_DIR . '/pricing_tokenizer.json';
+        $scalerPath = self::MODEL_DIR . '/price_scaler.json';
+
+        if (!file_exists($modelPath) || !file_exists($configPath)
+            || !file_exists($tokenizerPath) || !file_exists($scalerPath)) {
+            $this->logger->warning('ONNX model files not found, using heuristic fallback', [
+                'model_dir' => self::MODEL_DIR,
+                'model_exists' => file_exists($modelPath),
+                'config_exists' => file_exists($configPath),
+                'tokenizer_exists' => file_exists($tokenizerPath),
+                'scaler_exists' => file_exists($scalerPath),
+            ]);
+            return false;
+        }
+
+        try {
+            // Load ONNX session
+            $this->session = new InferenceSession($modelPath);
+
+            // Load config with encoders
+            $config = json_decode(file_get_contents($configPath), true, 512, \JSON_THROW_ON_ERROR);
+            $this->categoryEncoder = $config['encoders']['category'] ?? [];
+            $this->supplierEncoder = $config['encoders']['supplier'] ?? [];
+            $this->manufacturerEncoder = $config['encoders']['manufacturer'] ?? [];
+            $this->industryEncoder = $config['encoders']['industry'] ?? [];
+            $this->maxTextLen = $config['max_text_len'] ?? 48;
+
+            // Load tokenizer
+            $tokenizerData = json_decode(file_get_contents($tokenizerPath), true, 512, \JSON_THROW_ON_ERROR);
+            $this->tokenizer = $tokenizerData['word2idx'] ?? [];
+
+            // Load price scaler
+            $scalerData = json_decode(file_get_contents($scalerPath), true, 512, \JSON_THROW_ON_ERROR);
+            $this->scalerMean = (float) ($scalerData['mean'] ?? 0.0);
+            $this->scalerScale = (float) ($scalerData['scale'] ?? 1.0);
+            $this->priceFloor = (float) ($scalerData['price_floor'] ?? 0.001);
+
+            $this->modelLoaded = true;
+
+            $this->logger->info('ONNX pricing model loaded', [
+                'categories' => count($this->categoryEncoder),
+                'suppliers' => count($this->supplierEncoder),
+                'manufacturers' => count($this->manufacturerEncoder),
+                'vocab_size' => count($this->tokenizer),
+                'scaler_mean' => $this->scalerMean,
+                'scaler_scale' => $this->scalerScale,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to load ONNX model', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return false;
+        }
+    }
+
+    // =========================================================================
+    // TEXT ENCODING (matches Python ElectronicsTokenizer.encode)
+    // =========================================================================
+
+    /**
+     * Tokenize text into integer IDs, matching the Python training tokenizer.
+     *
+     * @return int[] Array of token IDs, padded/truncated to maxTextLen
+     */
+    private function encodeText(string $text): array
+    {
+        $text = strtolower($text);
+        preg_match_all('/[a-z0-9]+/', $text, $matches);
+        $tokens = array_slice($matches[0] ?? [], 0, $this->maxTextLen);
+
+        $ids = [];
+        foreach ($tokens as $token) {
+            $ids[] = $this->tokenizer[$token] ?? 1; // 1 = <UNK>
+        }
+
+        // Pad to maxTextLen with 0 = <PAD>
+        while (count($ids) < $this->maxTextLen) {
+            $ids[] = 0;
+        }
+
+        return $ids;
+    }
+
+    // =========================================================================
+    // FEATURE DETECTION (category, supplier, manufacturer)
+    // =========================================================================
+
+    /**
+     * Detect component category from MPN and description using pattern matching.
+     * Maps to the model's 25 trained categories.
      */
     private function detectCategory(array $data): string
     {
         $mpn = strtolower($data['mpn'] ?? '');
         $desc = strtolower($data['description'] ?? '');
         $combined = "$mpn $desc";
-        
-        // Pattern-based category detection
+
+        // Order matters: more specific categories first
         $patterns = [
-            'resistor' => [
-                '/\b(resistor|res|ohm|Ω)\b/',
-                '/^(rc|crcw|era|rnc|rtf|rm|rk|rl|rn)[a-z0-9]/i',
-                '/\d+[kmr]?\d*\s*(ohm|Ω)/i',
-            ],
-            'capacitor' => [
-                '/\b(capacitor|cap|ceramic|mlcc|tant|electrolytic)\b/',
-                '/^(cl|grm|gcc|c0g|x7r|x5r|y5v|np0|tps|tmk|08055c)/i',
-                '/\d+[npμu]f/i',
-            ],
-            'inductor' => [
-                '/\b(inductor|ind|choke|coil|ferrite)\b/',
-                '/^(lqh|nlv|brl|sdcl|dlf|cdrh)/i',
-                '/\d+[nμu]h/i',
-            ],
-            'diode' => [
-                '/\b(diode|zener|schottky|tvs|esd)\b/',
-                '/^(1n|bat|bas|bav|bzx|smaj|smbj|udzs)/i',
-            ],
-            'transistor' => [
-                '/\b(transistor|mosfet|bjt|jfet|igbt)\b/',
-                '/^(2n|bc|bd|bf|bs|bss|fdn|irfz|si\d|ao)/i',
-            ],
-            'led' => [
-                '/\b(led|light.*emitting|indicator)\b/',
-                '/^(kp|apt|cree|ln|osram|lumileds)/i',
-            ],
-            'crystal' => [
-                '/\b(crystal|xtal|oscillator|resonator|mhz|khz)\b/',
-                '/^(abm|hc49|act|ndk|tps|fa)/i',
-            ],
-            'connector' => [
-                '/\b(connector|header|socket|terminal|pin|receptacle|plug|jack)\b/',
-                '/^(molex|jst|amp|te|hirose|samtec|mill\-?max)/i',
-            ],
-            'relay' => [
-                '/\b(relay|switch.*relay|ssr)\b/',
-                '/^(omron|panasonic|song.*chuan|finder)/i',
-            ],
-            'fuse' => [
-                '/\b(fuse|ptc|polyfuse|resettable)\b/',
-                '/^(0603l|mf|rge|nanosmdc)/i',
-            ],
-            'ic_fpga' => [
-                '/\b(fpga|cpld|programmable.*logic)\b/',
-                '/^(xc\d|ep\d|lcmxo|ice40)/i',
-            ],
-            'ic_processor' => [
-                '/\b(processor|cpu|mpu|arm.*cortex|risc\-v)\b/',
-                '/^(imx|sam|stm32f7|stm32h|lpc|nrf5)/i',
-            ],
             'ic_microcontroller' => [
                 '/\b(mcu|microcontroller|micro.*controller|pic|avr|8051)\b/',
                 '/^(atmega|attiny|stm32|pic\d|msp430|esp32|samd|nrf52)/i',
@@ -338,180 +348,331 @@ class PriceImputationService
                 '/\b(logic|gate|buffer|driver|flip.*flop|counter|shift)\b/',
                 '/^(74hc|74ls|74lv|cd40|sn74)/i',
             ],
+            'mosfet' => [
+                '/\b(mosfet|power\s*fet)\b/',
+                '/^(irfz|irf\d|fdn|ao\d|si\d{4}|bss)/i',
+            ],
+            'igbt' => [
+                '/\b(igbt)\b/',
+            ],
+            'transistor' => [
+                '/\b(transistor|bjt|jfet)\b/',
+                '/^(2n|bc\d|bd\d|bf\d|mmbt)/i',
+            ],
+            'resistor' => [
+                '/\b(resistor|res|ohm|Ω)\b/',
+                '/^(rc|crcw|era|rnc|rtf|rm|rk|rl|rn)[a-z0-9]/i',
+                '/\d+[kmr]?\d*\s*(ohm|Ω)/i',
+            ],
+            'capacitor' => [
+                '/\b(capacitor|cap|ceramic|mlcc|tant|electrolytic)\b/',
+                '/^(cl|grm|gcc|c0g|x7r|x5r|y5v|np0|tps|tmk|08055c)/i',
+                '/\d+[npμu]f/i',
+            ],
+            'inductor' => [
+                '/\b(inductor|ind|choke|coil|ferrite)\b/',
+                '/^(lqh|nlv|brl|sdcl|dlf|cdrh)/i',
+                '/\d+[nμu]h/i',
+            ],
+            'diode' => [
+                '/\b(diode|zener|schottky|tvs|esd)\b/',
+                '/^(1n|bat|bas|bav|bzx|smaj|smbj|udzs)/i',
+            ],
+            'led' => [
+                '/\b(led|light.*emitting|indicator)\b/',
+                '/^(kp|apt|cree|ln|osram|lumileds)/i',
+            ],
+            'crystal_oscillator' => [
+                '/\b(crystal|xtal|oscillator|resonator|mhz|khz)\b/',
+                '/^(abm|hc49|act|ndk|fa\-)/i',
+            ],
+            'connector' => [
+                '/\b(connector|header|socket|terminal|pin|receptacle|plug|jack)\b/',
+                '/^(molex|jst|amp|te|hirose|samtec|mill\-?max)/i',
+            ],
+            'relay' => [
+                '/\b(relay|switch.*relay|ssr)\b/',
+                '/^(omron|panasonic|song.*chuan|finder)/i',
+            ],
+            'switch' => [
+                '/\b(switch|button|toggle|dip\s*switch|tact)\b/',
+            ],
+            'transformer' => [
+                '/\b(transformer|xfmr|toroid)\b/',
+            ],
             'sensor' => [
                 '/\b(sensor|accelerometer|gyro|temperature|pressure|humidity)\b/',
                 '/^(bme|bmp|mpu|lis|lsm|hdc|tmp|si70)/i',
             ],
-            'module' => [
-                '/\b(module|dev.*kit|evaluation|breakout)\b/',
+            'wire_harness' => [
+                '/\b(wire\s*harness|wiring|cable\s*harness)\b/',
+            ],
+            'cable_assembly' => [
+                '/\b(cable\s*assembly|cable|coax)\b/',
+            ],
+            'pcb_bare' => [
+                '/\b(pcb|printed\s*circuit\s*board|bare\s*board)\b/',
+            ],
+            'pcba_assembly' => [
+                '/\b(pcba|assembly|populated)\b/',
+            ],
+            'mechanical_part' => [
+                '/\b(enclosure|bracket|heatsink|standoff|screw|nut|washer|spacer)\b/',
+            ],
+            'machined_part' => [
+                '/\b(machined|cnc|milled|turned|casting)\b/',
             ],
         ];
-        
+
         foreach ($patterns as $category => $categoryPatterns) {
             foreach ($categoryPatterns as $pattern) {
                 if (preg_match($pattern, $combined)) {
-                    return $category;
+                    // Verify the category exists in the model's encoder
+                    if (isset($this->categoryEncoder[$category])) {
+                        return $category;
+                    }
                 }
             }
         }
-        
-        return 'unknown';
+
+        // Default to resistor (most common, safe median) if model is loaded
+        // otherwise return a generic key
+        return isset($this->categoryEncoder['resistor']) ? 'resistor' : array_key_first($this->categoryEncoder) ?? 'resistor';
     }
 
     /**
-     * Detect package type from MPN, package field, and description
+     * Detect likely supplier context. Defaults to DigiKey (most common reference pricing).
      */
-    private function detectPackage(array $data): string
+    private function detectSupplier(array $data): string
     {
-        $package = strtolower($data['package'] ?? '');
-        $mpn = strtolower($data['mpn'] ?? '');
-        $desc = strtolower($data['description'] ?? '');
-        $combined = "$package $mpn $desc";
-        
-        // Direct package matches
-        $packages = [
-            '0201', '0402', '0603', '0805', '1206', '1210', '2010', '2512',
-            'sot-23', 'sot-223', 'sot-89',
-            'to-92', 'to-220', 'to-252', 'to-263',
-            'qfp', 'tqfp', 'lqfp',
-            'qfn', 'dfn', 'wlcsp',
-            'bga', 'fbga', 'tbga', 'cbga',
-            'soic', 'sop', 'ssop', 'tssop', 'msop',
-            'dip', 'pdip',
-            'header', 'socket', 'terminal',
+        $source = strtolower($data['source'] ?? $data['supplier'] ?? '');
+
+        if (str_contains($source, 'mouser')) {
+            return 'mouser';
+        }
+        if (str_contains($source, 'digikey') || str_contains($source, 'digi-key')) {
+            return 'digikey';
+        }
+        if (str_contains($source, 'arrow')) {
+            return 'arrow';
+        }
+        if (str_contains($source, 'avnet')) {
+            return 'avnet';
+        }
+        if (str_contains($source, 'newark') || str_contains($source, 'farnell')) {
+            return 'newark';
+        }
+        if (str_contains($source, 'alibaba')) {
+            return 'alibaba_gold';
+        }
+
+        // Default to DigiKey as reference pricing baseline
+        return 'digikey';
+    }
+
+    /**
+     * Resolve manufacturer name to encoder ID using fuzzy matching.
+     */
+    private function resolveManufacturerId(string $manufacturer): int
+    {
+        if (empty($manufacturer)) {
+            return 0;
+        }
+
+        // Exact match
+        if (isset($this->manufacturerEncoder[$manufacturer])) {
+            return $this->manufacturerEncoder[$manufacturer];
+        }
+
+        // Case-insensitive search
+        $mfrLower = strtolower(trim($manufacturer));
+        foreach ($this->manufacturerEncoder as $name => $id) {
+            if (strtolower($name) === $mfrLower) {
+                return $id;
+            }
+        }
+
+        // Partial/fuzzy match (e.g., "TI" → "Texas Instruments")
+        $aliases = [
+            'ti' => 'Texas Instruments',
+            'adi' => 'Analog Devices',
+            'st' => 'STMicroelectronics',
+            'onsemi' => 'onsemi',
+            'on semi' => 'ON Semiconductor',
+            'mchp' => 'Microchip',
+            'microchip technology' => 'Microchip Technology',
+            'nxp' => 'NXP Semiconductors',
+            'maxim' => 'Maxim Integrated',
+            'vishay' => 'Vishay',
         ];
-        
-        foreach ($packages as $pkg) {
-            if (str_contains($combined, $pkg)) {
-                return $pkg;
+
+        if (isset($aliases[$mfrLower]) && isset($this->manufacturerEncoder[$aliases[$mfrLower]])) {
+            return $this->manufacturerEncoder[$aliases[$mfrLower]];
+        }
+
+        // Substring match
+        foreach ($this->manufacturerEncoder as $name => $id) {
+            if (str_contains(strtolower($name), $mfrLower) || str_contains($mfrLower, strtolower($name))) {
+                return $id;
             }
         }
-        
-        // Infer from dimensions in MPN (e.g., RC0402 -> 0402)
-        if (preg_match('/(\d{4})/', $mpn, $matches)) {
-            $size = $matches[1];
-            if (in_array($size, ['0201', '0402', '0603', '0805', '1206', '1210', '2010', '2512'])) {
-                return $size;
-            }
-        }
-        
-        return 'unknown';
+
+        return 0; // Unknown manufacturer
     }
 
-    /**
-     * Get manufacturer tier multiplier
-     */
-    private function getManufacturerTier(string $manufacturer): float
-    {
-        $mfr = strtolower(trim($manufacturer));
-        
-        foreach (self::MANUFACTURER_TIERS as $name => $tier) {
-            if (str_contains($mfr, $name)) {
-                return $tier;
-            }
-        }
-        
-        return self::MANUFACTURER_TIERS['default'];
-    }
+    // =========================================================================
+    // CONFIDENCE SCORING
+    // =========================================================================
 
     /**
-     * Get volume discount based on quantity
+     * Calculate confidence score based on input data quality.
      */
-    private function getVolumeDiscount(int $quantity): float
+    private function calculateConfidence(array $data, string $category): float
     {
-        $previousQty = 1;
-        $previousDiscount = 1.0;
-        
-        foreach (self::VOLUME_DISCOUNTS as $qty => $discount) {
-            if ($quantity < $qty) {
-                // Linear interpolation between quantity breaks
-                $ratio = ($quantity - $previousQty) / max(1, $qty - $previousQty);
-                return $previousDiscount - ($previousDiscount - $discount) * $ratio;
-            }
-            $previousQty = $qty;
-            $previousDiscount = $discount;
-        }
-        
-        return 0.30; // Max discount at 100k+
-    }
+        $confidence = 0.60; // Base confidence for ONNX model (higher than heuristic)
 
-    /**
-     * Estimate obsolescence risk premium based on part characteristics
-     */
-    private function estimateObsolescenceRisk(array $data): float
-    {
-        $mpn = strtolower($data['mpn'] ?? '');
-        $desc = strtolower($data['description'] ?? '');
-        
-        // Old technology indicators (higher price for legacy support)
-        $obsolescenceIndicators = [
-            '/\b(obsolete|eol|last\s*time\s*buy|ltb|nrnd)\b/' => 1.8,
-            '/\b(legacy|discontinued|end\s*of\s*life)\b/' => 1.5,
-            '/\b(military|mil\-?spec|883|space\s*grade)\b/' => 1.6,
-            '/\b(automotive|aec\-?q\d+)\b/' => 1.3,
-            '/\b(through.*hole|pth|dip\-?\d+)\b/' => 1.15,
-        ];
-        
-        $combined = "$mpn $desc";
-        
-        foreach ($obsolescenceIndicators as $pattern => $multiplier) {
-            if (preg_match($pattern, $combined)) {
-                return $multiplier;
-            }
-        }
-        
-        return 1.0; // Standard pricing
-    }
-
-    /**
-     * Calculate confidence score based on data quality and pattern matching
-     */
-    private function calculateConfidence(array $data, string $category, string $package): float
-    {
-        $confidence = 0.5; // Base confidence
-        
-        // Data completeness adds confidence
         if (!empty($data['mpn'])) {
-            $confidence += 0.1;
+            $confidence += 0.08;
         }
         if (!empty($data['manufacturer'])) {
-            $confidence += 0.1;
+            $confidence += 0.08;
         }
         if (!empty($data['description'])) {
-            $confidence += 0.1;
+            $confidence += 0.08;
         }
         if (!empty($data['package'])) {
-            $confidence += 0.05;
+            $confidence += 0.04;
         }
-        
-        // Category detection quality
-        if ($category !== 'unknown') {
-            $confidence += 0.1;
+
+        // Known category boosts confidence
+        if ($category !== 'resistor' || stripos($data['description'] ?? '', 'resist') !== false) {
+            $confidence += 0.07;
         }
-        
-        // Package detection quality
-        if ($package !== 'unknown') {
-            $confidence += 0.05;
-        }
-        
-        // Cap at 0.95 - we never claim perfect confidence for imputed prices
+
         return min(0.95, $confidence);
     }
 
+    // =========================================================================
+    // HEURISTIC FALLBACK (used when ONNX model is unavailable)
+    // =========================================================================
+
+    private const HEURISTIC_BASE_PRICES = [
+        'resistor' => 0.006, 'capacitor' => 0.02, 'inductor' => 0.08,
+        'diode' => 0.04, 'transistor' => 0.04, 'mosfet' => 1.20,
+        'igbt' => 5.00, 'led' => 0.10, 'crystal_oscillator' => 0.60,
+        'connector' => 0.45, 'switch' => 0.35, 'relay' => 2.80,
+        'transformer' => 4.00, 'sensor' => 2.80,
+        'ic_microcontroller' => 3.50, 'ic_memory' => 2.00,
+        'ic_analog' => 1.20, 'ic_power' => 1.60, 'ic_logic' => 0.22,
+        'wire_harness' => 25.00, 'cable_assembly' => 12.00,
+        'pcb_bare' => 8.00, 'pcba_assembly' => 35.00,
+        'mechanical_part' => 3.00, 'machined_part' => 15.00,
+    ];
+
     /**
-     * Get model information for transparency
+     * Simple heuristic fallback when ONNX is not available.
      */
-    public function getModelInfo(): array
+    private function imputeWithHeuristic(array $data): array
     {
+        $category = $this->detectCategoryHeuristic($data);
+        $basePrice = self::HEURISTIC_BASE_PRICES[$category] ?? 0.15;
+
+        $quantity = max(1, (int) ($data['quantity'] ?? 1));
+        $volumeDiscount = 1.0;
+        if ($quantity >= 10000) {
+            $volumeDiscount = 0.45;
+        } elseif ($quantity >= 1000) {
+            $volumeDiscount = 0.62;
+        } elseif ($quantity >= 100) {
+            $volumeDiscount = 0.80;
+        }
+
+        $price = max(0.0001, round($basePrice * $volumeDiscount, 6));
+
+        $this->logger->info('Heuristic price imputation (ONNX unavailable)', [
+            'mpn' => $data['mpn'] ?? 'unknown',
+            'imputed_price' => $price,
+            'category' => $category,
+        ]);
+
         return [
-            'version' => 'ml_imputation_v1',
-            'categories' => count(self::CATEGORY_BASE_PRICES),
-            'packages' => count(self::PACKAGE_MULTIPLIERS),
-            'manufacturer_tiers' => count(self::MANUFACTURER_TIERS),
-            'volume_breaks' => count(self::VOLUME_DISCOUNTS),
-            'algorithm' => 'heuristic_multiplier_chain',
-            'training_data' => 'historical_quote_pricing_2024',
-            'last_updated' => '2025-01-28',
+            'price' => $price,
+            'confidence' => 0.40,
+            'method' => 'heuristic_fallback',
+            'factors' => [
+                'category' => $category,
+                'base_price' => $basePrice,
+                'volume_discount' => $volumeDiscount,
+                'quantity' => $quantity,
+                'note' => 'ONNX model unavailable, using heuristic baseline',
+            ],
+        ];
+    }
+
+    /**
+     * Simplified category detection for heuristic fallback (no encoder dependency).
+     */
+    private function detectCategoryHeuristic(array $data): string
+    {
+        $combined = strtolower(($data['mpn'] ?? '') . ' ' . ($data['description'] ?? ''));
+
+        $simplePatterns = [
+            'ic_microcontroller' => '/\b(mcu|microcontroller|stm32|atmega|pic\d|esp32)\b/',
+            'ic_memory' => '/\b(memory|flash|eeprom|sram|dram|sdram)\b/',
+            'ic_power' => '/\b(regulator|ldo|buck|boost|pmic)\b/',
+            'ic_analog' => '/\b(adc|dac|op.amp|amplifier|comparator)\b/',
+            'ic_logic' => '/\b(logic|gate|buffer|74hc|74ls|sn74)\b/',
+            'resistor' => '/\b(resistor|res|ohm)\b/',
+            'capacitor' => '/\b(capacitor|cap|ceramic|mlcc)\b/',
+            'inductor' => '/\b(inductor|choke|coil|ferrite)\b/',
+            'diode' => '/\b(diode|zener|schottky|tvs)\b/',
+            'mosfet' => '/\b(mosfet)\b/',
+            'transistor' => '/\b(transistor|bjt)\b/',
+            'led' => '/\b(led|light.emitting)\b/',
+            'connector' => '/\b(connector|header|socket|terminal)\b/',
+            'relay' => '/\b(relay)\b/',
+            'sensor' => '/\b(sensor|accelerometer|gyro|temp)\b/',
+            'crystal_oscillator' => '/\b(crystal|oscillator|xtal)\b/',
+        ];
+
+        foreach ($simplePatterns as $cat => $pattern) {
+            if (preg_match($pattern, $combined)) {
+                return $cat;
+            }
+        }
+
+        return 'resistor'; // Safe default
+    }
+
+    // =========================================================================
+    // INPUT NORMALIZATION
+    // =========================================================================
+
+    private function normalizeInput(BomLine|array $component): array
+    {
+        if ($component instanceof BomLine) {
+            return [
+                'mpn' => $component->getMpn() ?? '',
+                'manufacturer' => $component->getManufacturer() ?? '',
+                'description' => $component->getDescription() ?? '',
+                'package' => $component->getPackage() ?? '',
+                'quantity' => $component->getQuantity() ?? 1,
+            ];
+        }
+
+        return [
+            'mpn' => $component['mpn'] ?? '',
+            'manufacturer' => $component['manufacturer'] ?? '',
+            'description' => $component['description'] ?? '',
+            'package' => $component['package'] ?? '',
+            'quantity' => $component['quantity'] ?? 1,
+            'supplier' => $component['supplier'] ?? '',
+            'source' => $component['source'] ?? '',
+            'industry' => $component['industry'] ?? 'ems_contract',
+            'moq' => $component['moq'] ?? 1,
+            'lead_time_days' => $component['lead_time_days'] ?? 7,
+            'reliability_score' => $component['reliability_score'] ?? 0.9,
+            'complexity_factor' => $component['complexity_factor'] ?? 1.0,
         ];
     }
 }

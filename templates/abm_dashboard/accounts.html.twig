@@ -19,7 +19,7 @@
             <h1 class="rams-page-title">{{ 'abm_dashboard.accounts'|trans }}</h1>
         </div>
         <div class="rams-page-actions">
-            <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn--primary">
+            <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 3V13M3 8H13"/>
                 </svg>
@@ -67,7 +67,7 @@
                         <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
                             <div>
                                 <h3 class="rams-heading rams-heading--3 rams-mb-1">{{ account.name | default('abm_dashboard.account_name_placeholder'|trans) }}</h3>
-                                <p class="rams-text--muted rams-text--xs uppercase">{{ account.industry | default('abm_dashboard.industry_placeholder'|trans) }}</p>
+                                <p class="rams-text--muted rams-text--xs rams-uppercase">{{ account.industry | default('abm_dashboard.industry_placeholder'|trans) }}</p>
                             </div>
                             {% set statusKey = account.status|default('prospect') %}
                             {% set statusLabel = statusKey == 'active'
@@ -91,8 +91,8 @@
 
                         <div class="rams-stack rams-gap-2">
                             <div class="rams-flex rams-justify-between rams-items-end">
-                                <span class="rams-text--2xs rams-text--muted uppercase font-mono">{{ 'abm_dashboard.engagement_score'|trans }}</span>
-                                <span class="rams-text--sm rams-text--bold font-mono">{{ account.engagement_score | default(0) }}%</span>
+                                <span class="rams-text--2xs rams-text--muted rams-uppercase rams-font-mono">{{ 'abm_dashboard.engagement_score'|trans }}</span>
+                                <span class="rams-text--sm rams-text--bold rams-font-mono">{{ account.engagement_score | default(0) }}%</span>
                             </div>
                             <div class="rams-progress rams-progress--compact">
                                 <div class="rams-progress__bar" style="width: {{ account.engagement_score | default(0) }}%"></div>
@@ -100,10 +100,10 @@
                         </div>
                     </div>
                     <div class="rams-module__footer rams-flex rams-gap-2" onclick="event.stopPropagation()">
-                        <a href="{{ path('abm_dashboard_account_detail', {'id': account.id | default(1)}) }}" class="rams-btn--ghost rams-btn--sm rams-flex-1">
+                        <a href="{{ path('abm_dashboard_account_detail', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm rams-flex-1">
                             {{ 'common.view'|trans }}
                         </a>
-                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id | default(1)}) }}" class="rams-btn--ghost rams-btn--sm">
+                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
                             <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                             </svg>
@@ -115,8 +115,8 @@
             <div class="rams-grid-span-3">
                 <div class="rams-module">
                     <div class="rams-module__content rams-empty-state">
-                        <p class="rams-rams-text--muted rams-mb-4">{{ 'abm_dashboard.no_target_accounts'|trans }}</p>
-                        <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn--primary">
+                        <p class="rams-text--muted rams-mb-4">{{ 'abm_dashboard.no_target_accounts'|trans }}</p>
+                        <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn rams-btn--primary">
                             {{ 'abm_dashboard.add_first_account'|trans }}
                         </a>
                     </div>
@@ -127,22 +127,22 @@
 
     {# Quick Actions #}
     <div class="rams-grid rams-grid--3 rams-gap-6">
-        <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--inset rams-module--hoverable" style="text-decoration:none">
+        <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--inset rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
                     <span class="rams-text-2xl">📤</span>
                     <h3 class="rams-module__title">{{ 'abm_dashboard.import_accounts'|trans }}</h3>
                 </div>
-                <p class="rams-rams-text--muted rams-rams-text--xs">{{ 'abm_dashboard.import_accounts_desc'|trans }}</p>
+                <p class="rams-text--muted rams-text--xs">{{ 'abm_dashboard.import_accounts_desc'|trans }}</p>
             </div>
         </a>
-        <a href="{{ path('abm_dashboard_index') }}" class="rams-module rams-module--inset rams-module--hoverable" style="text-decoration:none">
+        <a href="{{ path('abm_dashboard_index') }}" class="rams-module rams-module--inset rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
                     <span class="rams-text-2xl">📊</span>
                     <h3 class="rams-module__title">{{ 'abm_dashboard.analytics'|trans }}</h3>
                 </div>
-                <p class="rams-rams-text--muted rams-rams-text--xs">{{ 'abm_dashboard.analytics_subtitle'|trans }}</p>
+                <p class="rams-text--muted rams-text--xs">{{ 'abm_dashboard.analytics_subtitle'|trans }}</p>
             </div>
         </a>
     </div>

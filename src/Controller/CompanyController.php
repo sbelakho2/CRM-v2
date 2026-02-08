@@ -70,7 +70,23 @@ class CompanyController extends AbstractController
         $companies = $qb->getQuery()->getResult();
 
         // Get filter options
-        $sectors = ['Automotive', 'Industrial', 'Aerospace', 'Rail', 'Renewables', 'Power Electronics'];
+        $sectors = [
+            'Automotive',
+            'Aerospace',
+            'Industrial',
+            'Rail',
+            'Renewables',
+            'Medical',
+            'Defense',
+            'Telecom',
+            'HVAC',
+            'Marine',
+            'Power Electronics',
+            'Consumer Electronics',
+            'Data Center',
+            'Energy Storage',
+            'Other',
+        ];
         $tiers = ['A', 'B', 'C'];
         $stages = ['Prospect', 'MQL', 'SQL', 'SQO', 'Proposal', 'Award'];
         $regions = $this->countryService->getRegionOptions([
@@ -125,7 +141,7 @@ class CompanyController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_company_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_company_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(Company $company): Response
     {
         // Check for incomplete profile and provide guidance

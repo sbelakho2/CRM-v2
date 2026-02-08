@@ -11,7 +11,7 @@
             <p class="rams-page-subtitle">{{ 'supplier.portal.subtitle'|trans }}</p>
         </div>
         <div class="rams-page-actions">
-            <a href="#" class="rams-btn--primary">
+            <a href="#" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 3V13M3 8H13"/>
                 </svg>
@@ -68,9 +68,9 @@
                     {% if suppliers | default([]) %}
                         {% for supplier in suppliers %}
                             <tr class="rams-table__row">
-                                <td class="rams-table__cell rams-text-bold">{{ supplier.name }}</td>
+                                <td class="rams-table__cell rams-text--bold">{{ supplier.name }}</td>
                                 <td class="rams-table__cell">{{ supplier.contact_name | default('Contact') }}</td>
-                                <td class="rams-table__cell rams-rams-text--muted rams-rams-text--xs">{{ supplier.email | default('N/A') }}</td>
+                                <td class="rams-table__cell rams-text--muted rams-text--xs">{{ supplier.email | default('N/A') }}</td>
                                 <td class="rams-table__cell">
                                     {% if supplier.status == 'Active' %}
                                         <span class="rams-badge rams-badge--success">{{ supplier.status }}</span>
@@ -80,12 +80,12 @@
                                         <span class="rams-badge">{{ supplier.status }}</span>
                                     {% endif %}
                                 </td>
-                                <td class="rams-table__cell rams-rams-text--xs">{{ supplier.region | default('N/A') }}</td>
+                                <td class="rams-table__cell rams-text--xs">{{ supplier.region | default('N/A') }}</td>
                                 <td class="rams-table__cell rams-table__cell--actions">
                                     <div class="rams-btn-group">
-                                        <a href="{{ path('supplier_portal_detail', {id: supplier.id}) }}" class="rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
-                                        <button class="rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</button>
-                                        <button class="rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</button>
+                                        <a href="{{ path('supplier_portal_detail', {id: supplier.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
+                                        <button class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</button>
+                                        <button class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</button>
                                     </div>
                                 </td>
                             </tr>
@@ -111,12 +111,12 @@
 
     {# Pagination #}
     <div class="rams-flex rams-justify-between rams-items-center">
-        <p class="rams-rams-text--muted rams-rams-text--xs">
+        <p class="rams-text--muted rams-text--xs">
             {{ 'common.showing'|trans }} <span class="rams-badge">{{ suppliers | length }}</span> {{ 'common.of'|trans }} 100+ {{ 'supplier.portal.suppliers'|trans }}
         </p>
         <div class="rams-btn-group">
-            <button class="rams-btn--sm">{{ 'common.previous'|trans }}</button>
-            <button class="rams-btn--sm">{{ 'common.next'|trans }}</button>
+            <button class="rams-btn rams-btn--sm">{{ 'common.previous'|trans }}</button>
+            <button class="rams-btn rams-btn--sm">{{ 'common.next'|trans }}</button>
         </div>
     </div>
 </div>

@@ -10,8 +10,18 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'email_template')]
 #[ORM\Index(name: 'idx_template_name', columns: ['name'])]
 #[ORM\Index(name: 'idx_template_active', columns: ['is_active'])]
+#[ORM\HasLifecycleCallbacks]
 class EmailTemplate
 {
+    public const CATEGORIES = [
+        'Newsletter',
+        'Promotional',
+        'Transactional',
+        'ABM',
+        'Drip',
+        'Automated',
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -57,6 +67,12 @@ class EmailTemplate
     {
         $this->createdAt = new \DateTime();
         $this->personalizationTokens = [];
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int

@@ -12,6 +12,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use DateTimeImmutable;
@@ -303,6 +304,40 @@ class MeetingSchedulerController extends AbstractController
             'slotsByDate' => $slotsByDate,
         ]);
     }
+
+    /**
+     * Public booking page for a user (signed, share-safe link)
+     */
+    #[Route('/book/u/{id}/{token}', name: 'meeting_public_book_by_id', methods: ['GET'])]
+    public function publicBookById(int $id, string $token, UserRepository $userRepository): Response
+    {
+        $owner = $userRepository->find($id);
+
+        if (!$owner) {
+            throw $this->createNotFoundException('User not found.');
+        }
+
+        if (!$this->isValidBookingToken($owner->getId(), $owner->getEmail(), $token)) {
+            throw $this->createNotFoundException('Invalid booking link.');
+        }
+
+        $availableSlots = $this->slotRepository->findAvailableByUser($owner);
+
+        // Group slots by date
+        $slotsByDate = [];
+        foreach ($availableSlots as $slot) {
+            $dateKey = $slot->getStartTime()->format('Y-m-d');
+            if (!isset($slotsByDate[$dateKey])) {
+                $slotsByDate[$dateKey] = [];
+            }
+            $slotsByDate[$dateKey][] = $slot;
+        }
+
+        return $this->render('meeting/public_book.html.twig', [
+            'owner' => $owner,
+            'slotsByDate' => $slotsByDate,
+        ]);
+    }
     
     /**
      * Book a specific slot (public)
@@ -381,13 +416,34 @@ class MeetingSchedulerController extends AbstractController
     public function myLink(): Response
     {
         $user = $this->getUser();
-        $bookingUrl = $this->generateUrl('meeting_public_book', [
-            'username' => $user->getEmail(),
-        ], 0);
+
+        if (!$user) {
+            throw $this->createAccessDeniedException('User not authenticated.');
+        }
+
+        $bookingUrl = $this->generateUrl('meeting_public_book_by_id', [
+            'id' => $user->getId(),
+            'token' => $this->buildBookingToken($user->getId(), $user->getEmail()),
+        ], UrlGeneratorInterface::ABSOLUTE_URL);
         
         return $this->render('meeting/my_link.html.twig', [
             'bookingUrl' => $bookingUrl,
         ]);
+    }
+
+    private function buildBookingToken(?int $userId, ?string $email): string
+    {
+        $idPart = $userId ?? 0;
+        $emailPart = $email ?? '';
+        $secret = (string) $this->getParameter('kernel.secret');
+
+        return hash_hmac('sha256', $idPart . '|' . strtolower($emailPart), $secret);
+    }
+
+    private function isValidBookingToken(?int $userId, ?string $email, string $token): bool
+    {
+        $expected = $this->buildBookingToken($userId, $email);
+        return hash_equals($expected, $token);
     }
     
     private function getStatusColor(string $status): string

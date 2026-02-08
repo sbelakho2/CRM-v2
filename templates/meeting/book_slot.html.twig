@@ -1,11 +1,11 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Book: {{ slot.title }} - CRM{% endblock %}
+{% block title %}{{ 'meeting.book_title_prefix'|trans }}{{ slot.title }}{{ 'meeting.book_title_suffix'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__header">
-        <h1 class="rams-page__title">Confirm Booking</h1>
+        <h1 class="rams-page__title">{{ 'meeting.confirm_booking'|trans }}</h1>
     </div>
     
     <div class="rams-grid rams-grid--2 rams-gap-6">
@@ -13,24 +13,32 @@
         <div>
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Meeting Summary</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.meeting_summary'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <h2 class="rams-rams-text--xl rams-rams-text--bold rams-mb-4">{{ slot.title }}</h2>
+                    <h2 class="text-xl font-bold rams-mb-6">{{ slot.title }}</h2>
                     
-                    <dl class="rams-dl">
-                        <dt>Date</dt>
-                        <dd>{{ slot.startTime|date('l, F j, Y') }}</dd>
+                    <dl class="rams-definition-list">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.date'|trans }}</dt>
+                            <dd class="rams-definition-list__desc tabular-nums">{{ slot.startTime|date('l, F j, Y') }}</dd>
+                        </div>
                         
-                        <dt>Time</dt>
-                        <dd>{{ slot.startTime|date('H:i') }} - {{ slot.endTime|date('H:i') }} ({{ slot.formattedDuration }})</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.time'|trans }}</dt>
+                            <dd class="rams-definition-list__desc tabular-nums">{{ slot.startTime|date('H:i') }} - {{ slot.endTime|date('H:i') }} ({{ slot.formattedDuration }})</dd>
+                        </div>
                         
-                        <dt>Timezone</dt>
-                        <dd>{{ slot.timezone }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.timezone'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.timezone }}</dd>
+                        </div>
                         
                         {% if slot.location %}
-                        <dt>Location</dt>
-                        <dd>{{ slot.location }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.location'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.location }}</dd>
+                        </div>
                         {% endif %}
                     </dl>
                 </div>
@@ -41,38 +49,40 @@
         <div>
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Your Details</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.your_details'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <form method="post" class="rams-form">
                         <div class="rams-form__group">
-                            <label class="rams-form__label">Full Name</label>
-                            <input type="text" name="name" class="rams-form__input" required placeholder="John Doe">
+                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.full_name'|trans }}</label>
+                            <input type="text" name="name" class="rams-form__input" required placeholder="{{ 'meeting.placeholder_name'|trans }}">
                         </div>
                         
                         <div class="rams-form__group">
-                            <label class="rams-form__label">Email Address</label>
-                            <input type="email" name="email" class="rams-form__input" required placeholder="john@company.com">
+                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.email_address'|trans }}</label>
+                            <input type="email" name="email" class="rams-form__input" required placeholder="{{ 'meeting.placeholder_email'|trans }}">
                         </div>
                         
                         <div class="rams-form__group">
-                            <label class="rams-form__label">Phone Number (Optional)</label>
-                            <input type="tel" name="phone" class="rams-form__input" placeholder="+1 (555) 000-0000">
+                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.phone_optional'|trans }}</label>
+                            <input type="tel" name="phone" class="rams-form__input" placeholder="{{ 'meeting.placeholder_phone'|trans }}">
                         </div>
                         
                         <div class="rams-form__group">
-                            <label class="rams-form__label">Company (Optional)</label>
-                            <input type="text" name="company" class="rams-form__input" placeholder="Company Inc.">
+                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.company_optional'|trans }}</label>
+                            <input type="text" name="company" class="rams-form__input" placeholder="{{ 'meeting.placeholder_company'|trans }}">
                         </div>
                         
                         <div class="rams-form__group">
-                            <label class="rams-form__label">Notes (Optional)</label>
-                            <textarea name="notes" class="rams-form__input" rows="3" placeholder="Anything we should know?"></textarea>
+                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.notes_optional'|trans }}</label>
+                            <textarea name="notes" class="rams-form__input" rows="3" placeholder="{{ 'meeting.placeholder_notes'|trans }}"></textarea>
                         </div>
                         
-                        <button type="submit" class="rams-btn--primary rams-w-full">
-                            Confirm Booking
-                        </button>
+                        <div class="rams-actions rams-mt-6">
+                            <button type="submit" class="rams-btn rams-btn--primary uppercase rams-w-full">
+                                {{ 'meeting.confirm_booking'|trans }}
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

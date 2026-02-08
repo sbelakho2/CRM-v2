@@ -8,8 +8,53 @@ class CurrencyConverter
         'USD' => '$',
         'EUR' => '€',
         'GBP' => '£',
+        'JPY' => '¥',
+        'CNY' => '¥',
+        'CHF' => 'CHF',
+        'CAD' => 'CA$',
+        'AUD' => 'A$',
+        'HKD' => 'HK$',
+        'SGD' => 'S$',
+        'TWD' => 'NT$',
+        'KRW' => '₩',
+        'INR' => '₹',
         'MAD' => 'MAD',
         'TND' => 'TND',
+        'BRL' => 'R$',
+        'MXN' => 'MX$',
+        'ZAR' => 'R',
+        'SEK' => 'kr',
+        'NOK' => 'kr',
+        'DKK' => 'kr',
+        'PLN' => 'zł',
+        'CZK' => 'Kč',
+        'THB' => '฿',
+        'MYR' => 'RM',
+        'PHP' => '₱',
+        'IDR' => 'Rp',
+        'VND' => '₫',
+        'AED' => 'AED',
+        'SAR' => 'SAR',
+        'QAR' => 'QAR',
+        'KWD' => 'KWD',
+        'BHD' => 'BHD',
+        'OMR' => 'OMR',
+        'JOD' => 'JOD',
+        'EGP' => 'E£',
+        'NGN' => '₦',
+        'KES' => 'KSh',
+        'TRY' => '₺',
+        'RUB' => '₽',
+        'NZD' => 'NZ$',
+        'ILS' => '₪',
+    ];
+
+    /**
+     * Currencies where the symbol is placed after the amount (with a space)
+     */
+    private const SYMBOL_AFTER_AMOUNT = [
+        'MAD', 'TND', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK',
+        'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'OMR', 'JOD',
     ];
 
     public function __construct(
@@ -53,8 +98,8 @@ class CurrencyConverter
         $formatted = number_format($value, $decimals, '.', ',');
         $symbol = self::SYMBOLS[$to] ?? $to;
 
-        if (in_array($to, ['MAD', 'TND'], true)) {
-            return $symbol . ' ' . $formatted;
+        if (in_array($to, self::SYMBOL_AFTER_AMOUNT, true)) {
+            return $formatted . ' ' . $symbol;
         }
 
         return $symbol . $formatted;

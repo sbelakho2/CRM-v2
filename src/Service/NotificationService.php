@@ -44,41 +44,39 @@ class NotificationService
         $twoDaysFromNow = clone $now;
         $twoDaysFromNow->modify('+2 days');
 
-        // Find RFQs due between now and 2 days from now
-        $rfqs = $this->rfqRepo->findBy([
-            'owner' => $user,
-        ]);
+        // Find RFQs with upcoming SOP dates
+        $rfqs = $this->rfqRepo->createQueryBuilder('r')
+            ->where('r.sopDate IS NOT NULL')
+            ->andWhere('r.sopDate > :now')
+            ->andWhere('r.sopDate <= :twoDays')
+            ->setParameter('now', $now)
+            ->setParameter('twoDays', $twoDaysFromNow)
+            ->getQuery()
+            ->getResult();
 
         foreach ($rfqs as $rfq) {
-            if (!$rfq->getDueDate()) {
-                continue;
-            }
+            // Check if we already notified about this RFQ
+            if (!$this->notificationRepo->existsForEntity($user, 'rfq_due', 'RFQ', $rfq->getId())) {
+                $notification = new Notification();
+                $notification->setUser($user);
+                $notification->setType('rfq_due');
+                $notification->setEntityType('RFQ');
+                $notification->setEntityId($rfq->getId());
+                $notification->setMessage(sprintf(
+                    'RFQ %s from %s due %s',
+                    $rfq->getId(),
+                    $rfq->getCompany() ? $rfq->getCompany()->getName() : 'Unknown',
+                    $rfq->getSopDate()->format('M d, Y')
+                ));
+                $notification->setData([
+                    'company_name' => $rfq->getCompany()?->getName(),
+                    'rfq_id' => $rfq->getId(),
+                    'due_date' => $rfq->getSopDate()->format('Y-m-d'),
+                    'days_until' => $rfq->getSopDate()->diff($now)->days
+                ]);
 
-            // Check if due date is in next 2 days
-            if ($rfq->getDueDate() > $now && $rfq->getDueDate() <= $twoDaysFromNow) {
-                // Check if we already notified about this RFQ
-                if (!$this->notificationRepo->existsForEntity($user, 'rfq_due', 'RFQ', $rfq->getId())) {
-                    $notification = new Notification();
-                    $notification->setUser($user);
-                    $notification->setType('rfq_due');
-                    $notification->setEntityType('RFQ');
-                    $notification->setEntityId($rfq->getId());
-                    $notification->setMessage(sprintf(
-                        'RFQ %s from %s due %s',
-                        $rfq->getId(),
-                        $rfq->getCompany() ? $rfq->getCompany()->getName() : 'Unknown',
-                        $rfq->getDueDate()->format('M d, Y')
-                    ));
-                    $notification->setData([
-                        'company_name' => $rfq->getCompany()?->getName(),
-                        'rfq_id' => $rfq->getId(),
-                        'due_date' => $rfq->getDueDate()->format('Y-m-d'),
-                        'days_until' => $rfq->getDueDate()->diff($now)->days
-                    ]);
-
-                    $this->em->persist($notification);
-                    $notificationsCreated++;
-                }
+                $this->em->persist($notification);
+                $notificationsCreated++;
             }
         }
 
@@ -98,12 +96,11 @@ class NotificationService
         $notificationsCreated = 0;
         $oneHourAgo = (new \DateTime())->modify('-1 hour');
 
-        // Find recently opened emails sent by this user
+        // Find recently opened emails
         $emails = $this->emailSendRepo->createQueryBuilder('es')
-            ->where('es.sentBy = :user')
-            ->andWhere('es.openedAt IS NOT NULL')
+            ->join('es.campaign', 'c')
+            ->where('es.openedAt IS NOT NULL')
             ->andWhere('es.openedAt > :oneHourAgo')
-            ->setParameter('user', $user)
             ->setParameter('oneHourAgo', $oneHourAgo)
             ->getQuery()
             ->getResult();
@@ -118,13 +115,13 @@ class NotificationService
                 $notification->setEntityId($email->getId());
                 $notification->setMessage(sprintf(
                     'Email "%s" opened by %s',
-                    $email->getSubject(),
-                    $email->getRecipientEmail()
+                    $email->getCampaign()?->getSubject() ?? $email->getCampaign()?->getName() ?? 'Unknown',
+                    $email->getEmailAddress() ?? 'Unknown'
                 ));
                 $notification->setData([
-                    'subject' => $email->getSubject(),
-                    'recipient' => $email->getRecipientEmail(),
-                    'opened_at' => $email->isOpened() ? $email->getSentAt()?->format('Y-m-d H:i:s') : null
+                    'subject' => $email->getCampaign()?->getSubject() ?? $email->getCampaign()?->getName(),
+                    'recipient' => $email->getEmailAddress(),
+                    'opened_at' => $email->getOpenedAt()?->format('Y-m-d H:i:s')
                 ]);
 
                 $this->em->persist($notification);
@@ -148,12 +145,12 @@ class NotificationService
         $notificationsCreated = 0;
         $fiveMinutesAgo = (new \DateTime())->modify('-5 minutes');
 
-        // Find recently approved leads assigned to this user
+        // Find recently approved leads
         $leads = $this->leadRepo->createQueryBuilder('l')
-            ->where('l.assignedUser = :user')
-            ->andWhere('l.status = :approved')
+            ->where('l.ownerRep = :rep')
+            ->andWhere('l.reviewStatus = :approved')
             ->andWhere('l.updatedAt > :fiveMinutesAgo')
-            ->setParameter('user', $user)
+            ->setParameter('rep', $user->getEmail())
             ->setParameter('approved', 'approved')
             ->setParameter('fiveMinutesAgo', $fiveMinutesAgo)
             ->getQuery()
@@ -199,12 +196,10 @@ class NotificationService
         $notificationsCreated = 0;
         $oneHourAgo = (new \DateTime())->modify('-1 hour');
 
-        // Find recently viewed quotes created by this user
+        // Find recently viewed quotes
         $quotes = $this->quoteRepo->createQueryBuilder('q')
-            ->where('q.createdBy = :user')
-            ->andWhere('q.viewedAt IS NOT NULL')
-            ->andWhere('q.viewedAt > :oneHourAgo')
-            ->setParameter('user', $user)
+            ->where('q.lastViewedAt IS NOT NULL')
+            ->andWhere('q.lastViewedAt > :oneHourAgo')
             ->setParameter('oneHourAgo', $oneHourAgo)
             ->getQuery()
             ->getResult();
@@ -224,7 +219,7 @@ class NotificationService
                 $notification->setData([
                     'quote_id' => $quote->getId(),
                     'company_name' => $quote->getCompany()?->getName(),
-                    'viewed_at' => $quote->getViewedAt()?->format('Y-m-d H:i:s')
+                    'viewed_at' => $quote->getLastViewedAt()?->format('Y-m-d H:i:s')
                 ]);
 
                 $this->em->persist($notification);

@@ -3,23 +3,23 @@
 {% block title %}{{ 'rfq.pipeline.title'|trans }}{% endblock %}
 
 {% block body %}
-<div class="rams-page rams-page--wide">
+<div class="rams-page">
     {# Header #}
     <div class="rams-page-header">
-        <div>
+        <div class="rams-flex rams-flex-col rams-gap-1">
             <h1 class="rams-page-title">{{ 'rfq.pipeline.title'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'rfq.pipeline.subtitle'|trans }}</p>
         </div>
         <div class="rams-btn-group">
             <a href="{{ path('app_rfq_index') }}" class="rams-btn">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M2 3H14M2 8H14M2 13H14"/>
+                <svg class="rams-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18"/>
                 </svg>
                 {{ 'rfq.actions.list_view'|trans }}
             </a>
-            <a href="{{ path('app_rfq_new') }}" class="rams-btn--primary">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M8 3V13M3 8H13"/>
+            <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">
+                <svg class="rams-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
                 </svg>
                 {{ 'rfq.actions.new'|trans }}
             </a>
@@ -27,35 +27,32 @@
     </div>
 
     {# Filters Module #}
-    <div class="rams-module rams-module--filters">
+    <div class="rams-module rams-mb-6">
         <div class="rams-module__content">
-            <form method="get" class="rams-grid rams-grid--3">
+            <form method="get" class="rams-grid rams-grid--4 rams-gap-4 rams-items-end">
                 <div class="rams-form__group">
-                    <label class="rams-dymo">{{ 'rfq.fields.type'|trans }}</label>
+                    <label class="rams-metric__label">{{ 'rfq.form.rfq_type'|trans }}</label>
                     <select name="type" class="rams-form__select">
-                        <option value="">{{ 'rfq.filters.all_types'|trans }}</option>
-                        <option value="Standard RFQ" {% if app.request.get('type') == 'Standard RFQ' %}selected{% endif %}>{{ 'rfq.type.standard'|trans }}</option>
-                        <option value="NPI" {% if app.request.get('type') == 'NPI' %}selected{% endif %}>{{ 'rfq.type.npi'|trans }}</option>
-                        <option value="Framework Agreement" {% if app.request.get('type') == 'Framework Agreement' %}selected{% endif %}>{{ 'rfq.type.framework'|trans }}</option>
+                        <option value="">{{ 'common.all'|trans }}</option>
+                        <option value="Standard RFQ" {% if app.request.get('type') == 'Standard RFQ' %}selected{% endif %}>{{ 'rfq.types.standard'|trans }}</option>
+                        <option value="NPI" {% if app.request.get('type') == 'NPI' %}selected{% endif %}>{{ 'rfq.types.npi'|trans }}</option>
+                        <option value="Framework Agreement" {% if app.request.get('type') == 'Framework Agreement' %}selected{% endif %}>{{ 'rfq.types.framework'|trans }}</option>
                     </select>
                 </div>
                 
                 <div class="rams-form__group">
-                    <label class="rams-dymo">{{ 'rfq.fields.company'|trans }}</label>
+                    <label class="rams-metric__label">{{ 'rfq.company'|trans }}</label>
                     <select name="company" class="rams-form__select">
-                        <option value="">{{ 'rfq.filters.all_companies'|trans }}</option>
+                        <option value="">{{ 'common.all'|trans }}</option>
                         {% for company in companies %}
                             <option value="{{ company.id }}" {% if app.request.get('company') == company.id %}selected{% endif %}>{{ company.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <div class="rams-form__group rams-form__group--actions">
-                    <label class="rams-dymo">&nbsp;</label>
-                    <div class="rams-btn-group">
-                        <button type="submit" class="rams-btn--primary">{{ 'common.apply_filters'|trans }}</button>
-                        <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn">{{ 'common.clear'|trans }}</a>
-                    </div>
+                <div class="rams-btn-group">
+                    <button type="submit" class="rams-btn rams-btn--primary">{{ 'common.apply'|trans }}</button>
+                    <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn">{{ 'common.clear'|trans }}</a>
                 </div>
             </form>
         </div>
@@ -63,199 +60,70 @@
 
     {# Kanban Board #}
     <div class="rams-kanban">
-        {# Pending Column #}
-        <div class="rams-kanban__column">
-            <div class="rams-kanban__header">
-                <h3 class="rams-kanban__title">{{ 'rfq.status.pending'|trans }}</h3>
-                <span class="rams-badge">{{ pipeline['Pending']|length }}</span>
-            </div>
-            
-            <div class="rams-kanban__cards">
-                {% for rfq in pipeline['Pending'] %}
-                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-kanban__card">
-                        <div class="rams-kanban__card-header">
-                            <h4 class="rams-kanban__card-title">{{ rfq.company.name }}</h4>
-                            {% if rfq.type == 'NPI' %}
-                                <span class="rams-badge rams-badge--npi rams-badge--small">{{ 'rfq.type.npi'|trans }}</span>
-                            {% elseif rfq.type == 'Framework Agreement' %}
-                                <span class="rams-badge rams-badge--framework rams-badge--small">{{ 'rfq.type.framework_short'|trans }}</span>
-                            {% endif %}
-                        </div>
-                        
-                        {% if rfq.rfqNumber %}
-                            <p class="rams-kanban__card-meta">{{ rfq.rfqNumber }}</p>
-                        {% endif %}
-                        
-                        {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--currency rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
-                        {% endif %}
-                        
-                        {# NDA Status #}
-                        <div class="rams-kanban__card-badges">
-                            {% if rfq.ndaExecuted %}
-                                <span class="rams-badge rams-badge--success rams-badge--small">{{ 'rfq.nda.short_executed'|trans }}</span>
-                            {% elseif rfq.ndaSent %}
-                                <span class="rams-badge rams-badge--warning rams-badge--small">{{ 'rfq.nda.short_sent'|trans }}</span>
-                            {% endif %}
-                        </div>
-                    </a>
-                {% else %}
-                    <p class="rams-kanban__empty">{{ 'rfq.pipeline.no_pending'|trans }}</p>
-                {% endfor %}
-            </div>
-        </div>
+        {% set stages = [
+            {'key': 'Pending', 'class': 'pending', 'label': 'rfq.status.pending'|trans, 'andon': 'rams-andon--info'},
+            {'key': 'In Review', 'class': 'in-review', 'label': 'rfq.status.in_review'|trans, 'andon': 'rams-andon--info'},
+            {'key': 'Submitted', 'class': 'submitted', 'label': 'rfq.status.submitted'|trans, 'andon': 'rams-andon--warning'},
+            {'key': 'Won', 'class': 'won', 'label': 'rfq.status.won'|trans, 'andon': 'rams-andon--success'},
+            {'key': 'Lost', 'class': 'lost', 'label': 'rfq.status.lost'|trans, 'andon': 'rams-andon--error'}
+        ] %}
 
-        {# In Review Column #}
-        <div class="rams-kanban__column rams-kanban__column--in-review">
-            <div class="rams-kanban__header">
-                <h3 class="rams-kanban__title">{{ 'rfq.status.in_review'|trans }}</h3>
-                <span class="rams-badge rams-badge--info">{{ pipeline['In Review']|length }}</span>
-            </div>
-            
-            <div class="rams-kanban__cards">
-                {% for rfq in pipeline['In Review'] %}
-                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-kanban__card rams-kanban__card--info">
-                        <div class="rams-kanban__card-header">
-                            <h4 class="rams-kanban__card-title">{{ rfq.company.name }}</h4>
-                            {% if rfq.type == 'NPI' %}
-                                <span class="rams-badge rams-badge--npi rams-badge--small">{{ 'rfq.type.npi'|trans }}</span>
-                            {% elseif rfq.type == 'Framework Agreement' %}
-                                <span class="rams-badge rams-badge--framework rams-badge--small">{{ 'rfq.type.framework_short'|trans }}</span>
-                            {% endif %}
-                        </div>
-                        
-                        {% if rfq.rfqNumber %}
-                            <p class="rams-kanban__card-meta">{{ rfq.rfqNumber }}</p>
-                        {% endif %}
-                        
-                        {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--currency rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
-                        {% endif %}
-                        
-                        <div class="rams-kanban__card-badges">
-                            {% if rfq.ndaExecuted %}
-                                <span class="rams-badge rams-badge--success rams-badge--small">{{ 'rfq.nda.short_executed'|trans }}</span>
-                            {% elseif rfq.ndaSent %}
-                                <span class="rams-badge rams-badge--warning rams-badge--small">{{ 'rfq.nda.short_sent'|trans }}</span>
-                            {% endif %}
-                        </div>
-                    </a>
-                {% else %}
-                    <p class="rams-kanban__empty">{{ 'rfq.pipeline.no_in_review'|trans }}</p>
-                {% endfor %}
-            </div>
-        </div>
+        {% for stage in stages %}
+            <div class="rams-kanban__column rams-kanban__column--{{ stage.class }}">
+                <div class="rams-kanban__header">
+                    <div class="rams-flex rams-items-center rams-gap-2">
+                        <span class="rams-andon {{ stage.andon }}"><span class="rams-andon__light"></span></span>
+                        <h3 class="rams-kanban__title">{{ stage.label }}</h3>
+                    </div>
+                    <span class="rams-badge">{{ pipeline[stage.key]|default([])|length }}</span>
+                </div>
+                
+                <div class="rams-kanban__cards">
+                    {% for rfq in pipeline[stage.key]|default([]) %}
+                        <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-kanban__card {{ stage.class == 'won' ? 'rams-kanban__card--success' : (stage.class == 'lost' ? 'rams-kanban__card--danger' : '') }}">
+                            <div class="rams-kanban__card-header">
+                                <h4 class="rams-kanban__card-title">{{ rfq.company.name }}</h4>
+                            </div>
+                            
+                            <div class="rams-kanban__card-meta">
+                                {{ rfq.rfqNumber|default('NO-NUMBER') }}
+                            </div>
 
-        {# Submitted Column #}
-        <div class="rams-kanban__column rams-kanban__column--submitted">
-            <div class="rams-kanban__header">
-                <h3 class="rams-kanban__title">{{ 'rfq.status.submitted'|trans }}</h3>
-                <span class="rams-badge rams-badge--warning">{{ pipeline['Submitted']|length }}</span>
-            </div>
-            
-            <div class="rams-kanban__cards">
-                {% for rfq in pipeline['Submitted'] %}
-                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-kanban__card rams-kanban__card--warning">
-                        <div class="rams-kanban__card-header">
-                            <h4 class="rams-kanban__card-title">{{ rfq.company.name }}</h4>
-                            {% if rfq.type == 'NPI' %}
-                                <span class="rams-badge rams-badge--npi rams-badge--small">{{ 'rfq.type.npi'|trans }}</span>
-                            {% elseif rfq.type == 'Framework Agreement' %}
-                                <span class="rams-badge rams-badge--framework rams-badge--small">{{ 'rfq.type.framework_short'|trans }}</span>
-                            {% endif %}
-                        </div>
-                        
-                        {% if rfq.rfqNumber %}
-                            <p class="rams-kanban__card-meta">{{ rfq.rfqNumber }}</p>
-                        {% endif %}
-                        
-                        {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--currency rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
-                        {% endif %}
-                        
-                        <div class="rams-kanban__card-badges">
-                            {% if rfq.ndaExecuted %}
-                                <span class="rams-badge rams-badge--success rams-badge--small">{{ 'rfq.nda.short_executed'|trans }}</span>
-                            {% elseif rfq.ndaSent %}
-                                <span class="rams-badge rams-badge--warning rams-badge--small">{{ 'rfq.nda.short_sent'|trans }}</span>
-                            {% endif %}
-                        </div>
-                    </a>
-                {% else %}
-                    <p class="rams-kanban__empty">{{ 'rfq.pipeline.no_submitted'|trans }}</p>
-                {% endfor %}
-            </div>
-        </div>
+                            <div class="rams-grid rams-grid--1 rams-gap-2 rams-mt-2">
+                                <div class="rams-metric">
+                                    <span class="rams-metric__label">{{ 'rfq.estimated_value'|trans }}</span>
+                                    <span class="rams-metric__value rams-metric__value--sm">
+                                        {{ rfq.estimatedValue ? rfq.estimatedValue|format_currency(rfq.currency, null, 0) : '--' }}
+                                    </span>
+                                </div>
+                                
+                                <div class="rams-flex rams-flex-wrap rams-gap-1 rams-mt-1">
+                                    {% if rfq.type == 'NPI' %}
+                                        <span class="rams-badge rams-badge--npi rams-badge--xs">NPI</span>
+                                    {% elseif rfq.type == 'Framework Agreement' %}
+                                        <span class="rams-badge rams-badge--framework rams-badge--xs">FWA</span>
+                                    {% endif %}
 
-        {# Won Column #}
-        <div class="rams-kanban__column rams-kanban__column--won">
-            <div class="rams-kanban__header">
-                <h3 class="rams-kanban__title">{{ 'rfq.status.won'|trans }}</h3>
-                <span class="rams-badge rams-badge--success">{{ pipeline['Won']|length }}</span>
-            </div>
-            
-            <div class="rams-kanban__cards">
-                {% for rfq in pipeline['Won'] %}
-                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-kanban__card rams-kanban__card--success">
-                        <div class="rams-kanban__card-header">
-                            <h4 class="rams-kanban__card-title">{{ rfq.company.name }}</h4>
-                            {% if rfq.type == 'NPI' %}
-                                <span class="rams-badge rams-badge--npi rams-badge--small">{{ 'rfq.type.npi'|trans }}</span>
-                            {% elseif rfq.type == 'Framework Agreement' %}
-                                <span class="rams-badge rams-badge--framework rams-badge--small">{{ 'rfq.type.framework_short'|trans }}</span>
-                            {% endif %}
+                                    {% if rfq.ndaExecuted %}
+                                        <span class="rams-badge rams-badge--success rams-badge--xs">NDA</span>
+                                    {% elseif rfq.ndaSent %}
+                                        <span class="rams-badge rams-badge--warning rams-badge--xs">NDA SENT</span>
+                                    {% endif %}
+                                    
+                                    {% if rfq.sopDate and stage.key == 'Won' %}
+                                        <span class="rams-badge rams-badge--info rams-badge--xs">SOP: {{ rfq.sopDate|date('M Y') }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </a>
+                    {% else %}
+                        <div class="rams-kanban__empty">
+                            {{ ('rfq.pipeline.no_' ~ stage.key|lower|replace({' ': '_'}))|trans }}
                         </div>
-                        
-                        {% if rfq.rfqNumber %}
-                            <p class="rams-kanban__card-meta">{{ rfq.rfqNumber }}</p>
-                        {% endif %}
-                        
-                        {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--currency rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
-                        {% endif %}
-                        
-                        {% if rfq.sopDate %}
-                            <p class="rams-kanban__card-meta">{{ 'rfq.fields.sop'|trans }}: {{ rfq.sopDate|date('M Y') }}</p>
-                        {% endif %}
-                    </a>
-                {% else %}
-                    <p class="rams-kanban__empty">{{ 'rfq.pipeline.no_won'|trans }}</p>
-                {% endfor %}
+                    {% endfor %}
+                </div>
             </div>
-        </div>
-
-        {# Lost Column #}
-        <div class="rams-kanban__column rams-kanban__column--lost">
-            <div class="rams-kanban__header">
-                <h3 class="rams-kanban__title">{{ 'rfq.status.lost'|trans }}</h3>
-                <span class="rams-badge">{{ pipeline['Lost']|length }}</span>
-            </div>
-            
-            <div class="rams-kanban__cards">
-                {% for rfq in pipeline['Lost'] %}
-                    <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-kanban__card rams-kanban__card--muted">
-                        <div class="rams-kanban__card-header">
-                            <h4 class="rams-kanban__card-title">{{ rfq.company.name }}</h4>
-                            {% if rfq.type == 'NPI' %}
-                                <span class="rams-badge rams-badge--npi rams-badge--small">{{ 'rfq.type.npi'|trans }}</span>
-                            {% elseif rfq.type == 'Framework Agreement' %}
-                                <span class="rams-badge rams-badge--framework rams-badge--small">{{ 'rfq.type.framework_short'|trans }}</span>
-                            {% endif %}
-                        </div>
-                        
-                        {% if rfq.rfqNumber %}
-                            <p class="rams-kanban__card-meta">{{ rfq.rfqNumber }}</p>
-                        {% endif %}
-                        
-                        {% if rfq.estimatedValue %}
-                            <p class="rams-metric rams-metric--muted rams-metric--small">{{ rfq.estimatedValue|format_currency(rfq.currency, null, 0) }}</p>
-                        {% endif %}
-                    </a>
-                {% else %}
-                    <p class="rams-kanban__empty">{{ 'rfq.pipeline.no_lost'|trans }}</p>
-                {% endfor %}
-            </div>
-        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

@@ -53,6 +53,8 @@ class EmailCampaignService
         $send->setContact($contact);
         $send->setTouchNumber($touchNumber);
         $send->setSentAt(new \DateTime());
+        $send->setEmailAddress($contact->getEmail());
+        $send->setStatus('sent');
 
         $this->entityManager->persist($send);
         $this->entityManager->flush();
@@ -93,8 +95,11 @@ class EmailCampaignService
 
             $this->mailer->send($email);
         } catch (\Exception $e) {
-            // Log error but don't fail the send record creation
-            // The EmailSend record is already persisted, so we record the failure
+            // Log error and update send record to reflect failure
+            $send->setStatus('failed');
+            $send->setFailureReason($e->getMessage());
+            $this->entityManager->flush();
+
             $this->logger->error('Failed to send email', [
                 'email_send_id' => $send->getId(),
                 'campaign_id' => $campaign->getId(),
@@ -201,7 +206,7 @@ class EmailCampaignService
 </body>
 </html>
         ',
-            $contact->getFirstName(),
+            htmlspecialchars($contact->getFirstName() ?? '', ENT_QUOTES, 'UTF-8'),
             $touchNumber,
             $campaign->getTouchCount(),
             $campaign->getName(),
@@ -222,6 +227,7 @@ class EmailCampaignService
     public function markOpened(EmailSend $send): void
     {
         $send->setOpened(true);
+        $send->setOpenedAt(new \DateTime());
         $this->entityManager->persist($send);
         $this->entityManager->flush();
     }
@@ -232,6 +238,7 @@ class EmailCampaignService
     public function markClicked(EmailSend $send): void
     {
         $send->setClicked(true);
+        $send->setClickedAt(new \DateTime());
         $this->entityManager->persist($send);
         $this->entityManager->flush();
     }

@@ -152,11 +152,16 @@ class FollowUpReminderService
         $now = new \DateTime();
         
         // Get companies with scheduled activities
+        // Note: Company entity has no ownerRep — filter via activities or return all companies
         $qb = $this->companyRepository->createQueryBuilder('c');
         
         if ($ownerRep) {
-            $qb->where('c.ownerRep = :owner')
-               ->setParameter('owner', $ownerRep);
+            // Filter companies that have activities with notes containing follow-up markers
+            // owned by the specified rep (via Activity join)
+            $qb->innerJoin('App\Entity\Activity', 'a', 'WITH', 'a.company = c')
+               ->where('a.notes LIKE :followUpMarker')
+               ->setParameter('followUpMarker', '%[Follow-up scheduled for%')
+               ->groupBy('c.id');
         }
         
         $companies = $qb->getQuery()->getResult();
@@ -253,14 +258,14 @@ class FollowUpReminderService
     {
         $notes = $activity->getNotes() ?? '';
         
-        // Update follow-up marker
-        $notes = preg_replace(
+        // Update follow-up marker (use callback to preserve captured group)
+        $formattedDate = $newDate->format('Y-m-d');
+        $reasonSuffix = $reason ? " (Reason: {$reason})" : '';
+        $notes = preg_replace_callback(
             '/\[Follow-up scheduled for \d{4}-\d{2}-\d{2}: (.+?)\]/',
-            sprintf(
-                '[Follow-up rescheduled to %s: $1%s]',
-                $newDate->format('Y-m-d'),
-                $reason ? " (Reason: {$reason})" : ''
-            ),
+            function (array $matches) use ($formattedDate, $reasonSuffix) {
+                return sprintf('[Follow-up rescheduled to %s: %s%s]', $formattedDate, $matches[1], $reasonSuffix);
+            },
             $notes
         );
         

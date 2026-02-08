@@ -124,6 +124,20 @@ class ContactTest extends TestCase
         $this->assertInstanceOf(\DateTimeInterface::class, $contact->getCreatedAt());
     }
 
+    public function testUpdatedAtMutator(): void
+    {
+        $date = new \DateTime('2025-06-01');
+        $this->contact->setUpdatedAt($date);
+        $this->assertEquals($date, $this->contact->getUpdatedAt());
+    }
+
+    public function testOnPreUpdateSetsUpdatedAt(): void
+    {
+        $this->assertNull($this->contact->getUpdatedAt());
+        $this->contact->onPreUpdate();
+        $this->assertInstanceOf(\DateTimeInterface::class, $this->contact->getUpdatedAt());
+    }
+
     public function testActivityCollectionInitialized(): void
     {
         $this->assertCount(0, $this->contact->getActivities());

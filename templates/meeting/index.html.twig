@@ -1,100 +1,9 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Meetings - CRM{% endblock %}
+{% block title %}{{ 'meeting.title_crm'|trans }}{% endblock %}
 
 {% block stylesheets %}
 {{ parent() }}
-<style>
-    /* Custom List Component for Meetings */
-    .meeting-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .meeting-item {
-        display: flex;
-        gap: var(--space-4);
-        padding: var(--space-4);
-        rams-border-bottom: 1px solid var(--rams-border);
-        transition: background-color var(--duration-fast) ease;
-    }
-    
-    .meeting-item:last-child {
-        rams-border-bottom: none;
-    }
-    
-    .meeting-item:hover {
-        background: var(--rams-surface-hover, #f8f8f8);
-    }
-    
-    .meeting-time {
-        flex-shrink: 0;
-        text-align: center;
-        min-width: 70px;
-    }
-    
-    .meeting-time-hour {
-        font-size: var(--rams-text--lg);
-        font-weight: 600;
-        color: var(--rams-foreground);
-    }
-    
-    .meeting-time-duration {
-        font-size: var(--rams-text--xs);
-        color: var(--rams-rams-text--muted);
-    }
-    
-    .meeting-info {
-        flex: 1;
-        min-width: 0;
-    }
-    
-    .meeting-title {
-        font-weight: 500;
-        margin-bottom: var(--space-1);
-        font-size: var(--text-base);
-    }
-    
-    .meeting-title a {
-        text-decoration: none;
-        color: inherit;
-        transition: color var(--duration-fast) ease;
-    }
-    
-    .meeting-title a:hover {
-        color: var(--rams-primary, #FFBE00);
-    }
-    
-    .meeting-meta {
-        font-size: var(--rams-text--xs);
-        color: var(--rams-rams-text--muted);
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-    }
-    
-    .meeting-booker {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        margin-top: var(--space-2);
-        font-size: var(--rams-text--xs);
-    }
-    
-    .meeting-booker-avatar {
-        width: 24px;
-        height: 24px;
-        rams-border-radius: 50%;
-        background: var(--rams-primary-bg, rgba(255, 190, 0, 0.1));
-        color: var(--rams-primary, #FFBE00);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 10px;
-    }
-</style>
 {% endblock %}
 
 {% block body %}
@@ -105,51 +14,59 @@
                 <svg class="rams-icon rams-icon--lg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="2" y="4" width="12" height="8" rx="1"/><circle cx="8" cy="8" r="2"/><path d="M5 2V4M11 2V4"/>
                 </svg>
-                Meetings
+                {{ 'meeting.title'|trans }}
             </h1>
-            <p class="rams-page__subtitle">Schedule and manage meeting slots</p>
+            <p class="rams-page__subtitle">{{ 'meeting.subtitle'|trans }}</p>
         </div>
         <div class="rams-page__actions">
-            <a href="{{ path('meeting_my_link') }}" class="rams-btn">
+            <a href="{{ path('meeting_my_link') }}" class="rams-btn uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 8.5C8.27614 8.5 8.5 8.27614 8.5 8L8.5 3.5C8.5 3.22386 8.27614 3 8 3C7.72386 3 7.5 3.22386 7.5 3.5L7.5 8C7.5 8.27614 7.72386 8.5 8 8.5Z"/>
                     <path d="M8 13C10.7614 13 13 10.7614 13 8C13 5.23858 10.7614 3 8 3C5.23858 3 3 5.23858 3 8C3 10.7614 5.23858 13 8 13Z"/>
                     <path d="M11 11L14 14"/>
                 </svg>
-                Booking Link
+                {{ 'meeting.booking_link'|trans }}
             </a>
-            <a href="{{ path('meeting_generate') }}" class="rams-btn">
+            <a href="{{ path('meeting_generate') }}" class="rams-btn uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 2L10 6L14 8L10 10L8 14L6 10L2 8L6 6L8 2Z"/>
                 </svg>
-                Generate Slots
+                {{ 'meeting.generate_slots'|trans }}
             </a>
-            <a href="{{ path('meeting_new') }}" class="rams-btn--primary">
+            <a href="{{ path('meeting_new') }}" class="rams-btn rams-btn--primary uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 4V12M4 8H12"/>
                 </svg>
-                New Slot
+                {{ 'meeting.new_slot'|trans }}
             </a>
         </div>
     </div>
     
     <!-- Stats -->
     <div class="rams-grid rams-grid--4 rams-mb-6">
-        <div class="rams-stat-card">
-            <div class="rams-stat-card__value">{{ statistics.available|default(0) }}</div>
-            <div class="rams-stat-card__label">Available Slots</div>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-muted">{{ 'meeting.available_slots'|trans }}</div>
+                <div class="rams-metric__value tabular-nums">{{ statistics.available|default(0) }}</div>
+            </div>
         </div>
-        <div class="rams-stat-card">
-            <div class="rams-stat-card__value">{{ statistics.bookedUpcoming|default(0) }}</div>
-            <div class="rams-stat-card__label">Upcoming Bookings</div>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-muted">{{ 'meeting.upcoming_bookings'|trans }}</div>
+                <div class="rams-metric__value tabular-nums">{{ statistics.bookedUpcoming|default(0) }}</div>
+            </div>
         </div>
-        <div class="rams-stat-card">
-            <div class="rams-stat-card__value">{{ statistics.thisWeek|default(0) }}</div>
-            <div class="rams-stat-card__label">This Week</div>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-muted">{{ 'meeting.this_week'|trans }}</div>
+                <div class="rams-metric__value tabular-nums">{{ statistics.thisWeek|default(0) }}</div>
+            </div>
         </div>
-        <div class="rams-stat-card">
-            <div class="rams-stat-card__value">{{ statistics.totalBooked|default(0) }}</div>
-            <div class="rams-stat-card__label">Total Booked</div>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-muted">{{ 'meeting.total_booked'|trans }}</div>
+                <div class="rams-metric__value tabular-nums">{{ statistics.totalBooked|default(0) }}</div>
+            </div>
         </div>
     </div>
     
@@ -157,34 +74,34 @@
         <!-- Today's Schedule -->
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3>Today's Schedule</h3>
-                <a href="{{ path('meeting_calendar') }}" class="rams-btn--sm rams-btn--ghost">
-                    View Calendar
+                <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.todays_schedule'|trans }}</h3>
+                <a href="{{ path('meeting_calendar') }}" class="rams-btn rams-btn--sm rams-btn--ghost uppercase">
+                    {{ 'meeting.view_calendar'|trans }}
                 </a>
             </div>
-            <div class="rams-module__content" style="padding: 0;">
+            <div class="rams-module__content rams-p-0">
                 {% if today|length > 0 %}
-                <ul class="meeting-list">
+                <ul class="rams-meeting-list">
                     {% for slot in today %}
-                    <li class="meeting-item">
-                        <div class="meeting-time">
-                            <div class="meeting-time-hour">{{ slot.startTime|date('H:i') }}</div>
-                            <div class="meeting-time-duration">{{ slot.formattedDuration }}</div>
+                    <li class="rams-meeting-item">
+                        <div class="rams-meeting-time">
+                            <div class="rams-meeting-time__hour">{{ slot.startTime|date('H:i') }}</div>
+                            <div class="rams-meeting-time__duration">{{ slot.formattedDuration }}</div>
                         </div>
-                        <div class="meeting-info">
-                            <div class="meeting-title">
+                        <div class="rams-meeting-info">
+                            <div class="rams-meeting-title">
                                 <a href="{{ path('meeting_show', {id: slot.id}) }}">{{ slot.title }}</a>
                                 <span class="rams-badge rams-badge--{{ slot.statusBadgeClass }}">{{ slot.status }}</span>
                             </div>
-                            <div class="meeting-meta">
+                            <div class="rams-meeting-meta">
                                 <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                                 </svg>
                                 {{ meetingTypes|filter((v, k) => v == slot.meetingType)|keys|first }}
                             </div>
                             {% if slot.bookedByName %}
-                            <div class="meeting-booker">
-                                <span class="meeting-booker-avatar">{{ slot.bookedByName[:1]|upper }}</span>
+                            <div class="rams-meeting-booker">
+                                <span class="rams-meeting-booker__avatar">{{ slot.bookedByName[:1]|upper }}</span>
                                 <span>{{ slot.bookedByName }}</span>
                                 {% if slot.bookedByCompany %}
                                 <span class="rams-text--muted">- {{ slot.bookedByCompany }}</span>
@@ -197,10 +114,10 @@
                 </ul>
                 {% else %}
                 <div class="rams-empty-state">
-                    <svg class="rams-icon rams-icon--xl rams-rams-text--muted rams-mb-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <svg class="rams-icon rams-icon--xl rams-text--muted rams-mb-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                     </svg>
-                    <p class="rams-rams-text--muted">No meetings scheduled for today.</p>
+                    <p class="rams-text--muted">{{ 'meeting.no_meetings_today'|trans }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -209,24 +126,24 @@
         <!-- Upcoming Bookings -->
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3>Upcoming Bookings</h3>
+                <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.upcoming_bookings'|trans }}</h3>
             </div>
-            <div class="rams-module__content" style="padding: 0;">
+            <div class="rams-module__content rams-p-0">
                 {% if upcoming|length > 0 %}
-                <ul class="meeting-list">
+                <ul class="rams-meeting-list">
                     {% for slot in upcoming|slice(0, 5) %}
-                    <li class="meeting-item">
-                        <div class="meeting-time">
-                            <div class="meeting-time-hour">{{ slot.startTime|date('M d') }}</div>
-                            <div class="meeting-time-duration">{{ slot.startTime|date('H:i') }}</div>
+                    <li class="rams-meeting-item">
+                        <div class="rams-meeting-time">
+                            <div class="rams-meeting-time__hour">{{ slot.startTime|date('M d') }}</div>
+                            <div class="rams-meeting-time__duration">{{ slot.startTime|date('H:i') }}</div>
                         </div>
-                        <div class="meeting-info">
-                            <div class="meeting-title">
+                        <div class="rams-meeting-info">
+                            <div class="rams-meeting-title">
                                 <a href="{{ path('meeting_show', {id: slot.id}) }}">{{ slot.title }}</a>
                             </div>
                             {% if slot.bookedByName %}
-                            <div class="meeting-booker">
-                                <span class="meeting-booker-avatar">{{ slot.bookedByName[:1]|upper }}</span>
+                            <div class="rams-meeting-booker">
+                                <span class="rams-meeting-booker__avatar">{{ slot.bookedByName[:1]|upper }}</span>
                                 <span>{{ slot.bookedByName }}</span>
                             </div>
                             {% endif %}
@@ -236,10 +153,10 @@
                 </ul>
                 {% else %}
                 <div class="rams-empty-state">
-                    <svg class="rams-icon rams-icon--xl rams-rams-text--muted rams-mb-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <svg class="rams-icon rams-icon--xl rams-text--muted rams-mb-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M12 4L4 12M4 4L12 12"/>
                     </svg>
-                    <p class="rams-rams-text--muted">No upcoming bookings.</p>
+                    <p class="rams-text--muted">{{ 'meeting.no_upcoming_bookings'|trans }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -249,20 +166,20 @@
     <!-- Available Slots -->
     <div class="rams-module rams-mt-6">
         <div class="rams-module__header">
-            <h3>Available Slots ({{ available|length }})</h3>
+            <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.available_slots'|trans }} ({{ available|length }})</h3>
         </div>
-        <div class="rams-module__content" style="padding: 0;">
+        <div class="rams-module__content rams-p-0">
             {% if available|length > 0 %}
-            <div class="rams-table-responsive">
+            <div class="rams-table-container">
                 <table class="rams-table">
                     <thead>
                         <tr>
-                            <th>Date & Time</th>
-                            <th>Title</th>
-                            <th>Type</th>
-                            <th>Duration</th>
-                            <th>Location</th>
-                            <th class="rams-text--right">Actions</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'meeting.date_time'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.name'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.type'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'meeting.duration'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'meeting.location'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'common.actions'|trans }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -279,7 +196,7 @@
                             <td>{{ slot.formattedDuration }}</td>
                             <td>{{ slot.location ?: '-' }}</td>
                             <td class="rams-text--right">
-                                <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn--icon rams-btn--ghost">
+                                <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn rams-btn--icon rams-btn--ghost">
                                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                                     </svg>
@@ -292,12 +209,12 @@
             </div>
             {% else %}
             <div class="rams-empty-state">
-                <svg class="rams-icon rams-icon--xl rams-rams-text--muted rams-mb-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="rams-icon rams-icon--xl rams-text--muted rams-mb-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 4V12M4 8H12"/>
                 </svg>
-                <p class="rams-rams-text--muted">No available slots. Create some slots for prospects to book.</p>
-                <a href="{{ path('meeting_generate') }}" class="rams-btn--primary rams-mt-3">
-                    Generate Slots
+                <p class="rams-text--muted">{{ 'meeting.no_available_slots'|trans }}</p>
+                <a href="{{ path('meeting_generate') }}" class="rams-btn rams-btn--primary uppercase rams-mt-3">
+                    {{ 'meeting.generate_slots'|trans }}
                 </a>
             </div>
             {% endif %}

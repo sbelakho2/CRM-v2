@@ -3,26 +3,32 @@
 {% block title %}{{ pageTitle }}{% endblock %}
 
 {% block body %}
-<div class="rams-stack rams-stack--lg">
-    {# Header #}
-    <header class="rams-module__header rams-module__header--row rams-module__header--rams-border-bottom">
-        <div>
-            <h1 class="rams-heading rams-heading--1">{{ pageTitle }}</h1>
-            <p class="rams-text rams-text--muted">{{ 'quote.estimator.list_subtitle'|trans }}</p>
+<div class="rams-page">
+    <div class="rams-page__header">
+        <div class="rams-page__header-content">
+             <div class="rams-breadcrumb">
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <span>{{ 'nav.quote_estimator'|trans }}</span>
+            </div>
+            <h1 class="rams-page__title">{{ pageTitle }}</h1>
+            <p class="rams-page__subtitle">{{ 'quote.estimator.list_subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('quote_estimator_index') }}" class="rams-btn">
-            <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 3V13M3 8H13"/>
-            </svg>
-            {{ 'quote.estimator.new_quote_request'|trans }}
-        </a>
-    </header>
+        <div class="rams-page__actions">
+            <a href="{{ path('quote_estimator_index') }}" class="rams-btn rams-btn--primary uppercase">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M8 2V14M2 8H14"/>
+                </svg>
+                {{ 'quote.estimator.new_quote_request'|trans }}
+            </a>
+        </div>
+    </div>
 
     {# Filters #}
-    <div class="rams-module">
+    <div class="rams-module rams-mb-6">
         <div class="rams-module__content">
-            <form method="GET" class="rams-form rams-form--inline">
-                <div class="rams-form__group rams-form__group--flex-1">
+            <form method="GET" class="rams-flex rams-gap-2">
+                <div class="rams-flex-grow">
                     <input 
                         type="text" 
                         name="search" 
@@ -31,15 +37,14 @@
                         class="rams-form__input"
                     >
                 </div>
-                <button type="submit" class="rams-btn">
-                    <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="7" cy="7" r="4"/>
-                        <path d="M11 11L14 14"/>
+                <button type="submit" class="rams-btn uppercase">
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="7" cy="7" r="4"/><path d="M10 10L13 13"/>
                     </svg>
                     {{ 'common.search'|trans }}
                 </button>
                 {% if search %}
-                    <a href="{{ path('quote_estimator_list') }}" class="rams-btn--ghost">
+                    <a href="{{ path('quote_estimator_list') }}" class="rams-btn rams-btn--ghost uppercase">
                         {{ 'common.clear'|trans }}
                     </a>
                 {% endif %}
@@ -48,26 +53,26 @@
     </div>
 
     {# Statistics #}
-    <div class="rams-grid rams-grid--3 rams-gap-4">
-        <div class="rams-module">
-            <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'quote.estimator.total_estimates'|trans }}</span>
-                <p class="rams-metric rams-metric--lg">{{ estimates|length }}</p>
+    <div class="rams-grid rams-grid--3 rams-mb-6">
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-muted">{{ 'quote.estimator.total_estimates'|trans }}</div>
+                <div class="rams-metric__value tabular-nums">{{ estimates|length }}</div>
             </div>
         </div>
-        <div class="rams-module">
-            <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'quote.estimator.this_month'|trans }}</span>
-                <p class="rams-metric rams-metric--lg">
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-muted">{{ 'quote.estimator.this_month'|trans }}</div>
+                <div class="rams-metric__value tabular-nums">
                     {% set thisMonth = estimates|filter(e => e.createdAt|date('Y-m') == 'now'|date('Y-m'))|length %}
                     {{ thisMonth }}
-                </p>
+                </div>
             </div>
         </div>
-        <div class="rams-module">
-            <div class="rams-module__content">
-                <span class="rams-dymo">{{ 'common.pending'|trans }}</span>
-                <p class="rams-metric rams-metric--lg">{{ estimates|length }}</p>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-orange">{{ 'common.pending'|trans }}</div>
+                <div class="rams-metric__value tabular-nums text-rams-orange">{{ estimates|length }}</div>
             </div>
         </div>
     </div>
@@ -77,59 +82,59 @@
         {% if estimates|length > 0 %}
             <div class="rams-table-container">
                 <table class="rams-table">
-                    <thead class="rams-table__header">
+                    <thead>
                         <tr>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.estimator.estimate_number'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.estimator.customer'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.estimator.part_number'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.quantity'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.estimator.delivery_date'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.created_at'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.estimator.estimate_number'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.estimator.customer'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.estimator.part_number'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.quantity'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.estimator.delivery_date'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.status'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.created_at'|trans }}</th>
+                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.actions'|trans }}</th>
                         </tr>
                     </thead>
-                    <tbody class="rams-table__body">
+                    <tbody>
                         {% for estimate in estimates %}
                             {% set quoteData = quoteDataMap[estimate.id] ?? {} %}
-                            <tr class="rams-table__row">
-                                <td class="rams-table__cell">
-                                    <span class="rams-badge rams-badge--purple">{{ estimate.estimateNumber }}</span>
+                            <tr>
+                                <td>
+                                    <span class="rams-badge rams-badge--neutral">{{ estimate.estimateNumber }}</span>
                                 </td>
-                                <td class="rams-table__cell">
+                                <td>
                                     {% if quoteData.customer_name %}
-                                        <span class="rams-text rams-text--bold">{{ quoteData.customer_name }}</span>
+                                        <span class="font-medium">{{ quoteData.customer_name }}</span>
                                     {% elseif estimate.company %}
-                                        <span class="rams-text rams-text--bold">{{ estimate.company.name }}</span>
+                                        <span class="font-medium">{{ estimate.company.name }}</span>
                                     {% else %}
-                                        <span class="rams-text rams-text--muted">—</span>
+                                        <span class="rams-text--muted">—</span>
                                     {% endif %}
                                 </td>
-                                <td class="rams-table__cell">
-                                    <code class="rams-code">{{ quoteData.part_number ?? '—' }}</code>
+                                <td>
+                                    <code class="font-mono text-xs">{{ quoteData.part_number ?? '—' }}</code>
                                 </td>
-                                <td class="rams-table__cell">
-                                    <span class="rams-text rams-text--bold">{{ quoteData.quantity ?? '—' }}</span>
+                                <td class="tabular-nums">
+                                    {{ quoteData.quantity ?? '—' }}
                                 </td>
-                                <td class="rams-table__cell">
+                                <td class="tabular-nums">
                                     {% if quoteData.delivery_date %}
-                                        <span class="rams-text rams-text--sm">{{ quoteData.delivery_date|date('M d, Y') }}</span>
+                                        {{ quoteData.delivery_date|date('M d, Y') }}
                                     {% else %}
-                                        <span class="rams-text rams-text--muted">—</span>
+                                        <span class="rams-text--muted">—</span>
                                     {% endif %}
                                 </td>
-                                <td class="rams-table__cell">
-                                    <span class="rams-badge rams-badge--yellow">{{ 'quote.estimator.pending_pricing'|trans }}</span>
+                                <td>
+                                    <span class="rams-badge rams-badge--warning">{{ 'quote.estimator.pending_pricing'|trans }}</span>
                                 </td>
-                                <td class="rams-table__cell">
-                                    <span class="rams-text rams-text--sm rams-text--muted">{{ estimate.createdAt|date('M d, Y') }}</span>
+                                <td class="tabular-nums text-rams-muted">
+                                    {{ estimate.createdAt|date('M d, Y') }}
                                 </td>
-                                <td class="rams-table__cell">
-                                    <div class="rams-btn-group">
-                                        <a href="{{ path('quote_estimator_results', {id: estimate.id}) }}" class="rams-btn--ghost rams-btn--sm">
+                                <td>
+                                    <div class="rams-actions rams-actions--sm">
+                                        <a href="{{ path('quote_estimator_results', {id: estimate.id}) }}" class="rams-btn rams-btn--ghost uppercase">
                                             {{ 'common.view'|trans }}
                                         </a>
-                                        <button onclick="deleteEstimate({{ estimate.id }})" class="rams-btn--ghost rams-btn--sm rams-btn--danger">
+                                        <button onclick="deleteEstimate({{ estimate.id }})" class="rams-btn rams-btn--ghost rams-btn--danger uppercase">
                                             {{ 'common.delete'|trans }}
                                         </button>
                                     </div>
@@ -140,26 +145,29 @@
                 </table>
             </div>
         {% else %}
-            <div class="rams-empty-state">
-                <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            <div class="rams-p-12 rams-text--center">
+                <svg class="rams-icon rams-icon--xl rams-text--muted rams-mb-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="2" y="2" width="12" height="12" rx="1"/><path d="M5 5H11M5 8H11M5 11H8"/>
                 </svg>
-                <h3 class="rams-empty-state__title">{{ 'quote.estimator.no_estimates'|trans }}</h3>
-                <p class="rams-empty-state__text">
+                <h3 class="font-mono text-xs uppercase tracking-widest text-rams-muted rams-mb-2">{{ 'quote.estimator.no_estimates'|trans }}</h3>
+                <p class="rams-text--sm rams-text--muted rams-mb-6">
                     {% if search %}
                         {{ 'quote.estimator.no_estimates_search'|trans }}
                     {% else %}
                         {{ 'quote.estimator.no_estimates_start'|trans }}
                     {% endif %}
                 </p>
-                <a href="{{ path('quote_estimator_index') }}" class="rams-btn">
+                <a href="{{ path('quote_estimator_index') }}" class="rams-btn rams-btn--primary uppercase">
                     {{ 'quote.estimator.create_new'|trans }}
                 </a>
             </div>
         {% endif %}
     </div>
 </div>
+{% endblock %}
 
+{% block javascripts %}
+{{ parent() }}
 <script>
 function deleteEstimate(id) {
     ramsConfirm('{{ 'quote.estimator.delete_confirm'|trans }}', function() {

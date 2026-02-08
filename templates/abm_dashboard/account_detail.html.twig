@@ -26,7 +26,7 @@
                     <div class="rams-flex rams-justify-between rams-items-start rams-mb-6">
                         <div>
                             <h1 class="rams-page-title rams-mb-1">{{ account.name | default('Account') }}</h1>
-                            <p class="rams-text--muted rams-text--xs uppercase">{{ account.industry | default('Industry') }}</p>
+                            <p class="rams-text--muted rams-text--xs rams-uppercase">{{ account.industry | default('Industry') }}</p>
                         </div>
                         <span class="rams-badge rams-badge--success">
                             {{ account.status | default('active') | capitalize }}
@@ -58,7 +58,7 @@
             <div class="rams-module">
                 <div class="rams-module__header">
                     <h2 class="rams-module__title">{{ 'abm_dashboard.contacts'|trans }}</h2>
-                    <a href="{{ path('app_contact_new') }}?account_name={{ account.name|url_encode }}" class="rams-btn--sm">+ {{ 'common.add'|trans }}</a>
+                    <a href="{{ path('app_contact_new') }}?account_name={{ account.name|url_encode }}" class="rams-btn rams-btn--sm">+ {{ 'common.add'|trans }}</a>
                 </div>
                 <div class="rams-module__content rams-module__content--flush">
                     {% if account.contacts | default([]) %}
@@ -80,7 +80,7 @@
                         </div>
                     {% else %}
                         <div class="rams-empty-state rams-p-8">
-                            <p class="rams-rams-text--muted rams-rams-text--sm">{{ 'abm_dashboard.no_contacts'|trans }}</p>
+                            <p class="rams-text--muted rams-text--sm">{{ 'abm_dashboard.no_contacts'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -101,7 +101,7 @@
                                     </div>
                                     <div class="rams-flex-1">
                                         <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
-                                            <span class="rams-text--sm rams-text--bold uppercase rams-font-mono">{{ activity.title | default('Activity') }}</span>
+                                            <span class="rams-text--sm rams-text--bold rams-uppercase rams-font-mono">{{ activity.title | default('Activity') }}</span>
                                             <span class="rams-text--muted rams-text--xs rams-font-mono">{{ activity.timestamp | date('M d, Y H:i') | default('Unknown') }}</span>
                                         </div>
                                         <p class="rams-text--muted rams-text--xs">{{ activity.description | default('') }}</p>
@@ -111,7 +111,7 @@
                         </div>
                     {% else %}
                         <div class="rams-empty-state rams-p-8">
-                            <p class="rams-rams-text--muted rams-rams-text--sm">{{ 'abm_dashboard.no_engagement_history'|trans }}</p>
+                            <p class="rams-text--muted rams-text--sm">{{ 'abm_dashboard.no_engagement_history'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -129,8 +129,8 @@
                     <div class="rams-stack rams-gap-6">
                         <div>
                             <div class="rams-flex rams-justify-between rams-items-end rams-mb-2">
-                                <span class="rams-text-2xs rams-rams-text--muted uppercase font-mono">{{ 'abm_dashboard.engagement_score'|trans }}</span>
-                                <span class="rams-rams-text--sm rams-text-bold font-mono">{{ account.engagement_score | default(0) }}%</span>
+                                <span class="rams-text-2xs rams-text--muted rams-uppercase rams-font-mono">{{ 'abm_dashboard.engagement_score'|trans }}</span>
+                                <span class="rams-text--sm rams-text--bold rams-font-mono">{{ account.engagement_score | default(0) }}%</span>
                             </div>
                             <div class="rams-progress rams-progress--compact">
                                 <div class="rams-progress__bar" style="width: {{ account.engagement_score | default(0) }}%"></div>
@@ -139,16 +139,16 @@
                         
                         <div class="rams-grid rams-grid--2 rams-gap-4">
                             <div class="rams-module rams-module--inset rams-p-3">
-                                <span class="rams-text-3xs uppercase rams-rams-text--muted rams-block font-mono">{{ 'abm_dashboard.page_views'|trans }}</span>
-                                <span class="rams-metric__value rams-rams-text--xl">{{ account.page_views | default(0) }}</span>
+                                <span class="rams-text-3xs rams-uppercase rams-text--muted rams-block rams-font-mono">{{ 'abm_dashboard.page_views'|trans }}</span>
+                                <span class="rams-metric__value rams-text--xl">{{ account.page_views | default(0) }}</span>
                             </div>
                             <div class="rams-module rams-module--inset rams-p-3">
-                                <span class="rams-text-3xs uppercase rams-rams-text--muted rams-block font-mono">{{ 'abm_dashboard.emails_sent'|trans }}</span>
-                                <span class="rams-metric__value rams-rams-text--xl">{{ account.emails_sent | default(0) }}</span>
+                                <span class="rams-text-3xs rams-uppercase rams-text--muted rams-block rams-font-mono">{{ 'abm_dashboard.emails_sent'|trans }}</span>
+                                <span class="rams-metric__value rams-text--xl">{{ account.emails_sent | default(0) }}</span>
                             </div>
                             <div class="rams-module rams-module--inset rams-p-3 rams-grid-span-2">
-                                <span class="rams-text-3xs uppercase rams-rams-text--muted rams-block font-mono">{{ 'abm_dashboard.email_opens'|trans }}</span>
-                                <span class="rams-metric__value rams-rams-text--xl rams-rams-text--success">{{ account.email_opens | default(0) }}</span>
+                                <span class="rams-text-3xs rams-uppercase rams-text--muted rams-block rams-font-mono">{{ 'abm_dashboard.email_opens'|trans }}</span>
+                                <span class="rams-metric__value rams-text--xl rams-text--success">{{ account.email_opens | default(0) }}</span>
                             </div>
                         </div>
                     </div>
@@ -166,13 +166,13 @@
                             {% for playbook in account.playbooks %}
                                 <div class="rams-flex rams-items-center rams-gap-3 rams-p-2 rams-bg-info-subtle rams-border rams-rounded">
                                     <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
-                                    <span class="rams-rams-text--xs rams-text-bold uppercase font-mono">{{ playbook.name | default('Playbook') }}</span>
+                                    <span class="rams-text--xs rams-text--bold rams-uppercase rams-font-mono">{{ playbook.name | default('Playbook') }}</span>
                                 </div>
                             {% endfor %}
                         </div>
                     {% else %}
                         <div class="rams-empty-state rams-p-4">
-                            <p class="rams-rams-text--muted rams-rams-text--xs">{{ 'abm_dashboard.no_active_playbooks'|trans }}</p>
+                            <p class="rams-text--muted rams-text--xs">{{ 'abm_dashboard.no_active_playbooks'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -185,7 +185,7 @@
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-2">
-                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id | default(1)}) }}" class="rams-btn--primary rams-w-full">
+                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--primary rams-w-full">
                             {{ 'abm_dashboard.edit_account'|trans }}
                         </a>
                         <a href="{{ path('app_contact_new') }}?account_name={{ account.name|url_encode }}" class="rams-btn rams-w-full">
@@ -194,7 +194,7 @@
                         <a href="{{ path('abm_dashboard_playbooks') }}" class="rams-btn rams-w-full">
                             {{ 'abm_dashboard.launch_playbook'|trans }}
                         </a>
-                        <button type="button" onclick="ramsConfirm('{{ 'abm_dashboard.remove_confirm'|trans }}', function() { window.location.href='{{ path('abm_dashboard_accounts') }}'; }, {variant: 'danger'})" class="rams-btn--danger rams-btn--ghost rams-w-full rams-mt-2">
+                        <button type="button" onclick="ramsConfirm('{{ 'abm_dashboard.remove_confirm'|trans }}', function() { window.location.href='{{ path('abm_dashboard_accounts') }}'; }, {variant: 'danger'})" class="rams-btn rams-btn--danger rams-btn--ghost rams-w-full rams-mt-2">
                             {{ 'abm_dashboard.remove_account'|trans }}
                         </button>
                     </div>

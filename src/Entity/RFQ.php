@@ -3,10 +3,13 @@
 namespace App\Entity;
 
 use App\Repository\RFQRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: RFQRepository::class)]
 #[ORM\Table(name: 'rfqs')]
+#[ORM\HasLifecycleCallbacks]
 class RFQ
 {
     // Loss reason categories for competitive intelligence
@@ -113,9 +116,20 @@ class RFQ
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
 
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $updatedAt = null;
+
+    #[ORM\OneToMany(mappedBy: 'rfq', targetEntity: RfqLineItem::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $lineItems;
+
+    #[ORM\OneToMany(mappedBy: 'rfq', targetEntity: RfqVersion::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $versions;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
+        $this->lineItems = new ArrayCollection();
+        $this->versions = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -288,6 +302,77 @@ class RFQ
         return $this;
     }
     
+    public function getUpdatedAt(): ?\DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTimeInterface $updatedAt): self
+    {
+        $this->updatedAt = $updatedAt;
+        return $this;
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
+    }
+
+    /**
+     * @return Collection<int, RfqLineItem>
+     */
+    public function getLineItems(): Collection
+    {
+        return $this->lineItems;
+    }
+
+    public function addLineItem(RfqLineItem $lineItem): self
+    {
+        if (!$this->lineItems->contains($lineItem)) {
+            $this->lineItems->add($lineItem);
+            $lineItem->setRfq($this);
+        }
+        return $this;
+    }
+
+    public function removeLineItem(RfqLineItem $lineItem): self
+    {
+        if ($this->lineItems->removeElement($lineItem)) {
+            if ($lineItem->getRfq() === $this) {
+                $lineItem->setRfq(null);
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, RfqVersion>
+     */
+    public function getVersions(): Collection
+    {
+        return $this->versions;
+    }
+
+    public function addVersion(RfqVersion $version): self
+    {
+        if (!$this->versions->contains($version)) {
+            $this->versions->add($version);
+            $version->setRfq($this);
+        }
+        return $this;
+    }
+
+    public function removeVersion(RfqVersion $version): self
+    {
+        if ($this->versions->removeElement($version)) {
+            if ($version->getRfq() === $this) {
+                $version->setRfq(null);
+            }
+        }
+        return $this;
+    }
+
     // ============================================================
     // WIN/LOSS COMPETITIVE INTELLIGENCE METHODS
     // ============================================================
@@ -299,9 +384,12 @@ class RFQ
     
     public function setLossReason(?string $lossReason): self
     {
-        // Validate against standard categories
-        if ($lossReason !== null && !in_array($lossReason, self::LOSS_REASONS)) {
-            // Accept but log warning - allow custom reasons
+        if ($lossReason !== null && !in_array($lossReason, self::LOSS_REASONS, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid loss reason "%s". Valid reasons are: %s',
+                $lossReason,
+                implode(', ', self::LOSS_REASONS)
+            ));
         }
         $this->lossReason = $lossReason;
         return $this;

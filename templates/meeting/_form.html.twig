@@ -3,83 +3,46 @@
         <div class="rams-grid-span-2">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Meeting Details</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.details'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-form__group">
-                        {{ form_label(form.title, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                        {{ form_widget(form.title, {'attr': {'class': 'rams-form__input'}}) }}
-                        {{ form_errors(form.title) }}
-                    </div>
+                    {{ form_row(form.title) }}
+                    {{ form_row(form.description, {'attr': {'rows': 3}}) }}
                     
-                    <div class="rams-form__group">
-                        {{ form_label(form.description, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                        {{ form_widget(form.description, {'attr': {'class': 'rams-form__input', 'rows': 3}}) }}
-                        {{ form_errors(form.description) }}
+                    <div class="rams-grid rams-grid--2 rams-gap-4">
+                        {{ form_row(form.meetingType) }}
+                        {{ form_row(form.durationMinutes) }}
                     </div>
                     
                     <div class="rams-grid rams-grid--2 rams-gap-4">
-                        <div class="rams-form__group">
-                            {{ form_label(form.meetingType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                            {{ form_widget(form.meetingType, {'attr': {'class': 'rams-form__select'}}) }}
-                            {{ form_errors(form.meetingType) }}
-                        </div>
-                        <div class="rams-form__group">
-                            {{ form_label(form.durationMinutes, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                            {{ form_widget(form.durationMinutes, {'attr': {'class': 'rams-form__input'}}) }}
-                            {{ form_errors(form.durationMinutes) }}
-                        </div>
-                    </div>
-                    
-                    <div class="rams-grid rams-grid--2 rams-gap-4">
-                        <div class="rams-form__group">
-                            {{ form_label(form.startTime, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                            {{ form_widget(form.startTime, {'attr': {'class': 'rams-form__input'}}) }}
-                            {{ form_errors(form.startTime) }}
-                        </div>
-                        <div class="rams-form__group">
-                            {{ form_label(form.timezone, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                            {{ form_widget(form.timezone, {'attr': {'class': 'rams-form__select'}}) }}
-                            {{ form_errors(form.timezone) }}
-                        </div>
+                        {{ form_row(form.startTime) }}
+                        {{ form_row(form.timezone) }}
                     </div>
                 </div>
             </div>
             
             <div class="rams-module rams-mt-4">
                 <div class="rams-module__header">
-                    <h3>Location & Video</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.location_and_video'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-form__group">
-                        {{ form_label(form.location, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                        {{ form_widget(form.location, {'attr': {'class': 'rams-form__input'}}) }}
-                        {{ form_errors(form.location) }}
-                    </div>
+                    {{ form_row(form.location) }}
                     
                     <div class="rams-grid rams-grid--2 rams-gap-4">
-                        <div class="rams-form__group">
-                            {{ form_label(form.meetingProvider, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                            {{ form_widget(form.meetingProvider, {'attr': {'class': 'rams-form__select'}}) }}
-                            {{ form_errors(form.meetingProvider) }}
-                        </div>
-                        <div class="rams-form__group">
-                            {{ form_label(form.meetingUrl, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                            {{ form_widget(form.meetingUrl, {'attr': {'class': 'rams-form__input'}}) }}
-                            {{ form_errors(form.meetingUrl) }}
-                        </div>
+                        {{ form_row(form.meetingProvider) }}
+                        {{ form_row(form.meetingUrl) }}
                     </div>
                 </div>
             </div>
 
-            <div class="rams-actions">
-                <button type="submit" class="rams-btn--primary">
+            <div class="rams-actions rams-mt-6">
+                <button type="submit" class="rams-btn rams-btn--primary uppercase">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                     </svg>
-                    {{ button_label|default('Save Slot') }}
+                    {{ button_label|default('meeting.save_slot'|trans) }}
                 </button>
-                <a href="{{ path('meeting_index') }}" class="rams-btn--ghost">Cancel</a>
+                <a href="{{ path('meeting_index') }}" class="rams-btn rams-btn--ghost uppercase">{{ 'common.cancel'|trans }}</a>
             </div>
         </div>
         
@@ -87,24 +50,24 @@
         <div>
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Slot Configuration</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.slot_configuration'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <p class="rams-rams-text--sm rams-rams-text--muted rams-mb-4">
-                        Configure your available time slots. These will be visible on your public booking page.
+                    <p class="rams-text--sm rams-text--muted rams-mb-4">
+                        {{ 'meeting.slot_config_desc'|trans }}
                     </p>
                     <ul class="rams-list">
                         <li class="rams-list__item">
-                            <svg class="rams-icon rams-rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <svg class="rams-icon rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                             </svg>
-                            <span>Duration includes buffer time</span>
+                            <span>{{ 'meeting.duration_includes_buffer'|trans }}</span>
                         </li>
                         <li class="rams-list__item">
-                            <svg class="rams-icon rams-rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <svg class="rams-icon rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <rect x="2" y="3" width="12" height="10" rx="2"/><path d="M8 7V13M4 10H12"/>
                             </svg>
-                            <span>Video links are auto-generated</span>
+                            <span>{{ 'meeting.video_links_auto'|trans }}</span>
                         </li>
                     </ul>
                 </div>

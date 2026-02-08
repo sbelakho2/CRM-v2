@@ -13,6 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_quote_number', columns: ['quote_number'])]
 #[ORM\Index(name: 'idx_status', columns: ['status'])]
 #[ORM\Index(name: 'idx_public_token', columns: ['public_token'])]
+#[ORM\HasLifecycleCallbacks]
 class Quote
 {
     #[ORM\Id]
@@ -81,8 +82,8 @@ class Quote
     #[ORM\Column(length: 36, nullable: true)]
     private ?string $datasetVersionId = null; // Version of datasets used
 
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $apiVersions = null; // JSON: {mouser: "v1.2", digikey: "v3.0", etc.}
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $apiVersions = null; // {mouser: "v1.2", digikey: "v3.0", etc.}
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $bomDataJson = null; // Uploaded BOM data
@@ -121,7 +122,7 @@ class Quote
 
     private function generateQuoteNumber(): void
     {
-        $this->quoteNumber = 'QTE-' . date('Y') . '-' . str_pad((string)rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        $this->quoteNumber = 'QTE-' . date('Y') . '-' . strtoupper(substr(uniqid(), -6));
     }
 
     public function getId(): ?int
@@ -385,6 +386,12 @@ class Quote
     {
         $this->updatedAt = $updatedAt;
         return $this;
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     /**

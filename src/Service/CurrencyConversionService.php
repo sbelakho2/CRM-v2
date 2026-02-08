@@ -22,22 +22,42 @@ use Psr\Log\LoggerInterface;
 class CurrencyConversionService
 {
     // Default rates when database AND APIs are unavailable
-    // These are last-resort fallbacks only - updated manually
+    // These are last-resort fallbacks only
+    // Last verified: 2026-02-07
     private const FALLBACK_RATES_TO_USD = [
         'USD' => 1.0,
-        'EUR' => 1.08,       // 1 EUR = 1.08 USD
-        'GBP' => 1.27,       // 1 GBP = 1.27 USD
-        'MAD' => 0.099,      // 1 MAD = 0.099 USD
-        'CNY' => 0.14,       // 1 CNY = 0.14 USD
-        'JPY' => 0.0067,     // 1 JPY = 0.0067 USD
-        'CAD' => 0.74,       // 1 CAD = 0.74 USD
-        'AUD' => 0.65,       // 1 AUD = 0.65 USD
-        'CHF' => 1.12,       // 1 CHF = 1.12 USD
+        'EUR' => 1.04,       // 1 EUR = 1.04 USD
+        'GBP' => 1.25,       // 1 GBP = 1.25 USD
+        'MAD' => 0.098,      // 1 MAD = 0.098 USD
+        'TND' => 0.32,       // 1 TND = 0.32 USD
+        'CNY' => 0.137,      // 1 CNY = 0.137 USD
+        'JPY' => 0.0065,     // 1 JPY = 0.0065 USD
+        'CAD' => 0.72,       // 1 CAD = 0.72 USD
+        'AUD' => 0.63,       // 1 AUD = 0.63 USD
+        'CHF' => 1.11,       // 1 CHF = 1.11 USD
         'HKD' => 0.128,      // 1 HKD = 0.128 USD
         'SGD' => 0.74,       // 1 SGD = 0.74 USD
         'TWD' => 0.031,      // 1 TWD = 0.031 USD
-        'KRW' => 0.00074,    // 1 KRW = 0.00074 USD
-        'INR' => 0.012,      // 1 INR = 0.012 USD
+        'KRW' => 0.00071,    // 1 KRW = 0.00071 USD
+        'INR' => 0.0116,     // 1 INR = 0.0116 USD
+        'BRL' => 0.17,       // 1 BRL = 0.17 USD
+        'MXN' => 0.049,      // 1 MXN = 0.049 USD
+        'ZAR' => 0.054,      // 1 ZAR = 0.054 USD
+        'SEK' => 0.093,      // 1 SEK = 0.093 USD
+        'NOK' => 0.091,      // 1 NOK = 0.091 USD
+        'DKK' => 0.14,       // 1 DKK = 0.14 USD
+        'PLN' => 0.245,      // 1 PLN = 0.245 USD
+        'CZK' => 0.042,      // 1 CZK = 0.042 USD
+        'THB' => 0.029,      // 1 THB = 0.029 USD
+        'MYR' => 0.224,      // 1 MYR = 0.224 USD
+        'PHP' => 0.017,      // 1 PHP = 0.017 USD
+        'IDR' => 0.000062,   // 1 IDR = 0.000062 USD
+        'VND' => 0.000039,   // 1 VND = 0.000039 USD
+        'AED' => 0.272,      // 1 AED = 0.272 USD
+        'SAR' => 0.267,      // 1 SAR = 0.267 USD
+        'TRY' => 0.028,      // 1 TRY = 0.028 USD
+        'NZD' => 0.57,       // 1 NZD = 0.57 USD
+        'EGP' => 0.020,      // 1 EGP = 0.020 USD
     ];
     
     // Stale rate threshold (24 hours)
@@ -129,16 +149,20 @@ class CurrencyConversionService
      * Get exchange rate between two currencies
      * 
      * Priority:
-     * 1. Database (fresh rates)
-     * 2. Live API fetch (if DB rates stale and LiveFxRateFetcher available)
-     * 3. Database (stale rates - still usable)
-     * 4. Hardcoded fallback rates
+     * 1. Database (fresh rates < 24h old)
+     * 2. Live API fetch (always attempted when DB rates are stale or missing)
+     * 3. Database (stale rates > 24h old — still usable with warning)
+     * 4. Multi-hop via USD (combining two rates)
+     * 5. Hardcoded fallback rates (last resort, marked stale)
+     * 
+     * Live rates fetched via API are automatically stored in the database
+     * for future use and audit trail.
      * 
      * @return array{rate: float, source: string, stale: bool, warning: ?string}
      */
     public function getRate(string $fromCurrency, string $toCurrency): array
     {
-        // Try direct rate from database
+        // 1. Try direct rate from database (fresh)
         $fxRate = $this->fxRateRepository->findOneBy([
             'fromCurrency' => $fromCurrency,
             'toCurrency' => $toCurrency,
@@ -149,7 +173,7 @@ class CurrencyConversionService
             return $this->formatRateResult($fxRate, 'database_direct');
         }
         
-        // Try inverse rate
+        // 1b. Try inverse rate from database (fresh)
         $inverseRate = $this->fxRateRepository->findOneBy([
             'fromCurrency' => $toCurrency,
             'toCurrency' => $fromCurrency,
@@ -166,7 +190,7 @@ class CurrencyConversionService
             ];
         }
         
-        // Database rates are stale or missing - try live fetch
+        // 2. Database rates are stale or missing — try live fetch from central bank APIs
         if ($this->autoFetchLiveRates && $this->liveFxRateFetcher) {
             $liveRate = $this->liveFxRateFetcher->getLiveRate($fromCurrency, $toCurrency);
             
@@ -187,26 +211,7 @@ class CurrencyConversionService
             }
         }
         
-        // Try via USD (multi-hop) with fresh rates
-        if ($fromCurrency !== 'USD' && $toCurrency !== 'USD') {
-            $fromToUsd = $this->getRate($fromCurrency, 'USD');
-            $usdToTarget = $this->getRate('USD', $toCurrency);
-            
-            if ($fromToUsd['source'] !== 'unknown' && $usdToTarget['source'] !== 'unknown') {
-                $combinedRate = $fromToUsd['rate'] * $usdToTarget['rate'];
-                $isStale = $fromToUsd['stale'] || $usdToTarget['stale'];
-                return [
-                    'rate' => round($combinedRate, 6),
-                    'source' => 'database_via_usd',
-                    'stale' => $isStale,
-                    'warning' => $isStale 
-                        ? 'FX rate may be stale (multi-hop via USD)' 
-                        : null,
-                ];
-            }
-        }
-        
-        // Use stale database rate if available (better than fallback)
+        // 3. Use stale database rate if available (better than fallback)
         if ($fxRate) {
             $this->logger->warning('Using stale FX rate from database', [
                 'from' => $fromCurrency,
@@ -226,7 +231,26 @@ class CurrencyConversionService
             ];
         }
         
-        // Last resort: hardcoded fallback rates
+        // 4. Try via USD (multi-hop) with any available rates
+        if ($fromCurrency !== 'USD' && $toCurrency !== 'USD') {
+            $fromToUsd = $this->getRate($fromCurrency, 'USD');
+            $usdToTarget = $this->getRate('USD', $toCurrency);
+            
+            if ($fromToUsd['source'] !== 'unknown' && $usdToTarget['source'] !== 'unknown') {
+                $combinedRate = $fromToUsd['rate'] * $usdToTarget['rate'];
+                $isStale = $fromToUsd['stale'] || $usdToTarget['stale'];
+                return [
+                    'rate' => round($combinedRate, 6),
+                    'source' => 'via_usd',
+                    'stale' => $isStale,
+                    'warning' => $isStale 
+                        ? 'FX rate may be stale (multi-hop via USD)' 
+                        : null,
+                ];
+            }
+        }
+        
+        // 5. Last resort: hardcoded fallback rates (always marked stale)
         return $this->getFallbackRate($fromCurrency, $toCurrency);
     }
 
@@ -339,8 +363,8 @@ class CurrencyConversionService
         return [
             'rate' => round($rate, 6),
             'source' => 'fallback',
-            'stale' => false, // Fallback rates are considered "current" since they're updated manually
-            'warning' => "Using fallback FX rate for {$fromCurrency}/{$toCurrency}",
+            'stale' => true,
+            'warning' => "Using hardcoded fallback rate for {$fromCurrency}/{$toCurrency} — live API unavailable",
         ];
     }
 

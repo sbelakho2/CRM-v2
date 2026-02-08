@@ -31,7 +31,7 @@ class ActivityTemplateService
         'initial_outreach' => [
             'category' => self::CATEGORY_OUTREACH,
             'name' => 'Initial Outreach Email',
-            'subject' => 'Partnership Opportunity - EMS Manufacturing in Morocco',
+            'subject' => 'Partnership Opportunity - EMS Manufacturing in North Africa',
             'body' => <<<'TEMPLATE'
 Dear {{contact_name}},
 
@@ -40,7 +40,7 @@ I noticed {{company_name}}'s focus on {{sector}} and wanted to reach out about a
 We specialize in electronics manufacturing services with capabilities including:
 • SMT assembly with full AOI and X-ray inspection
 • {{certification_match}} certified production
-• Competitive pricing through Morocco Free Zone advantages
+• Competitive pricing through Free Zone advantages in Morocco and Tunisia
 • Supply chain diversification from single-source risk
 
 Would you have 15 minutes this week to discuss how we might support {{company_name}}'s manufacturing needs?
@@ -61,7 +61,7 @@ Dear {{contact_name}},
 
 I wanted to follow up on my previous message regarding electronics manufacturing support.
 
-Given {{company_name}}'s position in the {{sector}} market, I believe there could be significant value in exploring how our Morocco-based facility could support your production needs.
+Given {{company_name}}'s position in the {{sector}} market, I believe there could be significant value in exploring how our North Africa-based facilities could support your production needs.
 
 Key benefits for {{company_name}}:
 • {{benefit_1}}
@@ -181,7 +181,7 @@ Our proposal includes:
 **Proposal Validity:** 30 days from date of submission
 **Estimated Lead Time:** {{lead_time}} weeks from order confirmation
 
-We are confident in our ability to deliver exceptional quality while providing competitive pricing through our Morocco Free Zone advantages.
+We are confident in our ability to deliver exceptional quality while providing competitive pricing through our Free Zone advantages in Morocco and Tunisia.
 
 Please don't hesitate to reach out with any questions. We would welcome the opportunity to present our proposal in person if helpful.
 
@@ -281,7 +281,7 @@ TEMPLATE,
             'body' => <<<'TEMPLATE'
 Dear {{contact_name}},
 
-Following our recent discussions, I would like to invite you and your team to visit our manufacturing facility in Morocco.
+Following our recent discussions, I would like to invite you and your team to visit our manufacturing facilities in Morocco and Tunisia.
 
 **Why Visit?**
 • See our {{certifications}} certified production lines in action
@@ -528,7 +528,7 @@ TEMPLATE,
         
         // Match certification to sector
         if (in_array('automotive', [$sector]) || in_array('IATF 16949', $qualityStack)) {
-            return 'IATF 16949';
+            return 'Automotive Quality';
         }
         if (in_array('aerospace', [$sector]) || in_array('AS9100', $qualityStack)) {
             return 'AS9100';
@@ -546,7 +546,7 @@ TEMPLATE,
         
         $sectorBenefits = match ($sector) {
             'automotive' => [
-                'IATF 16949 certified production for automotive quality requirements',
+                'ISO 9001 certified production with automotive-grade quality processes',
                 'High-mix, medium-volume capability ideal for Tier 1/2 supply chains',
                 'Morocco FTA advantages for EU market access',
             ],

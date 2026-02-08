@@ -109,7 +109,7 @@
         .signature-label {
             font-size: 8pt;
             color: var(--rams-muted);
-            text-transform: uppercase;
+            text-transform: rams-uppercase;
             letter-spacing: 0.05em;
         }
         .verification-card {
@@ -152,7 +152,7 @@
         .summary-label {
             font-size: 8pt;
             color: var(--rams-muted);
-            text-transform: uppercase;
+            text-transform: rams-uppercase;
             letter-spacing: 0.05em;
         }
     </style>
@@ -184,13 +184,13 @@
         </tr>
         <tr>
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.created'|trans|default('Created') }}</strong></td>
-            <td>{{ quote.createdAt|date('Y-m-d H:i') ?? 'N/A' }}</td>
+            <td>{{ quote.createdAt ? quote.createdAt|date('Y-m-d H:i') : 'N/A' }}</td>
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.created_by'|trans|default('Created By') }}</strong></td>
             <td>{{ quote.createdBy ?? auditData.createdBy ?? 'System' }}</td>
         </tr>
         <tr>
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.last_modified'|trans|default('Last Modified') }}</strong></td>
-            <td>{{ quote.updatedAt|date('Y-m-d H:i') ?? 'N/A' }}</td>
+            <td>{{ quote.updatedAt ? quote.updatedAt|date('Y-m-d H:i') : 'N/A' }}</td>
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.status'|trans|default('Status') }}</strong></td>
             <td>{{ (quote.status ?? 'draft')|upper }}</td>
         </tr>
@@ -198,7 +198,7 @@
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.total_value'|trans|default('Total Value') }}</strong></td>
             <td>${{ (quote.totalPrice ?? 0)|number_format(2) }}</td>
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.bom_lines'|trans|default('BOM Lines') }}</strong></td>
-            <td>{{ quote.bomLines|length ?? 0 }}</td>
+            <td>{{ quote.bomLines|length }}</td>
         </tr>
     </table>
 
@@ -263,145 +263,8 @@
             </div>
         </div>
         {% else %}
-        {# Sample events for demonstration #}
-        <div class="timeline-event">
-            <div class="timeline-dot created"></div>
-            <div class="timeline-content">
-                <div class="timeline-header">
-                    <div>
-                        <div class="timeline-title">Quote Created</div>
-                        <div class="timeline-user">Sarah Johnson</div>
-                    </div>
-                    <div class="timeline-time">2025-01-25 09:15:42 UTC</div>
-                </div>
-                <div class="timeline-details">Initial quote created from RFQ #RFQ-2025-0142. BOM imported from customer file with 47 line items.</div>
-            </div>
-        </div>
-        
-        <div class="timeline-event">
-            <div class="timeline-dot modified"></div>
-            <div class="timeline-content">
-                <div class="timeline-header">
-                    <div>
-                        <div class="timeline-title">Pricing Updated</div>
-                        <div class="timeline-user">Pricing Engine</div>
-                    </div>
-                    <div class="timeline-time">2025-01-25 09:16:08 UTC</div>
-                </div>
-                <div class="timeline-details">Automated pricing from distributor APIs. 43 of 47 parts priced successfully (91.5% coverage).</div>
-            </div>
-        </div>
-        
-        <div class="timeline-event">
-            <div class="timeline-dot modified"></div>
-            <div class="timeline-content">
-                <div class="timeline-header">
-                    <div>
-                        <div class="timeline-title">Manual Price Adjustment</div>
-                        <div class="timeline-user">Michael Chen</div>
-                    </div>
-                    <div class="timeline-time">2025-01-25 14:32:17 UTC</div>
-                </div>
-                <div class="timeline-details">Manual pricing added for 4 exception parts not found in API sources.</div>
-                <table class="change-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 30%;">Part</th>
-                            <th style="width: 35%;">Previous</th>
-                            <th style="width: 35%;">New</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>CUSTOM-XTAL-25M</td>
-                            <td class="change-old">$0.0000</td>
-                            <td class="change-new">$1.2500</td>
-                        </tr>
-                        <tr>
-                            <td>CONN-CUSTOM-12P</td>
-                            <td class="change-old">$0.0000</td>
-                            <td class="change-new">$0.8500</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        
-        <div class="timeline-event">
-            <div class="timeline-dot modified"></div>
-            <div class="timeline-content">
-                <div class="timeline-header">
-                    <div>
-                        <div class="timeline-title">Margin Adjusted</div>
-                        <div class="timeline-user">Sarah Johnson</div>
-                    </div>
-                    <div class="timeline-time">2025-01-26 10:05:33 UTC</div>
-                </div>
-                <table class="change-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 30%;">Field</th>
-                            <th style="width: 35%;">Previous</th>
-                            <th style="width: 35%;">New</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Margin %</td>
-                            <td class="change-old">15.0%</td>
-                            <td class="change-new">12.5%</td>
-                        </tr>
-                        <tr>
-                            <td>Total Price</td>
-                            <td class="change-old">$24,850.00</td>
-                            <td class="change-new">$24,310.00</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div class="timeline-details">Competitive pricing adjustment per sales manager approval.</div>
-            </div>
-        </div>
-        
-        <div class="timeline-event">
-            <div class="timeline-dot approved"></div>
-            <div class="timeline-content">
-                <div class="timeline-header">
-                    <div>
-                        <div class="timeline-title">Quote Approved</div>
-                        <div class="timeline-user">David Williams (Sales Manager)</div>
-                    </div>
-                    <div class="timeline-time">2025-01-26 11:22:45 UTC</div>
-                </div>
-                <div class="timeline-details">Quote approved for customer delivery. All exceptions resolved.</div>
-            </div>
-        </div>
-        
-        <div class="timeline-event">
-            <div class="timeline-dot sent"></div>
-            <div class="timeline-content">
-                <div class="timeline-header">
-                    <div>
-                        <div class="timeline-title">Quote Sent to Customer</div>
-                        <div class="timeline-user">Sarah Johnson</div>
-                    </div>
-                    <div class="timeline-time">2025-01-26 11:45:12 UTC</div>
-                </div>
-                <div class="timeline-details">Quote PDF sent to contact@customer.com via email. Tracking enabled.</div>
-            </div>
-        </div>
-        
-        <div class="timeline-event">
-            <div class="timeline-dot status"></div>
-            <div class="timeline-content">
-                <div class="timeline-header">
-                    <div>
-                        <div class="timeline-title">Customer Viewed Quote</div>
-                        <div class="timeline-user">System (Email Tracking)</div>
-                    </div>
-                    <div class="timeline-time">2025-01-26 14:18:33 UTC</div>
-                </div>
-                <div class="timeline-details">Quote opened by recipient. IP: 203.x.x.x (Singapore). View duration: 4m 32s.</div>
-            </div>
+        <div style="padding: 20pt; text-align: center; border: 1px dashed var(--rams-border); color: var(--rams-muted);">
+            {{ 'pdf.audit_trail.no_events'|trans }}
         </div>
         {% endfor %}
     </div>

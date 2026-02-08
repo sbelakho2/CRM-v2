@@ -14,9 +14,11 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
 #[Route('/compliance')]
+#[IsGranted('ROLE_USER')]
 class ComplianceController extends AbstractController
 {
     public function __construct(
@@ -258,7 +260,23 @@ class ComplianceController extends AbstractController
         return $this->render('compliance/overview.html.twig', [
             'compliance_data' => $complianceData,
             'current_sector' => $sector,
-            'sectors' => ['Automotive', 'Industrial', 'Aerospace', 'Rail', 'Renewables', 'Power Electronics'],
+            'sectors' => [
+                'Automotive',
+                'Aerospace',
+                'Industrial',
+                'Rail',
+                'Renewables',
+                'Medical',
+                'Defense',
+                'Telecom',
+                'HVAC',
+                'Marine',
+                'Power Electronics',
+                'Consumer Electronics',
+                'Data Center',
+                'Energy Storage',
+                'Other',
+            ],
         ]);
     }
 

@@ -17,14 +17,16 @@ class LeadRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find leads by region tag
+     * Find leads by region tag with pagination
      */
-    public function findByRegion(string $regionTag): array
+    public function findByRegion(string $regionTag, int $page = 1, int $limit = 50): array
     {
         return $this->createQueryBuilder('l')
             ->where('l.regionTag = :region')
             ->setParameter('region', $regionTag)
             ->orderBy('l.leadScore', 'DESC')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
     }
@@ -48,14 +50,16 @@ class LeadRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find leads by score threshold
+     * Find leads by score threshold with pagination
      */
-    public function findByScoreThreshold(int $minScore, ?string $regionTag = null): array
+    public function findByScoreThreshold(int $minScore, ?string $regionTag = null, int $page = 1, int $limit = 50): array
     {
         $qb = $this->createQueryBuilder('l')
             ->where('l.leadScore >= :minScore')
             ->setParameter('minScore', $minScore)
-            ->orderBy('l.leadScore', 'DESC');
+            ->orderBy('l.leadScore', 'DESC')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit);
 
         if ($regionTag) {
             $qb->andWhere('l.regionTag = :region')
@@ -77,6 +81,35 @@ class LeadRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * Find lead by website root URL (used for duplicate checking)
+     */
+    public function findByWebsiteRoot(string $websiteRoot): ?Lead
+    {
+        return $this->createQueryBuilder('l')
+            ->where('l.websiteRoot = :website')
+            ->setParameter('website', $websiteRoot)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Batch count leads needing enrichment
+     */
+    public function countLeadsNeedingEnrichment(): int
+    {
+        return (int) $this->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.websiteRoot IS NOT NULL')
+            ->andWhere('l.contactEmailsPublic IS NULL OR l.contactEmailsPublic = :empty')
+            ->andWhere('l.hasContactForm = false')
+            ->andWhere('l.lastScrapedAt IS NULL')
+            ->setParameter('empty', '[]')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /**

@@ -45,18 +45,13 @@ class LeadNurturingService
         self::STAGE_LOST,
     ];
     
-    // Activity types that indicate engagement
+    // Activity types that indicate engagement (match Activity entity type values)
     private const ENGAGEMENT_ACTIVITIES = [
-        'email_opened' => 5,
-        'email_clicked' => 10,
-        'email_replied' => 25,
-        'call' => 20,
-        'meeting' => 30,
-        'site_visit' => 50,
-        'demo' => 40,
-        'rfq_received' => 60,
-        'proposal_sent' => 35,
-        'contract_sent' => 45,
+        'Email' => 5,
+        'Call' => 20,
+        'Meeting' => 30,
+        'Site Visit' => 50,
+        'Follow-up' => 15,
     ];
     
     // Inactivity thresholds (days)
@@ -166,6 +161,19 @@ class LeadNurturingService
                 $summary['marked_dormant']++;
                 $actions[] = 'Marked as dormant due to inactivity';
             } else {
+                // Persist stage change to company pipeline
+                $company = $lead->getCompany();
+                if ($company) {
+                    $stageMap = [
+                        self::STAGE_CONTACTED => Company::STAGE_MQL,
+                        self::STAGE_ENGAGED => Company::STAGE_SQL,
+                        self::STAGE_QUALIFIED => Company::STAGE_SQO,
+                        self::STAGE_OPPORTUNITY => Company::STAGE_PROPOSAL,
+                    ];
+                    if (isset($stageMap[$newStage])) {
+                        $company->setPipelineStage($stageMap[$newStage]);
+                    }
+                }
                 $summary['stage_advanced']++;
                 $actions[] = sprintf('Stage advanced from %s to %s', $currentStage, $newStage);
             }
@@ -186,7 +194,7 @@ class LeadNurturingService
      */
     public function calculateEngagementScore(Lead $lead): int
     {
-        $baseScore = $lead->getLeadScore() ?? 0;
+        $baseScore = 0; // Start fresh to avoid score inflation on repeated runs
         $engagementBonus = 0;
         
         // Get company associated with this lead
@@ -233,7 +241,7 @@ class LeadNurturingService
         // Sector alignment bonus (max 15)
         $sectorBonus = 0;
         $sectorTags = $lead->getSectorTags() ?? [];
-        $targetSectors = ['automotive', 'aerospace', 'industrial', 'defense', 'medical'];
+        $targetSectors = ['automotive', 'aerospace', 'industrial', 'defense', 'medical', 'rail', 'renewables', 'telecom', 'hvac', 'marine', 'power electronics', 'consumer electronics', 'data center', 'energy storage'];
         foreach ($sectorTags as $sector) {
             if (in_array(strtolower($sector), $targetSectors)) {
                 $sectorBonus += 5;
@@ -290,7 +298,7 @@ class LeadNurturingService
         $hasEngagement = false;
         foreach ($activities as $activity) {
             $type = $activity->getType();
-            if (in_array($type, ['email_replied', 'call', 'meeting', 'site_visit', 'demo'])) {
+            if (in_array($type, ['Email', 'Call', 'Meeting', 'Site Visit', 'Follow-up'])) {
                 $hasEngagement = true;
                 break;
             }
@@ -564,7 +572,7 @@ class LeadNurturingService
         $sectorTags = $lead->getSectorTags() ?? [];
         
         if (in_array('automotive', $sectorTags)) {
-            return 'Try automotive industry news angle - IATF 16949 compliance offer';
+            return 'Try automotive industry news angle - automotive quality compliance offer';
         }
         if (in_array('aerospace', $sectorTags)) {
             return 'Try aerospace angle - AS9100 certification and quick-turn capability';

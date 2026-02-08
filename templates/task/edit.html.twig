@@ -1,28 +1,28 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Edit Task - {{ task.title }}{% endblock %}
+{% block title %}{{ 'task.edit_title'|trans }} - {{ task.title }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__header">
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
-                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <a href="{{ path('app_task_index') }}">Tasks</a>
+                <a href="{{ path('app_task_index') }}">{{ 'task.title'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
                 <a href="{{ path('app_task_show', {id: task.id}) }}">{{ task.title }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <span>Edit</span>
+                <span>{{ 'common.edit'|trans }}</span>
             </div>
-            <h1 class="rams-page__title">Edit Task</h1>
+            <h1 class="rams-page__title">{{ 'task.edit_task'|trans }}</h1>
         </div>
         <div class="rams-page__actions">
-            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn">
+            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M10 4L6 8L10 12"/>
                 </svg>
-                Back to Task
+                {{ 'task.back_to_task'|trans }}
             </a>
         </div>
     </div>
@@ -31,88 +31,43 @@
         <div class="rams-module__content">
             {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
             
-            <div class="rams-grid rams-grid--1 rams-gap-4 rams-mb-4">
-                <div class="rams-form__group">
-                    {{ form_label(form.title, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.title, {'attr': {'class': 'rams-form__input'}}) }}
-                    {{ form_errors(form.title) }}
-                </div>
-                
-                <div class="rams-form__group">
-                    {{ form_label(form.description, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.description, {'attr': {'class': 'rams-form__input', 'rows': 4}}) }}
-                    {{ form_errors(form.description) }}
-                </div>
+            <div class="rams-grid rams-grid--1 rams-gap-4">
+                {{ form_row(form.title) }}
+                {{ form_row(form.description, {'attr': {'rows': 4}}) }}
             </div>
 
-            <div class="rams-grid rams-grid--3 rams-gap-4 rams-mb-4">
-                <div class="rams-form__group">
-                    {{ form_label(form.type, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.type, {'attr': {'class': 'rams-form__select'}}) }}
-                    {{ form_errors(form.type) }}
-                </div>
-                <div class="rams-form__group">
-                    {{ form_label(form.priority, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.priority, {'attr': {'class': 'rams-form__select'}}) }}
-                    {{ form_errors(form.priority) }}
-                </div>
-                <div class="rams-form__group">
-                    {{ form_label(form.status, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.status, {'attr': {'class': 'rams-form__select'}}) }}
-                    {{ form_errors(form.status) }}
-                </div>
+            <div class="rams-grid rams-grid--3 rams-gap-4">
+                {{ form_row(form.type) }}
+                {{ form_row(form.priority) }}
+                {{ form_row(form.status) }}
             </div>
 
-            <div class="rams-grid rams-grid--3 rams-gap-4 rams-mb-4">
-                <div class="rams-form__group">
-                    {{ form_label(form.dueDate, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.dueDate, {'attr': {'class': 'rams-form__input'}}) }}
-                    {{ form_errors(form.dueDate) }}
-                </div>
-                <div class="rams-form__group">
-                    {{ form_label(form.dueTime, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.dueTime, {'attr': {'class': 'rams-form__input'}}) }}
-                    {{ form_errors(form.dueTime) }}
-                </div>
-                <div class="rams-form__group">
-                    {{ form_label(form.estimatedMinutes, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.estimatedMinutes, {'attr': {'class': 'rams-form__input'}}) }}
-                    {{ form_errors(form.estimatedMinutes) }}
-                </div>
+            <div class="rams-grid rams-grid--3 rams-gap-4">
+                {{ form_row(form.dueDate) }}
+                {{ form_row(form.dueTime) }}
+                {{ form_row(form.estimatedMinutes) }}
             </div>
 
-            <div class="rams-grid rams-grid--2 rams-gap-4 rams-mb-4">
-                <div class="rams-form__group">
-                    {{ form_label(form.assignedTo, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.assignedTo, {'attr': {'class': 'rams-form__select'}}) }}
-                    {{ form_errors(form.assignedTo) }}
-                </div>
-                <div class="rams-form__group">
-                    {{ form_label(form.reminderAt, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.reminderAt, {'attr': {'class': 'rams-form__input'}}) }}
-                    {{ form_errors(form.reminderAt) }}
-                </div>
+            <div class="rams-grid rams-grid--2 rams-gap-4">
+                {{ form_row(form.assignedTo) }}
+                {{ form_row(form.reminderAt) }}
             </div>
 
             <hr class="rams-hr rams-my-6">
-            <h3 class="rams-rams-text--lg rams-rams-text--bold rams-mb-4">Related Records</h3>
+            <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-4">{{ 'task.related_records'|trans }}</h3>
 
-            <div class="rams-grid rams-grid--2 rams-gap-4 rams-mb-6">
-                <div class="rams-form__group">
-                    {{ form_label(form.company, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                    {{ form_widget(form.company, {'attr': {'class': 'rams-form__select'}}) }}
-                    {{ form_errors(form.company) }}
-                </div>
+            <div class="rams-grid rams-grid--2 rams-gap-4">
+                {{ form_row(form.company) }}
             </div>
 
-            <div class="rams-actions">
-                <button type="submit" class="rams-btn--primary">
+            <div class="rams-actions rams-mt-6">
+                <button type="submit" class="rams-btn rams-btn--primary uppercase">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                     </svg>
-                    Update Task
+                    {{ 'task.update_task'|trans }}
                 </button>
-                <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn--ghost">Cancel</a>
+                <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn rams-btn--ghost uppercase">{{ 'common.cancel'|trans }}</a>
             </div>
             {{ form_end(form) }}
         </div>

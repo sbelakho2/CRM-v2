@@ -5,6 +5,7 @@ namespace App\Form;
 use App\Entity\Company;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -27,15 +28,32 @@ class CompanyType extends AbstractType
                     new NotBlank(['message' => 'validation.required'])
                 ]
             ])
+            ->add('legalName', TextType::class, [
+                'label' => 'Legal Name',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'Full legal entity name (optional)'
+                ],
+                'required' => false
+            ])
             ->add('sector', ChoiceType::class, [
                 'label' => 'company.sector',
                 'choices' => [
                     'company.sectors.automotive' => 'Automotive',
-                    'company.sectors.industrial' => 'Industrial',
                     'company.sectors.aerospace' => 'Aerospace',
+                    'company.sectors.industrial' => 'Industrial',
                     'company.sectors.rail' => 'Rail',
                     'company.sectors.renewables' => 'Renewables',
+                    'company.sectors.medical' => 'Medical',
+                    'company.sectors.defense' => 'Defense',
+                    'company.sectors.telecom' => 'Telecom',
+                    'company.sectors.hvac' => 'HVAC',
+                    'company.sectors.marine' => 'Marine',
                     'company.sectors.power_electronics' => 'Power Electronics',
+                    'company.sectors.consumer_electronics' => 'Consumer Electronics',
+                    'company.sectors.data_center' => 'Data Center',
+                    'company.sectors.energy_storage' => 'Energy Storage',
+                    'company.sectors.other' => 'Other',
                 ],
                 'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-form__select'],
@@ -69,11 +87,49 @@ class CompanyType extends AbstractType
                 'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'company.form.select_stage'
             ])
-            ->add('region', TextType::class, [
+            ->add('region', ChoiceType::class, [
                 'label' => 'company.region',
+                'choices' => [
+                    'Morocco' => 'MA',
+                    'United States' => 'US',
+                    'Europe' => 'EU',
+                    'United Kingdom' => 'GB',
+                    'Egypt' => 'EG',
+                    'GCC / Gulf' => 'GCC',
+                ],
+                'attr' => ['class' => 'rams-form__select'],
+                'placeholder' => 'Select region (optional)',
+                'required' => false
+            ])
+            ->add('country', TextType::class, [
+                'label' => 'Country',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'company.form.region_placeholder'
+                    'placeholder' => 'Country code (e.g. US, GB, DE)'
+                ],
+                'required' => false
+            ])
+            ->add('city', TextType::class, [
+                'label' => 'City',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'City name'
+                ],
+                'required' => false
+            ])
+            ->add('address', TextType::class, [
+                'label' => 'Address',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'Street address'
+                ],
+                'required' => false
+            ])
+            ->add('physicalSite', TextType::class, [
+                'label' => 'Physical Site / Location',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'e.g. Tanger Free Zone, Detroit Plant'
                 ],
                 'required' => false
             ])
@@ -82,6 +138,28 @@ class CompanyType extends AbstractType
                 'attr' => [
                     'class' => 'rams-form__input',
                     'placeholder' => 'company.form.website_placeholder'
+                ],
+                'required' => false,
+                'constraints' => [
+                    new Url(['message' => 'validation.url'])
+                ]
+            ])
+            ->add('linkedinCompanyUrl', UrlType::class, [
+                'label' => 'LinkedIn Company URL',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'https://linkedin.com/company/...'
+                ],
+                'required' => false,
+                'constraints' => [
+                    new Url(['message' => 'validation.url'])
+                ]
+            ])
+            ->add('linkedInUrl', UrlType::class, [
+                'label' => 'LinkedIn Profile URL',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'https://linkedin.com/in/...'
                 ],
                 'required' => false,
                 'constraints' => [
@@ -98,6 +176,24 @@ class CompanyType extends AbstractType
                 'constraints' => [
                     new Url(['message' => 'validation.url'])
                 ]
+            ])
+            ->add('notes', TextareaType::class, [
+                'label' => 'Notes & Description',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'Company description, notes, key contacts...',
+                    'rows' => 4
+                ],
+                'required' => false
+            ])
+            ->add('sourceNotes', TextareaType::class, [
+                'label' => 'Source Notes',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'How was this company discovered?',
+                    'rows' => 2
+                ],
+                'required' => false
             ]);
     }
 

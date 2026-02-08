@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\OutboundMessage;
 use App\Service\AutonomousSalesOrchestratorService;
+use App\Service\AutonomousSalesSettingsService;
 use App\Service\CompetitorLearnerService;
 use App\Service\CompetitorDetectionService;
 use App\Service\EmailClassifierService;
@@ -51,6 +52,7 @@ class AutonomousSalesCommand extends Command
 {
     public function __construct(
         private AutonomousSalesOrchestratorService $orchestrator,
+        private AutonomousSalesSettingsService $settingsService,
         private ?CompetitorLearnerService $competitorLearner,
         private ?CompetitorDetectionService $competitorDetection,
         private ?EmailClassifierService $emailClassifier,
@@ -85,6 +87,11 @@ class AutonomousSalesCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $io->title('🚀 Autonomous Sales System');
+
+        if (!$this->settingsService->isEnabled() && !$input->getOption('stats')) {
+            $io->warning('Autonomous Sales system is disabled. Enable it to run operations.');
+            return Command::SUCCESS;
+        }
         
         $dryRun = $input->getOption('dry-run');
         if ($dryRun) {

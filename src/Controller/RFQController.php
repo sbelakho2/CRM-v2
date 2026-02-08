@@ -146,7 +146,7 @@ class RFQController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_rfq_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_rfq_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(RFQ $rfq): Response
     {
         return $this->render('rfq/show.html.twig', [
@@ -190,6 +190,11 @@ class RFQController extends AbstractController
     #[Route('/{id}/update-status', name: 'app_rfq_update_status', methods: ['POST'])]
     public function updateStatus(Request $request, RFQ $rfq, EntityManagerInterface $entityManager): Response
     {
+        if (!$this->isCsrfTokenValid('update_status' . $rfq->getId(), $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+            return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
+        }
+
         $newStatus = $request->request->get('status');
         
         if (in_array($newStatus, ['Pending', 'In Review', 'Submitted', 'Won', 'Lost'])) {

@@ -251,7 +251,7 @@ class GenerateTestDataCommand extends Command
     private function generateCompliance(array $companies, int $count): array
     {
         $documents = [];
-        $docTypes = ['ISO 9001', 'AS9100', 'ISO 14001', 'IATF 16949', 'Quality Manual'];
+        $docTypes = ['ISO 9001', 'AS9100', 'ISO 14001', 'Quality Manual'];
 
         for ($i = 0; $i < $count; $i++) {
             $doc = new ComplianceDocument();

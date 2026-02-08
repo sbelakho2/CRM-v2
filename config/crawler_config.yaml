@@ -1,7 +1,7 @@
 # Crawler Configuration
-# Multi-region PCBA/EMS lead discovery (Morocco + US + EU + UK)
+# Multi-region PCBA/EMS lead discovery (Morocco + US + EU + UK + Egypt + GCC)
 # Primary: Africa/Tunis (UTC+1) - 08:00 daily
-# Regional batches: 08:30 (US-East, US-TX, UK, EU)
+# Regional batches: 08:30 (US-East, US-TX, UK, EU, Egypt, GCC)
 
 # Time zones for regional batches
 time_zones:
@@ -10,6 +10,8 @@ time_zones:
   us_central: America/Chicago  # 08:30 Texas batch
   uk: Europe/London            # 08:30 UK batch
   eu: Europe/Paris             # 08:30 EU batch
+  egypt: Africa/Cairo          # 08:30 Egypt batch
+  gcc: Asia/Dubai              # 08:30 GCC batch
 
 scheduler:
   primary_daily: "0 8 * * *"     # Cron format: 08:00 Africa/Tunis
@@ -17,6 +19,8 @@ scheduler:
   us_texas_daily: "30 8 * * *"   # 08:30 America/Chicago
   uk_daily: "30 8 * * *"         # 08:30 Europe/London
   eu_daily: "30 8 * * *"         # 08:30 Europe/Paris
+  egypt_daily: "30 8 * * *"      # 08:30 Africa/Cairo
+  gcc_daily: "30 8 * * *"        # 08:30 Asia/Dubai
   enabled: true
 
 # Success Metrics (60 days)
@@ -36,11 +40,13 @@ weights:
   geo_us: 16               # US East Coast + Texas metros
   geo_eu: 14               # EU core/nordics/CEE presence
   geo_uk: 12               # UK presence
+  geo_egypt: 14             # Egypt industrial zone presence
+  geo_gcc: 14               # GCC free zone / industrial presence
   mfg_fit: 20              # PCBA/SMT/EMS manufacturing
   procurement: 18          # Procurement readiness signals
   sector_generic: 12       # Target sector alignment
   sector_dc_bonus: 4       # Data center bonus
-  morocco_evidence: 15     # Evidence of Morocco sourcing
+  region_evidence: 15      # Evidence of operations in target region
   contactability: 8        # Public contact info available
   freshness: 7             # Recent content updates
   eu_quality_stack: 10     # IATF 16949, AS9100, ISO 13485, CE
@@ -135,7 +141,73 @@ zones:
     - "rabat"
     - "tetouan"
 
-# Regional Definitions (US, EU, UK)
+  egypt_zones:
+    - "suez canal economic zone"
+    - "sczone"
+    - "ain sokhna industrial zone"
+    - "10th of ramadan city"
+    - "6th of october city"
+    - "sadat city"
+    - "new cairo industrial zone"
+    - "borg el arab industrial zone"
+    - "port said free zone"
+    - "alexandria free zone"
+    - "nasr city free zone"
+    - "ismailia free zone"
+
+  egypt_cities:
+    - "cairo"
+    - "alexandria"
+    - "suez"
+    - "port said"
+    - "ismailia"
+    - "ain sokhna"
+    - "new cairo"
+    - "giza"
+
+  gcc_freezones:
+    - "jafza"
+    - "jebel ali"
+    - "kizad"
+    - "khalifa industrial zone"
+    - "dmcc"
+    - "dafza"
+    - "dubai airport freezone"
+    - "saif zone"
+    - "sharjah airport international free zone"
+    - "ras al khaimah economic zone"
+    - "rakez"
+    - "kaec"
+    - "king abdullah economic city"
+    - "jubail industrial city"
+    - "yanbu industrial city"
+    - "modon"
+    - "qfc"
+    - "qatar financial centre"
+    - "qatar free zones"
+    - "kuwait free trade zone"
+    - "salalah free zone"
+    - "sohar free zone"
+    - "bahrain investment wharf"
+    - "biw"
+    - "bahrain logistics zone"
+
+  gcc_cities:
+    - "dubai"
+    - "abu dhabi"
+    - "sharjah"
+    - "riyadh"
+    - "jeddah"
+    - "dammam"
+    - "jubail"
+    - "doha"
+    - "kuwait city"
+    - "muscat"
+    - "sohar"
+    - "salalah"
+    - "manama"
+
+# Regional Definitions (US, EU, UK, Egypt, GCC)
 regions:
   usa:
     east_coast_states:
@@ -224,6 +296,54 @@ regions:
       - ".uk"
       - ".co.uk"
 
+  egypt:
+    cities:
+      - "Cairo"
+      - "Alexandria"
+      - "Suez"
+      - "Port Said"
+      - "Ismailia"
+      - "Ain Sokhna"
+      - "New Cairo"
+      - "6th of October City"
+      - "10th of Ramadan City"
+      - "Giza"
+      - "Sadat City"
+      - "Borg El Arab"
+    tlds:
+      - ".eg"
+      - ".com.eg"
+
+  gcc:
+    countries:
+      - "AE"  # United Arab Emirates
+      - "SA"  # Saudi Arabia
+      - "QA"  # Qatar
+      - "KW"  # Kuwait
+      - "OM"  # Oman
+      - "BH"  # Bahrain
+    cities:
+      - "Dubai"
+      - "Abu Dhabi"
+      - "Sharjah"
+      - "Riyadh"
+      - "Jeddah"
+      - "Dammam"
+      - "Jubail"
+      - "Doha"
+      - "Kuwait City"
+      - "Muscat"
+      - "Sohar"
+      - "Salalah"
+      - "Manama"
+    tlds:
+      - ".ae"
+      - ".sa"
+      - ".qa"
+      - ".kw"
+      - ".om"
+      - ".bh"
+
 # Multilingual Keywords (EU Procurement)
 keywords_multi:
   fr:  # French
@@ -288,6 +408,15 @@ keywords_multi:
     - "portal de fornecedores"
     - "pedido de cotação"
     - "qualidade de fornecedores"
+  ar:  # Arabic (Egypt/GCC procurement)
+    - "مورد"           # supplier
+    - "موردين"         # suppliers
+    - "مشتريات"        # procurement
+    - "بوابة الموردين"  # supplier portal
+    - "طلب عرض أسعار"  # request for quotation
+    - "جودة الموردين"   # supplier quality
+    - "عطاء"           # tender
+    - "مناقصة"         # tender/bid
 
 # EU Quality Standards (Quality Stack)
 quality_standards:

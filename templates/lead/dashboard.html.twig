@@ -12,7 +12,7 @@
                 <h1 class="rams-page__title">{{ 'lead.dashboard'|trans }}</h1>
             </div>
             <div class="rams-page__actions">
-                <a href="{{ path('app_lead_review') }}" class="rams-btn--primary">
+                <a href="{{ path('app_lead_review') }}" class="rams-btn rams-btn--primary">
                     <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
@@ -33,21 +33,21 @@
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
                     <span class="rams-dymo">{{ 'lead.pending_review'|trans }}</span>
-                    <span class="rams-metric rams-rams-text--warning">{{ pending_leads }}</span>
+                    <span class="rams-metric rams-text--warning">{{ pending_leads }}</span>
                 </div>
             </div>
 
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
                     <span class="rams-dymo">{{ 'lead.approved_leads'|trans }}</span>
-                    <span class="rams-metric rams-rams-text--success">{{ approved_leads }}</span>
+                    <span class="rams-metric rams-text--success">{{ approved_leads }}</span>
                 </div>
             </div>
 
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
                     <span class="rams-dymo">{{ 'lead.denied_leads'|trans }}</span>
-                    <span class="rams-metric rams-rams-text--danger">{{ denied_leads }}</span>
+                    <span class="rams-metric rams-text--danger">{{ denied_leads }}</span>
                 </div>
             </div>
         </div>
@@ -66,7 +66,7 @@
                         </div>
                         <div>
                             <span class="rams-dymo">{{ 'lead.approval_rate'|trans }}</span>
-                            <span class="rams-metric rams-rams-text--success">
+                            <span class="rams-metric rams-text--success">
                                 {% if weekly_stats.total > 0 %}
                                     {{ ((weekly_stats.approved / weekly_stats.total) * 100)|number_format(1) }}%
                                 {% else %}
@@ -121,7 +121,7 @@
                                     </span>
                                 </td>
                                 <td class="rams-table__cell">
-                                    <a href="{{ path('app_lead_review', {region: stat.regionTag}) }}" class="rams-btn--ghost rams-btn--sm">
+                                    <a href="{{ path('app_lead_review', {region: stat.regionTag}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
                                         {{ 'lead.review'|trans }}
                                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
@@ -186,7 +186,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell">
-                                    <a href="{{ path('app_lead_review', {region: lead.regionTag}) }}" class="rams-btn--ghost rams-btn--sm">
+                                    <a href="{{ path('app_lead_review', {region: lead.regionTag}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
                                         {{ 'common.view'|trans }}
                                     </a>
                                 </td>

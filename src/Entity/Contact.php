@@ -11,6 +11,7 @@ use App\Entity\EmailCampaign;
 
 #[ORM\Entity(repositoryClass: ContactRepository::class)]
 #[ORM\Table(name: 'contacts')]
+#[ORM\HasLifecycleCallbacks]
 class Contact
 {
     #[ORM\Id]
@@ -54,6 +55,9 @@ class Contact
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $updatedAt = null;
 
     #[ORM\OneToMany(mappedBy: 'contact', targetEntity: Activity::class)]
     private Collection $activities;
@@ -219,6 +223,23 @@ class Contact
     {
         $this->createdAt = $createdAt;
         return $this;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeInterface
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTimeInterface $updatedAt): self
+    {
+        $this->updatedAt = $updatedAt;
+        return $this;
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     /**

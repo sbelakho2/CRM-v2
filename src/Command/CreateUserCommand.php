@@ -30,24 +30,27 @@ class CreateUserCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('email', InputArgument::REQUIRED, 'User email')
-            ->addArgument('firstName', InputArgument::REQUIRED, 'First name')
-            ->addArgument('lastName', InputArgument::REQUIRED, 'Last name')
-            ->addArgument('password', InputArgument::REQUIRED, 'Password')
-            ->addArgument('role', InputArgument::OPTIONAL, 'Role (Field Rep, Digital Rep, Sales Ops, Admin)', 'Field Rep')
-            ->addArgument('territory', InputArgument::OPTIONAL, 'Territory (Morocco, EU, Global)', 'Morocco');
+            ->addArgument('email', InputArgument::OPTIONAL, 'User email')
+            ->addArgument('firstName', InputArgument::OPTIONAL, 'First name')
+            ->addArgument('lastName', InputArgument::OPTIONAL, 'Last name')
+            ->addArgument('password', InputArgument::OPTIONAL, 'Password')
+            ->addOption('role', null, InputOption::VALUE_OPTIONAL, 'Role (Field Rep, Digital Rep, Sales Ops, Admin)', 'Field Rep')
+            ->addOption('territory', null, InputOption::VALUE_OPTIONAL, 'Territory (Morocco, EU, Global)', 'Morocco')
+            ->addOption('admin', null, InputOption::VALUE_NONE, 'Create user with Admin role');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
 
-        $email = $input->getArgument('email');
-        $firstName = $input->getArgument('firstName');
-        $lastName = $input->getArgument('lastName');
-        $password = $input->getArgument('password');
-        $role = $input->getArgument('role');
-        $territory = $input->getArgument('territory');
+        $email = $input->getArgument('email') ?? $io->ask('Email');
+        $firstName = $input->getArgument('firstName') ?? $io->ask('First Name');
+        $lastName = $input->getArgument('lastName') ?? $io->ask('Last Name');
+        $password = $input->getArgument('password') ?? $io->askHidden('Password');
+        
+        $isAdmin = $input->getOption('admin');
+        $role = $isAdmin ? 'Admin' : $input->getOption('role');
+        $territory = $input->getOption('territory');
 
         // Check if user already exists
         if ($this->userRepository->findOneBy(['email' => $email])) {

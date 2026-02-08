@@ -94,6 +94,32 @@ class ContactType extends AbstractType
                     'placeholder' => 'contact.form.phone_placeholder',
                 ],
                 'required' => false,
+            ])
+            ->add('linkedInUrl', UrlType::class, [
+                'label' => 'LinkedIn URL',
+                'attr' => [
+                    'class' => 'rams-form__input',
+                    'placeholder' => 'https://www.linkedin.com/in/...',
+                ],
+                'required' => false,
+                'constraints' => [
+                    new Url(['message' => 'validation.url']),
+                ],
+            ])
+            ->add('source', ChoiceType::class, [
+                'label' => 'Source',
+                'choices' => [
+                    'LinkedIn' => 'LinkedIn',
+                    'WebCrawler Enrichment' => 'WebCrawler Enrichment',
+                    'Portal' => 'Portal',
+                    'Referral' => 'Referral',
+                    'Cold Outreach' => 'Cold Outreach',
+                    'Trade Show' => 'Trade Show',
+                    'Manual' => 'Manual',
+                ],
+                'attr' => ['class' => 'rams-form__select'],
+                'placeholder' => 'Select source...',
+                'required' => false,
             ]);
     }
 

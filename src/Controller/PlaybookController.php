@@ -87,7 +87,7 @@ class PlaybookController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_playbook_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_playbook_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(Playbook $playbook): Response
     {
         $runs = $this->playbookRunRepository->findByPlaybook($playbook, 50);

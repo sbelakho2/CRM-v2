@@ -1,15 +1,15 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Meeting: {{ slot.title }} - CRM{% endblock %}
+{% block title %}{{ 'meeting.show_title_prefix'|trans }}{{ slot.title }}{{ 'meeting.show_title_suffix'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__header">
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
-                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <a href="{{ path('meeting_index') }}">Meetings</a>
+                <a href="{{ path('meeting_index') }}">{{ 'meeting.title'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
                 <span>{{ slot.title }}</span>
             </div>
@@ -22,30 +22,30 @@
             {% endif %}
         </div>
         <div class="rams-page__actions">
-            <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn">
+            <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                 </svg>
-                Edit
+                {{ 'common.edit'|trans }}
             </a>
             {% if slot.isBooked %}
-            <form action="{{ path('meeting_cancel', {id: slot.id}) }}" method="post" style="display: inline;">
+            <form action="{{ path('meeting_cancel', {id: slot.id}) }}" method="post" class="rams-inline-block">
                 <input type="hidden" name="_token" value="{{ csrf_token('cancel' ~ slot.id) }}">
-                <button type="submit" class="rams-btn--warning" onclick="return confirm('Cancel this meeting?');">
+                <button type="submit" class="rams-btn rams-btn--warning uppercase" onclick="return confirm('{{ 'meeting.cancel_this_meeting'|trans }}');">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <circle cx="8" cy="8" r="6"/><path d="M11 5L5 11M5 5L11 11"/>
                     </svg>
-                    Cancel Meeting
+                    {{ 'meeting.cancel_meeting'|trans }}
                 </button>
             </form>
             {% endif %}
-            <form action="{{ path('meeting_delete', {id: slot.id}) }}" method="post" style="display: inline;">
+            <form action="{{ path('meeting_delete', {id: slot.id}) }}" method="post" class="rams-inline-block">
                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ slot.id) }}">
-                <button type="submit" class="rams-btn--danger" onclick="return confirm('Delete this slot?');">
+                <button type="submit" class="rams-btn rams-btn--danger uppercase" onclick="return confirm('{{ 'meeting.delete_this_slot'|trans }}');">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                          <path d="M2 4H14M5 4V2H11V4M6 4V13H10V4"/>
                     </svg>
-                    Delete
+                    {{ 'common.delete'|trans }}
                 </button>
             </form>
         </div>
@@ -56,41 +56,55 @@
         <div class="rams-grid-span-2">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Meeting Details</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.details'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <dl class="rams-dl">
-                        <dt>Date</dt>
-                        <dd>{{ slot.startTime|date('l, F j, Y') }}</dd>
+                    <dl class="rams-definition-list">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.date'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.startTime|date('l, F j, Y') }}</dd>
+                        </div>
                         
-                        <dt>Time</dt>
-                        <dd>{{ slot.startTime|date('H:i') }} - {{ slot.endTime|date('H:i') }} ({{ slot.formattedDuration }})</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.time'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.startTime|date('H:i') }} - {{ slot.endTime|date('H:i') }} ({{ slot.formattedDuration }})</dd>
+                        </div>
                         
-                        <dt>Timezone</dt>
-                        <dd>{{ slot.timezone }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.timezone'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.timezone }}</dd>
+                        </div>
                         
-                        <dt>Meeting Type</dt>
-                        <dd>
-                            {{ slot.meetingType|replace({'_': ' '})|title }}
-                        </dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.meeting_type'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                {{ slot.meetingType|replace({'_': ' '})|upper }}
+                            </dd>
+                        </div>
                         
                         {% if slot.location %}
-                        <dt>Location</dt>
-                        <dd>{{ slot.location }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.location'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.location }}</dd>
+                        </div>
                         {% endif %}
                         
                         {% if slot.meetingUrl %}
-                        <dt>Meeting URL</dt>
-                        <dd>
-                            <a href="{{ slot.meetingUrl }}" target="_blank" class="rams-link">
-                                {{ slot.meetingUrl }}
-                            </a>
-                        </dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.meeting_url'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                <a href="{{ slot.meetingUrl }}" target="_blank" class="rams-link">
+                                    {{ slot.meetingUrl }}
+                                </a>
+                            </dd>
+                        </div>
                         {% endif %}
                         
                         {% if slot.meetingProvider %}
-                        <dt>Provider</dt>
-                        <dd>{{ slot.meetingProvider|title }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.provider'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.meetingProvider|upper }}</dd>
+                        </div>
                         {% endif %}
                     </dl>
                 </div>
@@ -99,36 +113,48 @@
             {% if slot.isBooked %}
             <div class="rams-module rams-mt-6">
                 <div class="rams-module__header">
-                    <h3>Booking Information</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.booking_information'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <dl class="rams-dl">
-                        <dt>Name</dt>
-                        <dd>{{ slot.bookedByName }}</dd>
+                    <dl class="rams-definition-list">
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.name'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.bookedByName }}</dd>
+                        </div>
                         
-                        <dt>Email</dt>
-                        <dd>
-                            <a href="mailto:{{ slot.bookedByEmail }}" class="rams-link">{{ slot.bookedByEmail }}</a>
-                        </dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.email'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                <a href="mailto:{{ slot.bookedByEmail }}" class="rams-link">{{ slot.bookedByEmail }}</a>
+                            </dd>
+                        </div>
                         
                         {% if slot.bookedByPhone %}
-                        <dt>Phone</dt>
-                        <dd>
-                            <a href="tel:{{ slot.bookedByPhone }}" class="rams-link">{{ slot.bookedByPhone }}</a>
-                        </dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.phone'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">
+                                <a href="tel:{{ slot.bookedByPhone }}" class="rams-link">{{ slot.bookedByPhone }}</a>
+                            </dd>
+                        </div>
                         {% endif %}
                         
                         {% if slot.bookedByCompany %}
-                        <dt>Company</dt>
-                        <dd>{{ slot.bookedByCompany }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.company'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.bookedByCompany }}</dd>
+                        </div>
                         {% endif %}
                         
-                        <dt>Booked At</dt>
-                        <dd>{{ slot.bookedAt|date('M d, Y H:i') }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'meeting.booked_at'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.bookedAt|date('M d, Y H:i') }}</dd>
+                        </div>
                         
                         {% if slot.bookingNotes %}
-                        <dt>Notes</dt>
-                        <dd>{{ slot.bookingNotes|nl2br }}</dd>
+                        <div class="rams-definition-list__item">
+                            <dt class="rams-definition-list__term">{{ 'common.notes'|trans }}</dt>
+                            <dd class="rams-definition-list__desc">{{ slot.bookingNotes|nl2br }}</dd>
+                        </div>
                         {% endif %}
                     </dl>
                 </div>
@@ -140,42 +166,43 @@
         <div>
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3>Status</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.status_heading'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-rams-text--center rams-p-4">
+                    <div class="rams-text--center rams-p-4">
                         {% if slot.isPast %}
-                        <svg class="rams-icon rams-icon--xl rams-rams-text--muted rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--xl rams-text--muted rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="8" cy="8" r="6"/><path d="M8 4V8L6 10"/>
                         </svg>
-                        <p class="rams-rams-text--muted">This meeting has passed.</p>
+                        <p class="rams-text--muted">{{ 'meeting.meeting_passed'|trans }}</p>
                         {% elseif slot.isBooked %}
-                        <svg class="rams-icon rams-icon--xl rams-rams-text--success rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--xl rams-text--success rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                              <circle cx="8" cy="8" r="6"/><path d="M6 8L7 9L10 6"/>
                         </svg>
-                        <p>Meeting is booked and confirmed.</p>
+                        <p>{{ 'meeting.meeting_confirmed'|trans }}</p>
                         {% elseif slot.isAvailable %}
-                        <svg class="rams-icon rams-icon--xl rams-rams-text--warning rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--xl rams-text--warning rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                              <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                         </svg>
-                        <p>Slot is available for booking.</p>
+                        <p>{{ 'meeting.slot_available'|trans }}</p>
                         {% elseif slot.isCancelled %}
-                        <svg class="rams-icon rams-icon--xl rams-rams-text--danger rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <svg class="rams-icon rams-icon--xl rams-text--danger rams-mb-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                              <circle cx="8" cy="8" r="6"/><path d="M11 5L5 11M5 5L11 11"/>
                         </svg>
-                        <p>This meeting was cancelled.</p>
+                        <p>{{ 'meeting.meeting_was_cancelled'|trans }}</p>
                         {% endif %}
                     </div>
                     
                     {% if slot.isAvailable and not slot.isPast %}
                     <hr class="rams-hr">
-                    <p class="rams-rams-text--sm rams-rams-text--muted rams-mb-2">Share this booking link:</p>
+                    <p class="rams-text--sm rams-text--muted rams-mb-2">{{ 'meeting.share_booking_link'|trans }}</p>
                     <div class="rams-form__input-group">
                         <input type="text" class="rams-form__input" value="{{ url('meeting_book_slot', {token: slot.bookingToken}) }}" readonly id="booking-link">
-                        <button type="button" class="rams-btn" onclick="copyBookingLink()">
+                        <button type="button" class="rams-btn uppercase" onclick="copyBookingLink()">
                             <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <rect x="4" y="4" width="8" height="8" rx="1"/><path d="M12 4V2H2V12H4"/>
                             </svg>
+                            {{ 'common.copy'|trans }}
                         </button>
                     </div>
                     {% endif %}
@@ -184,22 +211,22 @@
             
             <div class="rams-module rams-mt-4">
                 <div class="rams-module__header">
-                    <h3>Notifications</h3>
+                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.notifications'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <ul class="rams-list">
                         <li class="rams-list__item">
                             <span class="rams-status-indicator rams-status-indicator--{{ slot.confirmationSent ? 'success' : 'neutral' }}"></span>
-                            <span>Confirmation sent</span>
+                            <span>{{ 'meeting.confirmation_sent'|trans }}</span>
                             {% if slot.confirmationSentAt %}
-                            <span class="rams-rams-text--muted rams-rams-text--xs">({{ slot.confirmationSentAt|date('M d') }})</span>
+                            <span class="rams-text--muted rams-text--xs">({{ slot.confirmationSentAt|date('M d') }})</span>
                             {% endif %}
                         </li>
                         <li class="rams-list__item">
                             <span class="rams-status-indicator rams-status-indicator--{{ slot.reminderSent ? 'success' : 'neutral' }}"></span>
-                            <span>Reminder sent</span>
+                            <span>{{ 'meeting.reminder_sent'|trans }}</span>
                             {% if slot.reminderSentAt %}
-                            <span class="rams-rams-text--muted rams-rams-text--xs">({{ slot.reminderSentAt|date('M d') }})</span>
+                            <span class="rams-text--muted rams-text--xs">({{ slot.reminderSentAt|date('M d') }})</span>
                             {% endif %}
                         </li>
                     </ul>
@@ -214,7 +241,7 @@ function copyBookingLink() {
     const input = document.getElementById('booking-link');
     input.select();
     document.execCommand('copy');
-    alert('Link copied to clipboard!');
+    alert('{{ 'meeting.link_copied'|trans }}');
 }
 </script>
 {% endblock %}

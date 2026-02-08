@@ -21,6 +21,14 @@ class LlmEnrichmentService
 {
     private const DEFAULT_MODEL = 'gpt-3.5-turbo';
     private const MAX_TOKENS = 500;
+    private const MAX_RETRIES = 3;
+    private const INITIAL_RETRY_DELAY_MS = 500;
+    private const MAX_RETRY_DELAY_MS = 8000;
+    private const RATE_LIMIT_REQUESTS_PER_MINUTE = 20;
+    private const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504];
+    
+    /** @var float[] Timestamps of recent API calls for rate limiting */
+    private array $requestTimestamps = [];
     
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -174,36 +182,137 @@ PROMPT;
     }
 
     /**
-     * Call the LLM API
+     * Call the LLM API with retry logic and rate limiting
+     *
+     * @throws \RuntimeException When all retries are exhausted
      */
     private function callLlm(string $prompt): string
     {
-        $response = $this->httpClient->request('POST', $this->apiBaseUrl . '/chat/completions', [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type' => 'application/json',
-            ],
-            'json' => [
-                'model' => $this->model,
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => 'You are a data extraction assistant. Extract structured information from company website content. Always respond with valid JSON when asked.'
+        $this->enforceRateLimit();
+        
+        $lastException = null;
+        
+        for ($attempt = 1; $attempt <= self::MAX_RETRIES; $attempt++) {
+            try {
+                $this->recordRequest();
+                
+                $response = $this->httpClient->request('POST', $this->apiBaseUrl . '/chat/completions', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $this->apiKey,
+                        'Content-Type' => 'application/json',
                     ],
-                    [
-                        'role' => 'user',
-                        'content' => $prompt
-                    ]
-                ],
-                'max_tokens' => self::MAX_TOKENS,
-                'temperature' => 0.1, // Low temperature for consistent extraction
-            ],
-            'timeout' => 30,
-        ]);
+                    'json' => [
+                        'model' => $this->model,
+                        'messages' => [
+                            [
+                                'role' => 'system',
+                                'content' => 'You are a data extraction assistant. Extract structured information from company website content. Always respond with valid JSON when asked.'
+                            ],
+                            [
+                                'role' => 'user',
+                                'content' => $prompt
+                            ]
+                        ],
+                        'max_tokens' => self::MAX_TOKENS,
+                        'temperature' => 0.1,
+                    ],
+                    'timeout' => 30,
+                ]);
+                
+                $statusCode = $response->getStatusCode();
+                
+                if (in_array($statusCode, self::RETRYABLE_STATUS_CODES, true)) {
+                    throw new \RuntimeException(sprintf('HTTP %d: Retryable error', $statusCode));
+                }
+                
+                $data = $response->toArray();
+                
+                return $data['choices'][0]['message']['content'] ?? '';
+                
+            } catch (\Exception $e) {
+                $lastException = $e;
+                
+                if (!$this->isRetryableError($e) || $attempt >= self::MAX_RETRIES) {
+                    break;
+                }
+                
+                $delayMs = min(
+                    self::INITIAL_RETRY_DELAY_MS * (2 ** ($attempt - 1)),
+                    self::MAX_RETRY_DELAY_MS
+                );
+                
+                $this->logger->warning('LLM API call failed, retrying', [
+                    'attempt' => $attempt,
+                    'max_attempts' => self::MAX_RETRIES,
+                    'delay_ms' => $delayMs,
+                    'error' => $e->getMessage(),
+                ]);
+                
+                usleep($delayMs * 1000);
+            }
+        }
         
-        $data = $response->toArray();
+        throw new \RuntimeException(
+            'LLM API call failed after ' . self::MAX_RETRIES . ' attempts: ' . ($lastException?->getMessage() ?? 'Unknown'),
+            0,
+            $lastException
+        );
+    }
+    
+    /**
+     * Enforce rate limit by sleeping if necessary
+     */
+    private function enforceRateLimit(): void
+    {
+        $this->cleanOldTimestamps();
         
-        return $data['choices'][0]['message']['content'] ?? '';
+        if (count($this->requestTimestamps) >= self::RATE_LIMIT_REQUESTS_PER_MINUTE) {
+            $oldestInWindow = $this->requestTimestamps[0];
+            $sleepUntil = $oldestInWindow + 60.0;
+            $sleepSeconds = $sleepUntil - microtime(true);
+            
+            if ($sleepSeconds > 0) {
+                $this->logger->debug('LLM rate limit: sleeping', ['seconds' => round($sleepSeconds, 2)]);
+                usleep((int) ($sleepSeconds * 1_000_000));
+            }
+        }
+    }
+    
+    /**
+     * Record an API request timestamp
+     */
+    private function recordRequest(): void
+    {
+        $this->requestTimestamps[] = microtime(true);
+        $this->cleanOldTimestamps();
+    }
+    
+    /**
+     * Remove timestamps older than 60 seconds
+     */
+    private function cleanOldTimestamps(): void
+    {
+        $cutoff = microtime(true) - 60.0;
+        $this->requestTimestamps = array_values(
+            array_filter($this->requestTimestamps, fn(float $ts) => $ts >= $cutoff)
+        );
+    }
+    
+    /**
+     * Check if an error is retryable
+     */
+    private function isRetryableError(\Exception $e): bool
+    {
+        $message = strtolower($e->getMessage());
+        $retryablePatterns = ['timeout', 'timed out', 'rate limit', 'quota', '429', '500', '502', '503', '504', 'retryable'];
+        
+        foreach ($retryablePatterns as $pattern) {
+            if (str_contains($message, $pattern)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -215,8 +324,8 @@ PROMPT;
         $data = json_decode($response, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
-            // Try to extract JSON from response
-            if (preg_match('/\{[^}]+\}/s', $response, $matches)) {
+            // Try to extract JSON from response (supports nested objects)
+            if (preg_match('/\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}/s', $response, $matches)) {
                 $data = json_decode($matches[0], true);
             }
         }

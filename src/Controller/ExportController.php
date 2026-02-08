@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Export Controller
@@ -19,6 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * - Sourcing reports (multi-quote comparisons)
  */
 #[Route('/export')]
+#[IsGranted('ROLE_USER')]
 class ExportController extends AbstractController
 {
     public function __construct(

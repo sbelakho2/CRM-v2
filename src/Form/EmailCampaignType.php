@@ -38,7 +38,6 @@ class EmailCampaignType extends AbstractType
             ])
             ->add('touchCount', IntegerType::class, [
                 'label' => 'email_campaign.form.touch_count',
-                'data' => 5,
                 'attr' => [
                     'class' => 'geist-input',
                     'min' => 1,

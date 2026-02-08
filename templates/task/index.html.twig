@@ -1,56 +1,66 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Tasks - CRM{% endblock %}
+{% block title %}{{ 'task.title_crm'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__header">
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
-                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <span>Tasks</span>
+                <span>{{ 'task.title'|trans }}</span>
             </div>
-            <h1 class="rams-page__title">Tasks</h1>
+            <h1 class="rams-page__title">{{ 'task.title'|trans }}</h1>
         </div>
         <div class="rams-page__actions">
-            <a href="{{ path('app_task_my_day') }}" class="rams-btn">
+            <div class="rams-btn-group">
+                <a href="{{ path('app_task_my_day') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                 </svg>
-                My Day
-            </a>
-            <a href="{{ path('app_task_kanban') }}" class="rams-btn">
+                {{ 'task.my_day'|trans }}
+                </a>
+                <a href="{{ path('app_task_kanban') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="2" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="8" rx="1"/><rect x="10" y="2" width="4" height="10" rx="1"/>
                 </svg>
-                Kanban
-            </a>
-            <a href="{{ path('app_task_new') }}" class="rams-btn--primary">
+                {{ 'task.kanban'|trans }}
+                </a>
+                <a href="{{ path('app_task_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 2V14M2 8H14"/>
                 </svg>
-                New Task
-            </a>
+                {{ 'task.new_task'|trans }}
+                </a>
+            </div>
         </div>
     </div>
 
     <div class="rams-grid rams-grid--4 rams-mb-6">
-        <div class="rams-stat-card">
-            <div class="rams-stat-card__value">{{ stats.total|default(0) }}</div>
-            <div class="rams-stat-card__label">Total Tasks</div>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label">{{ 'task.total_tasks'|trans }}</div>
+                <div class="rams-metric__value tabular-nums">{{ stats.total|default(0) }}</div>
+            </div>
         </div>
-        <div class="rams-stat-card rams-stat-card--danger">
-            <div class="rams-stat-card__value">{{ stats.overdue|default(0) }}</div>
-            <div class="rams-stat-card__label">Overdue</div>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-red">{{ 'task.overdue'|trans }}</div>
+                <div class="rams-metric__value tabular-nums text-rams-red">{{ stats.overdue|default(0) }}</div>
+            </div>
         </div>
-        <div class="rams-stat-card rams-stat-card--warning">
-            <div class="rams-stat-card__value">{{ stats.due_today|default(0) }}</div>
-            <div class="rams-stat-card__label">Due Today</div>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-orange">{{ 'task.due_today'|trans }}</div>
+                <div class="rams-metric__value tabular-nums text-rams-orange">{{ stats.due_today|default(0) }}</div>
+            </div>
         </div>
-        <div class="rams-stat-card rams-stat-card--success">
-            <div class="rams-stat-card__value">{{ stats.by_status.done|default(0) }}</div>
-            <div class="rams-stat-card__label">Completed</div>
+        <div class="rams-module rams-p-4">
+            <div class="rams-metric">
+                <div class="rams-metric__label text-rams-green">{{ 'task.completed'|trans }}</div>
+                <div class="rams-metric__value tabular-nums text-rams-green">{{ stats.by_status.done|default(0) }}</div>
+            </div>
         </div>
     </div>
 
@@ -58,9 +68,9 @@
         <div class="rams-module__content">
             <form method="GET" class="rams-grid rams-grid--5 rams-gap-4 rams-items-end">
                 <div class="rams-form__group">
-                    <label class="rams-form__label">Status</label>
+                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'common.status'|trans }}</label>
                     <select name="status" class="rams-form__select">
-                        <option value="">All Statuses</option>
+                        <option value="">{{ 'task.all_statuses'|trans }}</option>
                         {% for value, label in statuses %}
                             <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
@@ -68,9 +78,9 @@
                 </div>
 
                 <div class="rams-form__group">
-                     <label class="rams-form__label">Priority</label>
+                     <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.priority'|trans }}</label>
                     <select name="priority" class="rams-form__select">
-                        <option value="">All Priorities</option>
+                        <option value="">{{ 'task.all_priorities'|trans }}</option>
                         {% for value, label in priorities %}
                             <option value="{{ value }}" {% if current_priority == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
@@ -78,9 +88,9 @@
                 </div>
 
                 <div class="rams-form__group">
-                     <label class="rams-form__label">Assignee</label>
+                     <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.assignee'|trans }}</label>
                     <select name="assignee" class="rams-form__select">
-                        <option value="">All Assignees</option>
+                        <option value="">{{ 'task.all_assignees'|trans }}</option>
                         {% for user in users %}
                             <option value="{{ user.id }}" {% if current_assignee == user.id %}selected{% endif %}>{{ user.fullName }}</option>
                         {% endfor %}
@@ -88,29 +98,29 @@
                 </div>
 
                 <div class="rams-form__group">
-                    <label class="rams-form__label">Search</label>
-                    <input type="text" name="search" value="{{ current_search }}" placeholder="Search tasks..." class="rams-form__input">
+                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'common.search'|trans }}</label>
+                    <input type="text" name="search" value="{{ current_search }}" placeholder="{{ 'task.search_tasks'|trans }}" class="rams-form__input">
                 </div>
 
                 <div class="rams-actions">
-                    <button type="submit" class="rams-btn">Filter</button>
-                    <a href="{{ path('app_task_index') }}" class="rams-btn--ghost">Reset</a>
+                    <button type="submit" class="rams-btn uppercase">{{ 'common.filter'|trans }}</button>
+                    <a href="{{ path('app_task_index') }}" class="rams-btn rams-btn--ghost uppercase">{{ 'common.reset'|trans }}</a>
                 </div>
             </form>
         </div>
     </div>
     
     <div class="rams-module">
-        <div class="rams-module__content rams-p-0">
+        <div class="rams-table-container">
             <table class="rams-table">
                 <thead>
                     <tr>
-                        <th>Status</th>
-                        <th>Title</th>
-                        <th>Priority</th>
-                        <th>Due Date</th>
-                        <th>Assigned To</th>
-                        <th>Actions</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.status'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'task.title_header'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'task.priority'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'task.due_date'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'task.assigned_to'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -122,9 +132,9 @@
                             </span>
                         </td>
                         <td>
-                            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-link rams-rams-text--bold">{{ task.title }}</a>
+                            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-link rams-text--bold">{{ task.title }}</a>
                             {% if task.company %}
-                                <div class="rams-rams-text--xs rams-rams-text--muted">{{ task.company.name }}</div>
+                                <div class="rams-text--xs rams-text--muted">{{ task.company.name }}</div>
                             {% endif %}
                         </td>
                         <td>
@@ -134,11 +144,11 @@
                         </td>
                         <td>
                             {% if task.dueDate %}
-                                <span class="{{ task.isOverdue ? 'rams-rams-text--danger' : '' }}">
+                                <span class="{{ task.isOverdue ? 'rams-text--danger' : '' }}">
                                     {{ task.dueDate|date('M d') }}
                                 </span>
                             {% else %}
-                                <span class="rams-rams-text--muted">-</span>
+                                <span class="rams-text--muted">-</span>
                             {% endif %}
                         </td>
                         <td>
@@ -147,12 +157,12 @@
                                     {{ task.assignedTo.firstName|first }}{{ task.assignedTo.lastName|first }}
                                 </span>
                             {% else %}
-                                <span class="rams-rams-text--muted">-</span>
+                                <span class="rams-text--muted">-</span>
                             {% endif %}
                         </td>
                         <td>
                             <div class="rams-actions rams-actions--sm">
-                                <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn--ghost rams-btn--icon" title="Edit">
+                                <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
                                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                                     </svg>
@@ -162,8 +172,8 @@
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="6" class="rams-rams-text--center rams-p-8 rams-rams-text--muted">
-                            No tasks found. <a href="{{ path('app_task_new') }}" class="rams-link">Create one now</a>.
+                        <td colspan="6" class="rams-text--center rams-p-8 rams-text--muted">
+                            {{ 'task.no_tasks_found'|trans }}<a href="{{ path('app_task_new') }}" class="rams-link">{{ 'task.create_one_now'|trans }}</a>.
                         </td>
                     </tr>
                 {% endfor %}

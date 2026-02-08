@@ -1,20 +1,20 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Generate Meeting Slots - CRM{% endblock %}
+{% block title %}{{ 'meeting.generate_title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__header">
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
-                <a href="{{ path('app_dashboard') }}">Dashboard</a>
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <a href="{{ path('meeting_index') }}">Meetings</a>
+                <a href="{{ path('meeting_index') }}">{{ 'meeting.title'|trans }}</a>
                 <span class="rams-breadcrumb-separator">/</span>
-                <span>Generate Slots</span>
+                <span>{{ 'meeting.generate_slots'|trans }}</span>
             </div>
-            <h1 class="rams-page__title">Generate Recurring Slots</h1>
-            <p class="rams-page__subtitle">Create multiple meeting slots at once based on your availability.</p>
+            <h1 class="rams-page__title">{{ 'meeting.generate_recurring'|trans }}</h1>
+            <p class="rams-page__subtitle">{{ 'meeting.generate_desc'|trans }}</p>
         </div>
     </div>
     
@@ -23,17 +23,17 @@
             <div class="rams-grid-span-2">
                 <div class="rams-module">
                     <div class="rams-module__header">
-                        <h3>Meeting Template</h3>
+                        <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.meeting_template'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
                         <div class="rams-form__group">
-                            <label class="rams-form__label">Meeting Title</label>
-                            <input type="text" name="title" class="rams-form__input" value="30-min Discovery Call" required>
+                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.meeting_title_label'|trans }}</label>
+                            <input type="text" name="title" class="rams-form__input" value="{{ 'meeting.meeting_title_default'|trans }}" required>
                         </div>
                         
                         <div class="rams-grid rams-grid--2 rams-gap-4">
                             <div class="rams-form__group">
-                                <label class="rams-form__label">Meeting Type</label>
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.meeting_type'|trans }}</label>
                                 <select name="meetingType" class="rams-form__select">
                                     {% for label, value in meetingTypes %}
                                     <option value="{{ value }}">{{ label }}</option>
@@ -41,7 +41,7 @@
                                 </select>
                             </div>
                             <div class="rams-form__group">
-                                <label class="rams-form__label">Duration</label>
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.duration'|trans }}</label>
                                 <select name="duration" class="rams-form__select">
                                     {% for label, value in durations %}
                                     <option value="{{ value }}" {% if value == 30 %}selected{% endif %}>{{ label }}</option>
@@ -52,12 +52,12 @@
                         
                         <div class="rams-grid rams-grid--2 rams-gap-4">
                             <div class="rams-form__group">
-                                <label class="rams-form__label">Location</label>
-                                <input type="text" name="location" class="rams-form__input" placeholder="Virtual or Room name">
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.location'|trans }}</label>
+                                <input type="text" name="location" class="rams-form__input" placeholder="{{ 'meeting.location_placeholder'|trans }}">
                             </div>
                             <div class="rams-form__group">
-                                <label class="rams-form__label">Meeting URL</label>
-                                <input type="url" name="meetingUrl" class="rams-form__input" placeholder="https://zoom.us/j/...">
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.meeting_url'|trans }}</label>
+                                <input type="url" name="meetingUrl" class="rams-form__input" placeholder="{{ 'meeting.url_placeholder'|trans }}">
                             </div>
                         </div>
                     </div>
@@ -65,88 +65,88 @@
                 
                 <div class="rams-module rams-mt-4">
                     <div class="rams-module__header">
-                        <h3>Schedule</h3>
+                        <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.schedule'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
                         <div class="rams-form__group">
-                            <label class="rams-form__label">Days of Week</label>
+                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.days_of_week'|trans }}</label>
                             <div class="rams-checkbox-group rams-flex rams-flex-wrap rams-gap-4">
                                 <label class="rams-flex rams-items-center rams-gap-2">
-                                    <input type="checkbox" name="weekdays[]" value="1" checked> <span>Mon</span>
+                                    <input type="checkbox" name="weekdays[]" value="1" checked> <span>{{ 'meeting.day_mon'|trans }}</span>
                                 </label>
                                 <label class="rams-flex rams-items-center rams-gap-2">
-                                    <input type="checkbox" name="weekdays[]" value="2" checked> <span>Tue</span>
+                                    <input type="checkbox" name="weekdays[]" value="2" checked> <span>{{ 'meeting.day_tue'|trans }}</span>
                                 </label>
                                 <label class="rams-flex rams-items-center rams-gap-2">
-                                    <input type="checkbox" name="weekdays[]" value="3" checked> <span>Wed</span>
+                                    <input type="checkbox" name="weekdays[]" value="3" checked> <span>{{ 'meeting.day_wed'|trans }}</span>
                                 </label>
                                 <label class="rams-flex rams-items-center rams-gap-2">
-                                    <input type="checkbox" name="weekdays[]" value="4" checked> <span>Thu</span>
+                                    <input type="checkbox" name="weekdays[]" value="4" checked> <span>{{ 'meeting.day_thu'|trans }}</span>
                                 </label>
                                 <label class="rams-flex rams-items-center rams-gap-2">
-                                    <input type="checkbox" name="weekdays[]" value="5" checked> <span>Fri</span>
+                                    <input type="checkbox" name="weekdays[]" value="5" checked> <span>{{ 'meeting.day_fri'|trans }}</span>
                                 </label>
                                 <label class="rams-flex rams-items-center rams-gap-2">
-                                    <input type="checkbox" name="weekdays[]" value="6"> <span>Sat</span>
+                                    <input type="checkbox" name="weekdays[]" value="6"> <span>{{ 'meeting.day_sat'|trans }}</span>
                                 </label>
                                 <label class="rams-flex rams-items-center rams-gap-2">
-                                    <input type="checkbox" name="weekdays[]" value="0"> <span>Sun</span>
+                                    <input type="checkbox" name="weekdays[]" value="0"> <span>{{ 'meeting.day_sun'|trans }}</span>
                                 </label>
                             </div>
                         </div>
                         
                         <div class="rams-grid rams-grid--3 rams-gap-4">
                             <div class="rams-form__group">
-                                <label class="rams-form__label">Start Time</label>
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.start_time'|trans }}</label>
                                 <input type="time" name="startTime" class="rams-form__input" value="09:00" required>
                             </div>
                             <div class="rams-form__group">
-                                <label class="rams-form__label">End Time</label>
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.end_time'|trans }}</label>
                                 <input type="time" name="endTime" class="rams-form__input" value="17:00" required>
                             </div>
                             <div class="rams-form__group">
-                                <label class="rams-form__label">Interval (mins)</label>
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.interval_mins'|trans }}</label>
                                 <select name="interval" class="rams-form__select">
-                                    <option value="60">60 mins</option>
-                                    <option value="45">45 mins</option>
-                                    <option value="30">30 mins</option>
-                                    <option value="15">15 mins</option>
+                                    <option value="60">{{ 'meeting.duration_60_mins'|trans }}</option>
+                                    <option value="45">{{ 'meeting.duration_45_mins'|trans }}</option>
+                                    <option value="30">{{ 'meeting.duration_30_mins'|trans }}</option>
+                                    <option value="15">{{ 'meeting.duration_15_mins'|trans }}</option>
                                 </select>
                             </div>
                         </div>
                         
                         <div class="rams-grid rams-grid--2 rams-gap-4">
                             <div class="rams-form__group">
-                                <label class="rams-form__label">Date Range</label>
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.date_range'|trans }}</label>
                                 <input type="date" name="startDate" class="rams-form__input" value="{{ 'now'|date('Y-m-d') }}" required>
                             </div>
                             <div class="rams-form__group">
-                                <label class="rams-form__label">Until</label>
+                                <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.until'|trans }}</label>
                                 <input type="date" name="endDate" class="rams-form__input" value="{{ '+1 month'|date('Y-m-d') }}" required>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="rams-actions">
-                    <button type="submit" class="rams-btn--primary">
+                <div class="rams-actions rams-mt-6">
+                    <button type="submit" class="rams-btn rams-btn--primary uppercase">
                         <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                              <circle cx="8" cy="8" r="6"/><path d="M8 4V8L10 10"/>
                         </svg>
-                        Generate Slots
+                        {{ 'meeting.generate_slots'|trans }}
                     </button>
-                    <a href="{{ path('meeting_index') }}" class="rams-btn--ghost">Cancel</a>
+                    <a href="{{ path('meeting_index') }}" class="rams-btn rams-btn--ghost uppercase">{{ 'common.cancel'|trans }}</a>
                 </div>
             </div>
             
             <div>
                 <div class="rams-module">
                     <div class="rams-module__header">
-                        <h3>Bulk Generation</h3>
+                        <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.bulk_generation'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
-                        <p class="rams-rams-text--sm rams-rams-text--muted">
-                            This tool will check your existing slots and only create new slots where you don't already have one scheduled.
+                        <p class="rams-text--sm rams-text--muted">
+                            {{ 'meeting.bulk_generation_desc'|trans }}
                         </p>
                     </div>
                 </div>

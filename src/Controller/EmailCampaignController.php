@@ -7,7 +7,6 @@ use App\Entity\EmailSend;
 use App\Entity\Contact;
 use App\Form\EmailCampaignType;
 use App\Repository\EmailCampaignRepository;
-use App\Repository\EmailSendRepository;
 use App\Repository\ContactRepository;
 use App\Service\EmailCampaignService;
 use App\Service\EmailTrackingSigner;
@@ -24,7 +23,6 @@ class EmailCampaignController extends AbstractController
     public function __construct(
         private EntityManagerInterface $entityManager,
         private EmailCampaignRepository $campaignRepository,
-        private EmailSendRepository $sendRepository,
         private ContactRepository $contactRepository,
         private EmailCampaignService $campaignService,
         private EmailTrackingSigner $trackingSigner,
@@ -174,7 +172,7 @@ class EmailCampaignController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_email_campaign_delete', methods: ['POST'])]
+    #[Route('/{id}/delete', name: 'app_email_campaign_delete', methods: ['POST'])]
     public function delete(Request $request, EmailCampaign $campaign): Response
     {
         if ($this->isCsrfTokenValid('delete'.$campaign->getId(), $request->request->get('_token'))) {

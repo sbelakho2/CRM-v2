@@ -9,7 +9,7 @@
             <h2 class="rams-module__title">{{ 'shortcuts.title'|trans }}</h2>
             <button 
                 type="button"
-                class="rams-btn--ghost rams-shortcuts-modal__close"
+                class="rams-btn rams-btn--ghost rams-shortcuts-modal__close"
                 onclick="document.getElementById('shortcuts-help-modal').classList.add('rams-hidden')"
                 aria-label="{{ 'common.close'|trans }}"
             >
@@ -168,7 +168,7 @@
     }
 
     .rams-shortcuts__title {
-        text-transform: uppercase;
+        text-transform: rams-uppercase;
         letter-spacing: 0.5px;
         margin: 0 0 8px 0;
     }
@@ -195,8 +195,8 @@
         height: 32px;
         padding: 0 8px;
         background: var(--rams-panel);
-        rams-border: 1px solid var(--rams-line);
-        rams-border-radius: var(--radius-sm);
+        border: 1px solid var(--rams-line);
+        border-radius: var(--radius-sm);
         font-family: var(--font-mono);
         font-size: 14px;
         font-weight: 600;

@@ -559,8 +559,8 @@ class EmailClassifierService
         if (!$this->bayesTrainingRepository) {
             $stats['status'] = 'in-memory-only';
             
-            // Return stats from in-memory model
-            foreach ($this->wordFrequencies as $classification => $words) {
+            // Return stats from fallback model
+            foreach (self::FALLBACK_BAYES_MODEL as $classification => $words) {
                 $stats['byClassification'][$classification] = [
                     'words' => count($words),
                     'frequency' => array_sum($words),
@@ -589,10 +589,10 @@ class EmailClassifierService
                 $stats['trainingExamples'] += (int) $row['total_freq'];
             }
             
-            // If database is empty, use in-memory stats
+            // If database is empty, use fallback model stats
             if (empty($stats['byClassification'])) {
                 $stats['status'] = 'fallback-to-memory';
-                foreach ($this->wordFrequencies as $classification => $words) {
+                foreach (self::FALLBACK_BAYES_MODEL as $classification => $words) {
                     $stats['byClassification'][$classification] = [
                         'words' => count($words),
                         'frequency' => array_sum($words),

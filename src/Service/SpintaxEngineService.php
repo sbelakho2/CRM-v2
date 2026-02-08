@@ -93,6 +93,13 @@ class SpintaxEngineService
         $subject = $this->personalize($subject, $context);
         $body = $this->personalize($body, $context);
         
+        // Detect unreplaced placeholders — log warning if any remain
+        if (preg_match_all('/\{\{(\w+)\}\}/', $body . ' ' . $subject, $unreplaced)) {
+            $this->logger->warning('Unreplaced placeholders detected in email output', [
+                'placeholders' => array_unique($unreplaced[1]),
+            ]);
+        }
+        
         // Generate variation hash for deduplication
         $variationHash = $this->generateVariationHash($subject, $body);
         
@@ -233,7 +240,12 @@ class SpintaxEngineService
         $previousBodies = [];
         
         for ($i = 0; $i < $count; $i++) {
-            $result = $this->spinAndPersonalize($subjectSpintax, $bodySpintax, $context);
+            // Use generateUnique to ensure each preview is distinct
+            $result = $this->generateUnique($subjectSpintax, $bodySpintax, $context, $previousBodies);
+            if ($result === null) {
+                // Exhausted unique variations, fall back to regular spin
+                $result = $this->spinAndPersonalize($subjectSpintax, $bodySpintax, $context);
+            }
             $variations[] = $result;
             $previousBodies[] = $result['body'];
         }
@@ -389,7 +401,7 @@ class SpintaxEngineService
             [
                 'name' => 'Geographic Advantage - Nearshore',
                 'description' => 'Emphasizes Morocco nearshore advantages for European prospects',
-                'subjectSpintax' => '{Nearshore advantage|European manufacturing alternative|Morocco facility} for {{company_name}}',
+                'subjectSpintax' => '{Nearshore advantage|European manufacturing alternative|North Africa facilities} for {{company_name}}',
                 'bodySpintax' => "{{greeting}},\n\n{{presuasive_opener}}\n\n{For European companies|For UK/EU manufacturers|For organizations in your region}, {here's what stands out|the value proposition is clear|the benefits are significant}:\n\n{{geo_logistics}} {{geo_timezone}} {{geo_trade}}\n\n{{fused_proof}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
                 'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'presuasive_opener', 'geo_logistics', 'geo_timezone', 'geo_trade', 'fused_proof', 'consistency'],
             ],

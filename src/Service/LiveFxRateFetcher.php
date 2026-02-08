@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\FxRate;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -44,12 +45,13 @@ class LiveFxRateFetcher
     private const RATE_STALENESS_HOURS = 24;
     
     // Supported currencies by source
-    private const ECB_CURRENCIES = ['USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'CNY', 'HKD', 'SGD', 'KRW', 'INR', 'TWD', 'MAD'];
-    private const FRANKFURTER_CURRENCIES = ['USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'CNY', 'HKD', 'SGD', 'KRW', 'INR'];
+    private const ECB_CURRENCIES = ['USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'CNY', 'HKD', 'SGD', 'KRW', 'INR', 'TWD', 'MAD', 'EGP'];
+    private const FRANKFURTER_CURRENCIES = ['USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'CNY', 'HKD', 'SGD', 'KRW', 'INR', 'EGP'];
     
     public function __construct(
         private HttpClientInterface $httpClient,
         private EntityManagerInterface $entityManager,
+        private ManagerRegistry $managerRegistry,
         private CacheInterface $cache,
         private LoggerInterface $logger
     ) {}
@@ -265,16 +267,37 @@ class LiveFxRateFetcher
                     throw new \RuntimeException('BCT API returned ' . $response->getStatusCode());
                 }
 
-                $xml = @simplexml_load_string($response->getContent());
+                $content = $response->getContent();
+                if (empty($content)) {
+                    throw new \RuntimeException('Empty BCT response');
+                }
+                
+                $prevUseErrors = libxml_use_internal_errors(true);
+                $xml = simplexml_load_string($content);
+                $xmlErrors = libxml_get_errors();
+                libxml_clear_errors();
+                libxml_use_internal_errors($prevUseErrors);
+                
                 if (!$xml) {
-                    throw new \RuntimeException('Invalid BCT XML response');
+                    $errorMsg = !empty($xmlErrors) ? $xmlErrors[0]->message : 'unknown';
+                    throw new \RuntimeException('Invalid BCT XML response: ' . trim($errorMsg));
                 }
 
+                // Known BCT currencies we want to track
+                $knownCurrencies = ['USD', 'EUR', 'GBP', 'CAD', 'CHF', 'JPY', 'SAR', 'AED', 'KWD', 'QAR'];
+                
                 $rates = [];
                 foreach ($xml->taux as $rateNode) {
-                    $currency = strtoupper((string) ($rateNode->devise ?? ''));
-                    $value = (float) str_replace(',', '.', (string) ($rateNode->cours ?? 0));
-                    if ($currency && $value > 0) {
+                    $currency = strtoupper(trim((string) ($rateNode->devise ?? '')));
+                    $coursStr = trim((string) ($rateNode->cours ?? ''));
+                    
+                    // Skip empty or non-numeric values
+                    if (!$currency || $coursStr === '') {
+                        continue;
+                    }
+                    
+                    $value = (float) str_replace(',', '.', $coursStr);
+                    if ($value > 0 && in_array($currency, $knownCurrencies, true)) {
                         $rates[$currency] = $value;
                     }
                 }
@@ -335,13 +358,15 @@ class LiveFxRateFetcher
                 $rates = [];
                 
                 // Parse header to get column positions
-                if (count($lines) >= 2) {
-                    $header = str_getcsv($lines[0]);
-                    $lastRow = str_getcsv(end(array_filter($lines)));
+                $filteredLines = array_values(array_filter($lines, fn($l) => trim($l) !== ''));
+                if (count($filteredLines) >= 2) {
+                    $header = str_getcsv($filteredLines[0]);
+                    $lastLine = $filteredLines[count($filteredLines) - 1];
+                    $lastRow = str_getcsv($lastLine);
                     
                     foreach ($header as $idx => $colName) {
                         $colName = trim($colName);
-                        if (isset($seriesMap[$colName]) && isset($lastRow[$idx])) {
+                        if (isset($seriesMap[$colName]) && isset($lastRow[$idx]) && is_numeric(trim($lastRow[$idx]))) {
                             $rate = (float) $lastRow[$idx];
                             if ($rate > 0) {
                                 $rates[$seriesMap[$colName]] = $rate;
@@ -424,7 +449,10 @@ class LiveFxRateFetcher
     }
 
     /**
-     * Get a single live rate with automatic source selection
+     * Get a single live rate with automatic source selection.
+     * 
+     * Fetched rates are automatically persisted to the database so that
+     * subsequent lookups use the DB cache instead of hitting external APIs.
      * 
      * @param string $from Source currency
      * @param string $to Target currency
@@ -439,35 +467,41 @@ class LiveFxRateFetcher
             return ['rate' => 1.0, 'source' => 'identity', 'timestamp' => new \DateTime()];
         }
         
-        // Try Frankfurter first (EUR-based)
+        // Try Frankfurter first (EUR-based, backed by ECB)
         $frankfurterRates = $this->fetchFromFrankfurter();
         
         if (!empty($frankfurterRates)) {
             // Direct EUR to target
             if ($from === 'EUR' && isset($frankfurterRates[$to])) {
-                return [
+                $result = [
                     'rate' => $frankfurterRates[$to],
                     'source' => 'ecb_frankfurter',
                     'timestamp' => new \DateTime(),
                 ];
+                $this->persistLiveRate($from, $to, $result);
+                return $result;
             }
             
             // Target to EUR (inverse)
             if ($to === 'EUR' && isset($frankfurterRates[$from])) {
-                return [
+                $result = [
                     'rate' => 1 / $frankfurterRates[$from],
                     'source' => 'ecb_frankfurter_inverse',
                     'timestamp' => new \DateTime(),
                 ];
+                $this->persistLiveRate($from, $to, $result);
+                return $result;
             }
             
             // Cross rate via EUR
             if (isset($frankfurterRates[$from]) && isset($frankfurterRates[$to])) {
-                return [
+                $result = [
                     'rate' => $frankfurterRates[$to] / $frankfurterRates[$from],
                     'source' => 'ecb_frankfurter_cross',
                     'timestamp' => new \DateTime(),
                 ];
+                $this->persistLiveRate($from, $to, $result);
+                return $result;
             }
         }
         
@@ -477,33 +511,39 @@ class LiveFxRateFetcher
         if (!empty($usdRates)) {
             // Direct USD to target
             if ($from === 'USD' && isset($usdRates[$to])) {
-                return [
+                $result = [
                     'rate' => $usdRates[$to],
                     'source' => 'exchangerate_api',
                     'timestamp' => new \DateTime(),
                 ];
+                $this->persistLiveRate($from, $to, $result);
+                return $result;
             }
             
             // Target to USD (inverse)
             if ($to === 'USD' && isset($usdRates[$from])) {
-                return [
+                $result = [
                     'rate' => 1 / $usdRates[$from],
                     'source' => 'exchangerate_api_inverse',
                     'timestamp' => new \DateTime(),
                 ];
+                $this->persistLiveRate($from, $to, $result);
+                return $result;
             }
             
             // Cross rate via USD
             if (isset($usdRates[$from]) && isset($usdRates[$to])) {
-                return [
+                $result = [
                     'rate' => $usdRates[$to] / $usdRates[$from],
                     'source' => 'exchangerate_api_cross',
                     'timestamp' => new \DateTime(),
                 ];
+                $this->persistLiveRate($from, $to, $result);
+                return $result;
             }
         }
         
-        $this->logger->warning('Could not fetch live rate', ['from' => $from, 'to' => $to]);
+        $this->logger->warning('Could not fetch live rate from any API', ['from' => $from, 'to' => $to]);
         return null;
     }
 
@@ -512,8 +552,10 @@ class LiveFxRateFetcher
      */
     private function storeRate(string $from, string $to, float $rate, string $source): void
     {
+        $entityManager = $this->getEntityManager();
+
         // Deactivate old rates for this pair
-        $this->entityManager->createQueryBuilder()
+        $entityManager->createQueryBuilder()
             ->update(FxRate::class, 'r')
             ->set('r.isActive', ':inactive')
             ->where('r.fromCurrency = :from')
@@ -533,8 +575,42 @@ class LiveFxRateFetcher
         $fxRate->setIsActive(true);
         $fxRate->setVersionId($source . '_' . time());
         
-        $this->entityManager->persist($fxRate);
-        $this->entityManager->flush();
+        $entityManager->persist($fxRate);
+        $entityManager->flush();
+    }
+
+    private function getEntityManager(): EntityManagerInterface
+    {
+        if (!$this->entityManager->isOpen()) {
+            $this->entityManager = $this->managerRegistry->resetManager();
+        }
+
+        return $this->entityManager;
+    }
+
+    /**
+     * Persist a live-fetched rate to the database for future lookups.
+     * 
+     * This auto-seeds the DB so that the system becomes self-sustaining:
+     * first request hits the API, all subsequent requests use the DB cache.
+     * Failures are silently logged (non-critical — the rate is still returned).
+     */
+    private function persistLiveRate(string $from, string $to, array $rateResult): void
+    {
+        try {
+            $this->storeRate($from, $to, $rateResult['rate'], 'live_' . $rateResult['source']);
+            $this->logger->info('Auto-persisted live FX rate to database', [
+                'pair' => "{$from}/{$to}",
+                'rate' => $rateResult['rate'],
+                'source' => $rateResult['source'],
+            ]);
+        } catch (\Exception $e) {
+            // Non-critical — we still have the rate in memory to return
+            $this->logger->warning('Failed to persist live FX rate (non-critical)', [
+                'pair' => "{$from}/{$to}",
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -572,7 +648,7 @@ class LiveFxRateFetcher
         return [
             'primary' => ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'TND'],
             'secondary' => ['CNY', 'HKD', 'SGD', 'KRW', 'INR', 'TWD'],
-            'regional' => ['MAD', 'TND'], // Moroccan Dirham and Tunisian Dinar
+            'regional' => ['MAD', 'TND', 'EGP'], // Moroccan Dirham, Tunisian Dinar, Egyptian Pound
             'sources' => [
                 'ecb' => self::ECB_CURRENCIES,
                 'frankfurter' => self::FRANKFURTER_CURRENCIES,

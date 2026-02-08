@@ -120,7 +120,7 @@ class EmailComplianceService
             nl2br(htmlspecialchars($this->physicalAddress)),
             htmlspecialchars($this->companyPhone),
             htmlspecialchars($unsubscribeLink),
-            'https://crm.starz-morocco.com',
+            rtrim($_ENV['APP_BASE_URL'] ?? 'https://crm.starz-morocco.com', '/'),
             base64_encode($contact->getEmail()),
             htmlspecialchars($contact->getEmail())
         );

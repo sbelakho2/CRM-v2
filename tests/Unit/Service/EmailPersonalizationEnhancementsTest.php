@@ -100,20 +100,24 @@ class EmailPersonalizationEnhancementsTest extends TestCase
         $this->assertEquals($shortContent, $result, 'Short content should not be modified');
     }
     
-    // ========================= COMPETITOR HOOKS (DISABLED) =========================
-    // Competitor hooks have been disabled pending legal review and verified claims
+    // ========================= COMPETITOR HOOKS =========================
+    // Competitor hooks are now populated with factual, non-defamatory positioning
     
-    public function testGetCompetitorHookReturnsNullWhenDisabled(): void
+    public function testGetCompetitorHookReturnsDataForKnownCompetitors(): void
     {
-        // Competitor hooks are intentionally disabled - all should return null
         $hook = $this->service->getCompetitorHook('jabil');
-        $this->assertNull($hook, 'Jabil hook should be null when competitor hooks are disabled');
+        $this->assertIsArray($hook, 'Jabil hook should return competitor positioning data');
+        $this->assertArrayHasKey('hook', $hook);
+        $this->assertArrayHasKey('differentiator', $hook);
+        $this->assertArrayHasKey('value', $hook);
         
         $hook = $this->service->getCompetitorHook('flex');
-        $this->assertNull($hook, 'Flex hook should be null when competitor hooks are disabled');
+        $this->assertIsArray($hook, 'Flex hook should return competitor positioning data');
+        $this->assertArrayHasKey('hook', $hook);
         
         $hook = $this->service->getCompetitorHook('celestica');
-        $this->assertNull($hook, 'Celestica hook should be null when competitor hooks are disabled');
+        $this->assertIsArray($hook, 'Celestica hook should return competitor positioning data');
+        $this->assertArrayHasKey('hook', $hook);
     }
     
     public function testGetCompetitorHookForUnknown(): void
@@ -123,13 +127,15 @@ class EmailPersonalizationEnhancementsTest extends TestCase
         $this->assertNull($hook, 'Unknown competitor should return null');
     }
     
-    public function testGetKnownCompetitorsReturnsEmptyWhenDisabled(): void
+    public function testGetKnownCompetitorsReturnsPopulatedList(): void
     {
         $competitors = $this->service->getKnownCompetitors();
         
-        // Competitor hooks are disabled - array should be empty
         $this->assertIsArray($competitors);
-        $this->assertEmpty($competitors, 'Known competitors should be empty when feature is disabled');
+        $this->assertNotEmpty($competitors, 'Known competitors should be populated');
+        $this->assertContains('jabil', $competitors);
+        $this->assertContains('flex', $competitors);
+        $this->assertContains('celestica', $competitors);
     }
     
     // ========================= TONE TRANSFORMATIONS (PUBLIC API) =========================

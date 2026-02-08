@@ -25,7 +25,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Onboarding pack contents:
  * - Company profile (name, address, year established, employee count)
  * - Capabilities (PCB fab, SMT/THT assembly, testing, design services)
- * - Certifications (ISO 9001, ISO 14001, IATF 16949, IPC-A-610)
+ * - Certifications (ISO 9001, ISO 14001, IPC-A-610)
  * - Bank details (IBAN, SWIFT, bank name, account name)
  * - Tax IDs (VAT number, DUNS, etc.)
  * - Contact information (sales, engineering, finance)
@@ -367,7 +367,6 @@ class OnboardingPackService
         $candidate->setCertificationsJson(json_encode([
             'ISO 9001:2015',
             'ISO 14001:2015',
-            'IATF 16949:2016',
             'IPC-A-610 Class 3'
         ]));
         

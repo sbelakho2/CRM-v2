@@ -6,23 +6,23 @@
 {{ parent() }}
 <style>
     /* Confidence Badge Variants - Sensei-Rams BEM Naming */
-    .rams-confidence--high { background-color: var(--rams-success-bg); rams-border-color: var(--rams-green); }
-    .rams-confidence--medium { background-color: var(--rams-warning-bg); rams-border-color: var(--rams-orange); }
-    .rams-confidence--low { background-color: var(--rams-warning-bg); rams-border-color: var(--rams-orange); }
-    .rams-confidence--very-low { background-color: var(--rams-danger-bg); rams-border-color: var(--rams-red); }
+    .rams-confidence--high { background-color: rgba(45, 140, 60, 0.1); border-color: var(--rams-green); color: var(--rams-green); }
+    .rams-confidence--medium { background-color: rgba(255, 190, 0, 0.1); border-color: var(--rams-orange); color: var(--rams-orange); }
+    .rams-confidence--low { background-color: rgba(255, 190, 0, 0.1); border-color: var(--rams-orange); color: var(--rams-orange); }
+    .rams-confidence--very-low { background-color: rgba(214, 45, 45, 0.1); border-color: var(--rams-red); color: var(--rams-red); }
     
     /* Row State Modifiers */
-    .rams-line--verified { opacity: 0.7; }
-    .rams-line--needs-review { background-color: var(--rams-warning-bg); }
+    .rams-line--verified { opacity: 0.8; background-color: rgba(45, 140, 60, 0.03); }
+    .rams-line--needs-review { background-color: rgba(255, 190, 0, 0.05); }
     
     /* Lifecycle Indicators */
-    .rams-lifecycle--critical { background-color: var(--rams-danger-bg); rams-border-left: 4px solid var(--rams-red); }
-    .rams-lifecycle--warning { background-color: var(--rams-warning-bg); rams-border-left: 4px solid var(--rams-orange); }
+    .rams-lifecycle--critical { border-left: 4px solid var(--rams-red) !important; }
+    .rams-lifecycle--warning { border-left: 4px solid var(--rams-orange) !important; }
     .rams-lifecycle-badge--critical {
         background-color: var(--rams-red);
         color: white;
         padding: 2px 6px;
-        rams-border-radius: var(--radius-sm);
+        border-radius: var(--radius-sm);
         font-size: 10px;
         font-weight: bold;
         animation: rams-pulse 2s infinite;
@@ -31,7 +31,7 @@
         background-color: var(--rams-orange);
         color: white;
         padding: 2px 6px;
-        rams-border-radius: var(--radius-sm);
+        border-radius: var(--radius-sm);
         font-size: 10px;
         font-weight: bold;
     }
@@ -46,295 +46,301 @@
         z-index: 100;
         min-width: 350px;
         background: var(--rams-panel);
-        rams-border: 1px solid var(--rams-line);
-        rams-border-radius: var(--radius-md);
+        border: 1px solid var(--rams-line);
+        border-radius: var(--radius-md);
         box-shadow: var(--shadow-inset);
         padding: 8px 0;
     }
     .rams-alternatives-dropdown:hover .rams-alternatives-menu { display: block; }
-    .alt-item {
+    .rams-alt-item {
         padding: 8px 12px;
-        rams-border-bottom: 1px solid var(--rams-border-light, #f3f4f6);
+        border-bottom: 1px solid var(--rams-border-light, #f3f4f6);
         cursor: pointer;
         transition: background-color 0.15s;
     }
-    .alt-item:hover { background-color: var(--rams-bg-secondary, #f9fafb); }
-    .alt-item:last-child { rams-border-bottom: none; }
+    .rams-alt-item:hover { background-color: var(--rams-bg-secondary, #f9fafb); }
+    .rams-alt-item:last-child { border-bottom: none; }
     
-    .diff-match { color: var(--rams-success); font-weight: 500; }
-    .diff-insert { color: var(--rams-danger); background-color: var(--rams-danger-bg); padding: 0 2px; rams-border-radius: 2px; font-weight: 600; }
-    .diff-delete { color: var(--rams-danger); text-decoration: line-through; opacity: 0.7; }
-    .diff-container { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.5px; }
+    .rams-diff-match { color: var(--rams-success); font-weight: 500; }
+    .rams-diff-insert { color: var(--rams-danger); background-color: var(--rams-danger-bg); padding: 0 2px; border-radius: 2px; font-weight: 600; }
+    .rams-diff-delete { color: var(--rams-danger); text-decoration: line-through; opacity: 0.7; }
+    .rams-diff-container { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.5px; }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="rams-stack rams-gap-6">
-    {# Page Header #}
-    <div class="rams-page-header">
-        <div>
-            <nav class="rams-breadcrumb rams-mb-2">
-                <ol class="rams-breadcrumb__list">
-                    <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
-                    <li class="rams-breadcrumb__separator">/</li>
-                    <li class="rams-breadcrumb__item"><a href="{{ path('quote_review_index') }}" class="rams-breadcrumb__link">{{ 'nav.quote_review'|trans }}</a></li>
-                    <li class="rams-breadcrumb__separator">/</li>
-                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ quote.quoteNumber }}</li>
-                </ol>
-            </nav>
-            <h1 class="rams-page-title">{{ 'quote.review.review'|trans }}: {{ quote.quoteNumber }}</h1>
-            <p class="rams-page-subtitle">{{ quote.company.name ?: 'common.n_a'|trans }} · {{ quote.createdAt|date('M j, Y g:i A') }}</p>
-        </div>
-        <div class="rams-page-actions">
-            <div class="rams-btn-group">
-                <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn">
-                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M8 12V2M4 6L8 2L12 6"/>
-                    </svg>
-                    {{ 'common.export_csv'|trans }}
-                </a>
-                <button id="verify-all-high-btn" class="rams-btn">
-                    {{ 'quote.review.verify_all_high'|trans }}
-                </button>
-                <button id="approve-quote-btn" class="rams-btn--primary"
-                    {% if not stats.ready_for_approval %}disabled{% endif %}>
-                    <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 8L6 11L13 4"/>
-                    </svg>
-                    {{ 'quote.review.approve'|trans }}
-                </button>
+<div class="rams-page">
+    <div class="rams-page__header">
+        <div class="rams-page__header-content">
+             <div class="rams-breadcrumb">
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <a href="{{ path('quote_review_index') }}">{{ 'nav.quote_review'|trans }}</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <span>{{ quote.quoteNumber }}</span>
             </div>
+            <h1 class="rams-page__title">{{ 'quote.review.review'|trans }}: {{ quote.quoteNumber }}</h1>
+            <p class="rams-page__subtitle">{{ quote.company.name ?: 'common.n_a'|trans }} · {{ quote.createdAt|date('M j, Y g:i A') }}</p>
+        </div>
+        <div class="rams-page__actions">
+            <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn uppercase">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M8 12V2M4 6L8 2L12 6"/>
+                </svg>
+                {{ 'common.export_csv'|trans }}
+            </a>
+            <button id="verify-all-high-btn" class="rams-btn uppercase">
+                {{ 'quote.review.verify_all_high'|trans }}
+            </button>
+            <button id="approve-quote-btn" class="rams-btn rams-btn--primary uppercase"
+                {% if not stats.ready_for_approval %}disabled{% endif %}>
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M3 8L6 11L13 4"/>
+                </svg>
+                {{ 'quote.review.approve'|trans }}
+            </button>
         </div>
     </div>
 
     {# Stats Cards #}
-    <div class="rams-grid rams-grid--4 rams-gap-4">
-        <div class="rams-module rams-module--inset">
-            <div class="rams-module__content rams-flex rams-justify-between rams-items-center">
+    <div class="rams-grid rams-grid--4 rams-mb-6">
+        <div class="rams-module rams-p-4">
+            <div class="rams-flex rams-justify-between rams-items-center">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'quote.review.total_lines'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg">{{ stats.total_lines }}</span>
+                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.total_lines'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums">{{ stats.total_lines }}</div>
                 </div>
                 <div class="rams-metric rams-text--right">
-                    <span class="rams-metric__label">{{ 'quote.review.verified'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg rams-text--success">{{ stats.verified_count }}</span>
+                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.verified'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums text-rams-green">{{ stats.verified_count }}</div>
                 </div>
             </div>
         </div>
-        <div class="rams-module rams-module--inset">
-            <div class="rams-module__content rams-flex rams-justify-between rams-items-center">
+        <div class="rams-module rams-p-4">
+            <div class="rams-flex rams-justify-between rams-items-center">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'quote.review.needs_review'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg rams-text--danger">{{ stats.requires_review_count }}</span>
+                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.needs_review'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums text-rams-red">{{ stats.requires_review_count }}</div>
                 </div>
                 <div class="rams-metric rams-text--right">
-                    <span class="rams-metric__label">{{ 'quote.review.no_price'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg rams-text--warning">{{ stats.no_price_count }}</span>
+                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.no_price'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums text-rams-orange">{{ stats.no_price_count }}</div>
                 </div>
             </div>
         </div>
-        <div class="rams-module rams-module--inset">
-            <div class="rams-module__content rams-flex rams-justify-between rams-items-center">
+        <div class="rams-module rams-p-4">
+            <div class="rams-flex rams-justify-between rams-items-center">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'quote.review.sourced_value'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg">{{ stats.sourced_value|format_currency(quote.currency, null, 2) }}</span>
+                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.sourced_value'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums text-base">{{ stats.sourced_value|format_currency(quote.currency, null, 2) }}</div>
                 </div>
                 <div class="rams-metric rams-text--right">
-                    <span class="rams-metric__label">{{ 'quote.review.progress'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg rams-text--info">{{ stats.verification_percent }}%</span>
+                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.progress'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums text-base text-rams-steel">{{ stats.verification_percent }}%</div>
                 </div>
             </div>
         </div>
-        <div class="rams-module rams-module--inset">
-            <div class="rams-module__content rams-flex rams-justify-between rams-items-center">
+        <div class="rams-module rams-p-4">
+            <div class="rams-flex rams-justify-between rams-items-center">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'quote.review.obsolete_eol'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg rams-text--danger">{{ stats.lifecycle_critical|default(0) }}</span>
+                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.obsolete_eol'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums text-rams-red">{{ stats.lifecycle_critical|default(0) }}</div>
                 </div>
                 <div class="rams-metric rams-text--right">
-                    <span class="rams-metric__label">{{ 'quote.review.nrnd_parts'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg rams-text--warning">{{ stats.lifecycle_warning|default(0) }}</span>
+                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.nrnd_parts'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums text-rams-orange">{{ stats.lifecycle_warning|default(0) }}</div>
                 </div>
             </div>
         </div>
     </div>
 
     {# Confidence Legend #}
-    <div class="rams-module">
+    <div class="rams-module rams-mb-6">
         <div class="rams-module__content">
             <div class="rams-flex rams-flex-wrap rams-items-center rams-gap-4">
-                <span class="rams-text--xs rams-text--bold uppercase rams-font-mono">{{ 'quote.review.confidence_levels'|trans }}:</span>
-                <span class="rams-badge rams-confidence--high">{{ 'quote.review.high'|trans }} (90-100)</span>
-                <span class="rams-badge rams-confidence--medium">{{ 'quote.review.medium'|trans }} (70-89)</span>
-                <span class="rams-badge rams-confidence--low">{{ 'quote.review.low'|trans }} (50-69)</span>
-                <span class="rams-badge rams-confidence--very-low">{{ 'quote.review.very_low'|trans }} (&lt;50)</span>
+                <span class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'quote.review.confidence_levels'|trans }}:</span>
+                <span class="rams-badge rams-confidence--high uppercase">{{ 'quote.review.high'|trans }} (90-100)</span>
+                <span class="rams-badge rams-confidence--medium uppercase">{{ 'quote.review.medium'|trans }} (70-89)</span>
+                <span class="rams-badge rams-confidence--low uppercase">{{ 'quote.review.low'|trans }} (50-69)</span>
+                <span class="rams-badge rams-confidence--very-low uppercase">{{ 'quote.review.very_low'|trans }} (&lt;50)</span>
             </div>
         </div>
     </div>
 
     {# BOM Lines Table #}
     <div class="rams-module">
-        <div class="rams-module__content rams-module__content--flush">
-            <div class="rams-table-container">
-                <table class="rams-table" id="bom-lines-table">
-                    <thead class="rams-table__header">
-                        <tr>
-                            <th class="rams-table__cell rams-table__cell--header">#</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.review.mpn'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.review.matched'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'quote.review.manufacturer'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.description'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header rams-text--right">{{ 'common.quantity'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header rams-text--right">{{ 'quote.live.unit_price'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header rams-text--right">{{ 'quote.review.extended'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header rams-text--center">{{ 'quote.review.confidence'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header rams-text--center">{{ 'common.status'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="rams-table__body">
-                        {% for line in bomLines %}
-                            <tr id="line-{{ line.id }}" class="rams-table__row 
-                                {% if line.lifecycleWarning == 'critical' %}rams-lifecycle--critical{% elseif line.lifecycleWarning == 'warning' %}rams-lifecycle--warning{% endif %}
-                                {% if line.requiresReview and not line.manuallyVerified %}rams-line--needs-review{% endif %}
-                                {% if line.manuallyVerified %}rams-line--verified{% endif %}">
-                                <td class="rams-table__cell rams-text--muted rams-text--xs rams-font-mono">{{ line.lineNumber }}</td>
-                                <td class="rams-table__cell">
-                                    <div class="rams-stack rams-gap-1">
-                                        <span class="rams-text--bold">
-                                            {% if line.distributorSearchUrl %}
-                                                <a href="{{ line.distributorSearchUrl }}" target="_blank" class="rams-link rams-text--xs" title="{{ 'quote.review.search_distributor'|trans }}">
-                                                    {{ line.mpn ?: 'common.n_a'|trans }} ↗
-                                                </a>
-                                            {% else %}
-                                                {{ line.mpn ?: 'common.n_a'|trans }}
-                                            {% endif %}
-                                        </span>
-                                        {% if line.originalMpn and line.originalMpn != line.mpn %}
-                                            <span class="rams-text--3xs rams-text--muted rams-font-mono uppercase">{{ 'quote.review.original'|trans }}: {{ line.originalMpn }}</span>
+        <div class="rams-table-container">
+            <table class="rams-table" id="bom-lines-table">
+                <thead>
+                    <tr>
+                        <th class="font-mono text-2xs uppercase tracking-widest">#</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.review.mpn'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.review.matched'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.review.manufacturer'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.description'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'common.quantity'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'quote.live.unit_price'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'quote.review.extended'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--center">{{ 'quote.review.confidence'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--center">{{ 'common.status'|trans }}</th>
+                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.actions'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in bomLines %}
+                        <tr id="line-{{ line.id }}" class="
+                            {% if line.lifecycleWarning == 'critical' %}rams-lifecycle--critical{% elseif line.lifecycleWarning == 'warning' %}rams-lifecycle--warning{% endif %}
+                            {% if line.requiresReview and not line.manuallyVerified %}rams-line--needs-review{% endif %}
+                            {% if line.manuallyVerified %}rams-line--verified{% endif %}">
+                            <td class="tabular-nums text-xs text-rams-muted font-mono">{{ line.lineNumber }}</td>
+                            <td>
+                                <div class="rams-flex rams-flex-col rams-gap-1">
+                                    {% if line.distributorSearchUrl %}
+                                        <a href="{{ line.distributorSearchUrl }}" target="_blank" class="rams-link text-xs uppercase font-mono" title="{{ 'quote.review.search_distributor'|trans }}">
+                                            {{ line.mpn ?: 'common.n_a'|trans }} ↗
+                                        </a>
+                                    {% else %}
+                                        <span class="font-mono text-xs uppercase">{{ line.mpn ?: 'common.n_a'|trans }}</span>
+                                    {% endif %}
+                                    {% if line.originalMpn and line.originalMpn != line.mpn %}
+                                        <div class="font-mono text-3xs uppercase text-rams-muted">{{ 'quote.review.original'|trans }}: {{ line.originalMpn }}</div>
+                                    {% endif %}
+                                    <div class="rams-flex rams-gap-1">
+                                        {% if line.lifecycleWarning == 'critical' %}
+                                            <span class="rams-lifecycle-badge--critical" title="{{ 'quote.review.part_obsolete'|trans }}">⚠ {{ 'quote.review.obsolete'|trans }}</span>
+                                        {% elseif line.lifecycleWarning == 'warning' %}
+                                            <span class="rams-lifecycle-badge--warning" title="{{ 'quote.review.nrnd'|trans }}">{{ 'quote.review.nrnd_short'|trans }}</span>
                                         {% endif %}
-                                        <div class="rams-flex rams-gap-1">
-                                            {% if line.lifecycleWarning == 'critical' %}
-                                                <span class="rams-lifecycle-badge--critical" title="{{ 'quote.review.part_obsolete'|trans }}">⚠ {{ 'quote.review.obsolete'|trans }}</span>
-                                            {% elseif line.lifecycleWarning == 'warning' %}
-                                                <span class="rams-lifecycle-badge--warning" title="{{ 'quote.review.nrnd'|trans }}">{{ 'quote.review.nrnd_short'|trans }}</span>
-                                            {% endif %}
-                                        </div>
                                     </div>
-                                </td>
-                                <td class="rams-table__cell">
-                                    {% if line.matchedMpn %}
-                                        {% if line.matchedMpn != line.mpn and line.confidenceLevel == 'MEDIUM' %}
-                                            <div class="diff-container" data-original="{{ line.mpn|e('html_attr') }}" data-matched="{{ line.matchedMpn|e('html_attr') }}">
-                                                <span class="diff-view rams-text--warning rams-text--xs rams-font-mono"></span>
-                                            </div>
-                                        {% else %}
-                                            <span class="rams-text--xs rams-font-mono {% if line.matchedMpn != line.mpn %}rams-text--warning{% else %}rams-text--success{% endif %}">
-                                                {{ line.matchedMpn }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if line.matchedMpn %}
+                                    {% if line.matchedMpn != line.mpn and line.confidenceLevel == 'MEDIUM' %}
+                                        <div class="rams-diff-container" data-original="{{ line.mpn|e('html_attr') }}" data-matched="{{ line.matchedMpn|e('html_attr') }}">
+                                            <span class="diff-view font-mono text-xs text-rams-orange"></span>
+                                        </div>
+                                    {% else %}
+                                        <div class="font-mono text-xs {% if line.matchedMpn != line.mpn %}text-rams-orange{% else %}text-rams-green{% endif %}">
+                                            {{ line.matchedMpn }}
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if line.alternativeParts|default([])|length > 0 %}
+                                        <div class="rams-alternatives-dropdown rams-mt-1">
+                                            <span class="font-mono text-3xs uppercase rams-link text-rams-muted" >
+                                                +{{ line.alternativeParts|length }} {{ 'quote.review.alternatives'|trans }} ▾
                                             </span>
-                                        {% endif %}
-                                        
-                                        {% if line.alternativeParts|default([])|length > 0 %}
-                                            <div class="rams-alternatives-dropdown rams-mt-1">
-                                                <span class="rams-text--3xs rams-font-mono uppercase rams-link rams-text--muted" style="cursor:pointer">
-                                                    +{{ line.alternativeParts|length }} {{ 'quote.review.alternatives'|trans }} ▾
-                                                </span>
-                                                <div class="rams-alternatives-menu">
-                                                    <div class="rams-px-3 rams-py-2 rams-border-b rams-bg-panel">
-                                                        <span class="rams-text--2xs rams-text--bold uppercase rams-font-mono rams-text--muted">{{ 'quote.review.alternative_parts'|trans }}</span>
-                                                    </div>
-                                                    {% for alt in line.alternativeParts %}
-                                                        <div class="alt-item" onclick="selectAlternative({{ line.id }}, '{{ alt.mpn|e('js') }}', '{{ (alt.source ?? 'mouser')|e('js') }}')">
-                                                            <div class="rams-flex rams-justify-between rams-items-center">
-                                                                <div>
-                                                                    <span class="rams-text--xs rams-text--bold rams-font-mono">{{ alt.mpn }}</span>
-                                                                    <span class="rams-text--3xs rams-text--muted uppercase rams-block">{{ alt.manufacturer ?? '' }}</span>
-                                                                </div>
-                                                                <div class="rams-text--right">
-                                                                    <span class="rams-text--xs rams-text--bold rams-font-mono">{{ alt.price|default(0)|format_currency(quote.currency, null, 4) }}</span>
-                                                                    <span class="rams-text--3xs rams-text--muted rams-block">
-                                                                        {% if alt.score is defined %}{{ alt.score }}%{% endif %}
-                                                                        {% if alt.stock is defined %}· {{ alt.stock }} {{ 'quote.review.in_stock'|trans }}{% endif %}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            {% if alt.lifecycle_warning %}
-                                                                <span class="rams-text--3xs rams-mt-1 rams-block {% if alt.lifecycle_warning == 'critical' %}rams-text--danger{% else %}rams-text--warning{% endif %} uppercase rams-font-mono">
-                                                                    ⚠ {{ alt.lifecycle_status|default(alt.lifecycle_warning) }}
-                                                                </span>
-                                                            {% endif %}
-                                                        </div>
-                                                    {% endfor %}
+                                            <div class="rams-alternatives-menu">
+                                                <div class="rams-px-3 rams-py-2 rams-border-b border-rams-line rams-bg-panel">
+                                                    <span class="font-mono text-2xs font-bold uppercase text-rams-muted">{{ 'quote.review.alternative_parts'|trans }}</span>
                                                 </div>
+                                                {% for alt in line.alternativeParts %}
+                                                    <div class="rams-alt-item" onclick="selectAlternative({{ line.id }}, '{{ alt.mpn|e('js') }}', '{{ (alt.source ?? 'mouser')|e('js') }}')">
+                                                        <div class="rams-flex rams-justify-between rams-items-center">
+                                                            <div>
+                                                                <span class="font-mono text-xs font-bold">{{ alt.mpn }}</span>
+                                                                <span class="text-3xs uppercase text-rams-muted rams-block">{{ alt.manufacturer ?? '' }}</span>
+                                                            </div>
+                                                            <div class="rams-text--right">
+                                                                <span class="font-mono text-xs font-bold">{{ alt.price|default(0)|format_currency(quote.currency, null, 4) }}</span>
+                                                                <span class="text-3xs text-rams-muted rams-block">
+                                                                    {% if alt.score is defined %}{{ alt.score }}%{% endif %}
+                                                                    {% if alt.stock is defined %}· {{ alt.stock }} {{ 'quote.review.in_stock'|trans }}{% endif %}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {% if alt.lifecycle_warning %}
+                                                            <span class="text-3xs rams-mt-1 rams-block {% if alt.lifecycle_warning == 'critical' %}text-rams-red{% else %}text-rams-orange{% endif %} uppercase font-mono">
+                                                                ⚠ {{ alt.lifecycle_status|default(alt.lifecycle_warning) }}
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endfor %}
                                             </div>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="rams-text--muted">—</span>
-                                    {% endif %}
-                                </td>
-                                <td class="rams-table__cell rams-text--muted rams-text--xs">{{ line.manufacturer ?: 'common.n_a'|trans }}</td>
-                                <td class="rams-table__cell rams-text--muted rams-text--xs" title="{{ line.description }}">
-                                    {% set desc = line.description ?: 'common.n_a'|trans %}
-                                    {{ desc|length > 40 ? desc|slice(0, 37) ~ '...' : desc }}
-                                </td>
-                                <td class="rams-table__cell rams-text--right rams-font-mono rams-text--xs">{{ line.quantity }}</td>
-                                <td class="rams-table__cell rams-text--right rams-font-mono rams-text--xs">
-                                    {% if line.manualUnitPrice %}
-                                        <span class="rams-text--bold rams-text--info">{{ line.manualUnitPrice|format_currency(quote.currency, null, 4) }}</span>
-                                        <span class="rams-text--3xs rams-text--muted uppercase rams-block">{{ 'quote.review.manual'|trans }}</span>
-                                    {% elseif line.unitPrice %}
-                                        <span>{{ line.unitPrice|format_currency(quote.currency, null, 4) }}</span>
-                                        <span class="rams-text--3xs rams-text--muted uppercase rams-block">{{ line.procurementSource }}</span>
-                                    {% else %}
-                                        <span class="rams-text--danger rams-text--bold uppercase rams-text--xs">{{ 'quote.review.no_price'|trans }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="rams-table__cell rams-text--right rams-font-mono rams-text--xs rams-text--bold">
-                                    {% set effectivePrice = line.effectiveExtendedPrice %}
-                                    {% if effectivePrice is not null %}
-                                        {{ effectivePrice|format_currency(quote.currency, null, 2) }}
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                </td>
-                                <td class="rams-table__cell rams-text--center">
-                                    {% set confLevel = line.confidenceLevel ?? 'VERY_LOW' %}
-                                    <span class="rams-badge rams-confidence--{{ confLevel|lower|replace({'_': '-'}) }}" title="{{ line.confidenceReasons|default([])|join(', ') }}">
-                                        {{ line.confidenceScore|default(0) }}%
-                                    </span>
-                                </td>
-                                <td class="rams-table__cell rams-text--center">
-                                    {% if line.manuallyVerified %}
-                                        <div class="rams-andon">
-                                            <span class="rams-andon__light rams-andon__light--green"></span>
-                                            <span class="rams-andon__text rams-text--success">{{ 'quote.review.verified'|trans }}</span>
                                         </div>
-                                    {% elseif line.requiresReview %}
-                                        <div class="rams-andon">
-                                            <span class="rams-andon__light rams-andon__light--yellow"></span>
-                                            <span class="rams-andon__text rams-text--warning">{{ 'quote.review.needs_review'|trans }}</span>
-                                        </div>
-                                    {% else %}
-                                        <span class="rams-badge rams-badge--ghost rams-text--3xs">{{ 'quote.review.auto_ok'|trans }}</span>
                                     {% endif %}
-                                </td>
-                                <td class="rams-table__cell rams-table__cell--actions">
-                                    <div class="rams-btn-group">
-                                        {% if not line.manuallyVerified %}
-                                            <button onclick="verifyLine({{ line.id }})" class="rams-btn--ghost rams-btn--sm rams-text--success" title="{{ 'quote.review.verify_match'|trans }}">✓</button>
-                                        {% endif %}
-                                        <button onclick="openOverrideModal({{ line.id }}, '{{ (line.mpn ?? '')|e('js') }}', {{ line.unitPrice ?? 0 }})" class="rams-btn--ghost rams-btn--sm" title="{{ 'quote.review.enter_manual_price'|trans }}">{{ quote.currency ?? display_currency() }}</button>
-                                        <button onclick="repriceLine({{ line.id }})" class="rams-btn--ghost rams-btn--sm rams-text--warning" title="{{ 'quote.review.reprice'|trans }}">↻</button>
-                                        {% if line.unitPrice and not line.manuallyVerified %}
-                                            <button onclick="rejectLine({{ line.id }})" class="rams-btn--ghost rams-btn--sm rams-text--danger" title="{{ 'quote.review.reject_match'|trans }}">✗</button>
-                                        {% endif %}
+                                {% else %}
+                                    <span class="rams-text--muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-xs text-rams-muted">{{ line.manufacturer ?: 'common.n_a'|trans }}</td>
+                            <td class="text-xs text-rams-muted" title="{{ line.description }}">
+                                {% set desc = line.description ?: 'common.n_a'|trans %}
+                                {{ desc|length > 40 ? desc|slice(0, 37) ~ '...' : desc }}
+                            </td>
+                            <td class="rams-text--right tabular-nums font-mono text-xs">{{ line.quantity }}</td>
+                            <td class="rams-text--right tabular-nums font-mono text-xs">
+                                {% if line.manualUnitPrice %}
+                                    <div class="font-bold text-rams-steel">{{ line.manualUnitPrice|format_currency(quote.currency, null, 4) }}</div>
+                                    <div class="text-3xs uppercase text-rams-muted">{{ 'quote.review.manual'|trans }}</div>
+                                {% elseif line.unitPrice %}
+                                    <div>{{ line.unitPrice|format_currency(quote.currency, null, 4) }}</div>
+                                    <div class="text-3xs uppercase text-rams-muted">{{ line.procurementSource }}</div>
+                                {% else %}
+                                    <div class="font-bold uppercase text-xs text-rams-red">{{ 'quote.review.no_price'|trans }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="rams-text--right tabular-nums font-mono text-xs font-bold">
+                                {% set effectivePrice = line.effectiveExtendedPrice %}
+                                {% if effectivePrice is not null %}
+                                    {{ effectivePrice|format_currency(quote.currency, null, 2) }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td class="rams-text--center">
+                                {% set confLevel = line.confidenceLevel ?? 'VERY_LOW' %}
+                                <span class="rams-badge rams-confidence--{{ confLevel|lower|replace({'_': '-'}) }} uppercase" title="{{ line.confidenceReasons|default([])|join(', ') }}">
+                                    {{ line.confidenceScore|default(0) }}%
+                                </span>
+                            </td>
+                            <td class="rams-text--center">
+                                {% if line.manuallyVerified %}
+                                    <div class="rams-flex rams-items-center rams-justify-center rams-gap-2">
+                                        <div class="w-2 h-2 rounded-full bg-rams-green"></div>
+                                        <span class="font-mono text-3xs uppercase text-rams-green">{{ 'quote.review.verified'|trans }}</span>
                                     </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                {% elseif line.requiresReview %}
+                                    <div class="rams-flex rams-items-center rams-justify-center rams-gap-2">
+                                        <div class="w-2 h-2 rounded-full bg-rams-orange"></div>
+                                        <span class="font-mono text-3xs uppercase text-rams-orange">{{ 'quote.review.needs_review'|trans }}</span>
+                                    </div>
+                                {% else %}
+                                    <span class="rams-badge rams-badge--ghost uppercase text-3xs">{{ 'quote.review.auto_ok'|trans }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="rams-actions rams-actions--sm">
+                                    {% if not line.manuallyVerified %}
+                                        <button onclick="verifyLine({{ line.id }})" class="rams-btn rams-btn--ghost text-rams-green uppercase" title="{{ 'quote.review.verify_match'|trans }}">
+                                            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M3 8L6 11L13 4"/>
+                                            </svg>
+                                        </button>
+                                    {% endif %}
+                                    <button onclick="openOverrideModal({{ line.id }}, '{{ (line.mpn ?? '')|e('js') }}', {{ line.unitPrice ?? 0 }})" class="rams-btn rams-btn--ghost uppercase" title="{{ 'quote.review.enter_manual_price'|trans }}">
+                                        <span class="font-mono text-2xs">{{ quote.currency ?? display_currency() }}</span>
+                                    </button>
+                                    <button onclick="repriceLine({{ line.id }})" class="rams-btn rams-btn--ghost text-rams-orange uppercase" title="{{ 'quote.review.reprice'|trans }}">
+                                        <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M1 8a7 7 0 0111.95-5M15 8a7 7 0 01-11.95 5"/>
+                                            <path d="M15 1v7h-7M1 15v-7h7"/>
+                                        </svg>
+                                    </button>
+                                    {% if line.unitPrice and not line.manuallyVerified %}
+                                        <button onclick="rejectLine({{ line.id }})" class="rams-btn rams-btn--ghost text-rams-red uppercase" title="{{ 'quote.review.reject_match'|trans }}">
+                                            <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M4 4l8 8M12 4l-8 8"/>
+                                            </svg>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -344,36 +350,35 @@
     <div class="rams-modal__backdrop" onclick="closeOverrideModal()"></div>
     <div class="rams-modal__content">
         <div class="rams-modal__header">
-            <h3 class="rams-heading rams-heading--3">{{ 'quote.review.manual_price_override'|trans }}</h3>
+            <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'quote.review.manual_price_override'|trans }}</h3>
         </div>
         <div class="rams-modal__body">
-            <form id="override-form">
+            <form id="override-form" class="rams-form">
                 <input type="hidden" id="override-line-id">
                 <div class="rams-form__group">
-                    <label class="rams-form__label rams-dymo">{{ 'quote.review.part_number'|trans }}</label>
-                    <input type="text" id="override-mpn" class="rams-form__input rams-form__input--readonly" readonly>
+                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'quote.review.part_number'|trans }}</label>
+                    <input type="text" id="override-mpn" class="rams-form__input" readonly>
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label rams-dymo">{{ 'quote.review.unit_price'|trans }} ({{ quote.currency ?? display_currency() }}) *</label>
+                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'quote.review.unit_price'|trans }} ({{ quote.currency ?? display_currency() }}) *</label>
                     <input type="number" id="override-price" step="0.0001" min="0" required class="rams-form__input">
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label rams-dymo">
+                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">
                         {{ 'quote.review.price_source_url'|trans }}
-                        <span class="rams-text--muted rams-text--normal">({{ 'quote.review.where_found'|trans }})</span>
                     </label>
                     <input type="url" id="override-source-url" placeholder="https://distributor.com/product/..." class="rams-form__input">
-                    <span class="rams-form__hint">{{ 'quote.review.link_to_quote'|trans }}</span>
+                    <div class="text-3xs text-rams-muted rams-mt-1">{{ 'quote.review.link_to_quote'|trans }}</div>
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label rams-dymo">{{ 'common.notes'|trans }} ({{ 'common.optional'|trans|lower }})</label>
-                    <textarea id="override-notes" rows="2" class="rams-form__textarea" placeholder="{{ 'quote.review.notes_placeholder'|trans }}"></textarea>
+                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'common.notes'|trans }}</label>
+                    <textarea id="override-notes" rows="2" class="rams-form__input" placeholder="{{ 'quote.review.notes_placeholder'|trans }}"></textarea>
                 </div>
             </form>
         </div>
-        <div class="rams-modal__footer">
-            <button type="button" onclick="closeOverrideModal()" class="rams-btn">{{ 'common.cancel'|trans }}</button>
-            <button type="submit" form="override-form" class="rams-btn--primary">{{ 'quote.review.apply_override'|trans }}</button>
+        <div class="rams-modal__footer rams-flex rams-justify-end rams-gap-2">
+            <button type="button" onclick="closeOverrideModal()" class="rams-btn uppercase">{{ 'common.cancel'|trans }}</button>
+            <button type="submit" form="override-form" class="rams-btn rams-btn--primary uppercase">{{ 'quote.review.apply_override'|trans }}</button>
         </div>
     </div>
 </div>
@@ -388,15 +393,15 @@ function computeCharDiff(original, matched) {
     if (!original || !matched) return matched || '';
     const origNorm = original.toUpperCase().replace(/[\s\-]/g, '');
     const matchNorm = matched.toUpperCase().replace(/[\s\-]/g, '');
-    if (origNorm === matchNorm) return `<span class="diff-match">${matched}</span>`;
+    if (origNorm === matchNorm) return `<span class="rams-diff-match">${matched}</span>`;
     
     let result = '', i = 0, j = 0;
     while (j < matched.length) {
         if (i < origNorm.length && origNorm[i] === matchNorm[j]) {
-            result += `<span class="diff-match">${matched[j]}</span>`;
+            result += `<span class="rams-diff-match">${matched[j]}</span>`;
             i++; j++;
         } else {
-            result += `<span class="diff-insert">${matched[j]}</span>`;
+            result += `<span class="rams-diff-insert">${matched[j]}</span>`;
             j++;
         }
     }
@@ -405,7 +410,7 @@ function computeCharDiff(original, matched) {
 
 function initDiffViews() {
     document.querySelectorAll('.diff-view').forEach(el => {
-        const container = el.closest('.diff-container');
+        const container = el.closest('.rams-diff-container');
         if (!container) return;
         el.innerHTML = computeCharDiff(container.dataset.original, container.dataset.matched);
     });

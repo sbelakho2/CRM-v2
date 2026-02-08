@@ -31,11 +31,11 @@
 >
     {# Modal Header #}
     <div class="rams-module__header rams-flex rams-items-center rams-justify-between">
-        <h3 class="rams-module__title rams-rams-text--sm">{{ 'notifications.title'|trans }}</h3>
+        <h3 class="rams-module__title rams-text--sm">{{ 'notifications.title'|trans }}</h3>
         <button 
             type="button"
             id="notification-close"
-            class="rams-btn--ghost rams-btn--sm"
+            class="rams-btn rams-btn--ghost rams-btn--sm"
             aria-label="{{ 'common.close'|trans }}"
         >
             <svg class="rams-btn__icon" fill="currentColor" viewBox="0 0 20 20">
@@ -47,7 +47,7 @@
     {# Modal Content (Scrollable) #}
     <div id="notification-list" class="rams-module__content rams-flex-1 rams-overflow-auto">
         {# Notifications will be populated here by JavaScript #}
-        <div class="rams-p-4 rams-rams-text--center">
+        <div class="rams-p-4 rams-text--center">
             <p class="rams-dymo">{{ 'notifications.no_notifications'|trans }}</p>
         </div>
     </div>
@@ -57,13 +57,13 @@
         <button 
             type="button"
             id="notification-mark-all"
-            class="rams-btn--ghost rams-btn--sm"
+            class="rams-btn rams-btn--ghost rams-btn--sm"
         >
             {{ 'notifications.mark_all_read'|trans }}
         </button>
         <a 
             href="#" 
-            class="rams-btn--ghost rams-btn--sm"
+            class="rams-btn rams-btn--ghost rams-btn--sm"
         >
             {{ 'common.view'|trans }} {{ 'common.all'|trans }}
         </a>

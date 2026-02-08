@@ -61,8 +61,8 @@
                         <div class="rams-stack rams-gap-2">
                             {% for template in templates %}
                                 <div class="rams-flex rams-justify-between rams-items-center rams-p-2 rams-bg-panel rams-border rams-rounded">
-                                    <code class="rams-rams-text--xs">{{ template }}</code>
-                                    <button onclick="copyDork('{{ template|escape('js') }}')" class="rams-btn--ghost rams-btn--sm">{{ 'common.copy'|trans }}</button>
+                                    <code class="rams-text--xs">{{ template }}</code>
+                                    <button onclick="copyDork('{{ template|escape('js') }}')" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.copy'|trans }}</button>
                                 </div>
                             {% endfor %}
                         </div>
@@ -76,7 +76,7 @@
     <div class="rams-module rams-module--info">
         <div class="rams-module__content">
             <h3 class="rams-module__title rams-mb-3">💡 {{ 'webcrawler.dork_tips_title'|trans }}</h3>
-            <ul class="rams-stack rams-gap-1 rams-rams-text--xs rams-rams-text--muted" style="list-style: none;">
+            <ul class="rams-stack rams-gap-1 rams-text--xs rams-text--muted" style="list-style: none;">
                 <li>• <code>{{ 'webcrawler.tip_code_site'|trans }}</code> - {{ 'webcrawler.tip_site'|trans }}</li>
                 <li>• <code>{{ 'webcrawler.tip_code_inurl'|trans }}</code> - {{ 'webcrawler.tip_inurl'|trans }}</li>
                 <li>• <code>{{ 'webcrawler.tip_code_intitle'|trans }}</code> - {{ 'webcrawler.tip_intitle'|trans }}</li>
@@ -98,28 +98,28 @@
             <div class="rams-grid rams-grid--2 rams-gap-4">
                 <div class="rams-p-3 rams-border rams-rounded">
                     <div class="rams-dymo rams-mb-1">{{ 'webcrawler.example_automotive'|trans }}</div>
-                    <code class="rams-rams-text--xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
+                    <code class="rams-text--xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
                         {{ 'webcrawler.example_query_automotive'|trans }}
                     </code>
                 </div>
                 
                 <div class="rams-p-3 rams-border rams-rounded">
                     <div class="rams-dymo rams-mb-1">{{ 'webcrawler.example_supplier_portals'|trans }}</div>
-                    <code class="rams-rams-text--xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
+                    <code class="rams-text--xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
                         {{ 'webcrawler.example_query_supplier_portals'|trans }}
                     </code>
                 </div>
                 
                 <div class="rams-p-3 rams-border rams-rounded">
                     <div class="rams-dymo rams-mb-1">{{ 'webcrawler.example_aerospace'|trans }}</div>
-                    <code class="rams-rams-text--xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
+                    <code class="rams-text--xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
                         {{ 'webcrawler.example_query_aerospace'|trans }}
                     </code>
                 </div>
                 
                 <div class="rams-p-3 rams-border rams-rounded">
                     <div class="rams-dymo rams-mb-1">{{ 'webcrawler.example_electronics'|trans }}</div>
-                    <code class="rams-rams-text--xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
+                    <code class="rams-text--xs rams-block rams-p-2 rams-bg-panel rams-mt-2">
                         {{ 'webcrawler.example_query_electronics'|trans }}
                     </code>
                 </div>
@@ -188,8 +188,8 @@ function generateDorks() {
         <div class="rams-dork-item">
             <code class="rams-dork-item__code">${dork}</code>
             <div class="rams-dork-item__actions">
-                <button onclick="copyDork('${dork.replace(/'/g, "\\'")}')" class="rams-btn--ghost rams-btn--sm">{{ 'common.copy'|trans }}</button>
-                <a href="https://www.google.com/search?q=${encodeURIComponent(dork)}" target="_blank" class="rams-btn--ghost rams-btn--sm">{{ 'common.search'|trans }}</a>
+                <button onclick="copyDork('${dork.replace(/'/g, "\\'")}')" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.copy'|trans }}</button>
+                <a href="https://www.google.com/search?q=${encodeURIComponent(dork)}" target="_blank" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.search'|trans }}</a>
             </div>
         </div>
     `).join('');

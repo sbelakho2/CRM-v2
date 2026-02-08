@@ -251,6 +251,10 @@ class TaskController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
+        if (!$this->isCsrfTokenValid('update_status', $data['_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
+        }
+
         if (!$data || !isset($data['taskId']) || !isset($data['status'])) {
             return new JsonResponse(['error' => 'Invalid request'], 400);
         }
@@ -291,6 +295,10 @@ class TaskController extends AbstractController
     public function apiReorder(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
+        if (!$this->isCsrfTokenValid('reorder', $data['_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
+        }
 
         if (!$data || !isset($data['tasks'])) {
             return new JsonResponse(['error' => 'Invalid request'], 400);
@@ -337,6 +345,10 @@ class TaskController extends AbstractController
     public function quickAdd(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
+        if (!$this->isCsrfTokenValid('quick_add', $data['_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
+        }
 
         if (!$data || empty($data['title'])) {
             return new JsonResponse(['error' => 'Title is required'], 400);

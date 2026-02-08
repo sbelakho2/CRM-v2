@@ -33,7 +33,7 @@
                 </a>
                 <form method="post" action="{{ path('app_webinar_delete', {id: webinar.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'messages.delete_confirm'|trans }}', {variant: 'danger'});" class="rams-inline-block">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ webinar.id) }}">
-                    <button type="submit" class="rams-btn--danger">
+                    <button type="submit" class="rams-btn rams-btn--danger">
                         {{ 'common.delete'|trans }}
                     </button>
                 </form>
@@ -115,7 +115,7 @@
                     </button>
                     <form method="post" action="{{ path('app_webinar_send_followup', {id: webinar.id}) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('followup' ~ webinar.id) }}">
-                        <button type="submit" class="rams-btn--primary">
+                        <button type="submit" class="rams-btn rams-btn--primary">
                             {{ 'webinar.send_followups'|trans }}
                         </button>
                     </form>
@@ -166,7 +166,7 @@
                                     <td class="rams-table__cell">
                                         {% if not attendee.attended %}
                                             <form method="post" action="{{ path('app_webinar_mark_attended', {id: webinar.id, attendeeId: attendee.id}) }}" class="rams-inline-block">
-                                                <button type="submit" class="rams-btn--ghost rams-btn--sm">
+                                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">
                                                     {{ 'webinar.mark_attended'|trans }}
                                                 </button>
                                             </form>

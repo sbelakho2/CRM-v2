@@ -132,7 +132,7 @@ class CalendarController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'calendar_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'calendar_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(CalendarEvent $event): Response
     {
         return $this->render('calendar/show.html.twig', [
@@ -222,6 +222,10 @@ class CalendarController extends AbstractController
     public function apiUpdate(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
+        if (!$this->isCsrfTokenValid('calendar_update', $data['_token'] ?? '')) {
+            return $this->json(['error' => 'Invalid CSRF token'], 403);
+        }
         
         if (!isset($data['id'])) {
             return $this->json(['error' => 'Event ID required'], 400);
@@ -262,6 +266,10 @@ class CalendarController extends AbstractController
     public function quickAdd(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+
+        if (!$this->isCsrfTokenValid('calendar_quick_add', $data['_token'] ?? '')) {
+            return $this->json(['error' => 'Invalid CSRF token'], 403);
+        }
         
         if (empty($data['title']) || empty($data['start'])) {
             return $this->json(['error' => 'Title and start time required'], 400);

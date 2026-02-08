@@ -1,43 +1,43 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Booking Confirmed - CRM{% endblock %}
+{% block title %}{{ 'meeting.booking_confirmed_title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-page">
-    <div class="rams-grid rams-grid--1 rams-place-rams-items-center" style="min-height: 60vh;">
+    <div class="rams-grid rams-grid--1 rams-place-items-center" style="min-height: 60vh;">
         <div class="rams-module" style="max-width: 600px; width: 100%;">
-            <div class="rams-module__content rams-rams-text--center rams-p-8">
+            <div class="rams-module__content rams-text--center rams-p-8">
                 <div class="rams-mb-6">
-                    <svg class="rams-icon rams-icon--2xl rams-rams-text--success" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <svg class="rams-icon rams-icon--2xl rams-text--success" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <circle cx="8" cy="8" r="6"/><path d="M6 8L7 9L10 6"/>
                     </svg>
                 </div>
                 
-                <h1 class="rams-text-2xl rams-rams-text--bold rams-mb-4">Booking Confirmed!</h1>
-                <p class="rams-rams-text--muted rams-mb-8">Your meeting has been scheduled. You'll receive a confirmation email shortly.</p>
+                <h1 class="rams-text-2xl rams-text--bold rams-mb-4">{{ 'meeting.booking_confirmed'|trans }}</h1>
+                <p class="rams-text--muted rams-mb-8">{{ 'meeting.booking_confirmed_desc'|trans }}</p>
                 
-                <div class="rams-bg-surface-alt rams-p-6 rams-rounded-lg rams-rams-text--left rams-mb-8">
+                <div class="rams-bg-surface-alt rams-p-6 rams-rounded-lg rams-text--left rams-mb-8">
                     <dl class="rams-dl rams-dl--compact">
-                        <dt>Meeting</dt>
+                        <dt>{{ 'meeting.title'|trans }}</dt>
                         <dd><strong>{{ slot.title }}</strong></dd>
                         
-                        <dt>When</dt>
+                        <dt>{{ 'meeting.when'|trans }}</dt>
                         <dd>{{ slot.startTime|date('l, F j, Y') }}<br>{{ slot.startTime|date('H:i') }} - {{ slot.endTime|date('H:i') }}</dd>
                         
                         {% if slot.location %}
-                        <dt>Location</dt>
+                        <dt>{{ 'meeting.location'|trans }}</dt>
                         <dd>{{ slot.location }}</dd>
                         {% endif %}
                         
                         {% if slot.meetingUrl %}
-                        <dt>Join URL</dt>
+                        <dt>{{ 'meeting.join_url'|trans }}</dt>
                         <dd><a href="{{ slot.meetingUrl }}" target="_blank" class="rams-link">{{ slot.meetingUrl }}</a></dd>
                         {% endif %}
                     </dl>
                 </div>
                 
                 <div class="rams-actions rams-justify-center">
-                    <a href="{{ path('app_dashboard') }}" class="rams-btn--primary">Return to Dashboard</a>
+                    <a href="{{ path('app_dashboard') }}" class="rams-btn rams-btn--primary">{{ 'meeting.return_to_dashboard'|trans }}</a>
                 </div>
             </div>
         </div>

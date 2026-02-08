@@ -37,12 +37,12 @@
                 <div class="rams-grid rams-grid--2 rams-gap-4">
                     <div class="rams-form__group">
                         {{ form_label(form.type, 'activity.type'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
-                        {{ form_widget(form.type, {'attr': {'class': 'rams-form__select font-mono'}}) }}
+                        {{ form_widget(form.type, {'attr': {'class': 'rams-form__select rams-font-mono'}}) }}
                         {{ form_errors(form.type) }}
                     </div>
                     <div class="rams-form__group">
                         {{ form_label(form.activityDate, 'activity.activity_date'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
-                        {{ form_widget(form.activityDate, {'attr': {'class': 'rams-form__input font-mono'}}) }}
+                        {{ form_widget(form.activityDate, {'attr': {'class': 'rams-form__input rams-font-mono'}}) }}
                         {{ form_errors(form.activityDate) }}
                     </div>
                 </div>
@@ -78,13 +78,13 @@
 
                 {# Action Buttons #}
                 <div class="rams-form__actions">
-                    <button type="submit" class="rams-btn--primary">
+                    <button type="submit" class="rams-btn rams-btn--primary">
                         <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                         {{ 'activity.update_button'|trans }}
                     </button>
-                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-btn--ghost">
+                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-btn rams-btn--ghost">
                         {{ 'common.cancel'|trans }}
                     </a>
                 </div>

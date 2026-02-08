@@ -167,7 +167,7 @@ class AuditLogListener
         
         // Flush immediately if we're in a delete operation
         if ($action === 'delete') {
-            $this->em->flush($auditLog);
+            $this->em->flush();
         }
     }
 

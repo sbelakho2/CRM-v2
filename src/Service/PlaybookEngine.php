@@ -114,7 +114,7 @@ class PlaybookEngine
                 }
             } catch (\Exception $e) {
                 // Log error but continue with other playbooks
-                error_log("Playbook evaluation error: " . $e->getMessage());
+                $this->logger?->error('Playbook evaluation error: ' . $e->getMessage(), ['exception' => $e]);
             }
         }
         
