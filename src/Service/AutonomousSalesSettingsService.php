@@ -36,6 +36,21 @@ class AutonomousSalesSettingsService
         return $enabled;
     }
 
+    public function getSetting(string $key, mixed $default = null): mixed
+    {
+        $data = $this->readSettings();
+
+        return $data[$key] ?? $default;
+    }
+
+    public function setSetting(string $key, mixed $value): void
+    {
+        $data = $this->readSettings();
+        $data[$key] = $value;
+
+        $this->writeSettings($data);
+    }
+
     private function readSettings(): array
     {
         if (!file_exists($this->settingsPath)) {

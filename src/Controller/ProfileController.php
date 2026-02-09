@@ -7,6 +7,7 @@ use App\Form\CurrencyPreferenceType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -15,7 +16,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 class ProfileController extends AbstractController
 {
     #[Route('', name: 'profile_index', methods: ['GET', 'POST'])]
-    public function index(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher): Response
+    public function index(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher, TranslatorInterface $translator): Response
     {
         $user = $this->getUser();
         
@@ -38,7 +39,7 @@ class ProfileController extends AbstractController
                     $request->getSession()->set('_locale', $preferredLocale);
                 }
             }
-            $this->addFlash('success', 'Currency preferences updated successfully!');
+            $this->addFlash('success', 'profile.flash.preferences_updated');
             return $this->redirectToRoute('profile_index');
         }
 
@@ -47,7 +48,7 @@ class ProfileController extends AbstractController
             $currentPassword = $form->get('currentPassword')->getData();
             
             if (!$passwordHasher->isPasswordValid($user, $currentPassword)) {
-                $this->addFlash('error', 'Current password is incorrect.');
+                $this->addFlash('error', 'profile.flash.current_password_incorrect');
                 return $this->redirectToRoute('profile_index');
             }
 
@@ -58,7 +59,7 @@ class ProfileController extends AbstractController
             
             $em->flush();
             
-            $this->addFlash('success', 'Password updated successfully!');
+            $this->addFlash('success', 'profile.flash.password_updated');
             return $this->redirectToRoute('profile_index');
         }
 

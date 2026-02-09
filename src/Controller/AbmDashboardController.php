@@ -118,7 +118,7 @@ class AbmDashboardController extends AbstractController
         }
         
         return $this->render('abm_dashboard/index.html.twig', [
-            'pageTitle' => 'ABM Dashboard',
+            'pageTitle' => 'abm_dashboard.title',
             'recentHits' => $recentHits,
             'topAccounts' => $topAccounts,
             'metrics' => $metrics,
@@ -158,7 +158,7 @@ class AbmDashboardController extends AbstractController
         }
         
         return $this->render('abm_dashboard/accounts.html.twig', [
-            'pageTitle' => 'ABM Accounts',
+            'pageTitle' => 'abm_dashboard.accounts',
             'accounts' => $accountData
         ]);
     }
@@ -188,12 +188,12 @@ class AbmDashboardController extends AbstractController
             $this->entityManager->persist($account);
             $this->entityManager->flush();
             
-            $this->addFlash('success', 'ABM account created successfully');
+            $this->addFlash('success', 'abm_dashboard.flash.account_created');
             return $this->redirectToRoute('abm_dashboard_accounts');
         }
         
         return $this->render('abm_dashboard/account_form.html.twig', [
-            'pageTitle' => 'New ABM Account',
+            'pageTitle' => 'abm_dashboard.new_account',
             'account' => null
         ]);
     }
@@ -227,12 +227,12 @@ class AbmDashboardController extends AbstractController
             
             $this->entityManager->flush();
             
-            $this->addFlash('success', 'ABM account updated successfully');
+            $this->addFlash('success', 'abm_dashboard.flash.account_updated');
             return $this->redirectToRoute('abm_dashboard_accounts');
         }
         
         return $this->render('abm_dashboard/account_form.html.twig', [
-            'pageTitle' => 'Edit ABM Account',
+            'pageTitle' => 'abm_dashboard.edit_account',
             'account' => $account
         ]);
     }
@@ -289,7 +289,7 @@ class AbmDashboardController extends AbstractController
         ];
         
         return $this->render('abm_dashboard/account_detail.html.twig', [
-            'pageTitle' => 'Account Detail',
+            'pageTitle' => 'abm_dashboard.account_detail',
             'account' => $account,
             'accountId' => $id
         ]);
@@ -319,7 +319,7 @@ class AbmDashboardController extends AbstractController
         }
         
         return $this->render('abm_dashboard/playbooks.html.twig', [
-            'pageTitle' => 'Playbook Management',
+            'pageTitle' => 'abm_dashboard.playbooks',
             'playbooks' => $playbooks,
             'stats' => $stats
         ]);
@@ -339,7 +339,7 @@ class AbmDashboardController extends AbstractController
         
         // Validate data
         if (!$name) {
-            $this->addFlash('error', 'Please provide playbook name');
+            $this->addFlash('error', 'abm_dashboard.flash.error.playbook_name_required');
             return $this->redirectToRoute('abm_dashboard_playbooks');
         }
         
@@ -357,7 +357,7 @@ class AbmDashboardController extends AbstractController
         $this->entityManager->persist($playbook);
         $this->entityManager->flush();
         
-        $this->addFlash('success', 'Playbook created successfully');
+        $this->addFlash('success', 'abm_dashboard.flash.playbook_created');
         return $this->redirectToRoute('abm_dashboard_playbooks');
     }
 

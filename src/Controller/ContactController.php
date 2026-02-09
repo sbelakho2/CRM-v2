@@ -9,6 +9,7 @@ use App\Service\ExportService;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -22,7 +23,8 @@ class ContactController extends AbstractController
         private ContactRepository $contactRepository,
         private EntityManagerInterface $entityManager,
         private ExportService $exportService,
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private TranslatorInterface $translator
     ) {}
 
     #[Route('', name: 'app_contact_index', methods: ['GET'])]
@@ -107,7 +109,7 @@ class ContactController extends AbstractController
             // Provide guidance for next steps
             $this->guidanceService->afterContactCreated($contact);
 
-            $this->addFlash('success', 'Contact created successfully!');
+            $this->addFlash('success', $this->translator->trans('contact.flash.created'));
 
             // If contact was created from company page, redirect back to company
             if ($contact->getCompany()) {
@@ -140,7 +142,7 @@ class ContactController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Contact updated successfully!');
+            $this->addFlash('success', $this->translator->trans('contact.flash.updated'));
 
             return $this->redirectToRoute('app_contact_show', ['id' => $contact->getId()]);
         }
@@ -158,7 +160,7 @@ class ContactController extends AbstractController
             $this->entityManager->remove($contact);
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Contact deleted successfully!');
+            $this->addFlash('success', $this->translator->trans('contact.flash.deleted'));
         }
 
         return $this->redirectToRoute('app_contact_index');

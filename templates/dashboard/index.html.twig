@@ -226,21 +226,21 @@
         <div class="rams-module__header">
             <h2 class="rams-module__title">
                 <span class="rams-andon rams-mr-2"><span class="rams-andon__light rams-andon__light--yellow"></span></span>
-                {{ 'compliance.alerts'|trans|default('Compliance Alerts') }}
+                {{ 'compliance.alerts'|trans }}
             </h2>
             <div class="rams-flex rams-gap-2 rams-flex-wrap">
                 {% if compliance_alert_counts.expired > 0 %}
-                    <span class="rams-badge rams-badge--danger rams-badge--sm">{{ compliance_alert_counts.expired }} {{ 'compliance.expired'|trans|default('Expired') }}</span>
+                    <span class="rams-badge rams-badge--danger rams-badge--sm">{{ compliance_alert_counts.expired }} {{ 'compliance.expired'|trans }}</span>
                 {% endif %}
                 {% if compliance_alert_counts.expiring_soon > 0 %}
-                    <span class="rams-badge rams-badge--warning rams-badge--sm">{{ compliance_alert_counts.expiring_soon }} {{ 'compliance.expiring_soon'|trans|default('Expiring Soon') }}</span>
+                    <span class="rams-badge rams-badge--warning rams-badge--sm">{{ compliance_alert_counts.expiring_soon }} {{ 'compliance.expiring_soon'|trans }}</span>
                 {% endif %}
                 {% if compliance_alert_counts.missing > 0 %}
-                    <span class="rams-badge rams-badge--info rams-badge--sm">{{ compliance_alert_counts.missing }} {{ 'compliance.missing'|trans|default('Missing') }}</span>
+                    <span class="rams-badge rams-badge--info rams-badge--sm">{{ compliance_alert_counts.missing }} {{ 'compliance.missing'|trans }}</span>
                 {% endif %}
                 {% if compliance_alert_counts.snoozed > 0 %}
-                    <span class="rams-badge rams-badge--muted rams-badge--sm" title="{{ 'compliance.snoozed_tooltip'|trans|default('Alerts temporarily suppressed') }}">
-                        😴 {{ compliance_alert_counts.snoozed }} {{ 'compliance.snoozed'|trans|default('Snoozed') }}
+                    <span class="rams-badge rams-badge--muted rams-badge--sm" title="{{ 'compliance.snoozed_tooltip'|trans }}">
+                        😴 {{ compliance_alert_counts.snoozed }} {{ 'compliance.snoozed'|trans }}
                     </span>
                 {% endif %}
                 <a href="{{ path('app_compliance_overview') }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
@@ -274,14 +274,14 @@
                                     {{ doc.expiryMessage }}
                                 </span>
                             {% elseif not doc.provided %}
-                                <span class="rams-badge rams-badge--info rams-badge--xs">{{ 'compliance.not_provided'|trans|default('Not Provided') }}</span>
+                                <span class="rams-badge rams-badge--info rams-badge--xs">{{ 'compliance.not_provided'|trans }}</span>
                             {% endif %}
                         </div>
                         {# Snooze Button #}
                         <form method="POST" action="{{ path('app_compliance_snooze', {id: doc.id}) }}" class="rams-inline-form">
                             <input type="hidden" name="_token" value="{{ csrf_token('snooze' ~ doc.id) }}">
                             <input type="hidden" name="days" value="7">
-                            <button type="submit" class="rams-btn rams-btn--ghost rams-btn--xs" title="{{ 'compliance.snooze_7_days'|trans|default('Snooze for 7 days') }}">
+                            <button type="submit" class="rams-btn rams-btn--ghost rams-btn--xs" title="{{ 'compliance.snooze_7_days'|trans }}">
                                 😴
                             </button>
                         </form>

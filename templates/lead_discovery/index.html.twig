@@ -106,10 +106,13 @@
                         </div>
 
                         {# Info Box #}
-                        <div class="rams-module rams-module--nested rams-module--info">
+                        <div class="rams-module rams-module--nested rams-module--guidance">
                             <div class="rams-module__content">
-                                <h3 class="rams-module__title rams-mb-2">ℹ️ {{ 'lead_discovery.about_api'|trans }}</h3>
-                                <ul class="rams-list rams-list--bullet rams-stack rams-gap-1 rams-text--xs rams-text--muted">
+                                <div class="rams-flex rams-gap-2 rams-items-center rams-mb-3">
+                                    <div class="rams-andon rams-andon--info"><span class="rams-andon__light"></span></div>
+                                    <h3 class="rams-module__title rams-mb-0">{{ 'lead_discovery.about_api'|trans }}</h3>
+                                </div>
+                                <ul class="rams-list rams-list--bullet rams-stack rams-gap-2 rams-text--xs rams-text--muted">
                                     <li>{{ 'lead_discovery.api_free_tier'|trans }}</li>
                                     <li>{{ 'lead_discovery.api_paid_tier'|trans }} {{ paid_tier_cost|format_currency(paid_tier_currency) }} {{ 'lead_discovery.api_paid_tier_suffix'|trans }}</li>
                                     <li>{{ 'lead_discovery.api_dedup'|trans }}</li>

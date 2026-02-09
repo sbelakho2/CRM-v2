@@ -9,14 +9,14 @@
     /* FullCalendar Overrides to match Sensei-Rams */
     .fc {
         --fc-border-color: var(--rams-line, #c2c2c2);
-        --fc-button-bg-color: var(--rams-primary);
-        --fc-button-border-color: var(--rams-primary);
-        --fc-button-hover-bg-color: var(--rams-primary-dark);
-        --fc-button-hover-border-color: var(--rams-primary-dark);
-        --fc-button-active-bg-color: var(--rams-primary-dark);
-        --fc-button-active-border-color: var(--rams-primary-dark);
-        --fc-event-bg-color: var(--rams-primary, #2563eb);
-        --fc-event-border-color: var(--rams-primary, #2563eb);
+        --fc-button-bg-color: var(--rams-orange, #ffbe00);
+        --fc-button-border-color: var(--rams-orange, #ffbe00);
+        --fc-button-hover-bg-color: var(--rams-orange-dark, #e6ab00);
+        --fc-button-hover-border-color: var(--rams-orange-dark, #e6ab00);
+        --fc-button-active-bg-color: var(--rams-orange-dark, #e6ab00);
+        --fc-button-active-border-color: var(--rams-orange-dark, #e6ab00);
+        --fc-event-bg-color: var(--rams-orange, #ffbe00);
+        --fc-event-border-color: var(--rams-orange, #ffbe00);
         --fc-page-bg-color: var(--rams-surface, #f7f7f7);
         --fc-neutral-bg-color: var(--rams-surface-alt, #ededed);
         --fc-list-event-hover-bg-color: var(--rams-surface-hover);
@@ -62,7 +62,7 @@
 
     .fc .fc-daygrid-day.fc-day-today,
     .fc .fc-timegrid-col.fc-day-today {
-        background: rgba(59, 130, 246, 0.12);
+        background: rgba(255, 190, 0, 0.12);
     }
 
     .fc .fc-timegrid-slot-label,
@@ -86,21 +86,22 @@
         text-transform: capitalize;
         padding: 0.5rem 1rem;
         color: #fff;
-        background: var(--rams-primary, #2563eb);
-        border-color: var(--rams-primary, #2563eb);
+        background: var(--rams-orange, #ffbe00);
+        border-color: var(--rams-orange, #ffbe00);
         box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+        color: #000;
     }
 
     .fc .fc-button:hover,
     .fc .fc-button:focus {
-        background: var(--rams-primary-dark, #1d4ed8);
-        border-color: var(--rams-primary-dark, #1d4ed8);
-        color: #fff;
+        background: var(--rams-orange-dark, #e6ab00);
+        border-color: var(--rams-orange-dark, #e6ab00);
+        color: #000;
     }
 
     .fc .fc-button:focus-visible {
         outline: none;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+        box-shadow: 0 0 0 3px rgba(255, 190, 0, 0.35);
     }
 
     .fc .fc-button:disabled,
@@ -112,7 +113,7 @@
     }
 
     .fc .fc-icon {
-        color: #fff;
+        color: #000;
     }
 </style>
 {% endblock %}
@@ -129,7 +130,7 @@
             <h1 class="rams-page__title">{{ 'calendar.title'|trans }}</h1>
         </div>
         <div class="rams-page__actions">
-            <a href="{{ path('calendar_new') }}" class="rams-btn rams-btn--primary uppercase">
+            <a href="{{ path('calendar_new') }}" class="rams-btn rams-btn--orange uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 2V14M2 8H14"/>
                 </svg>

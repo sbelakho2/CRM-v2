@@ -1,0 +1,852 @@
+{
+    "buyer_keywords": [
+        "designs controllers",
+        "develops sensors",
+        "avionics systems",
+        "power electronics",
+        "medical devices company",
+        "defense contractor",
+        "radar systems",
+        "battery management",
+        "motor drives",
+        "automotive tier-1",
+        "industrial automation",
+        "telecommunications equipment",
+        "aerospace components",
+        "embedded systems",
+        "IoT devices",
+        "renewable energy systems",
+        "electric vehicle components",
+        "robotics",
+        "navigation systems",
+        "test and measurement equipment",
+        "security systems",
+        "railway signaling",
+        "marine electronics",
+        "agricultural technology",
+        "mining equipment",
+        "oil and gas equipment",
+        "scientific instruments",
+        "laboratory equipment",
+        "semiconductor equipment",
+        "consumer electronics design",
+        "audio equipment",
+        "video equipment",
+        "lighting systems",
+        "HVAC systems",
+        "appliance manufacturer",
+        "white goods manufacturer",
+        "smart home devices",
+        "wearable technology",
+        "fitness trackers",
+        "medical imaging",
+        "patient monitoring",
+        "surgical instruments",
+        "diagnostic equipment",
+        "pharmaceutical equipment",
+        "biotechnology equipment",
+        "environmental monitoring",
+        "water treatment systems",
+        "air purification systems",
+        "waste management equipment",
+        "recycling equipment",
+        "energy storage systems",
+        "grid infrastructure",
+        "smart grid",
+        "electric power transmission",
+        "electric power distribution",
+        "power generation equipment",
+        "alternative energy sources",
+        "solar power systems",
+        "wind power systems",
+        "hydroelectric power",
+        "geothermal energy",
+        "nuclear energy",
+        "fuel cell technology",
+        "energy efficiency",
+        "building automation",
+        "process control systems",
+        "machine vision systems",
+        "motion control systems",
+        "CNC machines",
+        "3D printing equipment",
+        "additive manufacturing",
+        "laser cutting equipment",
+        "welding equipment",
+        "packaging machinery",
+        "food processing equipment",
+        "beverage processing equipment",
+        "pharmaceutical manufacturing",
+        "chemical processing",
+        "textile manufacturing",
+        "paper manufacturing",
+        "printing equipment",
+        "automotive electronics",
+        "aerospace electronics",
+        "military electronics",
+        "space electronics",
+        "satellite communications",
+        "wireless communications",
+        "optical communications",
+        "data communications",
+        "network equipment",
+        "computer hardware",
+        "computer peripherals",
+        "storage devices",
+        "display technology",
+        "imaging technology",
+        "sensor technology",
+        "actuator technology",
+        "control systems",
+        "instrumentation",
+        "measurement devices",
+        "testing equipment",
+        "simulation software",
+        "modeling software",
+        "design software",
+        "engineering services",
+        "product development",
+        "research and development",
+        "prototyping",
+        "validation testing",
+        "certification testing",
+        "compliance testing"
+    ],
+    "reject_keywords": [
+        "authorized distributor",
+        "news agency",
+        "government body",
+        "trade show",
+        "free zone authority",
+        "job vacancies",
+        "insurance company",
+        "banking",
+        "real estate",
+        "restaurant",
+        "hotel",
+        "car dealer",
+        "recruitment agency",
+        "consulting firm",
+        "law firm",
+        "accounting firm",
+        "marketing agency",
+        "advertising agency",
+        "public relations",
+        "travel agency",
+        "event planner",
+        "wedding planner",
+        "catering service",
+        "cleaning service",
+        "security service",
+        "landscaping service",
+        "construction company",
+        "plumbing service",
+        "electrical service",
+        "HVAC service",
+        "roofing service",
+        "painting service",
+        "moving company",
+        "storage facility",
+        "self-storage",
+        "postal service",
+        "shipping company",
+        "logistics company",
+        "freight forwarder",
+        "customs broker",
+        "warehouse",
+        "retail store",
+        "grocery store",
+        "department store",
+        "clothing store",
+        "shoe store",
+        "furniture store",
+        "electronics store",
+        "hardware store",
+        "bookstore",
+        "pharmacy",
+        "hospital",
+        "clinic",
+        "doctor's office",
+        "dentist's office",
+        "veterinarian",
+        "school",
+        "university",
+        "college",
+        "library",
+        "museum",
+        "art gallery",
+        "theater",
+        "cinema",
+        "nightclub",
+        "bar",
+        "coffee shop",
+        "bakery",
+        "butcher shop",
+        "dairy farm",
+        "vineyard",
+        "brewery",
+        "distillery",
+        "financial services",
+        "investment firm",
+        "mortgage lender",
+        "credit union",
+        "stock broker",
+        "commodity trader",
+        "currency exchange",
+        "nonprofit organization",
+        "charity",
+        "foundation",
+        "association",
+        "club",
+        "society",
+        "union",
+        "political party",
+        "religious organization",
+        "church",
+        "mosque",
+        "synagogue",
+        "temple",
+        "cemetery",
+        "funeral home",
+        "waste disposal",
+        "recycling center",
+        "scrap metal dealer",
+        "auction house",
+        "pawn shop",
+        "storage solutions",
+        "office supplies",
+        "janitorial services",
+        "equipment rental",
+        "leasing company",
+        "fleet management",
+        "car rental",
+        "truck rental",
+        "forklift rental",
+        "heavy equipment rental"
+    ],
+    "buyer_business_types": [
+        {
+            "type": "defense electronics company",
+            "weight": 9
+        },
+        {
+            "type": "aerospace manufacturer",
+            "weight": 8
+        },
+        {
+            "type": "medical device manufacturer",
+            "weight": 9
+        },
+        {
+            "type": "industrial automation company",
+            "weight": 7
+        },
+        {
+            "type": "telecommunications equipment manufacturer",
+            "weight": 8
+        },
+        {
+            "type": "automotive electronics supplier",
+            "weight": 7
+        },
+        {
+            "type": "renewable energy systems integrator",
+            "weight": 6
+        },
+        {
+            "type": "electric vehicle manufacturer",
+            "weight": 8
+        },
+        {
+            "type": "robotics company",
+            "weight": 7
+        },
+        {
+            "type": "navigation systems developer",
+            "weight": 6
+        },
+        {
+            "type": "test and measurement equipment manufacturer",
+            "weight": 7
+        },
+        {
+            "type": "security systems provider",
+            "weight": 6
+        },
+        {
+            "type": "railway signaling company",
+            "weight": 5
+        },
+        {
+            "type": "marine electronics manufacturer",
+            "weight": 6
+        },
+        {
+            "type": "agricultural technology company",
+            "weight": 5
+        },
+        {
+            "type": "mining equipment manufacturer",
+            "weight": 5
+        },
+        {
+            "type": "oil and gas equipment supplier",
+            "weight": 5
+        },
+        {
+            "type": "scientific instruments manufacturer",
+            "weight": 6
+        },
+        {
+            "type": "laboratory equipment supplier",
+            "weight": 5
+        },
+        {
+            "type": "semiconductor equipment manufacturer",
+            "weight": 6
+        },
+        {
+            "type": "consumer electronics designer",
+            "weight": 7
+        },
+        {
+            "type": "audio equipment manufacturer",
+            "weight": 6
+        },
+        {
+            "type": "video equipment manufacturer",
+            "weight": 6
+        },
+        {
+            "type": "lighting systems manufacturer",
+            "weight": 5
+        },
+        {
+            "type": "HVAC systems manufacturer",
+            "weight": 5
+        },
+        {
+            "type": "appliance manufacturer",
+            "weight": 6
+        },
+        {
+            "type": "smart home devices developer",
+            "weight": 6
+        },
+        {
+            "type": "wearable technology company",
+            "weight": 7
+        },
+        {
+            "type": "medical imaging company",
+            "weight": 8
+        },
+        {
+            "type": "patient monitoring systems manufacturer",
+            "weight": 7
+        },
+        {
+            "type": "surgical instruments manufacturer",
+            "weight": 7
+        },
+        {
+            "type": "diagnostic equipment supplier",
+            "weight": 7
+        },
+        {
+            "type": "pharmaceutical equipment manufacturer",
+            "weight": 6
+        },
+        {
+            "type": "biotechnology equipment supplier",
+            "weight": 6
+        },
+        {
+            "type": "environmental monitoring systems provider",
+            "weight": 5
+        },
+        {
+            "type": "water treatment systems manufacturer",
+            "weight": 5
+        },
+        {
+            "type": "air purification systems supplier",
+            "weight": 5
+        },
+        {
+            "type": "waste management equipment manufacturer",
+            "weight": 4
+        },
+        {
+            "type": "recycling equipment supplier",
+            "weight": 4
+        },
+        {
+            "type": "energy storage systems integrator",
+            "weight": 6
+        },
+        {
+            "type": "grid infrastructure provider",
+            "weight": 5
+        },
+        {
+            "type": "smart grid solutions company",
+            "weight": 6
+        },
+        {
+            "type": "electric power transmission equipment manufacturer",
+            "weight": 5
+        },
+        {
+            "type": "electric power distribution equipment supplier",
+            "weight": 5
+        },
+        {
+            "type": "power generation equipment manufacturer",
+            "weight": 5
+        },
+        {
+            "type": "alternative energy sources developer",
+            "weight": 6
+        },
+        {
+            "type": "solar power systems manufacturer",
+            "weight": 6
+        },
+        {
+            "type": "wind power systems supplier",
+            "weight": 6
+        },
+        {
+            "type": "hydroelectric power equipment manufacturer",
+            "weight": 5
+        },
+        {
+            "type": "geothermal energy systems provider",
+            "weight": 5
+        },
+        {
+            "type": "nuclear energy equipment manufacturer",
+            "weight": 4
+        },
+        {
+            "type": "fuel cell technology developer",
+            "weight": 6
+        }
+    ],
+    "reject_business_types": [
+        {
+            "type": "newspaper",
+            "weight": 10
+        },
+        {
+            "type": "bank",
+            "weight": 10
+        },
+        {
+            "type": "real estate agency",
+            "weight": 10
+        },
+        {
+            "type": "restaurant",
+            "weight": 10
+        },
+        {
+            "type": "hotel",
+            "weight": 10
+        },
+        {
+            "type": "car dealership",
+            "weight": 10
+        },
+        {
+            "type": "recruitment agency",
+            "weight": 10
+        },
+        {
+            "type": "consulting firm",
+            "weight": 9
+        },
+        {
+            "type": "law firm",
+            "weight": 10
+        },
+        {
+            "type": "accounting firm",
+            "weight": 10
+        },
+        {
+            "type": "marketing agency",
+            "weight": 9
+        },
+        {
+            "type": "advertising agency",
+            "weight": 9
+        },
+        {
+            "type": "public relations firm",
+            "weight": 9
+        },
+        {
+            "type": "travel agency",
+            "weight": 10
+        },
+        {
+            "type": "event planner",
+            "weight": 10
+        },
+        {
+            "type": "wedding planner",
+            "weight": 10
+        },
+        {
+            "type": "catering service",
+            "weight": 10
+        },
+        {
+            "type": "cleaning service",
+            "weight": 10
+        },
+        {
+            "type": "security service",
+            "weight": 10
+        },
+        {
+            "type": "landscaping service",
+            "weight": 10
+        },
+        {
+            "type": "construction company",
+            "weight": 10
+        },
+        {
+            "type": "plumbing service",
+            "weight": 10
+        },
+        {
+            "type": "electrical service",
+            "weight": 10
+        },
+        {
+            "type": "HVAC service",
+            "weight": 10
+        },
+        {
+            "type": "roofing service",
+            "weight": 10
+        },
+        {
+            "type": "painting service",
+            "weight": 10
+        },
+        {
+            "type": "moving company",
+            "weight": 10
+        },
+        {
+            "type": "storage facility",
+            "weight": 10
+        },
+        {
+            "type": "postal service",
+            "weight": 10
+        },
+        {
+            "type": "shipping company",
+            "weight": 10
+        },
+        {
+            "type": "logistics company",
+            "weight": 10
+        },
+        {
+            "type": "freight forwarder",
+            "weight": 10
+        },
+        {
+            "type": "customs broker",
+            "weight": 10
+        },
+        {
+            "type": "retail store",
+            "weight": 10
+        },
+        {
+            "type": "grocery store",
+            "weight": 10
+        },
+        {
+            "type": "department store",
+            "weight": 10
+        },
+        {
+            "type": "clothing store",
+            "weight": 10
+        },
+        {
+            "type": "shoe store",
+            "weight": 10
+        },
+        {
+            "type": "furniture store",
+            "weight": 10
+        },
+        {
+            "type": "electronics store",
+            "weight": 10
+        },
+        {
+            "type": "hardware store",
+            "weight": 10
+        },
+        {
+            "type": "bookstore",
+            "weight": 10
+        },
+        {
+            "type": "pharmacy",
+            "weight": 10
+        },
+        {
+            "type": "hospital",
+            "weight": 10
+        },
+        {
+            "type": "clinic",
+            "weight": 10
+        },
+        {
+            "type": "school",
+            "weight": 10
+        },
+        {
+            "type": "university",
+            "weight": 10
+        },
+        {
+            "type": "library",
+            "weight": 10
+        },
+        {
+            "type": "museum",
+            "weight": 10
+        },
+        {
+            "type": "art gallery",
+            "weight": 10
+        }
+    ],
+    "name_patterns_reject": [
+        "\\bAuthority\\b",
+        "\\bFree Zone\\b",
+        "Official Site$",
+        "\\bDistributor\\b",
+        "\\bReseller\\b",
+        "\\bAgency\\b",
+        "\\bConsulting\\b",
+        "\\bLaw Firm\\b",
+        "\\bBank\\b",
+        "\\bInsurance\\b",
+        "\\bFoundation\\b",
+        "\\bCharity\\b",
+        "\\bNews\\b",
+        "\\bPress\\b",
+        "\\bGovernment\\b",
+        "\\bChamber of Commerce\\b",
+        "\\bTrade Show\\b",
+        "\\bExhibition\\b",
+        "\\bJobs\\b",
+        "\\bCareers\\b",
+        "\\bRecruitment\\b",
+        "\\bHotel\\b",
+        "\\bRestaurant\\b",
+        "\\bReal Estate\\b",
+        "\\bCar Dealer\\b",
+        "\\bHospital\\b",
+        "\\bClinic\\b",
+        "\\bSchool\\b",
+        "\\bUniversity\\b",
+        "\\bCollege\\b",
+        "\\bLibrary\\b",
+        "\\bMuseum\\b",
+        "\\bArt Gallery\\b",
+        "\\bTheater\\b",
+        "\\bCinema\\b",
+        "\\bNightclub\\b",
+        "\\bBar\\b",
+        "\\bCoffee Shop\\b",
+        "\\bBakery\\b",
+        "\\bButcher Shop\\b",
+        "\\bDairy Farm\\b"
+    ],
+    "name_patterns_buyer": [
+        "\\bElectronics\\b",
+        "\\bSystems\\b",
+        "\\bTechnolog",
+        "\\bAutomation\\b",
+        "\\bControls\\b",
+        "\\bDevices\\b",
+        "\\bInstruments\\b",
+        "\\bSensors\\b",
+        "\\bAerospace\\b",
+        "\\bMedical\\b",
+        "\\bDefense\\b",
+        "\\bIndustrial\\b",
+        "\\bPower\\b",
+        "\\bEnergy\\b",
+        "\\bRobotics\\b",
+        "\\bNavigation\\b",
+        "\\bCommunication\\b",
+        "\\bEngineering\\b",
+        "\\bManufacturing\\b",
+        "\\bSolutions\\b",
+        "\\bComponents\\b"
+    ],
+    "giant_oem_names": [
+        "Samsung",
+        "Siemens",
+        "Boeing",
+        "Airbus",
+        "Honeywell",
+        "General Electric",
+        "GE",
+        "Lockheed Martin",
+        "Raytheon",
+        "Northrop Grumman",
+        "United Technologies",
+        "UTC",
+        "3M",
+        "ABB",
+        "Schneider Electric",
+        "Bosch",
+        "Panasonic",
+        "Sony",
+        "Philips",
+        "LG",
+        "Hitachi",
+        "Toshiba",
+        "Mitsubishi Electric",
+        "Fujitsu",
+        "NEC",
+        "Ericsson",
+        "Nokia",
+        "Huawei",
+        "Cisco",
+        "IBM",
+        "Intel",
+        "Microsoft",
+        "Oracle",
+        "HP",
+        "Dell",
+        "Lenovo",
+        "Apple",
+        "Amazon",
+        "Google",
+        "Facebook",
+        "Tesla",
+        "Toyota",
+        "Volkswagen",
+        "Ford",
+        "General Motors",
+        "GM",
+        "BMW",
+        "Mercedes-Benz",
+        "Audi",
+        "Nissan",
+        "Honda",
+        "Hyundai",
+        "Kia",
+        "Renault",
+        "Fiat",
+        "Chrysler",
+        "Peugeot",
+        "Citroen",
+        "Volvo",
+        "Saab",
+        "Rolls-Royce",
+        "Bentley",
+        "Jaguar",
+        "Land Rover",
+        "Aston Martin",
+        "Ferrari",
+        "Lamborghini",
+        "Maserati",
+        "Porsche",
+        "Caterpillar",
+        "John Deere",
+        "Deere & Company",
+        "Komatsu",
+        "Hitachi Construction Machinery",
+        "Volvo Construction Equipment",
+        "CNH Industrial",
+        "CNHI",
+        "Doosan Infracore",
+        "Hyundai Construction Equipment",
+        "Liebherr",
+        "Terex",
+        "Manitowoc",
+        "XCMG",
+        "Sany",
+        "Zoomlion"
+    ],
+    "distributor_indicators": [
+        "authorized dealer",
+        "exclusive distributor",
+        "reseller of",
+        "trading company",
+        "wholesale supplier",
+        "distributor of",
+        "supplier of",
+        "stockist of",
+        "importer of",
+        "exporter of",
+        "agent for",
+        "representative of",
+        "partner with",
+        "channel partner",
+        "value-added reseller",
+        "VAR",
+        "OEM supplier",
+        "component distributor",
+        "electronic components distributor",
+        "franchised distributor",
+        "independent distributor",
+        "global distributor",
+        "regional distributor",
+        "local distributor",
+        "online distributor",
+        "e-commerce retailer",
+        "marketplace seller",
+        "dropshipper",
+        "third-party seller",
+        "vendor of"
+    ],
+    "domain_reject_patterns": [
+        "news",
+        "jobs",
+        "careers",
+        "gov.",
+        "magazine",
+        "blog",
+        "wiki",
+        "forum",
+        "support",
+        "help",
+        "store",
+        "shop",
+        "market",
+        "events",
+        "press",
+        "media",
+        "investors",
+        "finance",
+        "banking",
+        "insurance"
+    ],
+    "_meta": {
+        "generated_at": "2026-02-08 11:28:33",
+        "model": "gemini-2.0-flash",
+        "purpose": "Local company classifier knowledge base for Starz Electronics CRM",
+        "usage": "Loaded by CompanyClassifierService at runtime. No API calls needed."
+    }
+}

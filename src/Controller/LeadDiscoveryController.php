@@ -40,7 +40,7 @@ class LeadDiscoveryController extends AbstractController
         $location = $request->request->get('location');
 
         if (empty($query)) {
-            $this->addFlash('error', 'Please enter a search query.');
+            $this->addFlash('error', 'lead_discovery.flash.error.query_required');
             return $this->redirectToRoute('lead_discovery_index');
         }
 
@@ -70,7 +70,7 @@ class LeadDiscoveryController extends AbstractController
             ]);
 
         } catch (\Exception $e) {
-            $this->addFlash('error', 'Search failed: ' . $e->getMessage());
+            $this->addFlash('error', 'lead_discovery.flash.error.search_failed');
             return $this->redirectToRoute('lead_discovery_index');
         }
     }
@@ -85,7 +85,7 @@ class LeadDiscoveryController extends AbstractController
         $selectedIndices = $request->request->all()['selected'] ?? [];
 
         if (empty($results) || empty($selectedIndices)) {
-            $this->addFlash('warning', 'No results to import.');
+            $this->addFlash('warning', 'lead_discovery.flash.warning.no_results');
             return $this->redirectToRoute('lead_discovery_index');
         }
 
@@ -136,10 +136,10 @@ class LeadDiscoveryController extends AbstractController
         $request->getSession()->remove('search_query');
 
         if ($imported > 0) {
-            $this->addFlash('success', "Successfully imported {$imported} lead(s).");
+            $this->addFlash('success', 'lead_discovery.flash.success.imported');
         }
         if ($skipped > 0) {
-            $this->addFlash('info', "Skipped {$skipped} duplicate(s).");
+            $this->addFlash('info', 'lead_discovery.flash.info.skipped');
         }
 
         return $this->redirectToRoute('app_lead_index');
@@ -154,7 +154,7 @@ class LeadDiscoveryController extends AbstractController
         $sector = $request->getSession()->get('search_sector');
 
         if (empty($results)) {
-            $this->addFlash('warning', 'No results to import.');
+            $this->addFlash('warning', 'lead_discovery.flash.warning.no_results');
             return $this->redirectToRoute('lead_discovery_index');
         }
 
@@ -197,10 +197,10 @@ class LeadDiscoveryController extends AbstractController
         $request->getSession()->remove('search_query');
 
         if ($imported > 0) {
-            $this->addFlash('success', "Successfully imported {$imported} lead(s).");
+            $this->addFlash('success', 'lead_discovery.flash.success.imported');
         }
         if ($skipped > 0) {
-            $this->addFlash('info', "Skipped {$skipped} duplicate(s).");
+            $this->addFlash('info', 'lead_discovery.flash.info.skipped');
         }
 
         return $this->redirectToRoute('app_lead_index');

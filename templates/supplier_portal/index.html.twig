@@ -11,12 +11,41 @@
             <p class="rams-page-subtitle">{{ 'supplier.portal.subtitle'|trans }}</p>
         </div>
         <div class="rams-page-actions">
-            <a href="#" class="rams-btn rams-btn--primary">
+            <a href="#add-supplier" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 3V13M3 8H13"/>
                 </svg>
                 {{ 'supplier.portal.add_supplier'|trans }}
             </a>
+        </div>
+    </div>
+
+    {# Add Supplier (Discover Portal) #}
+    <div id="add-supplier" class="rams-module">
+        <div class="rams-module__header">
+            <h3>{{ 'supplier.portal.add_supplier'|trans }}</h3>
+        </div>
+        <div class="rams-module__content">
+            <p class="rams-text--sm rams-text--muted rams-mb-3">{{ 'supplier.portal.add_supplier_help'|trans }}</p>
+            <form method="post" action="{{ path('supplier_portal_discover') }}" class="rams-form rams-grid rams-grid--3">
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'supplier.portal.company_name'|trans }}</label>
+                    <input type="text" name="company_name" class="rams-form__input" placeholder="{{ 'supplier.portal.company_name_placeholder'|trans }}" required>
+                </div>
+                <div class="rams-form__group">
+                    <label class="rams-form__label rams-dymo">{{ 'supplier.portal.domain'|trans }}</label>
+                    <input type="text" name="domain" class="rams-form__input" placeholder="{{ 'supplier.portal.domain_placeholder'|trans }}">
+                </div>
+                <div class="rams-form__group rams-form__group--actions">
+                    <button type="submit" class="rams-btn rams-btn--primary rams-w-full">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="7" cy="7" r="4"/>
+                            <path d="M11 11L14 14"/>
+                        </svg>
+                        {{ 'supplier.portal.discover'|trans }}
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

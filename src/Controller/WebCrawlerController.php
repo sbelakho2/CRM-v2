@@ -6,7 +6,6 @@ use App\Service\WebCrawler\CompanyDiscoveryService;
 use App\Service\WebCrawler\GoogleDorkService;
 use App\Service\ContactEnrichmentService;
 use App\Repository\CompanyRepository;
-use App\Repository\LeadRepository;
 use App\Service\CountryService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,7 +38,6 @@ class WebCrawlerController extends AbstractController
     public function __construct(
         private CompanyDiscoveryService $discoveryService,
         private GoogleDorkService $googleDorkService,
-        private LeadRepository $leadRepository,
         private CountryService $countryService,
         private ?ContactEnrichmentService $contactEnrichmentService = null,
         private ?CompanyRepository $companyRepository = null
@@ -48,34 +46,34 @@ class WebCrawlerController extends AbstractController
     #[Route('', name: 'app_webcrawler_index', methods: ['GET'])]
     public function index(): Response
     {
-        // Get recent discovery stats (webcrawler leads are identified by notesAuto containing discovery info)
-        $recentLeads = $this->leadRepository->createQueryBuilder('l')
-            ->where('l.notesAuto IS NOT NULL')
-            ->andWhere('l.notesAuto LIKE :webcrawler OR l.leadUrl IS NOT NULL')
-            ->setParameter('webcrawler', '%discovered%')
-            ->orderBy('l.createdAt', 'DESC')
+        if (!$this->companyRepository) {
+            throw $this->createNotFoundException('Company repository not available');
+        }
+
+        $recentCompanies = $this->companyRepository->createQueryBuilder('c')
+            ->andWhere('c.companyStatus = :status')
+            ->setParameter('status', \App\Entity\Company::STATUS_DISCOVERED)
+            ->orderBy('c.createdAt', 'DESC')
             ->setMaxResults(10)
             ->getQuery()
             ->getResult();
 
-        // Count all leads (webcrawler creates leads with notesAuto)
-        $allLeads = $this->leadRepository->createQueryBuilder('l')
-            ->where('l.notesAuto IS NOT NULL')
-            ->getQuery()
-            ->getResult();
-        
+        $allDiscovered = $this->companyRepository->count(['companyStatus' => \App\Entity\Company::STATUS_DISCOVERED]);
+        $allApproved = $this->companyRepository->count(['companyStatus' => \App\Entity\Company::STATUS_APPROVED]);
+        $allActive = $this->companyRepository->count(['companyStatus' => \App\Entity\Company::STATUS_ACTIVE]);
+
         $stats = [
-            'total_leads' => count($allLeads),
-            'pending' => count(array_filter($allLeads, fn($l) => $l->getReviewStatus() === 'pending')),
-            'approved' => count(array_filter($allLeads, fn($l) => $l->getReviewStatus() === 'approved')),
+            'discovered' => $allDiscovered,
+            'approved' => $allApproved,
+            'active' => $allActive,
         ];
 
         $locations = $this->countryService->getRegionOptions(
             CompanyDiscoveryService::getTargetLocations()
         );
         $regionLabels = $locations;
-        foreach ($recentLeads as $lead) {
-            $tag = $lead->getRegionTag();
+        foreach ($recentCompanies as $company) {
+            $tag = $company->getRegion();
             if ($tag && !isset($regionLabels[$tag])) {
                 $regionLabels[$tag] = strtoupper((string) $tag);
             }
@@ -85,7 +83,7 @@ class WebCrawlerController extends AbstractController
             'sectors' => self::TARGET_SECTORS,
             'locations' => $locations,
             'region_labels' => $regionLabels,
-            'recent_leads' => $recentLeads,
+            'recent_companies' => $recentCompanies,
             'stats' => $stats,
         ]);
     }
@@ -97,19 +95,20 @@ class WebCrawlerController extends AbstractController
         $location = $request->request->get('location');
         $keywords = $request->request->get('keywords', '');
         $locationLabel = $this->resolveLocationLabel($location);
-
-        if (!$sector) {
-            return new JsonResponse(['error' => 'Sector is required'], 400);
-        }
+        $sector = is_string($sector) && trim($sector) !== '' ? trim($sector) : null;
 
         try {
             // Run discovery
             $companies = $this->discoveryService->discoverCompanies($sector, $locationLabel);
 
+            $message = $sector
+                ? sprintf('Discovered %d companies in %s', count($companies), $sector)
+                : sprintf('Discovered %d companies', count($companies));
+
             return new JsonResponse([
                 'success' => true,
                 'discovered' => count($companies),
-                'message' => sprintf('Discovered %d companies in %s', count($companies), $sector),
+                'message' => $message,
                 'companies' => array_map(fn($c) => [
                     'id' => $c->getId(),
                     'name' => $c->getName(),

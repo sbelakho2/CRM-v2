@@ -13,6 +13,7 @@ use App\Service\EmailTrackingSigner;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -26,7 +27,8 @@ class EmailCampaignController extends AbstractController
         private ContactRepository $contactRepository,
         private EmailCampaignService $campaignService,
         private EmailTrackingSigner $trackingSigner,
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private TranslatorInterface $translator
     ) {}
 
     #[Route('/', name: 'app_email_campaign_index', methods: ['GET'])]
@@ -81,7 +83,7 @@ class EmailCampaignController extends AbstractController
                 $campaign->getName()
             );
 
-            $this->addFlash('success', 'Email campaign created successfully.');
+            $this->addFlash('success', $this->translator->trans('email_campaign.flash.created'));
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
         }
 
@@ -162,7 +164,7 @@ class EmailCampaignController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Email campaign updated successfully.');
+            $this->addFlash('success', $this->translator->trans('email_campaign.flash.updated'));
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
         }
 
@@ -179,7 +181,7 @@ class EmailCampaignController extends AbstractController
             $this->entityManager->remove($campaign);
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Email campaign deleted successfully.');
+            $this->addFlash('success', $this->translator->trans('email_campaign.flash.deleted'));
         }
 
         return $this->redirectToRoute('app_email_campaign_index');
@@ -192,8 +194,8 @@ class EmailCampaignController extends AbstractController
             $campaign->setActive(!$campaign->isActive());
             $this->entityManager->flush();
 
-            $status = $campaign->isActive() ? 'activated' : 'deactivated';
-            $this->addFlash('success', "Campaign {$status} successfully.");
+            $statusTrans = $campaign->isActive() ? 'activated' : 'deactivated';
+            $this->addFlash('success', $this->translator->trans('email_campaign.flash.' . $statusTrans));
         }
 
         return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
@@ -221,7 +223,7 @@ class EmailCampaignController extends AbstractController
             }
 
             if (empty($contactIds)) {
-                $this->addFlash('error', 'Please select at least one contact.');
+                $this->addFlash('error', $this->translator->trans('email_campaign.flash.select_contacts'));
                 return $this->redirectToRoute('app_email_campaign_send', ['id' => $campaign->getId()]);
             }
 
@@ -237,7 +239,7 @@ class EmailCampaignController extends AbstractController
             // Provide guidance after sending campaign
             $this->guidanceService->afterEmailCampaignSent($campaign->getId(), $sentCount);
 
-            $this->addFlash('success', "Sent {$sentCount} emails successfully.");
+            $this->addFlash('success', $this->translator->trans('email_campaign.flash.sent_count', ['%count%' => $sentCount]));
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
         }
 
@@ -354,7 +356,7 @@ class EmailCampaignController extends AbstractController
 
         $this->campaignService->markReplied($send);
         
-        $this->addFlash('success', 'Email marked as replied.');
+        $this->addFlash('success', $this->translator->trans('email_campaign.flash.replied'));
         
         // Redirect back to campaign show page
         return $this->redirectToRoute('app_email_campaign_show', ['id' => $send->getCampaign()->getId()]);
@@ -369,7 +371,7 @@ class EmailCampaignController extends AbstractController
 
         $this->campaignService->markBounced($send);
         
-        $this->addFlash('success', 'Email marked as bounced.');
+        $this->addFlash('success', $this->translator->trans('email_campaign.flash.bounced'));
         
         // Redirect back to campaign show page
         return $this->redirectToRoute('app_email_campaign_show', ['id' => $send->getCampaign()->getId()]);

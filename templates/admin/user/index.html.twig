@@ -1,21 +1,21 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'admin.users.title'|trans }} - {{ 'admin.title'|trans }}{% endblock %}
+{% block title %}{{ 'administration.users.title'|trans }} - {{ 'administration.title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack rams-gap-6">
     {# Page Header #}
     <div class="rams-page-header">
         <div>
-            <h1 class="rams-page-title">{{ 'admin.users.title'|trans }}</h1>
-            <p class="rams-page-subtitle">{{ 'admin.users.subtitle'|trans }}</p>
+            <h1 class="rams-page-title">{{ 'administration.users.title'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'administration.users.subtitle'|trans }}</p>
         </div>
         <div class="rams-page-actions">
             <a href="{{ path('admin_user_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 2v12M2 8h12"/>
                 </svg>
-                {{ 'admin.users.new_user'|trans }}
+                {{ 'administration.users.create_user'|trans }}
             </a>
         </div>
     </div>
@@ -30,26 +30,26 @@
                            id="search" 
                            name="search" 
                            value="{{ app.request.query.get('search') }}"
-                           placeholder="{{ 'admin.users.search_placeholder'|trans }}"
+                           placeholder="{{ 'administration.users.search_placeholder'|trans }}"
                            class="rams-form__input">
                 </div>
                 
                 <div class="rams-form__group">
-                    <label for="role" class="rams-form__label rams-dymo">{{ 'admin.users.role'|trans }}</label>
+                    <label for="role" class="rams-form__label rams-dymo">{{ 'administration.users.role'|trans }}</label>
                     <select id="role" name="role" class="rams-form__select">
-                        <option value="">{{ 'admin.users.all_roles'|trans }}</option>
-                        <option value="ROLE_ADMIN" {% if app.request.query.get('role') == 'ROLE_ADMIN' %}selected{% endif %}>{{ 'admin.users.roles.admin'|trans }}</option>
-                        <option value="ROLE_USER" {% if app.request.query.get('role') == 'ROLE_USER' %}selected{% endif %}>{{ 'admin.users.roles.user'|trans }}</option>
-                        <option value="ROLE_SALES" {% if app.request.query.get('role') == 'ROLE_SALES' %}selected{% endif %}>{{ 'admin.users.roles.sales'|trans }}</option>
+                        <option value="">{{ 'administration.users.all_roles'|trans }}</option>
+                        <option value="ROLE_ADMIN" {% if app.request.query.get('role') == 'ROLE_ADMIN' %}selected{% endif %}>{{ 'administration.users.roles.admin'|trans }}</option>
+                        <option value="ROLE_USER" {% if app.request.query.get('role') == 'ROLE_USER' %}selected{% endif %}>{{ 'administration.users.roles.user'|trans }}</option>
+                        <option value="ROLE_SALES" {% if app.request.query.get('role') == 'ROLE_SALES' %}selected{% endif %}>{{ 'administration.users.roles.sales'|trans }}</option>
                     </select>
                 </div>
                 
                 <div class="rams-form__group">
-                    <label for="status" class="rams-form__label rams-dymo">{{ 'admin.users.status'|trans }}</label>
+                    <label for="status" class="rams-form__label rams-dymo">{{ 'administration.users.status'|trans }}</label>
                     <select id="status" name="status" class="rams-form__select">
                         <option value="">{{ 'common.all'|trans }}</option>
-                        <option value="active" {% if app.request.query.get('status') == 'active' %}selected{% endif %}>{{ 'admin.users.active'|trans }}</option>
-                        <option value="inactive" {% if app.request.query.get('status') == 'inactive' %}selected{% endif %}>{{ 'admin.users.inactive'|trans }}</option>
+                        <option value="active" {% if app.request.query.get('status') == 'active' %}selected{% endif %}>{{ 'administration.users.active'|trans }}</option>
+                        <option value="inactive" {% if app.request.query.get('status') == 'inactive' %}selected{% endif %}>{{ 'administration.users.inactive'|trans }}</option>
                     </select>
                 </div>
                 
@@ -73,9 +73,9 @@
                 <thead class="rams-table__header">
                     <tr>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'common.name'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.users.email'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.users.role'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.users.status'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.users.email'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.users.role'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.users.status'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
@@ -98,13 +98,13 @@
                             <td class="rams-table__cell">
                                 <div class="rams-andon">
                                     <span class="rams-andon__light rams-andon__light--{{ user.isActive() ? 'green' : '' }}"></span>
-                                    <span class="rams-andon__text">{{ (user.isActive() ? 'admin.users.active' : 'admin.users.inactive')|trans }}</span>
+                                    <span class="rams-andon__text">{{ (user.isActive() ? 'administration.users.active' : 'administration.users.inactive')|trans }}</span>
                                 </div>
                             </td>
                             <td class="rams-table__cell rams-table__cell--actions">
                                 <div class="rams-btn-group">
                                     <a href="{{ path('admin_user_edit', {id: user.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</a>
-                                    <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'admin.users.delete_confirm'|trans }}', {variant: 'danger'})">
+                                    <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'administration.users.delete_confirm'|trans }}', {variant: 'danger'})">
                                         <input type="hidden" name="_token" value="{{ csrf_token('delete_user' ~ user.id) }}">
                                         <button type="submit" 
                                                 class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">
@@ -118,8 +118,8 @@
                         <tr>
                             <td colspan="5" class="rams-table__cell">
                                 <div class="rams-empty-state">
-                                    <h3 class="rams-empty-state__title">{{ 'admin.users.no_users'|trans }}</h3>
-                                    <a href="{{ path('admin_user_new') }}" class="rams-link">{{ 'admin.users.create_first'|trans }}</a>
+                                    <h3 class="rams-empty-state__title">{{ 'administration.users.no_users'|trans }}</h3>
+                                    <a href="{{ path('admin_user_new') }}" class="rams-link">{{ 'administration.users.create_first'|trans }}</a>
                                 </div>
                             </td>
                         </tr>

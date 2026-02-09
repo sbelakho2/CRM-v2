@@ -141,6 +141,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'info',
                 "📇 Add contacts to {$companyName} to start building relationships",
+                [],
                 "/contacts/new?company_id={$companyId}",
                 'Add Contact',
                 "company_{$companyId}_add_contact"
@@ -155,6 +156,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'warning',
                 "📋 Upload compliance documents for {$companyName} (certifications, quality docs)",
+                [],
                 "/compliance/company/{$companyId}",
                 'Add Compliance',
                 "company_{$companyId}_add_compliance"
@@ -169,6 +171,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'info',
                 "⚡ Log your first activity with {$companyName} to track engagement",
+                [],
                 $this->urlGenerator->generate('app_activity_new', ['company' => $companyId]),
                 'Log Activity',
                 "company_{$companyId}_log_activity"
@@ -188,6 +191,7 @@ class GuidanceNotificationService
         $this->addGuidance(
             'info',
             "📞 Log your first interaction with {$contactName} to start tracking engagement",
+            [],
             $this->urlGenerator->generate('app_activity_new', ['contact' => $contactId]),
             'Log Activity',
             "contact_{$contactId}_log_activity"
@@ -205,6 +209,7 @@ class GuidanceNotificationService
         $this->addGuidance(
             'success',
             "✅ Lead converted to company: {$companyName}",
+            [],
             "/companies/{$companyId}",
             'View Company'
         );
@@ -214,6 +219,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'info',
                 "👥 Add key contacts at {$companyName} to begin outreach",
+                [],
                 "/contacts/new?company={$companyId}",
                 'Add Contact'
             );
@@ -223,6 +229,7 @@ class GuidanceNotificationService
         $this->addGuidance(
             'warning',
             "📋 Don't forget to request and upload compliance documents for {$companyName}",
+            [],
             "/compliance/company/{$companyId}",
             'Add Compliance'
         );
@@ -243,6 +250,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'warning',
                 "⏰ Schedule a follow-up activity for {$companyName} - don't lose momentum!",
+                [],
                 $companyId ? $this->urlGenerator->generate('app_activity_new', ['company' => $companyId]) : $this->urlGenerator->generate('app_activity_new'),
                 'Schedule Follow-up',
                 "activity_{$activityId}_followup"
@@ -254,6 +262,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'success',
                 "🎯 Great call! Consider sending a follow-up email or creating a quote",
+                [],
                 null,
                 null,
                 "activity_{$activityId}_success_followup"
@@ -265,6 +274,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'info',
                 "📝 Log reasons and lessons learned from this outcome in the activity notes",
+                [],
                 $this->urlGenerator->generate('app_activity_edit', ['id' => $activityId]),
                 'Update Notes',
                 "activity_{$activityId}_lost_reasons"
@@ -281,6 +291,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'info',
                 "✅ {$count} lead(s) approved. Convert them to companies to start engagement",
+                [],
                 "/leads",
                 'View Leads'
             );
@@ -322,6 +333,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'warning',
                 "⚠️ {$companyName} profile is incomplete. Missing: {$missingFields}",
+                [],
                 "/companies/{$companyId}/edit",
                 'Complete Profile'
             );
@@ -357,6 +369,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'warning',
                 "⚠️ {$count} compliance document(s) expiring soon for {$companyName}",
+                [],
                 "/compliance/company/{$companyId}",
                 'Review Compliance',
                 "compliance_{$companyId}_expiring_" . date('Y-m-d')
@@ -384,6 +397,7 @@ class GuidanceNotificationService
             $this->addGuidance(
                 'tip',
                 "💡 You've been active this week! Consider creating an email campaign to scale your outreach",
+                [],
                 "/email-campaigns/new",
                 'Create Campaign'
             );
@@ -398,6 +412,7 @@ class GuidanceNotificationService
         $this->addGuidance(
             'success',
             "💰 Quote created for {$companyName}. Remember to follow up within 48 hours",
+            [],
             "/quotes/{$quoteId}",
             'View Quote'
         );
@@ -405,6 +420,7 @@ class GuidanceNotificationService
         $this->addGuidance(
             'info',
             "📧 Consider sending a follow-up email explaining the quote details",
+            [],
             $this->urlGenerator->generate('app_activity_new'),
             'Log Follow-up'
         );
@@ -418,6 +434,7 @@ class GuidanceNotificationService
         $this->addGuidance(
             'info',
             "📨 New RFQ from {$companyName}. Check if NDA is required before proceeding",
+            [],
             "/rfqs/{$rfqId}",
             'View RFQ'
         );
@@ -425,6 +442,7 @@ class GuidanceNotificationService
         $this->addGuidance(
             'warning',
             "⏰ Review the RFQ deadline and ensure timely response",
+            [],
             null,
             null
         );

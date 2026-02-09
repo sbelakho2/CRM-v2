@@ -107,10 +107,10 @@ class QuoteCoPilotController extends AbstractController
             return $this->redirectToRoute('quote_copilot_index');
         }
 
-        // Validate CSV format
+        // Validate file format (CSV and Excel supported)
         $ext = strtolower($bomFile->getClientOriginalExtension());
-        if ($ext !== 'csv') {
-            $this->addFlash('error', 'Only CSV files are currently supported');
+        if (!in_array($ext, ['csv', 'xlsx', 'xls'])) {
+            $this->addFlash('error', 'Unsupported file format. Please upload a CSV or Excel (.xlsx, .xls) file.');
             return $this->redirectToRoute('quote_copilot_index');
         }
 

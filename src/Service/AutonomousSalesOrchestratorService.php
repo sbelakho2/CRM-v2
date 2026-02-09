@@ -52,6 +52,8 @@ class AutonomousSalesOrchestratorService
         private AutonomousSalesSettingsService $settingsService,
         private ?EmailPersonalizationService $personalizationService = null,
         private ?CompetitorLearnerService $competitorLearner = null,
+        private ?CadenceGovernorService $cadenceGovernor = null,
+        private ?CopyLintService $copyLintService = null,
     ) {}
 
     /**
@@ -80,11 +82,13 @@ class AutonomousSalesOrchestratorService
         $company = $contact->getCompany();
         
         // Build base context - now includes sender_company for templates
+        $jobTitle = $contact->getJobTitle() ?? '';
         $baseContext = array_merge([
             'first_name' => $contact->getFirstName() ?? 'there',
             'last_name' => $contact->getLastName() ?? '',
             'company_name' => $company?->getName() ?? 'your company',
-            'job_title' => $contact->getJobTitle() ?? '',
+            'job_title' => $jobTitle,
+            'job_title_area' => $this->extractFunctionalArea($jobTitle),
             'sender_name' => $_ENV['SALES_SENDER_NAME'] ?? 'Sales Team',
             'sender_company' => $_ENV['SENDER_COMPANY_NAME'] ?? 'Starz Electronics',  // FIXED: Configurable sender company
         ], $context);
@@ -124,10 +128,10 @@ class AutonomousSalesOrchestratorService
             $valuePropResult = $this->personalizationService->getValuePropVariant($industry, $contentFocus);
             if ($valuePropResult['is_ab_test']) {
                 $fullContext['value_prop'] = $valuePropResult['value_prop'];
-                $fullContext['value_prop_short'] = $this->personalizationService->enforceContentLength(
-                    $valuePropResult['value_prop'], 
-                    'brief'
-                );
+                // Create brief version by taking first sentence
+                $vp = $valuePropResult['value_prop'];
+                $dotPos = strpos($vp, '.');
+                $fullContext['value_prop_short'] = $dotPos !== false ? substr($vp, 0, $dotPos + 1) : $vp;
                 $valuePropArmId = $valuePropResult['arm_id'];
             }
             
@@ -163,28 +167,54 @@ class AutonomousSalesOrchestratorService
             throw new \RuntimeException('No active spintax templates available');
         }
 
+        // ==================== ICP CLUSTER ====================
+        // Determine ICP cluster for per-industry bandit pools
+        $company = $contact->getCompany();
+        $icpCluster = 'global'; // fallback
+        if ($company) {
+            $industry = strtolower($company->getSector() ?? '');
+            if ($industry && $industry !== 'other') {
+                $icpCluster = $industry;
+            }
+        }
+
+        // Decision trace: log every arm selection for attribution debugging
+        $decisionTrace = [
+            'timestamp' => (new \DateTime())->format('c'),
+            'icpCluster' => $icpCluster,
+        ];
+
         // Thompson Sampling: Select best subject line arm
-        // IMPROVEMENT: Now campaign-aware - uses campaign-specific arms when campaignId provided
+        // Now passes icpCluster for per-industry pools + 10% control group routing
         $armName = $campaignId ? "subject_line_{$campaignId}" : 'subject_line';
-        $armResult = $this->thompsonSampler->sampleAndSelect($armName);
+        $armResult = $this->thompsonSampler->sampleAndSelect($armName, $icpCluster);
         
         // If campaign-specific arm not found, fall back to generic
         if (!$armResult && $campaignId) {
-            $armResult = $this->thompsonSampler->sampleAndSelect('subject_line');
+            $armResult = $this->thompsonSampler->sampleAndSelect('subject_line', $icpCluster);
         }
         
         // If we have a subject arm, use it instead of template subject
         $subjectSpintax = $template->getSubjectSpintax();
         $subjectArm = null;
+        $isControlGroup = false;
         
         if ($armResult) {
             $subjectArm = $armResult['arm'];
             $subjectSpintax = $subjectArm->getArmValue();
+            $isControlGroup = $armResult['isControl'] ?? false;
+            $decisionTrace['subjectArm'] = [
+                'armId' => $subjectArm->getId(),
+                'armName' => $subjectArm->getArmName(),
+                'isControl' => $isControlGroup,
+                'sampledValue' => $armResult['sampledValue'] ?? null,
+            ];
         }
         
         // ==================== SUBJECT LINE SYNTHESIS ====================
         // Apply learned successful patterns to subject line
-        if ($this->personalizationService && !empty($context['successfulPatterns'])) {
+        // Skip synthesis for control group (they get baseline copy)
+        if (!$isControlGroup && $this->personalizationService && !empty($context['successfulPatterns'])) {
             $subjectSpintax = $this->personalizationService->synthesizeSubjectLine($contact, $subjectSpintax);
         }
 
@@ -196,22 +226,32 @@ class AutonomousSalesOrchestratorService
         );
         
         // Apply tone transformations to the final output if personalization service is available
+        $toneApplied = 'formal'; // default
         if ($this->personalizationService && $personalization) {
-            $tone = $personalization['tone'] ?? 'formal';
             $engagementLevel = $personalization['engagementLevel'] ?? 'cold';
             
-            // ==================== OUTPUT QUALITY FIXES ====================
-            // Apply all quality fixes: You-focus, tone, length, and cleanup
-            // This eliminates "We"-focused language and ensures natural flow
-            $result['body'] = $this->personalizationService->applyOutputQualityFixes(
-                $result['body'], 
-                $engagementLevel,
-                $tone
-            );
+            // Use architecture-recommended tone based on engagement level.
+            $profileTone = $personalization['tone'] ?? 'formal';
+            $architectureTone = match($engagementLevel) {
+                'hot' => 'formal',
+                'warm' => 'friendly',
+                default => 'casual',
+            };
+            $tone = ($profileTone === 'formal' && $engagementLevel === 'cold') 
+                ? $architectureTone 
+                : $profileTone;
+            $toneApplied = $tone;
             
-            // ==================== QUALITY VALIDATION ====================
-            // Run comprehensive quality checks on the final email
-            // This includes warmth validation, templated language detection, etc.
+            // Skip personalization fixes for control group (they get raw template output)
+            if (!$isControlGroup) {
+                $result['body'] = $this->personalizationService->applyOutputQualityFixes(
+                    $result['body'], 
+                    $engagementLevel,
+                    $tone
+                );
+            }
+            
+            // Quality validation always runs (we want to measure control vs treatment)
             $qualityCheck = $this->personalizationService->runFullQualityCheck(
                 $result['body'],
                 $contact,
@@ -219,6 +259,20 @@ class AutonomousSalesOrchestratorService
             );
         } else {
             $qualityCheck = null;
+        }
+
+        // ==================== COPY LINT GATE ====================
+        // Hard gate: reject if copy violates brand/deliverability rules
+        $copyLintResult = null;
+        if ($this->copyLintService) {
+            $copyLintResult = $this->copyLintService->lint($result['subject'], $result['body'], $fullContext);
+            if (!$copyLintResult['passed']) {
+                $this->logger->warning('Copy lint gate FAILED — message blocked', [
+                    'contactId' => $contact->getId(),
+                    'violations' => $copyLintResult['violations'],
+                ]);
+            }
+            $decisionTrace['copyLint'] = $copyLintResult;
         }
 
         // Track template usage
@@ -237,6 +291,11 @@ class AutonomousSalesOrchestratorService
             'contentLength' => $contentLength,     // Track applied content length
             'personalization' => $personalization,
             'qualityCheck' => $qualityCheck,       // Quality validation results
+            'copyLintResult' => $copyLintResult,   // Copy lint gate result
+            'isControlGroup' => $isControlGroup,   // Control group flag
+            'icpCluster' => $icpCluster,           // ICP cluster used
+            'toneApplied' => $toneApplied,         // Tone variant applied
+            'decisionTrace' => $decisionTrace,     // Full decision audit trail
         ];
     }
     
@@ -336,6 +395,29 @@ class AutonomousSalesOrchestratorService
             }
         }
         
+        // ==================== SERVICE TYPE CHECK (HIGHEST PRIORITY) ====================
+        // Explicit service type overrides all heuristic selection (industry, role, etc.)
+        // This is intentionally first: when a user/system specifies a service type,
+        // it should always be honored over inferred characteristics.
+        $serviceType = $context['service_type'] ?? null;
+        if ($serviceType && $serviceType !== 'general') {
+            $templateName = match($serviceType) {
+                'cable_harness', 'harness', 'wire' => 'Initial Outreach - Cable Harness',
+                'pcba', 'pcb', 'electronics' => 'Initial Outreach - PCBA',
+                'competitor_displacement' => 'Competitor Displacement',
+                'automotive', 'tier1_auto' => 'Initial Outreach - Tier1 Auto',
+                'technical', 'engineering' => 'Initial Outreach - Technical',
+                'cost', 'nearshore' => 'Initial Outreach - Cost Focus',
+                default => null,
+            };
+            if ($templateName) {
+                $template = $this->templateRepository->findOneBy(['name' => $templateName, 'active' => true]);
+                if ($template) {
+                    return $template;
+                }
+            }
+        }
+
         // ==================== INDUSTRY-SPECIFIC SELECTION ====================
         // Select template based on industry if available
         $industry = $context['industry'] ?? null;
@@ -385,21 +467,6 @@ class AutonomousSalesOrchestratorService
                 if ($template) {
                     return $template;
                 }
-            }
-        }
-
-        // ==================== SERVICE TYPE CHECK ====================
-        $serviceType = $context['service_type'] ?? null;
-        if ($serviceType) {
-            $templateName = match($serviceType) {
-                'cable_harness', 'harness', 'wire' => 'Initial Outreach - Cable Harness',
-                'pcba', 'pcb', 'electronics' => 'Initial Outreach - PCBA',
-                'competitor_displacement' => 'Competitor Displacement',
-                default => 'Initial Outreach - PCBA',
-            };
-            $template = $this->templateRepository->findOneBy(['name' => $templateName, 'active' => true]);
-            if ($template) {
-                return $template;
             }
         }
 
@@ -531,6 +598,56 @@ class AutonomousSalesOrchestratorService
             return false;
         }
 
+        // ==================== CADENCE GOVERNOR ====================
+        // Check send cadence limits and stop rules before sending
+        if ($this->cadenceGovernor) {
+            $cadenceCheck = $this->cadenceGovernor->canSendTo($contact);
+            if (!$cadenceCheck['allowed']) {
+                $this->logger->info('Cadence governor blocked send', [
+                    'contactId' => $contact->getId(),
+                    'reason' => $cadenceCheck['reason'],
+                    'nextAllowedAt' => $cadenceCheck['nextAllowedAt']?->format('Y-m-d H:i'),
+                ]);
+                return false;
+            }
+
+            // Check business hours
+            $bizHours = $this->cadenceGovernor->isWithinBusinessHours($contact);
+            if (!$bizHours['inWindow']) {
+                $this->logger->info('Outside business hours for contact timezone', [
+                    'contactId' => $contact->getId(),
+                    'timezone' => $bizHours['timezone'],
+                    'localHour' => $bizHours['localHour'],
+                    'dayOfWeek' => $bizHours['dayOfWeek'],
+                ]);
+                return false;
+            }
+        }
+
+        // ==================== COPY LINT GATE (final check) ====================
+        if ($this->copyLintService) {
+            $lintResult = $this->copyLintService->lint(
+                $message->getSubject() ?? '',
+                $message->getBodyText() ?? ''
+            );
+            if (!$lintResult['passed']) {
+                $this->logger->warning('Copy lint blocked send at delivery time', [
+                    'messageId' => $message->getId(),
+                    'violations' => $lintResult['violations'],
+                ]);
+                $message->setStatus(OutboundMessage::STATUS_FAILED);
+                $this->entityManager->flush();
+                return false;
+            }
+        }
+
+        // ==================== SET REPLY WINDOW EXPIRY ====================
+        // For delayed soft-failure processing
+        $replyWindowDays = CadenceGovernorService::REPLY_WINDOW_DAYS;
+        $message->setReplyWindowExpiry(
+            (new \DateTime())->modify("+{$replyWindowDays} days")
+        );
+
         try {
             $email = (new Email())
                 ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site')
@@ -656,68 +773,69 @@ class AutonomousSalesOrchestratorService
             $result['classification'] = $classification;
         }
 
-        // Record outcome in Thompson Sampler with proper event tracking
-        // Key fix: Track by event type, not just boolean "recorded"
-        // This allows replies to properly override open tracking
+        // ==================== WEIGHTED THOMPSON UPDATES ====================
+        // Record outcome via weighted event system (replaces old integer ±1)
+        // Event weights: open=0.10, click=0.30, positive_reply=2.50,
+        //   neutral_reply=0.50, negative_reply=3.00, unsubscribe=7.00, bounce=1.00
         $arm = $message->getSubjectArm();
         if ($arm) {
             $currentRecordedType = $message->getRecordedEventType();
             
-            // Determine if we should record this event
-            $shouldRecord = false;
+            // Determine if we should record this event (higher priority overrides lower)
             $eventPriority = ['bounce' => 1, 'open' => 2, 'click' => 3, 'reply' => 4];
             $currentPriority = $eventPriority[$currentRecordedType] ?? 0;
             $newPriority = $eventPriority[$eventType] ?? 0;
             
-            // Record if: no previous record, or this event has higher priority
-            if ($currentRecordedType === null || $newPriority > $currentPriority) {
-                $shouldRecord = true;
-            }
+            $shouldRecord = ($currentRecordedType === null || $newPriority > $currentPriority);
             
             if ($shouldRecord) {
-                // For replies, determine success based on classification
+                $weightedEventType = null;
+
                 if ($eventType === 'reply' && $classification) {
-                    // Positive: interested
-                    // Neutral: out_of_office, unknown (don't update)
-                    // Negative: not_interested, unsubscribe, bounce
                     $positiveClassifications = ['interested', 'meeting_request', 'information_request'];
                     $negativeClassifications = ['not_interested', 'unsubscribe', 'bounce', 'spam'];
                     
                     if (in_array($classification, $positiveClassifications, true)) {
-                        // Use reply-specific recording with amplified reward
-                        $this->thompsonSampler->recordReplyOutcome(
-                            $arm->getId(),
-                            true  // Positive reply
-                        );
-                        $result['thompson_updated'] = true;
+                        $weightedEventType = 'positive_reply';
+                    } elseif ($classification === 'unsubscribe') {
+                        $weightedEventType = 'unsubscribe';
                     } elseif (in_array($classification, $negativeClassifications, true)) {
-                        // Use symmetric 2× weighting for negative replies (matches positive reply amplification)
-                        $this->thompsonSampler->recordReplyOutcome(
-                            $arm->getId(),
-                            false,  // Negative reply
-                            $classification
-                        );
-                        $result['thompson_updated'] = true;
+                        $weightedEventType = 'negative_reply';
+                    } else {
+                        $weightedEventType = 'neutral_reply';
                     }
-                    // Out of office and unknown don't update Thompson (neutral)
-                } else {
-                    // Regular event handling
-                    $success = in_array($eventType, ['open', 'click'], true);
-                    $failure = in_array($eventType, ['bounce'], true);
-
-                    if ($success || $failure) {
-                        $this->thompsonSampler->recordOutcome(
-                            $arm->getId(),
-                            $success,
-                            $eventType
-                        );
-                        $result['thompson_updated'] = true;
-                    }
+                } elseif (in_array($eventType, ['open', 'click', 'bounce'], true)) {
+                    $weightedEventType = $eventType;
                 }
-                
-                if ($result['thompson_updated']) {
+
+                if ($weightedEventType) {
+                    // Update subject arm
+                    $this->thompsonSampler->recordWeightedOutcome($arm->getId(), $weightedEventType);
+                    
+                    // Also update value-prop arm if tracked
+                    $vpArmId = $message->getValuePropArmId();
+                    if ($vpArmId) {
+                        $this->thompsonSampler->recordWeightedOutcome($vpArmId, $weightedEventType);
+                    }
+
+                    $result['thompson_updated'] = true;
+                    $result['weighted_event'] = $weightedEventType;
+                    
                     $message->setOutcomeRecorded(true);
                     $message->setRecordedEventType($eventType);
+                    
+                    // Update funnel stage
+                    $funnelStage = match($weightedEventType) {
+                        'open' => 'opened',
+                        'click' => 'clicked',
+                        'positive_reply' => 'engaged',
+                        'negative_reply', 'unsubscribe' => 'stopped',
+                        'bounce' => 'bounced',
+                        default => null,
+                    };
+                    if ($funnelStage) {
+                        $message->setFunnelStage($funnelStage);
+                    }
                 }
             }
         }
@@ -948,6 +1066,26 @@ class AutonomousSalesOrchestratorService
 
         $templates = $this->spintaxEngine->seedDefaultTemplates();
         $arms = $this->thompsonSampler->seedDefaultSubjectLineArms();
+        $valuePropArms = [];
+
+        // Seed value prop variants for A/B testing (sanitized to avoid unverified claims)
+        if ($this->personalizationService) {
+            $industries = [
+                'automotive', 'aerospace', 'industrial', 'defense', 'medical',
+                'consumer', 'telecom', 'renewables', 'semiconductor', 'rail',
+                'hvac', 'marine', 'other',
+            ];
+            $contentFocuses = ['business', 'technical', 'value_focused', 'relationship'];
+
+            foreach ($industries as $industry) {
+                foreach ($contentFocuses as $focus) {
+                    $valuePropArms = array_merge(
+                        $valuePropArms,
+                        $this->personalizationService->seedValuePropVariants($industry, $focus)
+                    );
+                }
+            }
+        }
         
         // Seed competitors if service available
         $competitors = [];
@@ -958,6 +1096,7 @@ class AutonomousSalesOrchestratorService
         return [
             'templates' => count($templates),
             'arms' => count($arms),
+            'valuePropArms' => count($valuePropArms),
             'competitors' => count($competitors),
         ];
     }
@@ -967,5 +1106,42 @@ class AutonomousSalesOrchestratorService
         if (!$this->settingsService->isEnabled()) {
             throw new \RuntimeException('Autonomous sales system is disabled.');
         }
+    }
+
+    /**
+     * Extract the functional area from a job title for use in email copy.
+     * 
+     * "Director, Technology" → "technology"
+     * "VP of Procurement" → "procurement"
+     * "Chief Technology Officer" → "technology"
+     * "Engineering Manager" → "engineering"
+     */
+    private function extractFunctionalArea(string $jobTitle): string
+    {
+        $title = strtolower(trim($jobTitle));
+        
+        if (empty($title)) {
+            return 'your area';
+        }
+        
+        // Strip common prefixes/titles
+        $title = preg_replace('/\b(senior|junior|chief|vice|executive|lead|head|principal|associate|assistant|deputy|global|regional|group)\b\s*/i', '', $title);
+        $title = preg_replace('/\b(officer|manager|director|president|vp|svp|evp|ceo|coo|cto|cfo|cmo|cio|cpo)\b\s*/i', '', $title);
+        $title = preg_replace('/\b(of|for|and|the|&)\b/i', ' ', $title);
+        $title = preg_replace('/[,\-\/]+/', ' ', $title); // Strip punctuation
+        
+        $area = trim(preg_replace('/\s+/', ' ', $title));
+        
+        // If nothing remains, try common mappings
+        if (empty($area) || strlen($area) < 3) {
+            if (preg_match('/\b(cto|cio|technology|tech|it|digital)\b/i', $jobTitle)) return 'technology';
+            if (preg_match('/\b(ceo|coo|president|general)\b/i', $jobTitle)) return 'business operations';
+            if (preg_match('/\b(cfo|finance|financial)\b/i', $jobTitle)) return 'finance';
+            if (preg_match('/\b(cmo|marketing)\b/i', $jobTitle)) return 'marketing';
+            if (preg_match('/\b(cpo|procurement|purchasing|sourcing)\b/i', $jobTitle)) return 'procurement';
+            return 'your area';
+        }
+        
+        return strtolower($area);
     }
 }

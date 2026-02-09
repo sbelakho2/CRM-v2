@@ -32,6 +32,16 @@ class ComplianceController extends AbstractController
     #[Route('/company/{id}', name: 'app_compliance_company', methods: ['GET'])]
     public function companyCompliance(Company $company): Response
     {
+        // Only active companies can enter compliance pipeline
+        if (!$company->canEnterCompliance()) {
+            $this->addFlash('error', sprintf(
+                'Company "%s" must be in Active status to access compliance. Current status: %s',
+                $company->getName(),
+                ucfirst($company->getCompanyStatus())
+            ));
+            return $this->redirectToRoute('app_company_index');
+        }
+
         // Get or generate compliance checklist
         $documents = $this->complianceDocumentRepository->findBy(
             ['company' => $company],
@@ -234,10 +244,12 @@ class ComplianceController extends AbstractController
         
         $queryBuilder = $this->entityManager->createQueryBuilder()
             ->select('c')
-            ->from(Company::class, 'c');
+            ->from(Company::class, 'c')
+            ->andWhere('c.companyStatus = :status')
+            ->setParameter('status', Company::STATUS_ACTIVE);
 
         if ($sector) {
-            $queryBuilder->where('c.sector = :sector')
+            $queryBuilder->andWhere('c.sector = :sector')
                 ->setParameter('sector', $sector);
         }
 

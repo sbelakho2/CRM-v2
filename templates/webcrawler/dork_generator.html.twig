@@ -73,17 +73,41 @@
     </div>
 
     {# Advanced Tips #}
-    <div class="rams-module rams-module--info">
+    <div class="rams-module rams-module--guidance">
         <div class="rams-module__content">
-            <h3 class="rams-module__title rams-mb-3">💡 {{ 'webcrawler.dork_tips_title'|trans }}</h3>
-            <ul class="rams-stack rams-gap-1 rams-text--xs rams-text--muted" style="list-style: none;">
-                <li>• <code>{{ 'webcrawler.tip_code_site'|trans }}</code> - {{ 'webcrawler.tip_site'|trans }}</li>
-                <li>• <code>{{ 'webcrawler.tip_code_inurl'|trans }}</code> - {{ 'webcrawler.tip_inurl'|trans }}</li>
-                <li>• <code>{{ 'webcrawler.tip_code_intitle'|trans }}</code> - {{ 'webcrawler.tip_intitle'|trans }}</li>
-                <li>• <code>"{{ 'webcrawler.tip_exact_example'|trans }}"</code> - {{ 'webcrawler.tip_exact'|trans }}</li>
-                <li>• <code>{{ 'webcrawler.tip_or_example'|trans }}</code> - {{ 'webcrawler.tip_or'|trans }}</li>
-                <li>• <code>{{ 'webcrawler.tip_code_exclude'|trans }}</code> - {{ 'webcrawler.tip_exclude'|trans }}</li>
-                <li>• <code>{{ 'webcrawler.tip_code_filetype_pdf'|trans }}</code> - {{ 'webcrawler.tip_filetype'|trans }}</li>
+            <div class="rams-flex rams-gap-2 rams-items-center rams-mb-3">
+                <div class="rams-andon rams-andon--info"><span class="rams-andon__light"></span></div>
+                <h3 class="rams-module__title rams-mb-0">{{ 'webcrawler.dork_tips_title'|trans }}</h3>
+            </div>
+            <ul class="rams-stack rams-gap-2 rams-text--xs rams-text--muted" style="list-style: none; padding-left: 0;">
+                <li class="rams-flex rams-gap-3">
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_site'|trans }}</code>
+                    <span>{{ 'webcrawler.tip_site'|trans }}</span>
+                </li>
+                <li class="rams-flex rams-gap-3">
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_inurl'|trans }}</code>
+                    <span>{{ 'webcrawler.tip_inurl'|trans }}</span>
+                </li>
+                <li class="rams-flex rams-gap-3">
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_intitle'|trans }}</code>
+                    <span>{{ 'webcrawler.tip_intitle'|trans }}</span>
+                </li>
+                <li class="rams-flex rams-gap-3">
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">"{{ 'webcrawler.tip_exact_example'|trans }}"</code>
+                    <span>{{ 'webcrawler.tip_exact'|trans }}</span>
+                </li>
+                <li class="rams-flex rams-gap-3">
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_or_example'|trans }}</code>
+                    <span>{{ 'webcrawler.tip_or'|trans }}</span>
+                </li>
+                <li class="rams-flex rams-gap-3">
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_exclude'|trans }}</code>
+                    <span>{{ 'webcrawler.tip_exclude'|trans }}</span>
+                </li>
+                <li class="rams-flex rams-gap-3">
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_filetype_pdf'|trans }}</code>
+                    <span>{{ 'webcrawler.tip_filetype'|trans }}</span>
+                </li>
             </ul>
         </div>
     </div>

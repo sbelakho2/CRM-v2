@@ -10,6 +10,7 @@ use App\Repository\UserRepository;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,7 +24,8 @@ class TaskController extends AbstractController
         private EntityManagerInterface $entityManager,
         private GuidanceNotificationService $guidanceService,
         private UserRepository $userRepository,
-        private CompanyRepository $companyRepository
+        private CompanyRepository $companyRepository,
+        private TranslatorInterface $translator
     ) {}
 
     #[Route('', name: 'app_task_index', methods: ['GET'])]
@@ -153,7 +155,7 @@ class TaskController extends AbstractController
             $this->entityManager->persist($task);
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Task created successfully.');
+            $this->addFlash('success', $this->translator->trans('task.flash.created'));
 
             // Redirect based on where we came from
             if ($request->query->get('redirect') === 'kanban') {
@@ -202,7 +204,7 @@ class TaskController extends AbstractController
             $task->setUpdatedAt(new \DateTime());
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Task updated successfully.');
+            $this->addFlash('success', $this->translator->trans('task.flash.updated'));
 
             return $this->redirectToRoute('app_task_show', ['id' => $task->getId()]);
         }
@@ -220,7 +222,7 @@ class TaskController extends AbstractController
             $this->entityManager->remove($task);
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Task deleted successfully.');
+            $this->addFlash('success', $this->translator->trans('task.flash.deleted'));
         }
 
         return $this->redirectToRoute('app_task_index');
@@ -235,7 +237,7 @@ class TaskController extends AbstractController
             $task->setUpdatedAt(new \DateTime());
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Task marked as complete.');
+            $this->addFlash('success', $this->translator->trans('task.flash.completed'));
         }
 
         $referer = $request->headers->get('referer');

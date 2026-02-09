@@ -37,6 +37,16 @@ class SpintaxEngineService
      */
     public function spin(string $content): string
     {
+        // Protect {{variable}} placeholders from being treated as spintax
+        // Replace {{var}} with a sentinel that won't match the spintax pattern
+        $placeholders = [];
+        $content = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use (&$placeholders) {
+            $key = '%%PLACEHOLDER_' . count($placeholders) . '%%';
+            $placeholders[$key] = $matches[0]; // Store original {{var}}
+            return $key;
+        }, $content);
+        
+        // Now spin {option1|option2} safely
         $pattern = '/\{([^{}]+)\}/';
         
         while (preg_match($pattern, $content)) {
@@ -52,6 +62,9 @@ class SpintaxEngineService
                 return $options[array_rand($options)];
             }, $content);
         }
+        
+        // Restore {{variable}} placeholders
+        $content = str_replace(array_keys($placeholders), array_values($placeholders), $content);
         
         return $content;
     }
@@ -321,31 +334,49 @@ class SpintaxEngineService
                 'name' => 'Initial Outreach - PCBA',
                 'description' => 'First contact for PCBA manufacturing - natural conversation flow with fused Cialdini elements',
                 'subjectSpintax' => '{Quick question about|Question re:|Regarding} {{company_name}} {sourcing|manufacturing|PCBA production}',
-                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\n{{fused_value}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
-                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_intro', 'fused_value', 'consistency', 'industry'],
+                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\n{{fused_value}}\n\n{|{{starz_services}}}\n\n{|{{proof_request}}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_intro', 'fused_value', 'starz_services', 'proof_request', 'consistency', 'industry'],
             ],
             [
                 'name' => 'Initial Outreach - Technical',
                 'description' => 'Technical-focused first contact - fused authority and social proof for credibility',
                 'subjectSpintax' => '{Technical capabilities for|Engineering support for|R&D partnership with} {{company_name}}',
-                'bodySpintax' => "{{greeting}},\n\n{As someone focused on|Given your expertise in|With your background in} {{job_title}}, I thought you might appreciate this.\n\n{{fused_proof}}\n\n{{fused_value}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
-                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'job_title', 'fused_proof', 'fused_value', 'consistency'],
+                'bodySpintax' => "{{greeting}},\n\n{Given your role in|As someone in|With your focus on} {{job_title_area}}, I thought you might appreciate this.\n\n{{fused_proof}}\n\n{{fused_value}}\n\n{|{{starz_services}}}\n\n{|{{proof_request}}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'job_title_area', 'fused_proof', 'fused_value', 'starz_services', 'proof_request', 'consistency'],
             ],
             [
                 'name' => 'Initial Outreach - Cost Focus',
                 'description' => 'Cost-focused first contact - fused geographic and scarcity elements',
                 'subjectSpintax' => '{Cost optimization for|Sourcing alternative for|Competitive pricing for} {{company_name}} {assemblies|production}',
-                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\n{{geo_logistics}} {{geo_trade}}\n\n{{fused_close}}\n\n{{closing}},\n{{sender_name}}",
-                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_intro', 'geo_logistics', 'geo_trade', 'fused_close'],
+                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\n{{geo_logistics}} {{geo_trade}}\n\n{|{{starz_services}}}\n\n{|{{proof_request}}}\n\n{{fused_close}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_intro', 'geo_logistics', 'geo_trade', 'starz_services', 'proof_request', 'fused_close'],
             ],
             [
                 'name' => 'Initial Outreach - Tier1 Auto',
                 'description' => 'Specialized outreach for Tier 1 automotive - fused industry unity and authority',
                 'subjectSpintax' => '{Automotive EMS partner for|Tier 1 supplier support for|Manufacturing partnership with} {{company_name}}',
-                'bodySpintax' => "{{greeting}},\n\n{Working with automotive OEMs and Tier 1 suppliers|Supporting automotive programs|In automotive manufacturing}, we've seen what makes partnerships work.\n\n{{fused_proof}}\n\n{{fused_value}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
-                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_proof', 'fused_value', 'consistency'],
+                'bodySpintax' => "{{greeting}},\n\n{For automotive programs|In automotive supply chains|For automotive electronics teams}, partners are often evaluated on documentation, qualification steps, and supply continuity.\n\n{{fused_proof}}\n\n{{fused_value}}\n\n{|{{starz_services}}}\n\n{|{{proof_request}}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_proof', 'fused_value', 'starz_services', 'proof_request', 'consistency'],
             ],
             
+            // ==================== COMPETITOR DISPLACEMENT TEMPLATE ====================
+            [
+                'name' => 'Competitor Displacement',
+                'description' => 'For prospects using a known competitor — highlight switching advantages',
+                'subjectSpintax' => '{Alternative to|Complement to|Second source vs.} {{competitor_hook}} for {{company_name}}',
+                'bodySpintax' => "{{greeting}},\n\n{I noticed|It looks like|I see that} {{company_name}} works with {{competitor_hook}}. {{competitor_pain}}\n\n{{competitor_diff}}\n\n{{fused_proof}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'competitor_hook', 'competitor_pain', 'competitor_diff', 'fused_proof', 'consistency'],
+            ],
+
+            // ==================== CABLE HARNESS TEMPLATE ====================
+            [
+                'name' => 'Initial Outreach - Cable Harness',
+                'description' => 'First contact for cable assembly and wire harness services',
+                'subjectSpintax' => '{Cable assembly capabilities for|Wire harness partnership with|Harness manufacturing for} {{company_name}}',
+                'bodySpintax' => "{{greeting}},\n\n{{fused_intro}}\n\nWe can support cable assembly and wire harness programs from prototype through production scope, including overmolding, potting, and testing needs if required.\n\n{{fused_proof}}\n\n{|{{starz_services}}}\n\n{|{{proof_request}}}\n\n{{consistency}}\n\n{{closing}},\n{{sender_name}}",
+                'variables' => ['first_name', 'company_name', 'sender_name', 'greeting', 'closing', 'fused_intro', 'fused_proof', 'starz_services', 'proof_request', 'consistency'],
+            ],
+
             // ==================== FUSION-BASED FOLLOW-UP TEMPLATES ====================
             [
                 'name' => 'Follow-up #1 - Value Add',

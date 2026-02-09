@@ -10,6 +10,7 @@ use App\Repository\CompanyRepository;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -18,7 +19,8 @@ use Symfony\Component\Routing\Annotation\Route;
 class RFQController extends AbstractController
 {
     public function __construct(
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private TranslatorInterface $translator
     ) {}
 
     #[Route('/', name: 'app_rfq_index', methods: ['GET'])]
@@ -135,7 +137,7 @@ class RFQController extends AbstractController
                 $rfq->getSopDate() !== null
             );
 
-            $this->addFlash('success', 'RFQ created successfully.');
+            $this->addFlash('success', $this->translator->trans('rfq.flash.created'));
 
             return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
         }
@@ -163,7 +165,7 @@ class RFQController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $entityManager->flush();
 
-            $this->addFlash('success', 'RFQ updated successfully.');
+            $this->addFlash('success', $this->translator->trans('rfq.flash.updated'));
 
             return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
         }
@@ -181,7 +183,7 @@ class RFQController extends AbstractController
             $entityManager->remove($rfq);
             $entityManager->flush();
 
-            $this->addFlash('success', 'RFQ deleted successfully.');
+            $this->addFlash('success', $this->translator->trans('rfq.flash.deleted'));
         }
 
         return $this->redirectToRoute('app_rfq_index');
@@ -191,7 +193,7 @@ class RFQController extends AbstractController
     public function updateStatus(Request $request, RFQ $rfq, EntityManagerInterface $entityManager): Response
     {
         if (!$this->isCsrfTokenValid('update_status' . $rfq->getId(), $request->request->get('_token'))) {
-            $this->addFlash('error', 'Invalid CSRF token.');
+            $this->addFlash('error', $this->translator->trans('common.flash.invalid_csrf'));
             return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
         }
 
@@ -205,7 +207,7 @@ class RFQController extends AbstractController
             $companyName = $rfq->getCompany() ? $rfq->getCompany()->getName() : 'Customer';
             $this->guidanceService->afterRFQStatusUpdated($rfq->getId(), $newStatus, $companyName);
 
-            $this->addFlash('success', 'RFQ status updated to ' . $newStatus);
+            $this->addFlash('success', $this->translator->trans('rfq.flash.status_updated', ['%status%' => $newStatus]));
         }
 
         return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
@@ -219,7 +221,7 @@ class RFQController extends AbstractController
             $rfq->setNdaDate(new \DateTime());
             $entityManager->flush();
 
-            $this->addFlash('success', 'NDA marked as sent.');
+            $this->addFlash('success', $this->translator->trans('rfq.flash.nda_sent'));
         }
 
         return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
@@ -239,7 +241,7 @@ class RFQController extends AbstractController
             
             $entityManager->flush();
 
-            $this->addFlash('success', 'NDA marked as executed.');
+            $this->addFlash('success', $this->translator->trans('rfq.flash.nda_executed'));
         }
 
         return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);

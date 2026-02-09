@@ -11,6 +11,7 @@ use App\Service\UnifiedPdfGeneratorService;
 use App\Service\TrackerDataService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -46,7 +47,8 @@ class SupplierPortalController extends AbstractController
         private PortalCrawlerService $portalCrawler,
         private OnboardingPackService $onboardingPack,
         private UnifiedPdfGeneratorService $pdfGenerator,
-        private TrackerDataService $trackerData
+        private TrackerDataService $trackerData,
+        private TranslatorInterface $translator
     ) {}
 
     /**
@@ -100,7 +102,7 @@ class SupplierPortalController extends AbstractController
         $domain = $request->request->get('domain');
         
         if (!$companyName) {
-            $this->addFlash('error', 'Please provide a company name');
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.provide_company'));
             return $this->redirectToRoute('supplier_portal_index');
         }
         
@@ -109,7 +111,7 @@ class SupplierPortalController extends AbstractController
             $discoveredPortals = $this->portalCrawler->discoverPortals($companyName, $domain);
             
             if (empty($discoveredPortals)) {
-                $this->addFlash('warning', 'No supplier portals found for this company');
+                $this->addFlash('warning', $this->translator->trans('supplier_portal.flash.no_portals_found'));
                 return $this->redirectToRoute('supplier_portal_index');
             }
             
@@ -124,12 +126,11 @@ class SupplierPortalController extends AbstractController
                 }
             }
             
-            // 4. Redirect with success message
-            $this->addFlash('success', sprintf('%d portal(s) discovered and created', $createdCount));
+            $this->addFlash('success', $this->translator->trans('supplier_portal.flash.portals_discovered', ['%count%' => $createdCount]));
             return $this->redirectToRoute('supplier_portal_index');
             
         } catch (\Exception $e) {
-            $this->addFlash('error', 'Portal discovery failed: ' . $e->getMessage());
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.discovery_failed', ['%message%' => $e->getMessage()]));
             return $this->redirectToRoute('supplier_portal_index');
         }
     }
@@ -156,16 +157,15 @@ class SupplierPortalController extends AbstractController
             );
             
             // 4. Redirect with success message
-            $this->addFlash('success', sprintf(
-                'Onboarding pack #%d generated successfully. PDF: %s',
-                $packData['packId'],
-                basename($packData['pdfPath'])
-            ));
+            $this->addFlash('success', $this->translator->trans('supplier_portal.flash.pack_generated', [
+                '%packId%' => $packData['packId'],
+                '%fileName%' => basename($packData['pdfPath'])
+            ]));
             
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
             
         } catch (\Exception $e) {
-            $this->addFlash('error', 'Pack generation failed: ' . $e->getMessage());
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pack_failed', ['%message%' => $e->getMessage()]));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
         }
     }
@@ -179,7 +179,7 @@ class SupplierPortalController extends AbstractController
         // 1. Get pack ID and credentials
         $packId = $request->request->get('pack_id');
         if (!$packId) {
-            $this->addFlash('error', 'Pack ID is required');
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pack_id_required'));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
         }
         
@@ -199,21 +199,15 @@ class SupplierPortalController extends AbstractController
             
             // 4. Display result
             if ($result['success']) {
-                $this->addFlash('success', sprintf(
-                    'Pack submitted successfully via %s',
-                    $result['method']
-                ));
+                $this->addFlash('success', 'supplier_portal.flash.pack_submitted');
             } else {
-                $this->addFlash('warning', sprintf(
-                    'Submission pending: %s',
-                    $result['errorMessage'] ?? 'Manual submission required'
-                ));
+                $this->addFlash('warning', 'supplier_portal.flash.submission_pending');
             }
             
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
             
         } catch (\Exception $e) {
-            $this->addFlash('error', 'Submission failed: ' . $e->getMessage());
+            $this->addFlash('error', 'supplier_portal.flash.submission_failed');
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
         }
     }
@@ -242,7 +236,7 @@ class SupplierPortalController extends AbstractController
             return $this->file($pdfPath, sprintf('onboarding_pack_%d.pdf', $packId));
             
         } catch (\Exception $e) {
-            $this->addFlash('error', 'PDF download failed: ' . $e->getMessage());
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pdf_failed', ['%message%' => $e->getMessage()]));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $portalId]);
         }
     }

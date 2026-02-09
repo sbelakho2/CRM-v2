@@ -56,6 +56,16 @@ services:
     arguments:
       $apiKey: '%env(default::OPENAI_API_KEY)%'
 
+  App\Service\GeminiContactExtractorService:
+    arguments:
+      $geminiApiKey: '%env(GOOGLE_API_KEY)%'
+
+  App\Service\AggressiveContactDiscoveryService: ~
+
+  App\Service\WebCrawler\CompanyClassifierService:
+    arguments:
+      $projectDir: '%kernel.project_dir%'
+
   App\Service\EmailTrackingSigner:
     arguments:
       $secret: '%kernel.secret%'

@@ -33,7 +33,7 @@ class ExportService
         
         // Set headers
         $headers = [
-            'ID', 'Company Name', 'Sector', 'Location', 'Website',
+            'ID', 'Company Name', 'Sector', 'City', 'Country', 'Website',
             'Account Tier', 'Pipeline Stage', 'Region', 'Created At'
         ];
         $sheet->fromArray($headers, null, 'A1');
@@ -45,7 +45,8 @@ class ExportService
                 $company->getId(),
                 $company->getName(),
                 $company->getSector(),
-                $company->getLocation(),
+                $company->getCity(),
+                $company->getCountry(),
                 $company->getWebsite(),
                 $company->getAccountTier(),
                 $company->getPipelineStage(),
@@ -57,6 +58,79 @@ class ExportService
         }
         
         return $this->writeToFile($spreadsheet, 'companies', $format);
+    }
+
+    /**
+     * Export discovered companies with enrichment data (contacts, addresses, LinkedIn)
+     */
+    public function exportDiscoveredCompanies(array $companies, string $format = 'xlsx'): string
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Discovered Companies');
+
+        // Rich headers with all webcrawler data
+        $headers = [
+            'Company Name', 'Sector', 'Region', 'Country', 'City', 'Address',
+            'Website', 'LinkedIn', 'Phone', 'Status', 'Discovered Date',
+            'Contact 1 Name', 'Contact 1 Title', 'Contact 1 Email', 'Contact 1 LinkedIn',
+            'Contact 2 Name', 'Contact 2 Title', 'Contact 2 Email', 'Contact 2 LinkedIn',
+            'Contact 3 Name', 'Contact 3 Title', 'Contact 3 Email', 'Contact 3 LinkedIn',
+        ];
+        $sheet->fromArray($headers, null, 'A1');
+
+        // Style header row
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '1a1a2e']],
+        ];
+        $sheet->getStyle('A1:W1')->applyFromArray($headerStyle);
+
+        // Add data
+        $row = 2;
+        foreach ($companies as $company) {
+            $contacts = $company->getContacts()->toArray();
+
+            $data = [
+                $company->getName(),
+                $company->getSector(),
+                $company->getRegion(),
+                $company->getCountry(),
+                $company->getCity(),
+                $company->getAddress(),
+                $company->getWebsite(),
+                $company->getLinkedinCompanyUrl(),
+                method_exists($company, 'getPhone') ? $company->getPhone() : null,
+                ucfirst($company->getCompanyStatus()),
+                $company->getCreatedAt()?->format('Y-m-d'),
+            ];
+
+            // Add up to 3 contacts
+            for ($i = 0; $i < 3; $i++) {
+                if (isset($contacts[$i])) {
+                    $c = $contacts[$i];
+                    $data[] = $c->getFirstName() . ' ' . $c->getLastName();
+                    $data[] = $c->getJobTitle();
+                    $data[] = $c->getEmail();
+                    $data[] = $c->getLinkedInUrl();
+                } else {
+                    $data[] = null;
+                    $data[] = null;
+                    $data[] = null;
+                    $data[] = null;
+                }
+            }
+
+            $sheet->fromArray($data, null, 'A' . $row);
+            $row++;
+        }
+
+        // Auto-size columns
+        foreach (range('A', 'W') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        return $this->writeToFile($spreadsheet, 'discovered_companies', $format);
     }
 
     /**

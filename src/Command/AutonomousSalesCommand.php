@@ -74,6 +74,7 @@ class AutonomousSalesCommand extends Command
             ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Limit for batch operations', 50)
             ->addOption('service', null, InputOption::VALUE_REQUIRED, 'Service type for compose (pcba, harness, general)')
             // New batch operation options
+            ->addOption('auto', null, InputOption::VALUE_NONE, 'Auto-run init + batch with safety guards (for cron)')
             ->addOption('batch', null, InputOption::VALUE_NONE, 'Run full scheduled batch (score + inbox + cache)')
             ->addOption('process-inbox', null, InputOption::VALUE_NONE, 'Process pending reply classifications')
             ->addOption('refresh-cache', null, InputOption::VALUE_NONE, 'Refresh competitor detection cache')
@@ -86,7 +87,7 @@ class AutonomousSalesCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $io->title('🚀 Autonomous Sales System');
+        $io->title('Autonomous Sales System');
 
         if (!$this->settingsService->isEnabled() && !$input->getOption('stats')) {
             $io->warning('Autonomous Sales system is disabled. Enable it to run operations.');
@@ -100,7 +101,8 @@ class AutonomousSalesCommand extends Command
 
         // Full batch operation (for cron scheduling)
         if ($input->getOption('batch')) {
-            return $this->runFullBatch($io, $input, $dryRun);
+            $limit = (int) $input->getOption('limit');
+            return $this->runFullBatch($io, $input, $dryRun, $limit);
         }
 
         // Initialize
@@ -122,6 +124,11 @@ class AutonomousSalesCommand extends Command
         // Seed competitors
         if ($input->getOption('seed-competitors')) {
             return $this->runSeedCompetitors($io);
+        }
+
+        // Auto mode (init + batch)
+        if ($input->getOption('auto')) {
+            return $this->runAuto($io, $input);
         }
 
         // Process inbox queue
@@ -159,6 +166,7 @@ class AutonomousSalesCommand extends Command
             '--stats             Display system statistics',
             '--seed-competitors  Seed competitor database',
             '--compose=ID        Compose personalized message for contact',
+            '--auto              Auto-run init + batch with safety guards',
             '',
             '--- Batch Operations (for cron) ---',
             '--batch             Full scheduled run (score + inbox + cache)',
@@ -194,6 +202,84 @@ class AutonomousSalesCommand extends Command
         return Command::SUCCESS;
     }
 
+    private function runAuto(SymfonyStyle $io, InputInterface $input): int
+    {
+        if (!$this->settingsService->isEnabled()) {
+            $io->warning('Autonomous sales system is disabled. Enable it before auto-run.');
+            return Command::FAILURE;
+        }
+
+        $autoEnabled = (bool) $this->settingsService->getSetting('auto_enabled', false);
+        if (!$autoEnabled) {
+            $io->warning('Auto-run is disabled. Set "auto_enabled": true in var/autonomous_sales_settings.json');
+            return Command::FAILURE;
+        }
+
+        // Cooldown guard
+        $cooldownMinutes = (int) $this->settingsService->getSetting('auto_cooldown_minutes', 30);
+        $lastRun = (int) $this->settingsService->getSetting('auto_last_run', 0);
+        $now = time();
+        if ($lastRun > 0 && ($now - $lastRun) < ($cooldownMinutes * 60)) {
+            $io->text('Auto-run skipped due to cooldown window.');
+            return Command::SUCCESS;
+        }
+
+        // Data readiness guard
+        $conn = $this->entityManager->getConnection();
+        $contactCount = (int) $conn->fetchOne('SELECT COUNT(*) FROM contacts');
+        $leadCount = (int) $conn->fetchOne('SELECT COUNT(*) FROM leads');
+        $minContacts = (int) $this->settingsService->getSetting('auto_min_contacts', 1);
+        $minLeads = (int) $this->settingsService->getSetting('auto_min_leads', 0);
+
+        if ($contactCount < $minContacts || $leadCount < $minLeads) {
+            $io->warning(sprintf(
+                'Auto-run skipped due to insufficient data (contacts: %d/%d, leads: %d/%d).',
+                $contactCount,
+                $minContacts,
+                $leadCount,
+                $minLeads
+            ));
+            return Command::SUCCESS;
+        }
+
+        // Lock to prevent overlapping runs
+        $lockPath = getcwd() . '/var/autonomous_sales_auto.lock';
+        $lockHandle = @fopen($lockPath, 'c');
+        if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
+            $io->warning('Auto-run skipped because another run is in progress.');
+            if ($lockHandle) {
+                fclose($lockHandle);
+            }
+            return Command::SUCCESS;
+        }
+
+        try {
+            $io->section('Auto-Run: Initialize + Batch');
+
+            $autoInit = (bool) $this->settingsService->getSetting('auto_init', true);
+            if ($autoInit) {
+                $this->orchestrator->initialize();
+                $io->text('[OK] Initialization complete');
+            }
+
+            $limit = (int) $this->settingsService->getSetting('auto_batch_limit', (int) $input->getOption('limit'));
+            $dryRun = (bool) $this->settingsService->getSetting('auto_dry_run', true);
+
+            // Run batch with safety: dry-run default true unless explicitly disabled in settings
+            $result = $this->runFullBatch($io, $input, $dryRun, $limit);
+
+            // Update last-run timestamp
+            $this->settingsService->setSetting('auto_last_run', $now);
+
+            return $result;
+        } finally {
+            if ($lockHandle) {
+                flock($lockHandle, LOCK_UN);
+                fclose($lockHandle);
+            }
+        }
+    }
+
     private function runInitialize(SymfonyStyle $io): int
     {
         $io->section('Initializing Autonomous Sales System');
@@ -206,6 +292,7 @@ class AutonomousSalesCommand extends Command
             [
                 ['Templates', $result['templates']],
                 ['Subject Line Arms', $result['arms']],
+                ['Value Prop Arms', $result['valuePropArms'] ?? 0],
                 ['Competitors', $result['competitors'] ?? 0],
             ]
         );
@@ -224,10 +311,10 @@ class AutonomousSalesCommand extends Command
         $io->table(
             ['Tier', 'Count'],
             [
-                ['🔥 Hot (70+)', $result['byTier']['hot']],
-                ['☀️ Warm (50-69)', $result['byTier']['warm']],
-                ['❄️ Cold (30-49)', $result['byTier']['cold']],
-                ['🧊 Ice (<30)', $result['byTier']['ice']],
+                ['Hot (70+)', $result['byTier']['hot']],
+                ['Warm (50-69)', $result['byTier']['warm']],
+                ['Cold (30-49)', $result['byTier']['cold']],
+                ['Ice (<30)', $result['byTier']['ice']],
             ]
         );
 
@@ -284,10 +371,19 @@ class AutonomousSalesCommand extends Command
         // Inbox stats
         if (isset($stats['inbox'])) {
             $io->section('Email Classification');
-            $io->table(
-                ['Classification', 'Count'],
-                array_map(fn($k, $v) => [$k, $v], array_keys($stats['inbox']), array_values($stats['inbox']))
+            $io->definitionList(
+                ['Total Messages' => $stats['inbox']['total'] ?? 0],
+                ['Pending Review' => $stats['inbox']['pending_review'] ?? 0],
             );
+            if (!empty($stats['inbox']['by_classification'])) {
+                $rows = [];
+                foreach ($stats['inbox']['by_classification'] as $classification => $data) {
+                    $count = is_array($data) ? ($data['count'] ?? 0) : $data;
+                    $confidence = is_array($data) ? ($data['avg_confidence'] ?? '-') : '-';
+                    $rows[] = [$classification, $count, $confidence];
+                }
+                $io->table(['Classification', 'Count', 'Avg Confidence'], $rows);
+            }
         }
 
         // Competitor stats
@@ -374,13 +470,13 @@ class AutonomousSalesCommand extends Command
      * 2. Process inbox queue
      * 3. Refresh competitor cache (if stale)
      */
-    private function runFullBatch(SymfonyStyle $io, InputInterface $input, bool $dryRun): int
+    private function runFullBatch(SymfonyStyle $io, InputInterface $input, bool $dryRun, ?int $limitOverride = null): int
     {
-        $limit = (int) $input->getOption('limit');
+        $limit = $limitOverride ?? (int) $input->getOption('limit');
         $startTime = microtime(true);
         $results = [];
         
-        $io->section('📋 Running Full Batch');
+        $io->section('Running Full Batch');
         
         // 1. Score leads
         $io->text('Step 1/3: Scoring leads...');
@@ -391,7 +487,7 @@ class AutonomousSalesCommand extends Command
                 'hot' => $scoreResult['byTier']['hot'] ?? 0,
                 'warm' => $scoreResult['byTier']['warm'] ?? 0,
             ];
-            $io->text("  ✓ Scored {$scoreResult['scored']} leads");
+            $io->text("  [OK] Scored {$scoreResult['scored']} leads");
         } else {
             $io->text('  [DRY RUN] Would score up to ' . $limit . ' leads');
             $results['scoring'] = ['scored' => 0, 'hot' => 0, 'warm' => 0];
@@ -402,7 +498,7 @@ class AutonomousSalesCommand extends Command
         if (!$dryRun && $this->emailClassifier && $this->outboundMessageRepository) {
             $inboxResult = $this->processInboxQueueInternal($limit);
             $results['inbox'] = $inboxResult;
-            $io->text("  ✓ Processed {$inboxResult['processed']} replies");
+            $io->text("  [OK] Processed {$inboxResult['processed']} replies");
         } else {
             $io->text('  [DRY RUN or service unavailable] Would process up to ' . $limit . ' replies');
             $results['inbox'] = ['processed' => 0];
@@ -418,7 +514,7 @@ class AutonomousSalesCommand extends Command
                 $results['cache'] = ['refreshed' => true, 'age_hours' => round($cacheAge / 3600, 1)];
             } else {
                 $results['cache'] = ['refreshed' => false, 'age_hours' => round($cacheAge / 3600, 1)];
-                $io->text("  ✓ Cache fresh ({$results['cache']['age_hours']}h old)");
+                $io->text("  [OK] Cache fresh ({$results['cache']['age_hours']}h old)");
             }
         } else {
             $io->text('  [DRY RUN or service unavailable]');
@@ -449,7 +545,7 @@ class AutonomousSalesCommand extends Command
      */
     private function runProcessInbox(SymfonyStyle $io, int $limit, bool $dryRun): int
     {
-        $io->section('📧 Processing Inbox Queue');
+        $io->section('Processing Inbox Queue');
         
         if (!$this->emailClassifier) {
             $io->error('EmailClassifierService not available');
@@ -490,7 +586,7 @@ class AutonomousSalesCommand extends Command
      */
     private function runRefreshCache(SymfonyStyle $io): int
     {
-        $io->section('🔄 Refreshing Competitor Cache');
+        $io->section('Refreshing Competitor Cache');
         
         if (!$this->competitorDetection) {
             $io->error('CompetitorDetectionService not available');
@@ -518,7 +614,7 @@ class AutonomousSalesCommand extends Command
      */
     private function runBayesStats(SymfonyStyle $io): int
     {
-        $io->section('📊 Naive Bayes Model Statistics');
+        $io->section('Naive Bayes Model Statistics');
         
         if (!$this->emailClassifier) {
             $io->error('EmailClassifierService not available');
@@ -556,7 +652,7 @@ class AutonomousSalesCommand extends Command
      */
     private function runDecayArms(SymfonyStyle $io, bool $dryRun): int
     {
-        $io->section('📉 Decaying Unused Thompson Arms');
+        $io->section('Decaying Unused Thompson Arms');
         
         // Get arms that haven't been used in 14+ days
         $qb = $this->entityManager->createQueryBuilder();

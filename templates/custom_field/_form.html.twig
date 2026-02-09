@@ -65,18 +65,16 @@
                     <h3>{{ 'custom_field.configuration'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                     <div class="rams-form__group">
-                        <label class="rams-checkbox-label">
-                            {{ form_widget(form.entityType, {'attr': {'class': 'hidden'}}) }} 
-                            {# entityType usually hidden or disabled in edit, mostly likely set via route context or hidden input if handled by controller #}
-                        </label>
-                         {% if form.entityType.vars.choices is defined %}
-                             {# If it's a select in create mode #}
-                             {{ form_label(form.entityType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                             {{ form_widget(form.entityType, {'attr': {'class': 'rams-form__select'}}) }}
-                         {% else %}
+                    <div class="rams-form__group">
+                        {% if form.entityType.vars.choices is defined %}
+                            {# If it's a select in create mode #}
+                            {{ form_label(form.entityType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
+                            {{ form_widget(form.entityType, {'attr': {'class': 'rams-form__select'}}) }}
+                        {% else %}
+                            {# entityType usually hidden or disabled in edit, set via route context or hidden input #}
+                            {{ form_widget(form.entityType, {'attr': {'class': 'hidden'}}) }}
                             <div class="rams-text--sm rams-text--muted">{{ 'custom_field.entity_label'|trans }}<strong>{{ form.entityType.vars.value|default('custom_field.global'|trans) }}</strong></div>
-                         {% endif %}
+                        {% endif %}
                     </div>
 
                     <div class="rams-form__group">

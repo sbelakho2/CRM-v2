@@ -15,12 +15,23 @@ use Psr\Log\LoggerInterface;
  */
 class GoogleDorkService
 {
+    private ?CompanyClassifierService $classifier = null;
+
+    /**
+     * Current search region — set during searchCompanies() so that
+     * downstream methods (e.g. searchLinkedInDecisionMakers) can
+     * validate that contacts belong to the correct geographic area.
+     */
+    private string $currentSearchRegion = 'GENERIC';
+
     public function __construct(
         private HttpClientInterface $httpClient, 
         private LoggerInterface $logger,
-        private ?GoogleSearchService $googleSearchService = null
+        private ?GoogleSearchService $googleSearchService = null,
+        ?CompanyClassifierService $companyClassifier = null,
     )
     {
+        $this->classifier = $companyClassifier;
     }
     
     /**
@@ -42,7 +53,7 @@ class GoogleDorkService
      * @param bool $executeSearch Whether to actually execute via API (costs money)
      * @return array Search results with company data
      */
-    public function searchCompanies(string $sector, ?string $location = null, bool $executeSearch = true): array
+    public function searchCompanies(?string $sector, ?string $location = null, bool $executeSearch = true): array
     {
         $this->logger->info("Google Dork search for companies", [
             'sector' => $sector,
@@ -58,9 +69,14 @@ class GoogleDorkService
         if ($executeSearch && $this->googleSearchService !== null) {
             $this->logger->info("Executing searches via Google Custom Search API");
             
+            // Determine geo-location bias for Google API
+            $region = $this->detectRegionFromLocation($location);
+            $this->currentSearchRegion = $region;
+            $glCode = $this->regionToGoogleGl($region);
+            
             foreach ($searchQueries as $query) {
                 try {
-                    $results = $this->googleSearchService->searchCompanies($query, 10);
+                    $results = $this->googleSearchService->searchCompanies($query, 10, 1, $glCode);
                     
                     if (!empty($results['results'])) {
                         foreach ($results['results'] as $result) {
@@ -85,6 +101,17 @@ class GoogleDorkService
                                     continue;
                                 }
                                 
+                                // Name-Domain plausibility: reject if the extracted
+                                // name has zero resemblance to the domain. Catches
+                                // mismatches like "Federal Aviation Admin" → totalenergies.eg
+                                if ($this->isNameDomainMismatch($companyName, $domain)) {
+                                    $this->logger->debug('Skipping name-domain mismatch', [
+                                        'name' => $companyName,
+                                        'domain' => $domain,
+                                    ]);
+                                    continue;
+                                }
+
                                 // Semantic filter: reject EMS competitors, distributors,
                                 // equipment suppliers, component suppliers, integrators,
                                 // MRO companies based on snippet analysis
@@ -96,6 +123,30 @@ class GoogleDorkService
                                         'domain' => $domain,
                                     ]);
                                     continue;
+                                }
+                                
+                                // Smart positive-signal scoring: reject companies with
+                                // no evidence of being a real EMS buyer
+                                if (!$this->isLikelyEMSBuyer($companyName, $snippet, $title, $domain)) {
+                                    $this->logger->debug('Skipping low-score candidate (not likely EMS buyer)', [
+                                        'name' => $companyName,
+                                        'domain' => $domain,
+                                    ]);
+                                    continue;
+                                }
+                                
+                                // Knowledge-base classifier: uses Gemini-trained local
+                                // knowledge base for a second layer of scoring. Zero API calls.
+                                if ($this->classifier !== null) {
+                                    $classification = $this->classifier->classifyCompany($companyName, $snippet, $title, $domain);
+                                    if ($classification['verdict'] === 'REJECT') {
+                                        $this->logger->debug('Classifier REJECT', [
+                                            'name' => $companyName,
+                                            'score' => $classification['score'],
+                                            'reasons' => $classification['reasons'],
+                                        ]);
+                                        continue;
+                                    }
                                 }
                                 
                                 $allResults[$domain] = [
@@ -200,6 +251,10 @@ class GoogleDorkService
 
         // Remove trademark symbols early (before any splitting)
         $title = preg_replace('/[®™©]/u', '', $title);
+        // Remove emoji characters (iter14: "✅ Tank Oil Group" → "Tank Oil Group")
+        $title = preg_replace('/[\x{1F000}-\x{1FFFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}\x{200D}\x{20E3}\x{E0020}-\x{E007F}\x{2702}-\x{27B0}\x{2300}-\x{23FF}]/u', '', $title);
+        // Remove DB artifact suffixes like "_597259-RM" or "_12345"
+        $title = preg_replace('/_\d{4,}(-[A-Z]{1,4})?$/i', '', $title);
         $title = trim($title);
 
         // --- Step 1: clean the title ---
@@ -372,7 +427,7 @@ class GoogleDorkService
             '/\bsupplier\s+(directory|list|database|portal)\b/i',
             '/\b(oem|tier\s+\d)\s+(supplier|list|manufacturer)\s*$/i',
             '/\b(job|career)\s+(opening|posting|opportunit)/i',
-            '/^(germany|france|morocco|usa|uk|egypt|dubai)\s*$/i',  // bare country names
+            '/^(germany|france|morocco|usa|uk|egypt|dubai|tunisia|tunisie)\s*$/i',  // bare country names
             '/^(free\s+zone|industrial\s+zone|special\s+economic)\b/i',
             '/\b(brochure|datasheet|whitepaper|specification|manual)\b/i',
             '/\b(investor|shareholder|annual\s+general)\s+(relations|meeting|report)/i',
@@ -461,6 +516,103 @@ class GoogleDorkService
      *       "www.coresite.com" → "Coresite"
      *       "www.arrow.com"    → "Arrow"
      */
+    /**
+     * Detect when the extracted company name has ZERO resemblance to the domain.
+     *
+     * Catches common mismatches where Google returns a page title from a
+     * giant OEM's subdomain/subpage that mentions an unrelated entity:
+     *   "Federal Aviation Administration" → totalenergies.eg
+     *   "NYS Division of Human Rights" → rheinmetall.com
+     *   "Google Project Management Certificate" → elsewedyelectric.com
+     *   "Omni Powertrain Technologies" → collegestationford.com
+     *
+     * Logic: extract meaningful words from both name and domain, check overlap.
+     * If the domain has a recognizable brand and the name shares ZERO words,
+     * it's almost certainly a mismatch.
+     *
+     * Returns TRUE if the name-domain pair looks like a mismatch (should reject).
+     */
+    private function isNameDomainMismatch(string $name, string $domain): bool
+    {
+        // Short names (1-2 chars) are probably from the domain anyway
+        if (mb_strlen($name) < 4) {
+            return false;
+        }
+
+        // Clean domain: strip TLD, www, subdomains
+        $cleanDomain = strtolower(preg_replace('/^www\./', '', $domain));
+        $cleanDomain = preg_replace('/\.(co|com|org|net|io)\.[a-z]{2,4}$/i', '', $cleanDomain);
+        $cleanDomain = preg_replace('/\.[a-z]{2,6}$/i', '', $cleanDomain);
+        // If subdomain exists (e.g. "globalcareers.lge"), use the main domain
+        if (str_contains($cleanDomain, '.')) {
+            $parts = explode('.', $cleanDomain);
+            $cleanDomain = end($parts); // Use main domain part
+        }
+        // Split camelCase and hyphens: "elsewedyelectric" → ["elsewedy", "electric"]
+        $domainWords = preg_split('/[-_.]/', $cleanDomain);
+        // Also split camelCase-ish patterns
+        $expandedDomainWords = [];
+        foreach ($domainWords as $dw) {
+            // Split on transition from lowercase to uppercase
+            $subwords = preg_split('/(?<=[a-z])(?=[A-Z])/', $dw);
+            $expandedDomainWords = array_merge($expandedDomainWords, $subwords);
+        }
+        $domainWords = array_map('strtolower', $expandedDomainWords);
+        $domainWords = array_filter($domainWords, fn($w) => strlen($w) >= 3);
+
+        if (empty($domainWords)) {
+            return false; // Can't analyze, let it through
+        }
+
+        // Extract meaningful words from the name
+        $nameClean = preg_replace('/\s*(GmbH|LLC|Inc\.?|Ltd\.?|Corp\.?|S\.?A\.?|Co\.?|PLC)\s*$/i', '', $name);
+        $nameWords = preg_split('/[\s\-&,\.]+/', strtolower($nameClean));
+        $nameWords = array_filter($nameWords, fn($w) => strlen($w) >= 3);
+
+        if (empty($nameWords)) {
+            return false;
+        }
+
+        // Check for ANY overlap between name words and domain words
+        $domainStr = implode('', $domainWords); // "elsewedyelectric"
+        foreach ($nameWords as $nw) {
+            // Direct word in domain
+            if (str_contains($domainStr, $nw)) {
+                return false; // Found overlap, not a mismatch
+            }
+            // Check each domain word in name
+            foreach ($domainWords as $dw) {
+                if (str_contains($nw, $dw) || str_contains($dw, $nw)) {
+                    return false; // Found overlap
+                }
+            }
+        }
+
+        // Also check if any domain word appears as substring in the full name
+        $nameLower = strtolower($nameClean);
+        foreach ($domainWords as $dw) {
+            if (strlen($dw) >= 4 && str_contains($nameLower, $dw)) {
+                return false;
+            }
+        }
+
+        // Zero overlap: this is a name-domain mismatch
+        // But be lenient for very short domain names (3 chars) — too ambiguous
+        $mainDomainWord = max($domainWords); // longest word
+        if (strlen($mainDomainWord) <= 3) {
+            return false; // Too ambiguous to reject
+        }
+
+        $this->logger->debug('Name-domain mismatch detected', [
+            'name' => $name,
+            'domain' => $domain,
+            'nameWords' => implode(',', $nameWords),
+            'domainWords' => implode(',', $domainWords),
+        ]);
+
+        return true;
+    }
+
     private function companyNameFromDomain(string $domain): string
     {
         if ($domain === '') {
@@ -1780,6 +1932,208 @@ class GoogleDorkService
         'redachem.com',             // REDA Chemicals — chemicals
         'host-immo.ma',             // Host Immo — real estate
         'lapocompound.it',          // Lapo Compound — compounds
+        // ─── iter7 deep sweep additions ──────────────────────────────
+        // Giant OEM domains
+        'rheinmetall.com',
+        'nxp.com', 'geaerospace.com', 'gknaerospace.com',
+        'textronsystems.com', 'kongsberg.com',
+        'hensoldt.net', 'rohde-schwarz.com',
+        'kuka.com', 'lyondellbasell.com',
+        'merckgroup.com', 'ussteel.com',
+        'comau.com', 'br-automation.com',
+        'kawasakirobotics.com', 'kistler.com',
+        'benteler.com', 'trelleborg.com',
+        'seg-automotive.com', 'zkw-group.com',
+        'punchpowertrain.com', 'horse-powertrain.com',
+        'nexteer.com', 'markforged.com',
+        'teradyne.com', 'imiplc.com',
+        'mondelezinternational.com', 'ocpgroup.ma',
+        'elarabygroup.com', 'alfuttaim.com',
+        'fev.com', 'diehl.com', 'chemring.com',
+        'jobyaviation.com', 'beyondgravity.com',
+        'parker.com', 'hms-networks.com',
+        'toyotaeurope.com', 'toyota-europe.com',
+        // Finance / consulting / audit
+        'grantthornton.eg', 'grantthornton.com',
+        'lincolninternational.com', 'bakkavor.com',
+        'casablancafinancecity.com',
+        'eversheds-sutherland.com',
+        // Job boards / recruitment
+        'naukrigulf.com', 'rekrute.com', 'bayt.com',
+        'globalcareers.lge.com',
+        // News / media
+        'moderndiplomacy.eu', 'egyptoil-gas.com',
+        'ledesk.ma', 'lemonde.fr',
+        'verticalmag.com', 'iot-analytics.com',
+        'wam.ae', 'mediaoffice.ae',
+        'industryevents.com', 'whitmores.com',
+        // Government / authority / aviation
+        'eurocontrol.int', 'icao.int',
+        'dubaisouth.ae', 'maroc.ma',
+        'cairo-airport.com',
+        'mbraerospacehub.ae', 'medz.ma',
+        // Education / training
+        'se.com',  // Schneider Electric — too big
+        'mantracgroup.com', // Caterpillar dealer
+        'symbios-consulting.com', 'sqorus.com',
+        // Car dealers / wrong type
+        'jameelmotors.com', 'jetouregypt.com',
+        'geely.ma', 'hennesseyspecialvehicles.com',
+        'infinitytrailers.com', 'collegestationford.com',
+        'chryslerjeepdodgecityofmckinney.com',
+        // Misc non-targets
+        'riosouthtexasregion.com', 'go-globe.com',
+        'nvidianews.nvidia.com', 'flash-cg.com',
+        'kerix-export.net', 'mcapitalp.com',
+        'elgammalgroup.com', 'uaeiso.com',
+        'ram-e-shop.com', 'upsegypt.com',
+        'alpha-ups.com', 'masegypt.com',
+        'egy-com.com', 'awb-electronics.com',
+        'caparolarabia.com', 'aawsat.com',
+        'petroknowledge.com', 'karnak.egyptair.com',
+        'formation.logicat.ma',
+        'raqcontracting.com', '2b.com.eg',
+        'rayacorp.com', 'gulfcryo.com',
+        'falcongroup.ae', 'opplemea.com',
+        'mdd.mansourgroup.com', 'mation.com',
+        'electrichybridvehicletechnology.com',
+        'qsysegypt.com', 'scaler8.com',
+        'quantasoftsolutions.com',
+        'boschaftermarket.com',
+        'infoquestme.com', 'microohm-eg.com',
+        'pemodule.com', 'uge-one.com',
+        'ecee-ups.com', 'gb-corporation.com',
+        'armored-cars.com',
+        'flowcrete.ae', 'syscomme.com',
+        'aersales.com',
+        // ── Egypt iter11 junk (software, dealers, resellers, mining, consultancy) ──
+        'atr-aircraft.com',       // ATR — French/Italian OEM (Airbus/Leonardo JV), wrong geography
+        'avit.com.eg',            // AVIT — Government aviation IT subsidiary
+        'ejad.com',               // eJad — Pure automotive software company
+        'natco-sae.com',          // NATCO — Mercedes-Benz car dealership network
+        'accm.com.eg',            // ACCM — Calcium carbonate mining company
+        'eisac-automation.com',   // EISAC — Automation reseller (Siemens/ABB/Schneider)
+        'mehy-eg.com',            // ELMEHY — Lab/pharma equipment dealer/agent
+        'microtech-eg.com',       // Microtech — ERP/sales software company
+        'pgesco.com',             // PGESCo — Power plant engineering consultancy
+        // ── Morocco iter11b junk (news, FTZ, finance, freight, MRO, dealers, giant OEM) ──
+        'northafricapost.com',    // North Africa Post — online news site
+        'tangermedzones.com',     // Tanger Med Zones — FTZ authority, not a manufacturer
+        'atlamed.ma',             // ATLAMED — Private equity / investment fund manager
+        'zf-lifetec.com',         // ZF LIFETEC — Giant OEM (ZF Group spin-off), too big
+        'comeca-group.com',       // Comeca Group — Large French electrical group, self-sufficient
+        'mdsaviation.ma',         // MDS Aviation — Aircraft MRO / avionics dealer
+        'tst.ma',                 // TST — Freight / logistics / customs broker
+        'ultranet.ma',            // Ultranet — Equipment dealer / reseller (not manufacturer)
+        'autologic.ma',           // Autologic — Diagnostic tools e-commerce webshop
+        'dunlop-mea.com',         // Dunlop Tyres — Tyre brand regional marketing site
+        'etasr.com',              // ETASR — Academic journal publisher
+        // ── iter12 all-region junk (market research, megaproject, financial news, telecom news) ──
+        'vyansaintelligence.com', // Vyansa Intelligence — Market research report seller
+        'neom.com',               // NEOM — Saudi giga-project / government development zone
+        'argaam.com',             // Argaam — Arabic financial news / stock market data
+        'developingtelecoms.com', // Developing Telecoms — Telecoms industry news site
+        'dubaiairshow.aero',      // Dubai Airshow — Trade show/exhibition (not a company)
+        'zipline.com',            // Zipline — Drone delivery service platform, not an OEM buyer
+        // ── Tunisia iter13 junk ──────────────────────────────────────────────
+        'aero-mag.com',           // Aero-Mag — Aerospace trade magazine (UK publisher)
+        'taxsummaries.pwc.com',   // PwC — Global tax reference portal (Big Four)
+        'elco-solutions.de',      // Elco Solutions — Embedded software consultancy
+        'odoo.com',               // Odoo — ERP/CRM software platform (not manufacturer)
+        'thinktank.de',           // ThinkTank — IT/business consulting firm (Munich)
+        'groupe-telnet.com',      // Groupe TELNET — IT engineering services (Tunisia)
+        'sinoextrud.com',         // SinoExtrud — Chinese aluminum extrusion (not Tunisian)
+        'leoni-tunisia.com',      // LEONI Tunisia — Wire harness competitor (27K employees)
+        'sellami-group.com',      // Sellami Group — Car dealership & spare parts distributor
+        'soremat.com.tn',         // SOREMAT — Business consulting firm (Tunis)
+        'labrosse.tn',            // Labrosse — Brush & paintbrush manufacturer
+        'sicop-pentacol.com',     // SICOP — Glue & paint manufacturer (Sfax)
+        'sogeclair.com',          // Sogeclair — Engineering consulting, not manufacturer
+        // ── iter14 TN/EG/MA quality audit ──────────────────────────────────
+        'presidency.eg',          // Egyptian Presidency — Government (not .gov but still govt)
+        'sczone.eg',              // Suez Canal Economic Zone — Government authority
+        'ekb.eg',                 // Egyptian Knowledge Bank — Academic/journal platform
+        'journals.ekb.eg',        // EKB Journals — Academic journals portal
+        'madamasr.com',           // Mada Masr — Egyptian independent news outlet
+        'unseenera.ae',           // Unseen Era — UAE-based IT/marketing, not manufacturer
+        'tankoilgroup.com',       // Tank Oil Group — Oil/gas, not EMS buyer
+        'tuv-nord.com',           // TÜV NORD — Certification body, not manufacturer
+        'tuvsud.com',             // TÜV SÜD — Certification body
+        'tuv.com',                // TÜV — Certification body
+        'bureauveritas.com',      // Bureau Veritas — Certification/inspection body
+        'sgs.com',                // SGS — Testing/certification body
+        'intertek.com',           // Intertek — Testing/certification body
+        'dnv.com',                // DNV — Certification body
+        'ul.com',                 // UL — Safety certification body
+        'autoelectric.com',       // AutoElectric — US auto parts retailer, not Tunisian
+        // ── iter15 TN/EG/MA quality audit round 2 ──────────────────────
+        'cbinsights.com',         // CB Insights — US market intelligence platform
+        'search.ebscohost.com',   // EBSCO — Academic database search
+        'ebscohost.com',          // EBSCO — Academic database
+        'optasense.com',          // OptaSense — UK fiber sensing company
+        'optioncarriere.tn',      // OptionCarrière — Job search website (Tunisia)
+        'optioncarriere.com',     // OptionCarrière — Job search website
+        'indeed.com',             // Indeed — Job website
+        'bayt.com',               // Bayt — Job website
+        'emploi.tn',              // Emploi.tn — Tunisian job board
+        'keejob.com',             // Keejob — Tunisian job board
+        'tanitjobs.com',          // Tanitjobs — Tunisian job board
+        'glassdoor.com',          // Glassdoor — Job/review website
+        'crunchbase.com',         // Crunchbase — Startup database
+        'pitchbook.com',          // PitchBook — Financial data
+        'zoominfo.com',           // ZoomInfo — Contact database
+        // ── iter15b EG quality audit ───────────────────────────────────
+        'wuzzuf.net',             // Wuzzuf — Egyptian job board
+        'forasna.com',            // Forasna — Egyptian job board
+        'jobzella.com',           // Jobzella — Egyptian job board
+        'cairoict.com',           // Cairo ICT — Tech conference/event, not company
+        'gitex.com',              // GITEX — Tech conference/event
+        'arabnet.me',             // ArabNet — Tech conference/event
+        'nti.sci.eg',             // NTI — Government telecom institute
+        'te.eg',                  // Telecom Egypt — State telecom provider
+        'etisalat.eg',            // Etisalat Egypt — Telecom provider (too large)
+        'orange.eg',              // Orange Egypt — Telecom provider (too large)
+        'vodafone.com.eg',        // Vodafone Egypt — Telecom provider (too large)
+        'ups.com',                // UPS — Shipping/logistics company
+        'fedex.com',              // FedEx — Shipping company
+        'dhl.com',                // DHL — Shipping company
+        'midea.com',              // Midea — Giant Chinese appliance OEM
+        'haier.com',              // Haier — Giant Chinese appliance OEM
+        'lg.com',                 // LG — Giant Korean OEM
+        'samsung.com',            // Samsung — Giant Korean OEM
+        'panasonic.com',          // Panasonic — Giant Japanese OEM
+        'sharp-world.com',        // Sharp — Giant Japanese OEM
+        'toshiba.com',            // Toshiba — Giant Japanese OEM
+        'whirlpool.com',          // Whirlpool — Giant US appliance OEM
+        'electrolux.com',         // Electrolux — Giant Swedish OEM
+        'beko.com',               // Beko — Giant Turkish OEM
+        // ── iter15c EG deep inspection ────────────────────────────────
+        'datacentermap.com',      // Directory/listing site for data centers
+        'dnb.com.eg',             // Dun & Bradstreet — business intelligence
+        'dnb.com',                // Dun & Bradstreet — business intelligence
+        'middleeastmonitor.com',  // Middle East Monitor — news/media site
+        'trtworld.com',           // TRT World — Turkish state broadcaster
+        'trt.net.tr',             // TRT — Turkish state broadcaster
+        'hatla2ee.com',           // Hatla2ee — Egyptian car classifieds
+        'eg.hatla2ee.com',        // Hatla2ee Egypt — car classifieds
+        'airbnb.com',             // Airbnb — vacation rentals platform
+        'global-uploads.webflow.com', // Webflow CDN — not a company
+        'webflow.com',            // Webflow — website builder platform
+        'solarinvertermanufacturers.com', // SEO spam/directory site
+        'factocert.com',          // Factocert — ISO certification consulting
+        'sbcertgroup.com',        // SB Cert — ISO certification consulting
+        'shipserv.com',           // ShipServ — maritime procurement marketplace
+        'cairosales.com',         // Cairo Sales Stores — retail store
+        'trane.com',              // Trane Technologies — giant HVAC OEM
+        'carrier.com',            // Carrier — giant HVAC OEM
+        'daikin.com',             // Daikin — giant HVAC OEM
+        'gpxglobal.net',          // GPX Global — data center colocation provider
+        'bowfinboats.com',        // Bowfin Boats — US boat manufacturer
+        'radioholland.com',       // Radio Holland — Dutch maritime electronics
+        'chloride-batteries.com', // Chloride Batteries — SE Asian company
+        'mutgroup.net',           // MUT Group — contact data shows furniture
+        'nspo.com.eg',            // NSPO — NATO Support and Procurement Org
+        'advansys-esc.com',       // Advansys — Slovenian company, not Egyptian
     ];
 
     /**
@@ -1806,6 +2160,8 @@ class GoogleDorkService
             'africa.', 'mobile.', 'manufacturing.',
             'newsroom.', 'mediaroom.', 'ir.', 'dcareers.',
             'corporate.', 'group.', 'developer.', 'datacenters.',
+            'morocco.', 'egypt.', 'karnak.', 'mdd.',
+            'globalcareers.', 'nvidianews.',
         ];
         foreach ($junkSubdomainPrefixes as $prefix) {
             if (str_starts_with($domain, $prefix)) {
@@ -1856,6 +2212,13 @@ class GoogleDorkService
             return true;
         }
 
+        // ─── Block Big Four consulting firm subdomains (iter13) ──
+        if (str_ends_with($domain, '.pwc.com') || str_ends_with($domain, '.deloitte.com')
+            || str_ends_with($domain, '.ey.com') || str_ends_with($domain, '.kpmg.com')
+            || str_ends_with($domain, '.mckinsey.com') || str_ends_with($domain, '.bcg.com')) {
+            return true;
+        }
+
         // ─── Block conference / event aggregator domains ──────────
         if (preg_match('/\b(conference|summit|expo|exhibition|fair|congress|symposium|autoshow|motorshow|tradeshow)\b/i', $domain)) {
             return true;
@@ -1884,13 +2247,59 @@ class GoogleDorkService
             return true;
         }
 
+        // ─── Block pharma / biotech domains ──────────────────────
+        if (preg_match('/\b(pharma|pharmaceutical|biotech|biopharma|medipharma|lifesciences)/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block chemical / fertilizer domains ─────────────────
+        if (preg_match('/\b(chemical|petrochem|agrochemical|fertilizer)/i', $domain)) {
+            // Exception: "electrochemical" is relevant
+            if (!preg_match('/electrochem/i', $domain)) {
+                return true;
+            }
+        }
+
+        // ─── Block gaming / game studio domains ──────────────────
+        if (preg_match('/\b(games?studio|gamedevelop|gamingcompany)/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block e-shop / online store domains ─────────────────
+        if (preg_match('/[-](shop|store|eshop|e-shop)\./i', $domain) || preg_match('/\b(eshop|e-shop|onlineshop|webshop)\b/i', $domain)) {
+            return true;
+        }
+
         // ─── Block appliance retailer domains ────────────────────
         if (preg_match('/\bappliance/i', $domain)) {
             return true;
         }
 
+        // ─── Block textile / garment / apparel domains ───────────
+        if (preg_match('/\b(textile|garment|apparel|knitwear|weaving|spinning|denim|leather|footwear|fashion)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block trade body / association / chamber domains ────
+        if (preg_match('/\b(chamber|association|federation|confederation|council)\b/i', $domain)) {
+            // Exception: product/technology councils that are real companies
+            if (!preg_match('/(pci|nema|jedec)/i', $domain)) {
+                return true;
+            }
+        }
+
+        // ─── Block packaging / printing domains ──────────────────
+        if (preg_match('/\b(packaging|printing|printshop|labelprint|cartonbox)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block furniture / woodworking domains ───────────────
+        if (preg_match('/\b(furniture|woodwork|carpentry|cabinetry)\b/i', $domain)) {
+            return true;
+        }
+
         // ─── Block market research domains ───────────────────────
-        if (preg_match('/marketresearch|marketinsights/i', $domain)) {
+        if (preg_match('/marketresearch|marketinsights|market-insights|intelligence\.com|vyansa/i', $domain)) {
             return true;
         }
 
@@ -1939,14 +2348,704 @@ class GoogleDorkService
     private function isJunkCompanyName(string $name): bool
     {
         $lower = strtolower(trim($name));
+        $words = preg_split('/\s+/', trim($name));
+        $wordCount = count($words);
         
         // Empty or very short (single char)
         if (mb_strlen($name) < 2) {
             return true;
         }
         
+        // ─── URLs used as company names ───────────────────────────────
+        // "www.ussteel", "https://www.ford.com/", "https://www.kalb"
+        if (preg_match('/^https?:\/\//i', $name)) {
+            return true;
+        }
+        if (preg_match('/^www\./i', $name)) {
+            return true;
+        }
+        
         // ─── Names ending in TLD suffixes → domain was used as name ──
         if (preg_match('/\.(com|net|org|io|co|fr|de|in|ma|uk|eu|be)$/i', $name)) {
+            return true;
+        }
+        
+        // ─── Giant OEM / Fortune-500 blocklist ────────────────────────
+        // These are too large to be realistic EMS prospects. They have
+        // their own in-house PCBA, or use massive Tier-0 EMS providers.
+        $giantOemBlocklist = [
+            'honeywell', 'continental ag', 'continental', 'stellantis',
+            'bmw', 'bmw group', 'bmw group plants', 'general motors',
+            'volkswagen', 'volkswagen group', 'toyota', 'toyota eu',
+            'toyota motor europe', 'toyota motor',
+            'ford', 'ford motor', 'mercedes-benz', 'mercedes benz',
+            'audi', 'porsche', 'nissan', 'honda', 'hyundai', 'kia',
+            'tesla', 'volvo', 'volvo cars', 'renault', 'renault group',
+            'peugeot', 'citroen', 'fiat', 'chrysler', 'jeep', 'dodge',
+            'general electric', 'siemens', 'siemens ag', 'bosch',
+            'robert bosch', 'thyssenkrupp', 'basf', 'bayer',
+            'samsung', 'lg', 'lg electronics', 'panasonic', 'sony',
+            'philips', 'toshiba', 'hitachi', 'mitsubishi',
+            'foxconn', 'jabil', 'flex', 'celestica', 'sanmina',
+            'apple', 'google', 'amazon', 'microsoft', 'meta',
+            'intel', 'amd', 'nvidia', 'qualcomm', 'broadcom',
+            'texas instruments', 'infineon', 'stmicroelectronics',
+            'nxp', 'microchip', 'renesas', 'on semiconductor',
+            'boeing', 'airbus', 'lockheed martin', 'raytheon',
+            'northrop grumman', 'general dynamics', 'bae systems',
+            'rolls-royce', 'safran', 'thales', 'leonardo',
+            'caterpillar', 'john deere', 'deere & company',
+            'schneider electric', 'schneider electric global', 'abb', 'emerson', 'rockwell',
+            'rockwell automation', 'rockwell collins',
+            'penske', 'penske automotive group',
+            'cox automotive', 'cox automotive inc.',
+            'mckinsey', 'bain', 'bain capital', 'bcg',
+            'goldman sachs', 'jp morgan', 'morgan stanley',
+            'denso', 'denso global website', 'aisin', 'denso corporation',
+            'dupont', 'gentherm', 'gentherm incorporated', 'valero',
+            'sun chemical', 'clean harbors', 'clean harbours',
+            // ─── Missing giant OEMs from iter3/4 logs ─────────────────
+            'bombardier', 'rheinmetall', 'rivian', 'zf group', 'zf',
+            'valeo', 'baesystems', 'bae systems plc',
+            'totalenergies', 'totalenergies egypt', 'total energies',
+            'thermo fisher', 'thermo fisher scientific',
+            'covestro', 'covestro ag',
+            'astrazeneca', 'capgemini',
+            'pratt & whitney', 'pratt whitney', 'prattwhitney',
+            'somaca', 'casablanca plant',
+            'magna', 'magna international', 'lear corporation', 'lear',
+            'aptiv', 'delphi', 'delphi technologies',
+            'marelli', 'magneti marelli', 'knorr-bremse',
+            'wabash', 'wabco', 'dana', 'dana incorporated',
+            'borgwarner', 'hella', 'mahle', 'schaeffler',
+            'nidec', 'te connectivity', 'amphenol', 'molex',
+            'johnson controls', 'tyco', 'eaton',
+            'parker hannifin', 'parker', 'roper technologies',
+            'danaher', 'fortive', 'ametek',
+            'textron', 'l3harris', 'curtiss-wright',
+            'elbit systems', 'rafael', 'iai',
+            // ─── Additional from iter5 ────────────────────────────────
+            'safran electronics & defense', 'safran electronics & defen',
+            'ezz steel', 'telekom', 'capgemini morocco', 'capgemini moroc',
+            'casablanca plant (somaca)',
+            'homepage zf friedrichshafen', 'homepage zf friedrichshafen ag',
+            'zf friedrichshafen', 'zf friedrichshafen ag',
+            // ─── Additional from iter6 ────────────────────────────────
+            'caparol', 'caparol arabia', 'caparol industrial',    // BASF subsidiary (paints)
+            'hennessey special vehicles', 'hennessey',             // Custom car builder
+            'edita', 'edita food industries',                      // Egyptian snack food
+            'dorsey', 'dorsey trailers',                           // Giant trailer manufacturer
+            'gecko robotics',                                       // VC-backed tech unicorn
+            'precision aviation group', 'pag',                      // Giant MRO aviation
+            'iac', 'international automotive components',           // Giant tier-1
+            'vacker', 'vacker group',                               // HVAC trading company
+            // ─── iter7 deep sweep ─────────────────────────────────────
+            // Semiconductor giants
+            'nxp semiconductors', 'nxp semiconductor',
+            // Aerospace/defense giants
+            'ge aerospace', 'gkn aerospace', 'gkn',
+            'textron systems', 'kongsberg', 'kongsberg gruppen',
+            'hensoldt', 'hensoldt ag',
+            'diehl group', 'diehl', 'diehl defence', 'diehl aviation',
+            'chemring', 'chemring group', 'chemring group plc',
+            'joby aviation',
+            // Test equipment / instrumentation giants
+            'teradyne', 'rohde & schwarz', 'rohde schwarz',
+            'kistler', 'kistler nl',
+            // Automotive tier-1 giants
+            'benteler', 'benteler group', 'benteler automotive',
+            'horse powertrain', 'punch powertrain',
+            'seg automotive', 'seg automotive germany',
+            'zkw group', 'zkw',
+            'nexteer', 'nexteer automotive',
+            // Robotics / automation giants
+            'kuka', 'kuka ag', 'comau', 'comau spa',
+            'b&r industrial automation', 'b&r automation',
+            'kawasaki robotics', 'kawasaki heavy industries',
+            // Chemical / materials giants
+            'lyondellbasell', 'lyondellbasell industries',
+            'merck group', 'merck kgaa', 'merck',
+            'trelleborg', 'trelleborg ab', 'trelleborg sealing',
+            'dupont de nemours',
+            // Consumer/Food/Mining giants
+            'elaraby', 'elaraby group', 'el araby group',
+            'mondelez international', 'mondelēz international', 'mondelez',
+            'cosumar', 'ocp group', 'ocp',
+            'al-futtaim', 'al futtaim', 'al-futtaim group',
+            // Engineering giants
+            'fev group', 'fev', 'fev gmbh',
+            'segula technologies', 'segula',
+            // Steel giants
+            'ussteel', 'us steel', 'u.s. steel',
+            // Semiconductor / electronics giants
+            'mitsubishi electric', 'mitsubishi electric europe',
+            'mitsubishi electric europe bv france',
+            // Defense / govt bodies
+            'eurocontrol', 'icao',
+            'international civil aviation organization',
+            'federal aviation administration', 'faa',
+            // Conglomerates / consultancies
+            'grant thornton', 'grant thornton (us)',
+            'lincoln international', 'lincoln international llc',
+            'raya corp', 'raya corporation',
+            // Misc giants leaking through
+            'ge', 'daher', 'ascent aerospace',
+            'northrop grumman', 'integrated fires mission command',
+            'precisionaviationgroup',
+            'gulfex', 'gulf extrusions',
+            'gb corp', 'gb corporation',
+            'streit group',
+            'markforged',
+            'peer group', 'peer group inc.',
+            'nvidianews nvidia', 'nvidianews',
+            'gulf cryo',
+            'falcon group',
+            'opple lighting', 'opple lighting mea',
+            'infinity trailers',
+            // ─── iter11b Morocco ──────────────────────────────────────
+            'zf lifetec', 'zf-lifetec',
+            'comeca', 'comeca group',
+            'dunlop', 'dunlop tyres', 'dunlop tires',
+            // ─── iter13 Tunisia ──────────────────────────────────────────
+            'leoni', 'leoni wiring systems', 'leoni tunisia',  // Wire harness competitor
+            'nexans', 'nexans autoelectric',                    // Cable/harness competitor
+            'odoo', 'odoo sa',                                  // ERP software company
+            'sogeclair',                                        // Engineering consulting
+            'groupe telnet', 'groupe-telnet', 'telnet group',   // IT engineering services
+            // ─── iter15b Egypt ──────────────────────────────────────────
+            'midea', 'midea group', 'midea egypt',              // Giant Chinese appliance OEM
+            'haier', 'haier group', 'haier egypt',              // Giant Chinese appliance OEM
+            'ups', 'ups freight', 'ups supply chain',           // Shipping/logistics giant
+            'fedex', 'fedex express', 'fedex ground',           // Shipping/logistics giant
+            'dhl', 'dhl express', 'dhl supply chain',           // Shipping/logistics giant
+            'whirlpool', 'whirlpool corporation',               // Giant appliance OEM
+            'electrolux', 'electrolux group',                   // Giant appliance OEM
+            'beko', 'beko egypt', 'arçelik',                    // Giant appliance OEM
+            'sharp', 'sharp corporation', 'sharp egypt',        // Giant electronics OEM
+            'telecom egypt', 'te data', 'te software',          // State telecom provider
+            'cairo ict', 'cairoict',                            // Tech conference
+            'nti', 'national telecom institute',                // Government institute
+            // ─── iter15c Egypt deep inspection ──────────────────────────
+            'trane', 'trane technologies', 'trane egypt',       // Giant HVAC OEM
+            'carrier', 'carrier global', 'carrier egypt',       // Giant HVAC OEM
+            'daikin', 'daikin industries', 'daikin egypt',      // Giant HVAC OEM
+            'airbnb', 'airbnb inc',                             // Vacation rental platform
+            'data center map', 'datacentermap',                 // Directory/listing site
+            'middle east monitor',                              // News/media site
+            'trt world', 'trt',                                 // Turkish state broadcaster
+            'global uploads webflow',                           // Webflow CDN artifact
+            'solarinvertermanufacturers',                       // SEO spam/directory
+            'factocert',                                        // ISO certification consulting
+            'sbcertgroup',                                      // ISO certification consulting
+            'shipserv',                                         // Maritime procurement marketplace
+            'cairo sales stores', 'cairo sales',                // Retail store
+            'gpx global systems', 'gpx global',                 // Data center colocation
+            'radio holland',                                    // Dutch maritime electronics
+            'chloride batteries',                               // SE Asian batteries
+            'bowfin', 'bowfin boats',                           // US boat manufacturer
+            'nspo', 'nato support',                             // NATO procurement org
+            'dnb carnegie', 'dun & bradstreet', 'dun and bradstreet', // Business intelligence
+        ];
+        if (in_array($lower, $giantOemBlocklist, true)) {
+            return true;
+        }
+        // Also check if the name STARTS WITH or CONTAINS a giant OEM name
+        // e.g. "Rheinmetall Aviation Services GmbH" contains "rheinmetall"
+        foreach ($giantOemBlocklist as $oem) {
+            if (strlen($oem) >= 4 && str_starts_with($lower, $oem . ' ')) {
+                return true;
+            }
+            // For longer OEM names (≥8 chars), also match anywhere in the name
+            if (strlen($oem) >= 8 && str_contains($lower, $oem)) {
+                return true;
+            }
+        }
+        
+        // ─── "City, Country" or "City State" patterns ─────────────────
+        // "Abu Dhabi, UAE", "Cairo, Egypt", "City of Alexandria, Virginia"
+        if (preg_match('/^city\s+of\s+/i', $name)) {
+            return true;
+        }
+        if (preg_match('/^[A-Z][a-z]+(\s+[A-Z][a-z]+)?,\s*(UAE|USA|UK|VA|KY|TX|NY|CA|FL|OH|MI|MA|NC|PA|Egypt|Morocco|Saudi|Qatar|France|Germany|Netherlands|Virginia|Kentucky|Florida|Georgia|Tennessee|Alabama)/i', $name)) {
+            return true;
+        }
+
+        // ─── "Car Dealership in X" / "Located in X" / "Serving X" ─────
+        if (preg_match('/^(car|auto)\s+(dealership|dealer)\s+(in|near)\s+/i', $name)) {
+            return true;
+        }
+        if (preg_match('/^(located|serving|based)\s+(in|near)\s+/i', $name)) {
+            return true;
+        }
+        
+        // ─── UI elements / navigation artifacts ───────────────────────
+        // "Country Selector", "Presentation Mode", "Cookie Consent"
+        $uiElements = [
+            'country selector', 'language selector', 'region selector',
+            'presentation mode', 'cookie consent', 'cookie policy',
+            'privacy policy', 'terms of service', 'terms and conditions',
+            'accept cookies', 'manage cookies', 'subscribe now',
+            'sign in', 'sign up', 'log in', 'register now',
+            'skip to content', 'skip navigation', 'main menu',
+            'search results', 'no results', 'page not found',
+            'editorial office', 'editorial office ltd',
+        ];
+        if (in_array($lower, $uiElements, true)) {
+            return true;
+        }
+        
+        // ─── Person names (First Last pattern, not company) ───────────
+        // "Todd Metcalfe", "Ben Nielsen", etc.
+        // Heuristic: exactly 2 words, both capitalized, first is common first name
+        $commonFirstNames = ['todd', 'ben', 'bob', 'bill', 'fred', 'mike', 'john', 'james', 'david', 'chris', 'mark', 'paul', 'steve', 'peter', 'tom', 'joe', 'dan', 'jim', 'jeff', 'greg', 'rob', 'matt', 'tim', 'rick', 'ken', 'sam', 'adam', 'jack', 'ryan', 'sean', 'eric', 'kevin', 'brian', 'scott', 'gary', 'larry', 'terry', 'jerry', 'barry', 'harry', 'carl', 'alan', 'bruce', 'frank', 'donald', 'george', 'edward', 'arthur', 'henry', 'walter', 'patrick', 'alex', 'chad', 'brad', 'craig', 'dale', 'doug', 'earl', 'floyd', 'gene', 'howard', 'ivan', 'lewis', 'neil', 'oscar', 'ralph', 'roger', 'roy', 'wayne', 'ahmed', 'mohammed', 'ali', 'omar', 'hassan', 'hussein', 'youssef', 'karim', 'pierre', 'jean', 'jacques', 'hans', 'karl', 'max', 'stefan', 'andreas', 'lars', 'magnus', 'erik'];
+        if ($wordCount === 2 && in_array(strtolower($words[0]), $commonFirstNames, true) && ctype_upper($words[1][0])) {
+            return true;
+        }
+        
+        // ─── News outlets with numbers ────────────────────────────────
+        // "FRANCE 24", "BBC News", "CNN", "Al Jazeera"
+        $newsOutlets = [
+            'france 24', 'bbc', 'bbc news', 'cnn', 'cnbc', 'al jazeera',
+            'reuters', 'bloomberg', 'the guardian', 'the times',
+            'financial times', 'wall street journal', 'nbc news',
+            'fox news', 'sky news', 'al arabiya', 'rt news',
+            'daily mail', 'the independent', 'the telegraph',
+            'hollandsentinel', 'recycling today', 'trade horizons',
+            // ─── Additional media/news from iter3/4 logs ──────────────
+            'asharq al-awsat', 'oxfordbusinessgroup', 'cannabisbusinesstimes',
+            'techbehemoths', 'vertical mag', 'bayut', 'dubizzle',
+            'bayut & dubizzle', 'rekreute', 'vertical magazine',
+            'northafricapost', 'north africa post',
+            'etasr', 'engineering, technology & applied science research',
+            // ── iter12 all-region ──
+            'argaam', 'developing telecoms', 'developingtelecoms',
+            'vyansa intelligence', 'vyansaintelligence',
+        ];
+        if (in_array($lower, $newsOutlets, true)) {
+            return true;
+        }
+
+        // ─── Non-company entities from iter3/4 logs ───────────────────
+        // Racing leagues, media offices, community hubs, free zones
+        if (preg_match('/\b(racing\s+league|autonomous\s+racing|media\s+office|community\s+hub|electric\s+vehicle\s+community)\b/i', $name)) {
+            return true;
+        }
+        // "X Airport Freezone" / "X Freezone" / "X Free Zone"
+        if (preg_match('/\b(airport\s+free\s*zone|dafz)\b/i', $name)) {
+            return true;
+        }
+        // "Aerospace Hub" / "EV Hub" / generic hubs
+        if (preg_match('/\b(aerospace|ev|electric\s+vehicle|automotive)\s+hub\b/i', $name)) {
+            return true;
+        }
+        // Generic "X Supplier" / "X Distribution" names that aren't companies
+        if (preg_match('/^(aviation|aircraft|auto)\s+parts?\s+(supplier|distribution)/i', $name)) {
+            return true;
+        }
+        // "AER Sales" and similar broker/resale entities
+        if (preg_match('/\b(aer\s+sales|aircraft\s+broker|plane\s+broker)\b/i', $name)) {
+            return true;
+        }
+        // ─── Government megaproject / smart city / giga-project names (iter12) ──
+        if (preg_match('/\b(megaproject|mega[\s-]?project|giga[\s-]?project|smart\s+city|new\s+city\s+project)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/^neom$/i', $name)) {
+            return true;
+        }
+        // ─── Trade shows / exhibitions / air shows (iter12) ──────────────
+        if (preg_match('/\b(air\s*show|trade\s*show|trade\s*fair|exhibition\s*(center|centre)|expo(sition)?\s+(center|centre)|convention\s+cent(er|re))\b/i', $name)) {
+            return true;
+        }
+        // HTTP redirect artifacts
+        if (preg_match('/^\d{3}\s+(moved|redirect|found|not found)/i', $name)) {
+            return true;
+        }
+        // ─── Drone delivery / last-mile delivery services (iter12) ─────
+        if (preg_match('/\b(drone\s+delivery|delivery\s+drone|last[\s-]mile\s+delivery|store[\s-]to[\s-]door)\b/i', $name)) {
+            return true;
+        }
+        // Profile pages / generic navigation artifacts
+        if (preg_match('/^(profile\s+(&|and)\s+history|regions|advanced\s+solutions?\s+for)\b/i', $name)) {
+            return true;
+        }
+        // "App [Brand]" patterns (mobile app pages)
+        if (preg_match('/^app\s+/i', $name) && $wordCount <= 3) {
+            return true;
+        }
+        // Certification bodies extracted as company names
+        if (preg_match('/^(scs|sgs|tuv|bsi)\s*certification/i', $name)) {
+            return true;
+        }
+        
+        // ─── Non-target businesses (restaurants, hotels, etc.) ────────
+        if (preg_match('/\b(restaurant|bistro|café|cafe|diner|pizzeria|sushi|grill|bar\s+&|pub|tavern|eatery|catering)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(hotel|motel|inn|resort|hostel|lodge|suites|bed\s+and\s+breakfast|b&b)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(nonprofit|non-profit|charity|charities|church|temple|mosque|synagogue|ministry)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(gym|fitness|yoga|pilates|crossfit|salon|spa|barber|beauty)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(dentist|veterinary|vet\s+clinic|optometrist|chiropractor|pharmacy)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(bakery|brewery|winery|distillery|florist|laundry|dry\s+clean)\b/i', $name)) {
+            return true;
+        }
+        // Paint / coatings companies (not EMS/electronics targets)
+        if (preg_match('/\b(paints?\s+(company|co\.?|factory|manufacturing)|paint\s+&\s+coatings?|refinish\s+coatings?)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(advocacy|advocate|child\s+advocacy|civic|political|democratic|republican)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(automobile\s+dealers?|auto\s+dealers?|auto\s+care|oil\s+change|smog\s+check)\b/i', $name)) {
+            return true;
+        }
+        // ─── Government bodies / agencies / administrations ──────────
+        if (preg_match('/\b(administration|authority|division|bureau|department|ministry|directorate|commission|committee|secretariat|inspector)\b/i', $name) && $wordCount >= 3) {
+            return true;
+        }
+        // ─── Game studios / gaming companies ────────────────────────
+        if (preg_match('/\b(game\s*studio|game\s*development|gaming\s+company|video\s+game|games?\s+(inc|llc|ltd|studio))\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\bGames?$/i', $name) && $wordCount <= 3) {
+            return true;  // "2B Games", "Riot Games"
+        }
+        // ─── Job boards / recruitment portals ────────────────────────
+        if (preg_match('/\b(jobfeed|naukri|naukrigulf|rekrute|bayt|indeed|glassdoor|jobfair|jobboard|talent\s+portal)\b/i', $name)) {
+            return true;
+        }
+        // ─── Pharma / biotech as company name ───────────────────────
+        if (preg_match('/\b(pharmaceutical|pharma|biotech|biopharm|biopharma)\b/i', $name) && !preg_match('/\b(equipment|device|instrument|automation|packaging|labeling)\b/i', $name)) {
+            return true;
+        }
+        // ─── Chemical / petrochemical company names ────────────────
+        if (preg_match('/\b(chemical\s+(company|industries|group)|petrochemical|agrochemical|fertilizer)\b/i', $name) && !preg_match('/\b(electronics?|semiconductor|circuit)\b/i', $name)) {
+            return true;
+        }
+        // ─── Finance bodies / investment / capital ──────────────────
+        if (preg_match('/\b(finance\s+(city|authority|corporation|commission)|capital\s+(authority|markets?))\b/i', $name)) {
+            return true;
+        }
+        // ─── Education / training entities ─────────────────────────
+        if (preg_match('/\b(education\s+(center|centre|institute|group|egypt|maroc)|certificate|professional\s+certificate|training\s+(center|centre|institute|academy))\b/i', $name)) {
+            return true;
+        }
+        // ─── Lighting / paint brand distributors ───────────────────
+        if (preg_match('/\b(lighting|luminaire|light\s+fixture)\s+(mea|middle\s+east|uae|gcc|africa|asia|europe|global|international)$/i', $name)) {
+            return true;
+        }
+        // ─── SYSTEMATIC CAR DEALER / FRANCHISE DETECTION ──────────────
+        // SIC 5511: Motor Vehicle Dealers (New & Used)
+        // Pattern: [CityName/PersonName] + [Brand] OR [Brand combo] + [City]
+        // CDJR = Chrysler-Dodge-Jeep-Ram franchise dealers
+        if (preg_match('/\b(cdjr|cjdr|dcjr)\b/i', $name)) {
+            return true;
+        }
+        // "[X] of [City]" dealership naming convention
+        if (preg_match('/\b(ford|toyota|chevrolet|honda|nissan|hyundai|kia|mazda|subaru|volvo|bmw|audi|mercedes|lexus|acura|infiniti|genesis|buick|cadillac|gmc|lincoln|ram|jeep|dodge|chrysler)\s+of\s+/i', $name)) {
+            return true;
+        }
+        // "[X] Motors" where X is a city, person name, or generic
+        // But NOT "[Product] Motors" (like "Servo Motors" which is equipment)
+        if (preg_match('/\bMotors?\b/i', $name) && !preg_match('/\b(servo|stepper|electric|brushless|dc|ac|induction|linear|step)\s+motors?\b/i', $name)) {
+            // "Rally Motors", "W Motors", "ARMotors", "Bamotors", "Cairo Motors"
+            if (preg_match('/^[A-Z][a-z]+\s+Motors?$/i', $name) || preg_match('/motors?\s+(group|llc|inc|maroc|egypt|dubai|usa|uk)$/i', $name)) {
+                return true;
+            }
+            // Compound words ending in "motors" like "ARMotors", "Bamotors"
+            if (preg_match('/^[A-Z][a-z]*motors$/i', $name)) {
+                return true;
+            }
+        }
+        // Car tuning / diagnostics / wrapping shops
+        if (preg_match('/\b(car\s+tuning|chip\s+tuning|ecu\s+(tuning|remap)|diag\s*fix|auto\s+tuning|car\s+wrapping)\b/i', $name)) {
+            return true;
+        }
+        // "X Ford", "X Toyota", "X Chevrolet" etc. are car dealerships
+        if (preg_match('/\b(ford|toyota|chevrolet|honda|nissan|hyundai|kia|mazda|subaru|volvo\s+cars|buick|cadillac|lexus|acura|infiniti)\s*(of\s+)?$/i', $name)) {
+            return true;
+        }
+        if (preg_match('/^(lindsay|malloy|kerry|giles|college\s+station)\s+(ford|toyota|chevrolet|mazda|volvo|honda|nissan|hyundai)/i', $name)) {
+            return true;
+        }
+        
+        // ─── LLP / law firm names ─────────────────────────────────────
+        if (preg_match('/\bLLP$/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\bavocats?\b/i', $name)) {
+            return true;
+        }
+
+        // ─── Private equity / investment fund patterns ────────────────
+        if (preg_match('/\b(private\s+equity|venture\s+capital|capital\s+holdings?|capital\s+partners?)\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── S&P / financial data providers ───────────────────────────
+        if (preg_match('/^s&p\s+global$/i', $name)) {
+            return true;
+        }
+        
+        // ─── "ADAC" / "ACEA" / auto clubs & associations ──────────────
+        $autoClubsAssocs = ['adac', 'acea', 'nada', 'ada'];
+        if (in_array($lower, $autoClubsAssocs, true)) {
+            return true;
+        }
+        
+        // ─── "SiteMap(Powered by X)" / "MMM-ext" junk names ──────────
+        if (preg_match('/\bsitemap\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/^(mmm|xxx|yyy|zzz)-?\w{0,4}$/i', $name)) {
+            return true;
+        }
+        
+        // ─── Names containing "(en-GB)", "(en-US)" language tags ──────
+        if (preg_match('/\(en-[A-Z]{2}\)/i', $name)) {
+            return true;
+        }
+        
+        // ─── Trade show / exhibition names ────────────────────────────
+        if (preg_match('/\b(automechanika|automechanica|electronica|bauma|hannover\s+messe|CES\s+\d|GITEX|arab\s+health|medica|productronica)\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── "X in the Y" / "X in Y" geographic suffix patterns ──────
+        // "Bosch in the USA", "Thales in the UAE" — giant OEMs with location
+        if (preg_match('/\bin\s+the\s+(USA|UAE|UK|EU|US|Middle\s+East)\s*$/i', $name)) {
+            return true;
+        }
+        
+        // ─── "Our Story" / "Our Team" navigation artifacts ──────────
+        if (preg_match('/^(Our|My|The)\s+(Story|Team|People|History|Journey|Mission|Vision|Values|Approach|Work)$/i', $name)) {
+            return true;
+        }
+        
+        // ─── "X Website" / "X Website" suffix ─────────────────────────
+        if (preg_match('/\bWebsite\b/i', $name) && $wordCount >= 2) {
+            return true;
+        }
+        
+        // ─── Names containing pipe | character (merged results) ───────
+        if (str_contains($name, '|')) {
+            return true;
+        }
+        
+        // ─── "X County" / "X County Y" government entities ───────────
+        if (preg_match('/\bCounty\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── Airlines ─────────────────────────────────────────────────
+        if (preg_match('/\b(air|airline|airlines|airways|egyptair|emirate|etihad|qatar\s+airways|flydubai|saudia|royal\s+air\s+maroc)\b/i', $name)) {
+            // Allow "air" as part of legitimate company names
+            if (!preg_match('/\b(compressed\s+air|air\s+conditioning|air\s+filter|air\s+quality|air\s+system|air\s+products?)\b/i', $name)) {
+                return true;
+            }
+        }
+        
+        // ─── Construction / Building / Civil ──────────────────────────
+        if (preg_match('/\b(construction\s+company|shuttering|waterproofing|concrete|cement|plumbing|roofing|scaffolding|excavation|paving)\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── Consumer goods giants ────────────────────────────────────
+        $consumerGoodsGiants = [
+            'henkel', 'procter', 'procter & gamble', 'p&g', 'unilever',
+            'nestle', 'colgate', 'kimberly-clark', 'johnson & johnson',
+            'kraft', 'mars', 'pepsico', 'coca-cola',
+        ];
+        if (in_array($lower, $consumerGoodsGiants, true)) {
+            return true;
+        }
+        
+        // ─── Component distributors (not OEM customers) ───────────────
+        $componentDistributors = [
+            'mouser', 'mouser electronics', 'digikey', 'digi-key',
+            'arrow electronics', 'avnet', 'rs components', 'farnell',
+            'element14', 'newark', 'future electronics',
+            'master electronics', 'sager electronics', 'heilind',
+        ];
+        if (in_array($lower, $componentDistributors, true)) {
+            return true;
+        }
+        
+        // ─── Equipment rental companies ───────────────────────────────
+        if (preg_match('/\b(rental|rentals|leasing|hire|hires)\s*$/i', $name)) {
+            return true;
+        }
+        
+        // ─── Free zone / economic zone as company name ────────────────
+        if (preg_match('/\b(free\s+zone|economic\s+zone|industrial\s+zone|industrial\s+park|business\s+park|techno\s+park)\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── "X Leader" / "Y List" generic patterns ──────────────────
+        if (preg_match('/\b(leader|list|listing|overview|index|selector)\s*$/i', $name) && $wordCount >= 2) {
+            return true;
+        }
+        
+        // ─── Military / government institutions ───────────────────────
+        if (preg_match('/\b(military\s+\w+\s+college|ministry\s+of|government\s+of|armed\s+forces)\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── Facilities management companies ──────────────────────────
+        if (preg_match('/\bfacilities?\s+management\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── Telecom operators (NOT equipment manufacturers) ──────────
+        $telecomOperators = [
+            'etisalat', 'eand', 'du telecom', 'stc', 'zain', 'ooredoo',
+            'vodafone', 'orange', 'mtn', 'at&t', 'verizon', 't-mobile',
+            'sprint', 'telefonica', 'deutsche telekom', 'bt group',
+            'telenor', 'telia', 'swisscom', 'proximus',
+        ];
+        if (in_array($lower, $telecomOperators, true)) {
+            return true;
+        }
+        
+        // ─── Recruitment / Job sites ──────────────────────────────────
+        $recruitmentSites = [
+            'wuzzuf', 'gulftalent', 'bayt', 'indeed', 'glassdoor',
+            'linkedin', 'monster', 'naukri', 'stepstone', 'hays',
+            'michael page', 'robert half', 'randstad', 'adecco',
+            'manpower', 'kelly services', 'parker dewey',
+        ];
+        if (in_array($lower, $recruitmentSites, true)) {
+            return true;
+        }
+
+        // ─── E-commerce / Marketplace sites ───────────────────────────
+        $ecommerceSites = [
+            'ubuy', 'dubizzle', 'olx', 'souq', 'noon',
+            'aliexpress', 'alibaba', 'wish', 'temu',
+        ];
+        if (in_array($lower, $ecommerceSites, true)) {
+            return true;
+        }
+        // "Ubuy [Country]", "dubizzle [Country]" patterns
+        if (preg_match('/^(ubuy|dubizzle|olx|souq|noon)\s+/i', $name)) {
+            return true;
+        }
+
+        // ─── "Homepage X" prefix (extraction artifact) ────────────────
+        if (preg_match('/^homepage\s+/i', $name)) {
+            return true;
+        }
+
+        // ─── "X Company Profile" suffix (about page artifact) ─────────
+        if (preg_match('/\s+company\s+profile$/i', $name)) {
+            return true;
+        }
+
+        // ─── "Expert-comptable" / accountant patterns (French) ────────
+        if (preg_match('/\bexpert[\s-]comptable\b/i', $name)) {
+            return true;
+        }
+
+        // ─── "[Product/Component] [Part Number]" patterns ────────────
+        if (preg_match('/^(driver|module|sensor|relay|chip|ic)\s+[a-z]*\d{3,}/i', $name)) {
+            return true;
+        }
+
+        // ─── "X Services [Location]" generic service patterns ─────────
+        if (preg_match('/\bservices?\s+(texas|dubai|egypt|morocco|riyadh|jeddah|abu\s+dhabi|doha)/i', $name)) {
+            return true;
+        }
+
+        // ─── Software / IT solutions (not EMS buyers) ────────────────
+        if (preg_match('/\bsoftware\s+solutions?\b/i', $name) && !preg_match('/\b(embedded|firmware|hardware)\b/i', $name)) {
+            return true;
+        }
+
+        // ─── "X Program" / "X Initiative" (gov/NGO programs) ─────────
+        if (preg_match('/\b(program|initiative|scheme)\s*$/i', $name) && $wordCount >= 3) {
+            return true;
+        }
+        
+        // ─── "[Brand] in [Country]" extraction artifact ───────────────
+        if (preg_match('/\bin\s+(UAE|Egypt|Morocco|Qatar|Saudi|Bahrain|Oman|Kuwait|Jordan)$/i', $name) && $wordCount >= 3) {
+            return true;
+        }
+        
+        // ─── Training / Education companies ───────────────────────────
+        $trainingCompanies = [
+            'global knowledge', 'coursera', 'udemy', 'pluralsight',
+            'skillshare', 'edx', 'khan academy', 'scholar',
+        ];
+        if (in_array($lower, $trainingCompanies, true)) {
+            return true;
+        }
+        
+        // ─── "Sales and Service" / "Parts and Service" suffixes ───────
+        if (preg_match('/\b(sales|parts)\s+(and|&)\s+service\s*$/i', $name)) {
+            return true;
+        }
+        
+        // ─── "X Associates" / "X Partners" (consulting/legal/finance) ─
+        if (preg_match('/\b(associates|partners)\s*$/i', $name) && $wordCount >= 2) {
+            // Allow "technology partners" type names
+            if (!preg_match('/\b(technology|tech|electronics?|automation)\s+(partners|associates)/i', $name)) {
+                return true;
+            }
+        }
+        
+        // ─── Very short gibberish names (under 4 chars with numbers) ──
+        if (mb_strlen(trim($name)) <= 4 && preg_match('/\d/', $name)) {
+            return true;
+        }
+        
+        // ─── "X Report" / "X Report" news patterns ───────────────────
+        if (preg_match('/\b(report|gazette|herald|times|post|tribune|chronicle|sentinel|observer|journal|bulletin|dispatch|register|examiner)\s*$/i', $name) && $wordCount >= 2) {
+            return true;
+        }
+        
+        // ─── "X Enterprise" / "X Carrier" patterns that are retailers ─
+        if (preg_match('/\b(carrier\s+enterprise|licensing\s+international|oxford\s+business)\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── Gibberish / random letter combos ─────────────────────────
+        if ($wordCount === 1 && mb_strlen($name) >= 4 && mb_strlen($name) <= 8 && !preg_match('/[aeiouAEIOU]{1,}/', $name)) {
+            return true;  // No vowels = likely gibberish
+        }
+        
+        // ─── Oil & Gas / National Oil Companies ───────────────────────
+        // Not EMS customers (they use specialized O&G EPC contractors)
+        $oilGasCompanies = [
+            'enoc', 'adnoc', 'saudi aramco', 'aramco', 'total energies',
+            'totalenergies', 'totalenergies middle east', 'shell', 'bp',
+            'exxon', 'exxonmobil', 'chevron', 'conocophillips',
+            'equinor', 'eni', 'repsol', 'petronas',
+        ];
+        if (in_array($lower, $oilGasCompanies, true)) {
+            return true;
+        }
+        
+        // ─── Banks / Financial institutions ───────────────────────────
+        $bankPatterns = ['dib', 'bank', 'santander'];
+        if (in_array($lower, $bankPatterns, true)) {
+            return true;
+        }
+        if (preg_match('/\b(islamic\s+bank|national\s+bank|commercial\s+bank|central\s+bank)\b/i', $name)) {
+            return true;
+        }
+        
+        // ─── Single very short abbreviations (≤3 chars) ───────────────
+        // Common false positives: "Ti", "Nio", "REE", "APT", "DIB"
+        // Only filter 2-char or shorter that aren't well-known
+        if (mb_strlen(trim($name)) <= 2 && $wordCount === 1) {
             return true;
         }
         
@@ -2008,7 +3107,8 @@ class GoogleDorkService
             'insights', 'tracker', 'monitor', 'dashboard', 'platform',
             'alerts', 'directory', 'forum', 'wiki', 'marketplace',
             'fortune', 'corporate', 'facilities', 'riviera',
-            'warehouse', 'certified', 'museum', 'wsj',
+            'warehouse', 'certified', 'museum', 'wsj', 'return',
+            'janes', 'cardoo', 'flowcrete', 'spinetix', 'nobleprog',
             'rollingstock', 'startingpoint', 'eu', 'thedefensepost',
             // Major cities — never company names standing alone
             'detroit', 'houston', 'chicago', 'boston', 'seattle',
@@ -2073,6 +3173,133 @@ class GoogleDorkService
             'premier ultrasound',
             'european union', 'fiber optic center',
             'coherent market insights',
+            // ─── Iter5 junk leaks ────────────────────────────────────
+            'dubizzle egypt (olx)', 'ubuy egypt', 'ubuy',
+            'electric cars in egypt', 'gmegypt',
+            'egic - euro-gulf information centre', 'egic',
+            'expert system maintenance technician',
+            'expert-comptable à casablanca',
+            'portail de recherche scientifique',
+            'kerix-export', 'elioplus',
+            'driver ir2110 mosfet igbt',
+            'iai company profile', 'iai company',
+            'daq, test, hil',
+            'hvac services texas', 'fuse ev',
+            'quanta software solutions',
+            'dubai robotics and automation program',
+            'remote to the remote location',
+            'about sewell automotive companies',
+            'panatech # best 1',
+            'intech in uae',
+            // ─── Iter6 junk leaks ────────────────────────────────────
+            'our story',                                           // navigation link artifact
+            'ceci',                                                // wrong-website extraction
+            'tajer abdelouahed',                                   // person name, not company
+            'camsa inc.',                                          // wrong website (kerix-export.net)
+            'camsa',
+            'industrial equipment supplier uae',                   // generic description
+            'hak',                                                 // ambiguous 3-letter
+            'el gammal co. for paints', 'elgammal',                // paints, not EMS target
+            'egic egypt', 'egic',                                  // already listed but add variants
+            'tractiv',                                             // nvidianews redirect
+            // ─── iter7 deep sweep ─────────────────────────────────────
+            '2b games', '2b',                                      // game studio
+            'globalcareers lge',                                   // LG careers portal
+            'jobfeed',                                             // job aggregator
+            'naukrigulf',                                          // job board
+            'rekrute',                                             // job board
+            'macro group pharmaceuticals',                         // pharma
+            'future pharmaceutical industries',                    // pharma
+            'petroknowledge',                                      // training company
+            'idp education egypt',                                 // education
+            'casablanca finance city authority',                    // finance authority
+            'modern diplomacy',                                    // news site
+            'egypt oil & gas',                                     // industry news
+            'le desk',                                             // news site
+            'le monde béryl', 'le monde beryl',                    // newspaper
+            'mediaoffice',                                         // govt media
+            'wam',                                                 // news agency
+            'industry events',                                     // events aggregator
+            'fast company',                                        // magazine
+            'vertical plus',                                       // aviation magazine
+            'rio south texas',                                     // regional body
+            'dubai south',                                         // govt zone
+            'maroc',                                               // country website
+            'history',                                             // nav artifact
+            'history factory',                                     // wrong website
+            'timeline',                                            // nav artifact
+            'aimes',                                               // unclear extraction
+            'iot analytics',                                       // research firm
+            'sqorus',                                              // IT consulting
+            'go-globe',                                            // web agency
+            'infoquest llc',                                       // IT reseller
+            'power electronics',                                   // generic term
+            'pemodule',                                            // single product
+            'caparol middle east and africa',                      // paint distributor
+            'moroccan exporters to tunisia',                       // directory listing
+            'mobility aftermarket',                                // Bosch aftermarket
+            'rec-solutions',                                       // HR/recruitment
+            'industrial manufacturing hvac',                       // generic phrase
+            'longrange capital',                                   // investment firm
+            'ram electronics, inc.',                               // e-shop
+            'ascent emirates',                                     // ISO consultant
+            'karnak',                                              // egyptair loyalty
+            'global lawyers',                                      // law firm
+            'amtek group',                                         // wrong website
+            'icomtech, inc.',                                      // wrong website
+            'uge electronics',                                     // unclear
+            'relpol s.a.',                                         // wrong website
+            'micro ohm electronics',                               // unclear
+            'fox power electronics',                               // wrong website
+            'c.e.c.i.',                                            // wrong website
+            'bamotors maroc',                                      // car dealer
+            'jameelmotors',                                        // car dealer
+            'jetour egypt',                                        // car dealer
+            'hennesseyspecialvehicles',                             // domain as name
+            'engineering company for electrical energy',            // generic phrase
+            'elite equipment & services llc',                      // wrong website
+            'mbrah',                                               // aerospace hub
+            'medz',                                                // govt holding
+            'scaler8',                                             // startup
+            // ─── iter11b Morocco junk ──────────────────────────────────
+            'northafricapost',                                     // news site
+            'north africa post',                                   // news site variant
+            'tanger med zones',                                    // FTZ authority
+            'tangermedzones',                                      // domain-as-name
+            'atlamed',                                             // private equity
+            'mds aviation',                                        // aircraft MRO
+            'tst',                                                 // freight / logistics
+            'ultranet',                                            // equipment dealer
+            'autologic',                                           // diagnostic tools shop
+            'dunlop tyres',                                        // tyre brand marketing
+            'dunlop tires',                                        // tyre brand variant
+            'etasr',                                               // academic journal
+            'comeca group',                                        // large French group
+            'zf lifetec',                                          // ZF giant OEM spin-off
+            // ── iter12 all-region ──────────────────────────────────────
+            'vyansa intelligence',                                 // market research firm
+            'vyansaintelligence',                                  // domain-as-name
+            'neom',                                                // Saudi giga-project
+            'argaam',                                              // Arabic financial news
+            'developing telecoms',                                 // telecom industry news
+            'developingtelecoms',                                  // domain-as-name
+            'dubai airshow',                                       // trade show / exhibition
+            '301 moved permanently',                               // HTTP redirect crawl artifact
+            'zipline',                                             // drone delivery service
+            // ── iter13 Tunisia ─────────────────────────────────────────────
+            'worldwide tax summaries online',                      // PwC tax portal
+            'worldwide tax summaries',                             // PwC tax portal
+            'elcosolutionssite',                                   // embedded software consultancy
+            'thinktank research group',                            // IT consulting
+            'thinktank',                                           // IT consulting
+            'groupe-telnet',                                       // IT engineering services
+            'groupe telnet',                                       // IT engineering services
+            'sinoextrud',                                          // Chinese aluminum extrusion
+            'sellami group',                                       // Car dealer & spare parts
+            'soremat',                                             // Business consulting firm
+            'labrosse',                                            // Brush/paintbrush manufacturer
+            'sicop',                                               // Glue/paint manufacturer
+            'acron aviation',                                      // Magazine crawl artifact
         ];
         if (in_array($lower, $genericNames, true)) {
             return true;
@@ -2172,6 +3399,10 @@ class GoogleDorkService
         if (preg_match('/^(laminated|coated|plated)\s+.*(covers?|sheets?|panels?)$/i', $name)) {
             return true;
         }
+        // "Pressure Control Valves X Manufacturing" — product + company concatenated
+        if (preg_match('/^(pressure|temperature|flow|level|hydraulic|pneumatic)\s+(control|sensing|measurement)\s+/i', $name) && $wordCount >= 4) {
+            return true;
+        }
 
         // ─── News site names as company names ────────────────────────
         if (preg_match('/^business\s*insider/i', $name)) {
@@ -2214,8 +3445,6 @@ class GoogleDorkService
         }
 
         // ─── Structural heuristics (AI-level word parsing) ────────────
-        $words = preg_split('/\s+/', trim($name));
-        $wordCount = count($words);
 
         // ─── Names ending in "Home" (page navigation extraction) ─────
         if (preg_match('/\bHome$/i', $name) && $wordCount >= 2) {
@@ -2295,7 +3524,7 @@ class GoogleDorkService
         
         // ─── News headline verb detection ─────────────────────────────
         // Pattern: "CompanyName verb rest" e.g. "Bombardier exits commercial aviation"
-        $headlineVerbs = '/\b(exits|signs|launches|buys|wins|enters|joins|acquires|announces|unveils|reveals|secures|expands|opens|completes|delivers|reports|appoints|ranked|partners|outbreak)\b/i';
+        $headlineVerbs = '/\b(exits|signs|launches|buys|wins|enters|joins|acquires|announces|unveils|reveals|secures|expands|opens|completes|delivers|reports|appoints|ranked|partners|outbreak|attains|achieves|receives|celebrates|reaches|surpasses|establishes|publishes|releases|introduces|presents|demonstrates)\b/i';
         if (preg_match($headlineVerbs, $name) && $wordCount >= 3) {
             return true;
         }
@@ -2514,6 +3743,146 @@ class GoogleDorkService
             '/\bcharging\s+(solutions?|station)/i',     // EV charging infra
             '/\bdemocratic\s+party/i',                  // political parties
             '/\brepublican\s+party/i',                  // political parties
+            // ─── Round 4 patterns (from v5 audit) ─────────────────────
+            '/^curriculum\s+vitae/i',                   // CV/resume pages
+            '/^presales?\s+(engineer|leader|manager)/i',// job title as name
+            '/^sales\s+engineer/i',                     // job title as name
+            '/^project\s+(manager|leader|engineer)/i',  // job title as name
+            '/^(senior|junior|lead|chief|head)\s+(engineer|manager|developer|analyst|officer|designer)/i',
+            '/^other\s+projects?$/i',                   // nav element
+            '/^faculty\s+of\s+/i',                      // academic faculty
+            '/\bfaculty\b/i',                           // any faculty mention
+            '/\bacademy\b/i',                            // academies
+            '/\bsuicide\b/i',                           // not a company
+            '/\bprevention\s+office/i',                 // gov office
+            '/\bhappy\s+sweet/i',                       // bakery
+            '/\bdigital\s+dreams/i',                    // web design
+            '/\bcloud[\s-]computing/i',                 // generic cloud service
+            '/\bflooring\b/i',                          // flooring companies (Flowcrete)
+            '/\blubricant/i',                            // lubricant companies
+            '/\bshipping\s+(llc|co|corp|company|inc)/i',// shipping companies
+            '/\bwaste\s+management/i',                  // waste mgmt
+            '/\bhazardous\s+waste/i',                   // waste services
+            '/\bclean\s+harbors?/i',                    // waste management
+            '/\brecycl(ing|er)/i',                      // recycling
+            '/\bgeocycle/i',                            // waste services
+            '/\bfuel\s+(distribut|supply)/i',           // fuel distribution
+            '/\bvalero\b/i',                            // refinery
+            '/\bnobleprog\b/i',                         // training company
+            '/\bglobalknowledge/i',                     // training company
+            '/\bcapital\s+factory/i',                   // startup incubator
+            '/\bintelligence\b/i',                      // intelligence news
+            '/\bdock\s*411/i',                          // logistics app
+            '/\bspinet(ix)?/i',                         // digital signage
+            '/\bholding\b/i',                           // holding companies
+            '/\benvironment\s+monitoring/i',            // generic services
+            // ── iter14 additional patterns ────────────────────────────────
+            '/\boil\s*(&|and)\s*gas/i',                  // oil & gas companies
+            '/\bpetroleum\b/i',                          // petroleum companies
+            '/\bcertification\s+bod/i',                  // certification bodies
+            '/\bcertification\s+authorit/i',             // certification authorities
+            '/\btesting\s*(and|&|,)\s*(certification|inspection)/i', // testing bodies
+            '/\binspection\s*(and|&|,)\s*(certification|testing)/i', // inspection bodies
+            '/^(tüv|tuv|büv|buv|dekra|lrqa)\b/i',       // certification org names
+            '/\bpharma(ceut)?\w*\s+(industries|company|group|corp)/i', // pharma companies
+            '/\bscientific\s+research/i',                // research institutions
+            '/\btechnical\s+services\s+in\s+/i',       // generic geo pattern
+            '/\bbenefit\s+technologies/i',              // HR/benefits tech
+            '/\bguide\s+vfr/i',                         // aviation guide
+            '/\bchinaglobalsouth/i',                    // news site
+            '/\bzeekr\b/i',                             // car brand
+            '/\bbalear/i',                              // ferry company
+            '/\bgrupo\s+geocad/i',                      // surveying
+            '/\bdelphi\s*auto\s*parts/i',               // aftermarket parts
+            '/\b(mri|ct|x[\s-]?ray)\s+(equipment|services?|imaging)/i', // medical imaging
+            '/^complete\s+legal/i',                     // legal services
+            '/\bmouser\b/i',                            // component distributor
+            '/\bdigikey\b/i',                           // component distributor
+            '/\bfarnell\b/i',                           // component distributor
+            '/\bnewark\b/i',                            // component distributor
+            '/\barrow\s+electronics/i',                 // component distributor
+            '/\bavnet\b/i',                             // component distributor
+            // ── iter15 TN/EG/MA quality audit round 2 ─────────────────
+            '/^object\s+moved/i',                        // HTTP redirect artifact
+            '/^page\s+not\s+found/i',                    // 404 page
+            '/^access\s+denied/i',                       // 403 page
+            '/^forbidden/i',                             // 403 page
+            '/^just\s+a\s+moment/i',                     // Cloudflare challenge
+            '/^attention\s+required/i',                   // Cloudflare challenge
+            '/^you\s+are\s+being\s+redirected/i',        // redirect page
+            '/^redirect/i',                              // redirect page
+            '/^loading/i',                               // SPA loading page
+            '/^untitled\s*(document)?$/i',               // blank page
+            '/^sign\s+in/i',                             // login page
+            '/^log\s*in/i',                              // login page
+            '/^option\s*carriere/i',                      // job search website
+            '/^emploi/i',                                // job website
+            '/^offres?\s+d.emploi/i',                    // job listings (French)
+            '/^recrutement/i',                           // recruitment
+            '/^job\s+(search|board|listing|posting)/i',  // job sites
+            '/\b(sector|industri[ae])\s+(aeroespacial|aeronáutico|aéronaut)/i', // non-English sector descriptions
+            '/^(el|la|le|les|los|las|il|der|die|das)\s+sector/i',           // non-English articles + sector
+            '/\bisrael\s+radar/i',                      // defense contractor
+            '/\bsun\s+chemical/i',                      // chemical company
+            '/\bdupont\b/i',                            // chemical giant
+            '/\binside\s+in?diana/i',                   // news site
+            '/\bicp\s*-?\s*international/i',            // generic profiles
+            '/\bequipment\s+services?$/i',              // generic services
+            '/\bgentherm\b/i',                          // competitor (auto thermal)
+            '/\bsamsung\b/i',                           // giant conglomerate
+            '/\bairbus\b/i',                            // aerospace giant
+            '/\bboeing\b/i',                            // aerospace giant
+
+            // ─── Textile / Apparel / Garment / Leather ─────────────
+            '/\btextile\s+(manufactur|company|mill|group|corp)/i',
+            '/\bgarment\s+(manufactur|company|factory|export)/i',
+            '/\bapparel\b/i',                           // apparel companies
+            '/\bknitwear\b/i',                          // knitwear
+            '/\bweaving\s+(mill|factory|company)/i',
+            '/\bspinning\s+(mill|factory|company)/i',
+            '/\bdyeing\b/i',                            // textile dyeing
+            '/\btannery\b/i',                           // leather tanning
+            '/\bleather\s+(goods|products|tanning)/i',
+            '/\bfootwear\s+(manufactur|company)/i',
+            '/\bshoe\s+(manufactur|factory|company)/i',
+            '/\bembroidery\b/i',                        // textile
+            '/\bready[\s-]?made\s+garment/i',
+            '/\bcarpet\s+(manufactur|company|mill)/i',
+
+            // ─── Trade Bodies / Associations / Chambers ────────────
+            '/\bchamber\s+of\s+(commerce|industry|trade)/i',
+            '/\btrade\s+(body|council|association)\b/i',
+            '/\bbusiness\s+council\b/i',
+            '/\bemployers?\s+(association|federation)/i',
+            '/\bmanufacturers?\s+association\b/i',
+            '/\bexporters?\s+(association|council)/i',
+            '/\bindustry\s+(body|council|association)\b/i',
+
+            // ─── Packaging / Printing / Labels ─────────────────────
+            '/\bpackaging\s+(manufactur|company|group)/i',
+            '/\bcorrugated\s+(box|packaging)/i',
+            '/\bcarton\s+(manufactur|box|company)/i',
+            '/\bprinting\s+(company|house|press)/i',
+            '/\blabel\s+(manufactur|printing)/i',
+
+            // ─── Plastic / Rubber (non-electronics) ────────────────
+            '/\bplastic\s+injection\b/i',
+            '/\binjection\s+mold/i',
+            '/\bblow\s+mold/i',
+            '/\brubber\s+(compounding|extrusion|products)/i',
+            '/\bpolymer\s+(compounding|processing)/i',
+
+            // ─── Furniture / Glass / Ceramics ──────────────────────
+            '/\bfurniture\s+(manufactur|company|factory)/i',
+            '/\bwoodwork(ing)?\s+(company|factory)/i',
+            '/\bglass\s+(manufactur|company|factory)/i',
+            '/\bceramic\s+tile/i',
+
+            // ─── Steel / Foundry / Heavy Metal ─────────────────────
+            '/\bsteel\s+(mill|works|plant|company|producer)/i',
+            '/\bfoundry\b/i',
+            '/\biron\s+(works|casting|foundry)/i',
+            '/\bscrap\s+(metal|steel|iron)/i',
         ];
         
         foreach ($junkPatterns as $pattern) {
@@ -2523,6 +3892,820 @@ class GoogleDorkService
         }
         
         return false;
+    }
+
+    /**
+     * Classify a search result by analyzing its snippet to determine if
+    /**
+     * SYSTEMATIC HOMEPAGE CONTENT CLASSIFIER
+     *
+     * Instead of whack-a-mole name patterns, this method analyzes the
+     * actual HOMEPAGE HTML to classify the company by business type.
+     * Inspired by SIC/NAICS codes (5500=Auto Dealers, 5200-5999=Retail,
+     * 4000-4999=Transport, vs 2000-3999=Manufacturing).
+     *
+     * Scoring system:
+     *   NEGATIVE signals = dealer, franchise, retailer, parts shop, giant
+     *   POSITIVE signals = manufacturer, OEM, production facility
+     *
+     * Returns TRUE if this homepage belongs to a non-target business
+     * (dealer, distributor, franchise, retailer, service shop, giant OEM).
+     */
+    private function isHomepageDealerOrNonTarget(string $html, string $name, string $domain): bool
+    {
+        $text = strtolower(strip_tags($html));
+        $htmlLower = strtolower($html);
+        $score = 0;
+
+        // ─── Biotech / Pharma / Life Sciences homepage signals ─────
+        // Pure biotech companies are NOT EMS buyers (they buy lab equipment,
+        // not electronics manufacturing). Detect and reject.
+        $biotechSignals = 0;
+        if (preg_match('/\b(clinical\s+trial|drug\s+discovery|gene\s+therapy|mrna|immunotherapy|oncology|biosimilar|therapeutic\s+pipeline|drug\s+candidate|fda\s+approv)/i', $text)) $biotechSignals += 3;
+        if (preg_match('/\b(pharmaceutical|pharma|biopharma|biopharmaceutical)\s+(company|manufacturer|industry|leader)/i', $text)) $biotechSignals += 3;
+        if (preg_match('/\b(vaccine|antibody|antibodies|monoclonal|recombinant|peptide|protein\s+engineering|cell\s+therapy)/i', $text)) $biotechSignals += 2;
+        if (preg_match('/\b(clinical\s+research|phase\s+[I1-3]|regulatory\s+submission|nda|biologics?\s+license)/i', $text)) $biotechSignals += 2;
+        if ($biotechSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ─── Chemical / petrochemical / raw materials homepage signals ──
+        $chemicalSignals = 0;
+        if (preg_match('/\b(chemical\s+(manufactur|produc|plant|facility)|petrochemical|agrochemical|specialty\s+chemical)/i', $text)) $chemicalSignals += 3;
+        if (preg_match('/\b(fertilizer|pesticide|herbicide|polymer\s+produc|resin\s+manufactur|industrial\s+gas)/i', $text)) $chemicalSignals += 2;
+        if (preg_match('/\b(refinery|crude\s+oil|upstream|downstream|hydrocarbon|distillation)/i', $text)) $chemicalSignals += 2;
+        if ($chemicalSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Finance / investment / banking homepage signals ─────────
+        $financeSignals = 0;
+        if (preg_match('/\b(investment\s+(bank|fund|management|portfolio)|asset\s+management|wealth\s+management|hedge\s+fund)/i', $text)) $financeSignals += 3;
+        if (preg_match('/\b(private\s+equity|venture\s+capital|portfolio\s+companies|aum|assets?\s+under\s+management)/i', $text)) $financeSignals += 3;
+        if (preg_match('/\b(accounting|audit|tax\s+advisory|financial\s+statement|assurance\s+services)/i', $text)) $financeSignals += 2;
+        if (preg_match('/\b(insurance\s+(company|broker|underwriter|premium)|actuarial|claims\s+processing)/i', $text)) $financeSignals += 2;
+        if ($financeSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ─── Game studio / gaming company homepage signals ───────────
+        $gamingSignals = 0;
+        if (preg_match('/\b(game\s+studio|game\s+development|video\s+game|mobile\s+game|pc\s+game|console\s+game)/i', $text)) $gamingSignals += 3;
+        if (preg_match('/\b(gameplay|multiplayer|single[\s-]player|esports|twitch|steam|playstation|xbox|nintendo)/i', $text)) $gamingSignals += 2;
+        if (preg_match('/\b(unreal\s+engine|unity\s+engine|game\s+design|level\s+design|character\s+art)/i', $text)) $gamingSignals += 2;
+        if ($gamingSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ─── Channel partner / brand distributor homepage signals ────
+        // Schneider Electric channel partners, ABB value-added resellers, etc.
+        // These are NOT purchasers of EMS — they resell others' products
+        $channelPartnerSignals = 0;
+        if (preg_match('/\b(authorized\s+(distribut|resell|partner|dealer|channel)|channel\s+partner|value[\s-]added\s+resell)/i', $text)) $channelPartnerSignals += 3;
+        if (preg_match('/\b(schneider|abb|siemens|omron|allen[\s-]bradley|rockwell|mitsubishi|phoenix\s+contact|eaton)\s+(partner|distribut|resell|dealer|authorized)/i', $text)) $channelPartnerSignals += 3;
+        if (preg_match('/\b(we\s+(distribut|supply|stock|sell|represent)\s+(schneider|abb|siemens|eaton|omron|allen[\s-]bradley))/i', $text)) $channelPartnerSignals += 4;
+        // Products ONLY from brand catalogs, no own manufacturing
+        if (preg_match('/\b(product\s+catalog|brand\s+portfolio|we\s+carry|we\s+stock|authorized\s+stock)/i', $text)) $channelPartnerSignals += 1;
+        if ($channelPartnerSignals >= 4) {
+            $score -= 35;
+        }
+
+        // ─── Software company / IT services homepage signals (iter11) ─
+        $softwareSignals = 0;
+        if (preg_match('/\b(software\s+(company|development|solutions?|house|firm|services?)|custom\s+software|bespoke\s+software|offshore\s+software|nearshore\s+software)/i', $text)) $softwareSignals += 3;
+        if (preg_match('/\b(erp|crm|hrm|saas|cloud\s+platform|web\s+application|mobile\s+app|full[\s-]stack)\s+(software|solution|develop|platform|system)/i', $text)) $softwareSignals += 3;
+        if (preg_match('/\b(agile|scrum|devops|ci\/cd|microservice|api\s+develop|code\s+review|sprint|backlog|repository)/i', $text)) $softwareSignals += 2;
+        if (preg_match('/\b(python|java|php|node\.?js|react|angular|vue|\.net|c#|typescript|flutter|kotlin|swift)\b/i', $text)) $softwareSignals += 2;
+        if (preg_match('/\b(automotive\s+software|ecu\s+software|adas\s+software|hil\s+testing|model[\s-]based\s+design|autosar)/i', $text)) $softwareSignals += 3;
+        if ($softwareSignals >= 4) {
+            $score -= 40;
+        }
+
+        // ─── Equipment dealer / trading company homepage signals (iter11) ─
+        $equipDealerSignals = 0;
+        if (preg_match('/\b((lab|laboratory|medical|scientific|pharma|analytical)\s+equipment\s+(dealer|supplier|distributor|agent|trading))/i', $text)) $equipDealerSignals += 4;
+        if (preg_match('/\b(we\s+(sell|supply|distribute|represent|service)\s+.*?\b(equipment|instruments?|apparatus))/i', $text)) $equipDealerSignals += 2;
+        if (preg_match('/\b((sole|exclusive|authorized)\s+(agent|representative|dealer)\s+(for|of|in))/i', $text)) $equipDealerSignals += 3;
+        if (preg_match('/\b(calibration|maintenance|after[\s-]?sales?\s+service|spare\s+parts?|technical\s+support)\s+(for|of|services?)/i', $text)) $equipDealerSignals += 1;
+        if (preg_match('/\b(representing|distributing|supplying)\s+(international|global|leading|world[\s-]?class)\s+(brands?|manufacturers?)/i', $text)) $equipDealerSignals += 3;
+        if ($equipDealerSignals >= 4) {
+            $score -= 35;
+        }
+
+        // ─── Mining / quarrying / mineral company homepage signals (iter11) ─
+        $miningSignals = 0;
+        if (preg_match('/\b(mining\s+(company|operations?|industry|sector)|quarry(ing)?\s+(company|operations?)|mineral\s+(extraction|processing|resources?))/i', $text)) $miningSignals += 3;
+        if (preg_match('/\b(calcium\s+carbonate|limestone|marble|granite|gypsum|silica|feldspar|kaolin|dolomite|bauxite|phosphate)/i', $text)) $miningSignals += 3;
+        if (preg_match('/\b(open[\s-]?pit|underground\s+mine|crushing|grinding|beneficiation|flotation|ore\s+processing)/i', $text)) $miningSignals += 2;
+        if ($miningSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Engineering consultancy / EPC homepage signals (iter11) ─
+        $epcSignals = 0;
+        if (preg_match('/\b(engineering\s+(consultancy|consulting|services?)\s+(company|firm|group))/i', $text)) $epcSignals += 3;
+        if (preg_match('/\b(EPC|EPCM|engineering\s+procurement\s+.*?construction)/i', $text)) $epcSignals += 3;
+        if (preg_match('/\b(power\s+(plant|generation|station)\s+(engineering|design|construction)|thermal\s+power|combined[\s-]cycle)/i', $text)) $epcSignals += 3;
+        if (preg_match('/\b(project\s+management\s+consult|owner.?s\s+engineer|feasibility\s+stud)/i', $text)) $epcSignals += 2;
+        if ($epcSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Market research / report seller homepage signals (iter12) ──
+        $marketResearchSignals = 0;
+        if (preg_match('/\b(market\s+(report|research|insight|intelligence|forecast|analysis)|industry\s+report|research\s+report|market\s+size)/i', $text)) $marketResearchSignals += 3;
+        if (preg_match('/\b(CAGR|compound\s+annual|sample\s+pdf|request\s+sample|add\s+to\s+cart|buy\s+(this\s+)?report|report\s+overview|study\s+period)/i', $text)) $marketResearchSignals += 3;
+        if (preg_match('/\b(market\s+valuation|forecast\s+period|growth\s+driver|market\s+segmentation|regional\s+analysis|key\s+player|competitive\s+landscape)/i', $text)) $marketResearchSignals += 2;
+        if ($marketResearchSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ─── Government megaproject / giga-project / smart city dev (iter12) ─
+        $megaprojectSignals = 0;
+        if (preg_match('/\b(megaproject|mega[\s-]?project|giga[\s-]?project|smart\s+city\s+(project|development|initiative)|new\s+city\s+(project|development))/i', $text)) $megaprojectSignals += 3;
+        if (preg_match('/\b(vision\s+2030|region\s+in\s+the\s+making|future\s+of\s+living|reimagin(e|ing)\s+the\s+future|new\s+future|sustainable\s+urban)/i', $text)) $megaprojectSignals += 2;
+        if (preg_match('/\b(invest\s+in\s+neom|explore\s+careers|work\s+at\s+neom|sectors?\s+(biotech|design|entertainment|tourism|food|sport))/i', $text)) $megaprojectSignals += 3;
+        if ($megaprojectSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Arabic / regional financial news / stock market data (iter12) ─
+        $finNewsSignals = 0;
+        if (preg_match('/\b(stock\s+market|stock\s+exchange|share\s+price|market\s+cap|تاسي|نمو|سوق)/i', $text)) $finNewsSignals += 3;
+        if (preg_match('/\b(IPO|dividend|earnings|quarterly\s+report|financial\s+result|analyst\s+estimate|mutual\s+fund)/i', $text)) $finNewsSignals += 2;
+        if (preg_match('/\b(بورصة|أسهم|صناديق|اكتتاب|توزيعات|أرباح|مؤشر)/u', $text)) $finNewsSignals += 3;
+        if ($finNewsSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ─── Telecoms industry / telecom operator news (iter12) ─
+        $telecomNewsSignals = 0;
+        if (preg_match('/\b(telecom(s|munication)?\s+(news|industry|sector|operator|business)|5G[\s-]?(advanced|A|monetis)|wireless\s+network|spectrum\s+(deal|auction))/i', $text)) $telecomNewsSignals += 3;
+        if (preg_match('/\b(mobile\s+operator|data\s+centre|subsea\s+cable|fibre\s+(optic|network|project)|broadband\s+operator|network\s+upgrade)/i', $text)) $telecomNewsSignals += 2;
+        if (preg_match('/\b(GSMA|MWC|Mobile\s+World\s+Congress|ITU|FTTH|cell\s*tower|tower\s+company)/i', $text)) $telecomNewsSignals += 2;
+        if ($telecomNewsSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Trade show / exhibition / airshow homepage (iter12) ──────
+        $tradeShowSignals = 0;
+        if (preg_match('/\b(trade\s*show|air\s*show|trade\s*fair|expo(sition)?|conference\s+&\s+exhibition)/i', $text)) $tradeShowSignals += 3;
+        if (preg_match('/\b(exhibit(or)?\s+(list|registration|profile|booth|stand)|book\s+(a\s+)?(stand|booth)|visitor\s+registration|register\s+now|floor\s+plan)/i', $text)) $tradeShowSignals += 3;
+        if (preg_match('/\b(keynote\s+speaker|panel\s+discussion|networking\s+event|sponsor(ship)?\s+(package|opportunit))/i', $text)) $tradeShowSignals += 2;
+        if ($tradeShowSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Drone delivery / last-mile delivery service (iter12) ─────
+        $droneDeliverySignals = 0;
+        if (preg_match('/\b(drone\s+delivery|delivery\s+drone|autonomous\s+delivery|instant\s+delivery|store[\s-]to[\s-]door)/i', $text)) $droneDeliverySignals += 3;
+        if (preg_match('/\b(last[\s-]mile|order\s+now|get\s+it\s+delivered|delivery\s+in\s+minutes|on[\s-]demand\s+delivery)/i', $text)) $droneDeliverySignals += 2;
+        if ($droneDeliverySignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── ERP / business software homepage (iter13 Tunisia — Odoo) ─────
+        $erpSignals = 0;
+        if (preg_match('/\b(erp\s+(software|solution|platform|system)|business\s+management\s+software|all[\s-]in[\s-]one\s+business\s+(software|platform))/i', $text)) $erpSignals += 3;
+        if (preg_match('/\b(crm\s+module|accounting\s+module|inventory\s+module|point\s+of\s+sale|e[\s-]?commerce\s+platform|open[\s-]source\s+(erp|business))/i', $text)) $erpSignals += 3;
+        if (preg_match('/\b(manage\s+your\s+business|business\s+apps?|grow\s+your\s+business\s+with)/i', $text)) $erpSignals += 2;
+        if ($erpSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ─── IT engineering services / software consultancy homepage (iter13 Tunisia) ──
+        $itServicesSignals = 0;
+        if (preg_match('/\b(embedded\s+(software|systems?)\s+(develop|engineer|services?)|R&D\s+(services?|outsourc)|IT\s+engineering\s+services?)/i', $text)) $itServicesSignals += 3;
+        if (preg_match('/\b(CMMI|nearshore|offshore)\s+(level|engineer|develop|services?|partner)/i', $text)) $itServicesSignals += 3;
+        if (preg_match('/\b(digital\s+transformation|cloud\s+computing|PLM\s+solutions?|telecom\s+software|agile\s+development)/i', $text)) $itServicesSignals += 2;
+        if ($itServicesSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Adhesive/glue/paint/brush manufacturer homepage (iter13 Tunisia) ──
+        $nonElecMfgSignals = 0;
+        if (preg_match('/\b(wood\s+glue|shoe\s+glue|construction\s+glue|contact\s+adhesive|solvent|varnish|anti[\s-]corrosion\s+paint|oil\s+paint|waterproof\s+paint)/i', $text)) $nonElecMfgSignals += 3;
+        if (preg_match('/\b(paintbrush|paint\s+roller|hygiene\s+brush|household\s+brush|industrial\s+brush|brush\s+manufactur)/i', $text)) $nonElecMfgSignals += 3;
+        if (preg_match('/\b(alumini?um\s+extrusion|building\s+profil|solar\s+panel\s+frame|LED\s+channel|heat\s+sink\s+profil)/i', $text)) $nonElecMfgSignals += 3;
+        if ($nonElecMfgSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Auto spare parts dealer / car dealership homepage (iter13 Tunisia) ──
+        $autoPartsSignals = 0;
+        if (preg_match('/\b(spare\s+parts?\s+(distribut|wholesale|dealer|catalog)|auto(motive)?\s+spare\s+parts?|car\s+spare\s+parts?)/i', $text)) $autoPartsSignals += 3;
+        if (preg_match('/\b(sub[\s-]?dealer|authorized\s+dealer|franchise\s+dealer|Mercedes[\s-]Benz\s+dealer|Hyundai\s+dealer|Kia\s+dealer)/i', $text)) $autoPartsSignals += 3;
+        if (preg_match('/\b(genuine\s+parts?|original\s+parts?|OEM\s+replacement\s+parts?|after[\s-]?market\s+parts?)/i', $text)) $autoPartsSignals += 2;
+        if ($autoPartsSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Business/management consulting firm homepage (iter13 Tunisia) ──
+        $consultingSignals = 0;
+        if (preg_match('/\b(business\s+consulting|management\s+consulting|consulting\s+firm|consulting\s+for\s+investor|market\s+entry\s+advisory)/i', $text)) $consultingSignals += 3;
+        if (preg_match('/\b(strategy\s+consulting|investment\s+advisory|due\s+diligence|feasibility\s+study|market\s+research\s+consulting)/i', $text)) $consultingSignals += 3;
+        if (preg_match('/\b(satisfied\s+clients?|active\s+projects?|business\s+plan|consulting\s+services?)/i', $text)) $consultingSignals += 2;
+        if ($consultingSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Freight / logistics / transport homepage signals (iter11b) ─
+        $freightSignals = 0;
+        if (preg_match('/\b(freight\s+(forward|transport|services?|company)|air\s+freight|sea\s+freight|maritime\s+freight|road\s+freight)/i', $text)) $freightSignals += 3;
+        if (preg_match('/\b(customs\s+(broker|clearance|transit)|cargo\s+(handling|transport)|warehousing|container\s+shipping|supply\s+chain\s+logistics)/i', $text)) $freightSignals += 3;
+        if (preg_match('/\b(transit(aire)?|shipment|bill\s+of\s+lading|incoterms?|door[\s-]to[\s-]door\s+delivery|track\s+(your|my)\s+(shipment|cargo))/i', $text)) $freightSignals += 2;
+        if ($freightSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Academic journal / research publisher homepage signals (iter11b) ─
+        $journalSignals = 0;
+        if (preg_match('/\b(academic\s+journal|peer[\s-]review|scientific\s+journal|research\s+journal|open[\s-]access\s+journal)/i', $text)) $journalSignals += 3;
+        if (preg_match('/\b(call\s+for\s+papers?|submit\s+(a\s+)?paper|manuscript\s+submission|editorial\s+board|review\s+process|published\s+articles?)/i', $text)) $journalSignals += 3;
+        if (preg_match('/\b(impact\s+factor|citation|issn|doi|volume\s+\d|issue\s+\d)/i', $text)) $journalSignals += 2;
+        if ($journalSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ─── Tyre brand / tyre company homepage signals (iter11b) ─
+        $tyreSignals = 0;
+        if (preg_match('/\b(tyre|tire)\s+(range|finder|size|pressure|dealer|shop|store|catalogue)/i', $text)) $tyreSignals += 3;
+        if (preg_match('/\b(summer\s+tyre|winter\s+tyre|all[\s-]season|run[\s-]flat|pneumatique|tread\s+pattern|tyre\s+performance)/i', $text)) $tyreSignals += 3;
+        if (preg_match('/\b(tyre|tire)\s+(brand|manufactur|technology|innovation)/i', $text)) $tyreSignals += 2;
+        if ($tyreSignals >= 3) {
+            $score -= 35;
+        }
+
+        // ─── Job board / recruitment portal homepage signals ─────────
+        $jobBoardSignals = 0;
+        if (preg_match('/\b(job\s+(board|portal|listing|search|seeker)|post\s+a\s+job|find\s+a\s+job|career\s+portal)/i', $text)) $jobBoardSignals += 3;
+        if (preg_match('/\b(resume|cv\s+builder|job\s+alert|apply\s+now|search\s+jobs|latest\s+jobs)/i', $text)) $jobBoardSignals += 2;
+        if ($jobBoardSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CAR DEALER / FRANCHISE / SHOWROOM SIGNALS (SIC 5500)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Inventory-style language (car dealer hallmark)
+        $dealerPhrases = [
+            'pre-owned', 'pre owned', 'certified pre-owned',
+            'book a test drive', 'schedule a test drive', 'request a test drive',
+            'schedule service', 'book service', 'service appointment',
+            'trade-in', 'trade in value', 'trade your vehicle',
+            'vehicle inventory', 'browse inventory', 'view inventory',
+            'our inventory', 'search inventory', 'in stock',
+            'new vehicles', 'used vehicles', 'certified vehicles',
+            'special offers', 'lease deals', 'finance offers',
+            'new cars for sale', 'used cars for sale',
+            'build and price', 'build & price',
+            'msrp', 'sticker price', 'dealer price',
+            'kbb', 'kelley blue book', 'edmunds',
+            'carfax', 'autocheck', 'vehicle history',
+            'vin number', 'miles', 'mileage',
+            'sedan', 'suv', 'pickup truck', 'crossover',
+            'body shop', 'collision center', 'collision centre',
+        ];
+        foreach ($dealerPhrases as $phrase) {
+            if (str_contains($text, $phrase)) {
+                $score -= 5;
+            }
+        }
+
+        // Multiple car brand names on same page = multi-brand dealer
+        $carBrands = [
+            'chrysler', 'jeep', 'dodge', 'ram', 'fiat',
+            'chevrolet', 'buick', 'cadillac', 'gmc',
+            'ford', 'lincoln', 'mercury',
+            'toyota', 'lexus', 'scion',
+            'honda', 'acura', 'nissan', 'infiniti',
+            'hyundai', 'kia', 'genesis',
+            'bmw', 'mercedes-benz', 'mercedes benz', 'audi',
+            'volkswagen', 'porsche', 'volvo',
+            'mazda', 'subaru', 'mitsubishi',
+            'land rover', 'jaguar', 'alfa romeo', 'maserati',
+        ];
+        $brandsFound = 0;
+        foreach ($carBrands as $brand) {
+            if (substr_count($text, $brand) >= 2) {
+                $brandsFound++;
+            }
+        }
+        if ($brandsFound >= 3) {
+            $score -= 30; // 3+ car brands appearing repeatedly = dealer
+        } elseif ($brandsFound >= 2) {
+            $score -= 15;
+        }
+
+        // "Authorized dealer" / franchise language
+        if (preg_match('/\b(authorized|authorised)\s+(dealer|dealership|retailer|reseller|distributor)\b/i', $text)) {
+            $score -= 20;
+        }
+        if (preg_match('/\b(franchise|franchisee|franchised)\b/i', $text)) {
+            $score -= 15;
+        }
+
+        // CDJR-style combined brand names
+        if (preg_match('/\b(cdjr|cjdr|dodge\s+(city|county)|chrysler\s+dodge|jeep\s+ram)\b/i', $text)) {
+            $score -= 25;
+        }
+
+        // "of [City]" pattern in dealer names
+        if (preg_match('/\b(ford|toyota|chevrolet|honda|nissan|hyundai|kia)\s+of\s+[a-z]+/i', $text)) {
+            $score -= 20;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // PARTS DISTRIBUTOR / AFTERMARKET SIGNALS (SIC 5010-5090)
+        // ═══════════════════════════════════════════════════════════════
+
+        $distributorPhrases = [
+            'add to cart', 'add to basket', 'buy now', 'shop now',
+            'free shipping', 'order today', 'in stock', 'out of stock',
+            'add to wishlist', 'shopping cart', 'checkout',
+            'spare parts', 'replacement parts', 'aftermarket parts',
+            'oem replacement', 'genuine parts', 'original parts',
+            'part number', 'part #', 'p/n:', 'sku:',
+            'we distribute', 'authorized distributor',
+            'wholesale distributor', 'parts catalog',
+            'aviation parts', 'aircraft parts for sale',
+        ];
+        foreach ($distributorPhrases as $phrase) {
+            if (str_contains($text, $phrase)) {
+                $score -= 4;
+            }
+        }
+
+        // E-commerce HTML patterns (product listing pages)
+        if (preg_match('/(class|id)=["\'].*?(product-grid|product-list|shop-items|cart-button|add-to-cart|woocommerce|shopify)/i', $htmlLower)) {
+            $score -= 15;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // AUTO TUNING / MODIFICATION / WRAP / ACCESSORIES (SIC 7500)
+        // ═══════════════════════════════════════════════════════════════
+
+        $tuningPhrases = [
+            'car tuning', 'chip tuning', 'ecu tuning', 'remapping',
+            'vehicle wrap', 'car wrap', 'vinyl wrap',
+            'window tinting', 'paint protection', 'ceramic coating',
+            'car accessories', 'auto accessories',
+            'exhaust system', 'performance exhaust',
+            'suspension kit', 'lift kit', 'lowering kit',
+            'custom wheels', 'alloy wheels',
+            'car audio', 'car stereo', 'dash cam',
+            'diagfix', 'diagnostic tool', 'obd2 scanner',
+        ];
+        foreach ($tuningPhrases as $phrase) {
+            if (str_contains($text, $phrase)) {
+                $score -= 5;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // NEWS / MEDIA / PUBLICATION SIGNALS (SIC 2711-2741)
+        // ═══════════════════════════════════════════════════════════════
+
+        $mediaPhrases = [
+            'subscribe to newsletter', 'latest articles',
+            'read more articles', 'editorial team', 'journalist',
+            'breaking news', 'published on', 'by our reporter',
+            'media office', 'press office', 'news agency',
+            'business news', 'industry news', 'market news',
+        ];
+        foreach ($mediaPhrases as $phrase) {
+            if (str_contains($text, $phrase)) {
+                $score -= 5;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // JOB BOARD / RECRUITMENT PORTAL SIGNALS
+        // ═══════════════════════════════════════════════════════════════
+
+        if (preg_match('/\b(post a job|job seekers?|upload (your )?cv|upload resume|apply for this job|career opportunities|job alerts?)\b/i', $text)) {
+            $score -= 20;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FREE ZONE / BUSINESS PARK / ECONOMIC ZONE SIGNALS
+        // ═══════════════════════════════════════════════════════════════
+
+        if (preg_match('/\b(set up your business|company registration|business licensing|investor benefits|free zone company|freezone authority|register your company|integrated industrial platform|industrial\s+ecosystem|hectares?\s+of\s+(industrial|land)|companies\s+installed|set\s+up\s+(in|at)\s+the\s+zone|industrial\s+zones?\s+(authority|operator|developer))\b/i', $text)) {
+            $score -= 20;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // RACING / MOTORSPORT / ENTERTAINMENT SIGNALS
+        // ═══════════════════════════════════════════════════════════════
+
+        if (preg_match('/\b(race results|lap times?|race schedule|racing series|autonomous racing|grand prix|circuit|track day)\b/i', $text)) {
+            $score -= 20;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // GIANT OEM / FORTUNE-500 CONTENT SIGNALS
+        // These companies are too large for EMS — they have in-house
+        // production or use only Tier-0 EMS providers (Foxconn, Jabil).
+        // ═══════════════════════════════════════════════════════════════
+
+        $giantSignals = [
+            'fortune 500', 'fortune 100', 'fortune global',
+            'more than 100,000 employees', 'over 100,000 employees',
+            'over 50,000 employees', 'more than 50,000',
+            'revenue exceeding', 'billion in revenue',
+            'operates in more than 100 countries',
+            'operates in over 50 countries',
+            'global workforce of', 'worldwide operations',
+        ];
+        foreach ($giantSignals as $phrase) {
+            if (str_contains($text, $phrase)) {
+                $score -= 10;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // POSITIVE SIGNALS — Real manufacturer / OEM / buyer
+        // These offset negatives — legitimate companies may have
+        // a few dealer-like words incidentally.
+        // ═══════════════════════════════════════════════════════════════
+
+        $mfgPhrases = [
+            'we manufacture', 'we design and manufacture',
+            'our manufacturing facility', 'our production facility',
+            'our factory', 'our plant', 'our r&d',
+            'engineering team', 'design team',
+            'product development', 'prototyping',
+            'iso 9001 certified', 'iatf 16949', 'as9100',
+            'iso 13485', 'nadcap',
+            'pcb assembly', 'cable harness', 'wire harness',
+            'electronic assembly', 'box build',
+            'we supply to', 'we are a tier',
+            'our products are used in',
+            'years of experience in manufacturing',
+            'state-of-the-art facility',
+            'cleanroom', 'smt line', 'reflow oven',
+            'quality management system',
+        ];
+        foreach ($mfgPhrases as $phrase) {
+            if (str_contains($text, $phrase)) {
+                $score += 8;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DECISION
+        // ═══════════════════════════════════════════════════════════════
+
+        // Strong negative signals → reject
+        if ($score <= -20) {
+            $this->logger->debug('Homepage classifier: REJECTED (score={score})', [
+                'name' => $name, 'domain' => $domain, 'score' => $score,
+            ]);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * SMART POSITIVE SCORING: Determine if a candidate is likely a
+     * genuine EMS buyer (OEM, manufacturer, integrator that NEEDS
+     * electronic assemblies made for their products).
+     *
+     * Instead of trying to blocklist every possible non-company (infinite),
+     * this method looks for POSITIVE signals that the company:
+     * 1. Makes/designs products (not just services/trading/media)
+     * 2. Operates in a sector that needs electronic assemblies
+     * 3. Has structural name patterns consistent with real companies
+     * 4. Has a domain consistent with a manufacturer/OEM
+     *
+     * Returns TRUE if this looks like a real EMS buyer prospect.
+     * Returns FALSE if there's no evidence this is a real buyer.
+     */
+    private function isLikelyEMSBuyer(string $name, string $snippet, string $title, string $domain): bool
+    {
+        $text = strtolower($snippet . ' ' . $title . ' ' . $name);
+        $lower = strtolower(trim($name));
+        $score = 0;
+
+        // ═══════════════════════════════════════════════════════════════
+        // NEGATIVE signals — strong evidence this is NOT a buyer
+        // ═══════════════════════════════════════════════════════════════
+
+        // ─── Government / Authority / Public body ──────────────────
+        if (preg_match('/\b(government|authority|ministry|department\s+of|bureau\s+of|office\s+of|council|parliament|senate|commission|board\s+of|agency|administration|municipality|prefecture|governor|directorate|secretariat)\b/i', $text)) {
+            $score -= 50;
+        }
+        if (preg_match('/\.(gov|mil|edu)(\.[a-z]{2,3})?$/i', $domain)) {
+            $score -= 50;
+        }
+
+        // ─── Trade body / Association / Federation ─────────────────
+        if (preg_match('/\b(trade\s+body|trade\s+association|industry\s+body|industry\s+association|chamber\s+of\s+commerce|federation|confederation|alliance|coalition|consortium|cooperative|syndicate)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── News / Media / Publishing ─────────────────────────────
+        if (preg_match('/\b(newspaper|news\s+agency|media\s+company|publishing|editorial|journalist|reporter|correspondent|newsroom|magazine|podcast|broadcast)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Event / Conference / Exhibition ───────────────────────
+        if (preg_match('/\b(trade\s+show|exhibition|expo|conference|summit|forum|congress|symposium|convention|fair|show\s+daily|auto\s+show|motor\s+show)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── University / Academic / Research institute ────────────
+        if (preg_match('/\b(university|universit[éèeäa]|college|academic|faculty|school\s+of|institute\s+of|research\s+center|research\s+centre|campus|professor|lecture|student|thesis|doctoral|phd)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Distributor of another brand ──────────────────────────
+        // "Schneider distributor", "authorized dealer of Siemens"
+        if (preg_match('/\b(exclusive\s+distribut|authorized\s+distribut|official\s+distribut|regional\s+distribut|sole\s+distribut|distribut(or|ion)\s+(of|for)\s+\w+|authorized\s+dealer|official\s+dealer|value[\s-]added\s+reseller|var\s+partner|channel\s+partner)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Pure trading company / importer / reseller ────────────
+        if (preg_match('/\b(trading\s+company|general\s+trading|import(er|ing)\s+(and|&)\s+export|wholesale\s+trading|we\s+trade|we\s+import|we\s+export|commodity\s+trad|trading\s+fze|trading\s+llc)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Hospital / Clinic / Healthcare provider ───────────────
+        if (preg_match('/\b(hospital|clinic|medical\s+center|medical\s+centre|patient\s+care|health\s+system|healthcare\s+provider|nursing|physician|doctor|ambulance|pharmacy|drugstore)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Financial services / Bank / Insurance ─────────────────
+        if (preg_match('/\b(bank|banking|insurance|fintech|financial\s+services|credit\s+union|stock\s+exchange|brokerage|hedge\s+fund|asset\s+manage|wealth\s+manage|payment\s+processing)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Free Zone / Industrial Park / Economic Zone ───────────
+        if (preg_match('/\b(free\s+zone|freezone|free\s+trade\s+zone|industrial\s+(city|platform|zone)|industrial\s+park|economic\s+zone|special\s+economic|technology\s+park|business\s+park|airport\s+freezone|integrated\s+industrial\s+platform|invest(ors?|ment)\s+benefits?|land\s+for\s+(lease|rent|sale)\s+.*?industrial|set\s+up\s+(your|a)\s+(business|company)\s+(in|at))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Job listing / Vacancy / Recruitment ───────────────────
+        if (preg_match('/\b(job\s+vacancies|job\s+openings?|careers?\s+page|we\s+are\s+hiring|apply\s+now|join\s+our\s+team|recruitment|headhunt|talent\s+acquisition|staffing\s+agency)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Facilities management / Cleaning / Catering ──────────
+        if (preg_match('/\b(facilities?\s+management|cleaning\s+services?|catering|janitor|housekeeping|pest\s+control|security\s+guard|property\s+manage)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Racing / Sports / Entertainment ──────────────────────
+        if (preg_match('/\b(racing\s+league|motorsport|formula\s+[1e]|grand\s+prix|football|soccer|basketball|cricket|entertainment|gaming|casino|bet(ting)?)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Real estate / Construction / Architecture ────────────
+        if (preg_match('/\b(real\s+estate|property\s+develop|construction\s+company|general\s+contractor|architect(ure|ural)\s+(firm|company)|building\s+contractor|civil\s+engineer(ing)?\s+(company|contractor))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Shipping / Logistics / Freight ────────────────────────
+        if (preg_match('/\b(shipping\s+(company|line|services?)|freight\s+(forward|transport|services?|company)|logistics\s+(provider|company|services?|solutions?)|supply\s+chain\s+logistics|customs\s+(broker|clearance|transit)|cargo\s+(handling|transport|services?)|container\s+terminal|port\s+operation|stevedoring|air\s+freight|sea\s+freight|maritime\s+freight|road\s+freight|warehousing\s+services?|transit(aire)?\s+(international|company))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Food / Beverage / Agriculture ─────────────────────────
+        if (preg_match('/\b(food\s+(and|&)\s+beverage|bottling|brewery|winery|dairy|bakery|confectionery|meat\s+process|poultry|agriculture|farming|fertilizer|animal\s+feed|crop\s+protection)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Consulting / Legal / Audit ────────────────────────────
+        if (preg_match('/\b(consulting\s+firm|law\s+firm|legal\s+services|accounting\s+firm|audit\s+firm|management\s+consult|strategy\s+consult|advisory\s+firm|tax\s+consult)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Telecom operator (not equipment maker) ────────────────
+        if (preg_match('/\b(mobile\s+operator|telecom\s+operator|cellular\s+network|internet\s+service\s+provider|broadband\s+provider|isp\b|mobile\s+network|data\s+plans?|prepaid|postpaid|roaming)\b/i', $text)) {
+            $score -= 30;
+        }
+
+        // ─── Car dealer / Auto retail ──────────────────────────────
+        if (preg_match('/\b(car\s+dealer|auto\s+(dealer|group)|motor\s+group|fleet\s+sales|certified\s+pre-owned|pre-owned\s+vehicles?|used\s+cars?|new\s+cars?\s+for\s+sale|showroom|test\s+drive)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Petroleum / Refinery / Oil & Gas ──────────────────────
+        if (preg_match('/\b(petroleum|refinery|crude\s+oil|natural\s+gas|upstream|downstream|drilling\s+rig|oilfield|hydrocarbon|lng\s+terminal|pipeline\s+operator)\b/i', $text)) {
+            $score -= 30;
+        }
+
+        // ─── Pharma / Biotech / Drug companies ─────────────────────
+        if (preg_match('/\b(pharmaceutical|pharma\s+company|biotech(nology)?|biopharmaceutical|clinical\s+trial|drug\s+(development|discovery|pipeline)|gene\s+therapy|mRNA|biosimilar|vaccine\s+develop|immunotherapy|oncology\s+drug)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Chemical / Agrochemical / Fertilizer ──────────────────
+        if (preg_match('/\b(chemical\s+(company|manufacturer|plant|producer)|specialty\s+chemical|petrochemical\s+(company|plant)|agrochemical|fertilizer\s+(company|plant|producer)|adhesive\s+manufacturer|paint\s+manufacturer|coating\s+company|solvent|polymer\s+producer)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Game studio / Video game ──────────────────────────────
+        if (preg_match('/\b(game\s+studio|video\s+game|game\s+develop(er|ment)|indie\s+game|gaming\s+(company|studio)|esports?|multiplayer\s+game|game\s+publisher)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Generic IT services / Cloud / Hosting ─────────────────
+        if (preg_match('/\b(it\s+services?\s+(in|company|provider|dubai|egypt)|web\s+design|web\s+develop|app\s+develop|cloud\s+hosting|managed\s+hosting|data\s+center\s+services?|server\s+rental|server\s+basket|it\s+support\s+services?)\b/i', $text)) {
+            $score -= 30;
+        }
+
+        // ─── NGO / Aid / Development ──────────────────────────────
+        if (preg_match('/\b(humanitarian|refugee|development\s+aid|foreign\s+aid|poverty|ngo|non[\s-]?governmental|unicef|who\b|world\s+bank|international\s+development|capacity\s+building)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Certification / ISO / Auditing body ──────────────────
+        if (preg_match('/\b(iso\s+certification\s+(in|for|services?)|we\s+certify|certification\s+body|certifying\s+body|audit(ing)?\s+services?|accreditation\s+body|iso\s+9001\s+certification\s+services?)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Software company / ERP / SaaS (iter11 Egypt) ─────────
+        if (preg_match('/\b(software\s+(company|development|solutions?|house|firm|provider)|ERP\s+(software|solutions?|vendor|system)|SaaS\s+(platform|provider|company)|custom\s+software|offshore\s+software|embedded\s+software\s+(develop|company)|automotive\s+software\s+(develop|company))\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Automation reseller / distributor (iter11 Egypt EISAC) ─
+        if (preg_match('/\b(automation\s+(distributor|reseller|dealer|supplier|trading)|industrial\s+automation\s+solutions?\s+provider|(authorized|certified)\s+(siemens|abb|schneider)\s+(partner|distributor|dealer|reseller))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Equipment dealer / agent / trading company ────────────
+        if (preg_match('/\b((lab|laboratory|medical|scientific|pharma)\s+equipment\s+(dealer|agent|supplier|trading)|equipment\s+(trading|import)\s+company|(sole|exclusive|authorized)\s+agent\s+(for|of|in))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Mining / quarrying / mineral extraction ───────────────
+        if (preg_match('/\b(mining\s+(company|operations?)|quarry(ing)?\s+(company|operations?)|mineral\s+(processing|extraction|mining)|calcium\s+carbonate|limestone\s+(quarry|mining)|cement\s+(company|manufactur|plant))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Engineering consultancy / EPC ─────────────────────────
+        if (preg_match('/\b(EPC\s*[\/&]\s*EPCM|power\s+(plant|generation)\s+(engineering|construction|consultancy)|engineering\s+procurement\s+.*?construction)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Car dealership network / auto retail group ────────────
+        if (preg_match('/\b(car\s+dealer(ship)?|auto(mobile)?\s+dealer(ship)?|vehicle\s+(import|trading|distribution)|authorized\s+(dealer|distributor|importer)\s+(for|of)\s+(mercedes|bmw|toyota|nissan|hyundai|kia|ford))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Aircraft MRO / avionics dealer (iter11b Morocco MDS) ──
+        if (preg_match('/\b(aircraft\s+(maintenance|repair|overhaul|mro)|avionics\s+(upgrade|dealer|installation|shop)|easa\s+part\s+145|aircraft\s+sales?\s+(and|&)\s+(leasing|broker)|helicopter\s+maintenance|engine\s+(overhaul|repair)\s+shop)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Tyre brand / tyre dealer (iter11b Morocco Dunlop) ─────
+        if (preg_match('/\b(tyre\s+(manufactur|brand|dealer|distributor|shop|finder|range|size)|tire\s+(manufactur|brand|dealer|distributor|shop|finder|size)|pneumatique|tyre\s+pressure|run[\s-]flat\s+tyre|all[\s-]season\s+tyre)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Academic journal / research publisher (iter11b ETASR) ──
+        if (preg_match('/\b(academic\s+journal|peer[\s-]review|open[\s-]access\s+journal|research\s+paper|scientific\s+journal|call\s+for\s+papers?|submit\s+(a\s+)?paper|published\s+articles?)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Market research / report seller (iter12 Vyansa) ────────
+        if (preg_match('/\b(market\s+(report|research|insight|intelligence|forecast)|industry\s+report|research\s+report|CAGR|sample\s+pdf|buy\s+(this\s+)?report|market\s+size\s+.*?forecast|report\s+overview|study\s+period)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Government megaproject / giga-project (iter12 NEOM) ────
+        if (preg_match('/\b(megaproject|mega[\s-]?project|giga[\s-]?project|smart\s+city\s+(project|development)|region\s+in\s+the\s+making|vision\s+2030\s+.*?(project|city|zone))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Telecoms news / operator industry site (iter12) ────────
+        if (preg_match('/\b(telecom(s|munication)?\s+(news|industry|sector|operator|business|regulation)|5G[\s-]?(advanced|monetis)|spectrum\s+(deal|auction)|mobile\s+operator|subsea\s+cable|fibre\s+(optic|network)\s+project)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Arabic financial news / stock market data (iter12) ─────
+        if (preg_match('/\b(stock\s+market\s+data|stock\s+exchange\s+(news|data)|share\s+price\s+tracker|financial\s+(news|portal|data)\s+(site|portal|platform)|بورصة|تاسي|أسهم|اكتتاب)\b/iu', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Trade show / exhibition / airshow (iter12) ──────────────
+        if (preg_match('/\b(trade\s*show|air\s*show|expo(sition)?\s+event|trade\s*fair|exhibit(or)?\s+registration|book\s+(a\s+)?booth|visitor\s+registration)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Drone delivery / last-mile service (iter12 Zipline) ─────
+        if (preg_match('/\b(drone\s+delivery|delivery\s+drone|autonomous\s+delivery|store[\s-]to[\s-]door|instant\s+delivery\s+service|last[\s-]mile\s+delivery\s+drone)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Auto spare parts distributor / car dealer (iter13 Tunisia) ─────
+        if (preg_match('/\b(auto(motive)?\s+spare\s+parts?|car\s+spare\s+parts?|spare\s+parts?\s+(wholesale|distribution|dealer)|Mercedes[- ]Benz\s+(dealer|sub[- ]dealer|agent)|authorized\s+dealer\s+of\s+(Mercedes|BMW|Toyota|Hyundai))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Adhesive / glue / paint / brush manufacturer (iter13 Tunisia) ──
+        if (preg_match('/\b(adhesive\s+manufactur|glue\s+manufactur|paint\s+manufactur|paintbrush|brush\s+manufactur|wood\s+glue|shoe\s+glue|solvent\s+manufactur|varnish\s+manufactur)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Aluminum extrusion (not electronics) (iter13 Tunisia) ──────
+        if (preg_match('/\b(alumini?um\s+extrusion|alumini?um\s+profil(e|es)\s+manufactur|building\s+profil(e|es)\s+extrusion|extruded\s+alumini?um)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── IT engineering / embedded software services (iter13 Tunisia) ────
+        if (preg_match('/\b(embedded\s+software\s+(services?|consulting|company)|R&D\s+outsourc|nearshore\s+engineering|offshore\s+engineer|engineering\s+services?\s+(company|provider|firm))\b/i', $text)) {
+            $score -= 30;
+        }
+
+        // ─── Business/management consulting firm (iter13 Tunisia) ────
+        if (preg_match('/\b(business\s+consulting|management\s+consulting|consulting\s+firm|consulting\s+for\s+investor|market\s+entry\s+advisory|investment\s+advisory)\b/i', $text)) {
+            $score -= 30;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // POSITIVE signals — evidence this IS a real buyer
+        // ═══════════════════════════════════════════════════════════════
+
+        // ─── OEM / product design / R&D language ──────────────────
+        if (preg_match('/\b(we\s+design|we\s+develop|we\s+engineer|our\s+products?|product\s+line|product\s+range|product\s+portfolio|r&d|research\s+and\s+development|innovation\s+center|engineering\s+team)\b/i', $text)) {
+            $score += 20;
+        }
+
+        // ─── Mentions specific product types that need EMS ────────
+        if (preg_match('/\b(inverter|converter|controller|sensor|actuator|module|radar|lidar|avionics|telematics|infotainment|instrument\s+cluster|battery\s+management|bms|ecu|power\s+supply|ups|generator|switchgear|transformer|motor\s+drive|vfd|plc|hmi|scada)\b/i', $text)) {
+            $score += 15;
+        }
+
+        // ─── Mentions manufacturing but NOT as a service ──────────
+        if (preg_match('/\b(factory|plant|production\s+line|production\s+facility|manufacturing\s+plant|assembly\s+plant|production\s+capacity|warehouse|quality\s+control|lean\s+manufactur|six\s+sigma)\b/i', $text)) {
+            $score += 10;
+        }
+
+        // ─── Has proper business structure indicators ─────────────
+        if (preg_match('/\b(headquarters|founded|established|since\s+\d{4}|employees|revenue|annual\s+revenue|global\s+presence|worldwide|subsidiaries|divisions|locations\s+in)\b/i', $text)) {
+            $score += 10;
+        }
+
+        // ─── Domain has commercial TLD + looks professional ───────
+        if (preg_match('/\.(com|co|net)$/i', $domain) && !preg_match('/\.(wordpress|blogspot|wix|squarespace)\.com$/i', $domain)) {
+            $score += 5;
+        }
+        // Country-code TLDs for target regions
+        if (preg_match('/\.(ae|eg|ma|de|fr|nl|cz|pl|ro|us)$/i', $domain)) {
+            $score += 5;
+        }
+
+        // ─── Name has proper company structure ────────────────────
+        // Contains Ltd, LLC, Inc, GmbH, SA, Corp, Group, etc.
+        if (preg_match('/\b(ltd|llc|inc|corp|gmbh|sa|sas|bv|nv|ag|plc|co|pty|srl|spa|fze|fzc|group|holding)\b/i', $name)) {
+            $score += 10;
+        }
+
+        // ─── Name suggests a product/systems company ──────────────
+        if (preg_match('/\b(systems|electronics|electric|power|energy|tech|technologies|automation|robotics|aerospace|defense|defence|marine|medical|instruments|motors|drives|controls|optics|photonics|solutions)\b/i', $name)) {
+            $score += 10;
+        }
+
+        // ─── Snippet mentions industry certifications ─────────────
+        if (preg_match('/\b(iso\s+9001|iatf\s+16949|as9100|iso\s+13485|iso\s+14001|nadcap|cmmi|ce\s+mark(ed|ing)?)\b/i', $text)) {
+            $score += 10;
+        }
+
+        // ─── Snippet mentions supply chain / procurement ──────────
+        if (preg_match('/\b(supply\s+chain|procurement|outsourc|vendor|supplier\s+to|supply\s+to|deliver\s+to|oem\s+partner|tier[\s-]?[12]\s+supplier)\b/i', $text)) {
+            $score += 10;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DECISION: Require positive evidence of being a buyer
+        // ═══════════════════════════════════════════════════════════════
+
+        // Any strong negative signal → reject immediately
+        if ($score <= -20) {
+            $this->logger->debug('Rejected: strong negative signal', [
+                'name' => $name, 'score' => $score, 'domain' => $domain,
+            ]);
+            return false;
+        }
+
+        // Require at least SOME positive evidence of being an EMS buyer.
+        // A score of 0 means no positive or negative signals → garbage.
+        // Real OEM companies always have at least one positive signal
+        // (product language, certifications, manufacturing mentions, etc.)
+        if ($score < 5) {
+            $this->logger->debug('Rejected: insufficient positive evidence', [
+                'name' => $name, 'score' => $score, 'domain' => $domain,
+            ]);
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -2649,8 +4832,8 @@ class GoogleDorkService
             }
         }
 
-        // ─── 5. CONTROL PANEL / SYSTEM INTEGRATOR signals ────────────
-        // These are assembly shops, not OEM buyers of EMS services
+        // ─── 5. CONTROL PANEL / SYSTEM INTEGRATOR / AUTOMATION RESELLER signals ──
+        // These are assembly shops or brand resellers, not OEM buyers of EMS services
         $integratorSignals = [
             'control\s+panel\s+(manufactur|build|assembl|design|wir)',
             'panel\s+build(er|ing)',
@@ -2658,6 +4841,15 @@ class GoogleDorkService
             'plc\s+(programming|integration|panel)',
             'bespoke\s+(control|automation)\s+(panel|system|solution)',
             'system\s+integrat(or|ion)\s+(for|specializ|provid)',
+            // ── Automation reseller / distributor (iter11 Egypt EISAC) ──
+            '\b(authorized|certified|official)\s+(siemens|abb|schneider|omron|rockwell|allen[\s-]?bradley|beckhoff|mitsubishi|phoenix\s+contact|eaton)\s+(partner|distributor|reseller|integrator|dealer)',
+            '\b(siemens|abb|schneider|omron|rockwell|allen[\s-]?bradley|eaton)\s+(solution|channel|certified)\s+partner',
+            '\bautomation\s+(distributor|reseller|dealer|supplier|trading|products?\s+supplier)',
+            '\b(we\s+)?(sell|supply|distribute|stock|represent)\s+(siemens|abb|schneider|omron|rockwell|eaton)\b',
+            '\bindustrial\s+automation\s+(solutions?\s+)?(provider|supplier|distributor|company)',
+            '\b(plc|hmi|vfd|drive|inverter|servo)s?\s+(supply|supplier|sales|distributor|trading)',
+            '\bautomation\s+product(s)?\s+(catalog|range|portfolio|trading)',
+            '\b(low|medium)\s+voltage\s+(products?|switchgear|panel)\s+(distributor|supplier|dealer)',
         ];
 
         foreach ($integratorSignals as $pattern) {
@@ -2676,6 +4868,13 @@ class GoogleDorkService
             '\bmro\s+(provider|service|company|specialist)',
             'aircraft\s+(maintenance|repair|overhaul)',
             'component\s+repair\s+(and|&)\s+(overhaul|service)',
+            // ── iter11b Morocco MDS Aviation ──
+            '\beasa\s+part\s+(21|145|M)',
+            'avionics\s+(upgrade|install|repair|shop|dealer)',
+            'aircraft\s+sales?\s+(and|&)\s+(leasing|brokerage|charter)',
+            '(helicopter|rotorcraft|turboprop)\s+(maintenance|mro|service)',
+            'engine\s+(overhaul|repair|test)\s+(shop|facility|center)',
+            'landing\s+gear\s+(overhaul|repair|service)',
         ];
 
         foreach ($mroSignals as $pattern) {
@@ -2719,6 +4918,13 @@ class GoogleDorkService
             'consulting\s+(firm|company|practice|service)',
             'business\s+(consulting|advisory)',
             'market\s+(research|intelligence|analysis)\s+(firm|company|provider)',
+            // ── iter12: market reports, telecoms news, megaprojects ──
+            'market\s+report\s+(publisher|seller|provider)',
+            'industry\s+(report|research|forecast|outlook)\s+(provider|publisher)',
+            'CAGR.*?forecast.*?(market|industry)',
+            'telecom(s|munication)?\s+(news|industry)\s+(site|portal|publication|magazine)',
+            'megaproject|mega[\s-]?project|giga[\s-]?project',
+            'government\s+development\s+(project|zone|authority)',
         ];
 
         foreach ($consultingSignals as $pattern) {
@@ -2911,8 +5117,8 @@ class GoogleDorkService
         // ─── 17. PHARMA / BIOTECH / HEALTHCARE PROVIDERS ───────────
         // These appear in Medical sector queries but are NOT device OEMs
         $pharmaSignals = [
-            '\bpharmaceutical\s+(company|manufacturer|industry)',
-            '\bdrug\s+(development|discovery|manufacturer)',
+            '\bpharmaceutical\s+(company|manufacturer|industry|group|corporation)',
+            '\bdrug\s+(development|discovery|manufacturer|candidate|pipeline)',
             '\bclinical\s+trial',
             '\btherapeutic(s)?\s+(area|pipeline|candidate)',
             '\bgene\s+therapy\b',
@@ -2926,6 +5132,20 @@ class GoogleDorkService
             '\bhealth\s+insurance\b',
             '\bhealthcare\s+(provider|system|network)',
             '\bsterilization\s+services?\b',
+            '\bbiotech(nology)?\s+(company|firm|startup|industry)',
+            '\bbiopharmaceutical\b',
+            '\blife\s+science(s)?\s+(company|sector)',
+            '\bactive\s+pharmaceutical\s+ingredient',
+            '\bAPI\s+manufactur',  // pharmaceutical API manufacturing
+            '\bgeneric\s+(drug|medicine|pharmaceutical)',
+            '\bnucleus\s+acid\b',
+            '\bCRO\b.*\bpharm',   // contract research org for pharma
+            '\bcell\s+therapy\b',
+            '\bprotein\s+engineering\b',
+            '\bmonoclonal\s+antibod',
+            '\bcompounding\s+pharmacy\b',
+            '\bpharma\s+(company|group|industry|division)',
+            '\bregulatory\s+affairs?\s+.*(pharma|drug|fda)',
         ];
 
         foreach ($pharmaSignals as $pattern) {
@@ -2951,6 +5171,17 @@ class GoogleDorkService
             '\brefinery\s+(operations?|company)',
             '\bhydrocarbon\b',
             '\bnatural\s+gas\s+(processing|transport|liquefaction)',
+            // ── Mineral extraction / quarrying (iter11 Egypt ACCM) ──
+            '\bcalcium\s+carbonate\b',
+            '\blimestone\s+(quarry|mining|extraction|crushing)',
+            '\bmineral\s+(processing|extraction|mining|company|producer)',
+            '\bquarry(ing)?\s+(company|operations?|industry)',
+            '\b(gypsum|feldspar|silica|talc|kaolin|dolomite|barite|bentonite|calcium|bauxite|phosphate|graphite)\s+(mining|extraction|processing|producer)',
+            '\bground\s+calcium\b',
+            '\b(open[\s-]pit|underground)\s+min(e|ing)\b',
+            '\bmineral\s+resources?\s+(company|group)',
+            '\bore\s+(processing|mining|extraction|enrichment)',
+            '\bcement\s+(company|manufactur|plant|factory|producer)',
         ];
 
         foreach ($oilGasSignals as $pattern) {
@@ -2965,7 +5196,7 @@ class GoogleDorkService
 
         // ─── 19. INVESTMENT / PRIVATE EQUITY / INSURANCE signals ────
         $investmentSignals = [
-            '\binvestment\s+(fund|management|bank|firm|company|portfolio)',
+            '\binvestment\s+(fund|management|bank|firm|company|portfolio|advisory|group)',
             '\basset\s+management\s+(firm|company)',
             '\bprivate\s+equity\s+(firm|fund|group)',
             '\bventure\s+capital\s+(firm|fund)',
@@ -2975,6 +5206,18 @@ class GoogleDorkService
             '\bportfolio\s+management\b',
             '\bhedge\s+fund\b',
             '\bwealth\s+management\b',
+            '\bfinancial\s+(advisory|consulting|services)\s+(firm|company)',
+            '\bcorporate\s+finance\s+(advisory|boutique)',
+            '\bmergers?\s+(and|&)\s+acquisitions?\b',
+            '\bM&A\s+(advisory|boutique|firm)',
+            '\bfund\s+management\b',
+            '\bfintech\s+(company|startup|platform)',
+            '\bcommercial\s+bank(ing)?\b',
+            '\bcredit\s+(union|facility|rating)',
+            '\baccounting\s+(firm|company|services)',
+            '\bchartered\s+accountant',
+            '\baudit(ing)?\s+(firm|company|services)',
+            '\btax\s+(advisory|consulting|services)\s+(firm|company)',
         ];
 
         foreach ($investmentSignals as $pattern) {
@@ -3102,7 +5345,7 @@ class GoogleDorkService
 
         // ─── 25. CHEMICAL / PETROCHEMICAL / RAW MATERIAL signals ───
         $chemicalSignals = [
-            '\bchemical\s+(company|manufacturer|producer|supplier|distribution)',
+            '\bchemical\s+(company|manufacturer|producer|supplier|distribution|plant|factory)',
             '\bspecialty\s+chemical\b',
             '\bchemicals?\s+(and|&)\s+material\b',
             '\bplastics?\s+(compounding|injection|molding|moulds?)\b',
@@ -3110,6 +5353,17 @@ class GoogleDorkService
             '\bpaints?\s+(and|&)\s+(coatings?|varnish)\b',
             '\badhesives?\s+(and|&)\s+(sealant|tape)\b',
             '\blubricant\s+(manufacturer|supplier|company)\b',
+            '\bfertilizer\s+(company|manufacturer|plant|producer)',
+            '\bagrochemical\s+(company|manufacturer|producer)',
+            '\bpolymer\s+(manufacturer|producer|company)',
+            '\bresin\s+(manufacturer|producer|supplier)',
+            '\bsolvent\s+(manufacturer|producer|supplier)',
+            '\bsurfactant\b',
+            '\bindustrial\s+(chemical|solvent|detergent)\b',
+            '\bchemical\s+(engineering|processing|process)\s+(company|plant)',
+            '\bcoating\s+(manufacturer|supplier|company|solution)',
+            '\bpigment\s+(manufacturer|producer|supplier)',
+            '\bexplosive(s)?\s+(manufacturer|maker|company)',
         ];
 
         foreach ($chemicalSignals as $pattern) {
@@ -3143,6 +5397,31 @@ class GoogleDorkService
             }
         }
 
+        // ─── 26b. NON-MANUFACTURING: adhesives, paint, brushes, extrusion (iter13 Tunisia) ──
+        $nonMfgIndustrialSignals = [
+            '\badhesive\s+(manufacturer|producer|factory)',
+            '\bglue\s+(manufacturer|producer|factory)',
+            '\bpaint\s+(manufacturer|producer|factory)',
+            '\bbrush\s+(manufacturer|producer|factory)',
+            '\bpaintbrush\s+(manufacturer|producer)',
+            '\balumini?um\s+extrusion\s+(manufacturer|company|factory)',
+            '\bauto(motive)?\s+spare\s+parts?\s+(distributor|wholesal|supplier|dealer)',
+            '\bcar\s+spare\s+parts?\s+(distributor|wholesal|supplier)',
+            '\bspare\s+parts?\s+(wholesale|distribution|dealer)',
+            '\bMercedes[- ]Benz\s+(dealer|sub[- ]dealer|agent)',
+            '\bauthorized\s+dealer\s+of\s+(Mercedes|BMW|Toyota|Hyundai|Kia)',
+        ];
+
+        foreach ($nonMfgIndustrialSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Non-manufacturing industrial company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
         // ─── 27. SOFTWARE / TESTING / CERTIFICATION signals ────────
         $softwareTestingSignals = [
             '\bEDA\s+software\b',
@@ -3150,11 +5429,322 @@ class GoogleDorkService
             '\bvehicle\s+(testing|homologation|certification)\s+(lab|center|facility|service)',
             '\btest\s+(lab|laboratory|certification)\b',
             '\bengineering\s+consultan',
+            // ── Software company / IT services (iter11 Egypt) ──────────
+            '\bsoftware\s+(company|development|solutions?|provider|house|firm|developer)',
+            '\b(custom|bespoke|offshore|nearshore)\s+software\b',
+            '\bERP\s+(software|solutions?|system|vendor|provider|platform|implementation)',
+            '\bSaaS\s+(platform|provider|company|product|solution)',
+            '\b(mobile|web|app)\s+develop(ment|er)\s+(company|firm|agency|services?)',
+            '\bit\s+solutions?\s+(company|provider|firm)',
+            '\btechnology\s+solutions?\s+(company|provider|firm)',
+            '\bdigital\s+transformation\s+(company|agency|partner|firm)',
+            '\b(crm|hrm|accounting|billing|inventory)\s+software\b',
+            '\bcloud\s+(platform|solution|services?)\s+(company|provider)',
+            '\bmanaged\s+(it|cloud)\s+services?\b',
+            '\bsoftware\s+as\s+a\s+service\b',
+            '\bembedded\s+software\s+(develop|services?|company|solutions?)',
+            '\bautomotive\s+software\s+(develop|company|solutions?|services?)',
+            '\bECU\s+software\b',
+            '\bADAS\s+software\b',
+            '\bHIL\s+testing\s+software\b',
+            '\baviation\s+(it|information\s+technology)\b',
+            // ── Engineering consultancy / EPC / EPCM (iter11 PGESCo) ──
+            '\bEPC\s*[\/&]\s*EPCM\b',
+            '\b(EPC|EPCM)\s+(contractor|company|services?|project)',
+            '\bpower\s+(plant|generation|station)\s+(engineering|construction|consultancy)',
+            '\bengineering\s+(procurement|services?)\s+(and|&)\s+construction\b',
         ];
 
         foreach ($softwareTestingSignals as $pattern) {
             if (preg_match('/' . $pattern . '/i', $text)) {
                 $this->logger->debug('Software/testing/consulting company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 27b. EQUIPMENT DEALER / AGENT / REPRESENTATIVE signals ──
+        // Companies that sell/service other brands' equipment are not EMS buyers
+        $equipmentDealerSignals = [
+            '\b(authorized|official|certified)\s+(agent|representative|dealer|distributor)\s+(for|of)\b',
+            '\bequipment\s+(dealer|agent|supplier|trading|rental)',
+            '\b(lab|laboratory|medical|pharma|scientific)\s+equipment\s+(dealer|supplier|distributor|agent|trading|company)',
+            '\b(we\s+)?(sell|supply|distribute|service|maintain|calibrate|repair)\s+(and\s+)?(sell|supply|distribute|service|maintain|calibrate|repair\s+)?.*?\b(equipment|instruments?)\s+(from|by|manufactured\s+by)\b',
+            '\b(sole|exclusive|authorized)\s+(agent|representative)\s+(in|for)\s+(egypt|morocco|middle\s+east|africa|mena)',
+            '\brepresenting\s+(international|global|leading)\s+brands?\b',
+            '\b(trading|import)\s+(company|house)\s+.*?(equipment|instruments?|machines?)',
+            '\binstrument(ation)?\s+(dealer|supplier|trading|distributor|agent)',
+        ];
+
+        foreach ($equipmentDealerSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Equipment dealer/agent detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 27c. CAR DEALERSHIP NETWORK / AUTO RETAIL GROUP signals ──
+        // These disguise themselves as "automotive company" but are dealers/importers
+        $carDealershipSignals = [
+            '\b(car|auto|vehicle|automobile)\s+(dealership|dealer\s+network|retail\s+group|showroom)',
+            '\b(authorized|official|exclusive)\s+(dealer|distributor|importer)\s+(for|of)\s+(mercedes|bmw|audi|toyota|nissan|hyundai|kia|ford|chevrolet|volkswagen|renault|peugeot|fiat|jeep|chrysler)',
+            '\bnational\s+auto(mobile)?\s+(company|trading|group|dealer)',
+            '\b(import(er|ing)|distribut(or|ing))\s+(of\s+)?(passenger|commercial)\s+vehicles?\b',
+            '\b(after[\s-]?sales|spare\s+parts?|service\s+center)\s+(for|of)\s+(mercedes|bmw|toyota|nissan|hyundai)',
+            '\bvehicle\s+(import|trading|distribution)\s+(company|group)',
+        ];
+
+        foreach ($carDealershipSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Car dealership network detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 28. TEXTILE / APPAREL / GARMENT / LEATHER signals ──────
+        $textileSignals = [
+            '\btextile\s+(manufactur|company|mill|factory|industry|group)',
+            '\bgarment\s+(manufactur|company|factory|industry|export)',
+            '\bapparel\s+(manufactur|company|brand|industry)',
+            '\bclothing\s+(manufactur|company|brand|factory)',
+            '\bfashion\s+(brand|house|company|design)',
+            '\bknitwear\s+(manufactur|company|factory)',
+            '\b(weaving|spinning|dyeing)\s+(mill|factory|plant|company)',
+            '\bfabric\s+(manufactur|supplier|mill)',
+            '\b(cotton|polyester|denim|silk|wool)\s+(manufactur|mill|fabric)',
+            '\bleather\s+(goods|manufactur|tanning|company|products)',
+            '\bshoe\s+(manufactur|company|factory)',
+            '\bfootwear\s+(manufactur|company|brand)',
+            '\b(embroidery|sewing|stitching|tailoring)\s+(company|factory|services?)',
+            '\bready[\s-]made\s+garment',
+            '\bhome\s+textile',
+            '\bcarpet\s+(manufactur|company|mill)',
+            '\brug\s+(manufactur|company)',
+        ];
+
+        foreach ($textileSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Textile/apparel/garment company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 29. TRADE BODY / ASSOCIATION / CHAMBER signals ─────────
+        $tradeBodySignals = [
+            '\bchamber\s+of\s+(commerce|industry|trade)',
+            '\bbusiness\s+council\b',
+            '\btrade\s+council\b',
+            '\bindustry\s+(body|council|association|group)\b',
+            '\bemployers?\s+(association|federation|organisation|organization)',
+            '\bmanufacturers?\s+(association|federation|organisation|organization)',
+            '\bexporters?\s+(association|council|federation)',
+            '\bmember\s+(directory|listing|companies|organizations)',
+            '\bjoin\s+(our|the)\s+(association|organization|chamber|body)',
+            '\bour\s+members\b',
+            '\bmembership\s+(benefits|fees|join|apply)',
+            '\bindustry\s+lobby\b',
+            '\btrade\s+promotion\s+(agency|authority|council)',
+            '\bbusiness\s+network\b',
+        ];
+
+        foreach ($tradeBodySignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Trade body/association detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 30. PACKAGING / PRINTING / LABEL signals ───────────────
+        $packagingSignals = [
+            '\bpackaging\s+(manufactur|company|supplier|solutions?|materials?)',
+            '\bcorrugated\s+(box|packaging|cardboard)',
+            '\bcarton\s+(manufactur|box|packaging)',
+            '\bprinting\s+(company|house|press|services?|solutions?)',
+            '\blabel\s+(manufactur|printing|company)',
+            '\bshrink\s+(wrap|film|sleeve)',
+            '\bflexible\s+packaging\b',
+            '\bplastic\s+(bag|film|bottle)\s+(manufactur|company)',
+            '\bglass\s+(bottle|container)\s+(manufactur|company)',
+        ];
+
+        foreach ($packagingSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Packaging/printing company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 31. PLASTIC INJECTION / RUBBER MOLDING signals ─────────
+        $plasticSignals = [
+            '\bplastic\s+injection\s+(mold|mould|manufactur|company)',
+            '\binjection\s+(mold|mould)ing\s+(company|manufactur|services?)',
+            '\bblow\s+(mold|mould)ing\s+(company|manufactur)',
+            '\brotational\s+(mold|mould)ing\b',
+            '\bthermoforming\s+(company|manufactur)',
+            '\brubber\s+(mold|mould)ing\s+(company|manufactur)',
+            '\brubber\s+(compounding|extrusion|products?)\s+(company|manufactur)',
+            '\bplastic\s+(extrusion|compounding|products?)\s+(company|manufactur)',
+            '\bpolymer\s+(compounding|processing)\s+(company|manufactur)',
+        ];
+
+        foreach ($plasticSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Plastic/rubber molding company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 32. FURNITURE / WOODWORKING / GLASS signals ────────────
+        $furnitureSignals = [
+            '\bfurniture\s+(manufactur|company|factory|maker)',
+            '\boffice\s+furniture\b',
+            '\bkitchen\s+(cabinet|manufactur|company)',
+            '\bwoodwork(ing)?\s+(company|factory|workshop)',
+            '\bcarpentry\s+(company|workshop|services?)',
+            '\bglass\s+(manufactur|company|factory|processing)',
+            '\bwindow\s+(manufactur|company|factory)',
+            '\bdoor\s+(manufactur|company|factory)',
+            '\balumini?um\s+profile\s+(manufactur|company)',
+            '\bceramic\s+(tile|manufactur|company)',
+        ];
+
+        foreach ($furnitureSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Furniture/woodworking/glass company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 33. STEEL / FOUNDRY / HEAVY METAL signals ──────────────
+        $steelSignals = [
+            '\bsteel\s+(manufactur|mill|works|plant|company|producer)',
+            '\biron\s+(works|casting|foundry)',
+            '\bfoundry\s+(company|services?|operations?)',
+            '\b(aluminum|aluminium)\s+(smelter|foundry|rolling)',
+            '\bmetal\s+(stamping|forging|casting)\s+(company|manufacturer)',
+            '\bscrap\s+(metal|steel|iron)\b',
+            '\bpipe\s+(manufactur|mill|steel)',
+        ];
+
+        foreach ($steelSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Steel/foundry/heavy metal company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 34. GAME STUDIO / VIDEO GAME signals ──────────────────
+        $gameSignals = [
+            '\bgame\s+(studio|developer|development|publisher)',
+            '\bvideo\s+game\s+(company|developer|studio|publisher)',
+            '\bindependent\s+game\s+(studio|developer)',
+            '\bindie\s+game\b',
+            '\bgameplay\b',
+            '\besports?\b',
+            '\bmultiplayer\s+(game|online)',
+            '\bMMO(RPG)?\b',
+            '\bgaming\s+(company|studio|industry|platform)',
+            '\bmobile\s+game\s+(studio|developer)',
+            '\bgame\s+engine\b',
+        ];
+
+        foreach ($gameSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Game studio/gaming company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 35. CHANNEL PARTNER / DISTRIBUTOR (not OEM) signals ────
+        // Schneider/ABB/Siemens channel partners resell, they don't buy EMS
+        $channelPartnerSignals = [
+            '\bauthori[sz]ed\s+(distributor|reseller|partner|dealer)',
+            '\b(schneider|ABB|siemens|legrand)\s+(partner|elite|distributor|dealer)',
+            '\belectrical\s+(distributor|wholesaler|dealer)',
+            '\belectronics?\s+(e-?shop|webshop|online\s+store)',
+            '\b(distributor|dealer)\s+of\s+(schneider|ABB|siemens|legrand|SE|eaton)',
+            '\bwe\s+(distribute|resell|supply)\s+(schneider|ABB|siemens)',
+            '\b(panel|switchgear|switchboard)\s+(builder|assembler)\b',
+            '\belectrical\s+(panel|switchboard|MCC)\s+(manufactur|assembl|builder)',
+            '\bsolar\s+panel\s+install(er|ation)?\b',
+            '\bbuilding\s+automation\s+(integrator|installer|dealer)',
+        ];
+
+        foreach ($channelPartnerSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Channel partner/distributor detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 36. NEWS / MEDIA / JOB BOARD / PUBLICATION signals ────
+        $newsMediaSignals = [
+            '\bnews\s+(agency|outlet|portal|site|publication)',
+            '\bnewspaper\b',
+            '\bonline\s+(magazine|publication|journal|news)',
+            '\bjob\s+(board|portal|listing|posting|site|aggregator)',
+            '\brecruitment\s+(platform|portal|website)',
+            '\bjob\s+search\s+(engine|platform)',
+            '\bresume\s+(builder|posting|database)',
+            '\bcareer(s)?\s+(portal|platform|site|page)',
+        ];
+
+        foreach ($newsMediaSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('News/media/job board detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 37. CAR DEALER / SHOWROOM signals ─────────────────────
+        $carDealerSignals = [
+            '\bcar\s+(dealer|dealership|showroom)',
+            '\bauto(mobile)?\s+(dealer|dealership|showroom)',
+            '\bpre-?owned\s+(vehicle|car|auto)',
+            '\bnew\s+(and|&)\s+used\s+(car|vehicle|auto)',
+            '\btest\s+drive\b.*\b(schedule|book|today)',
+            '\bfinancing\s+(option|available|plan).*\bvehicle\b',
+            '\bauthori[sz]ed\s+(dealer|dealership)\b.*\b(toyota|ford|hyundai|kia|dodge|chevrolet|bmw|mercedes)',
+        ];
+
+        foreach ($carDealerSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Car dealer/showroom detected', [
                     'domain' => $domain,
                     'matched' => $pattern,
                 ]);
@@ -3258,6 +5848,18 @@ class GoogleDorkService
                 $enrichment = $this->processHomepageHtml($html, $data['name']);
 
                 if ($enrichment !== null) {
+                    // ── SYSTEMATIC CONTENT CLASSIFIER ────────────────
+                    // Analyze full homepage HTML for dealer/distributor/
+                    // franchise vs manufacturer signals. This catches
+                    // car dealers, franchises, retailers, and giant OEMs
+                    // that name-based patterns miss.
+                    if ($this->isHomepageDealerOrNonTarget($html, $data['name'], $domain)) {
+                        $this->logger->info('Rejected via homepage content classifier (dealer/non-target)', [
+                            'name' => $data['name'], 'domain' => $domain,
+                        ]);
+                        continue; // Skip this candidate entirely
+                    }
+
                     $data = $this->mergeEnrichment($data, $enrichment);
                     $verified[$domain] = $data;
                     $this->logger->debug('Verified+enriched via homepage', [
@@ -3265,6 +5867,45 @@ class GoogleDorkService
                         'has_phone' => !empty($data['phone']),
                         'has_contacts' => !empty($data['contacts']),
                     ]);
+
+                    // ── MULTI-PAGE SCRAPE: /contact, /about-us, /team ──
+                    // If we verified but have no contacts yet, scrape
+                    // subpages that commonly list people/contacts.
+                    if (empty($data['contacts']) || empty($data['address'])) {
+                        $subpageEnrichment = $this->scrapeSubpagesForContacts(
+                            $data['website'] ?? '',
+                            $data['name']
+                        );
+                        if ($subpageEnrichment) {
+                            $data = $this->mergeEnrichment($data, $subpageEnrichment);
+                            $verified[$domain] = $data;
+                        }
+                    }
+
+                    // ── EMAIL-TO-NAME HEURISTIC ──────────────────────
+                    // If still no named contacts but we have emails,
+                    // try extracting person names from email patterns
+                    if (empty($data['contacts'])) {
+                        $emailContacts = $this->extractContactsFromEmails($data);
+                        if (!empty($emailContacts)) {
+                            $data['contacts'] = $emailContacts;
+                            $verified[$domain] = $data;
+                        }
+                    }
+
+                    // ── GOOGLE→LINKEDIN PERSON SEARCH ────────────────
+                    // Last resort: search Google for LinkedIn profiles of
+                    // decision-makers at this company (1 API call)
+                    if (empty($data['contacts'])) {
+                        $liContacts = $this->searchLinkedInDecisionMakers($data['name']);
+                        if (!empty($liContacts)) {
+                            $data['contacts'] = $liContacts;
+                            $verified[$domain] = $data;
+                            $this->logger->info('Found contacts via Google→LinkedIn search', [
+                                'company' => $data['name'], 'count' => count($liContacts),
+                            ]);
+                        }
+                    }
                 } else {
                     $needsLinkedIn[$domain] = $data;
                 }
@@ -3293,6 +5934,26 @@ class GoogleDorkService
                 $this->logger->debug('Verified+enriched via LinkedIn', [
                     'name' => $data['name'], 'domain' => $domain,
                 ]);
+                // Also scrape subpages for contacts/address
+                if (empty($data['contacts']) || empty($data['address'])) {
+                    $sub = $this->scrapeSubpagesForContacts($data['website'] ?? '', $data['name']);
+                    if ($sub) { $data = $this->mergeEnrichment($data, $sub); $verified[$domain] = $data; }
+                }
+                if (empty($data['contacts'])) {
+                    $ec = $this->extractContactsFromEmails($data);
+                    if ($ec) { $data['contacts'] = $ec; $verified[$domain] = $data; }
+                }
+                // Google→LinkedIn person search (1 API call)
+                if (empty($data['contacts'])) {
+                    $liContacts = $this->searchLinkedInDecisionMakers($data['name']);
+                    if (!empty($liContacts)) {
+                        $data['contacts'] = $liContacts;
+                        $verified[$domain] = $data;
+                        $this->logger->info('Found contacts via Google→LinkedIn search (LI-verified)', [
+                            'company' => $data['name'], 'count' => count($liContacts),
+                        ]);
+                    }
+                }
                 usleep(250000);
                 continue;
             }
@@ -3314,10 +5975,57 @@ class GoogleDorkService
                 usleep(250000);
             }
 
-            // ── Not verified → reject ─────────────────────────────
-            $this->logger->info('Rejected unverified company', [
-                'name' => $name, 'domain' => $domain,
-            ]);
+            // ── BENEFIT OF THE DOUBT ──────────────────────────────
+            // Companies that passed all 4 upstream filters (blocked domain,
+            // junk name, competitor/wrong-type, isLikelyEMSBuyer) but
+            // couldn't be verified via homepage or LinkedIn.
+            //
+            // Common reasons for verification failure:
+            //  - Cloudflare / bot-protection blocks homepage scrape
+            //  - Small/medium company without a LinkedIn page
+            //  - LinkedIn page exists but Google didn't index it yet
+            //
+            // Instead of hard-rejecting, accept if the domain looks like
+            // a plausible company domain (short, branded, not generic).
+            $domainParts = explode('.', $domain);
+            $baseName = $domainParts[0] ?? '';
+            $looksLikeCompanyDomain = (
+                mb_strlen($baseName) >= 3 &&         // at least 3 chars
+                mb_strlen($baseName) <= 30 &&        // not absurdly long
+                !preg_match('/\d{4,}/', $baseName) && // no long digit strings
+                !preg_match('/^(info|shop|store|buy|deal|free|best|top|my|the|get|go|web|net|online)$/i', $baseName) // not generic
+            );
+
+            if ($looksLikeCompanyDomain) {
+                $data['verification_status'] = 'unverified_accepted';
+                // Try subpage scraping for contacts/address
+                if (empty($data['contacts']) || empty($data['address'])) {
+                    $sub = $this->scrapeSubpagesForContacts($data['website'] ?? '', $data['name']);
+                    if ($sub) { $data = $this->mergeEnrichment($data, $sub); }
+                }
+                if (empty($data['contacts'])) {
+                    $ec = $this->extractContactsFromEmails($data);
+                    if ($ec) { $data['contacts'] = $ec; }
+                }
+                // Google→LinkedIn person search (1 API call)
+                if (empty($data['contacts'])) {
+                    $liContacts = $this->searchLinkedInDecisionMakers($data['name']);
+                    if (!empty($liContacts)) {
+                        $data['contacts'] = $liContacts;
+                        $this->logger->info('Found contacts via Google→LinkedIn search (benefit-of-doubt)', [
+                            'company' => $data['name'], 'count' => count($liContacts),
+                        ]);
+                    }
+                }
+                $verified[$domain] = $data;
+                $this->logger->info('Accepted unverified company (benefit of doubt)', [
+                    'name' => $name, 'domain' => $domain,
+                ]);
+            } else {
+                $this->logger->info('Rejected unverified company (generic domain)', [
+                    'name' => $name, 'domain' => $domain,
+                ]);
+            }
         }
 
         $this->logger->info('Company verification completed', [
@@ -3359,6 +6067,14 @@ class GoogleDorkService
         foreach ($enrichKeys as $key) {
             if (!empty($enrichment[$key]) && empty($data[$key])) {
                 $data[$key] = $enrichment[$key];
+            }
+        }
+
+        // ── iter15: sanitize address — strip HTML/JavaScript artifacts ──
+        if (!empty($data['address'])) {
+            $data['address'] = $this->sanitizeAddress($data['address']);
+            if (empty($data['address'])) {
+                unset($data['address']);
             }
         }
 
@@ -3630,6 +6346,16 @@ class GoogleDorkService
             $enrichment['contacts'] = $contactInfo['contacts'];
         }
 
+        // Also try team page extraction patterns on homepage
+        // (some sites embed leadership info directly on homepage)
+        $teamContacts = $this->extractTeamPageContacts($html);
+        if (!empty($teamContacts)) {
+            $enrichment['contacts'] = array_merge(
+                $enrichment['contacts'] ?? [],
+                $teamContacts
+            );
+        }
+
         // Extract LinkedIn URL from page links
         if (preg_match('/href=["\']?(https?:\/\/(?:www\.)?linkedin\.com\/company\/[a-zA-Z0-9_-]+)\/?["\'\s>]/i', $html, $liMatch)) {
             $enrichment['linkedin_url'] = rtrim($liMatch[1], '/');
@@ -3825,6 +6551,46 @@ class GoogleDorkService
             $info['contacts'] = $this->extractNamedContactsFromHtml($html);
         }
 
+        // ── 5. Address from visible text (footer / contact section) ──
+        // Many sites put addresses in footer or contact sections without
+        // Schema.org markup.  Look for common patterns:
+        //   123 Main Street, City, State ZIP, Country
+        //   Postal code patterns: US (12345), UK (AB12 3CD), EU (D-12345)
+        if (!$info['address']) {
+            // Strip all tags but keep text content — only look in the last
+            // 30% of HTML (footer area) to avoid grabbing random addresses
+            $footerHtml = substr($html, (int)(strlen($html) * 0.65));
+            $footerText = strip_tags($footerHtml);
+
+            // US-style: 123 Street Name, City, ST 12345
+            if (preg_match('/(\d{1,5}\s+[A-Z][a-zA-Z\s]{3,30},\s*[A-Z][a-zA-Z\s]{2,20},?\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)/u', $footerText, $addrMatch)) {
+                $info['address'] = trim($addrMatch[1]);
+            }
+            // UK-style: City, County, AB12 3CD
+            elseif (preg_match('/([A-Z][a-zA-Z\s]{2,25},\s*[A-Z][a-zA-Z\s]{2,25},?\s*[A-Z]{1,2}\d{1,2}\s*\d[A-Z]{2})/u', $footerText, $addrMatch)) {
+                $info['address'] = trim($addrMatch[1]);
+            }
+            // Generic: look for lines with street keywords near postal codes
+            elseif (preg_match('/((?:Street|Str\.|Avenue|Ave\.|Boulevard|Blvd\.|Road|Rd\.|Drive|Dr\.|Lane|Way|Place|Court|Suite|Floor)[^,\n]{0,40},\s*[A-Z][a-zA-Z\s]{2,30})/iu', $footerText, $addrMatch)) {
+                $info['address'] = trim($addrMatch[1]);
+            }
+        }
+
+        // ── 6. Phone from visible text (last resort) ─────────────
+        // If no phone found via schema/tel: links, look for international
+        // phone patterns in footer area text
+        if (!$info['phone']) {
+            $footerHtml = $footerHtml ?? substr($html, (int)(strlen($html) * 0.65));
+            $footerText = $footerText ?? strip_tags($footerHtml);
+            // International format: +1 (555) 123-4567 or +44 20 7123 4567
+            if (preg_match('/(\+\d{1,3}[\s.-]?\(?\d{1,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}[\s.-]?\d{0,4})/', $footerText, $phoneMatch)) {
+                $candidate = $this->cleanPhoneNumber($phoneMatch[1]);
+                if ($candidate) {
+                    $info['phone'] = $candidate;
+                }
+            }
+        }
+
         // Limit to 3 contacts max
         $info['contacts'] = array_slice($info['contacts'], 0, 3);
 
@@ -3895,6 +6661,10 @@ class GoogleDorkService
      *
      * "John Smith" → ['first_name' => 'John', 'last_name' => 'Smith']
      * "Dr. Jane Doe" → ['first_name' => 'Jane', 'last_name' => 'Doe']
+     *
+     * Applies aggressive filtering to reject common HTML headings,
+     * navigation labels, product names, and other non-person text
+     * that happens to look like "Capitalized Word Capitalized Word".
      */
     private function splitPersonName(string $fullName): ?array
     {
@@ -3903,43 +6673,148 @@ class GoogleDorkService
         $name = preg_replace('/^(Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Prof\.?|Eng\.?|Ir\.?)\s+/i', '', $name);
         $name = trim($name);
 
-        if (mb_strlen($name) < 3) return null;
+        if (mb_strlen($name) < 4) return null;
+        if (mb_strlen($name) > 50) return null; // Too long for a person name
 
         $parts = preg_split('/\s+/', $name);
         if (count($parts) < 2) return null;
+        if (count($parts) > 5) return null; // Too many words for a person name
 
-        // Skip generic labels that aren't real person names
+        // ── Comprehensive non-person text blacklist ──────────────
         $lower = strtolower($name);
-        if (preg_match('/^(customer service|sales team|technical support|general inquiry|main office)/i', $lower)) {
-            return null;
+
+        // Section headings / navigation labels commonly found in HTML
+        $blacklistPhrases = [
+            // Navigation & headings
+            'about us', 'about company', 'about comeca', 'about becker',
+            'contact us', 'contact form', 'contact information', 'contact details',
+            'our products', 'our services', 'our story', 'our vision', 'our mission',
+            'our values', 'our team', 'our promise', 'our clients', 'our history',
+            'our approach', 'our work', 'our brands', 'our people', 'our solutions',
+            'who we are', 'what we do', 'how we work', 'why choose us',
+            'read more', 'learn more', 'view more', 'see more', 'show more',
+            'case studies', 'case study', 'success stories',
+            'privacy policy', 'privacy overview', 'privacy notice', 'privacy statement',
+            'terms conditions', 'terms service', 'terms use', 'cookie policy',
+            'footer social', 'footer links', 'footer menu', 'footer navigation',
+            'header navigation', 'main navigation', 'main menu', 'site map',
+            'email us', 'call us', 'write us', 'visit us', 'find us', 'reach us',
+            'get started', 'get touch', 'get quote', 'request quote', 'free quote',
+            'sign up', 'sign in', 'log in', 'register now',
+            'quick links', 'useful links', 'related links', 'important links',
+            'social media', 'follow us', 'connect with',
+            'news events', 'latest news', 'press releases', 'media center',
+            'customer service', 'customer support', 'technical support',
+            'sales team', 'support team', 'general inquiry', 'main office',
+            'head office', 'regional office', 'corporate office', 'branch office',
+            'home page', 'search results', 'back top',
+            'our location', 'our address', 'our offices', 'our factory',
+            'general information', 'general contact', 'general enquiry', 'general enquiries',
+            'marathon furniture',  // Non-person HTML artifact
+
+            // Product/service descriptions
+            'products categories', 'products services', 'product overview', 'product catalog',
+            'custom sample', 'sample kit', 'product range', 'product line',
+            'hose assemblies', 'cable assemblies', 'wire harness',
+            'refrigerant fittings', 'hydraulic fittings', 'pneumatic fittings',
+            'car detailing', 'car repair', 'car rental', 'car service',
+            'airbag solution', 'security solutions', 'software solutions',
+            'power systems', 'control systems', 'management systems',
+
+            // Company descriptions
+            'mission statement', 'company profile', 'corporate governance',
+            'annual report', 'financial report', 'investor relations',
+            'communiqués financiers', 'notre mission', 'nous contacter',
+            'programmation clé', 'clé universelle',
+
+            // Locations/places
+            'dubai international', 'cairo international', 'abu dhabi',
+            'united arab emirates', 'saudi arabia', 'middle east',
+            'north america', 'south america', 'latin america',
+
+            // Industry jargon
+            'aerospace aluminum', 'automotive parts', 'aviation parts',
+            'industrial automation', 'digital transformation',
+            'supply chain', 'quality assurance', 'quality control',
+            'lunar communications', 'ground support',
+        ];
+
+        foreach ($blacklistPhrases as $phrase) {
+            if ($lower === $phrase || str_starts_with($lower, $phrase)) {
+                return null;
+            }
+        }
+
+        // Single-word blacklist — reject if ANY word is one of these
+        $blacklistWords = [
+            'products', 'services', 'solutions', 'overview', 'categories',
+            'navigation', 'menu', 'footer', 'header', 'sidebar', 'widget',
+            'cookie', 'cookies', 'privacy', 'policy', 'terms', 'conditions',
+            'copyright', 'disclaimer', 'sitemap', 'search', 'subscribe',
+            'download', 'downloads', 'resources', 'documentation', 'faq',
+            'portfolio', 'gallery', 'testimonials', 'reviews', 'blog',
+            'newsletter', 'login', 'register', 'checkout', 'cart', 'shop',
+            'approved', 'certified', 'accredited', 'registered', 'licensed',
+            'manufacturing', 'distribution', 'consulting', 'engineering',
+            'automotive', 'aerospace', 'industrial', 'pharmaceutical',
+            'technologies', 'technology', 'electronics', 'electric',
+            'corporation', 'incorporated', 'limited', 'company',
+            'worldwide', 'international', 'global', 'national', 'regional',
+            'category', 'communiqués', 'financiers', 'programmation',
+        ];
+
+        foreach ($parts as $part) {
+            if (in_array(strtolower($part), $blacklistWords, true)) {
+                return null;
+            }
         }
 
         $firstName = array_shift($parts);
         $lastName = implode(' ', $parts);
 
         // Validate: names should start with uppercase letters
-        if (!preg_match('/^[A-Z]/u', $firstName) || !preg_match('/^[A-Z]/u', $lastName)) {
+        if (!preg_match('/^[A-ZÀ-Ÿ]/u', $firstName) || !preg_match('/^[A-ZÀ-Ÿ]/u', $lastName)) {
             return null;
         }
+
+        // Each name part should be 2-20 chars
+        if (mb_strlen($firstName) < 2 || mb_strlen($firstName) > 20) return null;
+        if (mb_strlen($lastName) < 2 || mb_strlen($lastName) > 30) return null;
+
+        // Reject if either part contains digits
+        if (preg_match('/\d/', $firstName) || preg_match('/\d/', $lastName)) {
+            return null;
+        }
+
+        // Reject ALL-CAPS names (likely acronyms/headings: "ABOUT US")
+        if ($firstName === strtoupper($firstName) && mb_strlen($firstName) > 2) return null;
+        if ($lastName === strtoupper($lastName) && mb_strlen($lastName) > 3) return null;
 
         return ['first_name' => $firstName, 'last_name' => $lastName];
     }
 
     /**
-     * Extract named contacts from HTML "Contact Us" sections.
+     * Extract named contacts from HTML "Contact Us" / about / general pages.
      *
      * Looks for person-name + email/phone patterns in:
      * - vCard/hCard microdata
-     * - Visible text patterns near contact sections
-     * - LinkedIn /in/ profile links
+     * - LinkedIn /in/ profile links (+ name derivation from slug)
+     * - CSS class patterns (contact-person, staff-info, etc.)
+     * - "Name - Title" patterns in divs/paragraphs
+     * - Email mailto links with nearby person names
+     * - LinkedIn slug → name derivation (john-smith → John Smith)
      */
     private function extractNamedContactsFromHtml(string $html): array
     {
         $contacts = [];
+        $titlePattern = '/\b(CEO|CTO|CFO|COO|CIO|CHRO|CMO|CSO|CPO'
+            . '|VP|Vice\s*President|President|Chairman|Director|Managing\s*Director'
+            . '|Manager|General\s*Manager|Head|Chief|Lead|Senior|Partner|Founder|Co-?Founder|Owner'
+            . '|Purchasing|Procurement|Buyer|Supply\s*Chain|Sourcing'
+            . '|Business\s*Development|Account\s*Manager|Sales\s*Manager|Regional\s*Manager'
+            . '|Directeur|Gérant|Responsable|Président|Geschäftsführer|Leiter|مدير)\b/iu';
 
         // ── vCard / hCard microformat ────────────────────────────
-        // <div class="vcard"><span class="fn">John Smith</span>...
-        // Use possessive quantifier and limit capture to prevent catastrophic backtracking
         if (preg_match_all('/<[^>]*class="[^"]*\bvcard\b[^"]*"[^>]*>([\s\S]{1,2000}?)<\/\w+>/i', $html, $vcardMatches)) {
             foreach ($vcardMatches[1] as $vcardHtml) {
                 $person = [];
@@ -3963,19 +6838,1055 @@ class GoogleDorkService
         }
 
         // ── LinkedIn /in/ profile links with person names ────────
-        // <a href="https://linkedin.com/in/john-smith">John Smith</a>
-        if (preg_match_all('/href=["\']?(https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+)\/?["\'\s>][^>]*>([^<]{3,40})<\/a>/i', $html, $liMatches, PREG_SET_ORDER)) {
+        if (preg_match_all('/href=["\']?(https?:\/\/(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+))\/?["\'\s>][^>]*>([^<]{1,60})<\/a>/i', $html, $liMatches, PREG_SET_ORDER)) {
             foreach ($liMatches as $match) {
-                $linkText = html_entity_decode(trim($match[2]));
+                $linkText = html_entity_decode(trim($match[3]));
+                $slug = $match[2];
+                $linkedInUrl = rtrim($match[1], '/');
+
+                // Try link text first
                 $parts = $this->splitPersonName($linkText);
+
+                // If link text isn't a name (e.g. "View Profile"), derive from slug
+                if (!$parts) {
+                    $parts = $this->extractNameFromLinkedInSlug($slug);
+                }
+
                 if ($parts) {
-                    $parts['linkedin_url'] = rtrim($match[1], '/');
+                    $parts['linkedin_url'] = $linkedInUrl;
                     $contacts[] = $parts;
                 }
             }
         }
 
+        // ── CSS-class contact person divs ────────────────────────
+        // <div class="contact-person|staff-info|people-card|executive">
+        $contactCardPattern = '/<(?:div|li|article|section|span)[^>]*class="[^"]*\b(?:contact[-_]?person|staff[-_]?info|people[-_]?card|executive[-_]?card|key[-_]?contact|management[-_]?member|director[-_]?card)\b[^"]*"[^>]*>([\s\S]{10,2000}?)<\/(?:div|li|article|section|span)>/i';
+        if (preg_match_all($contactCardPattern, $html, $ccMatches)) {
+            foreach ($ccMatches[1] as $cardHtml) {
+                $person = $this->extractPersonFromCardHtml($cardHtml, $titlePattern);
+                if ($person) {
+                    $contacts[] = $person;
+                }
+            }
+        }
+
+        // ── Mailto links with nearby person name context ─────────
+        // Look for person name within 300 chars before a mailto link
+        if (preg_match_all('/([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)[^<]{0,200}href=["\']mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/iu', $html, $nameEmailMatches, PREG_SET_ORDER)) {
+            foreach ($nameEmailMatches as $nem) {
+                $parts = $this->splitPersonName(trim($nem[1]));
+                if ($parts) {
+                    $email = strtolower(trim($nem[2]));
+                    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $parts['email'] = $email;
+                    }
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // ── "Name, Title" in contact sections ────────────────────
+        // Look in the full page for "Name, Title" where Title is a decision-maker role
+        $textContent = strip_tags($html);
+        if (preg_match_all('/([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*[-–—,|:]\s*((?:CEO|CTO|CFO|COO|VP|President|Director|Managing Director|Founder|Co-?Founder|General Manager|Owner|Chairman|Purchasing Manager|Procurement|Sales Manager|Business Development|Directeur|Gérant|Geschäftsführer|مدير)[^,.;\n]{0,60})/iu', $textContent, $nameRoleMatches, PREG_SET_ORDER)) {
+            foreach ($nameRoleMatches as $nrm) {
+                $parts = $this->splitPersonName(trim($nrm[1]));
+                if ($parts) {
+                    $parts['job_title'] = mb_substr(trim($nrm[2]), 0, 80);
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // Deduplicate by first+last name
+        $seen = [];
+        $unique = [];
+        foreach ($contacts as $c) {
+            $key = strtolower(($c['first_name'] ?? '') . '|' . ($c['last_name'] ?? ''));
+            if ($key === '|' || isset($seen[$key])) continue;
+            $seen[$key] = true;
+            $unique[] = $c;
+        }
+
+        return array_slice($unique, 0, 5);
+    }
+
+    /**
+     * Derive a person name from a LinkedIn profile slug.
+     *
+     * "john-smith-12345" → ['first_name' => 'John', 'last_name' => 'Smith']
+     * "jean-marie-dupont" → ['first_name' => 'Jean-Marie', 'last_name' => 'Dupont']
+     */
+    private function extractNameFromLinkedInSlug(string $slug): ?array
+    {
+        // Remove trailing numeric ID (john-smith-12345ab → john-smith)
+        $slug = preg_replace('/-[0-9a-f]{5,}$/i', '', $slug);
+        // Remove trailing digits (john-smith-123 → john-smith)
+        $slug = preg_replace('/-\d+$/', '', $slug);
+
+        $parts = explode('-', $slug);
+        if (count($parts) < 2) return null;
+
+        // Filter out parts that look like numbers or are too short
+        $parts = array_filter($parts, fn($p) => strlen($p) >= 2 && !is_numeric($p));
+        $parts = array_values($parts);
+        if (count($parts) < 2) return null;
+
+        $firstName = ucfirst(strtolower($parts[0]));
+        // If 3+ parts, use last as lastName, join middle parts with first
+        if (count($parts) >= 3) {
+            $lastName = ucfirst(strtolower(array_pop($parts)));
+            array_shift($parts); // remove first
+            // Could be a compound first name like Jean-Marie
+            $firstName = $firstName;
+        } else {
+            $lastName = ucfirst(strtolower($parts[1]));
+        }
+
+        // Validate: names should be at least 2 chars
+        if (strlen($firstName) < 2 || strlen($lastName) < 2) return null;
+
+        // Reject generic slugs
+        $genericSlugs = ['about', 'company', 'contact', 'admin', 'sales', 'info', 'support', 'team', 'staff', 'manager', 'director'];
+        if (in_array(strtolower($firstName), $genericSlugs) || in_array(strtolower($lastName), $genericSlugs)) {
+            return null;
+        }
+
+        return ['first_name' => $firstName, 'last_name' => $lastName];
+    }
+
+    /**
+     * Scrape subpages (/contact, /about-us, /team, /people) to find
+     * additional contacts, addresses, and phone numbers.
+     *
+     * This is FREE — only HTTP requests, no API calls.
+     * Returns an enrichment array compatible with mergeEnrichment().
+     */
+    private function scrapeSubpagesForContacts(string $website, string $companyName): ?array
+    {
+        if (empty($website)) {
+            return null;
+        }
+
+        // Normalize base URL
+        $base = rtrim($website, '/');
+        $subpages = [
+            // Contact pages
+            '/contact', '/contact-us', '/contactus', '/kontakt',
+            '/contacts', '/get-in-touch',
+            // About pages (often have leadership/management info)
+            '/about', '/about-us', '/aboutus', '/who-we-are',
+            '/a-propos', '/qui-sommes-nous',  // French (Morocco)
+            '/ueber-uns',                      // German
+            '/sobre-nosotros',                 // Spanish
+            // Team/leadership pages
+            '/team', '/our-team', '/the-team', '/meet-the-team',
+            '/people', '/our-people', '/staff', '/our-staff',
+            '/leadership', '/leadership-team',
+            '/management', '/management-team',
+            '/executives', '/executive-team',
+            '/board', '/board-of-directors',
+            '/notre-equipe',                   // French
+            // Company info pages
+            '/company', '/corporate',
+            '/impressum',  // German legal page, always has name+address
+            // Additional paths common on small company sites
+            '/en/about', '/en/contact', '/en/team',  // English subpath for multilingual sites
+            '/about/team', '/about/leadership', '/about/management',
+            '/company/team', '/company/leadership',
+        ];
+
+        $enrichment = ['contacts' => []];
+
+        // Fire concurrent requests for all subpages
+        $responses = [];
+        foreach ($subpages as $path) {
+            try {
+                $url = $base . $path;
+                $responses[$path] = $this->httpClient->request('GET', $url, [
+                    'timeout' => 4,
+                    'max_redirects' => 2,
+                    'headers' => [
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept' => 'text/html',
+                    ],
+                ]);
+            } catch (\Exception $e) {
+                // skip
+            }
+        }
+
+        // Process responses
+        foreach ($responses as $path => $response) {
+            try {
+                $code = $response->getStatusCode();
+                if ($code >= 400) continue;
+
+                $html = substr($response->getContent(false), 0, 80000);
+                if (empty($html)) continue;
+
+                // Extract contacts from this subpage
+                $contactInfo = $this->extractContactInfoFromHtml($html);
+
+                // Merge phone
+                if (empty($enrichment['phone']) && !empty($contactInfo['phone'])) {
+                    $enrichment['phone'] = $contactInfo['phone'];
+                }
+                // Merge email
+                if (empty($enrichment['email']) && !empty($contactInfo['email'])) {
+                    $enrichment['email'] = $contactInfo['email'];
+                }
+                // Merge address
+                if (empty($enrichment['address']) && !empty($contactInfo['address'])) {
+                    $enrichment['address'] = $contactInfo['address'];
+                }
+                // Merge contacts
+                if (!empty($contactInfo['contacts'])) {
+                    $enrichment['contacts'] = array_merge(
+                        $enrichment['contacts'],
+                        $contactInfo['contacts']
+                    );
+                }
+
+                // Also try extracting person names from visible text
+                // on ALL subpages (leadership info can be on any page)
+                $teamContacts = $this->extractTeamPageContacts($html);
+                if (!empty($teamContacts)) {
+                    $enrichment['contacts'] = array_merge(
+                        $enrichment['contacts'],
+                        $teamContacts
+                    );
+                }
+
+            } catch (\Exception $e) {
+                // skip failed pages
+            }
+        }
+
+        // Deduplicate contacts by first+last name
+        if (!empty($enrichment['contacts'])) {
+            $seen = [];
+            $unique = [];
+            foreach ($enrichment['contacts'] as $c) {
+                $key = strtolower(($c['first_name'] ?? '') . '|' . ($c['last_name'] ?? ''));
+                if ($key === '|' || isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $unique[] = $c;
+            }
+            $enrichment['contacts'] = array_slice($unique, 0, 5);
+        }
+
+        // ── Filter out contacts with banking/consulting/mismatched emails ──
+        // Subpage scraping can pick up analyst emails from investor-relations
+        // pages (e.g. socgen.com, tpicap.com on annual reports).
+        if (!empty($enrichment['contacts'])) {
+            $companyDomain = $this->extractCompanyDomain($website);
+            $enrichment['contacts'] = array_values(array_filter(
+                $enrichment['contacts'],
+                fn(array $c) => !$this->isRejectContactEmail($c['email'] ?? null, $companyDomain)
+            ));
+        }
+
+        // Only return if we found something useful
+        if (!empty($enrichment['contacts']) || !empty($enrichment['address'])
+            || !empty($enrichment['phone']) || !empty($enrichment['email'])) {
+            return $enrichment;
+        }
+        return null;
+    }
+
+    /**
+     * Extract person names and roles from team/leadership/about pages.
+     *
+     * Recognizes 10+ common HTML patterns used by corporate websites:
+     * - Headings followed by role/title text
+     * - CSS-classed team member cards
+     * - Figure/figcaption patterns (photo + name)
+     * - Table/list patterns (Name | Title)
+     * - data-name attributes
+     * - Schema.org Person microdata
+     * - WordPress/CMS team plugin markup
+     */
+    private function extractTeamPageContacts(string $html): array
+    {
+        $contacts = [];
+        $titlePattern = '/\b(CEO|CTO|CFO|COO|CIO|CHRO|CMO|CSO|CPO|CLO|CDO'
+            . '|VP|Vice\s*President|President|Chairman|Chairwoman|Chairperson'
+            . '|Director|Managing\s*Director|General\s*Manager|Country\s*Manager'
+            . '|Manager|Head|Chief|Lead|Senior|Principal|Partner|Associate'
+            . '|Engineer|Architect|Officer|Founder|Co-?Founder|Owner'
+            . '|Purchasing|Procurement|Buyer|Supply\s*Chain|Sourcing'
+            . '|Business\s*Development|Account\s*Manager|Sales\s*Manager'
+            . '|Regional\s*Manager|Operations|Plant\s*Manager'
+            . '|Directeur|Gérant|Responsable|Président|Fondateur'  // French (Morocco)
+            . '|Geschäftsführer|Leiter|Inhaber'                     // German
+            . '|مدير|رئيس)\b/iu';                                   // Arabic
+
+        // ── Pattern 1: <h2-4>Name</h2-4> ... <p|span|div>Title</p|span|div>
+        // REQUIRES a recognized job title — bare headings are too noisy
+        if (preg_match_all('/<h[2-4][^>]*>\s*([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*<\/h[2-4]>\s*(?:<[^>]*>)*\s*([^<]{3,80})/u', $html, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $title = trim(strip_tags($m[2]));
+                if (!preg_match($titlePattern, $title)) continue; // Skip if no job title
+                $parts = $this->splitPersonName(html_entity_decode(trim($m[1])));
+                if ($parts) {
+                    $parts['job_title'] = mb_substr($title, 0, 80);
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // ── Pattern 2: <strong|b>Name</strong|b> - Title
+        // REQUIRES a recognized job title to avoid matching random bold text
+        if (preg_match_all('/<(?:strong|b)>\s*([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*<\/(?:strong|b)>\s*[-–—,]?\s*([^<]{3,80})/u', $html, $matches2, PREG_SET_ORDER)) {
+            foreach ($matches2 as $m) {
+                $title = trim(strip_tags($m[2]));
+                if (!preg_match($titlePattern, $title)) continue; // Skip if no job title
+                $parts = $this->splitPersonName(html_entity_decode(trim($m[1])));
+                if ($parts) {
+                    $parts['job_title'] = mb_substr($title, 0, 80);
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // ── Pattern 3: CSS-class based team member cards ─────────
+        // <div class="team-member|staff|bio|person|member|employee|card">
+        //   ... <h3|span|strong class="name">Name</...> ... <p|span class="title|role|position">Title</...>
+        $cardPattern = '/<(?:div|li|article|section)[^>]*class="[^"]*\b(?:team[-_]?member|staff[-_]?member|bio|person|member[-_]?card|employee|team[-_]?card|people[-_]?item|leadership[-_]?card|executive|board[-_]?member)\b[^"]*"[^>]*>([\s\S]{20,2000}?)<\/(?:div|li|article|section)>/i';
+        if (preg_match_all($cardPattern, $html, $cardMatches)) {
+            foreach ($cardMatches[1] as $cardHtml) {
+                $person = $this->extractPersonFromCardHtml($cardHtml, $titlePattern);
+                if ($person) {
+                    $contacts[] = $person;
+                }
+            }
+        }
+
+        // ── Pattern 4: <figure>/<figcaption> (photo + name) ─────
+        // Requires "Name - Title" format in figcaption
+        if (preg_match_all('/<figure[^>]*>([\s\S]{10,2000}?)<\/figure>/i', $html, $figMatches)) {
+            foreach ($figMatches[1] as $figHtml) {
+                if (preg_match('/<figcaption[^>]*>([\s\S]{5,500}?)<\/figcaption>/i', $figHtml, $capMatch)) {
+                    $capText = strip_tags($capMatch[1]);
+                    // "John Smith, CEO" or "John Smith - Director"
+                    if (preg_match('/^([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*[-–—,]\s*(.+)$/u', trim($capText), $capParts)) {
+                        $title = trim($capParts[2]);
+                        if (!preg_match($titlePattern, $title)) continue;
+                        $parts = $this->splitPersonName($capParts[1]);
+                        if ($parts) {
+                            $parts['job_title'] = mb_substr($title, 0, 80);
+                            $contacts[] = $parts;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Pattern 5: data-name attributes ─────────────────────
+        if (preg_match_all('/data-name=["\']([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][^"\']{2,40})["\'](?:[^>]*data-(?:title|role|position)=["\']([^"\']+)["\'])?/iu', $html, $dataMatches, PREG_SET_ORDER)) {
+            foreach ($dataMatches as $dm) {
+                $parts = $this->splitPersonName(html_entity_decode(trim($dm[1])));
+                if ($parts) {
+                    if (!empty($dm[2]) && preg_match($titlePattern, $dm[2])) {
+                        $parts['job_title'] = mb_substr(trim($dm[2]), 0, 80);
+                    }
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // ── Pattern 6: Schema.org Person microdata ──────────────
+        // <div itemtype="https://schema.org/Person"><span itemprop="name">...</span>
+        if (preg_match_all('/<[^>]*itemtype=["\']https?:\/\/schema\.org\/Person["\'][^>]*>([\s\S]{10,2000}?)<\/(?:div|span|li|article)>/i', $html, $sdMatches)) {
+            foreach ($sdMatches[1] as $sdHtml) {
+                $person = [];
+                if (preg_match('/itemprop=["\']name["\'][^>]*>([^<]+)/i', $sdHtml, $nm)) {
+                    $parts = $this->splitPersonName(html_entity_decode(trim($nm[1])));
+                    if ($parts) $person = $parts;
+                }
+                if (preg_match('/itemprop=["\']jobTitle["\'][^>]*>([^<]+)/i', $sdHtml, $jt)) {
+                    $person['job_title'] = mb_substr(trim(html_entity_decode($jt[1])), 0, 80);
+                }
+                if (preg_match('/itemprop=["\']email["\'][^>]*>([^<]+)/i', $sdHtml, $em)) {
+                    $email = strtolower(trim($em[1]));
+                    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $person['email'] = $email;
+                    }
+                }
+                if (!empty($person['first_name'])) {
+                    $contacts[] = $person;
+                }
+            }
+        }
+
+        // ── Pattern 7: <table> rows with Name | Title columns ───
+        if (preg_match_all('/<tr[^>]*>\s*<td[^>]*>\s*([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*<\/td>\s*<td[^>]*>\s*([^<]{3,80})\s*<\/td>/iu', $html, $tableMatches, PREG_SET_ORDER)) {
+            foreach ($tableMatches as $tm) {
+                $parts = $this->splitPersonName(html_entity_decode(trim($tm[1])));
+                if ($parts) {
+                    $title = trim(strip_tags($tm[2]));
+                    if (preg_match($titlePattern, $title)) {
+                        $parts['job_title'] = mb_substr($title, 0, 80);
+                    }
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // ── Pattern 8: <li> with "Name - Title" in list format ──
+        if (preg_match_all('/<li[^>]*>\s*(?:<[^>]+>)*\s*([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*[-–—,]\s*([^<]{3,80})/u', $html, $liMatches, PREG_SET_ORDER)) {
+            foreach ($liMatches as $lm) {
+                $parts = $this->splitPersonName(html_entity_decode(trim($lm[1])));
+                if ($parts) {
+                    $title = trim(strip_tags($lm[2]));
+                    if (preg_match($titlePattern, $title)) {
+                        $parts['job_title'] = mb_substr($title, 0, 80);
+                    }
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // ── Pattern 9: WordPress team plugin / Elementor ────────
+        // <div class="elementor-widget-image-box">...<h3>Name</h3><p>Title</p>
+        // <div class="wp-block-media-text">...<h2-4>Name<...><p>Title<...>
+        $wpPattern = '/<div[^>]*class="[^"]*\b(?:elementor-(?:widget|team)|wp-block-(?:media|column)|team[-_]?block|staff[-_]?block)\b[^"]*"[^>]*>([\s\S]{20,3000}?)<\/div>\s*<\/div>/i';
+        if (preg_match_all($wpPattern, $html, $wpMatches)) {
+            foreach ($wpMatches[1] as $wpHtml) {
+                $person = $this->extractPersonFromCardHtml($wpHtml, $titlePattern);
+                if ($person) {
+                    $contacts[] = $person;
+                }
+            }
+        }
+
+        // ── Pattern 10: "Name" + mailto link nearby ─────────────
+        // <h3>John Smith</h3>...<a href="mailto:john@company.com">
+        if (preg_match_all('/<h[2-5][^>]*>\s*([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*<\/h[2-5]>[\s\S]{0,500}?href=["\']mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})["\']?/iu', $html, $mailHeadMatches, PREG_SET_ORDER)) {
+            foreach ($mailHeadMatches as $mhm) {
+                $parts = $this->splitPersonName(html_entity_decode(trim($mhm[1])));
+                if ($parts) {
+                    $email = strtolower(trim($mhm[2]));
+                    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $parts['email'] = $email;
+                    }
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // ── Pattern 11: Plain text "Name, Title" paragraphs ─────
+        // Common on minimalist about pages: "Founded by John Smith, CEO."
+        $textContent = strip_tags($html);
+        if (preg_match_all('/(?:^|\.\s+|;\s+)([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*,\s*((?:CEO|CTO|CFO|COO|VP|President|Director|Managing Director|Founder|Co-?Founder|General Manager|Owner|Chairman|Geschäftsführer|Directeur|Gérant|Responsable|مدير)[^,.;]{0,50})/iu', $textContent, $plainMatches, PREG_SET_ORDER)) {
+            foreach ($plainMatches as $pm) {
+                $parts = $this->splitPersonName(trim($pm[1]));
+                if ($parts) {
+                    $parts['job_title'] = mb_substr(trim($pm[2]), 0, 80);
+                    $contacts[] = $parts;
+                }
+            }
+        }
+
+        // ── Pattern 12: meta author tag ─────────────────────────
+        if (preg_match('/name=["\']author["\'][^>]*content=["\']([^"\']+)/i', $html, $authorMatch)
+            || preg_match('/content=["\']([^"\']+)["\'][^>]*name=["\']author/i', $html, $authorMatch)) {
+            $parts = $this->splitPersonName(html_entity_decode(trim($authorMatch[1])));
+            if ($parts) {
+                $contacts[] = $parts;
+            }
+        }
+
+        // Deduplicate by first+last name
+        $seen = [];
+        $unique = [];
+        foreach ($contacts as $c) {
+            $key = strtolower(($c['first_name'] ?? '') . '|' . ($c['last_name'] ?? ''));
+            if ($key === '|' || isset($seen[$key])) continue;
+            $seen[$key] = true;
+            $unique[] = $c;
+        }
+
+        return array_slice($unique, 0, 5);
+    }
+
+    /**
+     * Extract a person (name + title) from a team member card HTML fragment.
+     *
+     * Handles common card layouts:
+     *   <h3>Name</h3><p class="title">Title</p>
+     *   <span class="name">Name</span><span class="role">Title</span>
+     *   <strong>Name</strong> - Title
+     */
+    private function extractPersonFromCardHtml(string $cardHtml, string $titlePattern): ?array
+    {
+        $person = null;
+
+        // Try heading-based name
+        if (preg_match('/<h[2-5][^>]*>\s*([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*<\/h[2-5]>/u', $cardHtml, $nm)) {
+            $person = $this->splitPersonName(html_entity_decode(trim($nm[1])));
+        }
+        // Try class="name|person-name|member-name"
+        if (!$person && preg_match('/class="[^"]*\b(?:name|person[-_]?name|member[-_]?name|staff[-_]?name)\b[^"]*"[^>]*>([^<]+)/i', $cardHtml, $nm)) {
+            $person = $this->splitPersonName(html_entity_decode(trim($nm[1])));
+        }
+        // Try <strong>Name</strong>
+        if (!$person && preg_match('/<(?:strong|b)>\s*([A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*<\/(?:strong|b)>/u', $cardHtml, $nm)) {
+            $person = $this->splitPersonName(html_entity_decode(trim($nm[1])));
+        }
+
+        if (!$person) return null;
+
+        // Extract title from class="title|role|position|designation"
+        if (preg_match('/class="[^"]*\b(?:title|role|position|designation|job[-_]?title)\b[^"]*"[^>]*>([^<]+)/i', $cardHtml, $titleMatch)) {
+            $title = trim(html_entity_decode($titleMatch[1]));
+            if (preg_match($titlePattern, $title)) {
+                $person['job_title'] = mb_substr($title, 0, 80);
+            }
+        }
+        // Fallback: title in <p> after name heading
+        elseif (preg_match('/<p[^>]*>\s*([^<]{3,80})\s*<\/p>/i', $cardHtml, $pMatch)) {
+            $title = trim(html_entity_decode($pMatch[1]));
+            if (preg_match($titlePattern, $title)) {
+                $person['job_title'] = mb_substr($title, 0, 80);
+            }
+        }
+
+        // Extract email
+        if (preg_match('/href=["\']mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})["\']?/i', $cardHtml, $emailMatch)) {
+            $email = strtolower(trim($emailMatch[1]));
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $person['email'] = $email;
+            }
+        }
+
+        // Extract LinkedIn
+        if (preg_match('/href=["\']?(https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+)\/?["\'\s>]/i', $cardHtml, $liMatch)) {
+            $person['linkedin_url'] = rtrim($liMatch[1], '/');
+        }
+
+        return $person;
+    }
+
+    /**
+     * Known non-company email domains: banking, consulting, ISPs, etc.
+     * Contacts with these email domains are always rejected.
+     */
+    private const REJECT_EMAIL_DOMAINS = [
+        'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com',
+        'socgen.com', 'bnpparibas.com', 'credit-agricole.com', 'cic.fr',
+        'hsbc.com', 'barclays.com', 'jpmorgan.com', 'goldmansachs.com',
+        'morganstanley.com', 'ubs.com', 'db.com', 'citi.com', 'rbc.com',
+        'tpicap.com', 'oddo-bhf.com', 'natixis.com', 'lazard.com',
+        'pwc.com', 'deloitte.com', 'ey.com', 'kpmg.com', 'mckinsey.com',
+        'bcg.com', 'bain.com', 'accenture.com', 'capgemini.com',
+    ];
+
+    /**
+     * Check if an email belongs to a known non-company domain (banking,
+     * consulting, ISP) or mismatches the company's own domain.
+     *
+     * Returns true if the email should be REJECTED.
+     */
+    private function isRejectContactEmail(?string $email, ?string $companyDomain): bool
+    {
+        if (empty($email) || !str_contains($email, '@')) {
+            return false; // No email — don't reject the contact entirely
+        }
+
+        $emailDomain = strtolower(explode('@', $email)[1] ?? '');
+        if (empty($emailDomain)) {
+            return false;
+        }
+
+        // ── 1. Hardcoded reject domains (banking, consulting, ISP) ──
+        if (in_array($emailDomain, self::REJECT_EMAIL_DOMAINS, true)) {
+            $this->logger->debug('Rejected contact email from non-company domain', [
+                'email' => $email,
+                'company_domain' => $companyDomain,
+            ]);
+            return true;
+        }
+
+        // ── 2. Domain mismatch: email from completely different org ──
+        if ($companyDomain && $emailDomain) {
+            $companyRoot = implode('.', array_slice(explode('.', $companyDomain), -2));
+            $emailRoot = implode('.', array_slice(explode('.', $emailDomain), -2));
+            if ($companyRoot !== $emailRoot) {
+                $companyWord = explode('.', $companyRoot)[0];
+                $emailWord = explode('.', $emailRoot)[0];
+                if (strlen($companyWord) >= 3 && strlen($emailWord) >= 3
+                    && !str_contains($emailWord, $companyWord)
+                    && !str_contains($companyWord, $emailWord)) {
+                    $this->logger->debug('Rejected contact email domain mismatch', [
+                        'email' => $email,
+                        'email_domain' => $emailDomain,
+                        'company_domain' => $companyDomain,
+                    ]);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Extract the root domain from a website URL for email matching.
+     * "https://www.figeac-aero.com/en" → "figeac-aero.com"
+     */
+    private function extractCompanyDomain(?string $website): ?string
+    {
+        if (empty($website)) {
+            return null;
+        }
+        $host = parse_url($website, PHP_URL_HOST);
+        if (!$host) {
+            return null;
+        }
+        return strtolower(preg_replace('/^www\./', '', $host));
+    }
+
+    /**
+     * Extract person contacts from email patterns like firstname.lastname@domain.
+     *
+     * "john.smith@company.com" → first_name=John, last_name=Smith
+     * "j.doe@company.com" → skip (first name too short)
+     */
+    private function extractContactsFromEmails(array $data): array
+    {
+        $contacts = [];
+
+        // ── Determine company's own domain for email validation ──
+        $companyDomain = $this->extractCompanyDomain($data['website'] ?? null);
+
+        // Collect all emails from the data array
+        $emails = [];
+        if (!empty($data['email'])) {
+            $emails[] = $data['email'];
+        }
+
+        // Also try to find emails in the snippet/description
+        $text = ($data['snippet'] ?? '') . ' ' . ($data['description'] ?? '');
+        if (preg_match_all('/([a-zA-Z][a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i', $text, $emailMatches)) {
+            $emails = array_merge($emails, $emailMatches[1]);
+        }
+
+        $genericFirsts = ['customer', 'sales', 'info', 'support', 'admin', 'general', 'office', 'technical', 'human', 'contact', 'service', 'marketing', 'accounts', 'billing', 'help', 'enquiry', 'inquiry', 'reception', 'webmaster', 'mail', 'noreply', 'no-reply', 'news', 'team', 'hello', 'hi'];
+
+        foreach ($emails as $email) {
+            $local = strtolower(explode('@', $email)[0] ?? '');
+            $emailDomain = strtolower(explode('@', $email)[1] ?? '');
+
+            // ── Reject emails from known non-company / mismatched domains ──
+            if ($this->isRejectContactEmail($email, $companyDomain)) {
+                continue;
+            }
+
+            // Match firstname.lastname or firstname_lastname patterns
+            if (preg_match('/^([a-z]{2,})[._]([a-z]{2,})$/', $local, $m)) {
+                $firstName = ucfirst($m[1]);
+                $lastName = ucfirst($m[2]);
+                if (!in_array(strtolower($firstName), $genericFirsts, true)) {
+                    $contacts[] = [
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'email' => $email,
+                    ];
+                }
+            }
+            // Match firstnamelastname@ (common: "johnsmith@") via capital letter pattern
+            // e.g. "JohnSmith@company.com"
+            elseif (preg_match('/^([A-Z][a-z]{2,})([A-Z][a-z]{2,})@/', $email, $m)) {
+                $firstName = $m[1];
+                $lastName = $m[2];
+                if (!in_array(strtolower($firstName), $genericFirsts, true)) {
+                    $contacts[] = [
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'email' => strtolower($email),
+                    ];
+                }
+            }
+            // Match f.lastname@ (single initial + lastname)
+            elseif (preg_match('/^([a-z])[._]([a-z]{3,})$/', $local, $m)) {
+                $firstName = strtoupper($m[1]) . '.';
+                $lastName = ucfirst($m[2]);
+                if (!in_array(strtolower($m[2]), $genericFirsts, true)) {
+                    $contacts[] = [
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'email' => $email,
+                    ];
+                }
+            }
+            // Match firstname-lastname@ (hyphenated)
+            elseif (preg_match('/^([a-z]{2,})-([a-z]{2,})$/', $local, $m)) {
+                $firstName = ucfirst($m[1]);
+                $lastName = ucfirst($m[2]);
+                if (!in_array(strtolower($firstName), $genericFirsts, true)) {
+                    $contacts[] = [
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'email' => $email,
+                    ];
+                }
+            }
+        }
+
         return $contacts;
+    }
+
+    /**
+     * @deprecated No longer used — we require REAL person contacts only.
+     * Kept as stub to prevent method-not-found errors.
+     */
+    private function createFallbackContact(array $data): ?array
+    {
+        return null; // Never create fake "General Contact" entries
+    }
+
+    /**
+     * Search Google for LinkedIn /in/ profiles of decision-makers at a company.
+     *
+     * Multi-strategy approach using SHORT queries (Google CSE chokes on
+     * long OR-chains). Tries up to 2 API calls in cascading priority:
+     *
+     *   Strategy A (1 call):  site:linkedin.com/in/ "CompanyName" CEO OR Director OR Manager
+     *   Strategy B (1 call):  "CompanyName" CEO OR founder OR owner site:linkedin.com
+     *
+     * Parses LinkedIn titles: "John Smith - Procurement Manager - ACME Corp | LinkedIn"
+     * Also extracts names from LinkedIn URL slugs as fallback.
+     *
+     * Cost: 1–2 Google API calls per company (stops after first hit).
+     * Returns array of contact arrays with first_name, last_name, job_title, linkedin_url.
+     */
+    private function searchLinkedInDecisionMakers(string $companyName): array
+    {
+        if ($this->googleSearchService === null) {
+            return [];
+        }
+
+        // Clean company name: strip common suffixes for better matching
+        $searchName = preg_replace('/\s*(GmbH|LLC|Inc\.?|Ltd\.?|Corp\.?|S\.?A\.?|S\.?A\.?R\.?L\.?|AG|SE|SAS|SARL|Co\.?|Pty|PLC)\s*$/i', '', $companyName);
+        $searchName = trim($searchName);
+        if (mb_strlen($searchName) < 2) {
+            $searchName = $companyName;
+        }
+
+        // ── Strategy queries: SHORT and specific ─────────────────
+        // Target procurement/purchasing/engineering decision-makers,
+        // NOT generic CEO/founder roles (user feedback: "CEO is useless").
+        $queries = [
+            // Strategy A: LinkedIn /in/ profiles with procurement/purchasing titles
+            sprintf(
+                'site:linkedin.com/in/ "%s" Procurement OR Purchasing OR "Supply Chain" OR "Project Manager"',
+                $searchName
+            ),
+            // Strategy B: broader LinkedIn with engineering/operations titles
+            sprintf(
+                'site:linkedin.com/in/ "%s" Director OR Manager OR Engineering OR Operations',
+                $searchName
+            ),
+            // Strategy C: ANY person at the company (for small companies where
+            // specific role searches return nothing)
+            sprintf(
+                'site:linkedin.com/in/ "%s"',
+                $searchName
+            ),
+        ];
+
+        // Strategy D: If the name has multiple words, try just the first
+        // distinctive word (helps with companies like "Gulf Instruments",
+        // "Battfix", etc. where the full name returns no results)
+        $firstWord = preg_split('/\s+/', $searchName)[0] ?? '';
+        if (mb_strlen($firstWord) >= 5 && mb_strtolower($firstWord) !== mb_strtolower($searchName)) {
+            $queries[] = sprintf(
+                'site:linkedin.com/in/ "%s" Director OR Manager OR Engineer',
+                $firstWord
+            );
+        }
+
+        $contacts = [];
+
+        foreach ($queries as $qi => $query) {
+            // Stop if we already found contacts from a previous query
+            if (!empty($contacts)) {
+                break;
+            }
+
+            try {
+                $results = $this->googleSearchService->searchCompanies($query, 10);
+                $items = $results['results'] ?? [];
+
+                foreach ($items as $item) {
+                    $title = $item['title'] ?? '';
+                    $link = $item['link'] ?? ($item['url'] ?? '');
+                    $snippet = $item['snippet'] ?? '';
+
+                    // Must be a LinkedIn /in/ profile URL
+                    if (!str_contains($link, 'linkedin.com/in/')) {
+                        continue;
+                    }
+
+                    // ── Company match verification ───────────────
+                    if (!$this->linkedInResultMatchesCompany($companyName, $searchName, $title, $snippet)) {
+                        continue;
+                    }
+
+                    // ── Region mismatch rejection (iter15) ───────
+                    // LinkedIn snippets typically contain the person's location:
+                    // "Priyanka Mohapatra – Bengaluru, Karnataka, India"
+                    // Reject contacts clearly located in wrong regions.
+                    if ($this->isLinkedInContactRegionMismatch($snippet, $title)) {
+                        $this->logger->debug('Rejected LinkedIn contact: region mismatch', [
+                            'title' => $title,
+                            'search_region' => $this->currentSearchRegion,
+                        ]);
+                        continue;
+                    }
+
+                    // ── Try parsing the title format ─────────────
+                    $contact = $this->parseLinkedInProfileTitle($title, $link);
+
+                    // ── Fallback: extract name from URL slug ─────
+                    if ($contact === null) {
+                        $contact = $this->extractContactFromLinkedInUrl($link, $snippet);
+                    }
+
+                    if ($contact !== null) {
+                        $contacts[] = $contact;
+                    }
+                }
+
+                usleep(300000); // Rate-limit
+            } catch (\Throwable $e) {
+                $this->logger->debug('LinkedIn search strategy {i} failed for {company}: {msg}', [
+                    'i' => $qi,
+                    'company' => $companyName,
+                    'msg' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Deduplicate by first_name+last_name
+        $seen = [];
+        $unique = [];
+        foreach ($contacts as $c) {
+            $key = mb_strtolower(($c['first_name'] ?? '') . '|' . ($c['last_name'] ?? ''));
+            if ($key === '|' || isset($seen[$key])) continue;
+            $seen[$key] = true;
+            $unique[] = $c;
+        }
+
+        return array_slice($unique, 0, 3);
+    }
+
+    /**
+     * Check if a Google result (title + snippet) is about the target company.
+     */
+    private function linkedInResultMatchesCompany(
+        string $originalName,
+        string $searchName,
+        string $title,
+        string $snippet,
+    ): bool {
+        $combined = $title . ' ' . $snippet;
+
+        // Direct substring match (case-insensitive)
+        if (mb_stripos($combined, $originalName) !== false) {
+            return true;
+        }
+        if (mb_stripos($combined, $searchName) !== false) {
+            return true;
+        }
+
+        // Token-based match: at least 60% of the company name words appear
+        $nameWords = preg_split('/[\s\-&]+/', mb_strtolower($searchName));
+        $nameWords = array_filter($nameWords, fn($w) => mb_strlen($w) >= 3);
+        if (empty($nameWords)) return false;
+
+        $combinedLower = mb_strtolower($combined);
+        $found = 0;
+        foreach ($nameWords as $word) {
+            if (str_contains($combinedLower, $word)) {
+                $found++;
+            }
+        }
+
+        return $found >= max(1, count($nameWords) * 0.6);
+    }
+
+    /**
+     * Check if a LinkedIn contact's location (from snippet/title) indicates
+     * they are in the WRONG geographic region for the current search.
+     *
+     * iter15: prevents Indian/UK/Spanish contacts from leaking into
+     * Egypt/Tunisia/Morocco company results.
+     *
+     * Only rejects when we have HIGH CONFIDENCE the contact is in a
+     * wrong region (explicit country name in snippet). Returns false
+     * (no mismatch) for ambiguous/missing location data.
+     */
+    private function isLinkedInContactRegionMismatch(string $snippet, string $title): bool
+    {
+        $region = $this->currentSearchRegion;
+        if ($region === 'GENERIC') {
+            return false; // No region constraint
+        }
+
+        $combined = strtolower($snippet . ' ' . $title);
+
+        // ── Define "wrong region" indicators per search region ────
+        // These are location strings that appear in LinkedIn snippets
+        // for people who are CLEARLY in the wrong geography.
+        $wrongLocationIndicators = [
+            'EG' => [ // Searching in Egypt — reject contacts in:
+                'india', 'bangalore', 'bengaluru', 'mumbai', 'delhi', 'hyderabad',
+                'chennai', 'pune', 'kolkata', 'ahmedabad', 'karnataka', 'maharashtra',
+                'tamil nadu', 'telangana', 'kerala', 'gujarat', 'west bengal',
+                'pakistan', 'karachi', 'lahore', 'islamabad',
+                'united kingdom', 'london', 'manchester', 'birmingham',
+                'spain', 'madrid', 'barcelona',
+                'turkey', 'türkiye', 'istanbul', 'ankara', 'izmir', 'antalya',
+                'hong kong', 'singapore', 'kuala lumpur', 'malaysia',
+                'nigeria', 'lagos', 'nairobi', 'kenya',
+                'philippines', 'manila', 'bangkok', 'thailand',
+                'vietnam', 'ho chi minh', 'indonesia', 'jakarta',
+            ],
+            'TN' => [ // Searching in Tunisia — reject contacts in:
+                'india', 'bangalore', 'bengaluru', 'mumbai', 'delhi', 'hyderabad',
+                'chennai', 'pune', 'kolkata', 'ahmedabad', 'karnataka', 'maharashtra',
+                'pakistan', 'karachi', 'lahore',
+                'united kingdom', 'london', 'manchester',
+                'spain', 'madrid', 'barcelona',
+                'turkey', 'türkiye', 'istanbul', 'ankara', 'izmir',
+                'hong kong', 'singapore', 'malaysia',
+                'nigeria', 'lagos', 'nairobi', 'kenya',
+                'philippines', 'manila', 'bangkok', 'thailand',
+                'vietnam', 'indonesia', 'jakarta',
+                'united states', // generic — allow specific US cities
+            ],
+            'MA' => [ // Searching in Morocco — reject contacts in:
+                'india', 'bangalore', 'bengaluru', 'mumbai', 'delhi', 'hyderabad',
+                'chennai', 'pune', 'kolkata', 'ahmedabad', 'karnataka', 'maharashtra',
+                'pakistan', 'karachi', 'lahore',
+                'turkey', 'türkiye', 'istanbul', 'ankara', 'izmir',
+                'hong kong', 'singapore', 'malaysia',
+                'nigeria', 'lagos', 'nairobi', 'kenya',
+                'philippines', 'manila', 'bangkok', 'thailand',
+                'vietnam', 'indonesia', 'jakarta',
+            ],
+            'GCC' => [
+                'india', 'bangalore', 'bengaluru', 'mumbai', 'delhi', 'hyderabad',
+                'chennai', 'pune', 'kolkata', 'karnataka', 'maharashtra',
+                'pakistan', 'karachi', 'lahore',
+                'nigeria', 'lagos', 'nairobi', 'kenya',
+                'philippines', 'manila',
+            ],
+        ];
+
+        $indicators = $wrongLocationIndicators[$region] ?? [];
+        if (empty($indicators)) {
+            return false;
+        }
+
+        foreach ($indicators as $wrongLoc) {
+            if (str_contains($combined, $wrongLoc)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Parse a LinkedIn title like "John Smith - Procurement Manager - ACME Corp | LinkedIn"
+     * into a contact array.
+     */
+    private function parseLinkedInProfileTitle(string $title, string $link): ?array
+    {
+        // Strip "| LinkedIn" suffix
+        $titleCleaned = preg_replace('/\s*[|·]\s*LinkedIn$/i', '', $title);
+
+        // Split on dash/en-dash/em-dash
+        $parts = array_map('trim', preg_split('/\s*[-–—]\s*/', $titleCleaned, 4));
+
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $fullName = $parts[0];
+        $jobTitle = $parts[1] ?? '';
+
+        // Validate full name
+        $nameParts = $this->splitPersonName($fullName);
+        if (!$nameParts) {
+            return null;
+        }
+
+        $nameParts['linkedin_url'] = rtrim($link, '/');
+
+        // Set job title if it looks real (not the company name)
+        if (!empty($jobTitle) && mb_strlen($jobTitle) >= 3 && mb_strlen($jobTitle) <= 100) {
+            // Reject language names and generic non-job words that LinkedIn sometimes returns
+            $junkTitles = [
+                'english', 'french', 'arabic', 'spanish', 'german', 'italian', 'portuguese',
+                'chinese', 'japanese', 'korean', 'russian', 'turkish', 'hindi', 'dutch',
+                'swedish', 'danish', 'norwegian', 'finnish', 'polish', 'czech', 'hungarian',
+                'romanian', 'bulgarian', 'greek', 'hebrew', 'persian', 'thai', 'vietnamese',
+                'indonesia', 'malay', 'filipino', 'swahili', 'urdu', 'bengali', 'tamil',
+                'location', 'see more', 'view profile', 'see all', 'more', 'about',
+                'skills', 'experience', 'education', 'summary', 'overview', 'bio',
+                'connections', 'followers', 'following', 'posts', 'articles',
+            ];
+            $jobTitleLower = strtolower(trim($jobTitle));
+            if (!in_array($jobTitleLower, $junkTitles, true)) {
+                $nameParts['job_title'] = mb_substr($jobTitle, 0, 80);
+            }
+        }
+
+        return $nameParts;
+    }
+
+    /**
+     * Extract a contact from a LinkedIn /in/ URL slug + snippet text.
+     * Slug format: linkedin.com/in/john-smith-12345
+     * Snippet may contain "John Smith — CEO at ACME Corp"
+     */
+    private function extractContactFromLinkedInUrl(string $url, string $snippet): ?array
+    {
+        // Extract name from URL slug
+        if (!preg_match('#linkedin\.com/in/([a-z0-9-]+)#i', $url, $m)) {
+            return null;
+        }
+        $slug = $m[1];
+
+        // Try to derive name from slug
+        $nameParts = $this->extractNameFromLinkedInSlug($slug);
+        if (!$nameParts) {
+            return null;
+        }
+
+        // Validate the derived name
+        $validated = $this->splitPersonName(
+            ($nameParts['first_name'] ?? '') . ' ' . ($nameParts['last_name'] ?? '')
+        );
+        if (!$validated) {
+            return null;
+        }
+
+        $validated['linkedin_url'] = rtrim($url, '/');
+
+        // Try to extract job title from snippet
+        // Look for patterns like: "CEO at", "Director of", "Manager -", etc.
+        if (preg_match('/\b(CEO|CTO|CFO|COO|Director|Manager|VP|President|Founder|Owner|Head|Chief|Procurement|Purchasing|Engineering|Operations)\b[^.]{0,60}/i', $snippet, $tm)) {
+            $validated['job_title'] = mb_substr(trim($tm[0]), 0, 80);
+        }
+
+        return $validated;
     }
 
     /**
@@ -4102,6 +8013,11 @@ class GoogleDorkService
             'site:kompass.com United Kingdom',    // Kompass UK section
             'site:mae.co.uk',                    // Manufacturing Advisory Service UK
         ],
+        'TN' => [
+            'site:tunisieindustrie.nat.tn',       // Tunisian Industrial Agency (API)
+            'site:kompass.com Tunisia',           // Kompass Tunisia section
+            'site:cepex.nat.tn',                  // Tunisian Export Promotion Centre
+        ],
         'EG' => [
             'site:kompass.com Egypt',             // Kompass Egypt section
             'site:ei.gov.eg',                    // Egyptian Industrial Development Authority
@@ -4160,6 +8076,14 @@ class GoogleDorkService
             }
         }
 
+        // Tunisia markers
+        $tunisiaMarkers = ['tunisia', 'tunisie', 'tunis', 'sfax', 'sousse', 'monastir', 'bizerte', 'gabès', 'gabes', 'kairouan', 'gafsa', 'nabeul', 'ben arous', 'ariana', 'manouba', 'zaghouan', 'enfidha'];
+        foreach ($tunisiaMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'TN';
+            }
+        }
+
         // Egypt markers
         $egyptMarkers = ['egypt', 'cairo', 'alexandria', 'suez', 'port said', 'ain sokhna', '6th of october', '10th of ramadan', 'new cairo'];
         foreach ($egyptMarkers as $m) {
@@ -4180,6 +8104,25 @@ class GoogleDorkService
     }
 
     /**
+     * Map internal region code to Google's gl= country parameter.
+     * The gl parameter biases results toward the specified country.
+     * For multi-country regions (EU, GCC) we pick the primary country.
+     */
+    private function regionToGoogleGl(string $region): ?string
+    {
+        return match ($region) {
+            'MA' => 'ma',  // Morocco
+            'TN' => 'tn',  // Tunisia
+            'US' => 'us',  // United States
+            'GB' => 'gb',  // United Kingdom
+            'EG' => 'eg',  // Egypt
+            'GCC' => 'ae', // UAE as primary GCC country
+            'EU' => null,  // EU is multi-country, don't bias
+            default => null,
+        };
+    }
+
+    /**
      * Build Google Dork queries for company discovery.
      *
      * Strategy: Find OEMs and equipment manufacturers that outsource
@@ -4194,7 +8137,7 @@ class GoogleDorkService
      *  4. Companies looking for contract electronics manufacturing
      *  5. Region-specific industry directory lookups
      */
-    private function buildGoogleDorkQueries(string $sector, ?string $location = null): array
+    private function buildGoogleDorkQueries(?string $sector, ?string $location = null): array
     {
         $queries = [];
         $region = $this->detectRegionFromLocation($location);
@@ -4208,9 +8151,27 @@ class GoogleDorkService
         // Instead, extract key geographic words and use them unquoted.
         // ══════════════════════════════════════════════════════════════
 
-        $exclude = ' -site:linkedin.com -site:wikipedia.org -site:youtube.com';
+        $exclude = ' -site:linkedin.com -site:wikipedia.org -site:youtube.com'
+            . ' -site:facebook.com -site:twitter.com -site:instagram.com'
+            . ' -textile -apparel -garment -knitwear -tannery -footwear'
+            . ' -"chamber of commerce" -"trade association" -"manufacturers association"'
+            . ' -"packaging company" -"printing company" -"corrugated"'
+            . ' -"plastic injection" -"injection molding" -"blow molding"'
+            . ' -"furniture manufacturer" -"woodworking" -"glass manufacturer"'
+            . ' -"steel mill" -foundry -"scrap metal"'
+            . ' -recruitment -"job vacancy" -"job opening" -careers'
+            // New: block common non-target categories at query level (saves API $)
+            . ' -pharmaceutical -biotech -"drug discovery" -"clinical trial"'
+            . ' -"game studio" -"video game" -gaming'
+            . ' -"investment fund" -"hedge fund" -"private equity" -"venture capital"'
+            . ' -"chemical company" -petrochemical -fertilizer -agrochemical'
+            . ' -"job board" -"job portal" -"job listing"'
+            . ' -"news agency" -"news site" -newspaper -magazine'
+            . ' -"law firm" -attorney -solicitor -"legal services"';
 
         // Build a flexible location term: just city + country words, unquoted
+        // Also ensure country context is always present to prevent ambiguity
+        // (e.g. "Alexandria" alone → Alexandria, VA instead of Egypt)
         $locationTerm = '';
         if ($location) {
             $stopWords = ['free', 'zone', 'industrial', 'city', 'area', 'region',
@@ -4221,10 +8182,30 @@ class GoogleDorkService
                 return strlen($p) > 2 && !in_array(strtolower($p), $stopWords);
             });
             $locationTerm = ' ' . implode(' ', array_values($keyParts));
+            
+            // Ensure country context is always present for ambiguous locations
+            $countryContextMap = [
+                'EG' => ' Egypt',
+                'MA' => ' Morocco',
+                'TN' => ' Tunisia',
+                'GCC' => '',  // "Dubai" and "UAE" are unambiguous enough
+                'US' => '',   // US states are unambiguous
+                'GB' => '',   // UK cities are unambiguous
+            ];
+            $needsCountry = $countryContextMap[$region] ?? '';
+            if ($needsCountry && !stripos($locationTerm, trim($needsCountry))) {
+                $locationTerm .= $needsCountry;
+            }
         }
 
         // ── 1. Sector-specific queries ────────────────────────────────
-        switch ($sector) {
+        if (!$sector) {
+            $queries[] = "OEM manufacturer electronics company{$locationTerm}" . $exclude;
+            $queries[] = "equipment manufacturer electronics company{$locationTerm}" . $exclude;
+            $queries[] = "\"contract electronics manufacturing\" OR \"EMS provider\" buyer{$locationTerm}" . $exclude;
+            $queries[] = "\"PCB assembly\" OR \"PCBA\" outsourcing company{$locationTerm}" . $exclude;
+        } else {
+            switch ($sector) {
             case 'Automotive':
                 $queries[] = "\"IATF 16949\" {$sector} manufacturer{$locationTerm}" . $exclude;
                 $queries[] = "{$sector} OEM \"ECU\" OR \"body electronics\" OR \"powertrain\"{$locationTerm}" . $exclude;
@@ -4313,12 +8294,18 @@ class GoogleDorkService
                 $queries[] = "{$sector} OEM manufacturer electronics company{$locationTerm}" . $exclude;
                 $queries[] = "{$sector} equipment manufacturer electronic{$locationTerm}" . $exclude;
                 break;
+            }
         }
 
         // ── 2. Location-specific company-finding queries ──────────────
         if ($location) {
-            $queries[] = "{$locationTerm} {$sector} manufacturer \"about us\" OR \"our products\"" . $exclude;
-            $queries[] = "{$locationTerm} {$sector} \"factory\" OR \"plant\" OR \"facility\" company" . $exclude;
+            if ($sector) {
+                $queries[] = "{$locationTerm} {$sector} manufacturer \"about us\" OR \"our products\"" . $exclude;
+                $queries[] = "{$locationTerm} {$sector} \"factory\" OR \"plant\" OR \"facility\" company" . $exclude;
+            } else {
+                $queries[] = "{$locationTerm} manufacturer \"about us\" OR \"our products\"" . $exclude;
+                $queries[] = "{$locationTerm} \"factory\" OR \"plant\" OR \"facility\" company" . $exclude;
+            }
         }
 
         return $queries;
@@ -4329,6 +8316,7 @@ class GoogleDorkService
      */
     private const REGION_TLDS = [
         'MA' => ['.ma', '.com'],
+        'TN' => ['.tn', '.com.tn', '.com'],
         'US' => ['.com', '.us', '.net'],
         'GB' => ['.co.uk', '.com', '.uk'],
         'EU' => ['.com', '.eu', '.de', '.fr'],
@@ -4442,5 +8430,58 @@ class GoogleDorkService
         }
 
         return array_values($allResults);
+    }
+
+    /**
+     * Sanitize an address string extracted from web scraping.
+     *
+     * iter15: removes JavaScript code, HTML tags, excessive whitespace,
+     * and other artifacts that may leak into addresses from DOM extraction.
+     *
+     * Returns empty string if the address is unsalvageable.
+     */
+    private function sanitizeAddress(string $address): string
+    {
+        // Strip any HTML tags
+        $address = strip_tags($address);
+
+        // Detect and reject JavaScript code fragments
+        if (preg_match('/\b(function|\.on\s*\(|\.click|\.submit|\.ajax|\.val\s*\(|\.html\s*\(|addEventListener|document\.|window\.|var\s+|let\s+|const\s+|=>\s*\{|\}\s*\)|console\.)/i', $address)) {
+            return '';
+        }
+
+        // Detect and reject CSS fragments
+        if (preg_match('/\{[^}]*:\s*[^}]*\}|@media|@import|font-size|margin:|padding:|display:/i', $address)) {
+            return '';
+        }
+
+        // Reject if the "address" is clearly a URL
+        if (preg_match('#^https?://#i', trim($address))) {
+            return '';
+        }
+
+        // Reject HTML attribute artifacts (placeholderText, submitIcon, etc.)
+        if (preg_match('/\b(placeholder|placeholderText|submitIcon|className|innerHTML|onclick|onsubmit|setAttribute|getElementById|querySelector)\b/i', $address)) {
+            return '';
+        }
+
+        // Collapse multiple whitespace/newlines to single space
+        $address = preg_replace('/\s+/', ' ', $address);
+
+        // Strip leading/trailing punctuation noise
+        $address = trim($address, " \t\n\r\0\x0B,.;:-|/\\");
+
+        // Reject if too short (< 5 chars) or too long (> 300 chars) after cleanup
+        if (mb_strlen($address) < 5 || mb_strlen($address) > 300) {
+            return '';
+        }
+
+        // Reject if mostly non-printable or control characters
+        $printable = preg_replace('/[^\x20-\x7E\xA0-\xFF]/u', '', $address);
+        if (mb_strlen($printable) < mb_strlen($address) * 0.5) {
+            return '';
+        }
+
+        return $address;
     }
 }

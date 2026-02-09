@@ -28,12 +28,12 @@
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-grid--2">
-                        <div class="rams-form__group">
-                             {{ form_label(form.entityClass, 'report.data_source'|trans, {'label_attr': {'class': 'rams-form__label'}}) }}
-                             {{ form_widget(form.entityClass, {'attr': {'class': 'rams-form__select'}}) }}
-                             <div class="rams-form-help">{{ 'report.data_source_help'|trans }}</div>
-                             {{ form_errors(form.entityClass) }}
-                        </div>
+                            <div class="rams-form__group">
+                                {{ form_label(form.dataSource, 'report.data_source'|trans, {'label_attr': {'class': 'rams-form__label'}}) }}
+                                {{ form_widget(form.dataSource, {'attr': {'class': 'rams-form__select'}}) }}
+                                <div class="rams-form-help">{{ 'report.data_source_help'|trans }}</div>
+                                {{ form_errors(form.dataSource) }}
+                            </div>
 
                          <div class="rams-form__group">
                              {{ form_label(form.reportType, null, {'label_attr': {'class': 'rams-form__label'}}) }}

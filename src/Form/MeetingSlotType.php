@@ -18,69 +18,73 @@ class MeetingSlotType extends AbstractType
     {
         $builder
             ->add('title', TextType::class, [
-                'label' => 'Meeting Title',
+                'label' => 'meeting.form.title',
                 'attr' => [
                     'class' => 'rams-input',
-                    'placeholder' => 'e.g., 30-min Discovery Call',
+                    'placeholder' => 'meeting.form.title_placeholder',
                 ],
             ])
             ->add('description', TextareaType::class, [
-                'label' => 'Description',
+                'label' => 'meeting.form.description',
                 'required' => false,
                 'attr' => [
                     'class' => 'rams-input',
                     'rows' => 3,
-                    'placeholder' => 'What will be discussed in this meeting...',
+                    'placeholder' => 'meeting.form.description_placeholder',
                 ],
             ])
             ->add('meetingType', ChoiceType::class, [
-                'label' => 'Meeting Type',
+                'label' => 'meeting.form.type',
                 'choices' => MeetingSlot::getMeetingTypes(),
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-select'],
             ])
             ->add('durationMinutes', ChoiceType::class, [
-                'label' => 'Duration',
+                'label' => 'meeting.form.duration',
                 'choices' => MeetingSlot::getDurations(),
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-select'],
             ])
             ->add('startTime', DateTimeType::class, [
-                'label' => 'Start Time',
+                'label' => 'meeting.form.start_time',
                 'widget' => 'single_text',
                 'input' => 'datetime_immutable',
                 'attr' => ['class' => 'rams-input'],
             ])
             ->add('location', TextType::class, [
-                'label' => 'Location',
+                'label' => 'meeting.form.location',
                 'required' => false,
                 'attr' => [
                     'class' => 'rams-input',
-                    'placeholder' => 'e.g., Conference Room A, or "Virtual"',
+                    'placeholder' => 'meeting.form.location_placeholder',
                 ],
             ])
             ->add('meetingUrl', UrlType::class, [
-                'label' => 'Meeting URL',
+                'label' => 'meeting.form.url',
                 'required' => false,
                 'attr' => [
                     'class' => 'rams-input',
-                    'placeholder' => 'https://zoom.us/j/...',
+                    'placeholder' => 'meeting.form.url_placeholder',
                 ],
             ])
             ->add('meetingProvider', ChoiceType::class, [
-                'label' => 'Meeting Provider',
+                'label' => 'meeting.form.provider',
                 'required' => false,
                 'choices' => [
-                    'None' => null,
-                    'Zoom' => 'zoom',
-                    'Microsoft Teams' => 'teams',
-                    'Google Meet' => 'google_meet',
-                    'Webex' => 'webex',
-                    'Other' => 'other',
+                    'meeting.providers.none' => null,
+                    'meeting.providers.zoom' => 'zoom',
+                    'meeting.providers.teams' => 'teams',
+                    'meeting.providers.google_meet' => 'google_meet',
+                    'meeting.providers.webex' => 'webex',
+                    'meeting.providers.other' => 'other',
                 ],
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-select'],
             ])
             ->add('timezone', ChoiceType::class, [
-                'label' => 'Timezone',
+                'label' => 'meeting.form.timezone',
                 'choices' => $this->getTimezoneChoices(),
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-select'],
             ])
         ;

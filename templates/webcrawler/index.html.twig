@@ -17,24 +17,24 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'lead.total_leads'|trans }}</span>
-                    <span class="rams-metric__value">{{ stats.total_leads }}</span>
+                    <span class="rams-metric__label">Discovered Companies</span>
+                    <span class="rams-metric__value">{{ stats.discovered }}</span>
                 </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'lead.pending_review'|trans }}</span>
-                    <span class="rams-metric__value rams-text--warning">{{ stats.pending }}</span>
+                    <span class="rams-metric__label">Approved (Not in Compliance)</span>
+                    <span class="rams-metric__value rams-text--warning">{{ stats.approved }}</span>
                 </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'lead.approved_leads'|trans }}</span>
-                    <span class="rams-metric__value rams-text--success">{{ stats.approved }}</span>
+                    <span class="rams-metric__label">Active (Compliance Eligible)</span>
+                    <span class="rams-metric__value rams-text--success">{{ stats.active }}</span>
                 </div>
             </div>
         </div>
@@ -50,8 +50,8 @@
             <form id="discovery-form" class="rams-form">
                 <div class="rams-grid rams-grid--2">
                     <div class="rams-form__group">
-                        <label class="rams-form__label rams-dymo">{{ 'company.sector'|trans }} *</label>
-                        <select name="sector" required class="rams-form__select">
+                        <label class="rams-form__label rams-dymo">{{ 'company.sector'|trans }}</label>
+                        <select name="sector" class="rams-form__select">
                             <option value="">{{ 'common.select'|trans }}...</option>
                             {% for sector in sectors %}
                                 <option value="{{ sector }}">{{ sector }}</option>
@@ -112,7 +112,7 @@
         </div>
         
         <div class="rams-module__content rams-module__content--flush">
-            {% if recent_leads|length > 0 %}
+            {% if recent_companies|length > 0 %}
                 <div class="rams-table-container">
                     <table class="rams-table">
                         <thead class="rams-table__header">
@@ -127,33 +127,46 @@
                             </tr>
                         </thead>
                         <tbody class="rams-table__body">
-                            {% for lead in recent_leads %}
+                            {% for company in recent_companies %}
                                 <tr class="rams-table__row">
-                                    <td class="rams-table__cell rams-text--bold">{{ lead.companyName }}</td>
+                                    <td class="rams-table__cell rams-text--bold">{{ company.name }}</td>
                                     <td class="rams-table__cell">
-                                        {% if lead.websiteRoot %}
-                                            <a href="{{ lead.websiteRoot }}" target="_blank" class="rams-link rams-text--xs">
-                                                {{ lead.websiteRoot|replace({'https://': '', 'http://': '', 'www.': ''}) }}
+                                        {% if company.website %}
+                                            <a href="{{ company.website }}" target="_blank" class="rams-link rams-text--xs">
+                                                {{ company.website|replace({'https://': '', 'http://': '', 'www.': ''}) }}
                                             </a>
                                         {% else %}
                                             <span class="rams-text--muted rams-text--xs">—</span>
                                         {% endif %}
                                     </td>
-                                    <td class="rams-table__cell rams-text--xs">{{ region_labels[lead.regionTag]|default(lead.regionTag ?? 'common.unknown'|trans) }}</td>
+                                    <td class="rams-table__cell rams-text--xs">{{ region_labels[company.region]|default(company.region ?? 'common.unknown'|trans) }}</td>
                                     <td class="rams-table__cell">
-                                        <span class="rams-badge {% if lead.leadScore >= 80 %}rams-badge--success{% elseif lead.leadScore >= 60 %}rams-badge--warning{% else %}rams-badge--info{% endif %}">
-                                            {{ lead.leadScore }}
-                                        </span>
+                                        <span class="rams-badge rams-badge--info">Pending Review</span>
                                     </td>
                                     <td class="rams-table__cell">
-                                        <div class="rams-andon">
-                                            <span class="rams-andon__light rams-andon__light--{{ lead.reviewStatus == 'approved' ? 'green' : (lead.reviewStatus == 'pending' ? 'yellow' : 'red') }}"></span>
-                                            <span class="rams-andon__text">{{ ('lead.statuses.' ~ lead.reviewStatus)|trans }}</span>
-                                        </div>
+                                        {% if company.companyStatus == 'discovered' %}
+                                            <span class="rams-badge rams-badge--warning">Discovered</span>
+                                        {% elseif company.companyStatus == 'approved' %}
+                                            <span class="rams-badge rams-badge--info">Approved</span>
+                                        {% elseif company.companyStatus == 'active' %}
+                                            <span class="rams-badge rams-badge--success">Active</span>
+                                        {% endif %}
                                     </td>
-                                    <td class="rams-table__cell rams-text--muted rams-text--xs">{{ lead.createdAt|date('M d, Y') }}</td>
+                                    <td class="rams-table__cell rams-text--muted rams-text--xs">{{ company.createdAt|date('M d, Y') }}</td>
                                     <td class="rams-table__cell rams-table__cell--actions">
-                                        <a href="{{ path('app_lead_review') }}?id={{ lead.id }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'lead.review'|trans }}</a>
+                                        {% if company.companyStatus == 'discovered' %}
+                                            <form method="post" action="{{ path('app_company_approve', {id: company.id}) }}" style="display:inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('approve' ~ company.id) }}">
+                                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">Approve</button>
+                                            </form>
+                                            <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" style="display:inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ company.id) }}">
+                                                <input type="hidden" name="_redirect" value="discovered">
+                                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">Delete</button>
+                                            </form>
+                                        {% else %}
+                                            <a href="{{ path('app_company_show', {id: company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">View</a>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -199,6 +212,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
                 <div class="rams-alert rams-alert--success">
                     <p class="rams-alert__title">${data.message}</p>
                     <p class="rams-alert__message">{{ 'webcrawler.found_companies'|trans }} ${data.discovered} {{ 'company.title'|trans|lower }}</p>
+                    <p class="rams-alert__message"><a class="rams-link" href="{{ path('app_company_discovered') }}">Review discovered companies</a></p>
                 </div>
                 ${data.companies.length > 0 ? `
                     <div class="rams-discovery-list">
@@ -207,6 +221,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
                                 <div>
                                     <div class="rams-discovery-item__name" style="font-weight: 600;">
                                         <a href="/companies/${c.id}" style="color: var(--rams-primary, #2563eb); text-decoration: none;">${c.name}</a>
+                                        <span style="font-size: 0.7rem; background: #fde68a; padding: 0.125rem 0.5rem; border-radius: 9999px; margin-left: 0.5rem;">Discovered</span>
                                         ${c.sector ? `<span style="font-size: 0.75rem; background: var(--rams-bg-alt, #f1f5f9); padding: 0.125rem 0.5rem; border-radius: 9999px; margin-left: 0.5rem;">${c.sector}</span>` : ''}
                                     </div>
                                     ${c.website ? `<div class="rams-discovery-item__website" style="font-size: 0.85rem; color: var(--rams-text-muted, #64748b);"><a href="${c.website}" target="_blank" rel="noopener">${c.website}</a></div>` : ''}

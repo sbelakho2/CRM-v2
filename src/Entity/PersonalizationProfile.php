@@ -342,10 +342,66 @@ class PersonalizationProfile
     }
 
     /**
-     * Calculate engagement score (0-100)
+     * Calculate engagement score with recency weighting (0-100)
+     *
+     * Instead of using raw lifetime counts, we weight recent interactions
+     * higher via exponential decay on the interaction history.
+     *
+     * Math:
+     *   For each interaction at time t:
+     *     w(t) = exp(-λ · days_ago(t))   where λ = ln(2)/30  (half-life = 30 days)
+     *   engagement = 50 × Σ(w_open) / Σ(w_any) + 50 × Σ(w_reply) / max(1, Σ(w_open))
+     *
+     * Falls back to lifetime counters if interaction history is empty.
      */
     public function getEngagementScore(): float
     {
+        $history = $this->interactionHistory ?? [];
+
+        // If we have detailed interaction history, use recency-weighted scoring
+        if (!empty($history)) {
+            $now = time();
+            $halfLifeDays = 30;
+            $lambda = log(2) / ($halfLifeDays * 86400); // decay rate per second
+
+            $weightedOpens = 0.0;
+            $weightedReplies = 0.0;
+            $weightedClicks = 0.0;
+            $weightedTotal = 0.0;
+
+            foreach ($history as $interaction) {
+                $ts = $interaction['timestamp'] ?? 0;
+                $age = max(0, $now - $ts);
+                $w = exp(-$lambda * $age);
+
+                $type = $interaction['type'] ?? '';
+                $weightedTotal += $w;
+
+                switch ($type) {
+                    case 'open':
+                        $weightedOpens += $w;
+                        break;
+                    case 'reply':
+                    case 'positive_reply':
+                        $weightedReplies += $w;
+                        break;
+                    case 'click':
+                        $weightedClicks += $w;
+                        break;
+                }
+            }
+
+            if ($weightedTotal < 0.01) {
+                // History exists but everything is ancient — fall through to counters
+            } else {
+                $openRate = $weightedOpens / $weightedTotal;
+                $replyRate = $weightedOpens > 0.01 ? $weightedReplies / $weightedOpens : 0;
+                $clickBonus = min(10.0, ($weightedClicks / $weightedTotal) * 20.0);
+                return min(100.0, ($openRate * 45.0) + ($replyRate * 45.0) + $clickBonus);
+            }
+        }
+
+        // Fallback: lifetime counters
         $totalEmails = $this->emailsOpened + $this->emailsBounced + 1;
         $openRate = $this->emailsOpened / $totalEmails;
         $replyRate = $this->emailsOpened > 0 ? $this->emailsReplied / $this->emailsOpened : 0;

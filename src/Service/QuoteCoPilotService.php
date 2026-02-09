@@ -361,49 +361,71 @@ class QuoteCoPilotService
     }
 
     /**
-     * Get pricing for a part (MVP: sample data, Production: API waterfall)
+     * Get pricing for a part (MVP: comprehensive sample data, Production: API waterfall)
+     * 
+     * Covers all major component categories used in PCB assembly:
+     * - Passives (R, C, L), Semiconductors (MCU, MOSFET, diode, op-amp), 
+     * - Connectors, Crystals/Oscillators, LEDs, Power ICs, Sensors, Memory, etc.
      */
     private function getPricingForPart(array $bomLine): array
     {
-        // MVP: Simple pricing based on common component types
-        // Production: Call Mouser/DigiKey/Nexar/Alibaba APIs
-        
-        $mpn = $bomLine['mpn'];
-        $quantity = $bomLine['quantity'];
+        $mpn = $bomLine['mpn'] ?? '';
+        $description = strtolower($bomLine['description'] ?? '');
+        $value = strtolower($bomLine['value'] ?? '');
+        $manufacturer = strtolower($bomLine['manufacturer'] ?? '');
 
-        // Sample pricing logic for common parts
-        if (!$mpn) {
+        if (!$mpn && !$description) {
             return [
                 'found' => false,
-                'reason' => 'No MPN provided',
+                'reason' => 'No MPN or description provided',
             ];
         }
 
-        // Microcontrollers (STM32, PIC, AVR, etc.)
-        if (preg_match('/^(STM32|PIC|ATMEGA|ATXMEGA|SAM|LPC)/i', $mpn)) {
+        $mpnUpper = strtoupper($mpn);
+
+        // ── Microcontrollers (STM32, PIC, AVR, ESP, NRF, RP, SAMD, etc.) ──
+        if (preg_match('/^(STM32|STM8|PIC|ATMEGA|ATTINY|ATXMEGA|SAM[DLE]|LPC|MIMX|MK[ELV]|NRF5|ESP32|ESP8266|RP2040|CY8C|EFM32|GD32|WCH|CH32)/i', $mpn)) {
+            $price = '4.50';
+            if (preg_match('/^(ESP32|NRF5|RP2040)/i', $mpn)) $price = '2.80';
+            if (preg_match('/^(ATTINY|STM8|CH32)/i', $mpn)) $price = '1.20';
+            if (preg_match('/^(STM32H|STM32F7|MIMX|SAMD51)/i', $mpn)) $price = '8.50';
             return [
                 'found' => true,
-                'unitPrice' => '4.50',
+                'unitPrice' => $price,
                 'source' => 'Mouser API',
                 'availability' => 'In Stock',
                 'leadTimeDays' => 3,
             ];
         }
 
-        // Voltage regulators
-        if (preg_match('/^(LM1117|LM317|AMS1117|LD1117|TPS|LDO)/i', $mpn)) {
+        // ── FPGAs / CPLDs ──
+        if (preg_match('/^(XC[237SKV]|EP[1234]|LFE[1235]|ICE40|ECP5|GW[12]|LCMXO)/i', $mpn)) {
             return [
                 'found' => true,
-                'unitPrice' => '0.35',
+                'unitPrice' => '12.00',
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 5,
+            ];
+        }
+
+        // ── Voltage regulators (linear & switching) ──
+        if (preg_match('/^(LM1117|LM317|LM78\d|LM79\d|AMS1117|LD1117|LD39|TPS[5678]|TLV|AP\d{3,4}|MCP170|RT9|SPX|HT7|ME6|XC6|NCP|ADP|TDA|LDO|REG|MIC[2-5]|AP2112|RT5|NCV|AOZ|MP[12]\d{3}|LTC[13]|LT[138]|ISL|IRU|BD\d{3}|FAN|MAX\d{4}|LP\d{4})/i', $mpn)) {
+            $price = '0.35';
+            if (preg_match('/^(TPS|LTC|LT[138]|MAX\d{4}|MP[12]\d{3}|ISL|AOZ)/i', $mpn)) $price = '1.80';
+            return [
+                'found' => true,
+                'unitPrice' => $price,
                 'source' => 'DigiKey API',
                 'availability' => 'In Stock',
                 'leadTimeDays' => 2,
             ];
         }
 
-        // Resistors (0805, 0603, 0402, etc.)
-        if (preg_match('/^(RC|ERJ|CRCW|RT|RS)/i', $mpn) || 
-            preg_match('/\d+(R|K|M)\d*/i', $mpn)) {
+        // ── Resistors (all SMD series) ──
+        if (preg_match('/^(RC\d{4}|ERJ|CRCW|RT\d{4}|RS\d|RK73|MCR\d|RR\d|ESR\d|CR\d{4}|RMCF|AC\d{4}|WR\d|WSL|CSR|CSRN|RL\d|RN\d|RNCS)/i', $mpn) ||
+            preg_match('/resistor/i', $description) ||
+            preg_match('/^\d+(\.\d+)?\s*(ohm|[rkmΩ])\b/i', $description)) {
             return [
                 'found' => true,
                 'unitPrice' => '0.01',
@@ -413,53 +435,311 @@ class QuoteCoPilotService
             ];
         }
 
-        // Capacitors (ceramic, tantalum, electrolytic)
-        if (preg_match('/^(GRM|C\d{4}|CC|CL|UMK|TMK|TAJ)/i', $mpn) ||
-            preg_match('/\d+(UF|NF|PF)/i', $mpn)) {
+        // ── Capacitors (ceramic, tantalum, electrolytic, film) ──
+        if (preg_match('/^(GRM|GCM|GCJ|C\d{4}[A-Z]|CC\d{4}|CL\d|UMK|TMK|TAJ|T49[1-5]|TAJC|EEE|UWT|VJ\d|CGA|C\d{3}|06035|08055|10105|NFM|MLCC)/i', $mpn) ||
+            preg_match('/capacitor|cap\s+(cer|tant|elec|film)/i', $description) ||
+            preg_match('/\d+(\.\d+)?\s*(uf|nf|pf|µf)\b/i', $description)) {
+            $price = '0.08';
+            if (preg_match('/^(TAJ|T49|EEE)/i', $mpn)) $price = '0.45'; // tantalum/electrolytic
             return [
                 'found' => true,
-                'unitPrice' => '0.08',
+                'unitPrice' => $price,
                 'source' => 'DigiKey API',
                 'availability' => 'In Stock',
                 'leadTimeDays' => 1,
             ];
         }
 
-        // LEDs
-        if (preg_match('/^(LED|LTST|SML|APT)/i', $mpn)) {
+        // ── Inductors / Chokes / Ferrite beads ──
+        if (preg_match('/^(LQH|LQM|SRN|SRR|IHLP|SDR|XAL|XFL|NR[SHCG]|CDRH|SLF|NLCV|BLM|BLA|MPZ|MMZ|HI\d|WE\-|744|SRF)/i', $mpn) ||
+            preg_match('/inductor|choke|ferrite\s*bead/i', $description) ||
+            preg_match('/\d+(\.\d+)?\s*(uh|mh|µh|nh)\b/i', $description)) {
+            $price = '0.15';
+            if (preg_match('/^(IHLP|XAL|XFL|CDRH)/i', $mpn)) $price = '0.65'; // power inductors
             return [
                 'found' => true,
-                'unitPrice' => '0.12',
+                'unitPrice' => $price,
                 'source' => 'Mouser API',
                 'availability' => 'In Stock',
                 'leadTimeDays' => 2,
             ];
         }
 
-        // Crystals / Oscillators
-        if (preg_match('/^(ABM|ABS|ECS|NX)/i', $mpn) ||
-            preg_match('/\d+MHZ/i', $mpn)) {
+        // ── Diodes (Schottky, Zener, TVS, rectifier, signal) ──
+        if (preg_match('/^(BAT5[4-6]|BAV|BAS|BAW|1N[45]|SS[1-3]\d|SK[1-3]\d|SMBJ|SMAJ|SM[46]T|TVS|SD[12]|B[AZ][VX]|MBR|SB[1-5]|US1[A-M]|ES[12]|PESD|ESD|NUP|PRTR|TPD|MMSZ|BZX|BZT|MMBD|1SS|RB\d)/i', $mpn) ||
+            preg_match('/diode|schottky|zener|tvs|rectifier/i', $description)) {
+            $price = '0.06';
+            if (preg_match('/^(SMBJ|SMAJ|SM[46]T|TVS|PESD|ESD|NUP|PRTR|TPD)/i', $mpn)) $price = '0.25'; // TVS/ESD
             return [
                 'found' => true,
-                'unitPrice' => '0.45',
+                'unitPrice' => $price,
+                'source' => 'DigiKey API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 2,
+            ];
+        }
+
+        // ── Transistors / MOSFETs ──
+        if (preg_match('/^(BC[3-8]\d{2}|2N[2-7]\d{3}|BSS|MMBT|MMBTA|FMMT|PMBT|DMN|DMG|DMP|PMV|SI[2-9]|AO[3-6]|FDN|FDC|IRF|IRFML|IRLML|NTR|NTD|NTGS|CSD|BSH|BSS138|2SK|2SJ|PSMN|BSZ|TSM|FDMC|SQ\d|SSM\d|DMC|EMB|ZXMN|ZXMP|NCE|RJK|TPN|TPH|RQ)/i', $mpn) ||
+            preg_match('/transistor|mosfet|bjt|jfet|n-ch|p-ch|nmos|pmos/i', $description)) {
+            $price = '0.15';
+            if (preg_match('/^(IRF|AO[3-6]|SI[2-9]\d{3}|CSD|PSMN)/i', $mpn)) $price = '0.85'; // power MOSFETs
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 2,
+            ];
+        }
+
+        // ── Op-Amps / Comparators / Analog ICs ──
+        if (preg_match('/^(LM358|LM324|LM339|LM393|OPA[1-4]|MCP6|AD8|AD7|TLV|TLC|TS[59]|INA\d|MAX4|MCP3|ADS1|LMV|NCS|NCV|SGM|GS\d|TL0[6-8]|LF3|NE5|MC3|MCP4|DAC|LTC[26]|OPA\d{3,4}|LT1|AD[58]\d{3})/i', $mpn) ||
+            preg_match('/op.?amp|comparator|amplifier|adc|dac/i', $description)) {
+            $price = '0.65';
+            if (preg_match('/^(AD[578]\d{3}|INA\d|ADS1|OPA[1-4]\d{3}|LTC)/i', $mpn)) $price = '3.50'; // precision
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── LEDs ──
+        if (preg_match('/^(LED|LTST|SML|APT|APTD|KP\-|HSMC|HSMF|LNJ|VLMR|VLMB|VLMY|VLMG|VLMW|IN\-S|WS28|SK68|APA10|LP\-|OVLB|XPEB|XHP|CREE|LM301|XLM|MX[36])/i', $mpn) ||
+            preg_match('/\bled\b|led\s|light.?emit/i', $description)) {
+            $price = '0.12';
+            if (preg_match('/^(WS28|SK68|APA10)/i', $mpn)) $price = '0.08'; // addressable LEDs
+            if (preg_match('/^(CREE|XP[EGBW]|XHP)/i', $mpn)) $price = '1.50'; // high-power LEDs
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 2,
+            ];
+        }
+
+        // ── Crystals / Oscillators / Resonators ──
+        if (preg_match('/^(ABM|ABS|ECS|NX[345]|TSX|FA\-|HC49|AT\d|ABL|SG\d|ASE|ASV|ASDM|DSB|SIT[89]|ABMM|FC[1-6]|YSX|XRCGB)/i', $mpn) ||
+            preg_match('/crystal|oscillator|resonat/i', $description) ||
+            preg_match('/\d+(\.\d+)?\s*mhz/i', $mpn . ' ' . $description)) {
+            $price = '0.45';
+            if (preg_match('/^(SG\d|ASE|ASV|ASDM|SIT[89])/i', $mpn)) $price = '1.80'; // oscillator modules
+            return [
+                'found' => true,
+                'unitPrice' => $price,
                 'source' => 'DigiKey API',
                 'availability' => 'In Stock',
                 'leadTimeDays' => 3,
             ];
         }
 
-        // Connectors (USB, headers, etc.)
-        if (preg_match('/^(USB|CON|J\d+|HEADER|HDR|TSW)/i', $mpn)) {
+        // ── Connectors (USB, headers, JST, Molex, TE, FPC) ──
+        if (preg_match('/^(USB|CON|HDR|TSW|PH[DSR]|PJ\-|SJ\-|6\d{5}|5\d{5}|10\d{5}|1\-\d{6}|2\-\d{6}|B\d+B\-|S\d+B\-|XH|VH|ZH|GH|SH|PA|HEADER|FPC|FFC|ZIF|DF\d|HRS|JAE|MOLEX|AMPHENOL|SAMTEC|HARWIN|M20|SFH|SFW|SS[0-9])/i', $mpn) ||
+            preg_match('/connector|header|socket|plug|receptacle|jack|usb|fpc|ffc|jst|molex/i', $description)) {
+            $price = '1.20';
+            if (preg_match('/usb.?c|type.?c/i', $mpn . ' ' . $description)) $price = '0.85';
+            if (preg_match('/rj45|ethernet|modular/i', $mpn . ' ' . $description)) $price = '2.50';
             return [
                 'found' => true,
-                'unitPrice' => '1.20',
+                'unitPrice' => $price,
                 'source' => 'Mouser API',
                 'availability' => 'In Stock',
                 'leadTimeDays' => 2,
             ];
         }
 
-        // Default: Not found in pricing database
+        // ── Communication ICs (UART, SPI, I2C, CAN, Ethernet, WiFi, BT, LoRa) ──
+        if (preg_match('/^(MAX[23]\d{3}|SP3|SN65|MCP2[5-9]|TJA|SJA|ISO|DP83|KSZ|W5[15]|ENC28|SX12[78]|RFM9|CC[12]\d{3}|ATWINC|ATWILC|RTL|LAN[789]|MAX14|CP21\d)/i', $mpn) ||
+            preg_match('/transceiver|can\s*bus|uart|rs232|rs485|ethernet\s*phy|wifi|bluetooth|lora/i', $description)) {
+            $price = '2.50';
+            if (preg_match('/^(DP83|KSZ|W5[15]|ENC28|LAN)/i', $mpn)) $price = '4.00'; // Ethernet
+            if (preg_match('/^(SX127|RFM9|CC[12]\d{3}|ATWINC)/i', $mpn)) $price = '5.50'; // wireless
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── Memory ICs (EEPROM, Flash, SRAM, SDRAM, FRAM) ──
+        if (preg_match('/^(AT24|M24|24LC|24AA|24FC|93LC|25LC|W25Q|MX25|IS25|SST|MT4|IS4|AS4|CY62|IS61|IS62|FM24|MB85)/i', $mpn) ||
+            preg_match('/eeprom|flash|sram|sdram|fram|memory/i', $description)) {
+            $price = '0.80';
+            if (preg_match('/^(W25Q|MX25|IS25|SST)/i', $mpn)) $price = '1.50'; // NOR flash
+            if (preg_match('/^(MT4|IS4|AS4)/i', $mpn)) $price = '3.50'; // SDRAM
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'DigiKey API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── Sensors (temp, accel, gyro, pressure, humidity, current, etc.) ──
+        if (preg_match('/^(BME|BMP|BMA|BMI|BMG|LSM|LIS[23]|LPS|HTS|SHT|HDC|AHT|MPU|ICM|ADXL|MMA|KX|LIS|MS5|ICS|INA\d{3}|ACS7|MAX31|TMP|LMT|PCT|MLX|APDS|TSL|VEML|VL53|VL61|SI70|TCS|BH17|BMX|MAX30)/i', $mpn) ||
+            preg_match('/sensor|accelero|gyro|barometer|humidity|thermistor|thermocouple|current\s*sense/i', $description)) {
+            $price = '2.50';
+            if (preg_match('/^(MPU|ICM|BMI|LSM6)/i', $mpn)) $price = '5.00'; // IMU
+            if (preg_match('/^(BME280|BMP280|SHT|HDC)/i', $mpn)) $price = '3.50'; // env sensors
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── Power management (battery chargers, PMICs, DC-DC converters) ──
+        if (preg_match('/^(BQ[2-4]|MCP73|TP4|LTC4|MAX17|MAX77|PMIC|TPS6|LTC3|RT8|SY8|MP8|NCP3|PAM|SGM4|IP51|AP5100|STC4|MT[23]|RAA)/i', $mpn) ||
+            preg_match('/charger|pmic|dc.?dc|buck|boost|battery\s*manage/i', $description)) {
+            $price = '2.00';
+            if (preg_match('/^(BQ[2-4]|LTC4|MAX17|MAX77)/i', $mpn)) $price = '4.50'; // advanced charger/PMIC
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'DigiKey API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── Interface ICs (level shifters, buffers, drivers, mux) ──
+        if (preg_match('/^(TXB|TXS|SN74|CD40|74HC|74LVC|74AHC|74AC|MC14|NLV|DRV|ULN|ULQ|TPIC|MUX|ADG|MAX44|TS5|FSA|SN65|PI3)/i', $mpn) ||
+            preg_match('/buffer|level\s*shift|driver|multiplexer|mux|demux|gate\b|logic/i', $description)) {
+            $price = '0.30';
+            if (preg_match('/^(DRV|ULN|ULQ|TPIC)/i', $mpn)) $price = '0.85'; // motor drivers
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'DigiKey API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 2,
+            ];
+        }
+
+        // ── Fuses / PTC resettable ──
+        if (preg_match('/^(0ZC|RXEF|MF\-|1206L|0805L|0603L|BOURNS|LITTELFUSE|BEL|MIN|NANO|PICO)/i', $mpn) ||
+            preg_match('/fuse|ptc|resettable|polyfuse/i', $description)) {
+            return [
+                'found' => true,
+                'unitPrice' => '0.18',
+                'source' => 'DigiKey API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 2,
+            ];
+        }
+
+        // ── Transformers / Magnetics ──
+        if (preg_match('/^(750\d|760\d|WE\-|PA\d{4}|EE\d|EP\d|EFD|ETD|ER\d|SRF|VAC|MURATA.*TRANS|PULSE)/i', $mpn) ||
+            preg_match('/transformer|coupled\s*inductor|balun/i', $description)) {
+            return [
+                'found' => true,
+                'unitPrice' => '2.80',
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 5,
+            ];
+        }
+
+        // ── Switches / Buttons / Relays ──
+        if (preg_match('/^(EVQ|KSC|TL[13]|SW\-|SKQG|SKRP|PTS|MJTP|G6K|G5V|HF\d|JZC|SRD|TQ2|EC11|PEC|RE\d|SK\-\d)/i', $mpn) ||
+            preg_match('/switch|button|tact|push|relay|encoder/i', $description)) {
+            $price = '0.25';
+            if (preg_match('/relay|G6K|G5V|HF|SRD/i', $mpn . ' ' . $description)) $price = '1.80';
+            return [
+                'found' => true,
+                'unitPrice' => $price,
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── Display drivers / Touch controllers ──
+        if (preg_match('/^(SSD1|SH1|ST7|ILI9|HX8|UC1|MAX7219|TM1|HT16|FT[56]\d|GT\d|STMPE|IQS|CAP12|AT42)/i', $mpn) ||
+            preg_match('/display\s*driver|oled\s*driver|lcd\s*driver|touch\s*controller/i', $description)) {
+            return [
+                'found' => true,
+                'unitPrice' => '2.20',
+                'source' => 'DigiKey API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── Audio ICs (codecs, amplifiers, DACs) ──
+        if (preg_match('/^(TPA|TAS|MAX98|PAM86|NS4|SSM|WM8|CS[45]\d|PCM[15]|ADAU|AK[45]\d|ES[89]\d|NAU[78])/i', $mpn) ||
+            preg_match('/audio|codec|class.?[dab]\s*amp|speaker\s*driver/i', $description)) {
+            return [
+                'found' => true,
+                'unitPrice' => '1.80',
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── Speakers / Buzzers / Microphones / Transducers ──
+        if (preg_match('/^(CSS|CMS|CMR|SPT|SMT\-|AI\-|PKM|PKLCS|EM\-|SBC|CMC|CMA|PS[1-9]|PT\-|IMP|INMP|SPU|SPH|MEMS)/i', $mpn) ||
+            preg_match('/speaker|buzzer|microphone|transducer|piezo|beeper|receiver|earpiece/i', $description)) {
+            return [
+                'found' => true,
+                'unitPrice' => '0.95',
+                'source' => 'Mouser API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 3,
+            ];
+        }
+
+        // ── ESD / EMI protection ──
+        if (preg_match('/^(TPD|PRTR|USBLC|IP4|SP0|SP3|PESD|CDSOT|NUP|SRV|CM\d|ACM|DLW|BNX)/i', $mpn) ||
+            preg_match('/esd\s*protect|tvs\s*array|common\s*mode|emi\s*filter/i', $description)) {
+            return [
+                'found' => true,
+                'unitPrice' => '0.20',
+                'source' => 'DigiKey API',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 2,
+            ];
+        }
+
+        // ── Test points / mechanical / fiducials (zero cost) ──
+        if (preg_match('/^(TP|FID|MH|STANDOFF|SCREW|NUT|SPACER)/i', $mpn) ||
+            preg_match('/test\s*point|fiducial|mounting\s*hole|standoff|spacer/i', $description)) {
+            return [
+                'found' => true,
+                'unitPrice' => '0.02',
+                'source' => 'Internal',
+                'availability' => 'In Stock',
+                'leadTimeDays' => 1,
+            ];
+        }
+
+        // ── Fallback: try description-based matching for generic parts ──
+        if ($description || $value) {
+            $text = $description ?: $value;
+            
+            // Generic passive detection from description
+            if (preg_match('/\b(resistor|res)\b/i', $text)) {
+                return ['found' => true, 'unitPrice' => '0.01', 'source' => 'Mouser API', 'availability' => 'In Stock', 'leadTimeDays' => 1];
+            }
+            if (preg_match('/\b(capacitor|cap)\b/i', $text)) {
+                return ['found' => true, 'unitPrice' => '0.08', 'source' => 'DigiKey API', 'availability' => 'In Stock', 'leadTimeDays' => 1];
+            }
+            if (preg_match('/\binductor\b/i', $text)) {
+                return ['found' => true, 'unitPrice' => '0.15', 'source' => 'Mouser API', 'availability' => 'In Stock', 'leadTimeDays' => 2];
+            }
+        }
+
+        // ── Default: Not found ──
         return [
             'found' => false,
             'reason' => 'Part not found in distributor databases',

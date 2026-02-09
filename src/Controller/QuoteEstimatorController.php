@@ -144,7 +144,7 @@ class QuoteEstimatorController extends AbstractController
         
         // Validate basic fields
         if (!$customerName || !$partNumber || !$quantity) {
-            $this->addFlash('error', 'Please fill in Customer Name, Part Number, and Quantity');
+            $this->addFlash('error', 'quote.estimator.error.missing_fields');
             return $this->redirectToRoute('quote_estimator_index');
         }
         
@@ -196,12 +196,12 @@ class QuoteEstimatorController extends AbstractController
         $this->entityManager->flush();
         
         if ($action === 'save') {
-            $this->addFlash('success', sprintf('Quote saved as draft %s. You can return to it later.', $estimate->getEstimateNumber()));
+            $this->addFlash('success', 'quote.estimator.flash.saved_draft');
             return $this->redirectToRoute('quote_estimator_index');
         }
         
         // Action is 'estimate' - show results (pricing calculation coming soon)
-        $this->addFlash('info', 'Quote request created. Full pricing calculation coming soon!');
+        $this->addFlash('info', 'quote.estimator.flash.request_created');
         return $this->redirectToRoute('quote_estimator_results', ['id' => $estimate->getId()]);
     }
 

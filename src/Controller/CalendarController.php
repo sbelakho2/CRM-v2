@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[Route('/calendar')]
 #[IsGranted('ROLE_USER')]
@@ -20,6 +21,7 @@ class CalendarController extends AbstractController
     public function __construct(
         private readonly CalendarEventRepository $eventRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -100,13 +102,13 @@ class CalendarController extends AbstractController
             );
             
             if (!empty($conflicts) && !$request->request->getBoolean('ignore_conflicts')) {
-                $this->addFlash('warning', 'This event overlaps with ' . count($conflicts) . ' existing event(s). Submit again to confirm.');
+                $this->addFlash('warning', $this->translator->trans('calendar.flash.overlap', ['%count%' => count($conflicts)]));
                 $request->request->set('ignore_conflicts', true);
             } else {
                 $this->entityManager->persist($event);
                 $this->entityManager->flush();
 
-                $this->addFlash('success', 'Event created successfully.');
+                $this->addFlash('success', $this->translator->trans('calendar.flash.created'));
 
                 if ($request->isXmlHttpRequest()) {
                     return $this->json([
@@ -154,7 +156,7 @@ class CalendarController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Event updated successfully.');
+            $this->addFlash('success', $this->translator->trans('calendar.flash.updated'));
 
             if ($request->isXmlHttpRequest()) {
                 return $this->json([
@@ -191,7 +193,7 @@ class CalendarController extends AbstractController
             $this->entityManager->remove($event);
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Event deleted successfully.');
+            $this->addFlash('success', $this->translator->trans('calendar.flash.deleted'));
         }
 
         if ($request->isXmlHttpRequest()) {
@@ -212,7 +214,7 @@ class CalendarController extends AbstractController
             $event->setStatus(CalendarEvent::STATUS_CANCELLED);
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Event cancelled.');
+            $this->addFlash('success', $this->translator->trans('calendar.flash.cancelled'));
         }
 
         return $this->redirectToRoute('calendar_show', ['id' => $event->getId()]);

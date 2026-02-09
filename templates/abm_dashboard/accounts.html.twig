@@ -130,7 +130,13 @@
         <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--inset rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
-                    <span class="rams-text-2xl">📤</span>
+                    <div class="rams-metric__icon">
+                        <svg class="rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
                     <h3 class="rams-module__title">{{ 'abm_dashboard.import_accounts'|trans }}</h3>
                 </div>
                 <p class="rams-text--muted rams-text--xs">{{ 'abm_dashboard.import_accounts_desc'|trans }}</p>
@@ -139,7 +145,13 @@
         <a href="{{ path('abm_dashboard_index') }}" class="rams-module rams-module--inset rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
-                    <span class="rams-text-2xl">📊</span>
+                    <div class="rams-metric__icon">
+                        <svg class="rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                    </div>
                     <h3 class="rams-module__title">{{ 'abm_dashboard.analytics'|trans }}</h3>
                 </div>
                 <p class="rams-text--muted rams-text--xs">{{ 'abm_dashboard.analytics_subtitle'|trans }}</p>

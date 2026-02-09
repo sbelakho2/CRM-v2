@@ -12,6 +12,17 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class Company
 {
+    // Company Status Constants — controls lifecycle gating
+    public const STATUS_DISCOVERED = 'discovered'; // Webcrawler-found, pending human review
+    public const STATUS_APPROVED   = 'approved';   // Reviewed & accepted into company list (NOT in compliance yet)
+    public const STATUS_ACTIVE     = 'active';     // Moved to active — eligible for compliance pipeline
+
+    public const VALID_STATUSES = [
+        self::STATUS_DISCOVERED,
+        self::STATUS_APPROVED,
+        self::STATUS_ACTIVE,
+    ];
+
     // Pipeline Stage Constants
     public const STAGE_PROSPECT = 'Prospect';
     public const STAGE_MQL = 'MQL';        // Marketing Qualified Lead
@@ -118,6 +129,9 @@ class Company
 
     #[ORM\Column(length: 50)]
     private ?string $pipelineStage = 'Prospect'; // Prospect, MQL, SQL, SQO, Proposal, Award
+
+    #[ORM\Column(length: 30, options: ['default' => 'approved'])]
+    private string $companyStatus = 'approved'; // discovered, approved, active
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $website = null;
@@ -290,6 +304,56 @@ class Company
             $this->pipelineStage = self::VALID_STAGES[$currentIndex + 1];
         }
         return $this;
+    }
+
+    public function getCompanyStatus(): string
+    {
+        return $this->companyStatus;
+    }
+
+    public function setCompanyStatus(string $companyStatus): self
+    {
+        if (!in_array($companyStatus, self::VALID_STATUSES, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid company status "%s". Valid statuses are: %s',
+                $companyStatus,
+                implode(', ', self::VALID_STATUSES)
+            ));
+        }
+        $this->companyStatus = $companyStatus;
+        return $this;
+    }
+
+    /**
+     * Whether this company was auto-discovered and is awaiting review
+     */
+    public function isDiscovered(): bool
+    {
+        return $this->companyStatus === self::STATUS_DISCOVERED;
+    }
+
+    /**
+     * Whether this company has been approved into the company list
+     */
+    public function isApproved(): bool
+    {
+        return $this->companyStatus === self::STATUS_APPROVED;
+    }
+
+    /**
+     * Whether this company is active and eligible for the compliance pipeline
+     */
+    public function isActive(): bool
+    {
+        return $this->companyStatus === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Whether this company can enter the compliance pipeline
+     */
+    public function canEnterCompliance(): bool
+    {
+        return $this->companyStatus === self::STATUS_ACTIVE;
     }
 
     public function getWebsite(): ?string

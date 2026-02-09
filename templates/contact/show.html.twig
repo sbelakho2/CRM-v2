@@ -105,13 +105,13 @@
                         </div>
                         {% if contact.linkedInUrl %}
                             <div class="rams-definition-list__item">
-                                <dt class="rams-definition-list__term">LinkedIn</dt>
+                                <dt class="rams-definition-list__term">{{ 'contact.linkedin.label'|trans }}</dt>
                                 <dd class="rams-definition-list__desc">
                                     <a href="{{ contact.linkedInUrl }}" target="_blank" rel="noopener" class="rams-link" style="color: #0077b5;">
                                         <svg style="width:14px;height:14px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="currentColor">
                                             <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                                         </svg>
-                                        {{ 'View Profile'|trans }}
+                                        {{ 'contact.actions.view_profile'|trans }}
                                     </a>
                                 </dd>
                             </div>
@@ -126,9 +126,9 @@
                         {% endif %}
                         {% if contact.primaryContact %}
                             <div class="rams-definition-list__item">
-                                <dt class="rams-definition-list__term">Decision Maker</dt>
+                                <dt class="rams-definition-list__term">{{ 'contact.decision_maker.label'|trans }}</dt>
                                 <dd class="rams-definition-list__desc">
-                                    <span class="rams-badge rams-badge--success">★ Decision Maker</span>
+                                    <span class="rams-badge rams-badge--success">★ {{ 'contact.decision_maker.label'|trans }}</span>
                                 </dd>
                             </div>
                         {% endif %}
@@ -177,29 +177,29 @@
             {# Contact Details Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-module__title">Details</h2>
+                    <h2 class="rams-module__title">{{ 'common.details'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-2">
                         {% if contact.source %}
                             <div class="rams-flex rams-justify-between rams-items-center">
-                                <span class="rams-text--muted rams-text--xs">Source</span>
+                                <span class="rams-text--muted rams-text--xs">{{ 'contact.fields.source'|trans }}</span>
                                 <span class="rams-badge">{{ contact.source }}</span>
                             </div>
                         {% endif %}
                         {% if contact.primaryContact %}
                             <div class="rams-flex rams-justify-between rams-items-center">
-                                <span class="rams-text--muted rams-text--xs">Decision Maker</span>
-                                <span class="rams-badge rams-badge--success">★ Yes</span>
+                                <span class="rams-text--muted rams-text--xs">{{ 'contact.decision_maker.label'|trans }}</span>
+                                <span class="rams-badge rams-badge--success">★ {{ 'common.yes'|trans }}</span>
                             </div>
                         {% endif %}
                         <div class="rams-flex rams-justify-between rams-items-center">
-                            <span class="rams-text--muted rams-text--xs">Created</span>
+                            <span class="rams-text--muted rams-text--xs">{{ 'contact.created_at'|trans }}</span>
                             <span class="rams-text--xs rams-font-mono">{{ contact.createdAt|date('M d, Y') }}</span>
                         </div>
                         {% if contact.notes %}
                             <div class="rams-mt-2">
-                                <span class="rams-text--muted rams-text--xs">Notes</span>
+                                <span class="rams-text--muted rams-text--xs">{{ 'contact.fields.notes'|trans }}</span>
                                 <p class="rams-text--xs rams-mt-1 rams-whitespace-pre-line">{{ contact.notes }}</p>
                             </div>
                         {% endif %}
@@ -235,7 +235,7 @@
                                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                                 </svg>
-                                LinkedIn
+                                {{ 'contact.linkedin.label'|trans }}
                             </a>
                         {% endif %}
                         <a href="{{ path('app_activity_new', {contact: contact.id}) }}" class="rams-btn rams-btn--primary rams-w-full rams-mt-2">

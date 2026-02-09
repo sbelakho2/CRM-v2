@@ -1,0 +1,15 @@
+Reference Designators,Manufacturer Part Number,Manufacturer Name,Quantity Per Board,Part Description,Case/Package
+C1,GRM155R71C104KA88D,Murata Manufacturing,10,Multilayer Ceramic Cap 100nF 50V X7R 0402,0402 (1005 Metric)
+C2,TAJB106K016RNJ,AVX Corporation,2,Tantalum Cap 10uF 16V 10%,1210
+R1-R10,RC0402FR-0710KL,Yageo,10,Thin Film Chip Resistor 10K Ohm 1% 0402,0402 (1005 Metric)
+R11-R15,ERJ-2RKF1001X,Panasonic,5,Chip Resistor 1K Ohm 1% 0402,0402
+U1,STM32F411CEU6,STMicroelectronics,1,ARM Cortex-M4 MCU 100MHz 512KB Flash,UFQFPN-48
+U2,BME280,Bosch Sensortec,1,Environmental Sensor Temp/Hum/Press,LGA-8
+U3,MPU-6050,InvenSense,1,6-Axis IMU Accel+Gyro,QFN-24
+U4,W25Q128JVSIQ,Winbond,1,128Mbit SPI NOR Flash,SOIC-8
+U5,MAX3232ECPE+,Maxim Integrated,1,RS-232 Transceiver DIP-16,DIP-16
+Y1,NX3225GA-8MHZ,NDK,1,Crystal 8.000MHz 10pF,3225
+LED1-LED4,LTST-C190KRKT,Lite-On,4,LED Red SMD 0603,0603
+J1,10118193-0001LF,Amphenol,1,USB Micro-B Receptacle SMD,SMD
+SW1,EVQ-P7L01P,Panasonic,1,Tact Switch Side Actuated SMD,SMD
+TP1-TP4,5000,Keystone,4,Test Point SMD,SMD

@@ -1,216 +1,327 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'nav.autonomous_sales'|trans|default('Autonomous Sales') }} - {{ 'app.name'|trans }}{% endblock %}
+{% block title %}Sales Automation - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack rams-gap-6">
+
+    {# ================================================================== #}
+    {# HEADER -- Simple power toggle + system status                      #}
+    {# ================================================================== #}
     <div class="rams-page-header">
         <div>
-            <h1 class="rams-page-title">{{ 'nav.autonomous_sales'|trans|default('Autonomous Sales') }}</h1>
-            <p class="rams-page-subtitle">{{ 'autonomous_sales.subtitle'|trans|default('Live Thompson Sampling performance across email experiments.') }}</p>
-            <div class="rams-mt-2">
-                {% if autonomous_enabled %}
-                    <span class="rams-badge rams-badge--success">{{ 'autonomous_sales.status_enabled'|trans|default('Enabled') }}</span>
-                {% else %}
-                    <span class="rams-badge rams-badge--danger">{{ 'autonomous_sales.status_disabled'|trans|default('Disabled') }}</span>
-                {% endif %}
-            </div>
+            <h1 class="rams-page-title">Sales Automation</h1>
+            <p class="rams-page-subtitle">Automatically compose, send, and optimize your outreach emails. The system learns what works and does more of it.</p>
         </div>
         <div class="rams-page-header__actions">
-            <form method="post" action="{{ path('autonomous_sales_toggle') }}" class="rams-mr-2">
+            <form method="post" action="{{ path('autonomous_sales_toggle') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_toggle') }}">
-                <button type="submit" class="rams-btn">
-                    {% if autonomous_enabled %}
-                        {{ 'autonomous_sales.disable'|trans|default('Turn off') }}
+                <button type="submit" class="rams-btn {% if enabled %}rams-btn--primary{% endif %}">
+                    {% if enabled %}
+                        Turn off
                     {% else %}
-                        {{ 'autonomous_sales.enable'|trans|default('Turn on') }}
+                        Turn on
                     {% endif %}
                 </button>
             </form>
-            <form method="post" action="{{ path('autonomous_sales_initialize') }}" class="rams-mr-2">
-                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_initialize') }}">
-                <button type="submit" class="rams-btn" {% if not autonomous_enabled %}disabled{% endif %}>
-                    {{ 'autonomous_sales.initialize'|trans|default('Initialize system') }}
-                </button>
-            </form>
-            <form method="post" action="{{ path('autonomous_sales_seed') }}">
-                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_seed') }}">
-                <input type="hidden" name="seedType" value="subject_line">
-                <button type="submit" class="rams-btn" {% if not autonomous_enabled %}disabled{% endif %}>
-                    {{ 'autonomous_sales.seed_subject_lines'|trans|default('Seed subject line arms') }}
-                </button>
-            </form>
         </div>
     </div>
 
-    <div class="rams-module">
-        <div class="rams-module__header">
-            <h3>{{ 'autonomous_sales.system_overview'|trans|default('System overview') }}</h3>
-        </div>
-        <div class="rams-module__content">
-            <div class="rams-grid rams-grid--4 rams-gap-4">
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'autonomous_sales.leads_total'|trans|default('Leads total') }}</span>
-                    <span class="rams-metric__value">{{ system_stats.discovery.totalLeads|default(0) }}</span>
-                </div>
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'autonomous_sales.leads_pending'|trans|default('Pending review') }}</span>
-                    <span class="rams-metric__value">{{ system_stats.discovery.pendingReview|default(0) }}</span>
-                </div>
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'autonomous_sales.leads_scored'|trans|default('Scored leads') }}</span>
-                    <span class="rams-metric__value">{{ system_stats.discovery.scored|default(0) }}</span>
-                </div>
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'autonomous_sales.avg_score'|trans|default('Avg score') }}</span>
-                    <span class="rams-metric__value">{{ system_stats.scoring.averageScore|default(0) }}</span>
-                </div>
+    {# ================================================================== #}
+    {# FLASH MESSAGES                                                      #}
+    {# ================================================================== #}
+    {% for type, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="rams-alert rams-alert--{{ type == 'error' ? 'error' : (type == 'warning' ? 'warning' : (type == 'info' ? 'info' : 'success')) }}">
+                {{ message }}
             </div>
-            <div class="rams-divider rams-my-4"></div>
-            <div class="rams-grid rams-grid--4 rams-gap-4">
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'autonomous_sales.optimizer_arms'|trans|default('Optimizer arms') }}</span>
-                    <span class="rams-metric__value">{{ system_stats.optimizer.arms|default(0) }}</span>
+        {% endfor %}
+    {% endfor %}
+
+    {# ================================================================== #}
+    {# SYSTEM STATUS -- One clear traffic-light indicator                 #}
+    {# ================================================================== #}
+    <div class="rams-module">
+        <div class="rams-module__content">
+            <div class="rams-flex rams-gap-4 rams-items-center">
+                <div class="rams-andon">
+                    {% if health.status == 'green' %}
+                        <span class="rams-andon__light rams-andon__light--green"></span>
+                    {% elseif health.status == 'yellow' %}
+                        <span class="rams-andon__light rams-andon__light--yellow"></span>
+                    {% elseif health.status == 'red' %}
+                        <span class="rams-andon__light rams-andon__light--red"></span>
+                    {% else %}
+                        <span class="rams-andon__light"></span>
+                    {% endif %}
                 </div>
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'autonomous_sales.optimizer_trials'|trans|default('Optimizer trials') }}</span>
-                    <span class="rams-metric__value">{{ system_stats.optimizer.trials|default(0) }}</span>
-                </div>
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'autonomous_sales.optimizer_success'|trans|default('Success rate') }}</span>
-                    <span class="rams-metric__value">{{ (system_stats.optimizer.successRate|default(0) * 100)|number_format(2) }}%</span>
-                </div>
-                <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'autonomous_sales.competitors'|trans|default('Competitor signals') }}</span>
-                    <span class="rams-metric__value">{{ system_stats.competitors.detectionsCount|default(0) }}</span>
+                <div>
+                    <div class="rams-text--bold">{{ health.statusLabel }}</div>
+                    <div class="rams-text--sm rams-text--muted">{{ health.statusDesc }}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="rams-module">
-        <div class="rams-module__header">
-            <h3>{{ 'autonomous_sales.score_leads'|trans|default('Score leads') }}</h3>
-        </div>
-        <div class="rams-module__content">
-            <form method="post" action="{{ path('autonomous_sales_score_leads') }}" class="rams-grid rams-grid--4 rams-gap-4">
-                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_score_leads') }}">
-                <div>
-                    <label class="rams-form__label">{{ 'autonomous_sales.score_limit'|trans|default('Leads to score') }}</label>
-                    <input type="number" min="1" max="500" name="limit" value="50" class="rams-form__input" {% if not autonomous_enabled %}disabled{% endif %}>
-                </div>
-                <div class="rams-flex rams-items-end">
-                    <button type="submit" class="rams-btn rams-btn--primary" {% if not autonomous_enabled %}disabled{% endif %}>
-                        {{ 'autonomous_sales.run_scoring'|trans|default('Run scoring') }}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="rams-module">
-        <div class="rams-module__header">
-            <h3>{{ 'autonomous_sales.create_arm'|trans|default('Create bandit arm') }}</h3>
-        </div>
-        <div class="rams-module__content">
-            <form method="post" action="{{ path('autonomous_sales_arm_create') }}" class="rams-grid rams-grid--4 rams-gap-4">
-                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_arm_create') }}">
-                <div>
-                    <label class="rams-form__label">{{ 'autonomous_sales.arm_type'|trans|default('Arm type') }}</label>
-                    <select name="armType" class="rams-form__select" {% if not autonomous_enabled %}disabled{% endif %}>
-                        {% for type, label in types %}
-                            <option value="{{ type }}">{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="rams-form__label">{{ 'autonomous_sales.arm_name'|trans|default('Arm name') }}</label>
-                    <input type="text" name="armName" class="rams-form__input" placeholder="{{ 'autonomous_sales.arm_name_placeholder'|trans|default('e.g., Direct Question') }}" required {% if not autonomous_enabled %}disabled{% endif %}>
-                </div>
-                <div>
-                    <label class="rams-form__label">{{ 'autonomous_sales.arm_value'|trans|default('Arm value') }}</label>
-                    <input type="text" name="armValue" class="rams-form__input" placeholder="{{ 'autonomous_sales.arm_value_placeholder'|trans|default('e.g., Quick question about {{company_name}}?') }}" required {% if not autonomous_enabled %}disabled{% endif %}>
-                </div>
-                <div class="rams-flex rams-items-end">
-                    <button type="submit" class="rams-btn rams-btn--primary" {% if not autonomous_enabled %}disabled{% endif %}>
-                        {{ 'common.create'|trans|default('Create') }}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {% for type, label in types %}
-        {% set stats = bandit_stats[type] ?? {} %}
-        {% set arms = bandit_arms[type] ?? [] %}
-
+    {# ================================================================== #}
+    {# SETUP CHECKLIST -- Only show if not all steps are done             #}
+    {# ================================================================== #}
+    {% if not setup.allDone %}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3>{{ label }}</h3>
+                <div class="rams-flex rams-justify-between rams-items-center" style="width:100%">
+                    <h3>Getting started</h3>
+                    <span class="rams-text--sm rams-text--muted">{{ setup.completed }} of {{ setup.total }} complete</span>
+                </div>
             </div>
             <div class="rams-module__content">
-                <div class="rams-grid rams-grid--3 rams-gap-4 rams-mb-4">
+                <p class="rams-text--sm rams-text--muted rams-mb-4">Complete these steps to get your sales automation running. Each step builds on the previous one.</p>
+
+                <div class="rams-progress rams-mb-4">
+                    <div class="rams-progress__bar rams-progress__bar--info" style="width: {{ setup.pct }}%"></div>
+                </div>
+
+                <div class="rams-stack rams-gap-2">
+                    {% for step in setup.steps %}
+                        <div class="rams-flex rams-gap-3 rams-items-center" style="padding: 8px 0; {% if not step.done and loop.first == false %}opacity: 0.7{% endif %}">
+                            {% if step.done %}
+                                <span class="rams-badge rams-badge--success rams-badge--xs" style="min-width: 24px; text-align: center">Done</span>
+                            {% else %}
+                                <span class="rams-badge rams-badge--xs" style="min-width: 24px; text-align: center">{{ loop.index }}</span>
+                            {% endif %}
+                            <div>
+                                <div class="rams-text--sm {% if step.done %}rams-text--muted{% else %}rams-text--bold{% endif %}" style="{% if step.done %}text-decoration: line-through{% endif %}">{{ step.label }}</div>
+                                {% if not step.done %}
+                                    <div class="rams-text--xs rams-text--muted">{{ step.help }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {# Setup action buttons -- contextual #}
+                {% if enabled %}
+                    <div class="rams-flex rams-gap-3 rams-mt-4">
+                        {% if 'initialize' in automation.actions %}
+                            <form method="post" action="{{ path('autonomous_sales_initialize') }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_initialize') }}">
+                                <button type="submit" class="rams-btn rams-btn--primary">Initialize system</button>
+                            </form>
+                        {% endif %}
+                        {% if 'seed' in automation.actions %}
+                            <form method="post" action="{{ path('autonomous_sales_seed') }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_seed') }}">
+                                <input type="hidden" name="seedType" value="subject_line">
+                                <button type="submit" class="rams-btn">Set up default variations</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# ================================================================== #}
+    {# PERFORMANCE AT A GLANCE -- Only show if there is data             #}
+    {# ================================================================== #}
+    {% if performance.emailsSent > 0 or performance.leadsTotal > 0 %}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3>Performance at a glance</h3>
+            </div>
+            <div class="rams-module__content">
+                <p class="rams-text--sm rams-text--muted rams-mb-4">These numbers update automatically as the system sends emails and tracks results.</p>
+                <div class="rams-grid rams-grid--4 rams-gap-4">
                     <div class="rams-metric">
-                        <span class="rams-metric__label">{{ 'autonomous_sales.total_arms'|trans|default('Total arms') }}</span>
-                        <span class="rams-metric__value">{{ stats.total_arms|default(0) }}</span>
+                        <span class="rams-metric__label">Emails sent</span>
+                        <span class="rams-metric__value">{{ performance.emailsSent|number_format }}</span>
                     </div>
                     <div class="rams-metric">
-                        <span class="rams-metric__label">{{ 'autonomous_sales.total_trials'|trans|default('Total trials') }}</span>
-                        <span class="rams-metric__value">{{ stats.total_trials|default(0) }}</span>
+                        <span class="rams-metric__label">Success rate</span>
+                        <span class="rams-metric__value">{{ performance.successPct }}%</span>
+                        <span class="rams-text--xs rams-text--muted">opens, clicks, and replies</span>
                     </div>
                     <div class="rams-metric">
-                        <span class="rams-metric__label">{{ 'autonomous_sales.expected_rate'|trans|default('Expected rate') }}</span>
-                        <span class="rams-metric__value">{{ (stats.average_expected_rate|default(0) * 100)|number_format(2) }}%</span>
+                        <span class="rams-metric__label">Active variations</span>
+                        <span class="rams-metric__value">{{ performance.variationsActive }}</span>
+                        <span class="rams-text--xs rams-text--muted">being tested right now</span>
+                    </div>
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">Leads available</span>
+                        <span class="rams-metric__value">{{ performance.leadsTotal|number_format }}</span>
+                        <span class="rams-text--xs rams-text--muted">{{ performance.leadsScored }} scored</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {# ================================================================== #}
+    {# ACTIONS -- What the user can do, with explanations                 #}
+    {# ================================================================== #}
+    {% if enabled %}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3>Actions</h3>
+            </div>
+            <div class="rams-module__content">
+                <p class="rams-text--sm rams-text--muted rams-mb-4">{{ automation.detail }}</p>
+
+                <div class="rams-grid rams-grid--2 rams-gap-4">
+                    {# Run optimization cycle #}
+                    <div class="rams-module rams-module--inset">
+                        <div class="rams-module__content">
+                            <h4 class="rams-text--bold rams-mb-2">Run optimization cycle</h4>
+                            <p class="rams-text--sm rams-text--muted rams-mb-3">Evaluates all email variations, disables poor performers, promotes winners, and optionally sends a batch of test emails. You can run this as often as you like.</p>
+                            <form method="post" action="{{ path('autonomous_sales_hourly_run') }}" class="rams-flex rams-gap-3 rams-items-end">
+                                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_hourly_run') }}">
+                                <div>
+                                    <label class="rams-form__label">Mode</label>
+                                    <select name="dryRun" class="rams-form__select">
+                                        <option value="1" selected>Evaluate only (no emails sent)</option>
+                                        <option value="0">Live (sends emails)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="rams-form__label">Email batch size</label>
+                                    <input type="number" name="limit" value="50" min="1" max="100" class="rams-form__input" style="width:80px">
+                                </div>
+                                <button type="submit" class="rams-btn rams-btn--primary">Run now</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {# Score leads #}
+                    <div class="rams-module rams-module--inset">
+                        <div class="rams-module__content">
+                            <h4 class="rams-text--bold rams-mb-2">Score leads</h4>
+                            <p class="rams-text--sm rams-text--muted rams-mb-3">Analyzes your leads and ranks them by how likely they are to become customers. Higher-scoring leads get contacted first. Run this after importing new leads.</p>
+                            <form method="post" action="{{ path('autonomous_sales_score_leads') }}" class="rams-flex rams-gap-3 rams-items-end">
+                                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_score_leads') }}">
+                                <div>
+                                    <label class="rams-form__label">Leads to score</label>
+                                    <input type="number" min="1" max="500" name="limit" value="50" class="rams-form__input" style="width:80px">
+                                </div>
+                                <button type="submit" class="rams-btn">Score leads</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
 
-                {% if arms is empty %}
+                {# Setup actions (only if needed) #}
+                {% if setup.allDone == false %}
+                    <div class="rams-divider rams-my-4"></div>
+                    <div class="rams-grid rams-grid--2 rams-gap-4">
+                        <div class="rams-module rams-module--inset">
+                            <div class="rams-module__content">
+                                <h4 class="rams-text--bold rams-mb-2">Initialize system</h4>
+                                <p class="rams-text--sm rams-text--muted rams-mb-3">Loads email templates, creates initial variations, and imports competitor data. Only needs to be done once.</p>
+                                <form method="post" action="{{ path('autonomous_sales_initialize') }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_initialize') }}">
+                                    <button type="submit" class="rams-btn">Initialize system</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="rams-module rams-module--inset">
+                            <div class="rams-module__content">
+                                <h4 class="rams-text--bold rams-mb-2">Set up default variations</h4>
+                                <p class="rams-text--sm rams-text--muted rams-mb-3">Creates 4 proven subject line styles (direct question, value proposition, capability focus, cost focus). The system tests all of them and automatically uses the best ones more often.</p>
+                                <form method="post" action="{{ path('autonomous_sales_seed') }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_seed') }}">
+                                    <input type="hidden" name="seedType" value="subject_line">
+                                    <button type="submit" class="rams-btn">Set up default variations</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# ================================================================== #}
+    {# EMAIL VARIATIONS -- Human-readable version of bandit arms          #}
+    {# ================================================================== #}
+    {% for section in variations %}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <div class="rams-flex rams-justify-between rams-items-center" style="width:100%">
+                    <h3>{{ section.label }}</h3>
+                    <span class="rams-text--sm rams-text--muted">{{ section.count }} variation{{ section.count != 1 ? 's' : '' }}</span>
+                </div>
+            </div>
+            <div class="rams-module__content">
+                <p class="rams-text--sm rams-text--muted rams-mb-4">{{ section.explanation }}</p>
+
+                {% if section.items is empty %}
                     <div class="rams-empty-state">
-                        <h4 class="rams-empty-state__title">{{ 'autonomous_sales.no_arms'|trans|default('No bandit arms yet.') }}</h4>
-                        <p class="rams-text--muted">{{ 'autonomous_sales.no_arms_hint'|trans|default('Create arms via the Autonomous Sales API to start learning.') }}</p>
+                        <h4 class="rams-empty-state__title">No variations yet</h4>
+                        <p class="rams-text--muted">Click "Set up default variations" above to get started, or add a custom one below.</p>
                     </div>
                 {% else %}
                     <div class="rams-table-container">
                         <table class="rams-table">
                             <thead>
                                 <tr>
-                                    <th>{{ 'common.name'|trans|default('Name') }}</th>
-                                    <th>{{ 'autonomous_sales.value'|trans|default('Value') }}</th>
-                                    <th class="rams-text--right">{{ 'autonomous_sales.trials'|trans|default('Trials') }}</th>
-                                    <th class="rams-text--right">{{ 'autonomous_sales.successes'|trans|default('Successes') }}</th>
-                                    <th class="rams-text--right">{{ 'autonomous_sales.empirical_rate'|trans|default('Empirical rate') }}</th>
-                                    <th class="rams-text--right">{{ 'autonomous_sales.expected_rate'|trans|default('Expected rate') }}</th>
-                                    <th class="rams-text--right">{{ 'common.actions'|trans|default('Actions') }}</th>
+                                    <th>Variation</th>
+                                    <th>Content</th>
+                                    <th class="rams-text--right">Emails sent</th>
+                                    <th class="rams-text--right">Success rate</th>
+                                    <th class="rams-text--right">vs Baseline</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for arm in arms %}
-                                    <tr>
-                                        <td>{{ arm.name }}</td>
-                                        <td><code class="rams-text--xs rams-text--muted">{{ arm.value }}</code></td>
-                                        <td class="rams-text--right">{{ arm.totalTrials }}</td>
-                                        <td class="rams-text--right">{{ arm.totalSuccesses }}</td>
-                                        <td class="rams-text--right">{{ (arm.empiricalRate * 100)|number_format(2) }}%</td>
-                                        <td class="rams-text--right">{{ (arm.expectedRate * 100)|number_format(2) }}%</td>
+                                {% for item in section.items %}
+                                    <tr{% if item.quarantined %} style="opacity: 0.5"{% endif %}>
+                                        <td>
+                                            <span class="rams-text--bold">{{ item.name }}</span>
+                                        </td>
+                                        <td>
+                                            <code class="rams-text--xs rams-text--muted">{{ item.value|length > 60 ? item.value[:60] ~ '...' : item.value }}</code>
+                                        </td>
+                                        <td class="rams-text--right">{{ item.emailsSent }}</td>
                                         <td class="rams-text--right">
-                                            <div class="rams-flex rams-justify-end rams-gap-2">
-                                                <form method="post" action="{{ path('autonomous_sales_arm_outcome', {id: arm.id}) }}">
-                                                    <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_arm_outcome_' ~ arm.id) }}">
-                                                    <input type="hidden" name="eventType" value="open">
-                                                    <input type="hidden" name="result" value="success">
-                                                    <button type="submit" class="rams-btn rams-btn--ghost" {% if not autonomous_enabled %}disabled{% endif %}>
-                                                        {{ 'autonomous_sales.mark_success'|trans|default('Success') }}
-                                                    </button>
-                                                </form>
-                                                <form method="post" action="{{ path('autonomous_sales_arm_outcome', {id: arm.id}) }}">
-                                                    <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_arm_outcome_' ~ arm.id) }}">
-                                                    <input type="hidden" name="eventType" value="open">
-                                                    <input type="hidden" name="result" value="failure">
-                                                    <button type="submit" class="rams-btn rams-btn--ghost" {% if not autonomous_enabled %}disabled{% endif %}>
-                                                        {{ 'autonomous_sales.mark_failure'|trans|default('Failure') }}
-                                                    </button>
-                                                </form>
-                                            </div>
+                                            {% if item.emailsSent > 0 %}
+                                                {{ item.successPct }}%
+                                            {% else %}
+                                                <span class="rams-text--muted">--</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="rams-text--right">
+                                            {% if item.isControl %}
+                                                <span class="rams-text--muted">--</span>
+                                            {% elseif item.vsBaseline is not null %}
+                                                {% if item.vsBaseline > 0 %}
+                                                    <span style="color: var(--rams-success)">+{{ item.vsBaseline }}%</span>
+                                                {% elseif item.vsBaseline < 0 %}
+                                                    <span class="rams-text--danger">{{ item.vsBaseline }}%</span>
+                                                {% else %}
+                                                    <span class="rams-text--muted">0%</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="rams-text--muted">--</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.badge == 'baseline' %}
+                                                <span class="rams-badge rams-badge--info rams-badge--xs">Baseline</span>
+                                            {% elseif item.badge == 'winning' %}
+                                                <span class="rams-badge rams-badge--success rams-badge--xs">Top performer</span>
+                                            {% elseif item.badge == 'testing' %}
+                                                <span class="rams-badge rams-badge--xs">Still testing</span>
+                                            {% elseif item.badge == 'active' %}
+                                                <span class="rams-badge rams-badge--xs">Active</span>
+                                            {% elseif item.badge == 'losing' %}
+                                                <span class="rams-badge rams-badge--warning rams-badge--xs">Underperforming</span>
+                                            {% elseif item.badge == 'disabled' %}
+                                                <span class="rams-badge rams-badge--danger rams-badge--xs">Disabled</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr{% if item.quarantined %} style="opacity: 0.5"{% endif %}>
+                                        <td colspan="6" style="padding-top: 0; border-top: none;">
+                                            <span class="rams-text--xs rams-text--muted">{{ item.explanation }}</span>
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -218,8 +329,78 @@
                         </table>
                     </div>
                 {% endif %}
+
+                {# Add custom variation -- only for subject lines #}
+                {% if section.type == 'subject_line' and enabled %}
+                    <div class="rams-divider rams-my-4"></div>
+                    <details>
+                        <summary class="rams-text--sm rams-text--bold" style="cursor: pointer; user-select: none;">Add a custom subject line variation</summary>
+                        <p class="rams-text--xs rams-text--muted rams-mt-2 rams-mb-3">Add your own subject line idea. The system will test it against the others and automatically determine if it performs well. Use {% verbatim %}<code>{{first_name}}</code> and <code>{{company_name}}</code>{% endverbatim %} as placeholders.</p>
+                        <form method="post" action="{{ path('autonomous_sales_arm_create') }}" class="rams-flex rams-gap-3 rams-items-end">
+                            <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_arm_create') }}">
+                            <input type="hidden" name="armType" value="subject_line">
+                            <div style="flex: 1">
+                                <label class="rams-form__label">Name (for your reference)</label>
+                                <input type="text" name="armName" class="rams-form__input" placeholder="e.g., Friendly intro" required>
+                            </div>
+                            <div style="flex: 2">
+                                <label class="rams-form__label">Subject line text</label>
+                                <input type="text" name="armValue" class="rams-form__input" placeholder="e.g., Quick question about {% verbatim %}{{company_name}}{% endverbatim %}" required>
+                            </div>
+                            <button type="submit" class="rams-btn">Add variation</button>
+                        </form>
+                    </details>
+                {% endif %}
             </div>
         </div>
     {% endfor %}
+
+    {# ================================================================== #}
+    {# HOW IT WORKS -- Always-visible explainer                           #}
+    {# ================================================================== #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h3>How it works</h3>
+        </div>
+        <div class="rams-module__content">
+            <div class="rams-grid rams-grid--3 rams-gap-4">
+                <div>
+                    <h4 class="rams-text--bold rams-mb-2">1. Test</h4>
+                    <p class="rams-text--sm rams-text--muted">The system creates multiple versions of your outreach emails (different subject lines, templates, and send times) and sends each version to a small group of prospects.</p>
+                </div>
+                <div>
+                    <h4 class="rams-text--bold rams-mb-2">2. Learn</h4>
+                    <p class="rams-text--sm rams-text--muted">It tracks opens, clicks, and replies for each variation. Over time, it builds a statistical model of what works best for different types of prospects.</p>
+                </div>
+                <div>
+                    <h4 class="rams-text--bold rams-mb-2">3. Optimize</h4>
+                    <p class="rams-text--sm rams-text--muted">Winners get more traffic automatically. Losers get phased out. The system always keeps a baseline variation as a safety net and automatically pauses if overall performance drops.</p>
+                </div>
+            </div>
+            <div class="rams-divider rams-my-4"></div>
+            <details>
+                <summary class="rams-text--sm rams-text--bold" style="cursor: pointer; user-select: none;">Built-in safety features</summary>
+                <div class="rams-grid rams-grid--2 rams-gap-4 rams-mt-3">
+                    <div>
+                        <h5 class="rams-text--sm rams-text--bold">Automatic safety mode</h5>
+                        <p class="rams-text--xs rams-text--muted">If the overall bounce/unsubscribe rate exceeds 35%, the system automatically stops all experimental sends and only uses proven variations until performance recovers.</p>
+                    </div>
+                    <div>
+                        <h5 class="rams-text--sm rams-text--bold">Instant kill protection</h5>
+                        <p class="rams-text--xs rams-text--muted">Any email variation with a negative response rate above 50% is immediately disabled and will never be used again.</p>
+                    </div>
+                    <div>
+                        <h5 class="rams-text--sm rams-text--bold">Send limits</h5>
+                        <p class="rams-text--xs rams-text--muted">Each prospect receives at most 2 emails per week and 5 per month. The system respects business hours (9 AM -- 4 PM in the recipient's timezone).</p>
+                    </div>
+                    <div>
+                        <h5 class="rams-text--sm rams-text--bold">Quality checks</h5>
+                        <p class="rams-text--xs rams-text--muted">Every email is checked for spam triggers, missing personalization, excessive punctuation, and other quality issues before sending. Emails that fail are blocked.</p>
+                    </div>
+                </div>
+            </details>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

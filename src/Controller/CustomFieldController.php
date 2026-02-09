@@ -8,6 +8,7 @@ use App\Repository\CustomFieldDefinitionRepository;
 use App\Service\CustomFieldService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,6 +23,7 @@ class CustomFieldController extends AbstractController
         private readonly CustomFieldDefinitionRepository $definitionRepository,
         private readonly CustomFieldService $customFieldService,
         private readonly EntityManagerInterface $entityManager,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -58,7 +60,7 @@ class CustomFieldController extends AbstractController
             $field->setCreatedBy($this->getUser());
             $this->customFieldService->createField($field);
 
-            $this->addFlash('success', 'Custom field created successfully.');
+            $this->addFlash('success', $this->translator->trans('custom_field.flash.created'));
 
             return $this->redirectToRoute('custom_field_index', [
                 'entity' => $field->getEntityType(),
@@ -88,7 +90,7 @@ class CustomFieldController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Custom field updated successfully.');
+            $this->addFlash('success', $this->translator->trans('custom_field.flash.updated'));
 
             return $this->redirectToRoute('custom_field_index', [
                 'entity' => $field->getEntityType(),
@@ -111,14 +113,14 @@ class CustomFieldController extends AbstractController
             $valueCount = count($field->getValues());
             
             if ($valueCount > 0 && !$request->request->getBoolean('confirm_delete_values')) {
-                $this->addFlash('warning', "This field has $valueCount values. Please confirm you want to delete all data.");
+                $this->addFlash('warning', $this->translator->trans('custom_field.flash.delete_warning', ['%count%' => $valueCount]));
                 return $this->redirectToRoute('custom_field_edit', ['id' => $field->getId()]);
             }
 
             $this->entityManager->remove($field);
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Custom field deleted successfully.');
+            $this->addFlash('success', $this->translator->trans('custom_field.flash.deleted'));
         }
 
         return $this->redirectToRoute('custom_field_index', ['entity' => $entityType]);
@@ -131,8 +133,8 @@ class CustomFieldController extends AbstractController
             $field->setIsActive(!$field->isActive());
             $this->entityManager->flush();
 
-            $status = $field->isActive() ? 'activated' : 'deactivated';
-            $this->addFlash('success', "Custom field {$status}.");
+            $statusKey = $field->isActive() ? 'activated' : 'deactivated';
+            $this->addFlash('success', $this->translator->trans('custom_field.flash.' . $statusKey));
         }
 
         return $this->redirectToRoute('custom_field_index', [

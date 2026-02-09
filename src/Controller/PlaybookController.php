@@ -10,6 +10,7 @@ use App\Service\PlaybookEngine;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -23,7 +24,8 @@ class PlaybookController extends AbstractController
         private PlaybookRepository $playbookRepository,
         private PlaybookRunRepository $playbookRunRepository,
         private PlaybookEngine $playbookEngine,
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private TranslatorInterface $translator
     ) {}
 
     #[Route('/', name: 'app_playbook_index', methods: ['GET'])]
@@ -77,7 +79,7 @@ class PlaybookController extends AbstractController
             // Provide guidance after playbook creation
             $this->guidanceService->afterPlaybookCreated($playbook->getId(), $playbook->getName());
             
-            $this->addFlash('success', 'Playbook created successfully');
+            $this->addFlash('success', $this->translator->trans('playbook.flash.created'));
             return $this->redirectToRoute('app_playbook_show', ['id' => $playbook->getId()]);
         }
         
@@ -129,7 +131,7 @@ class PlaybookController extends AbstractController
             
             $this->entityManager->flush();
             
-            $this->addFlash('success', 'Playbook updated successfully');
+            $this->addFlash('success', $this->translator->trans('playbook.flash.updated'));
             return $this->redirectToRoute('app_playbook_show', ['id' => $playbook->getId()]);
         }
         
@@ -146,7 +148,7 @@ class PlaybookController extends AbstractController
         $this->entityManager->remove($playbook);
         $this->entityManager->flush();
         
-        $this->addFlash('success', 'Playbook deleted successfully');
+        $this->addFlash('success', $this->translator->trans('playbook.flash.deleted'));
         return $this->redirectToRoute('app_playbook_index');
     }
 

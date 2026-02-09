@@ -211,7 +211,7 @@ zones:
 regions:
   usa:
     east_coast_states:
-      - "MA"  # Massachusetts
+      - "MA"  # Massachusetts (US state abbrev, NOT Morocco ISO code)
       - "RI"  # Rhode Island
       - "CT"  # Connecticut
       - "NY"  # New York

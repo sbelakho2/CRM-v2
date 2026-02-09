@@ -78,7 +78,7 @@ HELP
                 $region ? "Limiting to region: {$regionLabel}" : 'Covering ALL regions (MA, US, EU, GB).',
             ]);
 
-            if (!$io->confirm('Continue?', false)) {
+            if (!$input->getOption('no-interaction') && !$io->confirm('Continue?', false)) {
                 return Command::SUCCESS;
             }
 

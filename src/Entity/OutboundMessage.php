@@ -120,6 +120,62 @@ class OutboundMessage
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $replyContent = null;
 
+    // ==================== ATTRIBUTION IDS ====================
+    /**
+     * Value-prop bandit arm ID used for this message
+     */
+    #[ORM\Column(nullable: true)]
+    private ?int $valuePropArmId = null;
+
+    /**
+     * Tone policy applied (formal, casual, direct, friendly)
+     */
+    #[ORM\Column(length: 30, nullable: true)]
+    private ?string $toneApplied = null;
+
+    /**
+     * Send-time policy ID or label used
+     */
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $sendTimePolicy = null;
+
+    /**
+     * ICP cluster this send belongs to
+     */
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $icpCluster = null;
+
+    /**
+     * Whether this message is in the control group (baseline, no personalization)
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $isControlGroup = false;
+
+    /**
+     * Full decision trace JSON (arms chosen, priors, decay, scores)
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $decisionTrace = null;
+
+    // ==================== FUNNEL TRACKING ====================
+    /**
+     * Funnel stage: pending → sent → delivered → opened → clicked → replied → booked → activated
+     */
+    #[ORM\Column(length: 20, options: ['default' => 'pending'])]
+    private string $funnelStage = 'pending';
+
+    /**
+     * Reply window expiry (soft-failure applied after this)
+     */
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $replyWindowExpiry = null;
+
+    /**
+     * Whether the delayed soft-failure penalty has been applied
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $softFailureApplied = false;
+
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
 
@@ -362,6 +418,37 @@ class OutboundMessage
         // Reply can always override open/click tracking
         return $this->recordedEventType !== 'reply';
     }
+
+    // ==================== ATTRIBUTION GETTERS/SETTERS ====================
+
+    public function getValuePropArmId(): ?int { return $this->valuePropArmId; }
+    public function setValuePropArmId(?int $id): self { $this->valuePropArmId = $id; return $this; }
+
+    public function getToneApplied(): ?string { return $this->toneApplied; }
+    public function setToneApplied(?string $tone): self { $this->toneApplied = $tone; return $this; }
+
+    public function getSendTimePolicy(): ?string { return $this->sendTimePolicy; }
+    public function setSendTimePolicy(?string $policy): self { $this->sendTimePolicy = $policy; return $this; }
+
+    public function getIcpCluster(): ?string { return $this->icpCluster; }
+    public function setIcpCluster(?string $cluster): self { $this->icpCluster = $cluster; return $this; }
+
+    public function isControlGroup(): bool { return $this->isControlGroup; }
+    public function setIsControlGroup(bool $isControl): self { $this->isControlGroup = $isControl; return $this; }
+
+    public function getDecisionTrace(): ?array { return $this->decisionTrace; }
+    public function setDecisionTrace(?array $trace): self { $this->decisionTrace = $trace; return $this; }
+
+    // ==================== FUNNEL TRACKING GETTERS/SETTERS ====================
+
+    public function getFunnelStage(): string { return $this->funnelStage; }
+    public function setFunnelStage(string $stage): self { $this->funnelStage = $stage; return $this; }
+
+    public function getReplyWindowExpiry(): ?\DateTimeInterface { return $this->replyWindowExpiry; }
+    public function setReplyWindowExpiry(?\DateTimeInterface $expiry): self { $this->replyWindowExpiry = $expiry; return $this; }
+
+    public function isSoftFailureApplied(): bool { return $this->softFailureApplied; }
+    public function setSoftFailureApplied(bool $applied): self { $this->softFailureApplied = $applied; return $this; }
 
     public function getCreatedAt(): ?\DateTimeInterface
     {

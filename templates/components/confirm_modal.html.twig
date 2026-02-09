@@ -17,7 +17,9 @@
         <div class="rams-module">
             <div class="rams-module__header">
                 <h3 class="rams-module__title" id="rams-confirm-title">
-                    <span id="rams-confirm-icon" class="rams-module__title-icon">⚠️</span>
+                    <div id="rams-confirm-andon" class="rams-andon rams-andon--warning rams-mr-2">
+                        <span class="rams-andon__light"></span>
+                    </div>
                     <span id="rams-confirm-title-text">{{ 'common.confirm_action'|trans }}</span>
                 </h3>
                 <button type="button" class="rams-btn rams-btn--ghost rams-btn--icon" onclick="ramsConfirmCancel()" aria-label="{{ 'common.close'|trans }}">
@@ -119,7 +121,7 @@
         const messageEl = document.getElementById('rams-confirm-message');
         const confirmBtn = document.getElementById('rams-confirm-btn');
         const cancelBtn = document.getElementById('rams-confirm-cancel-btn');
-        const iconEl = document.getElementById('rams-confirm-icon');
+        const andonEl = document.getElementById('rams-confirm-andon');
         
         // Set content
         messageEl.textContent = message;
@@ -130,21 +132,22 @@
         // Set variant
         modal.classList.remove('rams-confirm--danger', 'rams-confirm--warning');
         confirmBtn.classList.remove('rams-btn--danger', 'rams-btn--warning', 'rams-btn--primary');
+        andonEl.classList.remove('rams-andon--danger', 'rams-andon--warning', 'rams-andon--info');
         
         switch (options.variant) {
             case 'danger':
                 modal.classList.add('rams-confirm--danger');
                 confirmBtn.classList.add('rams-btn--danger');
-                iconEl.textContent = '🗑️';
+                andonEl.classList.add('rams-andon--danger');
                 break;
             case 'warning':
                 modal.classList.add('rams-confirm--warning');
                 confirmBtn.classList.add('rams-btn--warning');
-                iconEl.textContent = '⚠️';
+                andonEl.classList.add('rams-andon--warning');
                 break;
             default:
                 confirmBtn.classList.add('rams-btn--primary');
-                iconEl.textContent = '❓';
+                andonEl.classList.add('rams-andon--info');
         }
         
         // Store callbacks

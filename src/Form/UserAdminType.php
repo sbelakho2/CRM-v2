@@ -22,36 +22,40 @@ class UserAdminType extends AbstractType
         
         $builder
             ->add('email', EmailType::class, [
-                'label' => 'admin.users.email',
+                'label' => 'administration.users.email',
             ])
             ->add('firstName', TextType::class, [
-                'label' => 'admin.users.first_name',
+                'label' => 'administration.users.first_name',
             ])
             ->add('lastName', TextType::class, [
-                'label' => 'admin.users.last_name',
+                'label' => 'administration.users.last_name',
             ])
             ->add('active', CheckboxType::class, [
-                'label' => 'admin.users.active',
+                'label' => 'administration.users.active',
                 'required' => false,
             ])
             ->add('roles', ChoiceType::class, [
                 'choices' => [
-                    'admin.users.roles.admin' => 'ROLE_ADMIN',
-                    'admin.users.roles.sales_ops' => 'ROLE_SALES_OPS',
-                    'admin.users.roles.digital_rep' => 'ROLE_DIGITAL_REP',
-                    'admin.users.roles.field_rep' => 'ROLE_FIELD_REP',
-                    'admin.users.roles.user' => 'ROLE_USER',
+                    'administration.users.roles.admin' => 'ROLE_ADMIN',
+                    'administration.users.roles.sales_ops' => 'ROLE_SALES_OPS',
+                    'administration.users.roles.digital_rep' => 'ROLE_DIGITAL_REP',
+                    'administration.users.roles.field_rep' => 'ROLE_FIELD_REP',
+                    'administration.users.roles.manager' => 'ROLE_MANAGER',
+                    'administration.users.roles.sales' => 'ROLE_SALES',
+                    'administration.users.roles.user' => 'ROLE_USER',
+                    'administration.users.roles.viewer' => 'ROLE_VIEWER',
                 ],
                 'choice_translation_domain' => 'messages',
                 'multiple' => true,
-                'expanded' => true,
+                'expanded' => false,
+                'attr' => ['class' => 'rams-form__select', 'size' => 5],
             ]);
             
         // Add password field only for new users
         if ($isNew) {
             $builder->add('plainPassword', PasswordType::class, [
                 'mapped' => false,
-                'label' => 'admin.users.password',
+                'label' => 'administration.users.password',
                 'constraints' => [
                     new NotBlank([
                         'message' => 'validation.required',

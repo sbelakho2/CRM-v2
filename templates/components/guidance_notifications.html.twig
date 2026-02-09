@@ -4,33 +4,14 @@
     {% set maxDisplay = 3 %}
     {% set totalCount = notifications|length %}
     
-    <div class="rams-stack" id="guidance-notifications-container">
-        {# Header with Clear All button #}
-        {% if totalCount > 0 %}
-            <div class="rams-module__header">
-                <h3 class="rams-dymo">
-                    {{ 'guidance.notifications'|trans }} ({{ totalCount }})
-                </h3>
-                <div class="rams-btn-group">
-                    {% if totalCount > maxDisplay %}
-                        <a href="{{ path('app_guidance_all') }}" class="rams-btn rams-btn--ghost rams-btn--sm">
-                            {{ 'common.view'|trans }} {{ 'common.all'|trans }} ({{ totalCount }})
-                        </a>
-                    {% endif %}
-                    <button type="button" onclick="clearAllGuidanceNotifications()" class="rams-btn rams-btn--ghost rams-btn--sm">
-                        {{ 'guidance.clear_all'|trans }}
-                    </button>
-                </div>
-            </div>
-        {% endif %}
-        
+    <div class="rams-guidance-stack" id="guidance-notifications-container">
         {% for notification in notifications|slice(0, maxDisplay) %}
             <div class="rams-alert {{ 
                 notification.type == 'success' ? 'rams-alert--success' :
                 notification.type == 'warning' ? 'rams-alert--warning' :
                 notification.type == 'error' ? 'rams-alert--error' :
                 'rams-alert--info'
-            }} guidance-notification" data-notification-index="{{ loop.index0 }}">
+            }} guidance-notification shadow-lg" data-notification-index="{{ loop.index0 }}">
                 {# Icon with Andon #}
                 <div class="rams-alert__icon">
                     <span class="rams-andon {{ 
@@ -43,7 +24,10 @@
 
                 {# Content #}
                 <div class="rams-alert__content">
-                    <span class="rams-alert__title">{{ ('common.' ~ notification.type)|trans }}</span>
+                    <div class="rams-flex rams-justify-between rams-items-start">
+                        <span class="rams-alert__title">{{ ('common.' ~ notification.type)|trans }}</span>
+                        <div class="rams-text--3xs rams-text--muted font-mono">{{ notification.timestamp|date('H:i') }}</div>
+                    </div>
                     <p class="rams-alert__text">
                         {{ notification.message|raw }}
                     </p>
@@ -52,7 +36,7 @@
                 {# Action Buttons #}
                 <div class="rams-alert__actions">
                     {% if notification.actionUrl and notification.actionLabel %}
-                        <a href="{{ notification.actionUrl }}" class="rams-btn rams-btn--primary rams-btn--sm">
+                        <a href="{{ notification.actionUrl }}" class="rams-btn rams-btn--primary rams-btn--sm uppercase">
                             {{ notification.actionLabel }}
                         </a>
                     {% endif %}
@@ -88,8 +72,8 @@
                     notification.remove();
                     const container = document.getElementById('guidance-notifications-container');
                     const remaining = container ? container.querySelectorAll('.guidance-notification').length : 0;
-                    if (remaining === 0) {
-                        location.reload();
+                    if (remaining === 0 && container) {
+                        container.remove();
                     }
                 }, 300);
             }

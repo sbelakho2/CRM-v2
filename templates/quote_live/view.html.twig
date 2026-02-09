@@ -113,11 +113,18 @@
 
                         {# Price Break Recommendation #}
                         {% if tierPricing.tiers[0].next_break is defined %}
-                            <div class="rams-andon rams-andon--blue rams-mt-md" id="priceBreakTip">
-                                <strong>💡 {{ 'quote.live.tip'|trans }}:</strong>
-                                {{ 'quote.live.order'|trans }} <span id="additionalQty">{{ tierPricing.tiers[0].next_break.additional_qty }}</span> {{ 'quote.live.more_units'|trans }} 
-                                ({{ 'common.total'|trans|lower }} <span id="nextBreakQty">{{ tierPricing.tiers[0].next_break.quantity }}</span>) 
-                                {{ 'quote.live.and_save'|trans }} <span id="savingsPerUnit">{{ tierPricing.tiers[0].next_break.savings_per_unit|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</span>/{{ 'quote.live.unit'|trans }}!
+                            <div class="rams-alert rams-alert--info rams-mt-md" id="priceBreakTip">
+                                <div class="rams-alert__icon">
+                                    <div class="rams-andon rams-andon--info"><span class="rams-andon__light"></span></div>
+                                </div>
+                                <div class="rams-alert__content">
+                                    <span class="rams-alert__title">{{ 'quote.live.tip'|trans }}</span>
+                                    <p class="rams-alert__text">
+                                        {{ 'quote.live.order'|trans }} <span id="additionalQty">{{ tierPricing.tiers[0].next_break.additional_qty }}</span> {{ 'quote.live.more_units'|trans }} 
+                                        ({{ 'common.total'|trans|lower }} <span id="nextBreakQty">{{ tierPricing.tiers[0].next_break.quantity }}</span>) 
+                                        {{ 'quote.live.and_save'|trans }} <span id="savingsPerUnit">{{ tierPricing.tiers[0].next_break.savings_per_unit|format_currency(tierPricing.currency, tierPricing.currency, 4) }}</span>/{{ 'quote.live.unit'|trans }}!
+                                    </p>
+                                </div>
                             </div>
                         {% endif %}
                     </div>

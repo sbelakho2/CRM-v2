@@ -106,10 +106,13 @@
                 </div>
             </div>
 
-            <div class="rams-module rams-module--info">
+            <div class="rams-module rams-module--guidance">
                 <div class="rams-module__content">
-                    <h2 class="rams-module__title rams-mb-3">{{ 'admin.datasets.import_instructions'|trans }}</h2>
-                    <ol class="rams-list rams-list--ordered rams-text--sm">
+                    <div class="rams-flex rams-gap-2 rams-items-center rams-mb-3">
+                        <div class="rams-andon rams-andon--info"><span class="rams-andon__light"></span></div>
+                        <h2 class="rams-module__title rams-mb-0">{{ 'admin.datasets.import_instructions'|trans }}</h2>
+                    </div>
+                    <ol class="rams-list rams-list--ordered rams-stack rams-gap-2 rams-text--sm">
                         <li>{{ 'admin.datasets.instruction_1'|trans }}</li>
                         <li>{{ 'admin.datasets.instruction_2'|trans }}</li>
                         <li>{{ 'admin.datasets.instruction_3'|trans }}</li>

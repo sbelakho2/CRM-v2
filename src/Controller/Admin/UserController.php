@@ -7,6 +7,7 @@ use App\Form\UserAdminType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -50,7 +51,7 @@ class UserController extends AbstractController
     }
 
     #[Route('/new', name: 'admin_user_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher): Response
+    public function new(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher, TranslatorInterface $translator): Response
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
@@ -67,7 +68,7 @@ class UserController extends AbstractController
             $em->persist($user);
             $em->flush();
             
-            $this->addFlash('success', 'User created successfully!');
+            $this->addFlash('success', $translator->trans('administration.users.flash.created'));
             return $this->redirectToRoute('admin_user_index');
         }
 
@@ -77,7 +78,7 @@ class UserController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'admin_user_edit', methods: ['GET','POST'])]
-    public function edit(Request $request, User $user, EntityManagerInterface $em): Response
+    public function edit(Request $request, User $user, EntityManagerInterface $em, TranslatorInterface $translator): Response
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
@@ -86,7 +87,7 @@ class UserController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $em->flush();
-            $this->addFlash('success', 'User updated.');
+            $this->addFlash('success', $translator->trans('administration.users.flash.updated'));
             return $this->redirectToRoute('admin_user_index');
         }
 
@@ -97,14 +98,14 @@ class UserController extends AbstractController
     }
 
     #[Route('/{id}/delete', name: 'admin_user_delete', methods: ['POST'])]
-    public function delete(Request $request, User $user, EntityManagerInterface $em): Response
+    public function delete(Request $request, User $user, EntityManagerInterface $em, TranslatorInterface $translator): Response
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
 
         if ($this->isCsrfTokenValid('delete_user'.$user->getId(), $request->request->get('_token'))) {
             $em->remove($user);
             $em->flush();
-            $this->addFlash('success', 'User deleted.');
+            $this->addFlash('success', $translator->trans('administration.users.flash.deleted'));
         }
 
         return $this->redirectToRoute('admin_user_index');

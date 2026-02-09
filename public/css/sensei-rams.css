@@ -462,7 +462,7 @@ body {
     background: var(--rams-module);
     border: 1px solid var(--rams-line);
     border-radius: var(--radius-sm);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     position: relative;
 }
 
@@ -522,11 +522,14 @@ body {
 }
 
 .rams-module__header {
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-4);
     border-bottom: 1px solid var(--rams-line);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    background: var(--rams-panel);
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
 }
 
 .rams-module__title {
@@ -1190,22 +1193,22 @@ body {
 
 .rams-alert--info {
     border-left-color: var(--rams-steel);
-    background: linear-gradient(90deg, rgba(74, 144, 226, 0.05) 0%, var(--rams-panel) 100%);
+    background: linear-gradient(90deg, rgba(74, 144, 226, 0.15) 0%, var(--rams-panel) 100%);
 }
 
 .rams-alert--success {
     border-left-color: var(--rams-green);
-    background: linear-gradient(90deg, rgba(45, 140, 60, 0.05) 0%, var(--rams-panel) 100%);
+    background: linear-gradient(90deg, rgba(45, 140, 60, 0.15) 0%, var(--rams-panel) 100%);
 }
 
 .rams-alert--warning {
     border-left-color: var(--rams-orange);
-    background: linear-gradient(90deg, rgba(255, 190, 0, 0.05) 0%, var(--rams-panel) 100%);
+    background: linear-gradient(90deg, rgba(255, 190, 0, 0.15) 0%, var(--rams-panel) 100%);
 }
 
 .rams-alert--error {
     border-left-color: var(--rams-red);
-    background: linear-gradient(90deg, rgba(214, 45, 45, 0.05) 0%, var(--rams-panel) 100%);
+    background: linear-gradient(90deg, rgba(214, 45, 45, 0.15) 0%, var(--rams-panel) 100%);
 }
 
 .rams-alert__icon {
@@ -1447,14 +1450,44 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: var(--space-12) var(--space-4);
+    padding: var(--space-12) var(--space-6);
     text-align: center;
+    background: var(--rams-surface);
+    border: 1px dashed var(--rams-line);
+    border-radius: var(--radius-lg);
+    margin: var(--space-4) 0;
 }
 
 .rams-empty-state__icon {
-    font-size: var(--text-5xl);
+    font-size: 3rem;
     margin-bottom: var(--space-4);
-    opacity: 0.5;
+    color: var(--rams-muted);
+    opacity: 0.4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    background: var(--rams-surface-alt);
+    border-radius: 50%;
+}
+
+.rams-empty-state__title {
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--rams-foreground);
+    margin-bottom: var(--space-2);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.rams-empty-state__description,
+.rams-empty-state__text {
+    font-size: var(--text-sm);
+    color: var(--rams-muted);
+    max-width: 400px;
+    line-height: 1.6;
 }
 
 /* Links */
@@ -4350,7 +4383,44 @@ a.rams-module:hover {
     flex-shrink: 0;
 }
 
-/* Toast Notification */
+/* Guidance & Toast Overlays */
+.rams-guidance-stack {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    width: 380px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.rams-guidance-stack > * {
+    pointer-events: auto;
+}
+
+/* Industrial Guidance Module */
+.rams-module--guidance {
+    border-left: 4px solid var(--rams-steel);
+    background: linear-gradient(to right, rgba(74, 144, 226, 0.05), var(--rams-module) 100%);
+    position: relative;
+}
+
+.rams-module--guidance::after {
+    content: "GUIDANCE";
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    padding: 2px 4px;
+    background: var(--rams-steel);
+    color: white;
+    opacity: 0.6;
+}
+
+/* Toast Notification (Legacy/System) */
 .rams-toast {
     position: fixed;
     top: 20px;
@@ -4434,6 +4504,34 @@ a.rams-module:hover {
 /* ============================================
    51. PRINT STYLES
    ============================================ */
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--rams-bg-panel, #f0f0f0);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--rams-muted, #999);
+    border-radius: 4px;
+    border: 2px solid var(--rams-bg-panel, #f0f0f0);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--rams-orange, #FFBE00);
+}
+
+/* Firefox Support */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--rams-muted, #999) var(--rams-bg-panel, #f0f0f0);
+}
 
 @media print {
     .rams-sidebar,

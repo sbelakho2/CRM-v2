@@ -20,7 +20,7 @@
         </div>
         <div class="rams-page-header__actions">
              <a href="{{ path('calendar_index') }}" class="rams-btn">{{ 'calendar.back_to_calendar'|trans }}</a>
-             <a href="{{ path('calendar_edit', {'id': event.id}) }}" class="rams-btn rams-btn--primary">{{ 'calendar.edit_event'|trans }}</a>
+             <a href="{{ path('calendar_edit', {'id': event.id}) }}" class="rams-btn rams-btn--orange">{{ 'calendar.edit_event'|trans }}</a>
              {{ include('calendar/_delete_form.html.twig') }}
         </div>
     </div>

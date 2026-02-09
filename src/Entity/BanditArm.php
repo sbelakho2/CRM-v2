@@ -34,16 +34,43 @@ class BanditArm
     private ?string $armValue = null;
 
     /**
-     * Beta distribution alpha parameter (successes + 1 prior)
+     * Beta distribution alpha parameter (successes + prior)
+     * Float to support weighted/fractional updates
      */
-    #[ORM\Column(type: 'integer', options: ['default' => 1])]
-    private int $alpha = 1;
+    #[ORM\Column(type: 'float', options: ['default' => 1.0])]
+    private float $alpha = 1.0;
 
     /**
-     * Beta distribution beta parameter (failures + 1 prior)
+     * Beta distribution beta parameter (failures + prior)
+     * Float to support weighted/fractional updates
      */
-    #[ORM\Column(type: 'integer', options: ['default' => 1])]
-    private int $beta = 1;
+    #[ORM\Column(type: 'float', options: ['default' => 1.0])]
+    private float $beta = 1.0;
+
+    /**
+     * ICP cluster this arm belongs to (for per-ICP bandit pools)
+     * e.g. 'automotive_procurement', 'aerospace_engineering', 'global'
+     */
+    #[ORM\Column(length: 100, options: ['default' => 'global'])]
+    private string $icpCluster = 'global';
+
+    /**
+     * Recent negative rate (rolling window) for catastrophic exploration cap
+     */
+    #[ORM\Column(type: 'float', options: ['default' => 0.0])]
+    private float $recentNegativeRate = 0.0;
+
+    /**
+     * Whether this arm is quarantined (poison pill detected)
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $quarantined = false;
+
+    /**
+     * Whether this arm is a control-group baseline arm
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $isControl = false;
 
     #[ORM\Column(type: 'integer', options: ['default' => 0])]
     private int $totalTrials = 0;
@@ -109,25 +136,69 @@ class BanditArm
         return $this;
     }
 
-    public function getAlpha(): int
+    public function getAlpha(): float
     {
         return $this->alpha;
     }
 
-    public function setAlpha(int $alpha): self
+    public function setAlpha(float $alpha): self
     {
-        $this->alpha = $alpha;
+        $this->alpha = max(0.01, $alpha);
         return $this;
     }
 
-    public function getBeta(): int
+    public function getBeta(): float
     {
         return $this->beta;
     }
 
-    public function setBeta(int $beta): self
+    public function setBeta(float $beta): self
     {
-        $this->beta = $beta;
+        $this->beta = max(0.01, $beta);
+        return $this;
+    }
+
+    public function getIcpCluster(): string
+    {
+        return $this->icpCluster;
+    }
+
+    public function setIcpCluster(string $icpCluster): self
+    {
+        $this->icpCluster = $icpCluster;
+        return $this;
+    }
+
+    public function getRecentNegativeRate(): float
+    {
+        return $this->recentNegativeRate;
+    }
+
+    public function setRecentNegativeRate(float $rate): self
+    {
+        $this->recentNegativeRate = $rate;
+        return $this;
+    }
+
+    public function isQuarantined(): bool
+    {
+        return $this->quarantined;
+    }
+
+    public function setQuarantined(bool $quarantined): self
+    {
+        $this->quarantined = $quarantined;
+        return $this;
+    }
+
+    public function isControl(): bool
+    {
+        return $this->isControl;
+    }
+
+    public function setIsControl(bool $isControl): self
+    {
+        $this->isControl = $isControl;
         return $this;
     }
 
@@ -240,22 +311,34 @@ class BanditArm
     }
 
     /**
-     * Record a success outcome
+     * Record a weighted success outcome
+     *
+     * @param float $weight Weight of the update (default 1.0)
+     *   open:           0.1
+     *   click:          0.3
+     *   positive reply: 2.5
+     *   neutral reply:  0.5
      */
-    public function recordSuccess(): void
+    public function recordSuccess(float $weight = 1.0): void
     {
-        $this->alpha++;
+        $this->alpha += $weight;
         $this->totalTrials++;
         $this->totalSuccesses++;
         $this->updatedAt = new \DateTime();
     }
 
     /**
-     * Record a failure outcome
+     * Record a weighted failure outcome
+     *
+     * @param float $weight Weight of the update (default 1.0)
+     *   bounce:          1.0
+     *   negative reply:  3.0
+     *   unsubscribe:     7.0
+     *   no-response:     0.3  (soft delayed failure)
      */
-    public function recordFailure(): void
+    public function recordFailure(float $weight = 1.0): void
     {
-        $this->beta++;
+        $this->beta += $weight;
         $this->totalTrials++;
         $this->updatedAt = new \DateTime();
     }

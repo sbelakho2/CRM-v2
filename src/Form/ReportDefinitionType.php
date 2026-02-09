@@ -18,57 +18,59 @@ class ReportDefinitionType extends AbstractType
     {
         $builder
             ->add('name', TextType::class, [
-                'label' => 'Report Name',
+                'label' => 'report.form.name',
                 'attr' => [
                     'class' => 'rams-input',
-                    'placeholder' => 'e.g., Monthly Sales Report',
+                    'placeholder' => 'report.form.name_placeholder',
                 ],
             ])
             ->add('description', TextareaType::class, [
-                'label' => 'Description',
+                'label' => 'report.form.description',
                 'required' => false,
                 'attr' => [
                     'class' => 'rams-input',
                     'rows' => 3,
-                    'placeholder' => 'Brief description of what this report shows...',
+                    'placeholder' => 'report.form.description_placeholder',
                 ],
             ])
             ->add('dataSource', ChoiceType::class, [
-                'label' => 'Data Source',
+                'label' => 'report.form.data_source',
                 'choices' => ReportDefinition::getDataSources(),
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-select'],
-                'placeholder' => 'Select data source...',
+                'placeholder' => 'report.form.select_data_source',
             ])
             ->add('reportType', ChoiceType::class, [
-                'label' => 'Report Type',
+                'label' => 'report.form.report_type',
                 'choices' => ReportDefinition::getReportTypes(),
+                'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-select'],
             ])
             ->add('category', TextType::class, [
-                'label' => 'Category',
+                'label' => 'report.form.category',
                 'required' => false,
                 'attr' => [
                     'class' => 'rams-input',
-                    'placeholder' => 'e.g., Sales, Marketing, Operations',
+                    'placeholder' => 'report.form.category_placeholder',
                 ],
             ])
             ->add('recordLimit', IntegerType::class, [
-                'label' => 'Record Limit',
+                'label' => 'report.form.record_limit',
                 'required' => false,
                 'attr' => [
                     'class' => 'rams-input',
-                    'placeholder' => 'Leave empty for no limit',
+                    'placeholder' => 'report.form.record_limit_placeholder',
                     'min' => 1,
                     'max' => 10000,
                 ],
             ])
             ->add('isPublic', CheckboxType::class, [
-                'label' => 'Make report public (visible to all users)',
+                'label' => 'report.form.is_public',
                 'required' => false,
                 'attr' => ['class' => 'rams-checkbox'],
             ])
             ->add('isFavorite', CheckboxType::class, [
-                'label' => 'Add to favorites',
+                'label' => 'report.form.is_favorite',
                 'required' => false,
                 'attr' => ['class' => 'rams-checkbox'],
             ])
@@ -79,6 +81,7 @@ class ReportDefinitionType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => ReportDefinition::class,
+            'translation_domain' => 'messages',
         ]);
     }
 }

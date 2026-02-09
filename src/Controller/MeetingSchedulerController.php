@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use DateTimeImmutable;
 
 #[Route('/meetings')]
@@ -22,7 +23,8 @@ class MeetingSchedulerController extends AbstractController
 {
     public function __construct(
         private MeetingSlotRepository $slotRepository,
-        private EntityManagerInterface $em
+        private EntityManagerInterface $em,
+        private TranslatorInterface $translator
     ) {}
     
     /**
@@ -125,7 +127,7 @@ class MeetingSchedulerController extends AbstractController
             );
             
             if (!empty($conflicts)) {
-                $this->addFlash('error', 'This time slot conflicts with an existing meeting.');
+                $this->addFlash('error', $this->translator->trans('meeting.flash.conflict'));
                 return $this->render('meeting/new.html.twig', [
                     'form' => $form,
                 ]);
@@ -133,7 +135,7 @@ class MeetingSchedulerController extends AbstractController
             
             $this->slotRepository->save($slot, true);
             
-            $this->addFlash('success', 'Meeting slot created successfully.');
+            $this->addFlash('success', $this->translator->trans('meeting.flash.created'));
             return $this->redirectToRoute('meeting_index');
         }
         
@@ -178,7 +180,7 @@ class MeetingSchedulerController extends AbstractController
             
             $this->em->flush();
             
-            $this->addFlash('success', 'Meeting slot updated successfully.');
+            $this->addFlash('success', $this->translator->trans('meeting.flash.updated'));
             return $this->redirectToRoute('meeting_show', ['id' => $slot->getId()]);
         }
         
@@ -201,7 +203,7 @@ class MeetingSchedulerController extends AbstractController
         
         if ($this->isCsrfTokenValid('delete' . $slot->getId(), $request->request->get('_token'))) {
             $this->slotRepository->remove($slot, true);
-            $this->addFlash('success', 'Meeting slot deleted.');
+            $this->addFlash('success', $this->translator->trans('meeting.flash.deleted'));
         }
         
         return $this->redirectToRoute('meeting_index');
@@ -224,7 +226,7 @@ class MeetingSchedulerController extends AbstractController
             
             // TODO: Send cancellation email to booker
             
-            $this->addFlash('success', 'Meeting cancelled.');
+            $this->addFlash('success', $this->translator->trans('meeting.flash.cancelled'));
         }
         
         return $this->redirectToRoute('meeting_index');
@@ -265,7 +267,7 @@ class MeetingSchedulerController extends AbstractController
                 $timezone
             );
             
-            $this->addFlash('success', sprintf('%d meeting slots generated.', count($slots)));
+            $this->addFlash('success', $this->translator->trans('meeting.flash.generated', ['%count%' => count($slots)]));
             return $this->redirectToRoute('meeting_index');
         }
         
@@ -348,7 +350,7 @@ class MeetingSchedulerController extends AbstractController
         $slot = $this->slotRepository->findByBookingToken($token);
         
         if (!$slot || !$slot->isAvailable()) {
-            $this->addFlash('error', 'This meeting slot is no longer available.');
+            $this->addFlash('error', $this->translator->trans('meeting.flash.not_available'));
             return $this->redirectToRoute('app_dashboard');
         }
         
@@ -390,7 +392,7 @@ class MeetingSchedulerController extends AbstractController
         $slot = $this->slotRepository->findByCancellationToken($token);
         
         if (!$slot || !$slot->isBooked()) {
-            $this->addFlash('error', 'Invalid cancellation link or meeting already cancelled.');
+            $this->addFlash('error', $this->translator->trans('meeting.flash.invalid_cancellation'));
             return $this->redirectToRoute('app_dashboard');
         }
         

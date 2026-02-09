@@ -220,31 +220,98 @@ class BOMParser
 
     /**
      * Map various header names to standard fields
+     * 
+     * Supports headers from: Altium, KiCad, OrCAD, Eagle, Digi-Key BOM Manager,
+     * Mouser BOM tool, generic manufacturer BOMs, customer-provided BOMs.
+     * 
+     * Note: preg_replace strips all non-alphanumeric chars before matching,
+     * so "Mfr Part No." becomes "mfrpartno", "Qty/Board" becomes "qtyboard", etc.
      */
     private function mapHeaders(array $headers): array
     {
         $map = [];
         
         foreach ($headers as $index => $header) {
-            $normalized = strtolower(trim($header));
+            if ($header === null || trim((string)$header) === '') {
+                continue;
+            }
+            $normalized = strtolower(trim((string)$header));
             $normalized = preg_replace('/[^a-z0-9]/', '', $normalized);
             
-            // Map to standard field names
-            if (in_array($normalized, ['designator', 'refdes', 'reference', 'ref', 'component'])) {
+            // Reference Designators (Altium, KiCad, OrCAD, Eagle, generic)
+            if (!isset($map['designator']) && in_array($normalized, [
+                'designator', 'designators', 'refdes', 'reference', 'references',
+                'ref', 'refdesignator', 'referencedesignator', 'referencedesignators',
+                'component', 'components', 'partreference', 'item',
+            ])) {
                 $map['designator'] = $index;
-            } elseif (in_array($normalized, ['mpn', 'partnumber', 'partno', 'pn', 'manufacturerpartnumber'])) {
+            }
+            // Manufacturer Part Number
+            elseif (!isset($map['mpn']) && in_array($normalized, [
+                'mpn', 'partnumber', 'partno', 'pn', 'part',
+                'manufacturerpartnumber', 'manufacturerpartno', 'manufacturerpart', 'manufacturerpn',
+                'mfrpartnumber', 'mfrpartno', 'mfrpart', 'mfrpn',
+                'mfgpartnumber', 'mfgpartno', 'mfgpart', 'mfgpn',
+                'componentpartnumber',
+            ])) {
                 $map['mpn'] = $index;
-            } elseif (in_array($normalized, ['manufacturer', 'mfr', 'mfg', 'brand'])) {
+            }
+            // Manufacturer name
+            elseif (!isset($map['manufacturer']) && in_array($normalized, [
+                'manufacturer', 'manufacturername', 'mfr', 'mfrname',
+                'mfg', 'mfgname', 'brand', 'make',
+            ])) {
                 $map['manufacturer'] = $index;
-            } elseif (in_array($normalized, ['quantity', 'qty', 'count'])) {
+            }
+            // Quantity
+            elseif (!isset($map['qty']) && in_array($normalized, [
+                'quantity', 'qty', 'count', 'amount',
+                'qtyperboard', 'qtyperunit', 'qtyboard', 'qtyeach', 'qtyrequired',
+                'quantityperboard', 'quantityrequired',
+            ])) {
                 $map['qty'] = $index;
-            } elseif (in_array($normalized, ['description', 'desc', 'comment', 'value'])) {
+            }
+            // Description (full text description)
+            elseif (!isset($map['description']) && in_array($normalized, [
+                'description', 'desc', 'comment', 'comments',
+                'partdescription', 'componentdescription', 'compdescription',
+                'note', 'notes', 'details', 'spec', 'specifications',
+            ])) {
                 $map['description'] = $index;
-            } elseif (in_array($normalized, ['package', 'footprint', 'pkg'])) {
+            }
+            // Value (for passives: "10K", "100nF" — semantically different from description)
+            elseif (!isset($map['value']) && in_array($normalized, [
+                'value', 'val', 'componentvalue', 'partvalue', 'compvalue',
+            ])) {
+                $map['value'] = $index;
+            }
+            // Package / Footprint
+            elseif (!isset($map['package']) && in_array($normalized, [
+                'package', 'packagecase', 'casepackage', 'packagetype',
+                'footprint', 'footprintname', 'pcbfootprint',
+                'pkg', 'case', 'casesize',
+                'landpattern', 'housing', 'formfactor', 'smdpackage',
+            ])) {
                 $map['package'] = $index;
-            } elseif (in_array($normalized, ['supplier', 'distributor'])) {
+            }
+            // Supplier / Distributor
+            elseif (!isset($map['supplier']) && in_array($normalized, [
+                'supplier', 'suppliername', 'supplier1',
+                'distributor', 'distributorname', 'dist',
+                'vendor', 'vendorname',
+            ])) {
                 $map['supplier'] = $index;
-            } elseif (in_array($normalized, ['supplierpartnumber', 'spn', 'supplierpn'])) {
+            }
+            // Supplier Part Number
+            elseif (!isset($map['supplier_pn']) && in_array($normalized, [
+                'supplierpartnumber', 'supplierpartnumber1', 'supplierpartno', 'supplierpart',
+                'spn', 'supplierpn',
+                'distributorpartnumber', 'distributorpartno', 'distributorpn',
+                'vendorpartnumber', 'vendorpn',
+                'digikeypartnumber', 'digikeypn',
+                'mouserpartnumber', 'mouserpn',
+                'ordernumber', 'orderingcode', 'dpn',
+            ])) {
                 $map['supplier_pn'] = $index;
             }
         }
@@ -257,18 +324,25 @@ class BOMParser
      */
     private function extractLine(array $row, array $headerMap, int $lineNumber): ?array
     {
-        // Must have either MPN or description
-        $mpn = isset($headerMap['mpn']) ? trim($row[$headerMap['mpn']] ?? '') : '';
-        $description = isset($headerMap['description']) ? trim($row[$headerMap['description']] ?? '') : '';
+        // Must have either MPN or description or value
+        $mpn = isset($headerMap['mpn']) ? trim((string)($row[$headerMap['mpn']] ?? '')) : '';
+        $description = isset($headerMap['description']) ? trim((string)($row[$headerMap['description']] ?? '')) : '';
+        $value = isset($headerMap['value']) ? trim((string)($row[$headerMap['value']] ?? '')) : '';
         
-        if (empty($mpn) && empty($description)) {
+        // If no description column exists but value does, use value as description
+        if (empty($description) && !empty($value)) {
+            $description = $value;
+        }
+        
+        if (empty($mpn) && empty($description) && empty($value)) {
             return null;
         }
         
-        $designator = isset($headerMap['designator']) ? trim($row[$headerMap['designator']] ?? '') : '';
-        $manufacturer = isset($headerMap['manufacturer']) ? trim($row[$headerMap['manufacturer']] ?? '') : '';
-        $qty = isset($headerMap['qty']) ? (int) ($row[$headerMap['qty']] ?? 1) : 1;
-        $package = isset($headerMap['package']) ? trim($row[$headerMap['package']] ?? '') : '';
+        $designator = isset($headerMap['designator']) ? trim((string)($row[$headerMap['designator']] ?? '')) : '';
+        $manufacturer = isset($headerMap['manufacturer']) ? trim((string)($row[$headerMap['manufacturer']] ?? '')) : '';
+        $qtyRaw = isset($headerMap['qty']) ? ($row[$headerMap['qty']] ?? 1) : 1;
+        $qty = (int) preg_replace('/[^0-9]/', '', (string) $qtyRaw) ?: 1;
+        $package = isset($headerMap['package']) ? trim((string)($row[$headerMap['package']] ?? '')) : '';
         
         return [
             'lineNumber' => $lineNumber,
@@ -277,10 +351,10 @@ class BOMParser
             'manufacturer' => $manufacturer,
             'quantity' => max(1, $qty),
             'description' => $description,
-            'value' => $description, // Alias for compatibility
+            'value' => $value ?: $description, // Keep value field for compatibility
             'package' => $package,
-            'supplier' => isset($headerMap['supplier']) ? trim($row[$headerMap['supplier']] ?? '') : '',
-            'supplier_pn' => isset($headerMap['supplier_pn']) ? trim($row[$headerMap['supplier_pn']] ?? '') : '',
+            'supplier' => isset($headerMap['supplier']) ? trim((string)($row[$headerMap['supplier']] ?? '')) : '',
+            'supplier_pn' => isset($headerMap['supplier_pn']) ? trim((string)($row[$headerMap['supplier_pn']] ?? '')) : '',
         ];
     }
 

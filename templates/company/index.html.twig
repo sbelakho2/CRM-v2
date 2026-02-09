@@ -11,6 +11,12 @@
             <p class="rams-page-subtitle">{{ 'common.filter'|trans }} {{ 'company.title'|trans|lower }}</p>
         </div>
         <div class="rams-page-actions">
+            <a href="{{ path('app_company_discovered') }}" class="rams-btn">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                {{ 'company.discovered'|trans|default('Discovered') }}
+            </a>
             <a href="{{ path('app_company_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -59,7 +65,7 @@
                         <select name="tier" id="tier" class="rams-form__select">
                             <option value="">{{ 'common.all'|trans }} {{ 'company.account_tier'|trans|lower }}s</option>
                             {% for tier in tiers %}
-                                <option value="{{ tier }}" {% if current_tier == tier %}selected{% endif %}>{{ 'company.tiers.standard'|trans }} {{ tier }}</option>
+                                <option value="{{ tier }}" {% if current_tier == tier %}selected{% endif %}>{{ ('company.tiers.' ~ tier|lower)|trans }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -70,7 +76,7 @@
                         <select name="stage" id="stage" class="rams-form__select">
                             <option value="">{{ 'common.all'|trans }} {{ 'company.pipeline_stage'|trans|lower }}s</option>
                             {% for stage in stages %}
-                                <option value="{{ stage }}" {% if current_stage == stage %}selected{% endif %}>{{ stage }}</option>
+                                <option value="{{ stage }}" {% if current_stage == stage %}selected{% endif %}>{{ ('company.stages.' ~ stage|lower|replace({' ': '_'}))|trans }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -115,6 +121,22 @@
         {% endfor %}
     {% endfor %}
 
+    {# Explanation Module #}
+    <div class="rams-module">
+        <div class="rams-module__header" style="cursor: pointer;" onclick="this.parentElement.querySelector('.rams-module__content').classList.toggle('rams-hidden');">
+            <h2 class="rams-module__title">
+                <svg style="width:16px;height:16px;vertical-align:middle;margin-right:6px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                {{ 'company.explanation.title'|trans }}
+            </h2>
+        </div>
+        <div class="rams-module__content">
+            <p class="rams-text--sm rams-mb-3">{{ 'company.explanation.body'|trans }}</p>
+            <p class="rams-text--sm rams-text--muted">{{ 'company.explanation.discovered_button'|trans|raw }}</p>
+        </div>
+    </div>
+
     {# Results Count #}
     <div class="rams-flex rams-justify-between rams-items-center">
         <span class="rams-text--muted">
@@ -130,9 +152,16 @@
                     <span class="rams-module__title rams-truncate rams-max-w-180">
                         {{ company.name }}
                     </span>
-                    {% if company.accountTier %}
-                        <span class="rams-badge rams-badge--primary">{{ company.accountTier }}</span>
-                    {% endif %}
+                    <div class="rams-flex rams-gap-1">
+                        {% if company.companyStatus == 'approved' %}
+                            <span class="rams-badge rams-badge--warning" title="Approved — not yet in compliance pipeline">Approved</span>
+                        {% elseif company.companyStatus == 'active' %}
+                            <span class="rams-badge rams-badge--success" title="Active — eligible for compliance">Active</span>
+                        {% endif %}
+                        {% if company.accountTier %}
+                            <span class="rams-badge rams-badge--primary">{{ company.accountTier }}</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="rams-module__content">
                     {# Sector #}
@@ -144,14 +173,14 @@
                     {% if company.pipelineStage %}
                         <div class="rams-flex rams-items-center rams-gap-2 rams-mb-2">
                             <span class="rams-andon">
-                                {% if company.pipelineStage == 'Award' %}
+                                {% if company.pipelineStage == 'Award' or company.pipelineStage == 'Closed Won' %}
                                     <span class="rams-andon__light rams-andon__light--green"></span>
-                                {% elseif company.pipelineStage == 'Proposal' %}
+                                {% elseif company.pipelineStage == 'Proposal' or company.pipelineStage == 'Negotiation' %}
                                     <span class="rams-andon__light rams-andon__light--yellow"></span>
                                 {% else %}
                                     <span class="rams-andon__light rams-andon__light--off"></span>
                                 {% endif %}
-                                <span class="rams-andon__text">{{ company.pipelineStage }}</span>
+                                <span class="rams-andon__text">{{ ('company.stages.' ~ company.pipelineStage|lower|replace({' ': '_'}))|trans }}</span>
                             </span>
                         </div>
                     {% endif %}
@@ -170,7 +199,7 @@
                     {# Quick Links Icons #}
                     <div class="rams-flex rams-gap-2 rams-mt-3 rams-items-center">
                         {% if company.contacts|length > 0 %}
-                            <span class="rams-badge rams-badge--success" title="{{ company.contacts|length }} contacts">
+                            <span class="rams-badge rams-badge--success" title="{{ company.contacts|length }} {{ 'contact.title'|trans|lower }}">
                                 <svg class="rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                                     <circle cx="8" cy="5" r="3"/><path d="M2 13C2 10 5 9 8 9C11 9 14 10 14 13"/>
                                 </svg>
@@ -185,7 +214,7 @@
                             </span>
                         {% endif %}
                         {% if company.linkedinCompanyUrl %}
-                            <span class="rams-badge" title="LinkedIn" style="color: #0077b5;">
+                            <span class="rams-badge" title="{{ 'contact.linkedin.label'|trans }}" style="color: #0077b5;">
                                 <svg class="rams-icon--3xs" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                                 </svg>

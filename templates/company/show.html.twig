@@ -20,22 +20,50 @@
         <div>
             <h1 class="rams-page-title">{{ company.name }}</h1>
             {% if company.legalName and company.legalName != company.name %}
-                <p class="rams-text--muted rams-text--sm rams-mt-1">Legal: {{ company.legalName }}</p>
+                <p class="rams-text--muted rams-text--sm rams-mt-1">{{ 'company.legal_name'|trans }}: {{ company.legalName }}</p>
             {% endif %}
             <div class="rams-flex rams-flex-wrap rams-gap-2 rams-mt-2">
                 <span class="rams-dymo">{{ company.sector }}</span>
+                {% if company.companyStatus == 'discovered' %}
+                    <span class="rams-badge rams-badge--info">Discovered — Pending Review</span>
+                {% elseif company.companyStatus == 'approved' %}
+                    <span class="rams-badge rams-badge--warning">Approved — Not in Compliance</span>
+                {% elseif company.companyStatus == 'active' %}
+                    <span class="rams-badge rams-badge--success">Active — Compliance Eligible</span>
+                {% endif %}
                 {% if company.accountTier %}
-                    <span class="rams-badge rams-badge--primary">{{ 'company.account_tier'|trans }} {{ company.accountTier }}</span>
+                    <span class="rams-badge rams-badge--primary">{{ 'company.account_tier'|trans }} {{ ('company.tiers.' ~ company.accountTier|lower)|trans }}</span>
                 {% endif %}
                 {% if company.pipelineStage %}
-                    <span class="rams-badge {% if company.pipelineStage == 'Award' %}rams-badge--success{% elseif company.pipelineStage == 'Proposal' %}rams-badge--warning{% elseif company.pipelineStage == 'SQO' %}rams-badge--info{% endif %}">
-                        {{ company.pipelineStage }}
+                    <span class="rams-badge {% if company.pipelineStage == 'Award' or company.pipelineStage == 'Closed Won' %}rams-badge--success{% elseif company.pipelineStage == 'Proposal' or company.pipelineStage == 'Negotiation' %}rams-badge--warning{% elseif company.pipelineStage == 'SQO' %}rams-badge--info{% endif %}">
+                        {{ ('company.stages.' ~ company.pipelineStage|lower|replace({' ': '_'}))|trans }}
                     </span>
                 {% endif %}
             </div>
         </div>
         <div class="rams-page-actions">
             <div class="rams-btn-group">
+                {% if company.companyStatus == 'discovered' %}
+                    <form method="post" action="{{ path('app_company_approve', {id: company.id}) }}" class="rams-inline-block">
+                        <input type="hidden" name="_token" value="{{ csrf_token('approve' ~ company.id) }}">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Approve
+                        </button>
+                    </form>
+                {% elseif company.companyStatus == 'approved' %}
+                    <form method="post" action="{{ path('app_company_activate', {id: company.id}) }}" class="rams-inline-block">
+                        <input type="hidden" name="_token" value="{{ csrf_token('activate' ~ company.id) }}">
+                        <button type="submit" class="rams-btn rams-btn--primary" title="Move to Active status to enable compliance pipeline">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            Activate for Compliance
+                        </button>
+                    </form>
+                {% endif %}
                 <a href="{{ path('app_company_edit', {id: company.id}) }}" class="rams-btn">
                     <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
@@ -72,13 +100,13 @@
                         {% if company.accountTier %}
                             <div class="rams-definition-list__item">
                                 <dt class="rams-definition-list__term">{{ 'company.account_tier'|trans }}</dt>
-                                <dd class="rams-definition-list__desc">{{ 'company.tiers.standard'|trans }} {{ company.accountTier }}</dd>
+                                <dd class="rams-definition-list__desc">{{ ('company.tiers.' ~ company.accountTier|lower)|trans }}</dd>
                             </div>
                         {% endif %}
                         {% if company.pipelineStage %}
                             <div class="rams-definition-list__item">
                                 <dt class="rams-definition-list__term">{{ 'company.pipeline_stage'|trans }}</dt>
-                                <dd class="rams-definition-list__desc">{{ company.pipelineStage }}</dd>
+                                <dd class="rams-definition-list__desc">{{ ('company.stages.' ~ company.pipelineStage|lower|replace({' ': '_'}))|trans }}</dd>
                             </div>
                         {% endif %}
                         {% if company.region %}
@@ -89,26 +117,52 @@
                         {% endif %}
                         {% if company.country %}
                             <div class="rams-definition-list__item">
-                                <dt class="rams-definition-list__term">Country</dt>
+                                <dt class="rams-definition-list__term">{{ 'company.country'|trans }}</dt>
                                 <dd class="rams-definition-list__desc">{{ company.country }}</dd>
                             </div>
                         {% endif %}
                         {% if company.city %}
                             <div class="rams-definition-list__item">
-                                <dt class="rams-definition-list__term">City</dt>
+                                <dt class="rams-definition-list__term">{{ 'company.city'|trans }}</dt>
                                 <dd class="rams-definition-list__desc">{{ company.city }}</dd>
                             </div>
                         {% endif %}
                         {% if company.address %}
                             <div class="rams-definition-list__item">
-                                <dt class="rams-definition-list__term">Address</dt>
+                                <dt class="rams-definition-list__term">{{ 'company.address'|trans }}</dt>
                                 <dd class="rams-definition-list__desc">{{ company.address }}</dd>
                             </div>
                         {% endif %}
                         {% if company.physicalSite %}
                             <div class="rams-definition-list__item">
-                                <dt class="rams-definition-list__term">Physical Site</dt>
+                                <dt class="rams-definition-list__term">{{ 'company.physical_site'|trans }}</dt>
                                 <dd class="rams-definition-list__desc">{{ company.physicalSite }}</dd>
+                            </div>
+                        {% endif %}
+                        {% if company.website %}
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'company.website'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">
+                                    <a href="{{ company.website }}" target="_blank" rel="noopener" class="rams-link">
+                                        <svg style="width:12px;height:12px;vertical-align:middle;margin-right:4px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                                        </svg>
+                                        {{ company.website|replace({'https://': '', 'http://': '', 'www.': ''})|trim('/') }}
+                                    </a>
+                                </dd>
+                            </div>
+                        {% endif %}
+                        {% if company.linkedinCompanyUrl %}
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'contact.linkedin.label'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">
+                                    <a href="{{ company.linkedinCompanyUrl }}" target="_blank" rel="noopener" class="rams-link" style="color: #0077b5;">
+                                        <svg style="width:14px;height:14px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                        </svg>
+                                        {{ 'company.view_company_page'|trans }}
+                                    </a>
+                                </dd>
                             </div>
                         {% endif %}
                         <div class="rams-definition-list__item">
@@ -127,7 +181,7 @@
             {% if company.notes %}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-module__title">Notes &amp; Description</h2>
+                    <h2 class="rams-module__title">{{ 'company.notes_description'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
                     <p class="rams-text--sm rams-whitespace-pre-line">{{ company.notes }}</p>
@@ -138,7 +192,7 @@
             {% if company.sourceNotes %}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h2 class="rams-module__title">📡 Discovery Source</h2>
+                    <h2 class="rams-module__title">📡 {{ 'company.discovery_source'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
                     <p class="rams-text--sm rams-text--muted rams-whitespace-pre-line">{{ company.sourceNotes }}</p>
@@ -150,20 +204,12 @@
             <div class="rams-module">
                 <div class="rams-module__header">
                     <h2 class="rams-module__title">{{ 'contact.title'|trans }}</h2>
-                    <div class="rams-btn-group">
-                        <button type="button" class="rams-btn rams-btn--sm" id="enrich-contacts-btn" data-company-id="{{ company.id }}" title="Auto-discover contacts via Google & LinkedIn">
-                            <svg class="rams-btn__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                            Enrich
-                        </button>
-                        <a href="{{ path('app_contact_new', {company_id: company.id}) }}" class="rams-btn rams-btn--sm">
-                            <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M8 3V13M3 8H13"/>
-                            </svg>
-                            {{ 'common.add'|trans }}
-                        </a>
-                    </div>
+                    <a href="{{ path('app_contact_new', {company_id: company.id}) }}" class="rams-btn rams-btn--sm">
+                        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3V13M3 8H13"/>
+                        </svg>
+                        {{ 'common.add'|trans }}
+                    </a>
                 </div>
                 <div class="rams-module__content rams-module__content--flush">
                     {% if company.contacts is empty %}
@@ -182,13 +228,13 @@
                                             <h3 class="rams-text--sm rams-text--bold">
                                                 {{ contact.firstName }} {{ contact.lastName }}
                                                 {% if contact.primaryContact %}
-                                                    <span class="rams-badge rams-badge--success" style="font-size: 0.6rem; vertical-align: middle; margin-left: 4px;">★ DM</span>
+                                                    <span class="rams-badge rams-badge--success" style="font-size: 0.6rem; vertical-align: middle; margin-left: 4px;">★ {{ 'contact.decision_maker.short'|trans }}</span>
                                                 {% endif %}
                                             </h3>
                                             <p class="rams-text--muted rams-text--xs">{{ contact.jobTitle }}</p>
                                         </div>
                                         {% if contact.linkedInUrl %}
-                                            <a href="{{ contact.linkedInUrl }}" target="_blank" rel="noopener" class="rams-btn rams-btn--ghost rams-btn--sm" title="LinkedIn" style="color: #0077b5;">
+                                            <a href="{{ contact.linkedInUrl }}" target="_blank" rel="noopener" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'contact.linkedin.label'|trans }}" style="color: #0077b5;">
                                                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                                     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                                                 </svg>
@@ -278,7 +324,7 @@
                             <a href="{{ company.linkedinCompanyUrl }}" target="_blank" class="rams-module rams-module--inset rams-module--hoverable rams-p-3 rams-flex rams-items-center rams-gap-3 rams-no-underline">
                                 <span class="rams-text--xl">💼</span>
                                 <div class="rams-flex-1 rams-overflow-hidden">
-                                    <p class="rams-text--sm rams-text--bold rams-mb-0">LinkedIn</p>
+                                    <p class="rams-text--sm rams-text--bold rams-mb-0">{{ 'contact.linkedin.label'|trans }}</p>
                                     <p class="rams-text--muted rams-text--xs rams-truncate rams-mb-0">{{ company.linkedinCompanyUrl|replace({'https://www.linkedin.com/': '', 'https://linkedin.com/': ''}) }}</p>
                                 </div>
                             </a>

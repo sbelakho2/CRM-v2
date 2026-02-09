@@ -1,0 +1,8 @@
+Designator,Manufacturer Part Number,Manufacturer,Quantity,Description,Package
+C1,GRM155R71C104KA88D,Murata,10,Cap Ceramic 0.1uF 50V X7R 10% SMD 0402,0402
+C2,GRM155R71C104KA88D,Murata,5,Cap Ceramic 0.1uF 50V X7R 10% SMD 0402,0402
+R1,RC0402FR-0710KL,Yageo,15,Res 10K Ohm 1% 1/16W 0402,0402
+R2,RC0402FR-071KL,Yageo,8,Res 1K Ohm 1% 1/16W 0402,0402
+U1,STM32F103C8T6,STMicroelectronics,1,ARM Microcontroller LQFP48,LQFP-48
+L1,LQH3NPN100MMEL,Murata,2,Inductor 10uH SMD 0603,0603
+D1,BAT54S,Nexperia,3,Diode Schottky 30V 200mA SOT23,SOT-23

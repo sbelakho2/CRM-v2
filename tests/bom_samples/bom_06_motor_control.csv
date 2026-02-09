@@ -1,0 +1,14 @@
+Designator,Part No,Mfg,Qty,Description,Pkg
+U1,STM32G431CBU6,STMicroelectronics,1,ARM Cortex-M4 MCU 170MHz Motor Control,UFQFPN-48
+U2,DRV8301DCAR,Texas Instruments,1,3-Phase BLDC Motor Gate Driver,HTSSOP-56
+U3,INA240A1QDGSRQ1,Texas Instruments,3,Current Sense Amplifier Bidirectional,VSSOP-8
+U4,TPS54240DGQR,Texas Instruments,1,Buck Converter 2.5A 42V Step-Down,MSOP-10
+Q1-Q6,CSD19536KTT,Texas Instruments,6,N-Channel MOSFET 100V 100A D2PAK,D2PAK
+R1-R3,WSL2010R0100FEA,Vishay,3,Current Sense Resistor 10mOhm 1% 2010,2010
+R4-R10,RC0402FR-0710KL,Yageo,7,Res 10K Ohm 1% 0402,0402
+C1-C4,GRM21BR61A106ME51L,Murata,4,Cap 10uF 10V X5R 0805,0805
+C5-C10,CL05B104KO5NNNC,Samsung,6,Cap 100nF X5R 0402,0402
+C11-C12,UWT1V101MCL1GS,Nichicon,2,Cap Electrolytic 100uF 35V,6.3x7.7
+D1-D3,ES2J,ON Semiconductor,3,Rectifier Diode 600V 2A SMB,SMB
+Y1,ABM8-8.000MHZ-B2-T,Abracon,1,Crystal 8MHz 18pF SMD,3225
+J1,HEADER-2x10,Samtec,1,Pin Header 2x10 2.54mm,TH

@@ -31,32 +31,41 @@ use Psr\Log\LoggerInterface;
  */
 class EmailPersonalizationService
 {
-    // Feature dimensions for embedding
+    // Feature dimensions for embedding (64-dim vector)
     private const EMBEDDING_DIMENSIONS = 64;
-    
-    // Industry feature weights
+
+    // Industry feature vectors (8-dim) for embedding
     private const INDUSTRY_FEATURES = [
-        'automotive' => [0.9, 0.8, 0.7, 0.6, 0.1, 0.2, 0.3, 0.4],
-        'aerospace' => [0.8, 0.9, 0.6, 0.5, 0.2, 0.3, 0.4, 0.5],
-        'industrial' => [0.7, 0.6, 0.9, 0.5, 0.3, 0.4, 0.5, 0.3],
-        'defense' => [0.6, 0.7, 0.5, 0.9, 0.4, 0.5, 0.6, 0.2],
-        'medical' => [0.5, 0.4, 0.3, 0.2, 0.9, 0.8, 0.7, 0.6],
-        'consumer' => [0.4, 0.3, 0.2, 0.1, 0.8, 0.9, 0.8, 0.7],
-        'telecom' => [0.3, 0.2, 0.4, 0.3, 0.7, 0.6, 0.9, 0.8],
-        'other' => [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+        'automotive'    => [1.0, 0.8, 0.6, 0.9, 0.7, 0.5, 0.3, 0.8],
+        'aerospace'     => [0.9, 0.9, 0.7, 0.8, 0.6, 0.7, 0.5, 0.9],
+        'industrial'    => [0.7, 0.6, 0.8, 0.7, 0.5, 0.6, 0.4, 0.6],
+        'defense'       => [0.8, 0.9, 0.6, 0.7, 0.8, 0.7, 0.6, 0.9],
+        'medical'       => [0.8, 0.7, 0.9, 0.6, 0.7, 0.8, 0.5, 0.7],
+        'consumer'      => [0.6, 0.4, 0.5, 0.8, 0.3, 0.4, 0.7, 0.5],
+        'telecom'       => [0.7, 0.6, 0.7, 0.7, 0.5, 0.6, 0.6, 0.6],
+        'renewables'    => [0.7, 0.5, 0.6, 0.6, 0.4, 0.5, 0.5, 0.5],
+        'semiconductor' => [0.9, 0.8, 0.8, 0.7, 0.6, 0.7, 0.4, 0.8],
+        'rail'          => [0.7, 0.7, 0.6, 0.7, 0.5, 0.6, 0.3, 0.7],
+        'hvac'          => [0.5, 0.4, 0.5, 0.6, 0.3, 0.4, 0.5, 0.4],
+        'marine'        => [0.6, 0.6, 0.5, 0.6, 0.5, 0.5, 0.3, 0.6],
+        'other'         => [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
     ];
-    
-    // Role feature weights
+
+    // Role feature vectors (8-dim) for embedding
     private const ROLE_FEATURES = [
-        'procurement' => [0.9, 0.2, 0.3, 0.8, 0.7, 0.4, 0.5, 0.6],
-        'engineering' => [0.3, 0.9, 0.8, 0.4, 0.5, 0.7, 0.6, 0.5],
-        'management' => [0.7, 0.4, 0.5, 0.9, 0.8, 0.3, 0.4, 0.7],
-        'quality' => [0.4, 0.8, 0.7, 0.5, 0.9, 0.6, 0.5, 0.4],
-        'operations' => [0.6, 0.5, 0.9, 0.6, 0.4, 0.8, 0.7, 0.3],
-        'supply_chain' => [0.8, 0.3, 0.6, 0.7, 0.5, 0.9, 0.4, 0.5],
-        'other' => [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+        'engineering'    => [0.9, 0.8, 0.7, 0.3, 0.5, 0.6, 0.8, 0.4],
+        'procurement'    => [0.4, 0.6, 0.8, 0.7, 0.9, 0.5, 0.3, 0.7],
+        'supply_chain'   => [0.5, 0.5, 0.7, 0.6, 0.8, 0.6, 0.4, 0.6],
+        'management'     => [0.6, 0.5, 0.5, 0.8, 0.6, 0.7, 0.5, 0.8],
+        'quality'        => [0.8, 0.7, 0.6, 0.4, 0.5, 0.9, 0.7, 0.5],
+        'operations'     => [0.6, 0.6, 0.7, 0.5, 0.7, 0.6, 0.5, 0.6],
+        'design'         => [0.9, 0.7, 0.5, 0.3, 0.4, 0.5, 0.9, 0.3],
+        'executive'      => [0.5, 0.4, 0.4, 0.9, 0.5, 0.6, 0.4, 0.9],
+        'manufacturing'  => [0.7, 0.7, 0.8, 0.4, 0.6, 0.7, 0.6, 0.5],
+        'sales'          => [0.3, 0.4, 0.5, 0.7, 0.5, 0.4, 0.3, 0.7],
+        'other'          => [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
     ];
-    
+
     // Tone templates
     private const TONE_TEMPLATES = [
         PersonalizationProfile::TONE_FORMAL => [
@@ -75,260 +84,90 @@ class EmailPersonalizationService
             'style' => 'Quick question:',
         ],
         PersonalizationProfile::TONE_FRIENDLY => [
-            'greeting' => 'Hello {name}',
-            'closing' => 'Looking forward to connecting',
-            'style' => 'Thought you might be interested in',
-        ],
-    ];
-    
-    // Content focus templates
-    private const CONTENT_FOCUS = [
-        PersonalizationProfile::CONTENT_TECHNICAL => [
-            'emphasis' => ['specifications', 'capabilities', 'certifications', 'technology'],
-            'style' => 'detailed_technical',
-        ],
-        PersonalizationProfile::CONTENT_BUSINESS => [
-            'emphasis' => ['cost savings', 'efficiency', 'ROI', 'partnership'],
-            'style' => 'business_value',
-        ],
-        PersonalizationProfile::CONTENT_VALUE_FOCUSED => [
-            'emphasis' => ['benefits', 'results', 'outcomes', 'advantages'],
-            'style' => 'benefit_driven',
-        ],
-        PersonalizationProfile::CONTENT_RELATIONSHIP => [
-            'emphasis' => ['partnership', 'collaboration', 'long-term', 'support'],
-            'style' => 'relationship_building',
+            'greeting' => 'Hi {name}',
+            'closing' => 'Thanks',
+            'style' => 'Happy to explore',
         ],
     ];
 
-    // ========================= NEW: INDUSTRY-SPECIFIC VALUE PROPOSITIONS =========================
-    // These provide meaningful content variation based on industry+content focus
     private const INDUSTRY_VALUE_PROPS = [
         'automotive' => [
-            'technical' => 'With ISO 9001 certification, 100% automated optical inspection, and dedicated automotive production lines, we deliver the traceability and quality documentation your Tier 1 programs demand.',
-            'business' => 'Reduce your total landed cost compared to Western European suppliers while maintaining automotive-grade quality. Our North Africa facilities offer EU proximity with competitive economics.',
-            'value_focused' => 'Strong first-pass yields and proven automotive manufacturing processes mean fewer rejections and smoother production planning for your plant.',
-            'relationship' => 'We partner with automotive suppliers for the long term—dedicated program managers, shared KPI dashboards, and transparent communication from prototype through series production.',
+            'technical' => 'For automotive electronics, we can align on documentation requirements and support PCBA and cable harness scope as needed.',
+            'business' => 'Nearshore Morocco-based EMS option for automotive programs; happy to align on cost, lead-time, and qualification steps.',
+            'value_focused' => 'Focus on manufacturability, supply continuity, and documentation planning for automotive programs.',
+            'relationship' => 'Long‑term program support with clear communication and qualification steps for automotive teams.',
         ],
         'aerospace' => [
-            'technical' => 'ISO 9001 certified with full material traceability and first-article inspection reports for your aerospace assemblies. We handle complex multilayer PCBAs and cable harnesses for demanding applications.',
-            'business' => 'Competitive pricing versus Western European suppliers, with the documentation rigor your programs require. Reduce your supply chain risk with our North Africa facilities—same time zone, simplified logistics.',
-            'value_focused' => 'Zero-defect culture with 100% in-circuit testing and AOI. Complete traceability for every component installed.',
-            'relationship' => 'Complex programs require partners who understand long certification cycles. We invest in customer-specific tooling and maintain qualified backup capacity for your critical assemblies.',
+            'technical' => 'For aerospace electronics, we can align on documentation requirements and support PCBA and harness scope as needed.',
+            'business' => 'Nearshore EMS option for aerospace programs; happy to align on qualification steps and documentation needs.',
+            'value_focused' => 'Focus on documentation planning and supply continuity for aerospace programs.',
+            'relationship' => 'Structured qualification and communication for long‑cycle aerospace programs.',
         ],
         'industrial' => [
-            'technical' => 'ISO 9001 certified with expertise in high-mix, low-to-medium volume industrial assemblies. We handle harsh-environment specifications, conformal coating, and extended temperature qualification testing.',
-            'business' => 'Flexible NRE structures and competitive piece prices for industrial controls, automation systems, and power electronics. Our nearshore model cuts your lead times while reducing landed costs.',
-            'value_focused' => 'Reliable supply continuity backed by strategic component partnerships. Our industrial customers achieve 99%+ on-time delivery with consistent quality across multi-year programs.',
-            'relationship' => 'Industrial equipment programs evolve over decades. We provide engineering support for ECOs, obsolescence management, and capacity scaling as your volumes grow.',
+            'technical' => 'For industrial electronics, we can support mixed‑volume PCBA and harness scope with documentation aligned to your requirements.',
+            'business' => 'Nearshore EMS option for industrial programs; happy to align on qualification steps and cost/lead‑time targets.',
+            'value_focused' => 'Focus on manufacturability, supply continuity, and documentation planning for industrial programs.',
+            'relationship' => 'Clear qualification steps and ongoing communication for industrial equipment teams.',
         ],
         'defense' => [
-            'technical' => 'Full traceability, serialization, and secure data handling for demanding electronics programs. Rigorous testing protocols and counterfeit prevention practices.',
-            'business' => 'Competitive pricing with the documentation rigor your programs require. Our North Africa facilities provide a nearshore manufacturing option.',
-            'value_focused' => 'Mission-critical reliability with zero tolerance for defects. 100% testing, X-ray inspection, and complete build documentation for every unit delivered.',
-            'relationship' => 'Complex programs require suppliers who understand security requirements and long-term commitment. We invest in program-specific capabilities.',
+            'technical' => 'For defense electronics, we can align on documentation and qualification requirements before any production work.',
+            'business' => 'Nearshore EMS option for defense programs; happy to align on qualification steps and required documentation.',
+            'value_focused' => 'Focus on documentation planning and supply continuity for defense programs.',
+            'relationship' => 'Structured qualification and communication for long‑term defense programs.',
         ],
         'medical' => [
-            'technical' => 'ISO 9001 certified with validated processes for medical device assemblies. We maintain full traceability and support your documentation requirements.',
-            'business' => 'Cost-effective manufacturing for medical devices with robust quality systems. Reduce your COGS while maintaining thorough documentation.',
-            'value_focused' => 'Patient safety through manufacturing excellence—zero-defect processes, 100% testing, and statistical process control across all critical parameters.',
-            'relationship' => 'Medical device lifecycles span decades. We provide design for manufacturing feedback, support your documentation requirements, and maintain qualified processes through your product lifetime.',
+            'technical' => 'For medical electronics, we can align on documentation requirements and qualification steps for your programs.',
+            'business' => 'Nearshore EMS option for medical programs; happy to align on qualification and documentation needs.',
+            'value_focused' => 'Focus on documentation planning and supply continuity for medical programs.',
+            'relationship' => 'Clear qualification steps and communication for long‑lifecycle medical programs.',
         ],
         'consumer' => [
-            'technical' => 'High-volume SMT capability with 0201 placement accuracy, fine-pitch BGA expertise, and integrated functional testing. We ramp quickly for product launches and seasonal demand spikes.',
-            'business' => 'Aggressive pricing for volume production with the flexibility consumer electronics demand. Rapid NPI cycles and quick-turn prototyping to hit your market windows.',
-            'value_focused' => 'Speed to market with quality—4-week prototype turnaround and scalable production capacity. Our consumer customers achieve 99%+ yields at launch.',
-            'relationship' => 'Consumer products require agile manufacturing partners. We flex capacity for seasonal peaks, support frequent product refreshes, and provide cost-down roadmaps for mature products.',
+            'technical' => 'For consumer electronics, we can support PCBA and harness scope with documentation aligned to your requirements.',
+            'business' => 'Nearshore EMS option for consumer programs; happy to align on qualification steps and ramp planning.',
+            'value_focused' => 'Focus on manufacturability and supply continuity for consumer programs.',
+            'relationship' => 'Clear qualification steps and communication for consumer product teams.',
         ],
         'telecom' => [
-            'technical' => 'High-frequency PCB assembly expertise with impedance-controlled processes, nitrogen reflow, and RF testing capabilities. We support 5G infrastructure, base station electronics, and networking equipment.',
-            'business' => 'Scale-ready manufacturing for telecom equipment with flexible capacity models. Our infrastructure supports rapid volume increases for network rollout programs.',
-            'value_focused' => 'Network reliability starts with manufacturing quality—100% testing, burn-in capabilities, and statistical process control for consistent performance across all units.',
-            'relationship' => 'Telecom infrastructure has multi-decade lifespans. We support long-term supply agreements, component lifecycle management, and technology transitions.',
+            'technical' => 'For telecom equipment, we can support PCBA and harness scope with documentation aligned to your requirements.',
+            'business' => 'Nearshore EMS option for telecom programs; happy to align on qualification steps and scale‑up needs.',
+            'value_focused' => 'Focus on documentation planning and supply continuity for telecom programs.',
+            'relationship' => 'Structured qualification and communication for telecom infrastructure teams.',
         ],
         'renewables' => [
-            'technical' => 'Expertise in power electronics for solar inverters, wind turbine controllers, and energy storage systems. We handle high-current designs, thermal management challenges, and harsh-environment requirements.',
-            'business' => 'Competitive pricing supports your cost-down targets for renewable energy systems. Our nearshore model offers logistical advantages for European customers.',
-            'value_focused' => 'Reliability for long product lifespans—rigorous testing and proven quality systems for power electronics.',
-            'relationship' => 'Renewables projects require long-term supply commitments. We provide capacity guarantees, technology roadmap alignment, and support for evolving grid requirements.',
+            'technical' => 'For renewables power electronics, we can align on documentation and qualification requirements.',
+            'business' => 'Nearshore EMS option for renewables programs; happy to align on qualification steps and lifecycle needs.',
+            'value_focused' => 'Focus on documentation planning and supply continuity for renewables programs.',
+            'relationship' => 'Clear qualification steps and communication for renewables teams.',
         ],
         'semiconductor' => [
-            'technical' => 'ESD-protected handling and expertise in test equipment and precision assemblies. We support both production equipment and R&D prototype builds.',
-            'business' => 'Cost-effective option for semiconductor equipment assemblies requiring high precision. Our engineering team understands the unique requirements of semiconductor manufacturing.',
-            'value_focused' => 'Precision manufacturing for demanding specifications—100% testing, calibrated processes, and complete documentation.',
-            'relationship' => 'Semiconductor equipment programs require partners who understand your technology roadmap. We invest in capabilities to support next-generation requirements.',
+            'technical' => 'For semiconductor equipment, we can align on handling and documentation requirements before any production work.',
+            'business' => 'Nearshore EMS option for semiconductor programs; happy to align on qualification steps and documentation needs.',
+            'value_focused' => 'Focus on documentation planning and supply continuity for semiconductor programs.',
+            'relationship' => 'Structured qualification and communication for semiconductor equipment teams.',
         ],
         'rail' => [
-            'technical' => 'Railway electronics manufacturing with EN 50155 environmental awareness, conformal coating, and vibration-resistant assembly processes. We handle traction inverter sub-assemblies, signaling electronics, and onboard control systems.',
-            'business' => 'Competitive pricing for rail electronics with the documentation and traceability your rolling stock programs require. Nearshore model means shorter logistics to European rail OEMs.',
-            'value_focused' => 'Safety-critical reliability with full traceability—100% testing, HALT/HASS capability, and statistical process control across extended temperature ranges.',
-            'relationship' => 'Rail programs run for decades. We provide long-term supply continuity, obsolescence management, and support through ECOs and platform evolution.',
+            'technical' => 'For rail electronics, we can align on documentation requirements and qualification steps for your programs.',
+            'business' => 'Nearshore EMS option for rail programs; happy to align on qualification steps and documentation needs.',
+            'value_focused' => 'Focus on documentation planning and supply continuity for rail programs.',
+            'relationship' => 'Clear qualification steps and communication for rail teams.',
         ],
         'hvac' => [
-            'technical' => 'Power electronics expertise for HVAC controllers, VFD assemblies, and building automation systems. We handle high-current designs, thermal management, and harsh-environment qualification.',
-            'business' => 'Cost-effective manufacturing for HVAC and building automation electronics. Our flexible NRE model supports your seasonal production cycles and product range diversity.',
-            'value_focused' => 'Reliable power electronics for demanding environments—conformal coating, extended temperature qualification, and 100% functional testing standard.',
-            'relationship' => 'HVAC product lines evolve with efficiency regulations. We support your design evolution with DFM feedback and production flexibility for new platform introductions.',
+            'technical' => 'For HVAC and building automation electronics, we can support PCBA and harness scope with documentation aligned to your requirements.',
+            'business' => 'Nearshore EMS option for HVAC programs; happy to align on qualification steps and ramp planning.',
+            'value_focused' => 'Focus on manufacturability and supply continuity for HVAC programs.',
+            'relationship' => 'Clear qualification steps and communication for HVAC teams.',
         ],
         'marine' => [
-            'technical' => 'Marine-grade electronics manufacturing with conformal coating, salt spray awareness, and IP-rated assembly capabilities. We produce navigation systems, power management electronics, and communication equipment sub-assemblies.',
-            'business' => 'Our Tangier facility provides strategic access to Mediterranean shipping lanes with competitive manufacturing costs. Ideal for marine electronics requiring EU certification compliance.',
-            'value_focused' => 'Harsh-environment reliability through rigorous testing protocols—thermal cycling, humidity exposure, and vibration qualification for marine electronics.',
-            'relationship' => 'Marine programs require suppliers who understand certification cycles and seasonal production patterns. We provide inventory programs and flexible scheduling.',
+            'technical' => 'For marine electronics, we can align on environmental and documentation requirements before any production work.',
+            'business' => 'Nearshore EMS option for marine programs; happy to align on qualification steps and documentation needs.',
+            'value_focused' => 'Focus on documentation planning and supply continuity for marine programs.',
+            'relationship' => 'Clear qualification steps and communication for marine teams.',
         ],
         'other' => [
-            'technical' => 'ISO 9001 certified with flexible manufacturing capabilities for diverse electronic assemblies. We support various industries with tailored quality and documentation requirements.',
-            'business' => 'Competitive nearshore manufacturing with EU proximity. Reduce your supply chain complexity while maintaining quality and delivery performance.',
-            'value_focused' => 'Consistent quality across all programs—statistical process control, 100% testing, and continuous improvement culture drive excellent yields.',
-            'relationship' => 'We build long-term partnerships with customers across industries. Dedicated program management, transparent communication, and investment in your success.',
-        ],
-    ];
-
-    // ========================= NEW: ROLE-SPECIFIC PAIN POINTS =========================
-    // These target the specific concerns of each buyer persona
-    private const ROLE_PAIN_POINTS = [
-        'procurement' => [
-            'primary' => 'cost pressure and supply chain risk',
-            'hook' => 'Reduce your assembly costs versus Western European suppliers while reducing single-source risk with our North Africa facilities.',
-            'detail' => 'Our pricing transparency and fixed-cost NRE models eliminate budget surprises. Quarterly business reviews track performance against your targets.',
-        ],
-        'engineering' => [
-            'primary' => 'lead time and DFM feedback',
-            'hook' => '4-week prototype turnaround with detailed DFM feedback from our engineering team.',
-            'detail' => 'Our engineers review your designs within 48 hours and provide manufacturability recommendations before you release tooling.',
-        ],
-        'management' => [
-            'primary' => 'strategic sourcing and risk mitigation',
-            'hook' => 'Diversify your manufacturing footprint with a qualified nearshore alternative.',
-            'detail' => 'Reduce geopolitical risk with an ally-nation manufacturing option. We provide capacity guarantees and business continuity planning.',
-        ],
-        'quality' => [
-            'primary' => 'compliance and traceability',
-            'hook' => 'Full IPC-A-610 Class 3 certification with 100% AOI and complete traceability.',
-            'detail' => 'Our quality systems support your audit requirements—real-time SPC data, CAPA tracking, and paperless traveler documentation.',
-        ],
-        'operations' => [
-            'primary' => 'capacity and on-time delivery',
-            'hook' => 'Flexible capacity model with 99%+ on-time delivery performance.',
-            'detail' => 'Dedicated production lines with VMI programs and safety stock agreements. Our operations team integrates with your ERP for seamless planning.',
-        ],
-        'supply_chain' => [
-            'primary' => 'lead time reduction and inventory optimization',
-            'hook' => 'Reduce your supply chain lead time by 4-6 weeks with nearshore manufacturing.',
-            'detail' => 'Consignment inventory programs, component kitting services, and real-time visibility into work-in-progress inventory levels.',
-        ],
-        'other' => [
-            'primary' => 'finding the right manufacturing partner',
-            'hook' => 'Let us show you why leading OEMs choose our North Africa facilities for their electronic assemblies.',
-            'detail' => 'We combine European quality standards with competitive North African economics for the best total value.',
-        ],
-    ];
-
-    // ========================= NEW: EXPANDED TONE TRANSFORMATIONS =========================
-    // 20+ patterns per tone for meaningful text adaptation
-    private const TONE_TRANSFORMATION_PATTERNS = [
-        PersonalizationProfile::TONE_FORMAL => [
-            // Contractions to formal
-            '/\bI\'d\b/i' => 'I would',
-            '/\bWe\'d\b/i' => 'We would',
-            '/\bYou\'d\b/i' => 'You would',
-            '/\bThey\'d\b/i' => 'They would',
-            '/\bI\'ll\b/i' => 'I will',
-            '/\bWe\'ll\b/i' => 'We will',
-            '/\bYou\'ll\b/i' => 'You will',
-            '/\bI\'m\b/i' => 'I am',
-            '/\bWe\'re\b/i' => 'We are',
-            '/\bYou\'re\b/i' => 'You are',
-            '/\bcan\'t\b/i' => 'cannot',
-            '/\bwon\'t\b/i' => 'will not',
-            '/\bdon\'t\b/i' => 'do not',
-            '/\bdoesn\'t\b/i' => 'does not',
-            '/\bisn\'t\b/i' => 'is not',
-            '/\baren\'t\b/i' => 'are not',
-            // Casual to formal phrases
-            '/\bJust wanted to\b/i' => 'I wanted to',
-            '/\bQuick question\b/i' => 'I have a question',
-            '/\bTouching base\b/i' => 'Following up',
-            '/\bCircling back\b/i' => 'Following up on our previous correspondence',
-            '/\bBumping this up\b/i' => 'I am following up on',
-            '/\bHey\b/' => 'Hello',
-            '/\bHi there\b/i' => 'Hello',
-            '/\bThanks\b/' => 'Thank you',
-            '/\bthx\b/i' => 'thank you',
-        ],
-        PersonalizationProfile::TONE_CASUAL => [
-            // Formal to casual
-            '/\bI would\b/i' => "I'd",
-            '/\bWe would\b/i' => "We'd",
-            '/\bYou would\b/i' => "You'd",
-            '/\bI will\b/i' => "I'll",
-            '/\bWe will\b/i' => "We'll",
-            '/\bYou will\b/i' => "You'll",
-            '/\bI am\b/i' => "I'm",
-            '/\bWe are\b/i' => "We're",
-            '/\bYou are\b/i' => "You're",
-            '/\bcannot\b/i' => "can't",
-            '/\bwill not\b/i' => "won't",
-            '/\bdo not\b/i' => "don't",
-            '/\bdoes not\b/i' => "doesn't",
-            '/\bis not\b/i' => "isn't",
-            '/\bare not\b/i' => "aren't",
-            // Formal to casual phrases
-            '/\bI wanted to inquire\b/i' => 'Just wanted to check',
-            '/\bI am writing to\b/i' => 'Wanted to reach out about',
-            '/\bPlease do not hesitate to\b/i' => 'Feel free to',
-            '/\bAt your earliest convenience\b/i' => 'When you get a chance',
-            '/\bI would be pleased to discuss\b/i' => "I'd love to chat about",
-            '/\bKindly let me know\b/i' => 'Let me know',
-            '/\bBest regards\b/i' => 'Cheers',
-            '/\bSincerely\b/i' => 'Thanks',
-            '/\bDear\b/' => 'Hi',
-        ],
-        PersonalizationProfile::TONE_DIRECT => [
-            // Remove filler words and hedging
-            '/\bI would like to\b/i' => "I'd like to",
-            '/\bWe would be happy to\b/i' => "We'd be happy to",
-            '/\bI was wondering if\b/i' => '',
-            '/\bI just wanted to\b/i' => '',
-            '/\bI thought I would\b/i' => '',
-            '/\bJust checking in to see if\b/i' => '',
-            '/\bI hope this email finds you well\.\s*/i' => '',
-            '/\bI hope all is well\.\s*/i' => '',
-            '/\bPlease let me know if you have any questions\.\s*/i' => '',
-            '/\bPlease do not hesitate to reach out\.\s*/i' => '',
-            '/\bLooking forward to hearing from you\.\s*/i' => '',
-            '/\bI would appreciate it if you could\b/i' => 'Please',
-            '/\bIt would be great if we could\b/i' => "Let's",
-            '/\bI believe that\b/i' => '',
-            '/\bI think that\b/i' => '',
-            '/\bperhaps we could\b/i' => "let's",
-            '/\bmaybe we should\b/i' => "let's",
-            '/\bKind regards\b/i' => 'Best',
-            '/\bBest regards\b/i' => 'Best',
-            '/\bWarm regards\b/i' => 'Best',
-            // Clean up double spaces from removals
-            '/  +/' => ' ',
-            '/^\s+/' => '',
-        ],
-        PersonalizationProfile::TONE_FRIENDLY => [
-            // Add warmth while staying professional
-            '/\bI wanted to\b/i' => "I'd love to",
-            '/\bI would like to\b/i' => "I'd really like to",
-            '/\bWe are\b/i' => "We're",
-            '/\bPlease let me know\b/i' => "I'd love to hear",
-            '/\bcontact me\b/i' => 'reach out',
-            '/\bregarding\b/i' => 'about',
-            '/\bpursuant to\b/i' => 'following up on',
-            '/\bper our discussion\b/i' => 'as we discussed',
-            '/\bhereby\b/i' => '',
-            '/\baforementioned\b/i' => 'earlier',
-            '/\bBest regards\b/i' => 'Looking forward to connecting',
-            '/\bSincerely\b/i' => 'Warmly',
-            '/\bDear\b/' => 'Hello',
-            // Add friendly transitions
-            '/\bAlso,\b/i' => 'Oh, and',
-            '/\bAdditionally,\b/i' => 'Also,',
-            '/\bFurthermore,\b/i' => 'Plus,',
+            'technical' => 'For electronics programs, we can support PCBA and harness scope with documentation aligned to your requirements.',
+            'business' => 'Nearshore Morocco‑based EMS option; happy to align on qualification steps and documentation needs.',
+            'value_focused' => 'Focus on manufacturability, supply continuity, and documentation planning.',
+            'relationship' => 'Clear qualification steps and communication for long‑term programs.',
         ],
     ];
 
@@ -421,15 +260,7 @@ class EmailPersonalizationService
             'similarity' => 'Marine electronics teams like yours',
             'outcome' => 'Marine teams {like yours|in navigation/power|building for harsh environments} cite {harsh-environment reliability|EU-proximity shipping|certification support}.',
         ],
-        'other' => [
-            'stat' => 'European OEMs across industries {are benefiting from|report success with|have found value in} nearshore manufacturing.',
-            'reference' => 'manufacturers across industries choosing nearshore production',
-            'detail' => 'ISO 9001 certified with flexible manufacturing capabilities—adaptable to your requirements.',
-            'similarity' => 'Sourcing professionals like you',
-            'outcome' => 'Sourcing professionals {in your position|like you|with similar needs} cite {responsive service|quality consistency|total cost savings}.',
-        ],
     ];
-
     // ========================= CIALDINI'S 7 PRINCIPLES FRAMEWORK =========================
     // Ethical persuasion elements to incorporate into messaging
     // IMPROVED: Now includes sentence-level spintax for natural variation
@@ -468,7 +299,7 @@ class EmailPersonalizationService
         // 5. LIKING: Build rapport through similarity and genuine compliments
         'liking' => [
             'industry_knowledge' => 'Having worked with {companies|teams|organizations} in your industry, I {understand|appreciate|recognize} the {unique pressures|specific challenges|demands} you face.',
-            'challenge_empathy' => 'Supply chain {complexity|challenges|disruption} has made sourcing {particularly challenging|more difficult|tougher} {recently|lately|these days}.',
+            'challenge_empathy' => '{Supply chain disruption has|Recent supply chain shifts have|Manufacturing headwinds have} made {finding reliable partners|production sourcing|program planning} {particularly challenging|more difficult|tougher} {recently|lately|these days}.',
             'company_compliment' => 'Your company\'s {reputation for quality|track record|standing in the industry} makes you {exactly|precisely} the kind of partner {worth pursuing|to work with|to build with}.',
             'shared_values' => 'There\'s a shared commitment here to {quality and on-time delivery|reliability and excellence|getting it right}.',
         ],
@@ -527,45 +358,45 @@ class EmailPersonalizationService
     // Regional-specific benefits based on customer location
     private const GEOGRAPHIC_VALUE_PROPS = [
         'eu' => [
-            'logistics' => 'Same time zone as Western Europe with 2-3 day delivery to major EU hubs.',
-            'timezone' => 'Real-time communication during European business hours—no overnight delays.',
-            'trade' => 'Morocco-EU free trade agreements simplify customs and reduce duties.',
-            'cultural' => 'European business culture and French/English language proficiency.',
-            'proximity' => 'Just a 3-hour flight from major European cities for site visits.',
+            'logistics' => 'Nearshore logistics options for EU programs.',
+            'timezone' => 'Working-hours overlap with EU teams.',
+            'trade' => 'We can align on customs documentation for EU-bound shipments.',
+            'cultural' => 'Multilingual coordination (French/English).',
+            'proximity' => 'Short-haul travel options for site visits.',
         ],
         'uk' => [
-            'logistics' => 'Direct shipping to UK with competitive transit times.',
-            'timezone' => 'Same working hours as London—calls and support without delays.',
-            'trade' => 'Morocco-UK trade continuity post-Brexit provides supply chain stability.',
-            'cultural' => 'Strong English proficiency and familiarity with UK business practices.',
-            'proximity' => 'Easy travel access for program reviews and audits.',
+            'logistics' => 'Direct shipping options to the UK can be evaluated per program.',
+            'timezone' => 'Working-hours overlap with UK teams.',
+            'trade' => 'We can align on UK-bound documentation requirements.',
+            'cultural' => 'English-language coordination.',
+            'proximity' => 'Travel access for reviews can be arranged.',
         ],
         'us' => [
-            'logistics' => 'Atlantic shipping routes with competitive air freight options.',
-            'timezone' => 'Morning overlap with US East Coast for daily synchronization.',
-            'trade' => 'Morocco-US Free Trade Agreement provides duty-free access for qualifying products.',
-            'cultural' => 'Experience working with American multinationals and their requirements.',
-            'proximity' => 'Closer than Asian alternatives for supply chain resilience.',
+            'logistics' => 'Atlantic shipping and air freight options can be evaluated.',
+            'timezone' => 'Partial overlap with US East Coast hours.',
+            'trade' => 'We can align on documentation for US-bound shipments.',
+            'cultural' => 'Experience coordinating with US-based teams.',
+            'proximity' => 'Nearshore alternative versus far-offshore options.',
         ],
         'mena' => [
-            'logistics' => 'Regional hub with direct shipping routes across North Africa and the Gulf.',
-            'timezone' => 'Shared timezone enables real-time collaboration across MENA markets.',
-            'trade' => 'Morocco-GCC and Pan-Arab trade agreements facilitate cross-border commerce.',
-            'cultural' => 'Arabic, French, and English proficiency with deep understanding of regional business culture.',
-            'proximity' => 'Co-located within the MENA region for faster logistics and site visits.',
+            'logistics' => 'Regional shipping routes across North Africa and the Gulf can be evaluated.',
+            'timezone' => 'Shared time zone supports real-time collaboration.',
+            'trade' => 'We can align on regional documentation requirements.',
+            'cultural' => 'Arabic, French, and English coordination.',
+            'proximity' => 'Regional proximity for site visits when needed.',
         ],
         'morocco' => [
-            'logistics' => 'Local manufacturing eliminates import logistics—direct factory access in Tangier Free Zone.',
-            'timezone' => 'Same-city collaboration with zero shipping delays for local programs.',
-            'trade' => 'Tangier Free Zone offers duty-free manufacturing with EU and US FTA export access.',
-            'cultural' => 'Your local partner—shared language, culture, and business practices.',
-            'proximity' => 'Factory tours and engineering meetings anytime—we are your neighbors.',
+            'logistics' => 'Local manufacturing simplifies domestic logistics.',
+            'timezone' => 'Same time zone for local programs.',
+            'trade' => 'We can align on local compliance and export documentation.',
+            'cultural' => 'Local partner with shared language and business practices.',
+            'proximity' => 'On-site collaboration can be scheduled easily.',
         ],
         'global' => [
-            'logistics' => 'Strategic location bridging Europe, Africa, and the Americas.',
-            'timezone' => 'GMT+1 provides overlap with multiple business regions.',
-            'trade' => 'Free trade agreements with EU, US, UK, and 55+ countries.',
-            'cultural' => 'Multilingual workforce with international business experience.',
+            'logistics' => 'Nearshore logistics options bridging Europe, Africa, and the Americas.',
+            'timezone' => 'GMT+1 provides overlap across regions.',
+            'trade' => 'We can align on documentation needs for different markets.',
+            'cultural' => 'Multilingual coordination and international program experience.',
             'proximity' => 'Nearshore alternative to distant offshore manufacturing.',
         ],
     ];
@@ -641,9 +472,9 @@ class EmailPersonalizationService
         ],
         // Pain → Reciprocity flow
         'pain_to_reciprocity' => [
-            "If {pain_hook} is on your radar, {reciprocity}.",
-            "I know {pain_hook} can be challenging—{reciprocity}.",
-            "Regarding {pain_hook}: {reciprocity}.",
+            "If {pain_hook} is on your radar, {reciprocity}",
+            "I know {pain_hook} can be challenging — {reciprocity}",
+            "If {pain_hook} is something you're looking at, {reciprocity}",
         ],
         // Geographic → Scarcity flow
         'geo_to_scarcity' => [
@@ -797,6 +628,14 @@ class EmailPersonalizationService
     private const WARMTH_THRESHOLD_MINIMUM = 5.0;
     private const WARMTH_BASE_SCORE = 5.0;
     private const WARMTH_MAX_MULTIPLIER = 3;  // Cap pattern matches at 3x weight
+
+    // Content focus configuration by content preference type
+    private const CONTENT_FOCUS = [
+        'technical'      => ['emphasis' => 'specifications', 'detail' => 'high', 'data' => true,  'emotional' => false],
+        'business'       => ['emphasis' => 'ROI',            'detail' => 'medium', 'data' => true,  'emotional' => false],
+        'value_focused'  => ['emphasis' => 'benefits',       'detail' => 'medium', 'data' => false, 'emotional' => true],
+        'relationship'   => ['emphasis' => 'partnership',    'detail' => 'low',    'data' => false, 'emotional' => true],
+    ];
 
     // ========================= NEW: SEND TIME OPTIMIZATION =========================
     // Default optimal send times by day and region
@@ -999,8 +838,25 @@ class EmailPersonalizationService
     /**
      * Find similar profiles that have had successful engagement
      * 
-     * FIXED: Method signature now matches all call sites (accepts optional Contact)
-     * 
+     * TOP-K FALLBACK LADDER (replaces hard sim > 0.5 threshold):
+     *
+     *   Rung 1  — Exact ICP cohort: same industry × same role family.
+     *             Return top-K (K=5) by cosine similarity × recency-weighted engagement.
+     *             If K profiles found, stop here.
+     *
+     *   Rung 2  — Broad cohort: same industry, any role (or same role, any industry).
+     *             Fill remaining slots from this wider pool.
+     *
+     *   Rung 3  — Global pool: all high-engagement profiles.
+     *             Fill remaining slots from entire pool.
+     *
+     * De-duplication: max 2 profiles per company to prevent one company
+     * dominating the neighbor set.
+     *
+     * Math:
+     *   score(p) = sim(embedding_target, embedding_p) × engagement_recency(p)
+     *   where engagement_recency uses recency-weighted scoring from PersonalizationProfile
+     *
      * @param PersonalizationProfile $targetProfile The profile to find matches for
      * @param Contact|null $contact Optional contact for additional context
      * @return array Array of similar successful profiles with similarity scores
@@ -1011,41 +867,88 @@ class EmailPersonalizationService
         if (empty($targetEmbedding)) {
             return [];
         }
-        
-        // Get all profiles with embeddings and good engagement
-        $candidates = $this->profileRepository->findHighEngagement(3, 1);
-        
-        $similarities = [];
-        foreach ($candidates as $candidate) {
-            if ($candidate->getId() === $targetProfile->getId()) {
-                continue;
-            }
-            
-            $candidateEmbedding = $candidate->getFeatureEmbedding();
-            if (empty($candidateEmbedding)) {
-                continue;
-            }
-            
-            $similarity = $this->cosineSimilarity($targetEmbedding, $candidateEmbedding);
-            
-            if ($similarity > 0.5) { // Only consider reasonably similar profiles
-                $similarities[] = [
-                    'profile' => $candidate,
-                    'similarity' => $similarity,
-                    'engagementScore' => $candidate->getEngagementScore(),
-                ];
-            }
+
+        $K = 5; // target neighbor count
+
+        // Determine ICP attributes from contact
+        $targetIndustry = null;
+        $targetRole = null;
+        if ($contact) {
+            $company = $contact->getCompany();
+            $targetIndustry = strtolower($company?->getSector() ?? '');
+            $targetRole = $this->inferRoleCategory($contact->getJobTitle() ?? '');
         }
-        
-        // Sort by weighted score (similarity * engagement)
-        usort($similarities, function ($a, $b) {
+
+        // Get ALL profiles with embeddings and at least some engagement (broad pool)
+        $allCandidates = $this->profileRepository->findHighEngagement(1, 0); // min 1 open, 0 replies
+
+        // Score all candidates against target
+        $scored = [];
+        foreach ($allCandidates as $candidate) {
+            if ($candidate->getId() === $targetProfile->getId()) continue;
+
+            $candidateEmbedding = $candidate->getFeatureEmbedding();
+            if (empty($candidateEmbedding)) continue;
+
+            $similarity = $this->cosineSimilarity($targetEmbedding, $candidateEmbedding);
+            if ($similarity <= 0.0) continue; // negative sim = anti-correlated
+
+            // Determine candidate's ICP attributes
+            $candidateIndustry = null;
+            $candidateRole = null;
+            $candidateCompanyId = $candidate->getCompanyId();
+            $meta = $candidate->getMetadata() ?? [];
+            $candidateIndustry = strtolower($meta['industry'] ?? '');
+            $candidateRole = $meta['role_category'] ?? '';
+
+            // Determine cohort rung (1=exact, 2=broad, 3=global)
+            $rung = 3;
+            if ($targetIndustry && $targetRole) {
+                $sameIndustry = $candidateIndustry === $targetIndustry;
+                $sameRole = $candidateRole === $targetRole;
+                if ($sameIndustry && $sameRole) {
+                    $rung = 1;
+                } elseif ($sameIndustry || $sameRole) {
+                    $rung = 2;
+                }
+            }
+
+            $scored[] = [
+                'profile' => $candidate,
+                'similarity' => $similarity,
+                'engagementScore' => $candidate->getEngagementScore(),
+                'companyId' => $candidateCompanyId,
+                'rung' => $rung,
+            ];
+        }
+
+        // Sort within each rung by score = similarity × engagement
+        usort($scored, function ($a, $b) {
+            // Primary: rung (lower = better)
+            if ($a['rung'] !== $b['rung']) return $a['rung'] <=> $b['rung'];
+            // Secondary: score
             $scoreA = $a['similarity'] * $a['engagementScore'];
             $scoreB = $b['similarity'] * $b['engagementScore'];
             return $scoreB <=> $scoreA;
         });
-        
-        // Return top 5 similar profiles
-        return array_slice($similarities, 0, 5);
+
+        // Select top-K with de-duplication (max 2 per company)
+        $selected = [];
+        $companyCounts = [];
+        foreach ($scored as $entry) {
+            if (count($selected) >= $K) break;
+
+            // De-dup: max 2 per company
+            $cid = $entry['companyId'];
+            if ($cid) {
+                $companyCounts[$cid] = ($companyCounts[$cid] ?? 0) + 1;
+                if ($companyCounts[$cid] > 2) continue;
+            }
+
+            $selected[] = $entry;
+        }
+
+        return $selected;
     }
 
     /**
@@ -1130,9 +1033,10 @@ class EmailPersonalizationService
             default => 'business',
         };
         
-        // Get industry-specific value proposition
+        // Get industry-specific value proposition (claim-sanitized)
         $valueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentKey] 
             ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
+        $valueProp = $this->sanitizeClaimsText($valueProp);
         
         // Get role-specific pain point content
         $painPointData = self::ROLE_PAIN_POINTS[$role] ?? self::ROLE_PAIN_POINTS['other'];
@@ -1178,12 +1082,14 @@ class EmailPersonalizationService
                 'pain_detail' => $painPointData['detail'],
                 
                 // NEW: Social proof
-                'social_proof_stat' => $socialProofData['stat'],
-                'social_proof_ref' => $socialProofData['reference'],
-                'social_proof_detail' => $socialProofData['detail'],
+                'social_proof_stat' => $this->sanitizeClaimsText($socialProofData['stat']),
+                'social_proof_ref' => $this->sanitizeClaimsText($socialProofData['reference']),
+                'social_proof_detail' => $this->sanitizeClaimsText($socialProofData['detail']),
                 'social_proof_full' => $this->resolveInternalSpintax(
-                    $socialProofData['stat']
-                ) . ' ' . $this->resolveInternalSpintax($socialProofData['outcome']),
+                    $this->sanitizeClaimsText($socialProofData['stat'])
+                ) . ' ' . $this->resolveInternalSpintax(
+                    $this->sanitizeClaimsText($socialProofData['outcome'])
+                ),
                 
                 // NEW: Call to action
                 'cta' => $cta,
@@ -1616,103 +1522,89 @@ class EmailPersonalizationService
         return $features;
     }
 
-    // ==================================================================================
-    // NEW ENHANCEMENT METHODS (Report Recommendations Implementation)
-    // ==================================================================================
+    // ========================= NEW: ROLE-SPECIFIC PAIN POINTS =========================
+    // These target the specific concerns of each buyer persona
+    private const ROLE_PAIN_POINTS = [
+        'procurement' => [
+            'primary' => 'cost pressure and supply chain risk',
+            'hook' => 'assembly cost and single-source risk',
+            'detail' => 'We can align on your pricing and qualification requirements before any production work.',
+        ],
+        'engineering' => [
+            'primary' => 'lead time and DFM feedback',
+            'hook' => 'prototype turnaround and DFM feedback speed',
+            'detail' => 'Happy to review your DFM expectations and documentation needs early.',
+        ],
+        'management' => [
+            'primary' => 'strategic sourcing and risk mitigation',
+            'hook' => 'manufacturing footprint diversification',
+            'detail' => 'We can align on qualification steps, documentation, and risk planning if useful.',
+        ],
+        'quality' => [
+            'primary' => 'compliance and traceability',
+            'hook' => 'documentation and traceability requirements',
+            'detail' => 'Happy to align on your documentation checklist and audit expectations.',
+        ],
+        'operations' => [
+            'primary' => 'capacity and on-time delivery',
+            'hook' => 'capacity flexibility and delivery planning',
+            'detail' => 'We can align on your volume profile and planning requirements.',
+        ],
+        'supply_chain' => [
+            'primary' => 'lead time reduction and inventory optimization',
+            'hook' => 'lead time and inventory planning',
+            'detail' => 'We can align on lead-time expectations and documentation needs.',
+        ],
+        'other' => [
+            'primary' => 'finding the right manufacturing partner',
+            'hook' => 'sourcing and manufacturing partner selection',
+            'detail' => 'Happy to align on your qualification checklist and documentation needs.',
+        ],
+    ];
+
+    // ========================= TONE TRANSFORMATIONS =========================
+    private const TONE_TRANSFORMATION_PATTERNS = [
+        PersonalizationProfile::TONE_FORMAL => [
+            '/\bI\'d\b/i' => 'I would',
+            '/\bWe\'d\b/i' => 'We would',
+            '/\bYou\'d\b/i' => 'You would',
+            '/\bI\'ll\b/i' => 'I will',
+            '/\bWe\'ll\b/i' => 'We will',
+            '/\bYou\'ll\b/i' => 'You will',
+            '/\bI\'m\b/i' => 'I am',
+            '/\bWe\'re\b/i' => 'We are',
+            '/\bYou\'re\b/i' => 'You are',
+            '/\bcan\'t\b/i' => 'cannot',
+            '/\bwon\'t\b/i' => 'will not',
+            '/\bdon\'t\b/i' => 'do not',
+        ],
+        PersonalizationProfile::TONE_CASUAL => [
+            '/\bI would\b/i' => "I'd",
+            '/\bWe would\b/i' => "We'd",
+            '/\bYou would\b/i' => "You'd",
+            '/\bI will\b/i' => "I'll",
+            '/\bWe will\b/i' => "We'll",
+            '/\bYou will\b/i' => "You'll",
+            '/\bI am\b/i' => "I'm",
+            '/\bWe are\b/i' => "We're",
+            '/\bYou are\b/i' => "You're",
+        ],
+        PersonalizationProfile::TONE_DIRECT => [
+            '/\bI wanted to\b/i' => '',
+            '/\bI was wondering if\b/i' => '',
+            '/\bI thought I would\b/i' => '',
+            '/\bPlease let me know if you have any questions\.\s*/i' => '',
+            '/\bLooking forward to hearing from you\.\s*/i' => '',
+            '/\s{2,}/' => ' ',
+        ],
+        PersonalizationProfile::TONE_FRIENDLY => [
+            '/\bI wanted to\b/i' => "I'd love to",
+            '/\bI would like to\b/i' => "I'd really like to",
+            '/\bPlease\b/i' => 'Feel free to',
+        ],
+    ];
 
     /**
-     * Enforce content length limits based on engagement level
-     * 
-     * CRITICAL FIX: CONTENT_LENGTH_SETTINGS defined max_sentences but nothing enforced it.
-     * This method actually truncates content to respect the limits.
-     * 
-     * IMPROVED: Now preserves CTA (questions) when truncating - never cuts the ask!
-     * 
-     * @param string $content The content to truncate
-     * @param string $lengthSetting 'brief', 'standard', or 'detailed'
-     * @return string Truncated content respecting max_sentences while preserving CTA
-     */
-    public function enforceContentLength(string $content, string $lengthSetting): string
-    {
-        $settings = self::CONTENT_LENGTH_SETTINGS[$lengthSetting] ?? self::CONTENT_LENGTH_SETTINGS['standard'];
-        $maxSentences = $settings['max_sentences'] ?? 5;
-        
-        // Split into sentences (preserve sentence-ending punctuation)
-        $sentences = preg_split('/(?<=[.!?])\s+/', trim($content), -1, PREG_SPLIT_NO_EMPTY);
-        
-        if (count($sentences) <= $maxSentences) {
-            return $content; // Already within limit
-        }
-        
-        // CRITICAL FIX: Find and preserve CTA sentences (questions)
-        $ctaSentences = [];
-        $nonCtaSentences = [];
-        
-        foreach ($sentences as $index => $sentence) {
-            $trimmed = trim($sentence);
-            // CTA indicators: questions, or sentences with call-to-action phrases
-            $isCta = str_ends_with($trimmed, '?') 
-                || preg_match('/\b(would you|can we|let me know|schedule|call|chat|connect|reply|interested)\b/i', $trimmed);
-            
-            if ($isCta) {
-                $ctaSentences[$index] = $sentence;
-            } else {
-                $nonCtaSentences[$index] = $sentence;
-            }
-        }
-        
-        // Strategy: Keep first sentence (hook) + CTA + fill middle with non-CTA up to limit
-        $truncated = [];
-        
-        // Always keep the first sentence (the hook/opener)
-        if (!empty($nonCtaSentences)) {
-            $firstKey = array_key_first($nonCtaSentences);
-            $truncated[$firstKey] = $nonCtaSentences[$firstKey];
-            unset($nonCtaSentences[$firstKey]);
-        }
-        
-        // Reserve slots for CTAs (at least 1)
-        $ctaSlots = min(count($ctaSentences), max(1, $maxSentences - count($truncated) - 1));
-        $contentSlots = $maxSentences - count($truncated) - $ctaSlots;
-        
-        // Fill with content sentences
-        $contentAdded = 0;
-        foreach ($nonCtaSentences as $index => $sentence) {
-            if ($contentAdded >= $contentSlots) break;
-            $truncated[$index] = $sentence;
-            $contentAdded++;
-        }
-        
-        // Add CTA sentences (prefer the last one - usually the main ask)
-        $ctaKeys = array_keys($ctaSentences);
-        $ctaToAdd = array_slice($ctaKeys, -$ctaSlots, $ctaSlots);
-        foreach ($ctaToAdd as $index) {
-            $truncated[$index] = $ctaSentences[$index];
-        }
-        
-        // Sort by original order and rejoin
-        ksort($truncated);
-        
-        return implode(' ', $truncated);
-    }
-
-    /**
-     * Get competitor-specific hook for displacement messaging
-     * 
-     * Returns targeted messaging when we know the prospect uses a specific competitor.
-     * 
-     * @param string $competitorName Name of the competitor (jabil, flex, celestica, etc.)
-     * @return array|null Hook data with 'hook', 'pain', 'differentiation' keys or null if unknown
-     */
-    public function getCompetitorHook(string $competitorName): ?array
-    {
-        $competitor = strtolower(trim($competitorName));
-        return self::COMPETITOR_HOOKS[$competitor] ?? null;
-    }
-
-    /**
-     * Get all known competitors for detection
-     * 
      * @return array List of competitor names
      */
     public function getKnownCompetitors(): array
@@ -1884,6 +1776,7 @@ class EmailPersonalizationService
         // Get base value proposition
         $baseValueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentFocus] 
             ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
+        $baseValueProp = $this->sanitizeClaimsText($baseValueProp);
         
         // If Thompson Sampler is available, try to get A/B test variant
         if ($this->thompsonSampler) {
@@ -1933,6 +1826,9 @@ class EmailPersonalizationService
         // Get base value proposition
         $baseValueProp = self::INDUSTRY_VALUE_PROPS[$industry][$contentFocus] 
             ?? self::INDUSTRY_VALUE_PROPS['other']['business'];
+
+        // Ensure variants do not introduce unverified claims
+        $baseValueProp = $this->sanitizeValuePropForClaims($baseValueProp);
         
         // Create variants with different emphases
         $variants = [
@@ -1972,6 +1868,58 @@ class EmailPersonalizationService
         }
         
         return $createdArms;
+    }
+
+    /**
+     * Remove or neutralize claim-heavy phrases to avoid unverified statements.
+     */
+    private function sanitizeValuePropForClaims(string $text): string
+    {
+        return $this->sanitizeClaimsText($text);
+    }
+
+    /**
+     * Generic claim sanitizer to avoid unverified assertions in outbound copy.
+     */
+    private function sanitizeClaimsText(string $text): string
+    {
+        $replacements = [
+            '/\bISO\s*\d{4}\b/i' => 'quality-focused processes',
+            '/\bIATF\s*\d+\b/i' => 'automotive-grade processes',
+            '/\bAS\s*\d+\b/i' => 'aerospace-grade processes',
+            '/\bEN\s*\d+\b/i' => 'industry-grade processes',
+            '/\bFDA[-\s]*ready\b/i' => 'documentation-ready',
+            '/\bFDA\b/i' => 'regulatory',
+            '/\b100%\b/i' => 'comprehensive',
+            '/\b\d{1,3}%\b/i' => 'consistent',
+            '/\b\d+\+\b/' => 'many',
+            '/\b\d+\s*(?:-|–)\s*\d+\b/' => 'several',
+            '/\bQ[1-4]\b/i' => 'an upcoming quarter',
+            '/\b\d+\s*(?:day|days|week|weeks|month|months|year|years)\b/i' => 'timeline',
+            '/\bzero-?defect\b/i' => 'quality-focused',
+            '/\bAOI\b/i' => 'inspection',
+            '/\bX-ray\b/i' => 'inspection',
+            '/\bfirst-?article\b/i' => 'initial',
+            '/\bHALT\/?HASS\b/i' => 'reliability',
+            '/\bconformal coating\b/i' => 'protective coating',
+            '/\bBGA\b/i' => 'fine-pitch',
+            '/\b0201\b/i' => 'fine-pitch',
+            '/\b4-week\b/i' => 'quick',
+            '/\bguarantee(s|d)?\b/i' => 'support',
+            '/\bcertified\b/i' => 'qualified',
+            '/\btraceability\b/i' => 'documentation support',
+            '/\baudit-?ready\b/i' => 'audit support',
+            '/\bqualified backup capacity\b/i' => 'backup capacity options',
+            '/\bOTD\b/i' => 'delivery performance',
+        ];
+
+        $sanitized = preg_replace(array_keys($replacements), array_values($replacements), $text);
+
+        // Remove double spaces and tidy punctuation
+        $sanitized = preg_replace('/\s{2,}/', ' ', $sanitized);
+        $sanitized = preg_replace('/\s+([,\.])/', '$1', $sanitized);
+
+        return trim($sanitized);
     }
 
     /**
@@ -2035,8 +1983,8 @@ class EmailPersonalizationService
             default => self::CIALDINI_PRINCIPLES['reciprocity']['industry_insight'],
         };
         
-        // CRITICAL FIX: Resolve spintax before returning
-        return $this->resolveInternalSpintax($element);
+        // CRITICAL FIX: Resolve spintax and sanitize claims before returning
+        return $this->sanitizeClaimsText($this->resolveInternalSpintax($element));
     }
 
     /**
@@ -2075,22 +2023,22 @@ class EmailPersonalizationService
                 self::CIALDINI_PRINCIPLES['scarcity']['capacity'],
                 self::CIALDINI_PRINCIPLES['scarcity']['timing'],
             ];
-            return $this->resolveInternalSpintax($options[array_rand($options)]);
+            return $this->sanitizeClaimsText($this->resolveInternalSpintax($options[array_rand($options)]));
         }
         
         // EU/UK customers get location scarcity (relevant to them)
         if (in_array($region, ['eu', 'uk'])) {
-            return $this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['location']);
+            return $this->sanitizeClaimsText($this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['location']));
         }
         
         // Procurement/supply chain roles care about timing/planning
         if (in_array($role, ['procurement', 'supply_chain', 'operations'])) {
-            return $this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['timing']);
+            return $this->sanitizeClaimsText($this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['timing']));
         }
         
         // Engineering/technical roles care about expertise access
         if (in_array($role, ['engineering', 'quality'])) {
-            return $this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['expertise']);
+            return $this->sanitizeClaimsText($this->resolveInternalSpintax(self::CIALDINI_PRINCIPLES['scarcity']['expertise']));
         }
         
         // Management/other - use quarterly context for strategic framing
@@ -2101,8 +2049,8 @@ class EmailPersonalizationService
             $element = self::CIALDINI_PRINCIPLES['scarcity']['capacity'];
         }
         
-        // CRITICAL FIX: Resolve spintax before returning
-        return $this->resolveInternalSpintax($element);
+        // CRITICAL FIX: Resolve spintax and sanitize claims before returning
+        return $this->sanitizeClaimsText($this->resolveInternalSpintax($element));
     }
 
     /**
@@ -2126,8 +2074,8 @@ class EmailPersonalizationService
             default => self::CIALDINI_PRINCIPLES['authority']['experience'],
         };
         
-        // CRITICAL FIX: Resolve spintax before returning
-        return $this->resolveInternalSpintax($element);
+        // CRITICAL FIX: Resolve spintax and sanitize claims before returning
+        return $this->sanitizeClaimsText($this->resolveInternalSpintax($element));
     }
 
     /**
@@ -2204,8 +2152,8 @@ class EmailPersonalizationService
             $socialProof['stat']
         );
         
-        // CRITICAL FIX: Resolve spintax before returning
-        return $this->resolveInternalSpintax($element);
+        // CRITICAL FIX: Resolve spintax and sanitize claims before returning
+        return $this->sanitizeClaimsText($this->resolveInternalSpintax($element));
     }
 
     /**
@@ -2464,6 +2412,12 @@ class EmailPersonalizationService
             'fused_value' => $this->getFusedParagraph('unity_to_value', $contact, $engagementLevel),
             'fused_proof' => $this->getFusedParagraph('liking_to_social_proof', $contact, $engagementLevel),
             'fused_close' => $this->getFusedParagraph('social_proof_to_consistency', $contact, $engagementLevel),
+
+            // Proof request (neutral, non-claiming)
+            'proof_request' => $this->getProofRequestElement(),
+
+            // Starz services line (neutral)
+            'starz_services' => $this->getStarzServicesLine(),
             
             // Context metadata
             'industry' => $industry,
@@ -2471,6 +2425,35 @@ class EmailPersonalizationService
             'engagement_level' => $engagementLevel,
             'template_architecture' => self::TEMPLATE_ARCHITECTURES[$engagementLevel] ?? self::TEMPLATE_ARCHITECTURES['cold'],
         ];
+    }
+
+    /**
+     * Provide a neutral proof request line without making claims.
+     * This avoids asserting certifications or metrics without references.
+     */
+    private function getProofRequestElement(): string
+    {
+        $options = [
+            'If you have supplier-qualification requirements, let me know what documentation you need.',
+            'If documentation is required for qualification, tell me what you need and I can outline what we can provide.',
+            'Happy to align with your qualification checklist—just share what documentation your team requires.',
+        ];
+
+        return $options[array_rand($options)];
+    }
+
+    /**
+     * Neutral, non-claiming services line tailored to Starz.
+     */
+    private function getStarzServicesLine(): string
+    {
+        $options = [
+            'If relevant, we can support PCBA, cable harness, overmolding, copper windings, and system integration programs.',
+            'If helpful, we can discuss PCBA, cable harness, overmolding, copper windings, or system integration needs.',
+            'If it fits your roadmap, we can cover PCBA, cable harness, overmolding, copper windings, and system integration scope.',
+        ];
+
+        return $options[array_rand($options)];
     }
 
     // ==================================================================================
@@ -2728,6 +2711,9 @@ class EmailPersonalizationService
      */
     public function applyOutputQualityFixes(string $content, string $engagementLevel, string $tone): string
     {
+        // 0. Remove claim-heavy phrases without hard proof
+        $content = $this->sanitizeClaimsText($content);
+
         // 1. Convert to You-focus
         $content = $this->convertToYouFocus($content);
         
@@ -2749,6 +2735,44 @@ class EmailPersonalizationService
         $content = preg_replace('/\n +/', "\n", $content);       // No leading spaces on lines
         
         return trim($content);
+    }
+
+    /**
+     * Enforce content length based on engagement level setting.
+     *
+     * brief    → max 3 paragraphs / ~120 words
+     * standard → max 5 paragraphs / ~200 words
+     * detailed → no hard cap, lightly trim if > 8 paragraphs
+     */
+    public function enforceContentLength(string $content, string $lengthSetting = 'standard'): string
+    {
+        $settings = self::CONTENT_LENGTH_SETTINGS[$lengthSetting] ?? self::CONTENT_LENGTH_SETTINGS['standard'];
+        $maxParagraphs = $settings['max_paragraphs'] ?? 5;
+        $maxWords = $settings['max_words'] ?? 200;
+
+        $paragraphs = preg_split('/\n{2,}/', trim($content));
+        if (count($paragraphs) > $maxParagraphs) {
+            $paragraphs = array_slice($paragraphs, 0, $maxParagraphs);
+        }
+
+        $result = implode("\n\n", $paragraphs);
+
+        // Word-level trim: cut at sentence boundary nearest to maxWords
+        $words = str_word_count($result, 2);
+        if (count($words) > $maxWords) {
+            $positions = array_keys($words);
+            $cutPos = $positions[min($maxWords, count($positions) - 1)] ?? strlen($result);
+            // Find the next sentence end after cutPos
+            $sentenceEnd = strpos($result, '.', $cutPos);
+            if ($sentenceEnd !== false && ($sentenceEnd - $cutPos) < 80) {
+                $result = substr($result, 0, $sentenceEnd + 1);
+            } else {
+                $result = substr($result, 0, $cutPos);
+                $result = rtrim($result, ' ,;:') . '.';
+            }
+        }
+
+        return trim($result);
     }
 
     /**
@@ -2835,8 +2859,14 @@ class EmailPersonalizationService
         for ($i = 1; $i < count($paragraphs) - 1; $i++) {
             $para = $paragraphs[$i];
             
-            // Skip if paragraph already starts with a transition word
-            if (preg_match('/^(Also|Additionally|However|That said|Plus|And|But|So|For example|Specifically|In short)/i', trim($para))) {
+            // Skip if paragraph already starts with a transition word or connecting phrase
+            if (preg_match('/^(Also|Additionally|However|That said|Plus|And|But|So|For example|Specifically|In short|Regarding|If |I know|Given|For your|For |In fact|Because|Since|With over|With |Think|Would|Could|Let me|Here\'s|The )/i', trim($para))) {
+                $result[] = $para;
+                continue;
+            }
+            
+            // Skip short paragraphs (single sentences) — transitions make them feel padded
+            if (strlen(trim($para)) < 80) {
                 $result[] = $para;
                 continue;
             }
@@ -2855,7 +2885,17 @@ class EmailPersonalizationService
                     ? $rng->nextInt() % count($transitions)
                     : array_rand($transitions);
                 $transition = $transitions[abs($transitionIndex)];
-                $para = $transition . ' ' . lcfirst(ltrim($para));
+                // Only lcfirst if the first word is not a likely proper noun
+                // (proper nouns: multi-char capitalized words that aren't common sentence starters)
+                $trimmedPara = ltrim($para);
+                $firstWord = preg_match('/^([A-Z][a-z]+)/', $trimmedPara, $fw) ? $fw[1] : '';
+                $commonStarters = ['The', 'This', 'That', 'These', 'Those', 'Our', 'We', 'My', 'Your', 'Their', 'Its', 'Each', 'Every', 'Some', 'Many', 'Most', 'All', 'Any', 'No', 'Few'];
+                if (in_array($firstWord, $commonStarters)) {
+                    $para = $transition . ' ' . lcfirst($trimmedPara);
+                } else {
+                    // Keep original casing for proper nouns (e.g., "Atlantic", "Morocco", company names)
+                    $para = $transition . ' ' . $trimmedPara;
+                }
             }
             
             $result[] = $para;
@@ -3163,6 +3203,28 @@ class EmailPersonalizationService
         $content = preg_replace_callback(
             '/\n\n([a-z])/',
             fn($m) => "\n\n" . strtoupper($m[1]),
+            $content
+        );
+        
+        // Fix mid-sentence capitals after commas (e.g., ", You'll" → ", you'll")
+        // but preserve proper nouns, geography, and "I"
+        $properNouns = ['Atlantic', 'Pacific', 'Morocco', 'European', 'African', 'American', 
+            'Tangier', 'Tunisia', 'North', 'South', 'East', 'West', 'EU', 'US', 'UK', 'GCC',
+            'IPC', 'ISO', 'IATF', 'AS9100', 'Starz'];
+        $content = preg_replace_callback(
+            '/,\s+([A-Z])([a-z\']+)/',
+            function ($m) use ($properNouns) {
+                $word = $m[1] . $m[2];
+                // Preserve "I", "I'll", "I'd", "I'm"  
+                if ($m[1] === 'I' && (strlen($m[2]) === 0 || $m[2][0] === "'")) {
+                    return ', ' . $word;
+                }
+                // Preserve known proper nouns
+                if (in_array($word, $properNouns)) {
+                    return ', ' . $word;
+                }
+                return ', ' . lcfirst($word);
+            },
             $content
         );
         

@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'admin.users.new_user'|trans }} - {{ 'admin.title'|trans }}{% endblock %}
+{% block title %}{{ 'administration.users.new_user'|trans }} - {{ 'administration.title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack rams-gap-6">
@@ -9,13 +9,13 @@
         <div>
             <nav class="rams-breadcrumb rams-mb-2">
                 <ol class="rams-breadcrumb__list">
-                    <li class="rams-breadcrumb__item"><a href="{{ path('admin_user_index') }}" class="rams-breadcrumb__link">{{ 'admin.users.title'|trans }}</a></li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('admin_user_index') }}" class="rams-breadcrumb__link">{{ 'administration.users.title'|trans }}</a></li>
                     <li class="rams-breadcrumb__separator">/</li>
-                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'admin.users.new_user'|trans }}</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'administration.users.new_user'|trans }}</li>
                 </ol>
             </nav>
-            <h1 class="rams-page-title">{{ 'admin.users.new_user'|trans }}</h1>
-            <p class="rams-page-subtitle">{{ 'admin.users.new_user_subtitle'|trans }}</p>
+            <h1 class="rams-page-title">{{ 'administration.users.new_user'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'administration.users.new_user_subtitle'|trans }}</p>
         </div>
     </div>
 
@@ -26,44 +26,44 @@
             
             <div class="rams-grid rams-grid--2">
                 <div class="rams-form__group">
-                    {{ form_label(form.firstName, 'admin.users.first_name'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                    {{ form_label(form.firstName, 'administration.users.first_name'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                     {{ form_widget(form.firstName, {'attr': {'class': 'rams-form__input'}}) }}
                     {{ form_errors(form.firstName) }}
                 </div>
 
                 <div class="rams-form__group">
-                    {{ form_label(form.lastName, 'admin.users.last_name'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                    {{ form_label(form.lastName, 'administration.users.last_name'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                     {{ form_widget(form.lastName, {'attr': {'class': 'rams-form__input'}}) }}
                     {{ form_errors(form.lastName) }}
                 </div>
             </div>
 
             <div class="rams-form__group">
-                {{ form_label(form.email, 'admin.users.email'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                {{ form_label(form.email, 'administration.users.email'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                 {{ form_widget(form.email, {'attr': {'class': 'rams-form__input'}}) }}
                 {{ form_errors(form.email) }}
             </div>
 
             {% if form.plainPassword is defined %}
             <div class="rams-form__group">
-                {{ form_label(form.plainPassword, 'admin.users.password'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                {{ form_label(form.plainPassword, 'administration.users.password'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                 {{ form_widget(form.plainPassword, {'attr': {'class': 'rams-form__input'}}) }}
                 {{ form_errors(form.plainPassword) }}
-                <p class="rams-form__hint">{{ 'admin.users.password_hint'|trans }}</p>
+                <p class="rams-form__hint">{{ 'administration.users.password_hint'|trans }}</p>
             </div>
             {% endif %}
 
             <div class="rams-form__group">
-                {{ form_label(form.roles, 'admin.users.role'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                {{ form_label(form.roles, 'administration.users.role'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                 {{ form_widget(form.roles, {'attr': {'class': 'rams-form__select'}}) }}
                 {{ form_errors(form.roles) }}
             </div>
 
             <div class="rams-form__group">
-                <label class="rams-form__checkbox-container">
+                <div class="rams-form__checkbox">
                     {{ form_widget(form.active, {'attr': {'class': 'rams-form__checkbox-input'}}) }}
-                    <span class="rams-form__checkbox-label">{{ 'admin.users.active'|trans }}</span>
-                </label>
+                    {{ form_label(form.active, 'administration.users.active'|trans, {'label_attr': {'class': 'rams-form__checkbox-label'}}) }}
+                </div>
                 {{ form_errors(form.active) }}
             </div>
 

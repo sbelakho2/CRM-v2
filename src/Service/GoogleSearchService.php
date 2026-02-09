@@ -39,14 +39,14 @@ class GoogleSearchService
      * @param int $startIndex Starting index for pagination
      * @return array Search results with title, link, snippet
      */
-    public function searchCompanies(string $query, int $resultsPerPage = 10, int $startIndex = 1): array
+    public function searchCompanies(string $query, int $resultsPerPage = 10, int $startIndex = 1, ?string $gl = null): array
     {
         $lastException = null;
         $attempt = 0;
         
         while ($attempt < self::MAX_RETRIES) {
             try {
-                return $this->executeSearch($query, $resultsPerPage, $startIndex);
+                return $this->executeSearch($query, $resultsPerPage, $startIndex, $gl);
             } catch (\Exception $e) {
                 $lastException = $e;
                 $attempt++;
@@ -98,16 +98,23 @@ class GoogleSearchService
     /**
      * Execute the actual search request
      */
-    private function executeSearch(string $query, int $resultsPerPage, int $startIndex): array
+    private function executeSearch(string $query, int $resultsPerPage, int $startIndex, ?string $gl = null): array
     {
+        $queryParams = [
+            'key' => $this->apiKey,
+            'cx' => $this->searchEngineId,
+            'q' => $query,
+            'num' => min($resultsPerPage, 10), // Max 10 per request
+            'start' => $startIndex,
+        ];
+        
+        // Add geo-location bias if specified (ISO 3166-1 alpha-2 country code)
+        if ($gl) {
+            $queryParams['gl'] = $gl;
+        }
+        
         $response = $this->httpClient->request('GET', self::SEARCH_URL, [
-            'query' => [
-                'key' => $this->apiKey,
-                'cx' => $this->searchEngineId,
-                'q' => $query,
-                'num' => min($resultsPerPage, 10), // Max 10 per request
-                'start' => $startIndex,
-            ],
+            'query' => $queryParams,
         ]);
         
         $statusCode = $response->getStatusCode();

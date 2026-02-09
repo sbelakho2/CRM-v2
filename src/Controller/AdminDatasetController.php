@@ -71,15 +71,15 @@ class AdminDatasetController extends AbstractController
     public function importForm(): Response
     {
         $datasetTypes = [
-            'tariff_rate' => 'Tariff Rates (HTS code duties)',
-            'freight_table' => 'Freight Tables (lane pricing)',
-            'fx_rate' => 'FX Rates (currency exchange)'
+            'tariff_rate' => 'admin_dataset.types.tariff_rate',
+            'freight_table' => 'admin_dataset.types.freight_table',
+            'fx_rate' => 'admin_dataset.types.fx_rate'
         ];
         
         return $this->render('admin_dataset/import_form.html.twig', [
             'datasetTypes' => $datasetTypes,
             'maxFileSize' => '50MB',
-            'pageTitle' => 'Import Dataset'
+            'pageTitle' => 'admin_dataset.import.title'
         ]);
     }
 
@@ -92,14 +92,14 @@ class AdminDatasetController extends AbstractController
         // 1. Validate file upload
         $datasetFile = $request->files->get('dataset_file');
         if (!$datasetFile) {
-            $this->addFlash('error', 'Please upload a dataset file');
+            $this->addFlash('error', 'admin_dataset.flash.error.upload_file');
             return $this->redirectToRoute('admin_dataset_import_form');
         }
         
         $allowedExtensions = ['csv', 'json', 'xml'];
         $extension = $datasetFile->getClientOriginalExtension();
         if (!in_array($extension, $allowedExtensions)) {
-            $this->addFlash('error', 'Invalid file format. Please upload CSV, JSON, or XML file');
+            $this->addFlash('error', 'admin_dataset.flash.error.invalid_format');
             return $this->redirectToRoute('admin_dataset_import_form');
         }
         
@@ -111,7 +111,7 @@ class AdminDatasetController extends AbstractController
         // 3. Validate dataset type
         $validTypes = ['tariff_rate', 'freight_table', 'fx_rate'];
         if (!in_array($datasetType, $validTypes)) {
-            $this->addFlash('error', 'Invalid dataset type');
+            $this->addFlash('error', 'admin_dataset.flash.error.invalid_type');
             return $this->redirectToRoute('admin_dataset_import_form');
         }
         
@@ -119,9 +119,9 @@ class AdminDatasetController extends AbstractController
         if ($createSnapshot) {
             try {
                 $snapshotVersion = $this->datasetImport->snapshotDataset($datasetType, 'PRE_IMPORT');
-                $this->addFlash('info', "Snapshot created: {$snapshotVersion}");
+                $this->addFlash('info', 'admin_dataset.flash.info.snapshot_created');
             } catch (\Exception $e) {
-                $this->addFlash('warning', 'Snapshot creation failed: ' . $e->getMessage());
+                $this->addFlash('warning', 'admin_dataset.flash.warning.snapshot_failed');
             }
         }
         
@@ -134,27 +134,19 @@ class AdminDatasetController extends AbstractController
                 );
             } else {
                 // Placeholder for other dataset types
-                $this->addFlash('warning', "Import for {$datasetType} not yet implemented");
+                $this->addFlash('warning', 'admin_dataset.flash.warning.not_implemented');
                 return $this->redirectToRoute('admin_dataset_import_form');
             }
         } catch (\Exception $e) {
-            $this->addFlash('error', 'Import failed: ' . $e->getMessage());
+            $this->addFlash('error', 'admin_dataset.flash.error.import_failed');
             return $this->redirectToRoute('admin_dataset_import_form');
         }
         
         // 6. Display import summary
-        $this->addFlash('success', sprintf(
-            'Dataset imported successfully: %d rows imported, version %s',
-            $result['imported_count'],
-            $result['version_uuid']
-        ));
+        $this->addFlash('success', 'admin_dataset.flash.success.imported');
         
         if (!empty($result['errors'])) {
-            $this->addFlash('warning', sprintf(
-                '%d errors encountered. First error: %s',
-                count($result['errors']),
-                $result['errors'][0] ?? 'Unknown'
-            ));
+            $this->addFlash('warning', 'admin_dataset.flash.warning.errors_encountered');
         }
         
         // 7. Redirect to overview
@@ -170,23 +162,23 @@ class AdminDatasetController extends AbstractController
         // 1. Validate dataset type
         $validTypes = ['tariff_rate', 'freight_table', 'fx_rate'];
         if (!in_array($datasetType, $validTypes)) {
-            $this->addFlash('error', 'Invalid dataset type');
+            $this->addFlash('error', 'admin_dataset.flash.error.invalid_type');
             return $this->redirectToRoute('admin_dataset_index');
         }
         
         // 2. Get target version
         $targetVersion = $request->request->get('target_version');
         if (!$targetVersion) {
-            $this->addFlash('error', 'Please specify target version');
+            $this->addFlash('error', 'admin_dataset.flash.error.specify_version');
             return $this->redirectToRoute('admin_dataset_index');
         }
         
         // 3. Create snapshot of current data before rollback
         try {
             $snapshotVersion = $this->datasetImport->snapshotDataset($datasetType, 'PRE_ROLLBACK');
-            $this->addFlash('info', "Pre-rollback snapshot created: {$snapshotVersion}");
+            $this->addFlash('info', 'admin_dataset.flash.info.snapshot_created');
         } catch (\Exception $e) {
-            $this->addFlash('warning', 'Snapshot creation failed: ' . $e->getMessage());
+            $this->addFlash('warning', 'admin_dataset.flash.warning.snapshot_failed');
             // Continue with rollback anyway
         }
         
@@ -196,17 +188,12 @@ class AdminDatasetController extends AbstractController
                 $targetVersion
             );
         } catch (\Exception $e) {
-            $this->addFlash('error', 'Rollback failed: ' . $e->getMessage());
+            $this->addFlash('error', 'admin_dataset.flash.error.rollback_failed');
             return $this->redirectToRoute('admin_dataset_index');
         }
         
         // 5. Display rollback summary
-        $this->addFlash('success', sprintf(
-            'Rolled back %s to version %s: %s',
-            $datasetType,
-            $targetVersion,
-            $result['message'] ?? 'Success'
-        ));
+        $this->addFlash('success', 'admin_dataset.flash.success.rolled_back');
         
         // 6. Redirect to overview
         return $this->redirectToRoute('admin_dataset_index');
@@ -271,7 +258,7 @@ class AdminDatasetController extends AbstractController
         return $this->render('admin_dataset/history.html.twig', [
             'history' => $combinedHistory,
             'filterType' => $datasetType,
-            'pageTitle' => 'Import History'
+            'pageTitle' => 'admin_dataset.history.title'
         ]);
     }
 }

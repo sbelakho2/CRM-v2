@@ -98,30 +98,41 @@
     </div>
 
     <!-- Documentation -->
-    <div class="rams-module rams-module--info">
+    <div class="rams-module rams-module--guidance">
         <div class="rams-module__content">
-            <h2 class="rams-module__title">{{ 'playbook.what_are_playbooks'|trans }}</h2>
+            <div class="rams-flex rams-gap-2 rams-items-center rams-mb-3">
+                <div class="rams-andon rams-andon--info"><span class="rams-andon__light"></span></div>
+                <h2 class="rams-module__title rams-mb-0">{{ 'playbook.what_are_playbooks'|trans }}</h2>
+            </div>
             <p class="rams-text--muted rams-mb-4">
                 {{ 'playbook.playbooks_description'|trans }}
             </p>
-            <div class="rams-grid rams-grid--2">
-                <div>
-                    <h3 class="rams-dymo rams-mb-2">{{ 'playbook.example_triggers'|trans }}:</h3>
-                    <ul class="rams-list rams-list--bullet">
-                        <li>{{ 'playbook.example_trigger_1'|trans }}</li>
-                        <li>{{ 'playbook.example_trigger_2'|trans }}</li>
-                        <li>{{ 'playbook.example_trigger_3'|trans }}</li>
-                        <li>{{ 'playbook.example_trigger_4'|trans }}</li>
-                    </ul>
+            <div class="rams-grid rams-grid--2 rams-gap-6">
+                <div class="rams-module rams-module--nested">
+                    <div class="rams-module__header">
+                        <h3 class="rams-dymo rams-mb-0">{{ 'playbook.example_triggers'|trans }}</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <ul class="rams-list rams-list--bullet rams-stack rams-gap-1">
+                            <li>{{ 'playbook.example_trigger_1'|trans }}</li>
+                            <li>{{ 'playbook.example_trigger_2'|trans }}</li>
+                            <li>{{ 'playbook.example_trigger_3'|trans }}</li>
+                            <li>{{ 'playbook.example_trigger_4'|trans }}</li>
+                        </ul>
+                    </div>
                 </div>
-                <div>
-                    <h3 class="rams-dymo rams-mb-2">{{ 'playbook.example_actions'|trans }}:</h3>
-                    <ul class="rams-list rams-list--bullet">
-                        <li>{{ 'playbook.example_action_1'|trans }}</li>
-                        <li>{{ 'playbook.example_action_2'|trans }}</li>
-                        <li>{{ 'playbook.example_action_3'|trans }}</li>
-                        <li>{{ 'playbook.example_action_4'|trans }}</li>
-                    </ul>
+                <div class="rams-module rams-module--nested">
+                    <div class="rams-module__header">
+                        <h3 class="rams-dymo rams-mb-0">{{ 'playbook.example_actions'|trans }}</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <ul class="rams-list rams-list--bullet rams-stack rams-gap-1">
+                            <li>{{ 'playbook.example_action_1'|trans }}</li>
+                            <li>{{ 'playbook.example_action_2'|trans }}</li>
+                            <li>{{ 'playbook.example_action_3'|trans }}</li>
+                            <li>{{ 'playbook.example_action_4'|trans }}</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
