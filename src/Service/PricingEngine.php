@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Service\Integration\AlibabaApiClient;
 use App\Service\Integration\MouserApiClient;
 use App\Service\Integration\DigiKeyApiClient;
 use App\Service\Integration\NexarApiClient;
@@ -13,7 +14,7 @@ use Psr\Log\LoggerInterface;
  * 
  * Implements intelligent API waterfall for part pricing with:
  * - Confidence scoring for part matches
- * - Multi-distributor comparison (Mouser, DigiKey, Nexar)
+ * - Multi-distributor comparison (Alibaba, Mouser, DigiKey, Nexar)
  * - Automatic waterfall when confidence < 80% or stock = 0
  * - Alternative parts visibility (top 3 alternatives)
  * - Lifecycle status tracking (NRND, Obsolete warnings)
@@ -22,12 +23,13 @@ use Psr\Log\LoggerInterface;
  * - Quote win probability prediction
  * 
  * Waterfall Strategy:
- * 1. Mouser API (preferred - official distributor)
- * 2. DigiKey API (fallback or if Mouser confidence < 80%)
- * 3. Nexar API (aggregator - multiple distributors)
- * 4. Internal pricebook (historical data)
- * 5. AI Price Imputation (ML-based estimation)
- * 6. Manual override required for unmatched parts
+ * 1. Alibaba API (factory-direct pricing, best bulk rates)
+ * 2. Mouser API (authorized distributor, reliable stock)
+ * 3. DigiKey API (fallback or if Mouser confidence < 80%)
+ * 4. Nexar API (aggregator - multiple distributors)
+ * 5. Internal pricebook (historical data)
+ * 6. AI Price Imputation (ML-based estimation)
+ * 7. Manual override required for unmatched parts
  * 
  * The engine now tracks WHY a distributor was chosen and provides
  * alternatives so users can make informed decisions.
@@ -35,6 +37,7 @@ use Psr\Log\LoggerInterface;
 class PricingEngine
 {
     public function __construct(
+        private AlibabaApiClient $alibabaClient,
         private MouserApiClient $mouserClient,
         private DigiKeyApiClient $digikeyClient,
         private NexarApiClient $nexarClient,
@@ -93,8 +96,8 @@ class PricingEngine
             $result['alternatives'] = [];
             $result['waterfall_info'] = [
                 'triggered' => true,
-                'reason' => 'Fallback to Nexar aggregator after Mouser and DigiKey failed',
-                'sources_checked' => ['mouser', 'digikey', 'nexar'],
+                'reason' => 'Fallback to Nexar aggregator after Alibaba, Mouser and DigiKey failed',
+                'sources_checked' => ['alibaba', 'mouser', 'digikey', 'nexar'],
             ];
             
             $this->logger->info('Nexar fallback pricing found', [
@@ -125,7 +128,7 @@ class PricingEngine
                 'manufacturer' => $manufacturer,
                 'description' => $description,
                 'pricing' => [
-                    ['quantity' => 1, 'unit_price' => $imputation['price']],
+                    ['quantity' => 1, 'price' => $imputation['price']],
                 ],
                 'stock' => 0,
                 'source' => 'ai_imputation',
@@ -142,7 +145,7 @@ class PricingEngine
                 'waterfall_info' => [
                     'triggered' => true,
                     'reason' => 'All API sources failed - using ML-based price estimation',
-                    'sources_checked' => ['mouser', 'digikey', 'nexar', 'ai_imputation'],
+                    'sources_checked' => ['alibaba', 'mouser', 'digikey', 'nexar', 'ai_imputation'],
                 ],
                 'imputation_factors' => $imputation['factors'],
             ];
@@ -161,6 +164,7 @@ class PricingEngine
     public function getPricingFromSource(string $mpn, string $source, ?string $manufacturer = null): ?array
     {
         $result = match($source) {
+            'alibaba' => $this->alibabaClient->searchByPartNumber($mpn, $manufacturer),
             'mouser' => $this->mouserClient->searchByPartNumber($mpn, $manufacturer),
             'digikey' => $this->digikeyClient->searchByPartNumber($mpn, $manufacturer),
             'nexar' => $this->nexarClient->searchByPartNumber($mpn, $manufacturer),
@@ -195,9 +199,11 @@ class PricingEngine
             'unsourced' => 0,
             'total_cost' => 0.0,
             'sources' => [
+                'alibaba' => 0,
                 'mouser' => 0,
                 'digikey' => 0,
                 'nexar' => 0,
+                'ai_imputation' => 0,
                 'manual' => 0,
             ],
             'confidence_breakdown' => [
@@ -286,7 +292,11 @@ class PricingEngine
                 
                 $stats['sourced']++;
                 $stats['total_cost'] += $processedLine['extended_price'];
-                $stats['sources'][$pricing['source']]++;
+                $source = $pricing['source'] ?? 'manual';
+                if (!isset($stats['sources'][$source])) {
+                    $stats['sources'][$source] = 0;
+                }
+                $stats['sources'][$source]++;
                 
                 // Track confidence
                 $confidenceLevel = $pricing['confidence']['level'] ?? 'MEDIUM';
@@ -439,9 +449,11 @@ class PricingEngine
             'unsourced' => 0,
             'total_cost' => 0.0,
             'sources' => [
+                'alibaba' => 0,
                 'mouser' => 0,
                 'digikey' => 0,
                 'nexar' => 0,
+                'ai_imputation' => 0,
                 'manual' => 0,
             ],
             'requires_review_count' => 0,
@@ -488,17 +500,25 @@ class PricingEngine
             return 0.0;
         }
         
+        // Normalise key variants: accept 'price', 'unit_price', or 'unitPrice'
+        $priceBreaks = array_map(function (array $b): array {
+            if (!isset($b['price'])) {
+                $b['price'] = $b['unit_price'] ?? $b['unitPrice'] ?? 0.0;
+            }
+            return $b;
+        }, $priceBreaks);
+        
         // Sort price breaks by quantity (ascending) - lowest qty first
-        usort($priceBreaks, fn($a, $b) => $a['quantity'] <=> $b['quantity']);
+        usort($priceBreaks, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
         
         // Default to the smallest quantity break price (most expensive)
-        $applicablePrice = $priceBreaks[0]['price'];
+        $applicablePrice = (float) ($priceBreaks[0]['price'] ?? 0.0);
         
         // Find the best applicable price break (highest quantity the customer qualifies for)
         foreach ($priceBreaks as $break) {
-            if ($quantity >= $break['quantity']) {
+            if ($quantity >= ($break['quantity'] ?? 0)) {
                 // Customer qualifies for this break - use its price
-                $applicablePrice = $break['price'];
+                $applicablePrice = (float) ($break['price'] ?? 0.0);
             } else {
                 // Customer doesn't meet this break threshold - stop checking
                 // (since breaks are sorted ascending, all remaining breaks require more qty)
@@ -506,7 +526,7 @@ class PricingEngine
             }
         }
         
-        return (float) $applicablePrice;
+        return $applicablePrice;
     }
     
     /**

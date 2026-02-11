@@ -68,6 +68,25 @@
                             </dd>
                         </div>
 
+                        {% if rfq.contact %}
+                            <div class="rams-definition-list__item">
+                                <dt class="rams-definition-list__term">{{ 'rfq.fields.contact'|trans }}</dt>
+                                <dd class="rams-definition-list__desc">
+                                    <div class="rams-stack rams-gap-1">
+                                        <a href="{{ path('app_contact_show', {id: rfq.contact.id}) }}" class="rams-link">
+                                            {{ rfq.contact.firstName }} {{ rfq.contact.lastName }}
+                                        </a>
+                                        {% if rfq.contact.jobTitle %}
+                                            <span class="rams-text--xs rams-text--muted">{{ rfq.contact.jobTitle }}</span>
+                                        {% endif %}
+                                        {% if rfq.contact.email %}
+                                            <span class="rams-text--xs rams-text--muted">{{ rfq.contact.email }}</span>
+                                        {% endif %}
+                                    </div>
+                                </dd>
+                            </div>
+                        {% endif %}
+
                         {% if rfq.rfqNumber %}
                             <div class="rams-definition-list__item">
                                 <dt class="rams-definition-list__term">{{ 'rfq.fields.rfq_number'|trans }}</dt>

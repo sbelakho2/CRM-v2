@@ -1,19 +1,19 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'admin.datasets.title_full'|trans }}{% endblock %}
+{% block title %}{{ 'administration.datasets.title_full'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack">
     <div class="rams-page-header">
         <div>
-            <h1 class="rams-page-title">{{ 'admin.datasets.title_full'|trans }}</h1>
-            <p class="rams-page-subtitle">{{ 'admin.datasets.subtitle'|trans }}</p>
+            <h1 class="rams-page-title">{{ 'administration.datasets.title_full'|trans }}</h1>
+            <p class="rams-page-subtitle">{{ 'administration.datasets.subtitle'|trans }}</p>
         </div>
         <a href="{{ path('admin_dataset_import_form') }}" class="rams-btn rams-btn--primary uppercase">
             <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M8 2v12M2 8h12"/>
             </svg>
-            {{ 'admin.datasets.import_dataset'|trans }}
+            {{ 'administration.datasets.import_dataset'|trans }}
         </a>
     </div>
 
@@ -28,7 +28,7 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'admin.datasets.total_datasets'|trans }}</span>
+                    <span class="rams-metric__label">{{ 'administration.datasets.total_datasets'|trans }}</span>
                     <span class="rams-metric__value">12</span>
                 </div>
             </div>
@@ -36,7 +36,7 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'admin.datasets.active_versions'|trans }}</span>
+                    <span class="rams-metric__label">{{ 'administration.datasets.active_versions'|trans }}</span>
                     <span class="rams-metric__value">8</span>
                 </div>
             </div>
@@ -44,16 +44,16 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'admin.datasets.last_updated'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg">{{ 'admin.datasets.sample_last_updated'|trans }}</span>
+                    <span class="rams-metric__label">{{ 'administration.datasets.last_updated'|trans }}</span>
+                    <span class="rams-metric__value rams-text--lg">{{ 'administration.datasets.sample_last_updated'|trans }}</span>
                 </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'admin.datasets.storage_used'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg">{{ 'admin.datasets.sample_storage_used'|trans }}</span>
+                    <span class="rams-metric__label">{{ 'administration.datasets.storage_used'|trans }}</span>
+                    <span class="rams-metric__value rams-text--lg">{{ 'administration.datasets.sample_storage_used'|trans }}</span>
                 </div>
             </div>
         </div>
@@ -62,18 +62,18 @@
     <!-- Datasets Table -->
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">{{ 'admin.datasets.active_datasets'|trans }}</h2>
+            <h2 class="rams-module__title">{{ 'administration.datasets.active_datasets'|trans }}</h2>
         </div>
 
         <div class="rams-table-container">
             <table class="rams-table">
                 <thead class="rams-table__header">
                     <tr>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.dataset_name'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.version'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.records'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.last_updated'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.status'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.dataset_name'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.version'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.records'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.last_updated'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.status'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
@@ -105,7 +105,7 @@
                         <tr>
                             <td colspan="6" class="rams-table__cell">
                                 <div class="rams-empty-state">
-                                    {{ 'admin.datasets.no_datasets'|trans }} <a href="{{ path('admin_dataset_import_form') }}" class="rams-link">{{ 'admin.datasets.import_one_now'|trans }}</a>
+                                    {{ 'administration.datasets.no_datasets'|trans }} <a href="{{ path('admin_dataset_import_form') }}" class="rams-link">{{ 'administration.datasets.import_one_now'|trans }}</a>
                                 </div>
                             </td>
                         </tr>
@@ -126,8 +126,8 @@
                         </svg>
                     </span>
                     <div>
-                        <h3 class="rams-module__title">{{ 'admin.datasets.version_history'|trans }}</h3>
-                        <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.version_history_desc'|trans }}</p>
+                        <h3 class="rams-module__title">{{ 'administration.datasets.version_history'|trans }}</h3>
+                        <p class="rams-text--muted rams-text--xs">{{ 'administration.datasets.version_history_desc'|trans }}</p>
                     </div>
                 </div>
             </div>
@@ -141,13 +141,13 @@
                         </svg>
                     </span>
                     <div>
-                        <h3 class="rams-module__title">{{ 'admin.datasets.import'|trans }}</h3>
-                        <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.upload_hint'|trans }}</p>
+                        <h3 class="rams-module__title">{{ 'administration.datasets.import'|trans }}</h3>
+                        <p class="rams-text--muted rams-text--xs">{{ 'administration.datasets.upload_hint'|trans }}</p>
                     </div>
                 </div>
             </div>
         </a>
-        <div class="rams-module rams-module--hoverable" onclick="ramsAlert('{{ 'admin.datasets.syncing_started'|trans }}')">
+        <div class="rams-module rams-module--hoverable" onclick="ramsAlert('{{ 'administration.datasets.syncing_started'|trans }}')">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3">
                     <span class="rams-metric__value rams-text--xl">
@@ -156,8 +156,9 @@
                             <path d="M15 1v7h-7M1 15v-7h7"/>
                         </svg>
                     </span>
-                        <h3 class="rams-module__title">{{ 'admin.datasets.sync_datasets'|trans }}</h3>
-                        <p class="rams-text--muted rams-text--xs">{{ 'admin.datasets.sync_desc'|trans }}</p>
+                    <div>
+                        <h3 class="rams-module__title">{{ 'administration.datasets.sync_datasets'|trans }}</h3>
+                        <p class="rams-text--muted rams-text--xs">{{ 'administration.datasets.sync_desc'|trans }}</p>
                     </div>
                 </div>
             </div>

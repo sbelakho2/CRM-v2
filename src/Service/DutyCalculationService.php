@@ -21,7 +21,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * - VAT/GST for DDP Incoterms
  * 
  * Used by:
- * - QuoteEstimatorController for landed-cost calculations
+ * - QuoteCoPilotController for landed-cost calculations
  * - FtaEligibilityService for duty savings analysis
  */
 class DutyCalculationService

@@ -116,6 +116,16 @@ class BomLine
     // Multi-distributor tracking
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $distributorSearchUrl = null; // Direct link to search on distributor site
+    
+    // Supplier tracking — actual source data per BOM line
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $supplierName = null; // Actual supplier/distributor name (e.g., "Shenzhen Jeking Electronics")
+    
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $supplierProductUrl = null; // Direct link to supplier's product listing
+    
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $sourcingData = null; // Rich sourcing metadata (supplier info, crawl data, MOQ, etc.)
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
@@ -593,6 +603,41 @@ class BomLine
             $this->alternativeParts = [];
         }
         $this->alternativeParts[] = $alternative;
+        return $this;
+    }
+    
+    // ==================== Supplier Tracking ====================
+    
+    public function getSupplierName(): ?string
+    {
+        return $this->supplierName;
+    }
+    
+    public function setSupplierName(?string $supplierName): self
+    {
+        $this->supplierName = $supplierName;
+        return $this;
+    }
+    
+    public function getSupplierProductUrl(): ?string
+    {
+        return $this->supplierProductUrl;
+    }
+    
+    public function setSupplierProductUrl(?string $supplierProductUrl): self
+    {
+        $this->supplierProductUrl = $supplierProductUrl;
+        return $this;
+    }
+    
+    public function getSourcingData(): ?array
+    {
+        return $this->sourcingData;
+    }
+    
+    public function setSourcingData(?array $sourcingData): self
+    {
+        $this->sourcingData = $sourcingData;
         return $this;
     }
 }

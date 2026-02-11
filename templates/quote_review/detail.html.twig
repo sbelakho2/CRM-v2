@@ -83,6 +83,19 @@
             <p class="rams-page__subtitle">{{ quote.company.name ?: 'common.n_a'|trans }} · {{ quote.createdAt|date('M j, Y g:i A') }}</p>
         </div>
         <div class="rams-page__actions">
+            <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" class="rams-btn uppercase" title="{{ 'quote.copilot.download_pdf'|trans }}">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M8 12V2M4 6L8 2L12 6"/>
+                </svg>
+                PDF
+            </a>
+            <a href="{{ path('quote_copilot_full_excel', {id: quote.id}) }}" class="rams-btn uppercase" style="border-color: #FFBE00; color: #FFBE00;">
+                <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="10" height="10" rx="1"/>
+                    <path d="M3 6H13M3 9H13M6 3V13M10 3V13"/>
+                </svg>
+                {{ 'quote.copilot.download_full_excel'|trans({}, 'messages')|default('Full Sourcing') }}
+            </a>
             <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 12V2M4 6L8 2L12 6"/>

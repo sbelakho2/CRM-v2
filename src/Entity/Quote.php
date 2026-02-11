@@ -100,6 +100,10 @@ class Quote
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
+    // Issuing company — which Starz entity is issuing this quote
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $issuingCompany = null; // 'starz_morocco', 'starz_electronics', 'starz_energies'
+
     #[ORM\OneToMany(mappedBy: 'quote', targetEntity: QuotePartBreakdown::class, cascade: ['persist', 'remove'])]
     private Collection $partBreakdowns;
 
@@ -336,6 +340,17 @@ class Quote
     public function setNotes(?string $notes): self
     {
         $this->notes = $notes;
+        return $this;
+    }
+
+    public function getIssuingCompany(): ?string
+    {
+        return $this->issuingCompany;
+    }
+
+    public function setIssuingCompany(?string $issuingCompany): self
+    {
+        $this->issuingCompany = $issuingCompany;
         return $this;
     }
 

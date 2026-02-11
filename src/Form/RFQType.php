@@ -3,6 +3,7 @@
 namespace App\Form;
 
 use App\Entity\Company;
+use App\Entity\Contact;
 use App\Entity\RFQ;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
@@ -36,6 +37,19 @@ class RFQType extends AbstractType
                 'constraints' => [
                     new NotBlank(['message' => 'validation.required']),
                 ],
+                'attr' => ['class' => 'rams-form__select'],
+            ])
+            ->add('contact', EntityType::class, [
+                'class' => Contact::class,
+                'choice_label' => function (Contact $contact) {
+                    $label = $contact->getFirstName() . ' ' . $contact->getLastName();
+                    if ($contact->getJobTitle()) {
+                        $label .= ' (' . $contact->getJobTitle() . ')';
+                    }
+                    return $label;
+                },
+                'placeholder' => 'rfq.form.select_contact',
+                'required' => false,
                 'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('rfqNumber', TextType::class, [

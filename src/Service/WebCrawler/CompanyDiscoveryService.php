@@ -185,6 +185,24 @@ class CompanyDiscoveryService
     }
 
     /**
+     * Get target region labels for UI filters.
+     *
+     * @return array<string, string>
+     */
+    public static function getTargetRegionLabels(): array
+    {
+        return [
+            'MA' => 'Morocco',
+            'US' => 'United States',
+            'EU' => 'Europe',
+            'GB' => 'United Kingdom',
+            'TN' => 'Tunisia',
+            'EG' => 'Egypt',
+            'GCC' => 'GCC',
+        ];
+    }
+
+    /**
      * Resolve region code and country from a location string.
      *
      * Returns ['region' => 'US', 'country' => 'US', 'city' => 'Houston'] etc.
@@ -232,16 +250,10 @@ class CompanyDiscoveryService
             $geo['country'] = $code;
             // Derive region from country
             $euCountries = ['DE','FR','IT','ES','NL','BE','AT','PL','CZ','SE','DK','FI','NO','RO','HU','PT','GR','IE','SK','BG','HR','SI','LT','LV','EE','LU','MT','CY'];
-            if ($code === 'MA') {
-                $geo['region'] = 'MA';
-            } elseif ($code === 'TN') {
-                $geo['region'] = 'TN';
-            } elseif ($code === 'US') {
-                $geo['region'] = 'US';
-            } elseif ($code === 'GB') {
-                $geo['region'] = 'GB';
-            } elseif ($code === 'EG') {
-                $geo['region'] = 'EG';
+            // Countries with their own region code
+            $ownRegion = ['MA', 'TN', 'US', 'GB', 'EG', 'DE', 'FR', 'PL', 'NL', 'IT', 'ES', 'BE', 'AT', 'CZ', 'SE', 'DK', 'FI', 'NO', 'CH', 'RO', 'HU', 'PT', 'IE'];
+            if (in_array($code, $ownRegion, true)) {
+                $geo['region'] = $code;
             } elseif (in_array($code, $euCountries, true)) {
                 $geo['region'] = 'EU';
             }
@@ -391,6 +403,8 @@ class CompanyDiscoveryService
 
             // Create new company with full geo data
             $company = new Company();
+            // Clean trailing punctuation from company name
+            $name = rtrim($name, ' ,;:.-|/\\');
             $company->setName($name);
             $company->setSector($sector ?? ($data['sector'] ?? null));
             $company->setPhysicalSite($location);
@@ -578,7 +592,8 @@ class CompanyDiscoveryService
                             ]);
                             continue;
                         }
-                        // Also reject email domain mismatch with company website
+                        // Strip mismatched email but KEEP the contact (name+title still valuable)
+                        $emailOk = true;
                         if (!empty($website)) {
                             $companyHost = parse_url($website, PHP_URL_HOST);
                             if ($companyHost) {
@@ -591,17 +606,19 @@ class CompanyDiscoveryService
                                     if (strlen($cw) >= 3 && strlen($ew) >= 3
                                         && !str_contains($ew, $cw)
                                         && !str_contains($cw, $ew)) {
-                                        $this->logger->debug('Rejected contact email domain mismatch (persist)', [
+                                        $this->logger->debug('Stripped mismatched email from contact (keeping contact)', [
                                             'name' => $firstName . ' ' . $lastName,
                                             'email' => $contactData['email'],
                                             'company_domain' => $companyDom,
                                         ]);
-                                        continue;
+                                        $emailOk = false;
                                     }
                                 }
                             }
                         }
-                        $contact->setEmail($contactData['email']);
+                        if ($emailOk) {
+                            $contact->setEmail($contactData['email']);
+                        }
                     }
                     if (!empty($contactData['phone'])) {
                         $contact->setPhone($contactData['phone']);
@@ -766,18 +783,51 @@ class CompanyDiscoveryService
             'MA' => ['niamey', 'niger', 'nigeria', 'lagos', 'senegal', 'dakar',
                       'ivory coast', 'abidjan', 'cameroon', 'douala',
                       'romania', 'bucharest', 'india', 'mumbai', 'delhi',
-                      'china', 'beijing', 'shanghai', 'pakistan', 'karachi'],
+                      'china', 'beijing', 'shanghai', 'pakistan', 'karachi',
+                      'lebanon', 'beirut', 'mudu town', 'norway', 'oslo',
+                      'netherlands', 'hyderabad', 'foshan', 'guangdong',
+                      'new york', 'california', 'texas', 'florida'],
             'TN' => ['niamey', 'niger', 'nigeria', 'lagos', 'senegal', 'dakar',
                       'romania', 'bucharest', 'piatra', 'cluj', 'timisoara',
                       'india', 'mumbai', 'delhi', 'china', 'beijing',
-                      'pakistan', 'karachi', 'cameroon', 'douala'],
+                      'pakistan', 'karachi', 'cameroon', 'douala',
+                      'france', 'marseille', 'paris', 'lyon', 'toulouse', 'bordeaux',
+                      'switzerland', 'zurich', 'bern', 'geneva', 'basel',
+                      'germany', 'berlin', 'munich', 'hamburg', 'frankfurt',
+                      'spain', 'madrid', 'barcelona',
+                      'new york', 'california', 'texas', 'florida',
+                      'uae', 'abu dhabi'],
             'EG' => ['niamey', 'niger', 'nigeria', 'lagos', 'senegal', 'dakar',
                       'romania', 'bucharest', 'india', 'mumbai', 'delhi',
                       'china', 'beijing', 'shanghai', 'pakistan', 'karachi',
-                      'cameroon', 'douala', 'morocco', 'casablanca'],
+                      'cameroon', 'douala', 'morocco', 'casablanca',
+                      'new york', 'california', 'texas', 'florida', 'hawaii',
+                      'turkey', 'istanbul', 'ankara'],
             'GCC' => ['niamey', 'niger', 'nigeria', 'lagos', 'senegal', 'dakar',
                        'romania', 'bucharest', 'india', 'mumbai',
                        'pakistan', 'karachi', 'cameroon'],
+            'DE' => ['china', 'beijing', 'shanghai', 'shenzhen', 'india', 'mumbai',
+                      'delhi', 'pakistan', 'karachi', 'nigeria', 'lagos',
+                      'new york', 'california', 'texas', 'florida',
+                      'morocco', 'casablanca', 'tunisia', 'egypt', 'cairo'],
+            'FR' => ['china', 'beijing', 'shanghai', 'shenzhen', 'india', 'mumbai',
+                      'delhi', 'pakistan', 'karachi', 'nigeria', 'lagos',
+                      'new york', 'california', 'texas', 'florida',
+                      'morocco', 'casablanca', 'tunisia', 'egypt', 'cairo'],
+            'PL' => ['china', 'beijing', 'shanghai', 'shenzhen', 'india', 'mumbai',
+                      'delhi', 'pakistan', 'karachi', 'nigeria', 'lagos',
+                      'new york', 'california', 'texas', 'florida',
+                      'morocco', 'casablanca', 'tunisia', 'egypt', 'cairo'],
+            'NL' => ['china', 'beijing', 'shanghai', 'shenzhen', 'india', 'mumbai',
+                      'delhi', 'pakistan', 'karachi', 'nigeria', 'lagos',
+                      'new york', 'california', 'texas', 'florida',
+                      'morocco', 'casablanca', 'tunisia', 'egypt', 'cairo'],
+            // All other EU countries share a common wrong-country list
+            'IT', 'ES', 'BE', 'AT', 'CZ', 'SE', 'DK', 'FI', 'NO', 'CH',
+            'RO', 'HU', 'PT', 'IE' => ['china', 'beijing', 'shanghai', 'shenzhen', 'india', 'mumbai',
+                      'delhi', 'pakistan', 'karachi', 'nigeria', 'lagos',
+                      'new york', 'california', 'texas', 'florida',
+                      'morocco', 'casablanca', 'tunisia', 'egypt', 'cairo'],
             default => [],
         };
     }

@@ -5,11 +5,10 @@ namespace App\Controller;
 use App\Entity\Quote;
 use App\Entity\BomLine;
 use App\Service\QuoteCoPilotService;
-use App\Service\DfmLintService;
-use App\Service\CostingEngineService;
 use App\Service\UnifiedPdfGeneratorService;
 use App\Service\CountryService;
 use App\Service\CurrencyPreferenceService;
+use App\Service\IssuingCompanyService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -49,11 +48,10 @@ class QuoteCoPilotController extends AbstractController
     public function __construct(
         private EntityManagerInterface $entityManager,
         private QuoteCoPilotService $copilotService,
-        private DfmLintService $dfmLintService,
-        private CostingEngineService $costingEngine,
         private UnifiedPdfGeneratorService $pdfGenerator,
         private CountryService $countryService,
         private CurrencyPreferenceService $currencyPreferenceService,
+        private IssuingCompanyService $issuingCompanyService,
         private MailerInterface $mailer,
         private LoggerInterface $logger
     ) {}
@@ -71,6 +69,8 @@ class QuoteCoPilotController extends AbstractController
         return $this->render('quote_copilot/index.html.twig', [
             'companies' => $companies,
             'countries' => $countries,
+            'issuingCompanies' => $this->issuingCompanyService->getAllCompanies(),
+            'defaultIssuer' => IssuingCompanyService::DEFAULT_COMPANY,
         ]);
     }
 
@@ -120,6 +120,7 @@ class QuoteCoPilotController extends AbstractController
         $quantity = (int)$request->request->get('quantity', 100);
         $incoterms = $request->request->get('incoterms', 'FCA');
         $notes = $request->request->get('notes', '');
+        $issuingCompany = $request->request->get('issuing_company', IssuingCompanyService::DEFAULT_COMPANY);
 
         if (!$companyId || !$shipToCountry) {
             $this->addFlash('error', 'Please select a company and destination country');
@@ -147,6 +148,7 @@ class QuoteCoPilotController extends AbstractController
             $quote->setIncoterms($incoterms);
             $quote->setNotes($notes);
             $quote->setStatus('draft');
+            $quote->setIssuingCompany($issuingCompany);
             $quote->setBomDataJson(json_encode($bomData));
             $quote->setCurrency($this->currencyPreferenceService->getDisplayCurrency());
             
@@ -326,30 +328,36 @@ class QuoteCoPilotController extends AbstractController
     }
 
     /**
-     * Export quote to Excel
+     * Export CUSTOMER-FACING quote to CSV/Excel
+     * 
+     * Contains only safe data: MPN, Manufacturer, Description, Qty, Unit Price, Extended Price.
+     * NO supplier names, sourcing URLs, procurement sources, or internal data.
      */
-    #[Route('/{id}/excel', name: 'quote_copilot_excel', methods: ['GET'])]
-    public function downloadExcel(int $id): Response
+    #[Route('/{id}/excel', name: 'quote_copilot_customer_excel', methods: ['GET'])]
+    public function downloadCustomerExcel(int $id): Response
     {
         $quote = $this->entityManager->getRepository(Quote::class)->find($id);
         if (!$quote) {
             throw $this->createNotFoundException('Quote not found');
         }
 
-        // Create CSV content (simple Excel-compatible format)
+        // Resolve issuing company for branding
+        $issuer = $this->issuingCompanyService->getCompanyProfile($quote->getIssuingCompany());
+
         $csv = [];
         $csv[] = ['Quote Number', $quote->getQuoteNumber() ?? 'Q-' . $quote->getId()];
+        $csv[] = ['Issued By', $issuer['name']];
         $csv[] = ['Company', $quote->getCompany()->getName()];
         $csv[] = ['Date', $quote->getCreatedAt()->format('Y-m-d')];
         $csv[] = ['Quantity', $quote->getQuantity()];
         $csv[] = ['Ship To', $quote->getShipToCountry()];
         $csv[] = ['Incoterms', $quote->getIncoterms()];
+        $csv[] = ['Currency', $quote->getCurrency()];
         $csv[] = [];
-        
-        // BOM Lines header
-        $csv[] = ['Line', 'MPN', 'Manufacturer', 'Description', 'Qty', 'Unit Price', 'Extended Price', 'Source'];
-        
-        // BOM Lines data
+
+        // BOM Lines — customer-safe columns only
+        $csv[] = ['Line', 'MPN', 'Manufacturer', 'Description', 'Qty', 'Unit Price', 'Extended Price'];
+
         foreach ($quote->getBomLines() as $line) {
             $csv[] = [
                 $line->getLineNumber() ?? '',
@@ -357,17 +365,18 @@ class QuoteCoPilotController extends AbstractController
                 $line->getManufacturer() ?? '',
                 $line->getDescription() ?? '',
                 $line->getQuantity() ?? '',
-                $line->getUnitPrice() ?? '',
-                $line->getExtendedPrice() ?? '',
-                $line->getProcurementSource() ?? ''
+                $line->getUnitPrice() !== null ? number_format($line->getUnitPrice(), 4) : '',
+                $line->getExtendedPrice() !== null ? number_format($line->getExtendedPrice(), 2) : '',
             ];
         }
-        
-        $csv[] = [];
-        $csv[] = ['Total Cost', $quote->getTotalCost()];
-        $csv[] = ['Coverage', $quote->getCoveragePercent() . '%'];
 
-        // Generate CSV
+        $csv[] = [];
+        $csv[] = ['Total Cost', $quote->getTotalCost() !== null ? number_format($quote->getTotalCost(), 2) : ''];
+        $csv[] = ['Coverage', $quote->getCoveragePercent() . '%'];
+        $csv[] = [];
+        $csv[] = ['This quote is valid for 30 days from the date of issue.'];
+        $csv[] = [$issuer['name'] . ' | ' . $issuer['location'] . ' | ' . $issuer['email']];
+
         $output = fopen('php://temp', 'r+');
         foreach ($csv as $row) {
             fputcsv($output, $row);
@@ -380,6 +389,125 @@ class QuoteCoPilotController extends AbstractController
         $response->headers->set('Content-Type', 'text/csv');
         $response->headers->set('Content-Disposition', sprintf(
             'attachment; filename="quote-%s.csv"',
+            $quote->getQuoteNumber() ?? $quote->getId()
+        ));
+
+        return $response;
+    }
+
+    /**
+     * Export FULL INTERNAL quote to CSV/Excel with all sourcing data
+     * 
+     * Contains all internal data: supplier names, URLs, procurement sources,
+     * confidence scores, alternatives, sourcing metadata.
+     * FOR INTERNAL USE ONLY — never send to customer.
+     */
+    #[Route('/{id}/full-excel', name: 'quote_copilot_full_excel', methods: ['GET'])]
+    public function downloadFullExcel(int $id): Response
+    {
+        $quote = $this->entityManager->getRepository(Quote::class)->find($id);
+        if (!$quote) {
+            throw $this->createNotFoundException('Quote not found');
+        }
+
+        $issuer = $this->issuingCompanyService->getCompanyProfile($quote->getIssuingCompany());
+
+        $csv = [];
+        $csv[] = ['INTERNAL — FULL SOURCING QUOTATION'];
+        $csv[] = ['Quote Number', $quote->getQuoteNumber() ?? 'Q-' . $quote->getId()];
+        $csv[] = ['Issued By', $issuer['name']];
+        $csv[] = ['Company', $quote->getCompany()->getName()];
+        $csv[] = ['Date', $quote->getCreatedAt()->format('Y-m-d')];
+        $csv[] = ['Quantity', $quote->getQuantity()];
+        $csv[] = ['Ship To', $quote->getShipToCountry()];
+        $csv[] = ['Incoterms', $quote->getIncoterms()];
+        $csv[] = ['Currency', $quote->getCurrency()];
+        $csv[] = ['Coverage', $quote->getCoveragePercent() . '%'];
+        $csv[] = [];
+
+        // Full BOM Lines — all sourcing columns
+        $csv[] = [
+            'Line', 'MPN', 'Matched MPN', 'Original MPN', 'Manufacturer', 'Description',
+            'Qty', 'Unit Price', 'Manual Price', 'Extended Price',
+            'Source', 'Supplier Name', 'Supplier Product URL', 'Distributor Search URL',
+            'Stock', 'Lead Time (Days)', 'MOQ',
+            'Confidence Score', 'Confidence Level', 'Requires Review', 'Verified',
+            'Lifecycle Status', 'Lifecycle Warning',
+            'Alt 1 MPN', 'Alt 1 Price', 'Alt 1 Stock',
+            'Alt 2 MPN', 'Alt 2 Price', 'Alt 2 Stock',
+            'Alt 3 MPN', 'Alt 3 Price', 'Alt 3 Stock',
+            'Sourcing Notes',
+        ];
+
+        foreach ($quote->getBomLines() as $line) {
+            $sourcingData = $line->getSourcingData() ?? [];
+            $alts = $line->getAlternativeParts() ?? [];
+
+            $row = [
+                $line->getLineNumber() ?? '',
+                $line->getMpn() ?? '',
+                $line->getMatchedMpn() ?? '',
+                $line->getOriginalMpn() ?? '',
+                $line->getManufacturer() ?? '',
+                $line->getDescription() ?? '',
+                $line->getQuantity() ?? '',
+                $line->getUnitPrice() !== null ? number_format($line->getUnitPrice(), 4) : '',
+                $line->getManualUnitPrice() !== null ? number_format($line->getManualUnitPrice(), 4) : '',
+                $line->getExtendedPrice() !== null ? number_format($line->getExtendedPrice(), 2) : '',
+                $line->getProcurementSource() ?? '',
+                $line->getSupplierName() ?? '',
+                $line->getSupplierProductUrl() ?? '',
+                $line->getDistributorSearchUrl() ?? '',
+                $line->getStock() ?? '',
+                $line->getLeadTimeDays() ?? '',
+                $sourcingData['moq'] ?? '',
+                $line->getConfidenceScore() ?? '',
+                $line->getConfidenceLevel() ?? '',
+                $line->isRequiresReview() ? 'Yes' : 'No',
+                $line->isManuallyVerified() ? 'Yes' : 'No',
+                $line->getLifecycleStatus() ?? '',
+                $line->getLifecycleWarning() ?? '',
+            ];
+
+            // Alternatives
+            for ($i = 0; $i < 3; $i++) {
+                if (isset($alts[$i])) {
+                    $row[] = $alts[$i]['mpn'] ?? '';
+                    $row[] = $alts[$i]['price'] ?? '';
+                    $row[] = $alts[$i]['stock'] ?? '';
+                } else {
+                    $row[] = '';
+                    $row[] = '';
+                    $row[] = '';
+                }
+            }
+
+            $row[] = $line->getManualNotes() ?? '';
+
+            $csv[] = $row;
+        }
+
+        $csv[] = [];
+        $csv[] = ['Summary'];
+        $csv[] = ['Total Lines', count($quote->getBomLines())];
+        $csv[] = ['Total Cost', $quote->getTotalCost() !== null ? number_format($quote->getTotalCost(), 2) : ''];
+        $csv[] = ['Coverage %', $quote->getCoveragePercent()];
+        $csv[] = ['Alibaba %', $quote->getAlibabaPercent() ?? ''];
+        $csv[] = ['Status', $quote->getStatus()];
+        $csv[] = ['Exported', date('Y-m-d H:i:s')];
+
+        $output = fopen('php://temp', 'r+');
+        foreach ($csv as $row) {
+            fputcsv($output, $row);
+        }
+        rewind($output);
+        $csvContent = stream_get_contents($output);
+        fclose($output);
+
+        $response = new Response($csvContent);
+        $response->headers->set('Content-Type', 'text/csv');
+        $response->headers->set('Content-Disposition', sprintf(
+            'attachment; filename="quote-%s-FULL-INTERNAL.csv"',
             $quote->getQuoteNumber() ?? $quote->getId()
         ));
 
@@ -557,15 +685,19 @@ class QuoteCoPilotController extends AbstractController
         // Generate PDF attachment
         $pdfContent = $this->pdfGenerator->generateQuotePdf($quote);
         
+        // Resolve issuing company for email branding
+        $issuer = $this->issuingCompanyService->getCompanyProfile($quote->getIssuingCompany());
+        
         // Create email
         $email = (new Email())
-            ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'contact@starzelectronics.site')
+            ->from($issuer['email'])
             ->to($toEmail)
-            ->subject(sprintf('Quote %s - CRM Starz Morocco', $quote->getQuoteNumber() ?? ('Q-' . $quote->getId())))
+            ->subject(sprintf('Quote %s - %s', $quote->getQuoteNumber() ?? ('Q-' . $quote->getId()), $issuer['name']))
             ->html($this->renderView('emails/quote_notification.html.twig', [
                 'quote' => $quote,
                 'company' => $company,
                 'contactName' => $contactName,
+                'issuer' => $issuer,
             ]))
             ->attach($pdfContent, sprintf('quote-%s.pdf', $quote->getQuoteNumber() ?? $quote->getId()), 'application/pdf');
 

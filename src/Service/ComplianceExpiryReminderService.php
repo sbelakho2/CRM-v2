@@ -431,7 +431,7 @@ class ComplianceExpiryReminderService
                     <li>Update the CRM once a new document is received</li>
                 </ul>
                 
-                <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                <p style="font-size: 12px; color: #555; margin-top: 20px;">
                     This is an automated reminder from the CRM Compliance Module.
                 </p>
             </div>

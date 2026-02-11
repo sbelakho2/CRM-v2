@@ -51,7 +51,6 @@ class QuoteCoPilotService
         private QuoteRepository $quoteRepository,
         private BomLineRepository $bomLineRepository,
         private ProcurementExceptionRepository $procurementExceptionRepository,
-        private HtsClassificationService $htsClassificationService,
         private BOMParser $bomParser,
         private PricingEngine $pricingEngine,
         private CurrencyPreferenceService $currencyPreferenceService,
@@ -139,6 +138,42 @@ class QuoteCoPilotService
             $bomLine->setExtendedPrice($lineData['extended_price'] ?? 0);
             $bomLine->setSource($lineData['source'] ?? null);
             $bomLine->setStatus($lineData['status']);
+            
+            // Store supplier tracking data (not shown on customer-facing PDF)
+            if (isset($lineData['product_url'])) {
+                $bomLine->setSupplierProductUrl($lineData['product_url']);
+            }
+            if (isset($lineData['search_url']) || isset($lineData['_source_url'])) {
+                $bomLine->setDistributorSearchUrl($lineData['search_url'] ?? $lineData['_source_url']);
+            }
+            if (isset($lineData['alternatives'])) {
+                $bomLine->setAlternativeParts($lineData['alternatives']);
+            }
+            
+            // Resolve supplier name from source
+            $source = strtolower($lineData['source'] ?? '');
+            if ($source === 'alibaba') {
+                $bomLine->setSupplierName($lineData['manufacturer'] ?? 'Alibaba Supplier');
+            } elseif ($source === 'mouser') {
+                $bomLine->setSupplierName('Mouser Electronics');
+            } elseif ($source === 'digikey') {
+                $bomLine->setSupplierName('DigiKey Electronics');
+            } elseif ($source === 'nexar') {
+                $bomLine->setSupplierName('Nexar (Aggregated)');
+            }
+            
+            // Build rich sourcing metadata JSON
+            $bomLine->setSourcingData([
+                'source' => strtoupper($source),
+                'waterfall_info' => $lineData['waterfall_info'] ?? null,
+                'moq' => $lineData['moq'] ?? null,
+                'pack_quantity' => $lineData['pack_quantity'] ?? null,
+                'stock' => $lineData['stock'] ?? 0,
+                'confidence' => $lineData['confidence'] ?? null,
+                'supplier_type' => $lineData['supplier_type'] ?? null,
+                'trade_assurance' => $lineData['trade_assurance'] ?? null,
+                'shipping_from' => $lineData['shipping_from'] ?? null,
+            ]);
             
             $this->entityManager->persist($bomLine);
             
@@ -329,6 +364,32 @@ class QuoteCoPilotService
                 
                 // Accumulate total cost as we process each line
                 $totalCost = bcadd($totalCost, $extendedPrice, 2);
+                
+                // Store supplier tracking data
+                if (isset($pricingResult['product_url'])) {
+                    $bomLine->setSupplierProductUrl($pricingResult['product_url']);
+                }
+                if (isset($pricingResult['search_url'])) {
+                    $bomLine->setDistributorSearchUrl($pricingResult['search_url']);
+                }
+                
+                $source = strtolower($pricingResult['source'] ?? '');
+                if ($source === 'alibaba') {
+                    $bomLine->setSupplierName($pricingResult['supplier_name'] ?? 'Alibaba Supplier');
+                } elseif ($source === 'mouser') {
+                    $bomLine->setSupplierName('Mouser Electronics');
+                } elseif ($source === 'digikey') {
+                    $bomLine->setSupplierName('DigiKey Electronics');
+                } elseif ($source === 'nexar') {
+                    $bomLine->setSupplierName('Nexar (Aggregated)');
+                }
+                
+                $bomLine->setSourcingData([
+                    'source' => strtoupper($source),
+                    'stock' => $pricingResult['stock'] ?? 0,
+                    'moq' => $pricingResult['moq'] ?? null,
+                    'supplier_type' => $pricingResult['supplier_type'] ?? null,
+                ]);
             } else {
                 $bomLine->setUnitPrice(null);
                 $bomLine->setExtendedPrice(null);
@@ -842,6 +903,7 @@ class QuoteCoPilotService
         
         // Map source to method
         $sourceMethodMap = [
+            'alibaba' => 'ALIBABA',
             'mouser' => 'MOUSER',
             'digikey' => 'DIGIKEY',
             'nexar' => 'NEXAR',

@@ -17,10 +17,10 @@ class ReportAudit
     private ?int $id = null;
 
     #[ORM\Column(length: 100)]
-    private ?string $reportType = null; // landed_cost, fta_pack, quote, dfm_report, etc.
+    private ?string $reportType = null; // quote, dfm_report, cost_breakdown, exceptions_report, sourcing_risk, etc.
 
     #[ORM\Column(length: 100)]
-    private ?string $entityType = null; // Estimate, Quote, Company
+    private ?string $entityType = null; // Quote, Company
 
     #[ORM\Column]
     private ?int $entityId = null; // ID of the related entity

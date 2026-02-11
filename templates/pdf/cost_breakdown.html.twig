@@ -81,7 +81,7 @@
 <body>
     <div class="header clearfix">
         <div style="float: left;">
-            <h2>{{ 'app.company'|trans }}</h2>
+            <h2>{{ issuer.name|default('app.company'|trans) }}</h2>
             <p>{{ 'pdf.cost_breakdown.subtitle'|trans }}</p>
         </div>
         <div class="doc-info">
@@ -313,7 +313,7 @@
     </table>
 
     <div class="footer">
-        <strong>{{ 'app.company'|trans }}</strong> • {{ 'pdf.cost_breakdown.confidential'|trans }}<br>
+        <strong>{{ issuer.name|default('app.company'|trans) }}</strong> • {{ 'pdf.cost_breakdown.confidential'|trans }}<br>
         {{ 'pdf.generated_on'|trans }}: {{ "now"|date('Y-m-d H:i') }} UTC
     </div>
 </body>

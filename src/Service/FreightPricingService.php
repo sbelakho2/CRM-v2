@@ -20,7 +20,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * - Insurance: typically 0.5% of CIF value
  * 
  * Used by:
- * - QuoteEstimatorController for landed-cost estimates
+ * - QuoteCoPilotController for freight cost calculations
  * - RouteSelectionService for route comparison
  */
 class FreightPricingService

@@ -28,6 +28,16 @@
                 </div>
                 <div class="rams-module__content">
                     <form method="POST" action="{{ path('quote_copilot_process') }}" enctype="multipart/form-data" id="bom-upload-form">
+                        {# Issuing Company Selection #}
+                        <div class="rams-form__group">
+                            <label class="rams-form__label rams-dymo">{{ 'quote.issuing_company'|trans({}, 'messages')|default('Issuing Company') }}</label>
+                            <select name="issuing_company" required class="rams-form__select">
+                                {% for key, profile in issuingCompanies %}
+                                    <option value="{{ key }}" {{ key == defaultIssuer ? 'selected' : '' }}>{{ profile.name }} ({{ profile.country }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
                         {# Company Selection #}
                         <div class="rams-form__group">
                             <label class="rams-form__label rams-dymo">{{ 'quote.company'|trans }}</label>

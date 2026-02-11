@@ -201,6 +201,7 @@ class CompanyController extends AbstractController
     public function discovered(Request $request): Response
     {
         $sector = $request->query->get('sector');
+        $region = $request->query->get('region');
         $search = $request->query->get('search');
 
         $qb = $this->companyRepository->createQueryBuilder('c');
@@ -210,6 +211,11 @@ class CompanyController extends AbstractController
         if ($sector) {
             $qb->andWhere('c.sector = :sector')
                ->setParameter('sector', $sector);
+        }
+
+        if ($region) {
+            $qb->andWhere('c.region = :region')
+               ->setParameter('region', $region);
         }
 
         if ($search) {
@@ -222,11 +228,28 @@ class CompanyController extends AbstractController
         $companies = $qb->getQuery()->getResult();
 
         $sectors = Company::VALID_SECTORS;
+        $regions = \App\Service\WebCrawler\CompanyDiscoveryService::getTargetRegionLabels();
+        $regionCodes = $this->companyRepository->createQueryBuilder('rc')
+            ->select('DISTINCT rc.region')
+            ->andWhere('rc.region IS NOT NULL')
+            ->andWhere('rc.region <> :empty')
+            ->setParameter('empty', '')
+            ->orderBy('rc.region', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        foreach ($regionCodes as $code) {
+            if (!isset($regions[$code])) {
+                $regions[$code] = strtoupper((string) $code);
+            }
+        }
 
         return $this->render('company/discovered.html.twig', [
             'companies' => $companies,
             'sectors' => $sectors,
+            'regions' => $regions,
             'current_sector' => $sector,
+            'current_region' => $region,
             'current_search' => $search,
         ]);
     }
@@ -344,6 +367,7 @@ class CompanyController extends AbstractController
     public function discoveredExport(Request $request, string $format = 'xlsx'): Response
     {
         $sector = $request->query->get('sector');
+        $region = $request->query->get('region');
         $search = $request->query->get('search');
 
         $qb = $this->companyRepository->createQueryBuilder('c')
@@ -355,6 +379,11 @@ class CompanyController extends AbstractController
         if ($sector) {
             $qb->andWhere('c.sector = :sector')
                ->setParameter('sector', $sector);
+        }
+
+        if ($region) {
+            $qb->andWhere('c.region = :region')
+               ->setParameter('region', $region);
         }
 
         if ($search) {

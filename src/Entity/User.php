@@ -57,6 +57,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $preferredTimezone = null;
 
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $preferredTheme = null; // system, light, dark
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $accentColor = null; // orange, blue, green, purple, red
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $fontSize = null; // small, medium, large
+
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $density = null; // comfortable, compact
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $reducedMotion = false;
+
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: Activity::class)]
     private Collection $activities;
 
@@ -188,6 +203,61 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPreferredTimezone(?string $preferredTimezone): self
     {
         $this->preferredTimezone = $preferredTimezone;
+        return $this;
+    }
+
+    public function getPreferredTheme(): ?string
+    {
+        return $this->preferredTheme;
+    }
+
+    public function setPreferredTheme(?string $preferredTheme): self
+    {
+        $this->preferredTheme = $preferredTheme ? strtolower($preferredTheme) : null;
+        return $this;
+    }
+
+    public function getAccentColor(): ?string
+    {
+        return $this->accentColor;
+    }
+
+    public function setAccentColor(?string $accentColor): self
+    {
+        $this->accentColor = $accentColor;
+        return $this;
+    }
+
+    public function getFontSize(): ?string
+    {
+        return $this->fontSize;
+    }
+
+    public function setFontSize(?string $fontSize): self
+    {
+        $this->fontSize = $fontSize;
+        return $this;
+    }
+
+    public function getDensity(): ?string
+    {
+        return $this->density;
+    }
+
+    public function setDensity(?string $density): self
+    {
+        $this->density = $density;
+        return $this;
+    }
+
+    public function isReducedMotion(): bool
+    {
+        return $this->reducedMotion;
+    }
+
+    public function setReducedMotion(bool $reducedMotion): self
+    {
+        $this->reducedMotion = $reducedMotion;
         return $this;
     }
 

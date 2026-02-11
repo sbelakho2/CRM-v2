@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Entity\Contact;
+use App\Entity\EmailSend;
+use App\Entity\EmailUnsubscribe;
 use App\Entity\OutboundMessage;
 use App\Repository\OutboundMessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -12,11 +14,17 @@ use Psr\Log\LoggerInterface;
  * Cadence Governor Service
  *
  * Prevents burning leads by enforcing:
- * 1. Max touches per contact per 7/14 day window
- * 2. Automatic stop on reply, bounce, complaint, unsubscribe
- * 3. Send-time bounds: only within business hours (local 9am–4pm)
- * 4. Time-zone inference from geography with UTC fallback
- * 5. Delayed soft-failure: non-reply becomes censored outcome after window
+ * 1. Max touches per contact per 7/14/30 day window (cross-module: OutboundMessage + EmailSend)
+ * 2. Global suppression list check (EmailUnsubscribe table — shared with Email Campaigns)
+ * 3. Automatic stop on reply, bounce, complaint, unsubscribe
+ * 4. Send-time bounds: only within business hours (local 9am–4pm)
+ * 5. Time-zone inference from geography with UTC fallback
+ * 6. Delayed soft-failure: non-reply becomes censored outcome after window
+ *
+ * Cross-module awareness:
+ *   - Checks EmailUnsubscribe before allowing any send (Gap 1 fix)
+ *   - Counts EmailSend records in cadence windows so that contacts in
+ *     both Email Campaigns and Autonomous Sales don't get over-emailed (Gap 2 fix)
  *
  * Math:
  *   reply_window = REPLY_WINDOW_DAYS days after sentAt
@@ -48,12 +56,38 @@ class CadenceGovernorService
     /**
      * Check whether a contact is eligible to receive a new outbound email.
      *
+     * Performs three layers of checks:
+     * 1. Global suppression list (EmailUnsubscribe) — shared with Email Campaigns
+     * 2. Stop events from previous outbound messages (reply, bounce, complaint)
+     * 3. Cross-module cadence limits (OutboundMessage + EmailSend combined)
+     *
      * @return array ['allowed' => bool, 'reason' => string|null, 'nextAllowedAt' => \DateTime|null]
      */
     public function canSendTo(Contact $contact): array
     {
-        $contactId = $contact->getId();
+        $email = $contact->getEmail();
 
+        // ==================== GLOBAL SUPPRESSION LIST ====================
+        // Check EmailUnsubscribe table — this is the shared suppression list
+        // used by both Email Campaigns and Autonomous Sales.
+        if ($email) {
+            $suppressed = $this->entityManager->getRepository(EmailUnsubscribe::class)
+                ->findOneBy(['email' => $email]);
+
+            if ($suppressed) {
+                return [
+                    'allowed' => false,
+                    'reason' => sprintf(
+                        'Contact is on global suppression list (reason: %s, since: %s)',
+                        $suppressed->getReason() ?? 'unknown',
+                        $suppressed->getUnsubscribedAt()?->format('Y-m-d') ?? 'unknown'
+                    ),
+                    'nextAllowedAt' => null,
+                ];
+            }
+        }
+
+        // ==================== OUTBOUND STOP RULES ====================
         // Fetch recent outbound messages for this contact
         $recentMessages = $this->entityManager->createQueryBuilder()
             ->select('m')
@@ -65,7 +99,6 @@ class CadenceGovernorService
             ->getQuery()
             ->getResult();
 
-        // ==================== STOP RULE: reply/bounce/complaint ====================
         foreach ($recentMessages as $msg) {
             if (in_array($msg->getStatus(), self::STOP_EVENTS, true)) {
                 return [
@@ -85,17 +118,47 @@ class CadenceGovernorService
             }
         }
 
-        // ==================== CADENCE LIMITS ====================
+        // ==================== CROSS-MODULE CADENCE LIMITS ====================
+        // Count sends from BOTH modules (OutboundMessage + EmailSend) so a
+        // contact in both a marketing drip and autonomous outreach doesn't
+        // get over-emailed.
         $now = new \DateTime();
+        $lastSentAt = null;
+
+        // --- Outbound (Autonomous Sales) send dates ---
+        $outboundDates = [];
+        foreach ($recentMessages as $msg) {
+            $sentAt = $msg->getSentAt() ?? $msg->getCreatedAt();
+            if ($sentAt) {
+                $outboundDates[] = $sentAt;
+            }
+        }
+
+        // --- Campaign (Email Campaigns) send dates ---
+        $campaignSendDates = $this->entityManager->createQueryBuilder()
+            ->select('es.sentAt')
+            ->from(EmailSend::class, 'es')
+            ->where('es.contact = :contact')
+            ->andWhere('es.sentAt IS NOT NULL')
+            ->andWhere('es.sentAt > :since')
+            ->setParameter('contact', $contact)
+            ->setParameter('since', (clone $now)->modify('-30 days'))
+            ->getQuery()
+            ->getArrayResult();
+
+        $allDates = $outboundDates;
+        foreach ($campaignSendDates as $row) {
+            if ($row['sentAt'] instanceof \DateTimeInterface) {
+                $allDates[] = $row['sentAt'];
+            }
+        }
+
+        // Count combined sends per window
         $count7  = 0;
         $count14 = 0;
         $count30 = 0;
-        $lastSentAt = null;
 
-        foreach ($recentMessages as $msg) {
-            $sentAt = $msg->getSentAt() ?? $msg->getCreatedAt();
-            if (!$sentAt) continue;
-
+        foreach ($allDates as $sentAt) {
             if (!$lastSentAt || $sentAt > $lastSentAt) {
                 $lastSentAt = $sentAt;
             }
@@ -107,28 +170,37 @@ class CadenceGovernorService
         }
 
         if ($count7 >= self::MAX_TOUCHES_7_DAYS) {
-            $nextAllowed = (clone $lastSentAt)->modify('+7 days');
+            $nextAllowed = $lastSentAt ? (clone $lastSentAt)->modify('+7 days') : null;
             return [
                 'allowed' => false,
-                'reason' => sprintf('Max %d touches in 7 days reached (%d sent)', self::MAX_TOUCHES_7_DAYS, $count7),
+                'reason' => sprintf(
+                    'Max %d touches in 7 days reached (%d sent across all email modules)',
+                    self::MAX_TOUCHES_7_DAYS, $count7
+                ),
                 'nextAllowedAt' => $nextAllowed,
             ];
         }
 
         if ($count14 >= self::MAX_TOUCHES_14_DAYS) {
-            $nextAllowed = (clone $lastSentAt)->modify('+14 days');
+            $nextAllowed = $lastSentAt ? (clone $lastSentAt)->modify('+14 days') : null;
             return [
                 'allowed' => false,
-                'reason' => sprintf('Max %d touches in 14 days reached (%d sent)', self::MAX_TOUCHES_14_DAYS, $count14),
+                'reason' => sprintf(
+                    'Max %d touches in 14 days reached (%d sent across all email modules)',
+                    self::MAX_TOUCHES_14_DAYS, $count14
+                ),
                 'nextAllowedAt' => $nextAllowed,
             ];
         }
 
         if ($count30 >= self::MAX_TOUCHES_30_DAYS) {
-            $nextAllowed = (clone $lastSentAt)->modify('+30 days');
+            $nextAllowed = $lastSentAt ? (clone $lastSentAt)->modify('+30 days') : null;
             return [
                 'allowed' => false,
-                'reason' => sprintf('Max %d touches in 30 days reached (%d sent)', self::MAX_TOUCHES_30_DAYS, $count30),
+                'reason' => sprintf(
+                    'Max %d touches in 30 days reached (%d sent across all email modules)',
+                    self::MAX_TOUCHES_30_DAYS, $count30
+                ),
                 'nextAllowedAt' => $nextAllowed,
             ];
         }

@@ -20,14 +20,14 @@
     --rams-module: #E6E6E6;
     --rams-panel: #D9D9D9;
     --rams-line: #CCCCCC;
-    --rams-muted: #999999;
+    --rams-muted: #6F6F6F;
     --rams-foreground: #1A1A1A;
     
     /* Extended Grey Scale (for auth pages and dark backgrounds) */
     --rams-grey-100: #F2F2F2;
     --rams-grey-200: #E6E6E6;
     --rams-grey-300: #D9D9D9;
-    --rams-grey-400: #999999;
+    --rams-grey-400: #7A7A7A;
     --rams-grey-500: #666666;
     --rams-grey-600: #404040;
     --rams-grey-700: #2D2D2D;
@@ -141,6 +141,7 @@
     --rams-info-bg: rgba(74, 144, 226, 0.1);      /* Steel at 10% opacity */
     --rams-success-bg: rgba(45, 140, 60, 0.1);    /* Green at 10% opacity */
     --rams-warning-bg: rgba(255, 190, 0, 0.1);    /* Orange at 10% opacity */
+    --rams-warning-text: #8A5A00;
     --rams-danger-bg: rgba(214, 45, 45, 0.1);     /* Red at 10% opacity */
     
     /* Overlay & Backdrop */
@@ -154,12 +155,92 @@
 
 /* Dark Mode */
 .dark, [data-theme="dark"] {
-    --rams-chassis: #1A1A1A;
-    --rams-module: #252525;
-    --rams-panel: #2D2D2D;
-    --rams-line: #404040;
-    --rams-muted: #666666;
-    --rams-foreground: #F2F2F2;
+    --rams-chassis: #121212;
+    --rams-module: #1B1B1B;
+    --rams-panel: #242424;
+    --rams-line: #4D4D4D;
+    --rams-muted: #B3B3B3;
+    --rams-foreground: #F5F5F5;
+
+    /* Dark-mode supportive greys and semantic backgrounds */
+    --rams-grey-100: #1A1A1A;
+    --rams-grey-200: #202020;
+    --rams-grey-300: #262626;
+    --rams-grey-400: #9C9C9C;
+    --rams-grey-500: #B0B0B0;
+    --rams-grey-600: #C2C2C2;
+    --rams-grey-700: #D4D4D4;
+    --rams-grey-800: #E6E6E6;
+    --rams-grey-900: #F2F2F2;
+
+    --rams-info-bg: rgba(74, 144, 226, 0.2);
+    --rams-success-bg: rgba(45, 140, 60, 0.2);
+    --rams-warning-bg: rgba(255, 190, 0, 0.18);
+    --rams-warning-text: #FFBE00;
+    --rams-danger-bg: rgba(214, 45, 45, 0.2);
+}
+
+/* ============================================
+   1.1 DENSITY SYSTEM (Comfortable vs Compact)
+   ============================================ */
+
+/* Default / Comfortable Density */
+.density-comfortable {
+    --density-spacing: 1;
+    --density-py: 0.5rem;
+    --density-px: 1rem;
+    --density-gap: 1rem;
+}
+
+/* Compact Density - tighter spacing */
+.density-compact {
+    --density-spacing: 0.75;
+    --density-py: 0.25rem;
+    --density-px: 0.5rem;
+    --density-gap: 0.5rem;
+}
+
+/* Apply density to common elements */
+.density-compact .rams-btn {
+    padding: 0.25rem 0.75rem;
+    font-size: var(--text-xs);
+}
+
+.density-compact .rams-card {
+    padding: 0.75rem;
+}
+
+.density-compact .rams-sidebar__nav-link {
+    padding: 0.5rem 0.75rem;
+}
+
+.density-compact .rams-table th,
+.density-compact .rams-table td {
+    padding: 0.5rem 0.75rem;
+}
+
+/* ============================================
+   1.2 REDUCED MOTION
+   ============================================ */
+
+.reduce-motion,
+.reduce-motion * {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+}
+
+/* Also respect system preference */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* ============================================
@@ -321,6 +402,14 @@ body {
     font-family: var(--font-mono);
     font-weight: 700;
     font-size: var(--text-sm);
+}
+
+.rams-logo-image {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    border-radius: var(--radius-sm);
+    display: block;
 }
 
 .rams-sidebar__title {
@@ -612,7 +701,7 @@ body {
 
 .rams-btn--primary {
     background: var(--rams-orange);
-    border-color: #E6AC00;
+    border-color: color-mix(in srgb, var(--rams-orange) 85%, #000);
     color: #000;
     box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.1);
 }
@@ -1269,31 +1358,31 @@ body {
 }
 
 .rams-badge--success {
-    background: rgba(45, 140, 60, 0.15);
+    background: var(--rams-success-bg);
     border-color: var(--rams-green);
     color: var(--rams-green);
 }
 
 .rams-badge--warning {
-    background: rgba(255, 190, 0, 0.15);
+    background: var(--rams-warning-bg);
     border-color: var(--rams-orange);
-    color: #997200;
+    color: var(--rams-warning-text, var(--rams-orange));
 }
 
 .rams-badge--danger {
-    background: rgba(214, 45, 45, 0.15);
+    background: var(--rams-danger-bg);
     border-color: var(--rams-red);
     color: var(--rams-red);
 }
 
 .rams-badge--error {
-    background: rgba(214, 45, 45, 0.15);
+    background: var(--rams-danger-bg);
     border-color: var(--rams-red);
     color: var(--rams-red);
 }
 
 .rams-badge--info {
-    background: rgba(74, 144, 226, 0.15);
+    background: var(--rams-info-bg);
     border-color: var(--rams-steel);
     color: var(--rams-steel);
 }
@@ -1927,8 +2016,15 @@ body {
 
 .rams-form__input:focus {
     outline: none;
-    border-color: var(--rams-orange);
+    border-color: var(--rams-accent);
     box-shadow: var(--shadow-focus);
+}
+
+.rams-form__input[type="color"] {
+    padding: 0;
+    height: 40px;
+    width: 100%;
+    cursor: pointer;
 }
 
 .rams-form__input--error {
@@ -1962,7 +2058,7 @@ body {
 
 .rams-form__select:focus {
     outline: none;
-    border-color: var(--rams-orange);
+    border-color: var(--rams-accent);
     box-shadow: var(--shadow-focus);
 }
 
@@ -4070,7 +4166,7 @@ a.rams-module:hover {
 }
 
 .rams-badge--purple { background: rgba(139, 92, 246, 0.15); border-color: #8B5CF6; color: #7C3AED; }
-.rams-badge--npi { background: rgba(255, 190, 0, 0.1); border-color: var(--rams-orange); color: #997200; }
+.rams-badge--npi { background: rgba(255, 190, 0, 0.1); border-color: var(--rams-orange); color: var(--rams-warning-text, #8A5A00); }
 .rams-badge--framework { background: rgba(74, 144, 226, 0.1); border-color: var(--rams-steel); color: var(--rams-steel); }
 .rams-badge--small { font-size: 8px; padding: 1px 4px; }
 
@@ -4518,7 +4614,7 @@ a.rams-module:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--rams-muted, #999);
+    background: var(--rams-muted, #6F6F6F);
     border-radius: 4px;
     border: 2px solid var(--rams-bg-panel, #f0f0f0);
 }
@@ -4530,7 +4626,7 @@ a.rams-module:hover {
 /* Firefox Support */
 * {
     scrollbar-width: thin;
-    scrollbar-color: var(--rams-muted, #999) var(--rams-bg-panel, #f0f0f0);
+    scrollbar-color: var(--rams-muted, #6F6F6F) var(--rams-bg-panel, #f0f0f0);
 }
 
 @media print {

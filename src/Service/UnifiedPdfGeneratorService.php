@@ -3,7 +3,6 @@
 namespace App\Service;
 
 use App\Entity\Quote;
-use App\Entity\Estimate;
 use App\Entity\ComplianceDocument;
 use App\Entity\Company;
 use App\Entity\OnboardingPack;
@@ -18,11 +17,9 @@ use Twig\Environment;
  * Stores documents in ComplianceDocument entity with SHA-256 audit trail.
  * Logs all generation events to ReportAudit for reproducibility.
  * 
- * Supports 9 document types:
+ * Supports 7 document types:
  * - compliance: General compliance documents
  * - quote: Customer quotes with pricing
- * - estimate: Landed-cost estimates with route comparison
- * - fta_pack: FTA/ROO eligibility packages with declarations
  * - dfm_report: DFM/DFA lint findings with remediation
  * - cost_breakdown: Detailed cost analysis (material/PCB/ASM/NRE/freight/duty)
  * - exceptions_report: Procurement exceptions and risks
@@ -35,7 +32,8 @@ class UnifiedPdfGeneratorService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private Environment $twig,
-        private ReportAuditRepository $reportAuditRepository
+        private ReportAuditRepository $reportAuditRepository,
+        private IssuingCompanyService $issuingCompanyService,
     ) {}
 
     /**
@@ -51,9 +49,15 @@ class UnifiedPdfGeneratorService
      */
     public function generateQuotePdf(Quote $quote): string
     {
+        // Resolve the issuing company profile for this quote
+        $issuingProfile = $this->issuingCompanyService->getCompanyProfile(
+            $quote->getIssuingCompany()
+        );
+
         // Render the quote template
         $html = $this->twig->render('pdf/quote.html.twig', [
             'quote' => $quote,
+            'issuer' => $issuingProfile,
         ]);
 
         // Generate PDF
@@ -74,112 +78,6 @@ class UnifiedPdfGeneratorService
     }
 
     /**
-     * Generate landed-cost estimate PDF
-     * 
-     * @param Estimate $estimate Estimate entity with route calculations
-     * @return ComplianceDocument Generated PDF document
-     * 
-     * TODO Implementation:
-     * 1. Render templates/pdf/estimate.html.twig
-     * 2. Include: All routes comparison table, cost breakdown per route
-     * 3. Show: Material cost, freight cost, duty cost, total landed cost
-     * 4. Highlight: Recommended route (lowest total cost or FTA-eligible)
-     * 5. Footer: Dataset versions (tariff_rates, freight_tables, fx_rates)
-     * 6. Watermark: "CONFIDENTIAL" if FTA eligibility conditional
-     */
-    public function generateEstimatePdf(Estimate $estimate): ComplianceDocument
-    {
-        // 1. Render estimate template
-        $html = $this->twig->render('pdf/estimate.html.twig', [
-            'estimate' => $estimate,
-        ]);
-        
-        // 2. Generate PDF
-        $mpdf = new \Mpdf\Mpdf([
-            'mode' => 'utf-8',
-            'format' => 'A4',
-            'margin_left' => 15,
-            'margin_right' => 15,
-            'margin_top' => 20,
-            'margin_bottom' => 20,
-        ]);
-        
-        // 3. Add watermark if conditional
-        if ($estimate->getFtaStatus() === 'CONDITIONAL') {
-            $mpdf->SetWatermarkText('CONFIDENTIAL');
-            $mpdf->showWatermarkText = true;
-        }
-        
-        $mpdf->WriteHTML($html);
-        $pdfContent = $mpdf->Output('', 'S');
-        
-        // 4. Create document
-        $filename = sprintf('estimate_%s_%s.pdf', $estimate->getId(), date('Ymd'));
-        return $this->createDocument(
-            $estimate->getCompany(),
-            'estimate',
-            $pdfContent,
-            $filename,
-            ['dataset_versions' => $estimate->getDatasetVersions() ?? []]
-        );
-    }
-
-    /**
-     * Generate FTA/ROO eligibility package PDF
-     * 
-     * @param Estimate $estimate Estimate with FTA qualification data
-     * @return ComplianceDocument Generated FTA pack document
-     * 
-     * TODO Implementation:
-     * 1. Render templates/pdf/fta_pack.html.twig
-     * 2. Include: FTA agreement details, ROO requirements, COO declarations
-     * 3. Show: Eligibility status (ELIGIBLE | CONDITIONAL | INELIGIBLE)
-     * 4. List: Missing evidence if conditional (supplier COO, value content proof)
-     * 5. Generate: Pre-filled declaration templates from FtaRule entity
-     * 6. Watermark: "CONDITIONAL - VERIFY BEFORE SUBMISSION" if not fully eligible
-     */
-    public function generateFtaPackPdf(Estimate $estimate): ComplianceDocument
-    {
-        // 1. Render FTA pack template
-        $html = $this->twig->render('pdf/fta_pack.html.twig', [
-            'estimate' => $estimate,
-        ]);
-        
-        // 2. Generate PDF
-        $mpdf = new \Mpdf\Mpdf([
-            'mode' => 'utf-8',
-            'format' => 'A4',
-            'margin_left' => 15,
-            'margin_right' => 15,
-            'margin_top' => 20,
-            'margin_bottom' => 20,
-        ]);
-        
-        // 3. Add watermark if conditional
-        if ($estimate->getFtaStatus() === 'CONDITIONAL') {
-            $mpdf->SetWatermarkText('CONDITIONAL - VERIFY BEFORE SUBMISSION');
-            $mpdf->showWatermarkText = true;
-            $mpdf->watermarkTextAlpha = 0.3;
-        }
-        
-        $mpdf->WriteHTML($html);
-        $pdfContent = $mpdf->Output('', 'S');
-        
-        // 4. Create document
-        $filename = sprintf('fta_pack_%s_%s.pdf', $estimate->getId(), date('Ymd'));
-        return $this->createDocument(
-            $estimate->getCompany(),
-            'fta_pack',
-            $pdfContent,
-            $filename,
-            [
-                'fta_status' => $estimate->getFtaStatus(),
-                'fta_agreement' => $estimate->getFtaAgreement()
-            ]
-        );
-    }
-
-    /**
      * Generate DFM/DFA report PDF
      * 
      * @param Quote $quote Quote with DFM lint results
@@ -195,8 +93,12 @@ class UnifiedPdfGeneratorService
     public function generateDfmReportPdf(Quote $quote): ComplianceDocument
     {
         // 1. Render DFM report template
+        $issuingProfile = $this->issuingCompanyService->getCompanyProfile(
+            $quote->getIssuingCompany()
+        );
         $html = $this->twig->render('pdf/dfm_report.html.twig', [
             'quote' => $quote,
+            'issuer' => $issuingProfile,
         ]);
         
         // 2. Generate PDF
@@ -241,8 +143,12 @@ class UnifiedPdfGeneratorService
     public function generateCostBreakdownPdf(Quote $quote): ComplianceDocument
     {
         // 1. Render cost breakdown template
+        $issuingProfile = $this->issuingCompanyService->getCompanyProfile(
+            $quote->getIssuingCompany()
+        );
         $html = $this->twig->render('pdf/cost_breakdown.html.twig', [
             'quote' => $quote,
+            'issuer' => $issuingProfile,
         ]);
         
         // 2. Generate PDF
@@ -285,8 +191,12 @@ class UnifiedPdfGeneratorService
     public function generateExceptionsReportPdf(Quote $quote): ComplianceDocument
     {
         // 1. Render exceptions report template
+        $issuingProfile = $this->issuingCompanyService->getCompanyProfile(
+            $quote->getIssuingCompany()
+        );
         $html = $this->twig->render('pdf/exceptions_report.html.twig', [
             'quote' => $quote,
+            'issuer' => $issuingProfile,
         ]);
         
         // 2. Generate PDF
@@ -329,8 +239,12 @@ class UnifiedPdfGeneratorService
     public function generateSourcingRiskPdf(Quote $quote): ComplianceDocument
     {
         // 1. Render sourcing risk template
+        $issuingProfile = $this->issuingCompanyService->getCompanyProfile(
+            $quote->getIssuingCompany()
+        );
         $html = $this->twig->render('pdf/sourcing_risk.html.twig', [
             'quote' => $quote,
+            'issuer' => $issuingProfile,
         ]);
         
         // 2. Generate PDF

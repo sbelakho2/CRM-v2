@@ -167,7 +167,7 @@
 <body>
     <div class="header clearfix">
         <div style="float: left;">
-            <h2>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</h2>
+            <h2>{{ issuer.name|default('app.company'|trans|default('Sensei-Rams Electronics')) }}</h2>
             <p>{{ 'pdf.dfm.subtitle'|trans|default('Design for Manufacturability Analysis') }}</p>
         </div>
         <div class="doc-info">
@@ -398,7 +398,7 @@
     </div>
 
     <div class="footer">
-        <strong>{{ 'app.company'|trans|default('Sensei-Rams Electronics') }}</strong> • {{ 'pdf.dfm.footer_note'|trans|default('DFM Analysis Report') }}<br>
+        <strong>{{ issuer.name|default('app.company'|trans|default('Sensei-Rams Electronics')) }}</strong> • {{ 'pdf.dfm.footer_note'|trans|default('DFM Analysis Report') }}<br>
         {{ 'pdf.generated_on'|trans|default('Generated') }}: {{ "now"|date('Y-m-d H:i') }} UTC • {{ 'pdf.dfm.engine'|trans|default('DFM Engine v2.1') }}
     </div>
 </body>

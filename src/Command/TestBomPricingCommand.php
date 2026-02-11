@@ -76,7 +76,7 @@ class TestBomPricingCommand extends Command
 
         // Process through pricing APIs
         $io->section('2. Processing through API Waterfall');
-        $io->text('Testing Mouser → DigiKey → Nexar APIs...');
+        $io->text('Testing Alibaba → Mouser → DigiKey → Nexar → AI Imputation...');
         
         try {
             $result = $this->pricingEngine->processBOM($bomLines);
@@ -95,9 +95,21 @@ class TestBomPricingCommand extends Command
                     ['Coverage', $stats['coverage_percent'] . '%'],
                     ['Total Cost', '$' . number_format($stats['total_cost'], 2)],
                     ['', ''],
-                    ['Mouser', $stats['sources']['mouser']],
-                    ['DigiKey', $stats['sources']['digikey']],
-                    ['Nexar', $stats['sources']['nexar']],
+                    ['Alibaba (crawler)', $stats['sources']['alibaba'] ?? 0],
+                    ['Mouser', $stats['sources']['mouser'] ?? 0],
+                    ['DigiKey', $stats['sources']['digikey'] ?? 0],
+                    ['Nexar', $stats['sources']['nexar'] ?? 0],
+                    ['AI Imputation', $stats['sources']['ai_imputation'] ?? 0],
+                    ['Manual', $stats['sources']['manual'] ?? 0],
+                    ['', ''],
+                    ['High Confidence', $stats['confidence_breakdown']['HIGH'] ?? 0],
+                    ['Medium Confidence', $stats['confidence_breakdown']['MEDIUM'] ?? 0],
+                    ['Low Confidence', $stats['confidence_breakdown']['LOW'] ?? 0],
+                    ['Very Low', $stats['confidence_breakdown']['VERY_LOW'] ?? 0],
+                    ['', ''],
+                    ['Lifecycle Critical', $stats['lifecycle_warnings']['critical'] ?? 0],
+                    ['Lifecycle Warning', $stats['lifecycle_warnings']['warning'] ?? 0],
+                    ['Qty Adjusted (MOQ/Pack)', $stats['quantity_adjusted_count'] ?? 0],
                 ]
             );
             
@@ -111,10 +123,10 @@ class TestBomPricingCommand extends Command
                     ['MPN', 'Source', 'Unit Price', 'Qty', 'Extended', 'Stock'],
                     array_map(fn($line) => [
                         $line['mpn'],
-                        strtoupper($line['source']),
-                        '$' . number_format($line['unit_price'], 4),
-                        $line['quantity'],
-                        '$' . number_format($line['extended_price'], 2),
+                        strtoupper($line['source'] ?? 'N/A'),
+                        '$' . number_format($line['unit_price'] ?? 0, 4),
+                        $line['effective_quantity'] ?? $line['quantity'] ?? 0,
+                        '$' . number_format($line['extended_price'] ?? 0, 2),
                         $line['stock'] ?? 'N/A'
                     ], $sample)
                 );

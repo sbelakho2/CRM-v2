@@ -39,6 +39,10 @@ class OutboundMessage
     #[ORM\JoinColumn(nullable: false)]
     private ?Contact $contact = null;
 
+    #[ORM\ManyToOne(targetEntity: RFQ::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?RFQ $rfq = null;
+
     #[ORM\Column(type: 'text')]
     private ?string $subject = null;
 
@@ -200,6 +204,17 @@ class OutboundMessage
     public function setContact(?Contact $contact): self
     {
         $this->contact = $contact;
+        return $this;
+    }
+
+    public function getRfq(): ?RFQ
+    {
+        return $this->rfq;
+    }
+
+    public function setRfq(?RFQ $rfq): self
+    {
+        $this->rfq = $rfq;
         return $this;
     }
 

@@ -169,6 +169,8 @@ class CsvExportService
                 ]);
             }
             
+            $headers[] = 'Supplier Name';
+            $headers[] = 'Supplier Product URL';
             $headers[] = 'Search URL';
             $headers[] = 'Price Source URL';
             $headers[] = 'Notes';
@@ -222,6 +224,8 @@ class CsvExportService
                     }
                 }
                 
+                $row[] = $line->getSupplierName();
+                $row[] = $line->getSupplierProductUrl();
                 $row[] = $line->getDistributorSearchUrl();
                 $row[] = $line->getPriceSourceUrl();
                 $row[] = $line->getManualNotes();

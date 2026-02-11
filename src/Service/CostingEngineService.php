@@ -26,7 +26,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * - NreTable: Flat rates for stencils, fixtures, programming
  * 
  * Used by:
- * - QuoteEstimatorController for total landed-cost calculation
+ * - QuoteCoPilotController for component pricing pipeline
  * - Quote detail page for cost breakdown display
  * - UnifiedPdfGeneratorService for cost breakdown PDF
  */

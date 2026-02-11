@@ -8,6 +8,7 @@ use App\Form\RFQType;
 use App\Repository\RFQRepository;
 use App\Repository\CompanyRepository;
 use App\Service\GuidanceNotificationService;
+use App\Service\SalesPipelineOrchestratorService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -20,6 +21,7 @@ class RFQController extends AbstractController
 {
     public function __construct(
         private GuidanceNotificationService $guidanceService,
+        private SalesPipelineOrchestratorService $pipelineOrchestrator,
         private TranslatorInterface $translator
     ) {}
 
@@ -200,7 +202,12 @@ class RFQController extends AbstractController
         $newStatus = $request->request->get('status');
         
         if (in_array($newStatus, ['Pending', 'In Review', 'Submitted', 'Won', 'Lost'])) {
+            $oldStatus = $rfq->getStatus();
             $rfq->setStatus($newStatus);
+            $entityManager->flush();
+
+            // Advance company pipeline stage & feed outcome to lead
+            $this->pipelineOrchestrator->afterRfqStatusChanged($rfq, $oldStatus, $newStatus);
             $entityManager->flush();
 
             // Provide guidance based on new status

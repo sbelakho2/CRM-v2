@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Contact;
 use App\Entity\Lead;
 use App\Entity\OutboundMessage;
+use App\Entity\RFQ;
 use App\Entity\SpintaxTemplate;
 use App\Entity\BanditArm;
 use App\Repository\ContactRepository;
@@ -54,6 +55,8 @@ class AutonomousSalesOrchestratorService
         private ?CompetitorLearnerService $competitorLearner = null,
         private ?CadenceGovernorService $cadenceGovernor = null,
         private ?CopyLintService $copyLintService = null,
+        private ?SalesPipelineOrchestratorService $pipelineOrchestrator = null,
+        private ?EmailActivityLogger $activityLogger = null,
     ) {}
 
     /**
@@ -674,6 +677,18 @@ class AutonomousSalesOrchestratorService
             $message->setSentAt(new \DateTime());
             $this->entityManager->flush();
 
+            // Log to unified Activity timeline so CRM users see outbound emails
+            if ($this->activityLogger) {
+                try {
+                    $this->activityLogger->logOutboundSend($message);
+                } catch (\Exception $e) {
+                    $this->logger->warning('Failed to log outbound send to Activity', [
+                        'messageId' => $message->getId(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             $this->logger->info('Email sent successfully', [
                 'messageId' => $message->getId(),
                 'to' => $contact->getEmail(),
@@ -836,11 +851,46 @@ class AutonomousSalesOrchestratorService
                     if ($funnelStage) {
                         $message->setFunnelStage($funnelStage);
                     }
+
+                    // Create opportunity RFQ for positive email engagement
+                    if ($weightedEventType === 'positive_reply' && $this->pipelineOrchestrator) {
+                        $newRfq = $this->pipelineOrchestrator->afterPositiveEmailEngagement($message, $classification ?? 'interested');
+                        $result['opportunity_created'] = $newRfq !== null;
+                        if ($newRfq) {
+                            $result['rfq_id'] = $newRfq->getId();
+                        }
+                    }
                 }
             }
         }
 
         $this->entityManager->flush();
+
+        // Log engagement to unified Activity timeline
+        if ($this->activityLogger) {
+            $activityEventType = match ($eventType) {
+                'open' => 'opened',
+                'click' => 'clicked',
+                'reply' => 'replied',
+                'bounce' => 'bounced',
+                default => null,
+            };
+            if ($activityEventType) {
+                try {
+                    $this->activityLogger->updateOutboundEngagement(
+                        $message,
+                        $activityEventType,
+                        $classification
+                    );
+                } catch (\Exception $e) {
+                    $this->logger->warning('Failed to log outbound engagement to Activity', [
+                        'messageId' => $message->getId(),
+                        'eventType' => $eventType,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
 
         $this->logger->info('Recorded email event', [
             'messageId' => $message->getId(),

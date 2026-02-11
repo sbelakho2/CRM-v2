@@ -26,12 +26,23 @@ class AutonomousSalesDashboardController extends AbstractController
     #[Route('', name: 'autonomous_sales_index', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
     public function index(
+        Request $request,
         AutonomousSalesOrchestratorService $orchestrator,
         ThompsonSamplerService $thompsonSampler,
         AutonomousSalesSettingsService $settingsService,
     ): Response {
         $enabled = $settingsService->isEnabled();
         $systemStats = $orchestrator->getStats();
+
+        // Tab routing — server-side, same pattern as webinar/index
+        $validTabs = ['overview', 'optimization', 'settings'];
+        $activeTab = $request->query->get('tab', 'overview');
+        if (!in_array($activeTab, $validTabs, true)) {
+            $activeTab = 'overview';
+        }
+
+        // Whether to expand the full variations table on the optimization tab
+        $expandVariations = $request->query->getBoolean('expand', false);
 
         // Gather raw arm data from the sampler (backend unchanged)
         $armTypes = [
@@ -64,14 +75,24 @@ class AutonomousSalesDashboardController extends AbstractController
         // 5. Setup checklist — what needs to happen before the system works
         $setup = $this->buildSetupChecklist($rawArms, $systemStats, $enabled);
 
+        // 6. Dynamic subtitle — context-aware one-liner
+        $dynamicSubtitle = $this->buildDynamicSubtitle($enabled, $setup, $performance, $health);
+
+        // 7. Safety feature count for the shield summary
+        $safetyCount = 8;
+
         return $this->render('autonomous_sales/index.html.twig', [
-            'enabled'     => $enabled,
-            'health'      => $health,
-            'performance' => $performance,
-            'variations'  => $variations,
-            'automation'  => $automation,
-            'setup'       => $setup,
-            'system_stats' => $systemStats,
+            'enabled'           => $enabled,
+            'health'            => $health,
+            'performance'       => $performance,
+            'variations'        => $variations,
+            'automation'        => $automation,
+            'setup'             => $setup,
+            'system_stats'      => $systemStats,
+            'active_tab'        => $activeTab,
+            'expand_variations' => $expandVariations,
+            'dynamic_subtitle'  => $dynamicSubtitle,
+            'safety_count'      => $safetyCount,
         ]);
     }
 
@@ -586,6 +607,52 @@ class AutonomousSalesDashboardController extends AbstractController
             'total'     => count($steps),
             'allDone'   => $allDone,
             'pct'       => round(($completedCount / count($steps)) * 100),
+        ];
+    }
+
+    /**
+     * Dynamic subtitle: context-aware one-liner based on system state.
+     *
+     * Returns a translation key that the template will pass through |trans.
+     * The controller also passes parameters for interpolation.
+     */
+    private function buildDynamicSubtitle(bool $enabled, array $setup, array $performance, array $health): array
+    {
+        if (!$enabled) {
+            return [
+                'key' => 'autonomous_sales.subtitle_off',
+                'params' => [],
+            ];
+        }
+
+        if (!$setup['allDone']) {
+            $remaining = $setup['total'] - $setup['completed'];
+            return [
+                'key' => 'autonomous_sales.subtitle_setup',
+                'params' => ['%remaining%' => $remaining],
+            ];
+        }
+
+        if ($health['status'] === 'red') {
+            return [
+                'key' => 'autonomous_sales.subtitle_paused',
+                'params' => [],
+            ];
+        }
+
+        if ($performance['emailsSent'] > 0) {
+            return [
+                'key' => 'autonomous_sales.subtitle_running',
+                'params' => [
+                    '%emails%' => number_format($performance['emailsSent']),
+                    '%rate%'   => $performance['successPct'],
+                ],
+            ];
+        }
+
+        return [
+            'key' => 'autonomous_sales.subtitle_ready',
+            'params' => [],
         ];
     }
 }

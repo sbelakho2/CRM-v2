@@ -1,0 +1,39 @@
+Designator,Manufacturer Part Number,Manufacturer,Quantity,Description,Package
+C1,GRM155R71C104KA88D,Murata,25,Cap Ceramic 0.1uF 16V X7R 10% SMD,0402
+C2,GRM188R71C105KA12D,Murata,10,Cap Ceramic 1uF 16V X7R 10% SMD,0603
+C3,CL10A106MQ8NNNC,Samsung Electro-Mechanics,8,Cap Ceramic 10uF 6.3V X5R 20% SMD,0603
+C4,C0805C475K8PACTU,KEMET,4,Cap Ceramic 4.7uF 10V X5R SMD,0805
+C5,EEE-FK1V100P,Panasonic,2,Cap Aluminum 10uF 35V 20% SMD,SMD 4x5.3mm
+R1,RC0402FR-0710KL,Yageo,30,Res 10K Ohm 1% 1/16W 0402,0402
+R2,RC0402FR-074K7L,Yageo,20,Res 4.7K Ohm 1% 1/16W 0402,0402
+R3,CRCW0603100RFKEA,Vishay,15,Res 100 Ohm 1% 0.1W 0603,0603
+R4,ERJ-3EKF1001V,Panasonic,12,Res 1K Ohm 1% 0.1W 0603,0603
+R5,RC0402FR-070RL,Yageo,10,Res 0 Ohm Jumper 1/16W 0402,0402
+U1,STM32F405RGT6,STMicroelectronics,1,ARM Cortex-M4 MCU 168MHz 1MB Flash LQFP64,LQFP-64
+U2,ESP32-WROOM-32E,Espressif Systems,1,WiFi BT Module 4MB Flash,Module
+U3,TPS54331DR,Texas Instruments,2,Buck Converter 3A 28V Input SOIC8,SOIC-8
+U4,LM1117IMP-3.3/NOPB,Texas Instruments,2,LDO Regulator 3.3V 800mA SOT223,SOT-223
+U5,MAX232ECPE+,Maxim Integrated,1,RS-232 Transceiver Dual DIP16,DIP-16
+U6,FT232RL-REEL,FTDI,1,USB to UART IC SSOP28,SSOP-28
+U7,ATMEGA328P-AU,Microchip Technology,1,AVR MCU 8-bit 32KB Flash TQFP32,TQFP-32
+U8,SN74HC595DR,Texas Instruments,4,Shift Register 8-Bit SOIC16,SOIC-16
+U9,NE555DR,Texas Instruments,2,Timer IC Single SOIC8,SOIC-8
+U10,MCP2551-I/SN,Microchip Technology,1,CAN Transceiver High-Speed SOIC8,SOIC-8
+L1,LQH3NPN100MMEL,Murata,3,Inductor 10uH 700mA SMD,1210
+L2,SRN4018-4R7M,Bourns,2,Inductor 4.7uH 1.8A Shielded SMD,4x4mm
+D1,BAT54S,Nexperia,6,Diode Schottky Dual 30V 200mA SOT23,SOT-23
+D2,SS34,ON Semiconductor,3,Diode Schottky 3A 40V DO214AB,DO-214AB
+D3,1N4148W-7-F,Diodes Incorporated,8,Diode Switching 100V 150mA SOD123,SOD-123
+Q1,BSS138,ON Semiconductor,5,MOSFET N-CH 50V 220mA SOT23,SOT-23
+Q2,IRLML6344TRPBF,Infineon Technologies,3,MOSFET N-CH 30V 5A SOT23,SOT-23
+Y1,ABM8-16.000MHZ-B2-T,Abracon,1,Crystal 16MHz 18pF SMD,3.2x2.5mm
+Y2,CSTCE8M00G55-R0,Murata,1,Ceramic Resonator 8MHz SMD,3.2x1.3mm
+J1,10118194-0001LF,Amphenol,2,Conn USB Micro-B SMD Right Angle,SMD
+J2,TSW-120-07-G-S,Samtec,4,Header 1x20 2.54mm Through Hole,Through Hole
+J3,B2B-XH-A(LF)(SN),JST,3,Conn Header 2-Pos 2.5mm Through Hole,Through Hole
+LED1,150060RS75000,Wurth Elektronik,10,LED Red 0603 20mA 2V,0603
+LED2,150060GS75000,Wurth Elektronik,5,LED Green 0603 20mA 2.2V,0603
+F1,0603L050YR,Littelfuse,2,PTC Resettable Fuse 500mA 6V 0603,0603
+SW1,B3F-1000,Omron,3,Tactile Switch SPST-NO 50mA 24V Through Hole,6x6mm
+TP1,5015,Keystone Electronics,8,Test Point PC Mini White Through Hole,Through Hole
+FB1,BLM18PG121SN1D,Murata,4,Ferrite Bead 120 Ohm 0603,0603

@@ -80,16 +80,22 @@
                                             <circle cx="8" cy="8" r="2"/>
                                         </svg>
                                     </a>
-                                    <a href="{{ path('quote_copilot_pdf', {'id': quote.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.download'|trans }} PDF">
+                                    <a href="{{ path('quote_copilot_pdf', {'id': quote.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'quote.copilot.download_pdf'|trans }}">
                                         <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M8 3V11M5 8L8 11L11 8"/>
                                             <path d="M3 13H13"/>
                                         </svg>
                                     </a>
-                                    <a href="{{ path('quote_copilot_excel', {'id': quote.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.export'|trans }} Excel">
+                                    <a href="{{ path('quote_copilot_customer_excel', {'id': quote.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'quote.copilot.download_customer_excel'|trans({}, 'messages')|default('Customer Excel') }}">
                                         <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                             <rect x="3" y="3" width="10" height="10" rx="1"/>
                                             <path d="M3 6H13M6 3V13"/>
+                                        </svg>
+                                    </a>
+                                    <a href="{{ path('quote_copilot_full_excel', {'id': quote.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'quote.copilot.download_full_excel'|trans({}, 'messages')|default('Full Sourcing Excel') }}" style="color: #FFBE00;">
+                                        <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="10" height="10" rx="1"/>
+                                            <path d="M3 6H13M3 9H13M6 3V13M10 3V13"/>
                                         </svg>
                                     </a>
                                 </div>

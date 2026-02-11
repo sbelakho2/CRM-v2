@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Activity;
 use App\Entity\EmailSend;
 use App\Entity\EmailCampaign;
+use App\Entity\OutboundMessage;
 use App\Entity\Contact;
 use App\Entity\Company;
 use App\Entity\User;
@@ -12,8 +13,14 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
- * Logs email campaign activities to the unified Activity timeline
- * Integrates email engagement with CRM activity tracking
+ * Logs email activities to the unified Activity timeline.
+ *
+ * Covers BOTH email modules:
+ *   - Email Campaigns (EmailSend / EmailCampaign)
+ *   - Autonomous Sales (OutboundMessage)
+ *
+ * This ensures a contact's Activity timeline shows ALL email communication
+ * regardless of which module sent it — closing the activity visibility gap.
  */
 class EmailActivityLogger
 {
@@ -298,7 +305,7 @@ class EmailActivityLogger
             ->where('a.company = :company')
             ->andWhere('a.type IN (:types)')
             ->setParameter('company', $company)
-            ->setParameter('types', ['Email', 'Email Campaign'])
+            ->setParameter('types', ['Email', 'Email Campaign', 'Outbound Email', 'Outbound Email Engagement'])
             ->orderBy('a.activityDate', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -319,7 +326,7 @@ class EmailActivityLogger
             ->where('a.contact = :contact')
             ->andWhere('a.type IN (:types)')
             ->setParameter('contact', $contact)
-            ->setParameter('types', ['Email', 'Email Campaign'])
+            ->setParameter('types', ['Email', 'Email Campaign', 'Outbound Email', 'Outbound Email Engagement'])
             ->orderBy('a.activityDate', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -342,19 +349,26 @@ class EmailActivityLogger
             'emails_clicked' => 0,
             'emails_replied' => 0,
             'campaigns_received' => 0,
+            'outbound_sent' => 0,
             'last_email_date' => null,
             'engagement_rate' => 0
         ];
 
         foreach ($activities as $activity) {
-            if ($activity->getType() === 'Email') {
+            $type = $activity->getType();
+            $description = $activity->getDescription();
+
+            if ($type === 'Email' || $type === 'Outbound Email') {
                 $stats['total_emails_sent']++;
-                
-                $description = $activity->getDescription();
-                if (strpos($description, '✓ Opened at') !== false) {
+
+                if ($type === 'Outbound Email') {
+                    $stats['outbound_sent']++;
+                }
+
+                if (strpos($description, '✓ Opened') !== false) {
                     $stats['emails_opened']++;
                 }
-                if (strpos($description, '✓ Clicked at') !== false) {
+                if (strpos($description, '✓ Clicked') !== false) {
                     $stats['emails_clicked']++;
                 }
                 if (strpos($description, '✓ Replied') !== false) {
@@ -364,7 +378,7 @@ class EmailActivityLogger
                 if (!$stats['last_email_date'] || $activity->getActivityDate() > $stats['last_email_date']) {
                     $stats['last_email_date'] = $activity->getActivityDate();
                 }
-            } elseif ($activity->getType() === 'Email Campaign') {
+            } elseif ($type === 'Email Campaign') {
                 $stats['campaigns_received']++;
             }
         }
@@ -376,5 +390,167 @@ class EmailActivityLogger
         }
 
         return $stats;
+    }
+
+    // ==================== AUTONOMOUS SALES OUTBOUND LOGGING ====================
+
+    /**
+     * Log an autonomous sales outbound email send as an Activity.
+     *
+     * Creates an Activity record so that outbound emails appear on the
+     * contact's/company's unified CRM timeline alongside campaign emails,
+     * calls, meetings, etc.
+     *
+     * @param OutboundMessage $message The outbound message that was sent
+     * @return Activity|null The created activity or null if insufficient data
+     */
+    public function logOutboundSend(OutboundMessage $message): ?Activity
+    {
+        $contact = $message->getContact();
+        if (!$contact) {
+            return null;
+        }
+
+        $company = $contact->getCompany();
+        if (!$company) {
+            return null;
+        }
+
+        $user = $this->security->getUser();
+        if (!$user) {
+            $user = $this->em->getRepository(User::class)->findOneBy([], ['id' => 'ASC']);
+        }
+
+        $activity = new Activity();
+        $activity->setCompany($company);
+        $activity->setContact($contact);
+        $activity->setUser($user);
+        $activity->setType('Outbound Email');
+        $activity->setSubject($message->getSubject());
+        $activity->setActivityDate($message->getSentAt() ?? new \DateTime());
+        $activity->setStatus(Activity::STATUS_COMPLETED);
+        $activity->setOutcome(Activity::OUTCOME_PENDING);
+
+        $templateName = $message->getTemplate()?->getName() ?? 'unknown';
+        $armName = $message->getSubjectArm()?->getArmName() ?? 'default';
+
+        $description = sprintf(
+            "Outbound email sent (Autonomous Sales)\nTo: %s\nSubject: %s\nTemplate: %s\nSubject arm: %s",
+            $contact->getEmail() ?? 'unknown',
+            $message->getSubject() ?? '(no subject)',
+            $templateName,
+            $armName
+        );
+
+        $activity->setDescription($description);
+
+        $this->em->persist($activity);
+        $this->em->flush();
+
+        return $activity;
+    }
+
+    /**
+     * Update an outbound email's Activity when engagement occurs.
+     *
+     * Appends engagement markers (opened, clicked, replied) to the existing
+     * Activity description, and updates the outcome field for analytics.
+     *
+     * @param OutboundMessage $message  The outbound message with engagement
+     * @param string          $eventType  'opened', 'clicked', 'replied', 'bounced'
+     * @param string|null     $classification  Reply classification (for replies)
+     */
+    public function updateOutboundEngagement(
+        OutboundMessage $message,
+        string $eventType,
+        ?string $classification = null
+    ): void {
+        $contact = $message->getContact();
+        if (!$contact) {
+            return;
+        }
+
+        $company = $contact->getCompany();
+        if (!$company) {
+            return;
+        }
+
+        // Find existing activity for this outbound message
+        $activities = $this->em->getRepository(Activity::class)
+            ->createQueryBuilder('a')
+            ->where('a.company = :company')
+            ->andWhere('a.contact = :contact')
+            ->andWhere('a.type = :type')
+            ->andWhere('a.description LIKE :pattern')
+            ->setParameter('company', $company)
+            ->setParameter('contact', $contact)
+            ->setParameter('type', 'Outbound Email')
+            ->setParameter('pattern', '%Outbound email sent (Autonomous Sales)%Subject: ' . substr($message->getSubject() ?? '', 0, 50) . '%')
+            ->orderBy('a.activityDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getResult();
+
+        if (empty($activities)) {
+            // No existing activity — create one with the engagement already logged
+            $activity = $this->logOutboundSend($message);
+            if (!$activity) {
+                return;
+            }
+            $activities = [$activity];
+        }
+
+        $activity = $activities[0];
+        $description = $activity->getDescription();
+
+        // Engagement markers
+        $markers = [
+            'opened'  => '✓ Opened',
+            'clicked' => '✓ Clicked',
+            'replied' => '✓ Replied',
+            'bounced' => '✗ Bounced',
+        ];
+
+        $marker = $markers[$eventType] ?? null;
+        if (!$marker || str_contains($description, $marker)) {
+            return; // Already logged or unknown event
+        }
+
+        $timestamp = match ($eventType) {
+            'opened'  => $message->getOpenedAt() ?? new \DateTime(),
+            'clicked' => $message->getClickedAt() ?? new \DateTime(),
+            'replied' => $message->getRepliedAt() ?? new \DateTime(),
+            default   => new \DateTime(),
+        };
+
+        $line = sprintf("\n%s at: %s", $marker, $timestamp->format('Y-m-d H:i'));
+
+        if ($eventType === 'replied' && $classification) {
+            $line .= sprintf(' (classified: %s)', $classification);
+        }
+
+        $description .= $line;
+        $activity->setDescription($description);
+
+        // Update outcome based on engagement
+        $outcome = match ($eventType) {
+            'replied'                       => match ($classification) {
+                'interested',
+                'meeting_request',
+                'information_request'       => Activity::OUTCOME_POSITIVE,
+                'not_interested',
+                'unsubscribe', 'spam'       => Activity::OUTCOME_NEGATIVE,
+                default                     => Activity::OUTCOME_NEUTRAL,
+            },
+            'bounced'                       => Activity::OUTCOME_NO_RESPONSE,
+            'opened', 'clicked'             => Activity::OUTCOME_PENDING,
+            default                         => null,
+        };
+
+        if ($outcome) {
+            $activity->setOutcome($outcome);
+        }
+
+        $this->em->flush();
     }
 }

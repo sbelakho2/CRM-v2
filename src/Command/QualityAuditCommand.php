@@ -22,7 +22,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class QualityAuditCommand extends Command
 {
-    private const REGIONS = ['MA', 'US', 'EU', 'GCC', 'EG', 'TN'];
+    private const REGIONS = ['MA', 'US', 'EU', 'GB', 'DE', 'FR', 'PL', 'NL', 'IT', 'ES', 'BE', 'AT', 'CZ', 'SE', 'DK', 'FI', 'NO', 'RO', 'HU', 'PT', 'IE', 'CH', 'GCC', 'EG', 'TN'];
 
     private const SECTORS = [
         'Automotive', 'Aerospace', 'Industrial', 'Rail', 'Renewables',
@@ -36,7 +36,26 @@ class QualityAuditCommand extends Command
     private const SAMPLE_LOCATIONS = [
         'MA'  => 'Casablanca Morocco',
         'US'  => 'Texas',
-        'EU'  => 'Germany',
+        'EU'  => 'Europe',
+        'GB'  => 'United Kingdom',
+        'DE'  => 'Germany',
+        'FR'  => 'France',
+        'PL'  => 'Poland',
+        'NL'  => 'Netherlands',
+        'IT'  => 'Italy',
+        'ES'  => 'Spain',
+        'BE'  => 'Belgium',
+        'AT'  => 'Austria',
+        'CZ'  => 'Czech Republic',
+        'SE'  => 'Sweden',
+        'DK'  => 'Denmark',
+        'FI'  => 'Finland',
+        'NO'  => 'Norway',
+        'RO'  => 'Romania',
+        'HU'  => 'Hungary',
+        'PT'  => 'Portugal',
+        'IE'  => 'Ireland',
+        'CH'  => 'Switzerland',
         'GCC' => 'Dubai UAE',
         'EG'  => 'Cairo Egypt',
         'TN'  => 'Tunis Tunisia',

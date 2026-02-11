@@ -6,6 +6,7 @@ use App\Entity\Lead;
 use App\Entity\Company;
 use App\Repository\LeadRepository;
 use App\Service\GuidanceNotificationService;
+use App\Service\SalesPipelineOrchestratorService;
 use App\Service\CountryService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -19,6 +20,7 @@ class LeadController extends AbstractController
 {
     public function __construct(
         private GuidanceNotificationService $guidanceService,
+        private SalesPipelineOrchestratorService $pipelineOrchestrator,
         private CountryService $countryService
     ) {}
 
@@ -252,6 +254,10 @@ class LeadController extends AbstractController
         
         // After flush, update CRM record ID
         $lead->setCrmRecordId((string)$company->getId());
+        $em->flush();
+
+        // Auto-create draft RFQ and advance pipeline stage
+        $draftRfq = $this->pipelineOrchestrator->afterLeadConverted($company, $lead);
         $em->flush();
 
         // Provide guidance after lead conversion

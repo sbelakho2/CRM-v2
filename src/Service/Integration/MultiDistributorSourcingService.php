@@ -9,14 +9,16 @@ use Psr\Log\LoggerInterface;
  * Multi-Distributor Sourcing Service
  * 
  * Implements a "waterfall" approach to part sourcing:
- * 1. Try primary distributor (Mouser)
- * 2. If confidence < threshold OR stock = 0, try secondary (DigiKey)
- * 3. Aggregate results and select best overall match
+ * 1. Try Alibaba first (factory-direct, best bulk pricing)
+ * 2. Try Mouser (authorized distributor, reliable stock)
+ * 3. If confidence < threshold OR stock = 0, try DigiKey
+ * 4. Aggregate results and select best overall match
  * 
  * This prevents single-distributor dependency and improves sourcing success rate.
  */
 class MultiDistributorSourcingService
 {
+    public const SOURCE_ALIBABA = 'alibaba';
     public const SOURCE_MOUSER = 'mouser';
     public const SOURCE_DIGIKEY = 'digikey';
     
@@ -25,6 +27,7 @@ class MultiDistributorSourcingService
     private const MIN_STOCK_THRESHOLD = 0;   // If stock <= this, try next distributor
     
     public function __construct(
+        private AlibabaApiClient $alibabaClient,
         private MouserApiClient $mouserClient,
         private DigiKeyApiClient $digiKeyClient,
         private PartMatchConfidenceCalculator $confidenceCalculator,
@@ -66,13 +69,20 @@ class MultiDistributorSourcingService
             'waterfall_reason' => null,
         ];
         
-        // Step 1: Try Mouser first (primary)
+        // Step 1: Try Alibaba first (factory-direct pricing)
+        $alibabaResult = $this->tryAlibaba($partNumber, $manufacturer, $description);
+        
+        if ($alibabaResult) {
+            $result['all_sources'][self::SOURCE_ALIBABA] = $alibabaResult;
+        }
+        
+        // Step 2: Try Mouser (authorized distributor)
         $mouserResult = $this->tryMouser($partNumber, $manufacturer, $description);
         
         if ($mouserResult) {
             $result['all_sources'][self::SOURCE_MOUSER] = $mouserResult;
             
-            // Check if waterfall should be triggered
+            // Check if waterfall should be triggered to also try DigiKey
             $shouldWaterfall = false;
             $waterfallReason = null;
             
@@ -98,12 +108,12 @@ class MultiDistributorSourcingService
             $result['waterfall_triggered'] = $shouldWaterfall;
             $result['waterfall_reason'] = $waterfallReason;
         } else {
-            // No result from Mouser, definitely try others
+            // No result from Mouser, definitely try DigiKey
             $result['waterfall_triggered'] = true;
-            $result['waterfall_reason'] = 'No result from primary distributor (Mouser)';
+            $result['waterfall_reason'] = 'No result from Mouser - continuing waterfall';
         }
         
-        // Step 2: Try DigiKey if waterfall triggered
+        // Step 3: Try DigiKey if waterfall triggered
         if ($result['waterfall_triggered']) {
             $digiKeyResult = $this->tryDigiKey($partNumber, $manufacturer, $description);
             
@@ -130,6 +140,29 @@ class MultiDistributorSourcingService
         ]);
         
         return $result;
+    }
+    
+    /**
+     * Try Alibaba API (factory-direct pricing)
+     */
+    private function tryAlibaba(string $partNumber, ?string $manufacturer, ?string $description): ?array
+    {
+        try {
+            $result = $this->alibabaClient->searchByPartNumber($partNumber, $manufacturer, $description);
+            
+            if ($result) {
+                $result['_source'] = self::SOURCE_ALIBABA;
+                $result['_source_url'] = $this->alibabaClient->buildSearchUrl($partNumber);
+            }
+            
+            return $result;
+        } catch (\Exception $e) {
+            $this->logger->warning('Alibaba search failed', [
+                'mpn' => $partNumber,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
     
     /**

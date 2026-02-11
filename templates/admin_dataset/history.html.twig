@@ -1,28 +1,28 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'admin.datasets.history_title'|trans }}{% endblock %}
+{% block title %}{{ 'administration.datasets.history_title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack">
     <div class="rams-page-header">
-        <h1 class="rams-page-title">{{ 'admin.datasets.history_title'|trans }}</h1>
+        <h1 class="rams-page-title">{{ 'administration.datasets.history_title'|trans }}</h1>
     </div>
 
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">{{ 'admin.datasets.all_versions'|trans }}</h2>
+            <h2 class="rams-module__title">{{ 'administration.datasets.all_versions'|trans }}</h2>
         </div>
 
         <div class="rams-table-container">
             <table class="rams-table">
                 <thead class="rams-table__header">
                     <tr>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.version'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.dataset_name'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.uploaded_by'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.version'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.dataset_name'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.uploaded_by'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'common.date'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.records'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'admin.datasets.status'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.records'|trans }}</th>
+                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.status'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
@@ -30,9 +30,9 @@
                     {% if versions | default([]) %}
                         {% for version in versions %}
                             <tr class="rams-table__row">
-                                <td class="rams-table__cell"><span class="rams-badge">{{ 'admin.datasets.version_prefix'|trans }}{{ version.version | default('admin.datasets.version_default'|trans) }}</span></td>
+                                <td class="rams-table__cell"><span class="rams-badge">{{ 'administration.datasets.version_prefix'|trans }}{{ version.version | default('administration.datasets.version_default'|trans) }}</span></td>
                                 <td class="rams-table__cell rams-text--bold">{{ version.dataset_name | default('common.unknown'|trans) }}</td>
-                                <td class="rams-table__cell rams-text--muted">{{ version.uploaded_by | default('admin.datasets.system'|trans) }}</td>
+                                <td class="rams-table__cell rams-text--muted">{{ version.uploaded_by | default('administration.datasets.system'|trans) }}</td>
                                 <td class="rams-table__cell rams-text--muted rams-text--xs">
                                     {% if version.created_at %}
                                         {{ version.created_at | date('Y-m-d H:i') }}
@@ -47,14 +47,14 @@
                                     {% if version.is_active %}
                                         <span class="rams-badge rams-badge--success">{{ 'common.active'|trans }}</span>
                                     {% else %}
-                                        <span class="rams-badge">{{ 'admin.datasets.archived'|trans }}</span>
+                                        <span class="rams-badge">{{ 'administration.datasets.archived'|trans }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell rams-table__cell--actions">
                                     <div class="rams-btn-group">
                                         <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
                                         {% if not version.is_active %}
-                                            <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text--success">{{ 'admin.datasets.restore'|trans }}</a>
+                                            <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text--success">{{ 'administration.datasets.restore'|trans }}</a>
                                         {% endif %}
                                         <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</a>
                                     </div>
@@ -65,7 +65,7 @@
                         <tr>
                             <td colspan="7" class="rams-table__cell">
                                 <div class="rams-empty-state">
-                                    {{ 'admin.datasets.no_versions'|trans }}
+                                    {{ 'administration.datasets.no_versions'|trans }}
                                 </div>
                             </td>
                         </tr>
@@ -78,7 +78,7 @@
     <!-- Version Timeline -->
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">{{ 'admin.datasets.timeline'|trans }}</h2>
+            <h2 class="rams-module__title">{{ 'administration.datasets.timeline'|trans }}</h2>
         </div>
         <div class="rams-module__content">
             <div class="rams-timeline">
@@ -92,26 +92,26 @@
                                 {% endif %}
                             </div>
                             <div class="rams-timeline__content">
-                                <p class="rams-timeline__title">{{ version.dataset_name | default('admin.datasets.dataset_update_default'|trans) }}</p>
+                                <p class="rams-timeline__title">{{ version.dataset_name | default('administration.datasets.dataset_update_default'|trans) }}</p>
                                 <p class="rams-text--muted">
                                     {% if version.created_at %}
                                         {{ version.created_at | date('Y-m-d H:i') }}
                                     {% else %}
-                                        {{ 'admin.datasets.unknown_date'|trans }}
+                                        {{ 'administration.datasets.unknown_date'|trans }}
                                     {% endif %}
                                 </p>
                                 {% if version.description %}
                                     <p class="rams-timeline__description">{{ version.description }}</p>
                                 {% endif %}
                                 <p class="rams-dymo">
-                                    {{ 'admin.datasets.uploaded_by'|trans }} {{ version.uploaded_by | default('admin.datasets.system'|trans) }} • 
-                                    {{ version.record_count | default('0') }} {{ 'admin.datasets.records'|trans|lower }}
+                                    {{ 'administration.datasets.uploaded_by'|trans }} {{ version.uploaded_by | default('administration.datasets.system'|trans) }} • 
+                                    {{ version.record_count | default('0') }} {{ 'administration.datasets.records'|trans|lower }}
                                 </p>
                             </div>
                         </div>
                     {% endfor %}
                 {% else %}
-                    <p class="rams-text--muted">{{ 'admin.datasets.no_version_history'|trans }}</p>
+                    <p class="rams-text--muted">{{ 'administration.datasets.no_version_history'|trans }}</p>
                 {% endif %}
             </div>
         </div>
@@ -122,7 +122,7 @@
             <svg class="rams-icon rams-mr-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M10 4L6 8L10 12"/>
             </svg>
-            {{ 'common.back'|trans }} {{ 'admin.datasets.title_full'|trans|lower }}
+            {{ 'common.back'|trans }} {{ 'administration.datasets.title_full'|trans|lower }}
         </a>
     </div>
 </div>

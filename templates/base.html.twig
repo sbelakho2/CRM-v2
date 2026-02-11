@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ app.request.locale }}" dir="{{ app.request.locale starts with 'ar' ? 'rtl' : 'ltr' }}">
+<html lang="{{ app.request.locale }}" dir="{{ app.request.locale starts with 'ar' ? 'rtl' : 'ltr' }}" data-theme="{{ app.user ? (app.user.preferredTheme ?? 'system') : 'system' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -56,23 +56,23 @@
         }
         /* Dark mode overrides for nav groups */
         .dark .rams-sidebar__group-header,
-        [data-theme="dark"] .rams-sidebar__group-header { color: #aaa; }
+        [data-theme="dark"] .rams-sidebar__group-header { color: var(--rams-muted, #B3B3B3); }
         .dark .rams-sidebar__group-header:hover,
-        [data-theme="dark"] .rams-sidebar__group-header:hover { color: #F2F2F2; }
+        [data-theme="dark"] .rams-sidebar__group-header:hover { color: var(--rams-foreground, #F5F5F5); }
         .dark .rams-sidebar__nav-list--nested,
         [data-theme="dark"] .rams-sidebar__nav-list--nested { background: rgba(0,0,0,0.15); }
         .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link,
-        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link { color: #aaa; }
+        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link { color: var(--rams-muted, #B3B3B3); }
         .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover,
-        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover { color: #F2F2F2; }
+        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover { color: var(--rams-foreground, #F5F5F5); }
 
         /* Fix top-level sidebar nav-link contrast in light mode */
         .rams-sidebar__nav-link { color: #555; }
         .rams-sidebar__nav-link:hover { color: var(--rams-foreground, #1A1A1A); }
         .dark .rams-sidebar__nav-link,
-        [data-theme="dark"] .rams-sidebar__nav-link { color: #aaa; }
+        [data-theme="dark"] .rams-sidebar__nav-link { color: var(--rams-muted, #B3B3B3); }
         .dark .rams-sidebar__nav-link:hover,
-        [data-theme="dark"] .rams-sidebar__nav-link:hover { color: #F2F2F2; }
+        [data-theme="dark"] .rams-sidebar__nav-link:hover { color: var(--rams-foreground, #F5F5F5); }
 
         /* Utility for Page Layout */
         .rams-page {
@@ -85,7 +85,12 @@
 
     {% block stylesheets %}{% endblock %}
 </head>
-<body>
+<body 
+    data-user-theme="{{ app.user ? (app.user.preferredTheme ?? 'system') : 'system' }}" 
+    data-user-accent="{{ app.user ? (app.user.accentColor ?? 'orange') : 'orange' }}"
+    data-user-font-size="{{ app.user ? (app.user.fontSize ?? 'medium') : 'medium' }}"
+    data-user-density="{{ app.user ? (app.user.density ?? 'comfortable') : 'comfortable' }}"
+    data-user-reduced-motion="{{ app.user ? (app.user.reducedMotion ? 'true' : 'false') : 'false' }}">
     {# Skip Link for Accessibility #}
     <a href="#main-content" class="rams-skip-link">{{ 'accessibility.skip_to_content'|trans }}</a>
     
@@ -99,7 +104,9 @@
         <aside class="rams-sidebar" role="navigation" aria-label="{{ 'accessibility.navigation'|trans }}">
             {# Station Identifier #}
             <div class="rams-sidebar__header">
-                <div class="rams-sidebar__logo">▣</div>
+                <div class="rams-sidebar__logo">
+                    <img src="{{ asset('images/logo.png') }}" alt="{{ 'app.name'|trans }} logo" class="rams-logo-image">
+                </div>
                 <div>
                     <div class="rams-sidebar__title">{{ 'app.name'|trans }}</div>
                     <div class="rams-sidebar__subtitle">{{ 'app.subtitle'|trans }}</div>
@@ -316,15 +323,6 @@
                         </a>
                     </li>
                             <li class="rams-sidebar__nav-item">
-                        <a href="{{ path('quote_estimator_list') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'quote_estimator' %}rams-sidebar__nav-link--active{% endif %}">
-                            <span class="rams-sidebar__nav-indicator"></span>
-                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6 6H10M6 8H10M6 10H8"/>
-                            </svg>
-                            <span>{{ 'nav.quote_estimator'|trans }}</span>
-                        </a>
-                    </li>
-                            <li class="rams-sidebar__nav-item">
                         <a href="{{ path('quote_review_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'quote_review' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -528,6 +526,97 @@
             }
         }
     });
+    </script>
+
+    <script>
+    (function() {
+        const root = document.documentElement;
+        const body = document.body;
+        const userTheme = body.getAttribute('data-user-theme') || 'system';
+        const accent = body.getAttribute('data-user-accent') || 'orange';
+        const fontSize = body.getAttribute('data-user-font-size') || 'medium';
+        const density = body.getAttribute('data-user-density') || 'comfortable';
+        const reducedMotion = body.getAttribute('data-user-reduced-motion') === 'true';
+
+        // Accent color definitions (matching Management-Software)
+        const accentColors = {
+            orange: { hsl: '45 100% 50%', hex: '#FFBE00' },
+            blue: { hsl: '217 91% 60%', hex: '#3B82F6' },
+            green: { hsl: '142 71% 45%', hex: '#22C55E' },
+            purple: { hsl: '258 90% 66%', hex: '#8B5CF6' },
+            red: { hsl: '0 84% 60%', hex: '#EF4444' }
+        };
+
+        // Font size mapping
+        const fontSizes = {
+            small: '14px',
+            medium: '16px',
+            large: '18px'
+        };
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                root.setAttribute('data-theme', 'dark');
+                root.classList.add('dark');
+            } else if (theme === 'light') {
+                root.setAttribute('data-theme', 'light');
+                root.classList.remove('dark');
+            } else {
+                root.removeAttribute('data-theme');
+                root.classList.remove('dark');
+            }
+        }
+
+        function applySystemTheme() {
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            applyTheme(prefersDark ? 'dark' : 'light');
+        }
+
+        function applyAccentColor(colorName) {
+            const color = accentColors[colorName] || accentColors.orange;
+            root.style.setProperty('--rams-accent', color.hex);
+            root.style.setProperty('--accent', color.hsl);
+            root.style.setProperty('--primary', color.hsl);
+            root.style.setProperty('--ring', color.hsl);
+        }
+
+        function applyFontSize(size) {
+            const sizeValue = fontSizes[size] || fontSizes.medium;
+            root.style.setProperty('--base-font-size', sizeValue);
+            root.style.fontSize = sizeValue;
+        }
+
+        function applyDensity(densityValue) {
+            root.classList.remove('density-comfortable', 'density-compact');
+            root.classList.add(`density-${densityValue}`);
+        }
+
+        function applyReducedMotion(enabled) {
+            if (enabled) {
+                root.classList.add('reduce-motion');
+                root.style.setProperty('--transition-duration', '0ms');
+            } else {
+                root.classList.remove('reduce-motion');
+                root.style.removeProperty('--transition-duration');
+            }
+        }
+
+        // Apply theme
+        if (userTheme === 'system') {
+            applySystemTheme();
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySystemTheme);
+            }
+        } else {
+            applyTheme(userTheme);
+        }
+
+        // Apply all appearance settings
+        applyAccentColor(accent);
+        applyFontSize(fontSize);
+        applyDensity(density);
+        applyReducedMotion(reducedMotion);
+    })();
     </script>
 </body>
 </html>

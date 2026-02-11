@@ -10,7 +10,7 @@
             <p class="rams-page-subtitle">Review and approve companies found by the webcrawler (not in compliance).</p>
         </div>
         <div class="rams-page-actions">
-            <a href="{{ path('app_company_discovered_export', {format: 'xlsx', sector: current_sector, search: current_search}) }}" class="rams-btn">
+            <a href="{{ path('app_company_discovered_export', {format: 'xlsx', sector: current_sector, region: current_region, search: current_search}) }}" class="rams-btn">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
@@ -36,6 +36,15 @@
                             <option value="">All sectors</option>
                             {% for sector in sectors %}
                                 <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>{{ sector }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="rams-form__group rams-mb-0">
+                        <label class="rams-dymo">Region</label>
+                        <select name="region" class="rams-form__select">
+                            <option value="">All regions</option>
+                            {% for region_code, region_label in regions %}
+                                <option value="{{ region_code }}" {% if current_region == region_code %}selected{% endif %}>{{ region_label }}</option>
                             {% endfor %}
                         </select>
                     </div>

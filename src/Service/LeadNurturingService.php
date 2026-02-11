@@ -146,6 +146,11 @@ class LeadNurturingService
         $actions = [];
         $currentStage = $this->determineNurturingStage($lead);
         
+        // Persist the computed nurturing stage to the DB
+        if ($lead->getNurturingStage() !== $currentStage) {
+            $lead->setNurturingStage($currentStage);
+        }
+        
         // 1. Check for engagement and update score
         $engagementScore = $this->calculateEngagementScore($lead);
         if ($engagementScore !== $lead->getLeadScore()) {
@@ -157,6 +162,9 @@ class LeadNurturingService
         // 2. Check for stage advancement
         $newStage = $this->evaluateStageAdvancement($lead, $currentStage, $engagementScore);
         if ($newStage !== $currentStage) {
+            // Persist new stage to the Lead entity
+            $lead->setNurturingStage($newStage);
+            
             if ($newStage === self::STAGE_DORMANT) {
                 $summary['marked_dormant']++;
                 $actions[] = 'Marked as dormant due to inactivity';

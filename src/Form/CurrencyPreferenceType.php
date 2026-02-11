@@ -4,6 +4,7 @@ namespace App\Form;
 
 use App\Entity\User;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Intl\Currencies;
@@ -52,6 +53,60 @@ class CurrencyPreferenceType extends AbstractType
                 'label' => 'profile.timezone',
                 'placeholder' => 'profile.timezone_placeholder',
                 'attr' => ['class' => 'rams-form__select'],
+            ])
+            ->add('preferredTheme', ChoiceType::class, [
+                'choices' => [
+                    'profile.themes.system' => 'system',
+                    'profile.themes.light' => 'light',
+                    'profile.themes.dark' => 'dark',
+                ],
+                'required' => false,
+                'label' => 'profile.theme',
+                'placeholder' => 'profile.theme_placeholder',
+                'choice_translation_domain' => 'messages',
+                'attr' => ['class' => 'rams-form__select'],
+            ])
+            ->add('accentColor', ChoiceType::class, [
+                'choices' => [
+                    'profile.accents.orange' => 'orange',
+                    'profile.accents.blue' => 'blue',
+                    'profile.accents.green' => 'green',
+                    'profile.accents.purple' => 'purple',
+                    'profile.accents.red' => 'red',
+                ],
+                'required' => false,
+                'label' => 'profile.accent_color',
+                'placeholder' => 'profile.accent_placeholder',
+                'choice_translation_domain' => 'messages',
+                'attr' => ['class' => 'rams-form__select'],
+            ])
+            ->add('fontSize', ChoiceType::class, [
+                'choices' => [
+                    'profile.font_sizes.small' => 'small',
+                    'profile.font_sizes.medium' => 'medium',
+                    'profile.font_sizes.large' => 'large',
+                ],
+                'required' => false,
+                'label' => 'profile.font_size',
+                'placeholder' => 'profile.font_size_placeholder',
+                'choice_translation_domain' => 'messages',
+                'attr' => ['class' => 'rams-form__select'],
+            ])
+            ->add('density', ChoiceType::class, [
+                'choices' => [
+                    'profile.densities.comfortable' => 'comfortable',
+                    'profile.densities.compact' => 'compact',
+                ],
+                'required' => false,
+                'label' => 'profile.density',
+                'placeholder' => 'profile.density_placeholder',
+                'choice_translation_domain' => 'messages',
+                'attr' => ['class' => 'rams-form__select'],
+            ])
+            ->add('reducedMotion', CheckboxType::class, [
+                'required' => false,
+                'label' => 'profile.reduced_motion',
+                'attr' => ['class' => 'rams-checkbox'],
             ]);
     }
 

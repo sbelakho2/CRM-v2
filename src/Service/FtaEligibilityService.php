@@ -4,7 +4,6 @@ namespace App\Service;
 
 use App\Entity\FtaRule;
 use App\Entity\CooSupplierDecl;
-use App\Entity\Estimate;
 use App\Repository\FtaRuleRepository;
 use App\Repository\CooSupplierDeclRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,7 +24,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * - Morocco-EU Association Agreement
  * - Future: Agadir Agreement, African Continental FTA, etc.
  * 
- * Used by: Landed-Cost Estimator, Quote Co-Pilot
+ * Used by: Quote Co-Pilot
  */
 class FtaEligibilityService
 {

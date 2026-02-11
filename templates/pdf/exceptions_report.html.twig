@@ -125,7 +125,7 @@
 <body>
     <div class="header clearfix">
         <div style="float: left;">
-            <h2>{{ 'app.company'|trans }}</h2>
+            <h2>{{ issuer.name|default('app.company'|trans) }}</h2>
             <p>{{ 'pdf.exceptions.subtitle'|trans }}</p>
         </div>
         <div class="doc-info">
@@ -303,7 +303,7 @@
     </div>
 
     <div class="footer">
-        <strong>{{ 'app.company'|trans }}</strong> • {{ 'pdf.exceptions.footer'|trans }}<br>
+        <strong>{{ issuer.name|default('app.company'|trans) }}</strong> • {{ 'pdf.exceptions.footer'|trans }}<br>
         {{ 'pdf.generated_on'|trans }}: {{ "now"|date('Y-m-d H:i') }} UTC
     </div>
 </body>

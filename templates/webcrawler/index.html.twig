@@ -17,7 +17,7 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">Discovered Companies</span>
+                    <span class="rams-metric__label">{{ 'webcrawler.stats.discovered'|trans }}</span>
                     <span class="rams-metric__value">{{ stats.discovered }}</span>
                 </div>
             </div>
@@ -25,7 +25,7 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">Approved (Not in Compliance)</span>
+                    <span class="rams-metric__label">{{ 'webcrawler.stats.approved'|trans }}</span>
                     <span class="rams-metric__value rams-text--warning">{{ stats.approved }}</span>
                 </div>
             </div>
@@ -33,7 +33,7 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">Active (Compliance Eligible)</span>
+                    <span class="rams-metric__label">{{ 'webcrawler.stats.active'|trans }}</span>
                     <span class="rams-metric__value rams-text--success">{{ stats.active }}</span>
                 </div>
             </div>
@@ -141,15 +141,15 @@
                                     </td>
                                     <td class="rams-table__cell rams-text--xs">{{ region_labels[company.region]|default(company.region ?? 'common.unknown'|trans) }}</td>
                                     <td class="rams-table__cell">
-                                        <span class="rams-badge rams-badge--info">Pending Review</span>
+                                        <span class="rams-badge rams-badge--info">{{ 'webcrawler.status.pending_review'|trans }}</span>
                                     </td>
                                     <td class="rams-table__cell">
                                         {% if company.companyStatus == 'discovered' %}
-                                            <span class="rams-badge rams-badge--warning">Discovered</span>
+                                            <span class="rams-badge rams-badge--warning">{{ 'webcrawler.status.discovered'|trans }}</span>
                                         {% elseif company.companyStatus == 'approved' %}
-                                            <span class="rams-badge rams-badge--info">Approved</span>
+                                            <span class="rams-badge rams-badge--info">{{ 'webcrawler.status.approved'|trans }}</span>
                                         {% elseif company.companyStatus == 'active' %}
-                                            <span class="rams-badge rams-badge--success">Active</span>
+                                            <span class="rams-badge rams-badge--success">{{ 'webcrawler.status.active'|trans }}</span>
                                         {% endif %}
                                     </td>
                                     <td class="rams-table__cell rams-text--muted rams-text--xs">{{ company.createdAt|date('M d, Y') }}</td>
@@ -157,15 +157,15 @@
                                         {% if company.companyStatus == 'discovered' %}
                                             <form method="post" action="{{ path('app_company_approve', {id: company.id}) }}" style="display:inline">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('approve' ~ company.id) }}">
-                                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">Approve</button>
+                                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.approve'|trans }}</button>
                                             </form>
                                             <form method="post" action="{{ path('app_company_delete', {id: company.id}) }}" style="display:inline">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ company.id) }}">
                                                 <input type="hidden" name="_redirect" value="discovered">
-                                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">Delete</button>
+                                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.delete'|trans }}</button>
                                             </form>
                                         {% else %}
-                                            <a href="{{ path('app_company_show', {id: company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">View</a>
+                                            <a href="{{ path('app_company_show', {id: company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -221,7 +221,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
                                 <div>
                                     <div class="rams-discovery-item__name" style="font-weight: 600;">
                                         <a href="/companies/${c.id}" style="color: var(--rams-primary, #2563eb); text-decoration: none;">${c.name}</a>
-                                        <span style="font-size: 0.7rem; background: #fde68a; padding: 0.125rem 0.5rem; border-radius: 9999px; margin-left: 0.5rem;">Discovered</span>
+                                        <span style="font-size: 0.7rem; background: #fde68a; padding: 0.125rem 0.5rem; border-radius: 9999px; margin-left: 0.5rem;">{{ 'webcrawler.status.discovered'|trans }}</span>
                                         ${c.sector ? `<span style="font-size: 0.75rem; background: var(--rams-bg-alt, #f1f5f9); padding: 0.125rem 0.5rem; border-radius: 9999px; margin-left: 0.5rem;">${c.sector}</span>` : ''}
                                     </div>
                                     ${c.website ? `<div class="rams-discovery-item__website" style="font-size: 0.85rem; color: var(--rams-text-muted, #64748b);"><a href="${c.website}" target="_blank" rel="noopener">${c.website}</a></div>` : ''}

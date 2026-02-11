@@ -36,6 +36,13 @@
                         {{ form_errors(form.company) }}
                     </div>
 
+                    <div class="rams-form__group rams-grid-span-2">
+                        {{ form_label(form.contact, 'rfq.fields.contact'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
+                        {{ form_widget(form.contact, {'attr': {'class': 'rams-form__select'}}) }}
+                        {{ form_errors(form.contact) }}
+                        <p class="rams-form__hint">{{ 'rfq.form.select_contact'|trans }}</p>
+                    </div>
+
                     <div class="rams-form__group">
                         {{ form_label(form.rfqNumber, 'rfq.fields.rfq_number'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                         {{ form_widget(form.rfqNumber, {'attr': {'class': 'rams-form__input rams-font-mono'}}) }}

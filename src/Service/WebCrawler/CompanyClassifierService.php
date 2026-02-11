@@ -404,10 +404,223 @@ class CompanyClassifierService
             'governance', 'integrity', 'ombudsman', 'hotline',
             'grievance', 'transparency', 'sustainability', 'csr',
             'careers', 'recruitment', 'hiring', 'jobs',
-            'privacy', 'legal', 'cookie', 'disclaimer',
+            'privacy', 'legal', 'cookie', 'cookies', 'disclaimer',
             'newsroom', 'pressroom', 'mediaroom', 'press',
+
+            // ── EU-expansion: English common/function words (cookie banners, nav, marketing) ──
+            'by', 'as', 'at', 'to', 'in', 'on', 'or', 'if', 'so', 'up', 'do',
+            'an', 'be', 'am', 'is', 'no', 'go', 'he',
+            'we', 'our', 'this', 'the', 'that', 'these', 'those', 'your', 'their',
+            'its', 'his', 'her', 'my', 'any', 'all', 'some', 'each', 'every',
+            'use', 'using', 'used', 'manage', 'accept', 'reject', 'select',
+            'adjust', 'consent', 'notice', 'result', 'experience', 'more',
+            'only', 'also', 'not', 'out', 'off', 'about', 'here', 'there',
+            'how', 'what', 'which', 'where', 'when', 'who', 'why',
+            'can', 'may', 'will', 'shall', 'would', 'could', 'should',
+            'are', 'were', 'was', 'been', 'being', 'have', 'has', 'had',
+            'does', 'did', 'doing', 'done', 'make', 'made', 'take', 'taken',
+            'read', 'set', 'get', 'got', 'let', 'put', 'keep', 'kept',
+            'connect', 'click', 'view', 'show', 'hide', 'open', 'close',
+            'find', 'search', 'browse', 'visit', 'learn', 'know', 'see',
+            'personal', 'essential', 'necessary', 'functional', 'optional',
+            'third', 'certain', 'respective', 'external', 'preferred',
+            'competitive', 'supplier', 'explanations', 'regarding',
+            'corporate', 'headquarters', 'registration', 'portal',
+            'deal', 'flight', 'remote', 'maintenance', 'design', 'quality',
+            'project', 'planning', 'scope', 'years', 'form', 'name',
+            'infrastructure', 'secured', 'leadership', 'ownership',
+            'inquiries', 'matters', 'data', 'protection', 'settings',
+            'policy', 'policies', 'website', 'sites', 'online',
+            'parties', 'performance', 'based', 'information', 'display',
+            'enable', 'improve', 'process', 'processing', 'store',
+            'stored', 'custom', 'customized', 'benutzerdefinierten',
+
+            // ── German common words (articles, prepositions, verbs, nouns — all capitalized in German) ──
+            'die', 'der', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einer', 'einem', 'einen',
+            'wir', 'sie', 'ich', 'ihr', 'uns', 'ihm', 'ihn', 'mir', 'mich',
+            'und', 'oder', 'aber', 'auch', 'nur', 'wie', 'mit', 'für', 'von',
+            'zur', 'zum', 'bei', 'über', 'auf', 'aus', 'bis', 'nach', 'vor',
+            'durch', 'ohne', 'unter', 'zwischen', 'gegen', 'seit', 'während',
+            'ist', 'sind', 'hat', 'haben', 'wird', 'werden', 'kann', 'können',
+            'muss', 'müssen', 'soll', 'sollen', 'darf', 'dürfen', 'mag', 'mögen',
+            'diese', 'dieser', 'dieses', 'jede', 'jeder', 'jedes', 'alle',
+            'nicht', 'kein', 'keine', 'keiner', 'noch', 'schon', 'sehr',
+            'hier', 'dort', 'dann', 'wenn', 'weil', 'dass', 'damit',
+            'seine', 'seiner', 'seinen', 'ihren', 'ihrem', 'ihrer',
+            'unsere', 'unserer', 'unseren', 'unserem', 'unserer',
+            'rechte', 'recht', 'setzen', 'verwenden', 'verwendet',
+            'akzeptieren', 'essentielle', 'bestimmte', 'bitte',
+            'aktivieren', 'anzeigen', 'informationen', 'individuelle',
+            'datenschutzeinstellungen', 'datenschutz',
+            'geschäftsleitung', 'führungsteam', 'geschäftsführer',
+            'kontakt', 'technologien', 'webseite', 'erfolgen',
+            'verbieten', 'bereits', 'gesetzte', 'speichern',
+            'einwilligung', 'einstellungen', 'auswählen',
+            'ausblenden', 'ähnliche',
+
+            // ── French common words ──
+            'le', 'la', 'les', 'un', 'une', 'des', 'du', 'au', 'aux',
+            'nous', 'vous', 'ils', 'elles', 'lui', 'leur', 'leurs',
+            'ce', 'cet', 'cette', 'ces', 'mon', 'ton', 'son', 'nos', 'vos',
+            'et', 'ou', 'mais', 'donc', 'car', 'ni', 'puis',
+            'de', 'en', 'par', 'pour', 'sur', 'sous', 'avec', 'sans', 'dans',
+            'est', 'sont', 'ont', 'être', 'avoir', 'fait', 'faire',
+            'pas', 'plus', 'très', 'bien', 'tout', 'tous', 'toute', 'toutes',
+            'qui', 'que', 'quoi', 'dont', 'où',
+            'accepter', 'gérer', 'mes', 'consentement',
+            'politique', 'confidentialité', 'données', 'personnelles',
+            'utilisons', 'telles',
+
+            // ── Dutch common words ──
+            'het', 'een', 'zij', 'wij', 'hun', 'haar', 'zijn',
+            'niet', 'ook', 'nog', 'wel', 'dan', 'als', 'maar',
+            'met', 'voor', 'van', 'naar', 'uit', 'door', 'bij',
+            'deze', 'dit', 'dat', 'die',
+            'worden', 'kunnen', 'moeten', 'willen', 'zullen',
+
+            // ── Polish common words ──
+            'nie', 'tak', 'jest', 'aby', 'lub', 'czy', 'jak',
+            'oraz', 'bez', 'przy', 'nad', 'pod', 'przed',
+            'nasza', 'nasz', 'nasze', 'które', 'który', 'która',
+            'pliki', 'plik', 'ciasteczka', 'strona', 'witryna',
+            'zgoda', 'polityka', 'prywatności', 'dane', 'osobowe',
+            'wszystkie', 'tylko', 'niezbędne', 'ustawienia',
+
+            // ── Italian common words ──
+            'il', 'lo', 'gli', 'una', 'uno', 'dei', 'del', 'della', 'delle', 'dello',
+            'nel', 'nella', 'nei', 'negli', 'nelle', 'sul', 'sulla', 'sui',
+            'noi', 'voi', 'loro', 'suo', 'sua', 'suoi', 'sue', 'nostro', 'nostra',
+            'che', 'chi', 'cosa', 'come', 'dove', 'quando', 'perché',
+            'con', 'tra', 'fra', 'senza', 'verso', 'dopo', 'prima',
+            'sono', 'siamo', 'hanno', 'essere', 'avere',
+            'non', 'più', 'molto', 'anche', 'così', 'già', 'ancora',
+            'questo', 'questa', 'questi', 'queste', 'quello', 'quella',
+            'utilizziamo', 'accetta', 'accettare', 'rifiuta', 'gestisci',
+            'informativa', 'consenso', 'preferenze',
+
+            // ── Spanish common words ──
+            'el', 'los', 'las', 'unos', 'unas',
+            'del', 'al',
+            'nosotros', 'vosotros', 'ellos', 'ellas', 'usted', 'ustedes',
+            'su', 'sus', 'nuestro', 'nuestra', 'nuestros', 'nuestras',
+            'qué', 'quién', 'cómo', 'dónde', 'cuándo', 'por',
+            'con', 'sin', 'sobre', 'entre', 'hasta', 'desde', 'hacia',
+            'somos', 'tenemos', 'pueden', 'puede',
+            'no', 'más', 'muy', 'también', 'ya', 'aún', 'todavía',
+            'este', 'esta', 'estos', 'estas', 'ese', 'esa', 'aquel', 'aquella',
+            'aceptar', 'rechazar', 'gestionar', 'configurar',
+            'privacidad', 'aviso',
+
+            // ── Portuguese common words ──
+            'os', 'as', 'um', 'uma', 'uns', 'umas',
+            'do', 'da', 'dos', 'das', 'no', 'na', 'nos', 'nas', 'ao', 'aos',
+            'nós', 'eles', 'elas', 'você', 'vocês',
+            'seu', 'sua', 'seus', 'suas', 'nosso', 'nossa',
+            'como', 'onde', 'porque',
+            'com', 'sem', 'sobre', 'entre', 'até', 'desde', 'para',
+            'são', 'tem', 'têm', 'pode', 'podem',
+            'não', 'mais', 'muito', 'também', 'ainda',
+            'este', 'esta', 'estes', 'estas', 'esse', 'essa',
+            'aceitar', 'rejeitar', 'gerir',
+
+            // ── Swedish common words ──
+            'och', 'att', 'det', 'som', 'med', 'till', 'från',
+            'har', 'kan', 'ska', 'var', 'vår', 'våra', 'era',
+            'inte', 'eller', 'när', 'här', 'där', 'sedan',
+            'denna', 'detta', 'dessa', 'vilka', 'vilken', 'vilket',
+            'acceptera', 'avvisa', 'hantera', 'inställningar',
+            'webbplats', 'kakor', 'sekretess', 'integritet',
+
+            // ── Danish common words ──
+            'og', 'er', 'til', 'med', 'fra', 'har', 'kan',
+            'skal', 'vil', 'var', 'vor', 'vores',
+            'ikke', 'eller', 'når', 'hvor', 'hvad', 'hvem',
+            'denne', 'dette', 'disse',
+            'acceptér', 'afvis', 'indstillinger', 'samtykke',
+
+            // ── Finnish common words ──
+            'ja', 'on', 'ei', 'se', 'tämä', 'nämä',
+            'tai', 'mutta', 'kun', 'jos', 'niin',
+            'ovat', 'oli', 'olla', 'voida',
+            'meidän', 'teidän', 'heidän',
+            'hyväksy', 'hyväksyä', 'hylkää', 'asetukset',
+            'evästeet', 'eväste', 'tietosuoja', 'yksityisyys',
+
+            // ── Norwegian common words ──
+            'og', 'er', 'til', 'med', 'fra', 'har', 'kan',
+            'skal', 'vil', 'var', 'vår', 'våre',
+            'ikke', 'eller', 'når', 'hvor', 'hva', 'hvem',
+            'denne', 'dette', 'disse',
+            'godta', 'avvis', 'innstillinger', 'samtykke',
+            'informasjonskapsler', 'personvern',
+
+            // ── Czech common words ──
+            'jsou', 'jsme', 'není', 'mají', 'může', 'musí',
+            'tento', 'tato', 'toto', 'tyto', 'naše', 'vaše', 'jejich',
+            'nebo', 'ale', 'když', 'kde', 'jak', 'kdo', 'co',
+            'přijmout', 'odmítnout', 'nastavení', 'souhlas',
+            'soubory', 'ochrana', 'osobních', 'údajů',
+
+            // ── Romanian common words ──
+            'sunt', 'este', 'avem', 'poate', 'trebuie',
+            'acest', 'această', 'aceste', 'acești',
+            'sau', 'dar', 'când', 'unde', 'cum', 'cine',
+            'nostru', 'noastră', 'lor',
+            'acceptă', 'refuză', 'setări', 'consimțământ',
+            'cookie-uri', 'confidențialitate',
+
+            // ── Hungarian common words ──
+            'egy', 'nem', 'igen', 'van', 'volt', 'lesz',
+            'vagy', 'mint', 'már', 'még', 'itt',
+            'ezt', 'azt', 'ezek', 'azok',
+            'elfogad', 'elutasít', 'beállítások', 'hozzájárulás',
+            'sütik', 'adatvédelem',
+
+            // ── Country / geography names parsed as person names ──
+            'united', 'kingdom', 'states', 'america', 'africa', 'kong',
+            'puerto', 'rico', 'south', 'north', 'east', 'west',
+            'france', 'germany', 'poland', 'netherlands', 'holland',
+            'england', 'scotland', 'ireland', 'wales',
+            'italy', 'spain', 'portugal', 'belgium', 'austria',
+            'sweden', 'denmark', 'finland', 'norway', 'switzerland',
+            'czech', 'romania', 'hungary', 'croatia', 'slovenia',
+            'europe', 'european', 'worldwide', 'global',
+            'elastic', 'metal', 'moduloo',
+
+            // ── Business / generic nouns that get parsed as names ──
+            'industry', 'industries', 'collaborations', 'collaboration',
+            'innovation', 'innovations', 'initiative', 'initiatives',
+            'integration', 'implementation', 'development', 'developments',
+            'management', 'communications', 'communication',
+            'organization', 'association', 'application', 'applications',
+            'environment', 'performance', 'efficiency', 'sustainability',
+            'solutions', 'products', 'overview', 'categories', 'practices',
+            'microsoft', 'google', 'facebook', 'linkedin', 'twitter',
+
+            // ── German nouns/words commonly Title-Cased (not names) ──
+            'rolle', 'weitere', 'andere', 'neuen', 'neuer', 'neue',
+            'impressum', 'unternehmen', 'standort', 'standorte',
+            'karriere', 'stellenangebote', 'produkte', 'leistungen',
+            'geschäftsführung', 'vorstand', 'aufsichtsrat',
         ];
         if (in_array($firstLower, $definitelyNotName) || in_array($lastLower, $definitelyNotName)) {
+            return false;
+        }
+
+        // ─── 4b. Reject if full name matches cookie/privacy/consent patterns ──
+        if (preg_match('/\b(cookie|cookies|datenschutz|gdpr|rgpd|eprivacy|consent|privacy|tracking|analytics)\b/i', $fullLower)) {
+            return false;
+        }
+        // Reject "X As Vice/President/..." — "as" leaking into parsed names
+        if (preg_match('/\bas\s+(vice|president|director|manager|ceo|cto|cfo)/i', $fullLower)) {
+            return false;
+        }
+        // Reject names ending with trailing preposition ("Bacher as", "Reipert as", "Schmidt als")
+        if (preg_match('/\s+(as|als|von|und|oder|by|at|in|on|to|for)$/i', $fullLower)) {
+            return false;
+        }
+        // Reject "XWord And YWord" — conjunction gluing two non-name words
+        if (preg_match('/\b(and|und|et|of|von|du|des)\b/i', $fullLower)) {
             return false;
         }
 
@@ -416,26 +629,40 @@ class CompanyClassifierService
             return false;
         }
 
-        // ─── 6. Reject if either part is all uppercase and > 3 chars ──
-        //    (acronyms like "ORBIS" or "INVENTECHS" = company, not person)
+        // ─── 6. Normalize ALL-CAPS names to Title Case before checking ──
+        //    Arabic/French names often arrive in ALL-CAPS from LinkedIn.
+        //    "ISMAILI ALAOUI" → "Ismaili Alaoui" (valid person name)
+        //    Only reject if AFTER normalization the name re-matches company suffixes.
         if (strlen($firstName) > 3 && $firstName === strtoupper($firstName)) {
-            return false;
+            $firstName = mb_convert_case($firstName, MB_CASE_TITLE, 'UTF-8');
+            $firstLower = strtolower($firstName);
         }
         if (strlen($lastName) > 3 && $lastName === strtoupper($lastName)) {
-            return false;
+            $lastName = mb_convert_case($lastName, MB_CASE_TITLE, 'UTF-8');
+            $lastLower = strtolower($lastName);
+        }
+        // Re-check company suffixes after normalization
+        $allWords = preg_split('/[\s,]+/', strtolower(trim($firstName . ' ' . $lastName)));
+        foreach ($companySuffixes as $suffix) {
+            foreach ($allWords as $word) {
+                if ($word === $suffix) {
+                    return false;
+                }
+            }
         }
 
         // ─── 7. Reject if name looks like it has too many words ──
         //    Real person name: "John Smith", "Mohammed Al-Rashid"
         //    Fake: "Pacific Power Source Corporation"
+        $full = trim($firstName . ' ' . $lastName);
         $totalWords = str_word_count($full);
         if ($totalWords > 5) {
             return false;
         }
 
-        // ─── 8. Reject if first or last name is too long (>20 chars) ──
-        //    Likely a phrase or company name fragment
-        if (strlen($firstName) > 20 || strlen($lastName) > 20) {
+        // ─── 8. Reject if first or last name is too long ──
+        //    Allow up to 30 chars for multi-part names ("Ezzahra Ismaili Alaoui")
+        if (strlen($firstName) > 25 || strlen($lastName) > 30) {
             return false;
         }
 

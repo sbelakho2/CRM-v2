@@ -6,10 +6,13 @@ use App\Entity\Company;
 use App\Entity\Contact;
 use App\Entity\EmailCampaign;
 use App\Entity\EmailUnsubscribe;
+use App\Entity\OutboundMessage;
 use App\Repository\EmailUnsubscribeRepository;
 use App\Service\EmailCampaignService;
 use App\Service\EmailSchedulerService;
+use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -25,6 +28,38 @@ class EmailSchedulerServiceTest extends TestCase
             $messageBus ?? $this->createMock(MessageBusInterface::class),
             $campaignService ?? $this->createMock(EmailCampaignService::class)
         );
+    }
+
+    /**
+     * Create a mock EntityManager that handles both getRepository(EmailUnsubscribe::class)
+     * and createQueryBuilder() for the OutboundMessage cross-module cadence check.
+     */
+    private function createEntityManagerWithCadence(
+        ?EmailUnsubscribeRepository $unsubRepo = null,
+        int $outboundCount = 0
+    ): EntityManagerInterface {
+        $query = $this->createMock(AbstractQuery::class);
+        $query->method('getSingleScalarResult')->willReturn($outboundCount);
+
+        $qb = $this->createMock(QueryBuilder::class);
+        $qb->method('select')->willReturnSelf();
+        $qb->method('from')->willReturnSelf();
+        $qb->method('where')->willReturnSelf();
+        $qb->method('andWhere')->willReturnSelf();
+        $qb->method('setParameter')->willReturnSelf();
+        $qb->method('getQuery')->willReturn($query);
+
+        $em = $this->createMock(EntityManagerInterface::class);
+
+        if ($unsubRepo) {
+            $em->method('getRepository')
+                ->with(EmailUnsubscribe::class)
+                ->willReturn($unsubRepo);
+        }
+
+        $em->method('createQueryBuilder')->willReturn($qb);
+
+        return $em;
     }
 
     public function testScheduleCampaignSetsScheduledAt(): void
@@ -86,10 +121,7 @@ class EmailSchedulerServiceTest extends TestCase
         $unsubRepo = $this->createMock(EmailUnsubscribeRepository::class);
         $unsubRepo->method('findOneBy')->willReturn(null);
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getRepository')
-            ->with(EmailUnsubscribe::class)
-            ->willReturn($unsubRepo);
+        $em = $this->createEntityManagerWithCadence($unsubRepo, 0);
 
         $campaignService = $this->createMock(EmailCampaignService::class);
         $campaignService->expects($this->exactly(2))->method('sendToContact');
@@ -126,10 +158,7 @@ class EmailSchedulerServiceTest extends TestCase
         $unsubRepo = $this->createMock(EmailUnsubscribeRepository::class);
         $unsubRepo->method('findOneBy')->willReturn(null);
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getRepository')
-            ->with(EmailUnsubscribe::class)
-            ->willReturn($unsubRepo);
+        $em = $this->createEntityManagerWithCadence($unsubRepo, 0);
 
         $campaignService = $this->createMock(EmailCampaignService::class);
         $campaignService->expects($this->once())->method('sendToContact');
@@ -174,10 +203,7 @@ class EmailSchedulerServiceTest extends TestCase
             return null;
         });
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getRepository')
-            ->with(EmailUnsubscribe::class)
-            ->willReturn($unsubRepo);
+        $em = $this->createEntityManagerWithCadence($unsubRepo, 0);
 
         $campaignService = $this->createMock(EmailCampaignService::class);
         $campaignService->expects($this->once())->method('sendToContact');

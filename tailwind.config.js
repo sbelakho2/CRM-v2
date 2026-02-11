@@ -12,7 +12,7 @@ module.exports = {
           module: '#E6E6E6',
           panel: '#D9D9D9',
           line: '#CCCCCC',
-          muted: '#999999',
+          muted: '#6F6F6F',
           orange: '#FFBE00',
           green: '#2D8C3C',
           red: '#D62D2D',

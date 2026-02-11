@@ -15,7 +15,7 @@
                     <tr>
                         <td style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
                             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.02em;">{{ 'emails.quote_notification.subject'|trans }}</h1>
-                            <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ 'app.company'|trans }}</p>
+                            <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ issuer.name|default('app.company'|trans) }}</p>
                         </td>
                     </tr>
 
@@ -112,8 +112,8 @@
                             
                             <p style="margin: 25px 0 0; color: #1a1a1a; font-size: 15px; line-height: 1.6;">
                                 {{ 'emails.common.best_regards'|trans }},<br>
-                                <strong>{{ 'app.company'|trans }}</strong><br>
-                                <span style="color: #4a4a4a; font-size: 13px;">{{ 'emails.quote_notification.tagline'|trans }}</span>
+                                <strong>{{ issuer.name|default('app.company'|trans) }}</strong><br>
+                                <span style="color: #4a4a4a; font-size: 13px;">{{ issuer.location|default('emails.quote_notification.tagline'|trans) }}</span>
                             </p>
                         </td>
                     </tr>
@@ -122,12 +122,12 @@
                     <tr>
                         <td style="padding: 30px 40px; background-color: #1a1a1a; border-top: 4px solid #FFBE00;">
                             <p style="margin: 0 0 10px; color: #ffffff; font-size: 14px; text-align: center; font-weight: 600;">
-                                {{ 'app.company'|trans }}
+                                {{ issuer.name|default('app.company'|trans) }}
                             </p>
-                            <p style="margin: 0 0 15px; color: #888888; font-size: 12px; text-align: center; line-height: 1.6;">
-                                {{ 'emails.quote_notification.footer_location'|trans }}<br>
-                                {{ 'common.email'|trans }}: <a href="mailto:{{ 'emails.quote_notification.footer_email_address'|trans }}" style="color: #FFBE00; text-decoration: none;">{{ 'emails.quote_notification.footer_email_label'|trans }}</a><br>
-                                {{ 'company.website'|trans }}: <a href="{{ 'emails.quote_notification.footer_site_url'|trans }}" style="color: #FFBE00; text-decoration: none;">{{ 'emails.quote_notification.footer_site_label'|trans }}</a>
+                            <p style="margin: 0 0 15px; color: #666666; font-size: 12px; text-align: center; line-height: 1.6;">
+                                {{ issuer.location|default('emails.quote_notification.footer_location'|trans) }}<br>
+                                {{ 'common.email'|trans }}: <a href="mailto:{{ issuer.email|default('emails.quote_notification.footer_email_address'|trans) }}" style="color: #FFBE00; text-decoration: none;">{{ issuer.email|default('emails.quote_notification.footer_email_label'|trans) }}</a><br>
+                                {{ 'company.website'|trans }}: <a href="https://{{ issuer.website|default('starzelectronics.site') }}" style="color: #FFBE00; text-decoration: none;">{{ issuer.website|default('emails.quote_notification.footer_site_label'|trans) }}</a>
                             </p>
                             <p style="margin: 0; color: #5a5a5a; font-size: 11px; text-align: center;">
                                 {{ 'emails.quote_notification.email_sent_for'|trans({'%quote%': quote.quoteNumber ?? ('Q-' ~ quote.id)}) }}

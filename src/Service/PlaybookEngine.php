@@ -658,7 +658,7 @@ class PlaybookEngine
     </ul>
     <p>Please review and take appropriate action.</p>
     <hr>
-    <p style="color: #666; font-size: 12px;">This is an automated message from your CRM system.</p>
+    <p style="color: #555; font-size: 12px;">This is an automated message from your CRM system.</p>
 </body>
 </html>
 HTML;

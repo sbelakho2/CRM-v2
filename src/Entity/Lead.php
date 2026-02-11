@@ -14,6 +14,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_leads_status', columns: ['review_status'])]
 #[ORM\Index(name: 'idx_leads_created', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_leads_scraped', columns: ['last_scraped_at'])]
+#[ORM\Index(name: 'idx_leads_nurturing', columns: ['nurturing_stage'])]
 class Lead
 {
     #[ORM\Id]
@@ -128,7 +129,9 @@ class Lead
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $scrapingMethod = null; // 'static', 'panther', 'static_fallback'
 
-    
+    #[ORM\Column(length: 30, nullable: true)]
+    private ?string $nurturingStage = null; // new, contacted, engaged, qualified, opportunity, converted, dormant, lost
+
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $pagesScraped = null;
     
@@ -566,6 +569,19 @@ class Lead
     public function setScrapingMethod(?string $scrapingMethod): self
     {
         $this->scrapingMethod = $scrapingMethod;
+        return $this;
+    }
+    
+    // ==================== Nurturing Stage ====================
+    
+    public function getNurturingStage(): ?string
+    {
+        return $this->nurturingStage;
+    }
+    
+    public function setNurturingStage(?string $nurturingStage): self
+    {
+        $this->nurturingStage = $nurturingStage;
         return $this;
     }
     

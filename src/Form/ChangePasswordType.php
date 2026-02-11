@@ -21,7 +21,7 @@ class ChangePasswordType extends AbstractType
                 'mapped' => false,
                 'attr' => [
                     'autocomplete' => 'current-password',
-                    'class' => 'w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                    'class' => 'rams-form__input'
                 ],
                 'constraints' => [
                     new NotBlank([
@@ -36,7 +36,7 @@ class ChangePasswordType extends AbstractType
                     'label' => 'auth.new_password',
                     'attr' => [
                         'autocomplete' => 'new-password',
-                        'class' => 'w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                        'class' => 'rams-form__input'
                     ],
                     'constraints' => [
                         new NotBlank([
@@ -53,7 +53,7 @@ class ChangePasswordType extends AbstractType
                     'label' => 'auth.confirm_password',
                     'attr' => [
                         'autocomplete' => 'new-password',
-                        'class' => 'w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                        'class' => 'rams-form__input'
                     ],
                 ],
                 'invalid_message' => 'validation.password_mismatch',

@@ -88,8 +88,8 @@ class EmailComplianceService
         $unsubscribeLink = $this->consentService->generateUnsubscribeLink($contact, $campaign->getId());
         
         $footer = sprintf('
-            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; font-family: Arial, sans-serif;">
-                <table width="100%%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: #666;">
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #555; font-family: Arial, sans-serif;">
+                <table width="100%%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: #555;">
                     <tr>
                         <td style="padding: 10px 0;">
                             <strong>%s</strong><br>
@@ -109,7 +109,7 @@ class EmailComplianceService
                         </td>
                     </tr>
                     <tr>
-                        <td style="padding: 10px 0; font-size: 11px; color: #999;">
+                        <td style="padding: 10px 0; font-size: 11px; color: #666;">
                             This email was sent to %s. If you believe you received this email in error, please contact us.
                         </td>
                     </tr>

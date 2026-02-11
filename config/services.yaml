@@ -33,6 +33,10 @@ services:
       - { name: doctrine.event_listener, event: preRemove }
 
   # API Client Configuration
+  App\Service\Integration\AlibabaApiClient:
+    arguments:
+      $proxyRotation: '@App\Service\ProxyRotationService'
+
   App\Service\Integration\MouserApiClient:
     arguments:
       $apiKey: '%env(MOUSER_API_KEY)%'

@@ -4,6 +4,8 @@ namespace App\Controller;
 
 use App\Form\ChangePasswordType;
 use App\Form\CurrencyPreferenceType;
+use App\Form\ProfileAccountType;
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,7 +18,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 class ProfileController extends AbstractController
 {
     #[Route('', name: 'profile_index', methods: ['GET', 'POST'])]
-    public function index(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher, TranslatorInterface $translator): Response
+    public function index(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher, TranslatorInterface $translator, UserRepository $userRepository): Response
     {
         $user = $this->getUser();
         
@@ -27,8 +29,23 @@ class ProfileController extends AbstractController
         $form = $this->createForm(ChangePasswordType::class);
         $form->handleRequest($request);
 
+        $accountForm = $this->createForm(ProfileAccountType::class, $user);
+        $accountForm->handleRequest($request);
+
         $preferenceForm = $this->createForm(CurrencyPreferenceType::class, $user);
         $preferenceForm->handleRequest($request);
+
+        if ($accountForm->isSubmitted() && $accountForm->isValid()) {
+            $existing = $userRepository->findOneBy(['email' => $user->getEmail()]);
+            if ($existing && $existing->getId() !== $user->getId()) {
+                $this->addFlash('error', 'user.flash.email_taken');
+                return $this->redirectToRoute('profile_index');
+            }
+
+            $em->flush();
+            $this->addFlash('success', 'user.flash.updated');
+            return $this->redirectToRoute('profile_index');
+        }
 
         if ($preferenceForm->isSubmitted() && $preferenceForm->isValid()) {
             $em->flush();
@@ -66,6 +83,7 @@ class ProfileController extends AbstractController
         return $this->render('profile/index.html.twig', [
             'user' => $user,
             'form' => $form->createView(),
+            'accountForm' => $accountForm->createView(),
             'preferenceForm' => $preferenceForm->createView(),
         ]);
     }

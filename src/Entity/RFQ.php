@@ -46,6 +46,14 @@ class RFQ
     #[ORM\JoinColumn(nullable: false)]
     private ?Company $company = null;
 
+    #[ORM\ManyToOne(targetEntity: Contact::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Contact $contact = null;
+
+    #[ORM\ManyToOne(targetEntity: Lead::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Lead $lead = null;
+
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $rfqNumber = null;
 
@@ -145,6 +153,28 @@ class RFQ
     public function setCompany(?Company $company): self
     {
         $this->company = $company;
+        return $this;
+    }
+
+    public function getContact(): ?Contact
+    {
+        return $this->contact;
+    }
+
+    public function setContact(?Contact $contact): self
+    {
+        $this->contact = $contact;
+        return $this;
+    }
+
+    public function getLead(): ?Lead
+    {
+        return $this->lead;
+    }
+
+    public function setLead(?Lead $lead): self
+    {
+        $this->lead = $lead;
         return $this;
     }
 

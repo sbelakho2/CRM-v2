@@ -466,6 +466,10 @@ class EmailWebhookController extends AbstractController
      * 
      * This endpoint allows existing email campaign tracking to also feed the ML system.
      * Call this endpoint when you want traditional campaign tracking PLUS autonomous learning.
+     *
+     * Matching strategy: Find the most recent OutboundMessage sent to the same
+     * email address within a 30-day window. This avoids matching stale messages
+     * while still bridging events for contacts that exist in both modules.
      */
     #[Route('/campaign-bridge/{sendId}', name: 'webhook_campaign_bridge', methods: ['POST'])]
     public function campaignBridge(Request $request, int $sendId): Response
@@ -509,16 +513,31 @@ class EmailWebhookController extends AbstractController
             }
         }
         
-        // Then, if this email send has an associated OutboundMessage, update autonomous sales
-        if ($this->orchestrator) {
-            // Try to find OutboundMessage linked to this send's contact and campaign
+        // Then, bridge to autonomous sales if there's a matching OutboundMessage.
+        // Match by email address + 30-day window for precision.
+        if ($this->orchestrator && $send && $send->getContact()) {
+            $contact = $send->getContact();
+            $contactEmail = $contact->getEmail();
+
             $outboundMessage = null;
-            if ($send && $send->getContact()) {
-                $outboundMessage = $this->entityManager->getRepository(OutboundMessage::class)
-                    ->findOneBy([
-                        'contact' => $send->getContact(),
-                        'status' => 'sent',
-                    ], ['sentAt' => 'DESC']);
+            if ($contactEmail) {
+                // Find the most recent OutboundMessage sent to the same email
+                // address within the last 30 days
+                $cutoff = (new \DateTime())->modify('-30 days');
+                $outboundMessage = $this->entityManager->createQueryBuilder()
+                    ->select('om')
+                    ->from(OutboundMessage::class, 'om')
+                    ->join('om.contact', 'c')
+                    ->where('c.email = :email')
+                    ->andWhere('om.status IN (:statuses)')
+                    ->andWhere('om.sentAt > :cutoff')
+                    ->setParameter('email', $contactEmail)
+                    ->setParameter('statuses', ['sent', 'delivered', 'opened', 'clicked'])
+                    ->setParameter('cutoff', $cutoff)
+                    ->orderBy('om.sentAt', 'DESC')
+                    ->setMaxResults(1)
+                    ->getQuery()
+                    ->getOneOrNullResult();
             }
             
             if ($outboundMessage) {
@@ -528,6 +547,7 @@ class EmailWebhookController extends AbstractController
                 $this->logger->info('Campaign event bridged to autonomous sales', [
                     'send_id' => $sendId,
                     'outbound_message_id' => $outboundMessage->getId(),
+                    'matched_by' => 'email + 30d window',
                     'event' => $event,
                 ]);
             }
