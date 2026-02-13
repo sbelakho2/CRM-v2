@@ -4,11 +4,14 @@ namespace App\Controller;
 
 use App\Entity\Company;
 use App\Form\CompanyType;
+use App\Repository\ComplianceDocumentRepository;
 use App\Repository\CompanyRepository;
 use App\Service\ExportService;
 use App\Service\GuidanceNotificationService;
 use App\Service\CountryService;
+use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,8 +23,17 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/companies')]
 class CompanyController extends AbstractController
 {
+    private const EU_COUNTRY_CODES = [
+        'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE',
+        'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT',
+        'RO', 'SK', 'SI', 'ES', 'SE',
+    ];
+
+    private const GCC_COUNTRY_CODES = ['AE', 'SA', 'QA', 'KW', 'OM', 'BH'];
+
     public function __construct(
         private CompanyRepository $companyRepository,
+        private ComplianceDocumentRepository $complianceDocumentRepository,
         private EntityManagerInterface $entityManager,
         private ExportService $exportService,
         private GuidanceNotificationService $guidanceService,
@@ -60,8 +72,7 @@ class CompanyController extends AbstractController
         }
 
         if ($region) {
-            $qb->andWhere('c.region = :region')
-               ->setParameter('region', $region);
+            $this->applyRegionFilter($qb, $region);
         }
 
         if ($search) {
@@ -74,40 +85,15 @@ class CompanyController extends AbstractController
         $companies = $qb->getQuery()->getResult();
 
         // Get filter options
-        $sectors = [
-            'Automotive',
-            'Aerospace',
-            'Industrial',
-            'Rail',
-            'Renewables',
-            'Medical',
-            'Defense',
-            'Telecom',
-            'HVAC',
-            'Marine',
-            'Power Electronics',
-            'Consumer Electronics',
-            'Data Center',
-            'Energy Storage',
-            'Other',
-        ];
+        [$sectors, $sectorLabels] = $this->buildSectorOptions();
         $tiers = ['A', 'B', 'C'];
         $stages = ['Prospect', 'MQL', 'SQL', 'SQO', 'Proposal', 'Award'];
-        $regions = $this->countryService->getRegionOptions([
-            'Morocco - TAC' => 'Morocco - TAC',
-            'Morocco - TFZ' => 'Morocco - TFZ',
-            'Morocco - AFZ Kenitra' => 'Morocco - AFZ Kenitra',
-            'Morocco - Casablanca' => 'Morocco - Casablanca',
-            'Morocco - Bouskoura' => 'Morocco - Bouskoura',
-            'EU - Germany' => 'EU - Germany',
-            'EU - France' => 'EU - France',
-            'EU - Spain' => 'EU - Spain',
-            'EU - Italy' => 'EU - Italy',
-        ]);
+        $regions = $this->buildCompanyRegionOptions();
 
         return $this->render('company/index.html.twig', [
             'companies' => $companies,
             'sectors' => $sectors,
+            'sector_labels' => $sectorLabels,
             'tiers' => $tiers,
             'stages' => $stages,
             'regions' => $regions,
@@ -150,9 +136,11 @@ class CompanyController extends AbstractController
     {
         // Check for incomplete profile and provide guidance
         $this->guidanceService->checkIncompleteCompanyProfile($company);
+        [, $sectorLabels] = $this->buildSectorOptions();
 
         return $this->render('company/show.html.twig', [
             'company' => $company,
+            'sector_labels' => $sectorLabels,
         ]);
     }
 
@@ -180,10 +168,19 @@ class CompanyController extends AbstractController
     public function delete(Request $request, Company $company): Response
     {
         if ($this->isCsrfTokenValid('delete' . $company->getId(), $request->request->get('_token'))) {
-            $this->entityManager->remove($company);
-            $this->entityManager->flush();
+            try {
+                // Explicitly remove compliance documents first to satisfy DB-level FK constraints.
+                foreach ($this->complianceDocumentRepository->findBy(['company' => $company]) as $document) {
+                    $this->entityManager->remove($document);
+                }
 
-            $this->addFlash('success', $this->translator->trans('company.flash.deleted'));
+                $this->entityManager->remove($company);
+                $this->entityManager->flush();
+
+                $this->addFlash('success', $this->translator->trans('company.flash.deleted'));
+            } catch (ForeignKeyConstraintViolationException) {
+                $this->addFlash('error', 'Unable to delete this company because related records still exist. Please remove linked data first.');
+            }
         }
 
         // If it was a discovered company, go back to discovered list
@@ -214,8 +211,7 @@ class CompanyController extends AbstractController
         }
 
         if ($region) {
-            $qb->andWhere('c.region = :region')
-               ->setParameter('region', $region);
+            $this->applyRegionFilter($qb, $region);
         }
 
         if ($search) {
@@ -227,31 +223,52 @@ class CompanyController extends AbstractController
 
         $companies = $qb->getQuery()->getResult();
 
-        $sectors = Company::VALID_SECTORS;
-        $regions = \App\Service\WebCrawler\CompanyDiscoveryService::getTargetRegionLabels();
-        $regionCodes = $this->companyRepository->createQueryBuilder('rc')
-            ->select('DISTINCT rc.region')
-            ->andWhere('rc.region IS NOT NULL')
-            ->andWhere('rc.region <> :empty')
-            ->setParameter('empty', '')
-            ->orderBy('rc.region', 'ASC')
-            ->getQuery()
-            ->getSingleColumnResult();
-
-        foreach ($regionCodes as $code) {
-            if (!isset($regions[$code])) {
-                $regions[$code] = strtoupper((string) $code);
-            }
-        }
+        [$sectors, $sectorLabels] = $this->buildSectorOptions();
+        $regions = $this->buildCompanyRegionOptions();
 
         return $this->render('company/discovered.html.twig', [
             'companies' => $companies,
             'sectors' => $sectors,
+            'sector_labels' => $sectorLabels,
             'regions' => $regions,
             'current_sector' => $sector,
             'current_region' => $region,
             'current_search' => $search,
         ]);
+    }
+
+    private function buildSectorOptions(): array
+    {
+        $sectorKeys = [
+            'Automotive' => 'company.sectors.automotive',
+            'Aerospace' => 'company.sectors.aerospace',
+            'Industrial' => 'company.sectors.industrial',
+            'Rail' => 'company.sectors.rail',
+            'Renewables' => 'company.sectors.renewables',
+            'Medical' => 'company.sectors.medical',
+            'Defense' => 'company.sectors.defense',
+            'Telecom' => 'company.sectors.telecom',
+            'HVAC' => 'company.sectors.hvac',
+            'Marine' => 'company.sectors.marine',
+            'Power Electronics' => 'company.sectors.power_electronics',
+            'Consumer Electronics' => 'company.sectors.consumer_electronics',
+            'Data Center' => 'company.sectors.data_center',
+            'Energy Storage' => 'company.sectors.energy_storage',
+            'Other' => 'company.sectors.other',
+        ];
+
+        $sectors = [];
+        $labels = [];
+        foreach ($sectorKeys as $value => $key) {
+            $label = $this->translator->trans($key);
+            $sectors[] = [
+                'value' => $value,
+                'label' => $label,
+            ];
+            $labels[$value] = $label;
+        }
+
+        return [$sectors, $labels];
     }
 
     /**
@@ -405,5 +422,148 @@ class CompanyController extends AbstractController
         $response->deleteFileAfterSend(true);
 
         return $response;
+    }
+
+    private function applyRegionFilter(QueryBuilder $qb, string $region): void
+    {
+        $selected = trim($region);
+        if ($selected === '') {
+            return;
+        }
+
+        $rawUpper = strtoupper($selected);
+        $normalized = $this->countryService->normalizeRegionCode($selected) ?? $rawUpper;
+        $normalizedUpper = strtoupper($normalized);
+
+        if ($normalizedUpper === 'EU_REGION' || $normalizedUpper === 'EU') {
+            $qb->andWhere('(
+                UPPER(c.region) = :eu
+                OR UPPER(c.region) = :euRegion
+                OR UPPER(c.region) IN (:euCodes)
+                OR UPPER(c.country) IN (:euCodes)
+                OR c.region LIKE :euLegacy
+                OR UPPER(c.region) = :euRaw
+                OR UPPER(c.country) = :euRaw
+            )')
+               ->setParameter('eu', 'EU')
+               ->setParameter('euRegion', 'EU_REGION')
+               ->setParameter('euCodes', self::EU_COUNTRY_CODES)
+               ->setParameter('euLegacy', 'EU - %')
+               ->setParameter('euRaw', $rawUpper);
+
+            return;
+        }
+
+        if ($normalizedUpper === 'GCC_REGION' || $normalizedUpper === 'GCC') {
+            $qb->andWhere('(
+                UPPER(c.region) = :gcc
+                OR UPPER(c.region) = :gccRegion
+                OR UPPER(c.region) IN (:gccCodes)
+                OR UPPER(c.country) IN (:gccCodes)
+                OR UPPER(c.region) = :gccRaw
+                OR UPPER(c.country) = :gccRaw
+            )')
+               ->setParameter('gcc', 'GCC')
+               ->setParameter('gccRegion', 'GCC_REGION')
+               ->setParameter('gccCodes', self::GCC_COUNTRY_CODES)
+               ->setParameter('gccRaw', $rawUpper);
+
+            return;
+        }
+
+        $qb->andWhere('(
+            UPPER(c.region) = :regionFilter
+            OR UPPER(c.country) = :regionFilter
+            OR UPPER(c.region) = :regionRaw
+            OR UPPER(c.country) = :regionRaw
+        )')
+           ->setParameter('regionFilter', $normalizedUpper)
+           ->setParameter('regionRaw', $rawUpper);
+    }
+
+    /**
+     * Build company page region options from actual stored data.
+     * Keeps legacy labels while also exposing normalized ISO/EU/GCC options.
+     *
+     * @return array<string, string>
+     */
+    private function buildCompanyRegionOptions(): array
+    {
+        // Start with all country + US subdivision options.
+        $options = $this->countryService->getRegionOptions([
+            'EU' => 'Europe',
+            'EU_REGION' => 'Europe',
+            'GCC' => 'GCC',
+            'GCC_REGION' => 'GCC',
+            // Common standardized region tags used elsewhere in the repo.
+            'eu_west' => 'Europe - West',
+            'eu_central' => 'Europe - Central',
+            'eu_south' => 'Europe - South',
+            'eu_north' => 'Europe - North',
+            'uk' => 'United Kingdom',
+            'us_east' => 'United States - East',
+            'us_west' => 'United States - West',
+            'us_central' => 'United States - Central',
+            'us_south' => 'United States - South',
+            'middle_east' => 'Middle East',
+            'africa_north' => 'Africa - North',
+            'africa_sub' => 'Africa - Sub-Saharan',
+            'southeast_asia' => 'Southeast Asia',
+            'australia_nz' => 'Australia & New Zealand',
+            'eastern_europe' => 'Eastern Europe',
+            'latam_other' => 'Latin America - Other',
+        ]);
+
+        $rows = $this->companyRepository->createQueryBuilder('cr')
+            ->select('DISTINCT cr.region AS region, cr.country AS country')
+            ->andWhere('(cr.region IS NOT NULL AND cr.region <> :empty) OR (cr.country IS NOT NULL AND cr.country <> :empty)')
+            ->setParameter('empty', '')
+            ->orderBy('cr.region', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        foreach ($rows as $row) {
+            $rawRegion = isset($row['region']) ? trim((string) $row['region']) : '';
+            $rawCountry = isset($row['country']) ? trim((string) $row['country']) : '';
+
+            foreach ([$rawRegion, $rawCountry] as $value) {
+                if ($value === '') {
+                    continue;
+                }
+
+                $normalized = $this->countryService->normalizeRegionCode($value);
+                if ($normalized === 'EU_REGION') {
+                    $normalized = 'EU';
+                } elseif ($normalized === 'GCC_REGION') {
+                    $normalized = 'GCC';
+                }
+
+                if ($normalized !== null) {
+                    $options[$normalized] = $this->getRegionLabel($normalized);
+                }
+
+                // Keep raw values too, so legacy/custom tags remain directly selectable.
+                $options[$value] = $value;
+            }
+        }
+
+        natcasesort($options);
+
+        return $options;
+    }
+
+    private function getRegionLabel(string $regionCode): string
+    {
+        $upper = strtoupper($regionCode);
+
+        if ($upper === 'EU') {
+            return 'Europe';
+        }
+
+        if ($upper === 'GCC') {
+            return 'GCC';
+        }
+
+        return $this->countryService->getRegionName($upper) ?? $regionCode;
     }
 }

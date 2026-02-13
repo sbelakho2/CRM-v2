@@ -31,6 +31,7 @@ class MouserApiClient
     public const LIFECYCLE_CRITICAL = ['obsolete', 'discontinued'];
     
     private float $lastRequestTime = 0;
+    private bool $apiKeyInvalid = false; // Fail-fast: stop trying after first invalid key error
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -58,6 +59,11 @@ class MouserApiClient
         ?string $description = null,
         bool $tryVariants = true
     ): ?array {
+        // Fail-fast: if we already know the API key is invalid, don't waste time
+        if ($this->apiKeyInvalid) {
+            return null;
+        }
+        
         $cacheKey = 'mouser_part_v2_' . md5($partNumber . ($manufacturer ?? ''));
         
         return $this->cache->get($cacheKey, function (ItemInterface $item) use ($partNumber, $manufacturer, $description, $tryVariants) {
@@ -163,6 +169,11 @@ class MouserApiClient
      */
     private function executePartSearchWithAlternatives(string $partNumber): ?array
     {
+        // Fail-fast: if API key is invalid, don't even try
+        if ($this->apiKeyInvalid) {
+            return null;
+        }
+        
         $this->respectRateLimit();
         
         try {
@@ -185,6 +196,17 @@ class MouserApiClient
             $data = $response->toArray();
             
             if (isset($data['Errors']) && !empty($data['Errors'])) {
+                // Detect invalid API key — fail-fast for all subsequent calls
+                foreach ($data['Errors'] as $err) {
+                    if (($err['PropertyName'] ?? '') === 'API Key' || str_contains($err['Message'] ?? '', 'Invalid')) {
+                        $this->apiKeyInvalid = true;
+                        $this->logger->error('Mouser API key is invalid — disabling all further Mouser requests', [
+                            'part_number' => $partNumber,
+                        ]);
+                        return null;
+                    }
+                }
+                
                 $this->logger->warning('Mouser API error', [
                     'part_number' => $partNumber,
                     'errors' => $data['Errors']

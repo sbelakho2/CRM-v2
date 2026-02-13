@@ -98,8 +98,8 @@ class WebScrapingRegionTest extends TestCase
             ['Casablanca, Morocco', 'MA'],
             ['New York, NY', 'US'],
             ['Houston, Texas', 'US'],
-            ['Munich, Germany', 'EU'],
-            ['Stockholm, Sweden', 'EU'],
+            ['Munich, Germany', 'DE'],
+            ['Stockholm, Sweden', 'SE'],
             ['London, UK', 'GB'],
             ['Edinburgh, Scotland', 'GB'],
             ['Cairo, Egypt', 'EG'],
@@ -145,10 +145,14 @@ class WebScrapingRegionTest extends TestCase
         $ref = new \ReflectionMethod($this->dorkService, 'detectRegionFromLocation');
         $ref->setAccessible(true);
 
+        // EU country codes that should be grouped under 'EU' region
+        $euCodes = ['DE', 'FR', 'SE', 'DK', 'FI', 'NO', 'NL', 'BE', 'AT', 'CH', 'IT', 'ES', 'PL', 'CZ', 'RO', 'HU', 'PT', 'IE', 'BG', 'HR', 'SK', 'SI', 'LT', 'LV', 'EE'];
         $regionHits = ['MA' => 0, 'US' => 0, 'EU' => 0, 'GB' => 0, 'EG' => 0, 'GCC' => 0];
         foreach ($locations as $code => $label) {
             $region = $ref->invoke($this->dorkService, $label);
-            if (isset($regionHits[$region])) {
+            if (in_array($region, $euCodes, true)) {
+                $regionHits['EU']++;
+            } elseif (isset($regionHits[$region])) {
                 $regionHits[$region]++;
             }
         }

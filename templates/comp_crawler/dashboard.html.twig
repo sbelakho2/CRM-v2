@@ -1,0 +1,246 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'competitor.dashboard.title'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-stack">
+    <div class="rams-page-header">
+        <h1 class="rams-page-title">🔍 {{ 'competitor.dashboard.title'|trans }}</h1>
+        <p class="rams-page-subtitle">{{ 'competitor.dashboard.subtitle'|trans }}</p>
+    </div>
+
+    {# ── Quick Stats ── #}
+    <div class="rams-grid rams-grid--4col rams-mb-6">
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'competitor.dashboard.stats.total'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.total | default(0) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'competitor.dashboard.stats.active'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.active | default(0) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'competitor.dashboard.stats.high_threat'|trans }}</span>
+                    <span class="rams-metric__value text-rams-error">{{ stats.high_threat | default(0) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'competitor.dashboard.stats.pending'|trans }}</span>
+                    <span class="rams-metric__value text-rams-warning">{{ stats.candidates | default(0) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Score Averages ── #}
+    <div class="rams-grid rams-grid--3col rams-mb-6">
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'competitor.dashboard.stats.avg_threat'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.avg_threat | default(0) | number_format(1) }}</span>
+                </div>
+                <div class="rams-progress-bar rams-mt-2">
+                    <div class="rams-progress-bar__fill bg-rams-error" style="width: {{ stats.avg_threat | default(0) }}%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'competitor.dashboard.stats.avg_overlap'|trans }}</span>
+                    <span class="rams-metric__value">{{ stats.avg_overlap | default(0) | number_format(1) }}</span>
+                </div>
+                <div class="rams-progress-bar rams-mt-2">
+                    <div class="rams-progress-bar__fill bg-rams-warning" style="width: {{ stats.avg_overlap | default(0) }}%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'competitor.dashboard.stats.rejected'|trans }}</span>
+                    <span class="rams-metric__value rams-text--muted">{{ stats.rejected | default(0) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Navigation Cards ── #}
+    <div class="rams-grid rams-grid--4col rams-mb-6">
+        <a href="{{ path('comp_crawler_list') }}" class="rams-module rams-module--hoverable rams-no-underline">
+            <div class="rams-module__content">
+                <h2 class="rams-module__title">📋 {{ 'competitor.dashboard.nav.full_list'|trans }}</h2>
+                <p class="rams-text--muted rams-text--xs">{{ 'competitor.dashboard.nav.full_list_desc'|trans }}</p>
+                <div class="rams-flex rams-justify-between rams-items-center rams-mt-4">
+                    <span class="rams-metric__value rams-text--lg">{{ stats.total | default(0) }}</span>
+                    <span class="rams-text--muted">→</span>
+                </div>
+            </div>
+        </a>
+        <a href="{{ path('comp_crawler_changes') }}" class="rams-module rams-module--hoverable rams-no-underline">
+            <div class="rams-module__content">
+                <h2 class="rams-module__title">📊 {{ 'competitor.dashboard.nav.change_feed'|trans }}</h2>
+                <p class="rams-text--muted rams-text--xs">{{ 'competitor.dashboard.nav.change_feed_desc'|trans }}</p>
+                <div class="rams-flex rams-justify-between rams-items-center rams-mt-4">
+                    <span class="rams-metric__value rams-text--lg">{{ recent_changes | length }}</span>
+                    <span class="rams-text--muted">→</span>
+                </div>
+            </div>
+        </a>
+        <a href="{{ path('comp_crawler_watchlists') }}" class="rams-module rams-module--hoverable rams-no-underline">
+            <div class="rams-module__content">
+                <h2 class="rams-module__title">👁️ {{ 'competitor.dashboard.nav.watchlists'|trans }}</h2>
+                <p class="rams-text--muted rams-text--xs">{{ 'competitor.dashboard.nav.watchlists_desc'|trans }}</p>
+                <div class="rams-flex rams-justify-between rams-items-center rams-mt-4">
+                    <span class="rams-text--sm rams-uppercase rams-font-mono">{{ 'competitor.dashboard.nav.manage'|trans }}</span>
+                    <span class="rams-text--muted">→</span>
+                </div>
+            </div>
+        </a>
+        <a href="{{ path('comp_crawler_list', {status: 'candidate'}) }}" class="rams-module rams-module--hoverable rams-no-underline">
+            <div class="rams-module__content">
+                <h2 class="rams-module__title">🔄 {{ 'competitor.dashboard.nav.pending_review'|trans }}</h2>
+                <p class="rams-text--muted rams-text--xs">{{ 'competitor.dashboard.nav.pending_review_desc'|trans }}</p>
+                <div class="rams-flex rams-justify-between rams-items-center rams-mt-4">
+                    <span class="rams-metric__value rams-text--lg text-rams-warning">{{ stats.candidates | default(0) }}</span>
+                    <span class="rams-text--muted">→</span>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    {# ── Top Threats ── #}
+    {% if top_threats | length > 0 %}
+    <div class="rams-module rams-mb-6">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">🔴 {{ 'competitor.dashboard.top_threats'|trans }}</h2>
+        </div>
+        <div class="rams-module__content">
+            <table class="rams-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'competitor.list.table.company'|trans }}</th>
+                        <th>{{ 'competitor.list.table.domain'|trans }}</th>
+                        <th>{{ 'competitor.list.table.types'|trans }}</th>
+                        <th>{{ 'competitor.list.table.threat'|trans }}</th>
+                        <th>{{ 'competitor.list.table.overlap'|trans }}</th>
+                        <th>{{ 'competitor.list.table.strategic'|trans }}</th>
+                        <th>{{ 'competitor.list.table.country'|trans }}</th>
+                        <th>{{ 'competitor.list.table.proof'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in top_threats %}
+                    <tr>
+                        <td>
+                            <a href="{{ path('comp_crawler_detail', {id: c.id}) }}" class="rams-link">
+                                {{ c.name }}
+                            </a>
+                        </td>
+                        <td class="rams-font-mono rams-text--xs">{{ c.canonicalDomain }}</td>
+                        <td>
+                            {% for t in c.competitorTypes | slice(0, 2) %}
+                                <span class="rams-badge rams-badge--info rams-text--xs">{{ t }}</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <span class="rams-badge {% if c.threatScore >= 70 %}rams-badge--danger{% elseif c.threatScore >= 40 %}rams-badge--warning{% else %}rams-badge--success{% endif %}">
+                                {{ c.threatScore }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="rams-badge {% if c.overlapScore >= 60 %}rams-badge--warning{% else %}rams-badge--info{% endif %}">
+                                {{ c.overlapScore }}
+                            </span>
+                        </td>
+                        <td>{{ c.strategicRelevanceScore }}</td>
+                        <td>{{ c.hqCountry | default('—') }}</td>
+                        <td>
+                            <span class="rams-badge rams-badge--{% if c.proofGrade == 'A' %}success{% elseif c.proofGrade == 'B' %}info{% elseif c.proofGrade == 'C' %}warning{% else %}muted{% endif %}">
+                                {{ c.proofGrade | default('—') }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Recent Changes ── #}
+    {% if recent_changes | length > 0 %}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">📊 {{ 'competitor.dashboard.recent_changes'|trans }}</h2>
+            <a href="{{ path('comp_crawler_changes') }}" class="rams-link rams-text--xs">{{ 'competitor.dashboard.view_all'|trans }} →</a>
+        </div>
+        <div class="rams-module__content">
+            <table class="rams-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Severity</th>
+                        <th>Competitor</th>
+                        <th>Change</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in recent_changes %}
+                    <tr>
+                        <td class="rams-text--xs rams-text--muted">{{ event.createdAt | date('M d, H:i') }}</td>
+                        <td>
+                            <span class="rams-badge rams-badge--{% if event.severity == 'high' %}danger{% elseif event.severity == 'medium' %}warning{% else %}info{% endif %}">
+                                {{ event.severity }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ path('comp_crawler_detail', {id: event.competitor.id}) }}" class="rams-link">
+                                {{ event.competitor.canonicalDomain }}
+                            </a>
+                        </td>
+                        <td class="rams-font-mono rams-text--xs">{{ event.changeType }}</td>
+                        <td class="rams-text--xs">{{ event.diffSummary | u.truncate(80) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Type Distribution ── #}
+    {% if stats.type_distribution is defined and stats.type_distribution | length > 0 %}
+    <div class="rams-module rams-mt-6">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">📈 {{ 'competitor.dashboard.type_distribution'|trans }}</h2>
+        </div>
+        <div class="rams-module__content">
+            <div class="rams-grid rams-grid--4col">
+                {% for type, count in stats.type_distribution %}
+                <div style="text-align: center; padding: 12px;">
+                    <div class="rams-metric__value">{{ count }}</div>
+                    <div class="rams-text--xs rams-text--muted" style="text-transform: capitalize;">{{ type | replace({'_': ' '}) }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

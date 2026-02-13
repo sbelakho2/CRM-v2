@@ -248,6 +248,15 @@ class CommandCenterService
         });
 
         $highValueQuotes = array_slice($highValueQuotes, 0, 5);
+
+        // Safe company name resolver — company row may have been deleted
+        $safeCompanyName = function (Quote $q): ?string {
+            try {
+                return $q->getCompany()?->getName();
+            } catch (\Doctrine\ORM\EntityNotFoundException) {
+                return null;
+            }
+        };
         
         return [
             'summary' => [
@@ -261,7 +270,7 @@ class CommandCenterService
             'pending_approval' => array_map(fn(Quote $q) => [
                 'id' => $q->getId(),
                 'quote_number' => $q->getQuoteNumber(),
-                'company' => $q->getCompany()?->getName(),
+                'company' => $safeCompanyName($q),
                 'total_cost' => $q->getTotalCost(),
                 'currency' => $q->getCurrency() ?: $displayCurrency,
                 'coverage' => $q->getCoveragePercent(),
@@ -271,7 +280,7 @@ class CommandCenterService
             'active_interactive' => array_map(fn(Quote $q) => [
                 'id' => $q->getId(),
                 'quote_number' => $q->getQuoteNumber(),
-                'company' => $q->getCompany()?->getName(),
+                'company' => $safeCompanyName($q),
                 'view_count' => $q->getViewCount(),
                 'last_viewed' => $q->getLastViewedAt()?->format('Y-m-d H:i'),
                 'total_cost' => $q->getTotalCost(),
@@ -280,7 +289,7 @@ class CommandCenterService
             'high_value_quotes' => array_map(fn(Quote $q) => [
                 'id' => $q->getId(),
                 'quote_number' => $q->getQuoteNumber(),
-                'company' => $q->getCompany()?->getName(),
+                'company' => $safeCompanyName($q),
                 'total_cost' => $q->getTotalCost(),
                 'currency' => $q->getCurrency() ?: $displayCurrency,
                 'status' => $q->getStatus(),
@@ -566,13 +575,21 @@ class CommandCenterService
             ->getQuery()
             ->getResult();
         
+        $safeActivityCompanyName = function (Activity $a): ?string {
+            try {
+                return $a->getCompany()?->getName();
+            } catch (\Doctrine\ORM\EntityNotFoundException) {
+                return null;
+            }
+        };
+
         return array_map(fn(Activity $a) => [
             'id' => $a->getId(),
             'type' => $a->getType(),
             'subject' => $a->getDescription(),
             'notes' => substr($a->getNotes() ?? '', 0, 100),
             'company_id' => $a->getCompany()?->getId(),
-            'company_name' => $a->getCompany()?->getName(),
+            'company_name' => $safeActivityCompanyName($a),
             'created_at' => $a->getCreatedAt()?->format('Y-m-d H:i'),
         ], $activities);
     }

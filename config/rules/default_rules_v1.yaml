@@ -1,0 +1,420 @@
+# Rule Pack v1.0 — Crawler filtering rules
+# Extracted from GoogleDorkService inline patterns.
+# Format: Each rule has a name, type, pattern/list, action, and weight.
+# Rules are evaluated in order; first hard-reject wins.
+
+version: "1.0"
+description: "Default rule pack for EMS buyer discovery pipeline"
+author: "system"
+created_at: "2025-01-01"
+
+# ═══════════════════════════════════════════════════════════════════
+# BLOCKED DOMAINS — hard-reject by domain name
+# ═══════════════════════════════════════════════════════════════════
+blocked_domains:
+  # Social / UGC
+  - linkedin.com
+  - facebook.com
+  - twitter.com
+  - instagram.com
+  - youtube.com
+  - tiktok.com
+  - reddit.com
+  - quora.com
+  - pinterest.com
+  - medium.com
+  
+  # Search / Aggregators
+  - google.com
+  - bing.com
+  - yahoo.com
+  - duckduckgo.com
+  - baidu.com
+  
+  # Knowledge / Reference
+  - wikipedia.org
+  - wikimedia.org
+  - wikidata.org
+  - britannica.com
+  
+  # Job boards
+  - indeed.com
+  - glassdoor.com
+  - monster.com
+  - ziprecruiter.com
+  - stepstone.de
+  - xing.com
+  - reed.co.uk
+  - totaljobs.com
+  - seek.com.au
+  - naukri.com
+  - bayt.com
+  - tanqeeb.com
+  - wuzzuf.net
+  - emploi.ma
+  - rekrute.com
+  - linkedin.com
+  
+  # Directories / Listings
+  - yelp.com
+  - yellowpages.com
+  - dnb.com
+  - zoominfo.com
+  - crunchbase.com
+  - owler.com
+  - craft.co
+  - apollo.io
+  - lusha.com
+  - europages.com
+  - kompass.com
+  - thomasnet.com
+  - alibaba.com
+  - indiamart.com
+  - tradekey.com
+  - globalsources.com
+  - made-in-china.com
+  
+  # Government
+  - gov.uk
+  - gov.ma
+  - europa.eu
+  - un.org
+  - worldbank.org
+  
+  # Amazon / retail
+  - amazon.com
+  - amazon.co.uk
+  - amazon.de
+  - amazon.fr
+  - amazon.it
+  - amazon.es
+  - ebay.com
+  - aliexpress.com
+  
+  # File sharing / hosting
+  - wordpress.com
+  - blogspot.com
+  - wix.com
+  - squarespace.com
+  - weebly.com
+  - godaddy.com
+  
+  # News / media
+  - reuters.com
+  - bloomberg.com
+  - ft.com
+  - bbc.com
+  - bbc.co.uk
+  - cnn.com
+  - nytimes.com
+  - theguardian.com
+  - forbes.com
+  - businessinsider.com
+
+  # Market research / report sellers
+  - polarismarketresearch.com
+  - grandviewresearch.com
+  - marketsandmarkets.com
+  - mordorintelligence.com
+  - transparencymarketresearch.com
+  - alliedmarketresearch.com
+  - researchandmarkets.com
+  - futuremarketinsights.com
+  - precedenceresearch.com
+  - straitsresearch.com
+  - emergenresearch.com
+  - verifiedmarketresearch.com
+  - expertmarketresearch.com
+  - dataintelo.com
+  - coherentmarketinsights.com
+  
+  # Emergency/government mapping
+  - emergency.copernicus.eu
+  
+  # Major consultancy domains
+  - mckinsey.com
+  - bcg.com
+  - bain.com
+  - deloitte.com
+  - ey.com
+  - pwc.com
+  - kpmg.com
+  - accenture.com
+  - capgemini.com
+  - infosys.com
+  - tcs.com
+  - wipro.com
+  - cognizant.com
+  - rolandberger.com
+  - oliverwyman.com
+  - bearingpoint.com
+  - alixpartners.com
+  - kearney.com
+  - fticonsulting.com
+  - guidehouse.com
+  - protiviti.com
+
+# ═══════════════════════════════════════════════════════════════════
+# COMPETITOR SIGNALS — snippets indicating EMS/contract manufacturer
+# ═══════════════════════════════════════════════════════════════════
+competitor_patterns:
+  - name: "ems_provider_language"
+    pattern: '(leading|premier|trusted|reliable)\s+(ems|contract\s+manufactur|pcb\s+assembl)'
+    action: "reject"
+    weight: -50
+    description: "Company provides EMS services (our competitor)"
+
+  - name: "turnkey_ems"
+    pattern: '(full[\s-]service|turnkey)\s+(ems|electronics|contract)'
+    action: "reject"
+    weight: -50
+    description: "Full-service/turnkey EMS provider"
+
+  - name: "pcb_assembly_provider"
+    pattern: 'pcb\s+assembly\s+(service|capabilit|provider|company|house|partner)'
+    action: "reject"
+    weight: -50
+    description: "PCB assembly service provider"
+
+  - name: "cable_harness_mfg"
+    pattern: 'cable\s+(harness|assembly)\s+(manufactur|provider|service|company|supplier)'
+    action: "reject"
+    weight: -50
+    description: "Cable harness manufacturer"
+
+  - name: "smt_assembly"
+    pattern: 'smt\s+(assembly|line|process|manufactur)'
+    action: "reject"
+    weight: -45
+    description: "SMT assembly provider"
+
+  - name: "prototype_to_production"
+    pattern: 'prototype\s+to\s+production'
+    action: "reject"
+    weight: -45
+    description: "Prototype-to-production service"
+
+  - name: "low_vol_high_mix"
+    pattern: '(low[\s-]volume.*high[\s-]mix|high[\s-]mix.*low[\s-]volume)'
+    action: "reject"
+    weight: -45
+    description: "Low-volume high-mix (EMS language)"
+
+  - name: "we_manufacture_electronics"
+    pattern: 'manufactur(e|ing|er)\s+of\s+(cable|wire|pcb|electronic)'
+    action: "reject"
+    weight: -50
+    description: "Manufactures cables/PCBs/electronics"
+
+# ═══════════════════════════════════════════════════════════════════
+# WRONG-TYPE SIGNALS — not a buyer
+# ═══════════════════════════════════════════════════════════════════
+wrong_type_patterns:
+  - name: "distributor"
+    pattern: '(authorized\s+distribut|distribut(or|ion)\s+of\s+(electronic|component|semiconductor))'
+    action: "reject"
+    weight: -40
+    description: "Electronic component distributor"
+
+  - name: "government_body"
+    pattern: '(government|authority|ministry|department\s+of|bureau\s+of|municipality)'
+    action: "reject"
+    weight: -50
+    description: "Government body"
+
+  - name: "academic_institution"
+    pattern: '(university|universit[éèeäa]|college|school\s+of|institute\s+of|research\s+cent[er])'
+    action: "reject"
+    weight: -40
+    description: "Academic/research institution"
+
+  - name: "news_media"
+    pattern: '(newspaper|news\s+agency|media\s+company|publishing|journalist|magazine|podcast|broadcast)'
+    action: "reject"
+    weight: -40
+    description: "News/media outlet"
+
+  - name: "financial_services"
+    pattern: '(bank|banking|insurance|fintech|financial\s+services|credit\s+union|stock\s+exchange)'
+    action: "reject"
+    weight: -40
+    description: "Financial services"
+
+  - name: "healthcare"
+    pattern: '(hospital|clinic|medical\s+center|patient\s+care|nursing|physician|pharmacy)'
+    action: "reject"
+    weight: -40
+    description: "Healthcare provider"
+
+  - name: "consulting_firm"
+    pattern: '(consulting\s+firm|law\s+firm|legal\s+services|accounting\s+firm|audit\s+firm|management\s+consult|advisory\s+firm)'
+    action: "reject"
+    weight: -35
+    description: "Consulting/advisory firm"
+
+  - name: "event_tradeshow"
+    pattern: '(trade\s+show|exhibition|expo|conference|summit|forum|congress|symposium|convention)'
+    action: "reject"
+    weight: -35
+    description: "Trade show/event"
+
+  - name: "ngo_aid"
+    pattern: '(humanitarian|refugee|development\s+aid|ngo|non[\s-]?governmental)'
+    action: "reject"
+    weight: -40
+    description: "NGO/aid organization"
+
+  - name: "real_estate"
+    pattern: '(real\s+estate|property\s+develop|construction\s+company|general\s+contractor)'
+    action: "reject"
+    weight: -35
+    description: "Real estate/construction"
+
+  - name: "software_company"
+    pattern: '(software\s+(company|development|solutions?|house|firm)|ERP\s+(software|solutions?|vendor)|SaaS\s+(platform|provider))'
+    action: "reject"
+    weight: -40
+    description: "Software/SaaS company"
+
+  - name: "market_research"
+    pattern: '(market\s+(report|research|insight|intelligence|forecast)|industry\s+report|CAGR|sample\s+pdf|buy\s+(this\s+)?report)'
+    action: "reject"
+    weight: -40
+    description: "Market research/report seller"
+
+  - name: "cosmetics_beauty"
+    pattern: '(cosmetic|beauty|skincare|fragrance|parfum|perfume|makeup|maquillage|hair\s+care)'
+    action: "reject"
+    weight: -40
+    description: "Cosmetics/beauty industry"
+
+  - name: "food_beverage"
+    pattern: '(food\s+(and|&)\s+beverage|bottling|brewery|dairy|bakery|agriculture|farming|confectionery)'
+    action: "reject"
+    weight: -35
+    description: "Food/beverage/agriculture"
+
+  - name: "logistics_shipping"
+    pattern: '(shipping\s+(company|line|services?)|freight\s+(forward|transport)|logistics\s+(provider|company|services?))'
+    action: "reject"
+    weight: -35
+    description: "Shipping/logistics company"
+
+  - name: "telecom_operator"
+    pattern: '(mobile\s+operator|telecom\s+operator|cellular\s+network|internet\s+service\s+provider)'
+    action: "reject"
+    weight: -30
+    description: "Telecom operator"
+
+  - name: "car_dealer"
+    pattern: '(car\s+dealer|auto\s+(dealer|group)|motor\s+group|fleet\s+sales|certified\s+pre-owned)'
+    action: "reject"
+    weight: -35
+    description: "Car dealership"
+
+  - name: "job_listing"
+    pattern: '(job\s+vacancies|job\s+openings?|careers?\s+page|we\s+are\s+hiring|apply\s+now|join\s+our\s+team|recruitment)'
+    action: "reject"
+    weight: -40
+    description: "Job listing/recruitment"
+
+  - name: "market_report_title"
+    pattern: '(market\s+(20[2-4]\d|size|growth|report|forecast|share|trends?)|CAGR|compound\s+annual)'
+    action: "reject"
+    weight: -50
+    description: "Market research report title"
+
+  - name: "certification_page"
+    pattern: '(certifications?\s+(issued|granted|for)|certificate\s+(of|for))'
+    action: "reject"
+    weight: -35
+    description: "Certification listing page"
+
+  - name: "tax_credits_grants"
+    pattern: '(tax\s+credit|grant\s+funding|government\s+incentive|subsid(y|ies)\s+for)'
+    action: "reject"
+    weight: -35
+    description: "Tax credit/grant info page"
+
+  - name: "natural_disaster"
+    pattern: '(earthquake|flood|hurricane|tsunami|wildfire|cyclone)\s+(in|near|hits|strikes)'
+    action: "reject"
+    weight: -50
+    description: "Natural disaster news"
+
+  - name: "free_courses"
+    pattern: '(free\s+(member|course|webinar|download|trial|sample|ebook)|online\s+course)'
+    action: "reject"
+    weight: -40
+    description: "Free course/download page"
+
+  - name: "gaming_studio"
+    pattern: '(game\s+studio|video\s+game|game\s+develop|indie\s+game|gaming\s+(company|studio)|esports?)'
+    action: "reject"
+    weight: -40
+    description: "Game studio"
+
+# ═══════════════════════════════════════════════════════════════════
+# JUNK NAME PATTERNS — company names that are not real companies
+# ═══════════════════════════════════════════════════════════════════
+junk_name_patterns:
+  - '^\d+$'                              # Pure numbers
+  - '^[a-z]{1,2}$'                       # Single/double letters
+  - '^(home|contact|about|products?|services?|news|blog|careers?|login|search|faq|sitemap)$'
+  - '(startseite|accueil|inicio|strona|pagina|página|главная|الرئيسية|ホーム)'
+  - '(cookie|privacy|terms|legal|disclaimer|imprint|impressum)'
+  - '^(top|best|leading|premier|list\s+of|directory)'
+  - '(\.pdf|\.doc|\.xls|\.ppt)$'
+  # Market report / research titles
+  - '\bmarket\s+(20[2-4]\d|size|growth|report|forecast|analysis|outlook|share|trends?)'
+  - '\b(CAGR|compound\s+annual|market\s+research)\b'
+  - '\b(report|forecast|analysis)\s+20[2-4]\d'
+  # Generic service/industry descriptions (not company names)
+  - '^(contract|electronic|pcb|cable)\s+(manufactur|assembly|services?)'
+  - '^conformal\s+coating'
+  - '^(tax\s+credit|certifications?\s+(issued|for))'
+  - '^free\s+(member|course|download|trial|sample)'
+  # Product names / SKUs
+  - '^[A-Z]{1,4}\d{3,}\b'               # SKU like WH08Z200, SJ100
+  - '(silicone|acrylic|epoxy|urethane)\s+conformal\s+coating'
+  - '\bstaticide\b'
+  # Events / disasters / non-business
+  - '\b(earthquake|flood|hurricane|tsunami|disaster)\s+(in|near)\b'
+  - '\b(IoT|AI|robotics|3D\s+printing|web)\s+development\b'
+  # Foreign-language long descriptions
+  - '\b(maszyna|maschine|appareil|máquina)\s+'
+  - '\b(messe|feira|feria|foire)\s+'
+
+# ═══════════════════════════════════════════════════════════════════
+# POSITIVE SIGNALS — evidence of being a real EMS buyer
+# ═══════════════════════════════════════════════════════════════════
+positive_patterns:
+  - name: "product_design_language"
+    pattern: '(we\s+design|we\s+develop|we\s+engineer|our\s+products?|product\s+line|product\s+range|product\s+portfolio)'
+    weight: 20
+    family: "PRODUCT_PORTFOLIO"
+
+  - name: "specific_product_types"
+    pattern: '(inverter|converter|controller|sensor|actuator|module|radar|lidar|avionics|telematics)'
+    weight: 15
+    family: "PRODUCT_PORTFOLIO"
+
+  - name: "manufacturing_facility"
+    pattern: '(factory|plant|production\s+line|production\s+facility|manufacturing\s+plant|assembly\s+plant)'
+    weight: 10
+    family: "MANUFACTURING_OEM"
+
+  - name: "business_structure"
+    pattern: '(headquarters|founded|established|since\s+\d{4}|employees|revenue|worldwide|subsidiaries)'
+    weight: 10
+    family: "ORG_FOOTPRINT"
+
+  - name: "certifications"
+    pattern: '(iso\s+9001|iatf\s+16949|as9100|iso\s+13485|iso\s+14001|nadcap|cmmi|ce\s+mark)'
+    weight: 10
+    family: "MANUFACTURING_OEM"
+
+  - name: "supply_chain_procurement"
+    pattern: '(supply\s+chain|procurement|outsourc|vendor|supplier\s+to|oem\s+partner|tier[\s-]?[12]\s+supplier)'
+    weight: 10
+    family: "BUYER_PROCUREMENT"

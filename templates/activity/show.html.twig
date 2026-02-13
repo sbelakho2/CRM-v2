@@ -68,9 +68,9 @@
                 <div class="rams-definition-list__item">
                     <dt class="rams-definition-list__term">{{ 'activity.company'|trans }}</dt>
                     <dd class="rams-definition-list__desc">
-                        {% if activity.company %}
-                            <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="rams-link">
-                                {{ activity.company.name }}
+                        {% if safe_company_id(activity) %}
+                            <a href="{{ path('app_company_show', {id: safe_company_id(activity)}) }}" class="rams-link">
+                                {{ safe_company_name(activity) }}
                             </a>
                         {% else %}
                             <span class="rams-text--muted">—</span>

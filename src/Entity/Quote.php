@@ -85,6 +85,9 @@ class Quote
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $apiVersions = null; // {mouser: "v1.2", digikey: "v3.0", etc.}
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $metadata = null; // Win prediction, processing stats, etc.
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $bomDataJson = null; // Uploaded BOM data
 
@@ -285,6 +288,17 @@ class Quote
     public function setApiVersions(?array $apiVersions): self
     {
         $this->apiVersions = $apiVersions;
+        return $this;
+    }
+
+    public function getMetadata(): ?array
+    {
+        return $this->metadata;
+    }
+
+    public function setMetadata(?array $metadata): self
+    {
+        $this->metadata = $metadata;
         return $this;
     }
 

@@ -76,7 +76,7 @@
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'common.company'|trans }}</dt>
                             <dd class="rams-definition-list__desc">
-                                <a href="#" class="rams-link">{{ task.company.name }}</a>
+                                <a href="#" class="rams-link">{{ safe_company_name(task) }}</a>
                             </dd>
                         </div>
                     </dl>

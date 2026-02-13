@@ -107,8 +107,15 @@
                                 {% endif %}
 
                                 {% if document.status %}
+                                    {% set status_label = document.status == 'Approved'
+                                        ? 'compliance.status_approved'|trans
+                                        : (document.status == 'Rejected'
+                                            ? 'compliance.status_rejected'|trans
+                                            : (document.status == 'Pending'
+                                                ? 'compliance.status_pending'|trans
+                                                : document.status)) %}
                                     <span class="rams-badge {{ document.status == 'Approved' ? 'rams-badge--success' : (document.status == 'Rejected' ? 'rams-badge--danger' : 'rams-badge--warning') }}">
-                                        {{ document.status }}
+                                        {{ status_label }}
                                     </span>
                                 {% endif %}
 

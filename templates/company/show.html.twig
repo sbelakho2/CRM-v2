@@ -23,13 +23,13 @@
                 <p class="rams-text--muted rams-text--sm rams-mt-1">{{ 'company.legal_name'|trans }}: {{ company.legalName }}</p>
             {% endif %}
             <div class="rams-flex rams-flex-wrap rams-gap-2 rams-mt-2">
-                <span class="rams-dymo">{{ company.sector }}</span>
+                <span class="rams-dymo">{{ sector_labels[company.sector]|default(company.sector) }}</span>
                 {% if company.companyStatus == 'discovered' %}
-                    <span class="rams-badge rams-badge--info">Discovered — Pending Review</span>
+                    <span class="rams-badge rams-badge--info">{{ 'company.status.discovered_pending_review'|trans }}</span>
                 {% elseif company.companyStatus == 'approved' %}
-                    <span class="rams-badge rams-badge--warning">Approved — Not in Compliance</span>
+                    <span class="rams-badge rams-badge--warning">{{ 'company.status.approved_not_in_compliance'|trans }}</span>
                 {% elseif company.companyStatus == 'active' %}
-                    <span class="rams-badge rams-badge--success">Active — Compliance Eligible</span>
+                    <span class="rams-badge rams-badge--success">{{ 'company.status.active_compliance_eligible'|trans }}</span>
                 {% endif %}
                 {% if company.accountTier %}
                     <span class="rams-badge rams-badge--primary">{{ 'company.account_tier'|trans }} {{ ('company.tiers.' ~ company.accountTier|lower)|trans }}</span>
@@ -50,17 +50,17 @@
                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            Approve
+                            {{ 'company.actions.approve'|trans }}
                         </button>
                     </form>
                 {% elseif company.companyStatus == 'approved' %}
                     <form method="post" action="{{ path('app_company_activate', {id: company.id}) }}" class="rams-inline-block">
                         <input type="hidden" name="_token" value="{{ csrf_token('activate' ~ company.id) }}">
-                        <button type="submit" class="rams-btn rams-btn--primary" title="Move to Active status to enable compliance pipeline">
+                        <button type="submit" class="rams-btn rams-btn--primary" title="{{ 'company.actions.activate_for_compliance_tooltip'|trans }}">
                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
-                            Activate for Compliance
+                            {{ 'company.actions.activate_for_compliance'|trans }}
                         </button>
                     </form>
                 {% endif %}
@@ -95,7 +95,7 @@
                     <dl class="rams-definition-list rams-grid rams-grid--2">
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'company.sector'|trans }}</dt>
-                            <dd class="rams-definition-list__desc">{{ company.sector }}</dd>
+                            <dd class="rams-definition-list__desc">{{ sector_labels[company.sector]|default(company.sector) }}</dd>
                         </div>
                         {% if company.accountTier %}
                             <div class="rams-definition-list__item">
@@ -342,6 +342,9 @@
                         
                         <a href="{{ path('app_rfq_new', {company: company.id}) }}" class="rams-btn rams-btn--primary rams-w-full rams-mt-2">
                             {{ 'rfq.actions.new'|trans }}
+                        </a>
+                        <a href="{{ path('app_activity_new', {company: company.id, redirect: 'app_company_show', redirect_params: {id: company.id}|json_encode}) }}" class="rams-btn rams-btn--ghost rams-w-full">
+                            {{ 'activity.log_activity'|trans }}
                         </a>
                     </div>
                 </div>

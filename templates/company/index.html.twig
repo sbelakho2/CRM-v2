@@ -15,7 +15,7 @@
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
-                {{ 'company.discovered'|trans|default('Discovered') }}
+                {{ 'company.discovered.title'|trans }}
             </a>
             <a href="{{ path('app_company_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,9 +52,9 @@
                     <div class="rams-form__group rams-mb-0">
                         <label for="sector" class="rams-dymo">{{ 'company.sector'|trans }}</label>
                         <select name="sector" id="sector" class="rams-form__select">
-                            <option value="">{{ 'common.all'|trans }} {{ 'company.sector'|trans|lower }}s</option>
+                            <option value="">{{ 'company.discovered.filter_all_sectors'|trans }}</option>
                             {% for sector in sectors %}
-                                <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>{{ sector }}</option>
+                                <option value="{{ sector.value }}" {% if current_sector == sector.value %}selected{% endif %}>{{ sector.label }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -154,9 +154,13 @@
                     </span>
                     <div class="rams-flex rams-gap-1">
                         {% if company.companyStatus == 'approved' %}
-                            <span class="rams-badge rams-badge--warning" title="Approved — not yet in compliance pipeline">Approved</span>
+                            <span class="rams-badge rams-badge--warning" title="{{ 'company.status_tooltip.approved_not_in_compliance'|trans }}">
+                                {{ 'company.status.approved'|trans }}
+                            </span>
                         {% elseif company.companyStatus == 'active' %}
-                            <span class="rams-badge rams-badge--success" title="Active — eligible for compliance">Active</span>
+                            <span class="rams-badge rams-badge--success" title="{{ 'company.status_tooltip.active_compliance_eligible'|trans }}">
+                                {{ 'company.status.active'|trans }}
+                            </span>
                         {% endif %}
                         {% if company.accountTier %}
                             <span class="rams-badge rams-badge--primary">{{ company.accountTier }}</span>
@@ -166,7 +170,7 @@
                 <div class="rams-module__content">
                     {# Sector #}
                     <div class="rams-flex rams-items-center rams-gap-2 rams-mb-2">
-                        <span class="rams-dymo">{{ company.sector ?: 'common.n_a'|trans }}</span>
+                        <span class="rams-dymo">{{ sector_labels[company.sector]|default(company.sector ?: 'common.n_a'|trans) }}</span>
                     </div>
 
                     {# Pipeline Stage #}

@@ -640,4 +640,18 @@ class BomLine
         $this->sourcingData = $sourcingData;
         return $this;
     }
+
+    /**
+     * Backward-compatible stock accessor sourced from JSON metadata.
+     */
+    public function getStock(): ?int
+    {
+        $stock = $this->sourcingData['stock'] ?? null;
+
+        if ($stock === null || $stock === '') {
+            return null;
+        }
+
+        return (int) $stock;
+    }
 }

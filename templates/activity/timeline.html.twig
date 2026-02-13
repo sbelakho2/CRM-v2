@@ -67,8 +67,8 @@
                                                     {% endif %}
                                                 </div>
                                                 <p class="rams-timeline__item-detail">
-                                                    {% if activity.company %}
-                                                        <a href="{{ path('app_company_show', {id: activity.company.id}) }}" class="rams-link">{{ activity.company.name }}</a>
+                                                    {% if safe_company_id(activity) %}
+                                                        <a href="{{ path('app_company_show', {id: safe_company_id(activity)}) }}" class="rams-link">{{ safe_company_name(activity) }}</a>
                                                     {% endif %}
                                                     {% if activity.contact %}
                                                         <span class="rams-timeline__separator">·</span>

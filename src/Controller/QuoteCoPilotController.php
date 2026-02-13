@@ -18,6 +18,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -53,7 +54,8 @@ class QuoteCoPilotController extends AbstractController
         private CurrencyPreferenceService $currencyPreferenceService,
         private IssuingCompanyService $issuingCompanyService,
         private MailerInterface $mailer,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private TranslatorInterface $translator
     ) {}
 
     /**
@@ -84,6 +86,8 @@ class QuoteCoPilotController extends AbstractController
             ->createQueryBuilder('q')
             ->leftJoin('q.company', 'c')
             ->addSelect('c')
+            ->addSelect('COALESCE(c.name, :missingCompany) AS company_name')
+            ->setParameter('missingCompany', $this->translator->trans('common.n_a'))
             ->orderBy('q.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
@@ -282,13 +286,27 @@ class QuoteCoPilotController extends AbstractController
     #[Route('/results/{id}', name: 'quote_copilot_results', methods: ['GET'])]
     public function results(int $id): Response
     {
-        $quote = $this->entityManager->getRepository(Quote::class)->find($id);
-        if (!$quote) {
+        $row = $this->entityManager->getRepository(Quote::class)
+            ->createQueryBuilder('q')
+            ->leftJoin('q.company', 'c')
+            ->addSelect('c')
+            ->addSelect('COALESCE(c.name, :missingCompany) AS company_name')
+            ->setParameter('missingCompany', $this->translator->trans('common.n_a'))
+            ->andWhere('q.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if (!$row) {
             throw $this->createNotFoundException('Quote not found');
         }
 
+        $quote = $row[0] ?? $row;
+        $companyName = is_array($row) ? ($row['company_name'] ?? null) : null;
+
         return $this->render('quote_copilot/results.html.twig', [
             'quote' => $quote,
+            'company_name' => $companyName,
         ]);
     }
 
@@ -396,10 +414,9 @@ class QuoteCoPilotController extends AbstractController
     }
 
     /**
-     * Export FULL INTERNAL quote to CSV/Excel with all sourcing data
+     * Export FULL INTERNAL quote to XLSX with all sourcing data, clickable links,
+     * confidence badges, and styled formatting (PhpSpreadsheet).
      * 
-     * Contains all internal data: supplier names, URLs, procurement sources,
-     * confidence scores, alternatives, sourcing metadata.
      * FOR INTERNAL USE ONLY — never send to customer.
      */
     #[Route('/{id}/full-excel', name: 'quote_copilot_full_excel', methods: ['GET'])]
@@ -411,103 +428,122 @@ class QuoteCoPilotController extends AbstractController
         }
 
         $issuer = $this->issuingCompanyService->getCompanyProfile($quote->getIssuingCompany());
+        try {
+            $companyName = $quote->getCompany()?->getName() ?? 'N/A';
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            $companyName = 'N/A';
+        }
 
-        $csv = [];
-        $csv[] = ['INTERNAL — FULL SOURCING QUOTATION'];
-        $csv[] = ['Quote Number', $quote->getQuoteNumber() ?? 'Q-' . $quote->getId()];
-        $csv[] = ['Issued By', $issuer['name']];
-        $csv[] = ['Company', $quote->getCompany()->getName()];
-        $csv[] = ['Date', $quote->getCreatedAt()->format('Y-m-d')];
-        $csv[] = ['Quantity', $quote->getQuantity()];
-        $csv[] = ['Ship To', $quote->getShipToCountry()];
-        $csv[] = ['Incoterms', $quote->getIncoterms()];
-        $csv[] = ['Currency', $quote->getCurrency()];
-        $csv[] = ['Coverage', $quote->getCoveragePercent() . '%'];
-        $csv[] = [];
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Full Sourcing');
 
-        // Full BOM Lines — all sourcing columns
-        $csv[] = [
-            'Line', 'MPN', 'Matched MPN', 'Original MPN', 'Manufacturer', 'Description',
-            'Qty', 'Unit Price', 'Manual Price', 'Extended Price',
-            'Source', 'Supplier Name', 'Supplier Product URL', 'Distributor Search URL',
-            'Stock', 'Lead Time (Days)', 'MOQ',
-            'Confidence Score', 'Confidence Level', 'Requires Review', 'Verified',
-            'Lifecycle Status', 'Lifecycle Warning',
-            'Alt 1 MPN', 'Alt 1 Price', 'Alt 1 Stock',
-            'Alt 2 MPN', 'Alt 2 Price', 'Alt 2 Stock',
-            'Alt 3 MPN', 'Alt 3 Price', 'Alt 3 Stock',
-            'Sourcing Notes',
+        // ── Header info ──
+        $sheet->setCellValue('A1', 'INTERNAL — FULL SOURCING QUOTATION');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->setCellValue('A2', 'Quote: ' . ($quote->getQuoteNumber() ?? 'Q-' . $quote->getId()));
+        $sheet->setCellValue('B2', 'Issued By: ' . $issuer['name']);
+        $sheet->setCellValue('A3', 'Company: ' . $companyName);
+        $sheet->setCellValue('B3', 'Date: ' . $quote->getCreatedAt()->format('Y-m-d'));
+        $sheet->setCellValue('A4', 'Coverage: ' . $quote->getCoveragePercent() . '%');
+        $sheet->setCellValue('B4', 'Currency: ' . $quote->getCurrency());
+
+        // ── Column headers (row 6) ──
+        $headers = [
+            '#', 'MPN', 'Matched MPN', 'Source', 'Qty', 'Unit Price', 'Extended Price',
+            'Confidence', 'Score', 'Supplier', 'Lifecycle', 'Listing Link',
         ];
+        $headerRow = 6;
+        foreach ($headers as $col => $header) {
+            $cell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 1) . $headerRow;
+            $sheet->setCellValue($cell, $header);
+        }
+        // Style header row
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+        $headerRange = "A{$headerRow}:{$lastCol}{$headerRow}";
+        $sheet->getStyle($headerRange)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F2937']],
+        ]);
 
+        // ── Data rows ──
+        $dataRow = $headerRow + 1;
+        $totalExtPrice = 0;
         foreach ($quote->getBomLines() as $line) {
-            $sourcingData = $line->getSourcingData() ?? [];
-            $alts = $line->getAlternativeParts() ?? [];
+            $col = 1;
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getLineNumber());
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getMpn());
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getMatchedMpn());
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getProcurementSource());
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getQuantity());
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getUnitPrice() ? (float)$line->getUnitPrice() : '');
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getExtendedPrice() ? (float)$line->getExtendedPrice() : '');
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getConfidenceLevel() ?? '');
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getConfidenceScore() ?? '');
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getSupplierName() ?? '');
+            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getLifecycleStatus() ?? 'Active');
 
-            $row = [
-                $line->getLineNumber() ?? '',
-                $line->getMpn() ?? '',
-                $line->getMatchedMpn() ?? '',
-                $line->getOriginalMpn() ?? '',
-                $line->getManufacturer() ?? '',
-                $line->getDescription() ?? '',
-                $line->getQuantity() ?? '',
-                $line->getUnitPrice() !== null ? number_format($line->getUnitPrice(), 4) : '',
-                $line->getManualUnitPrice() !== null ? number_format($line->getManualUnitPrice(), 4) : '',
-                $line->getExtendedPrice() !== null ? number_format($line->getExtendedPrice(), 2) : '',
-                $line->getProcurementSource() ?? '',
-                $line->getSupplierName() ?? '',
-                $line->getSupplierProductUrl() ?? '',
-                $line->getDistributorSearchUrl() ?? '',
-                $line->getStock() ?? '',
-                $line->getLeadTimeDays() ?? '',
-                $sourcingData['moq'] ?? '',
-                $line->getConfidenceScore() ?? '',
-                $line->getConfidenceLevel() ?? '',
-                $line->isRequiresReview() ? 'Yes' : 'No',
-                $line->isManuallyVerified() ? 'Yes' : 'No',
-                $line->getLifecycleStatus() ?? '',
-                $line->getLifecycleWarning() ?? '',
-            ];
-
-            // Alternatives
-            for ($i = 0; $i < 3; $i++) {
-                if (isset($alts[$i])) {
-                    $row[] = $alts[$i]['mpn'] ?? '';
-                    $row[] = $alts[$i]['price'] ?? '';
-                    $row[] = $alts[$i]['stock'] ?? '';
-                } else {
-                    $row[] = '';
-                    $row[] = '';
-                    $row[] = '';
-                }
+            // Clickable listing link (column L)
+            $linkUrl = $line->getSupplierProductUrl() ?? $line->getDistributorSearchUrl() ?? null;
+            if ($linkUrl) {
+                $linkCell = 'L' . $dataRow;
+                $sheet->setCellValue($linkCell, 'View Listing ↗');
+                $sheet->getCell($linkCell)->getHyperlink()->setUrl($linkUrl);
+                $sheet->getStyle($linkCell)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF4472C4'))->setUnderline(true);
             }
 
-            $row[] = $line->getManualNotes() ?? '';
+            // Confidence color coding
+            $confCell = 'H' . $dataRow;
+            $confLevel = $line->getConfidenceLevel() ?? '';
+            if ($confLevel === 'HIGH') {
+                $sheet->getStyle($confCell)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF16A34A'));
+                $sheet->getStyle($confCell)->getFont()->setBold(true);
+            } elseif ($confLevel === 'MEDIUM') {
+                $sheet->getStyle($confCell)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFCA8A04'));
+            } elseif ($confLevel === 'LOW' || $confLevel === 'VERY_LOW') {
+                $sheet->getStyle($confCell)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFDC2626'));
+                $sheet->getStyle($confCell)->getFont()->setBold(true);
+            }
 
-            $csv[] = $row;
+            // Alternate row shading
+            if ($dataRow % 2 === 0) {
+                $sheet->getStyle("A{$dataRow}:{$lastCol}{$dataRow}")->applyFromArray([
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F3F4F6']],
+                ]);
+            }
+
+            $totalExtPrice += (float)($line->getExtendedPrice() ?? 0);
+            $dataRow++;
         }
 
-        $csv[] = [];
-        $csv[] = ['Summary'];
-        $csv[] = ['Total Lines', count($quote->getBomLines())];
-        $csv[] = ['Total Cost', $quote->getTotalCost() !== null ? number_format($quote->getTotalCost(), 2) : ''];
-        $csv[] = ['Coverage %', $quote->getCoveragePercent()];
-        $csv[] = ['Alibaba %', $quote->getAlibabaPercent() ?? ''];
-        $csv[] = ['Status', $quote->getStatus()];
-        $csv[] = ['Exported', date('Y-m-d H:i:s')];
+        // ── Totals row ──
+        $sheet->setCellValue("E{$dataRow}", 'TOTAL:');
+        $sheet->setCellValue("G{$dataRow}", $totalExtPrice);
+        $sheet->getStyle("E{$dataRow}:G{$dataRow}")->getFont()->setBold(true);
 
-        $output = fopen('php://temp', 'r+');
-        foreach ($csv as $row) {
-            fputcsv($output, $row);
+        // ── Formatting ──
+        $sheet->getStyle("F{$headerRow}:G{$dataRow}")->getNumberFormat()
+            ->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2);
+        foreach (range('A', $lastCol) as $colLetter) {
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
         }
-        rewind($output);
-        $csvContent = stream_get_contents($output);
-        fclose($output);
+        $sheet->freezePane('A' . ($headerRow + 1));
+        $sheet->setAutoFilter($headerRange);
 
-        $response = new Response($csvContent);
-        $response->headers->set('Content-Type', 'text/csv');
+        // ── Generate response ──
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        // Use a proper temp file for PhpSpreadsheet
+        $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx_');
+        $writer->save($tmpFile);
+        $xlsxContent = file_get_contents($tmpFile);
+        unlink($tmpFile);
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
+        $response = new Response($xlsxContent);
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $response->headers->set('Content-Disposition', sprintf(
-            'attachment; filename="quote-%s-FULL-INTERNAL.csv"',
+            'attachment; filename="quote-%s-FULL-INTERNAL.xlsx"',
             $quote->getQuoteNumber() ?? $quote->getId()
         ));
 
@@ -525,8 +561,15 @@ class QuoteCoPilotController extends AbstractController
             return $this->json(['success' => false, 'message' => 'Quote not found'], 404);
         }
 
-        $company = $quote->getCompany();
-        $contacts = $company->getContacts();
+        try {
+            $company = $quote->getCompany();
+            if (!$company) {
+                return $this->json(['success' => false, 'message' => $this->translator->trans('quote.copilot.company_deleted')], 400);
+            }
+            $contacts = $company->getContacts();
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return $this->json(['success' => false, 'message' => $this->translator->trans('quote.copilot.company_deleted')], 400);
+        }
         
         $contactsData = [];
         foreach ($contacts as $contact) {
@@ -570,13 +613,23 @@ class QuoteCoPilotController extends AbstractController
         $data = json_decode($request->getContent(), true);
         $contactId = $data['contactId'] ?? null;
 
+        // Safely resolve company (may have been deleted)
+        try {
+            $company = $quote->getCompany();
+            // Force proxy initialization to detect missing entity
+            $company?->getName();
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return $this->json(['success' => false, 'message' => $this->translator->trans('quote.copilot.company_deleted')], 400);
+        }
+
+        if (!$company) {
+            return $this->json(['success' => false, 'message' => $this->translator->trans('quote.copilot.company_deleted')], 400);
+        }
+
         // Update quote status
         $quote->setStatus('sent');
         $quote->setAutoPublished(true);
         $this->entityManager->flush();
-
-        // Get company for activity logging
-        $company = $quote->getCompany();
 
         // Send email notification to customer
         try {
@@ -625,9 +678,14 @@ class QuoteCoPilotController extends AbstractController
             $notification->setEntityId($quote->getId());
             $notification->setMessage(sprintf('Quote %s has been published', 
                 $quote->getQuoteNumber() ?? $quote->getId()));
+            try {
+                $compName = $company?->getName();
+            } catch (\Doctrine\ORM\EntityNotFoundException) {
+                $compName = null;
+            }
             $notification->setData([
                 'quote_number' => $quote->getQuoteNumber(),
-                'company_name' => $company?->getName(),
+                'company_name' => $compName,
                 'to_email' => $toEmail
             ]);
             $notification->setCreatedAt(new \DateTime());
@@ -647,7 +705,16 @@ class QuoteCoPilotController extends AbstractController
      */
     private function sendQuoteEmail(Quote $quote, ?int $contactId = null): string
     {
-        $company = $quote->getCompany();
+        try {
+            $company = $quote->getCompany();
+            if (!$company) {
+                throw new \RuntimeException('Company not found for this quote');
+            }
+            // Force proxy init to detect deleted companies early
+            $company->getName();
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            throw new \RuntimeException('Company has been deleted — cannot send email');
+        }
         
         // Get contact email - either specified contact or first available
         $toEmail = null;

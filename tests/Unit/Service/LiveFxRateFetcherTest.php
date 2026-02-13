@@ -8,6 +8,7 @@ use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
+use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -28,12 +29,17 @@ use Symfony\Contracts\Cache\ItemInterface;
 class LiveFxRateFetcherTest extends TestCase
 {
     private EntityManagerInterface $em;
+    private ManagerRegistry $managerRegistry;
     private CacheInterface $cache;
     private LoggerInterface $logger;
 
     protected function setUp(): void
     {
         $this->em = $this->createMock(EntityManagerInterface::class);
+        $this->em->method('isOpen')->willReturn(true);
+        $this->managerRegistry = $this->createMock(ManagerRegistry::class);
+        $this->managerRegistry->method('getManager')->willReturn($this->em);
+        $this->managerRegistry->method('resetManager')->willReturn($this->em);
         $this->cache = $this->createMock(CacheInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
@@ -72,6 +78,7 @@ class LiveFxRateFetcherTest extends TestCase
         return new LiveFxRateFetcher(
             $httpClient,
             $this->em,
+            $this->managerRegistry,
             $this->cache,
             $this->logger,
         );

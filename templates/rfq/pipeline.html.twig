@@ -82,7 +82,7 @@
                     {% for rfq in pipeline[stage.key]|default([]) %}
                         <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-kanban__card {{ stage.class == 'won' ? 'rams-kanban__card--success' : (stage.class == 'lost' ? 'rams-kanban__card--danger' : '') }}">
                             <div class="rams-kanban__card-header">
-                                <h4 class="rams-kanban__card-title">{{ rfq.company.name }}</h4>
+                                <h4 class="rams-kanban__card-title">{{ safe_company_name(rfq) }}</h4>
                             </div>
                             
                             <div class="rams-kanban__card-meta">

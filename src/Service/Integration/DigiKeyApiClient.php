@@ -15,7 +15,7 @@ use Symfony\Contracts\Cache\ItemInterface;
  */
 class DigiKeyApiClient
 {
-    private const BASE_URL = 'https://api.digikey.com/v1';
+    private const BASE_URL = 'https://api.digikey.com';
     private const RATE_LIMIT_DELAY = 200000; // 200ms between requests (5 req/sec)
     
     private float $lastRequestTime = 0;
@@ -49,33 +49,128 @@ class DigiKeyApiClient
             $this->respectRateLimit();
             
             try {
-                $response = $this->httpClient->request('GET', self::BASE_URL . '/search/' . urlencode($partNumber) . '/productdetails', [
+                // Use Products v4 Keyword Search (POST) — searches by MPN across catalog
+                $response = $this->httpClient->request('POST', self::BASE_URL . '/products/v4/search/keyword', [
+                    'json' => [
+                        'Keywords' => $partNumber,
+                        'Limit' => 5,
+                        'Offset' => 0,
+                        'FilterParametersRequest' => new \stdClass(),
+                        'SortOptions' => [
+                            'Field' => 'None',
+                            'SortOrder' => 'Ascending',
+                        ],
+                    ],
                     'headers' => [
                         'Authorization' => 'Bearer ' . $token,
                         'X-DIGIKEY-Client-Id' => $this->clientId,
                         'Accept' => 'application/json',
+                        'Content-Type' => 'application/json',
                     ]
                 ]);
 
-                $part = $response->toArray();
+                $data = $response->toArray();
+                $parts = $data['Products'] ?? $data['ExactManufacturerProducts'] ?? [];
                 
-                $pricingData = $this->parsePricing($part['StandardPricing'] ?? []);
+                if (empty($parts)) {
+                    return null;
+                }
+                
+                // Find the best match — prefer exact MPN match
+                $part = null;
+                $normalizedSearch = strtolower(str_replace(['-', ' ', '.'], '', $partNumber));
+                foreach ($parts as $candidate) {
+                    $candidateMpn = strtolower(str_replace(['-', ' ', '.'], '', $candidate['ManufacturerPartNumber'] ?? ''));
+                    if ($candidateMpn === $normalizedSearch) {
+                        $part = $candidate;
+                        break;
+                    }
+                }
+                // Fall back to first result if no exact match
+                $part = $part ?? $parts[0];
+                
+                // Merge pricing from ALL ProductVariations (cut-tape, reel, tray, etc.)
+                // Each variation has its own pricing and MOQ. We combine them all
+                // and let the pricing engine select the best break for the customer's qty.
+                $allPricingBreaks = [];
+                $smallestMoq = PHP_INT_MAX;
+                $bestPackQty = null;
+                $bestMultipleQty = null;
+                
+                // Try top-level StandardPricing first
+                if (!empty($part['StandardPricing'])) {
+                    $topPricing = $this->parsePricing($part['StandardPricing']);
+                    $allPricingBreaks = array_merge($allPricingBreaks, $topPricing['breaks']);
+                    $smallestMoq = min($smallestMoq, $topPricing['moq']);
+                }
+                
+                // Merge pricing from all variations
+                foreach ($part['ProductVariations'] ?? [] as $variation) {
+                    $varPricing = $this->parsePricing($variation['StandardPricing'] ?? []);
+                    if (!empty($varPricing['breaks'])) {
+                        $allPricingBreaks = array_merge($allPricingBreaks, $varPricing['breaks']);
+                        $smallestMoq = min($smallestMoq, $varPricing['moq']);
+                        if ($varPricing['pack_quantity'] !== null) {
+                            $bestPackQty = $varPricing['pack_quantity'];
+                        }
+                        if ($varPricing['multiple_quantity'] !== null) {
+                            $bestMultipleQty = $varPricing['multiple_quantity'];
+                        }
+                    }
+                }
+                
+                // Also check UnitPrice at top level as a fallback price point
+                if (isset($part['UnitPrice']) && is_numeric($part['UnitPrice']) && (float) $part['UnitPrice'] > 0) {
+                    $allPricingBreaks[] = [
+                        'quantity' => 1,
+                        'price' => (float) $part['UnitPrice'],
+                        'currency' => null,
+                    ];
+                }
+                
+                // Deduplicate and sort by quantity
+                $uniqueBreaks = [];
+                foreach ($allPricingBreaks as $break) {
+                    $key = $break['quantity'];
+                    if (!isset($uniqueBreaks[$key]) || $break['price'] < $uniqueBreaks[$key]['price']) {
+                        $uniqueBreaks[$key] = $break;
+                    }
+                }
+                $allPricingBreaks = array_values($uniqueBreaks);
+                usort($allPricingBreaks, fn($a, $b) => $a['quantity'] <=> $b['quantity']);
+                
+                if ($smallestMoq === PHP_INT_MAX) $smallestMoq = 1;
+                
+                // Ensure description is a string (v4 may return objects/arrays)
+                $description = $part['ProductDescription'] ?? $part['Description'] ?? null;
+                if (is_array($description)) {
+                    $description = $description['ProductDescription'] ?? $description['DetailedDescription'] ?? json_encode($description);
+                }
+                
+                // Ensure manufacturer is a string
+                $manufacturer = $part['Manufacturer']['Name'] ?? $part['ManufacturerName'] ?? null;
+                if (is_array($manufacturer)) {
+                    $manufacturer = $manufacturer['Name'] ?? json_encode($manufacturer);
+                }
                 
                 return [
-                    'mpn' => $part['ManufacturerPartNumber'] ?? $partNumber,
-                    'manufacturer' => $part['Manufacturer']['Name'] ?? null,
-                    'description' => $part['ProductDescription'] ?? null,
-                    'datasheet' => $part['DatasheetUrl'] ?? null,
-                    'pricing' => $pricingData['breaks'],
-                    'stock' => (int) ($part['QuantityAvailable'] ?? 0),
+                    'mpn' => $part['ManufacturerPartNumber'] ?? $part['ManufacturerProductNumber'] ?? $partNumber,
+                    'manufacturer' => $manufacturer,
+                    'description' => is_string($description) ? $description : null,
+                    'datasheet' => $part['DatasheetUrl'] ?? $part['PrimaryDatasheet'] ?? null,
+                    'pricing' => $allPricingBreaks,
+                    'stock' => (int) ($part['QuantityAvailable'] ?? $part['QuantityOnHand'] ?? 0),
                     'leadtime_days' => $this->parseLeadTime($part['ManufacturerLeadWeeks'] ?? 0),
                     'digikey_part_number' => $part['DigiKeyPartNumber'] ?? null,
-                    'lifecycle' => $part['ProductStatus'] ?? null,
-                    'category' => $part['Category']['Name'] ?? null,
+                    'lifecycle' => is_string($part['ProductStatus'] ?? null) ? ($part['ProductStatus'] ?? null) : (is_string($part['ObsolescenceStatus'] ?? null) ? ($part['ObsolescenceStatus'] ?? null) : null),
+                    'category' => is_string($part['Category']['Name'] ?? null) ? ($part['Category']['Name'] ?? null) : null,
+                    // Direct product listing URL (v4 returns ProductUrl with full path)
+                    'product_url' => $part['ProductUrl']
+                        ?? ('https://www.digikey.com/en/products/filter?keywords=' . urlencode($part['ManufacturerPartNumber'] ?? $part['ManufacturerProductNumber'] ?? $partNumber)),
                     // MOQ and packaging info
-                    'moq' => (int) ($part['MinimumOrderQuantity'] ?? $pricingData['moq']),
-                    'pack_quantity' => $pricingData['pack_quantity'],
-                    'multiple_quantity' => (int) ($part['QuantityOnOrder'] ?? null) ?: $pricingData['multiple_quantity'],
+                    'moq' => (int) ($part['MinimumOrderQuantity'] ?? $smallestMoq),
+                    'pack_quantity' => $bestPackQty,
+                    'multiple_quantity' => $bestMultipleQty,
                 ];
                 
             } catch (\Exception $e) {

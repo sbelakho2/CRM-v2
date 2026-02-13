@@ -185,9 +185,15 @@ class InteractiveLiveQuoteService
             }
         }
         
+        try {
+            $companyName = $quote->getCompany()?->getName();
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            $companyName = null;
+        }
+
         return [
             'quote_number' => $quote->getQuoteNumber(),
-            'company' => $quote->getCompany()?->getName(),
+            'company' => $companyName,
             'base_quantity' => $quote->getQuantity(),
             'currency' => $currency,
             'tiers' => $tierPricing,
@@ -493,13 +499,21 @@ class InteractiveLiveQuoteService
             ->getQuery()
             ->getResult();
         
+        $safeCompanyName = function (Quote $q): ?string {
+            try {
+                return $q->getCompany()?->getName();
+            } catch (\Doctrine\ORM\EntityNotFoundException) {
+                return null;
+            }
+        };
+
         return [
             'active_interactive_quotes' => (int) $activeQuotes,
             'total_customer_views' => (int) $totalViews,
             'recently_viewed_count' => count($recentlyViewed),
             'recently_viewed' => array_map(fn(Quote $q) => [
                 'quote_number' => $q->getQuoteNumber(),
-                'company' => $q->getCompany()?->getName(),
+                'company' => $safeCompanyName($q),
                 'last_viewed' => $q->getLastViewedAt()?->format('Y-m-d H:i'),
                 'view_count' => $q->getViewCount(),
             ], $recentlyViewed),

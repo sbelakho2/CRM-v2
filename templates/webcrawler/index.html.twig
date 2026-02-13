@@ -199,7 +199,14 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
             method: 'POST',
             body: formData
         });
-        
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            throw new Error(response.status === 504 || response.status === 408
+                ? '{{ 'webcrawler.timeout_error'|trans|default('Discovery timed out. Try a more specific sector or location.') }}'
+                : `{{ 'webcrawler.server_error'|trans|default('Server returned an unexpected response') }} (HTTP ${response.status})`);
+        }
+
         const data = await response.json();
         
         // Hide loading
@@ -212,7 +219,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
                 <div class="rams-alert rams-alert--success">
                     <p class="rams-alert__title">${data.message}</p>
                     <p class="rams-alert__message">{{ 'webcrawler.found_companies'|trans }} ${data.discovered} {{ 'company.title'|trans|lower }}</p>
-                    <p class="rams-alert__message"><a class="rams-link" href="{{ path('app_company_discovered') }}">Review discovered companies</a></p>
+                    <p class="rams-alert__message"><a class="rams-link" href="{{ path('app_company_discovered') }}">{{ 'company.discovered.review_link'|trans }}</a></p>
                 </div>
                 ${data.companies.length > 0 ? `
                     <div class="rams-discovery-list">

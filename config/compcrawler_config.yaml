@@ -1,0 +1,404 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# CompCrawler Configuration — Competitor Discovery, Profiling & Change Intelligence
+# ═══════════════════════════════════════════════════════════════════════════════
+
+compcrawler:
+
+  # ── Schedules ──
+  schedules:
+    shallow_crawl:
+      interval_days: 7
+      max_per_run: 50
+    deep_crawl:
+      interval_days: 30
+      max_per_run: 20
+    discovery:
+      interval_days: 14
+      max_queries_per_run: 100
+    change_detection:
+      interval_days: 3
+      max_fingerprints_per_run: 200
+
+  # ── Crawl Budgets ──
+  crawl:
+    max_pages_shallow: 25
+    max_pages_deep: 200
+    max_pdfs_per_domain: 10
+    request_delay_ms: 1500
+    concurrent_requests: 3
+    user_agent: "StarzCompBot/1.0 (+https://starz-electronics.com/bot)"
+    respect_robots_txt: true
+    timeout_seconds: 30
+    max_retries: 2
+
+  # ── Evidence Gate ──
+  competitor_evidence_gate:
+    min_families: 2
+    min_anti_families_reject: 2
+
+  # ── Languages ──
+  languages: [en, fr, de, es, it, nl, pl, cs, ar]
+
+  # ── Sensitive Source Policies ──
+  sensitive_sources:
+    linkedin:
+      mode: url_only  # Never crawl LinkedIn pages
+    seed_only_domains:
+      - directories
+      - expos
+      - news
+      - trade_associations
+      - job_boards
+      - wikis
+      - forums
+      - marketplaces
+
+  # ── TOS Enforcement ──
+  tos_enforcement:
+    strict: true
+    check_before_crawl: true
+
+  # ── Retention ──
+  retention:
+    raw_extract_days: 90
+    page_fingerprint_days: 365
+    change_event_days: 730
+
+  # ── Scoring Weights ──
+  scoring:
+    threat:
+      capability_overlap: 40
+      region_industry_overlap: 25
+      certification_gap: 15
+      proof_strength: 10
+      scale_capacity: 10
+    overlap:
+      capability_similarity: 40
+      region_overlap: 30
+      sector_overlap: 30
+    strategic_relevance:
+      partner_potential: 30
+      future_threat: 30
+      market_position: 20
+      growth_signals: 20
+
+  # ── Alert Thresholds ──
+  alerts:
+    high_threat_threshold: 70
+    high_overlap_threshold: 60
+    change_severity_notify: medium  # low, medium, high
+
+  # ── Proof Grade Hierarchy ──
+  proof_grades:
+    A: "PDF certificate / official registry"
+    B: "Quality/capability page explicit claim"
+    C: "Marketing page / homepage mention"
+    D: "Footer badge / scraped snippet only"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # QUERY FAMILIES — Multilingual competitor discovery
+  # ═══════════════════════════════════════════════════════════════════
+
+  query_families:
+
+    # ── Core EMS / Contract Manufacturing ──
+    ems:
+      en:
+        - '"electronics manufacturing services" OR EMS OR "contract manufacturing" OR "PCB assembly" OR PCBA OR SMT'
+        - '"box build" OR "conformal coating" OR "BGA rework" OR "IPC-A-610"'
+        - '"IATF 16949 EMS" OR "AS9100 contract manufacturer" OR "ISO 13485 electronics manufacturing"'
+      fr:
+        - '"services de fabrication électronique" OR "sous-traitance électronique" OR "assemblage PCB"'
+        - '"fabrication en sous-traitance" OR "CMS" OR "brasage" OR "assemblage de cartes"'
+      de:
+        - '"Elektronikfertigung" OR "Auftragsfertigung" OR "Leiterplattenbestückung"'
+        - '"EMS Dienstleister" OR "Baugruppenfertigung" OR "SMD Bestückung"'
+      es:
+        - '"fabricación electrónica" OR "subcontratación electrónica" OR "ensamblaje PCB"'
+      it:
+        - '"produzione elettronica" OR "contoterzista elettronico" OR "assemblaggio PCB"'
+      nl:
+        - '"elektronica productie" OR "printplaat assemblage" OR "contract manufacturing"'
+      pl:
+        - '"produkcja elektroniki" OR "montaż PCB" OR "usługi EMS"'
+      cs:
+        - '"výroba elektroniky" OR "osazování desek plošných spojů" OR "montáž PCB"'
+      ar:
+        - '"تصنيع الإلكترونيات" OR "تصنيع تعاقدي" OR "تجميع لوحات الدوائر" OR "تركيب سطحي SMT"'
+
+    # ── Machining / CNC ──
+    machining:
+      en:
+        - '"precision machining" OR "CNC machining" OR "5-axis" OR "Swiss machining"'
+        - '"CNC turning" AND "tight tolerances" AND (aerospace OR medical OR automotive)'
+        - '"CNC milling" OR "EDM" OR "wire EDM" OR "grinding" OR "honing"'
+      fr:
+        - '"usinage de précision" OR "usinage CNC" OR "fraisage 5 axes" OR "tournage CNC" OR "décolletage"'
+      de:
+        - '"CNC Bearbeitung" OR "Präzisionsbearbeitung" OR "5-Achs-Fräsen" OR "Drehen" OR "Zerspanung"'
+      es:
+        - '"mecanizado de precisión" OR "mecanizado CNC" OR "fresado 5 ejes" OR "torneado CNC"'
+      it:
+        - '"lavorazione CNC" OR "lavorazione di precisione" OR "fresatura 5 assi" OR "tornitura"'
+      ar:
+        - '"خراطة CNC" OR "فرايز CNC" OR "تشغيل معادن" OR "تصنيع دقيق" OR "ماكينات خمس محاور"'
+
+    # ── Wire Harness / Cable Assembly ──
+    harness:
+      en:
+        - '"wire harness assembly" OR "cable harness" OR "electrical harness"'
+        - '"overmolding" AND "wire harness"'
+        - '"IPC/WHMA-A-620" OR "cable assembly manufacturer"'
+      fr:
+        - '"faisceaux électriques" OR "assemblage faisceau" OR "câblage" OR "câbles sur mesure"'
+      de:
+        - '"Kabelbaum" OR "Kabelsatz" OR "Kabelkonfektion" OR "Leitungssatz"'
+      es:
+        - '"arnés de cables" OR "ensamblaje de cables" OR "cableado industrial"'
+      it:
+        - '"cablaggio" OR "assemblaggio cavi" OR "fasci di cavi"'
+      ar:
+        - '"تجميع ضفائر كهربائية" OR "ضفيرة أسلاك" OR "تجميع كابلات" OR "كابل مخصص"'
+
+    # ── Supercapacitor Cell Manufacturers ──
+    supercapacitor:
+      en:
+        - '"supercapacitor manufacturer" OR EDLC OR "ultracapacitor"'
+        - '"LIC" AND "supercapacitor" AND manufacturer'
+        - '"supercapacitor cell" OR "EDLC cell" OR "ultracapacitor cell"'
+      fr:
+        - '"supercondensateur fabricant" OR "EDLC" OR "ultracondensateur" OR "cellule supercondensateur"'
+      de:
+        - '"Superkondensator Hersteller" OR "Ultrakondensator" OR "EDLC Zelle"'
+      ar:
+        - '"مصنع سوبركاب" OR "مكثف فائق" OR "مصنع مكثفات فائقة" OR "خلية مكثف فائق"'
+
+  # ── Region-specific queries ──
+  region_queries:
+    morocco:
+      - '"Tangier Free Zone electronics assembly"'
+      - '"Tanger Automotive City supplier electronics"'
+      - '"Morocco CNC machining" OR "Maroc usinage"'
+      - '"Morocco cable harness" OR "Maroc faisceaux"'
+    tunisia:
+      - '"Bizerte electronics manufacturing"'
+      - '"Tunisia industrial zone electronics assembly"'
+    eu_cee:
+      - '"nearshore EMS Poland" OR "Romania electronics manufacturing services"'
+      - '"Czech Republic CNC machining" OR "Hungary precision machining"'
+    gcc:
+      - '"UAE electronics contract manufacturing" OR "KSA PCB assembly"'
+      - '"UAE CNC machining" OR "Saudi precision machining"'
+
+  # ═══════════════════════════════════════════════════════════════════
+  # VERIFICATION — Type-specific evidence gates
+  # ═══════════════════════════════════════════════════════════════════
+
+  verification:
+
+    ems:
+      required_families: 2
+      evidence_families:
+        service_language:
+          weight: 30
+          signals_en: ["EMS", "contract manufacturing", "we assemble for OEMs", "PCB assembly", "SMT", "box build"]
+          signals_ar: ["خدمات تصنيع الإلكترونيات", "تصنيع تعاقدي", "تجميع PCB", "تركيب سطحي SMT"]
+        capability_pages:
+          weight: 25
+          url_patterns: ["/services", "/capabilities", "/manufacturing", "/pcba", "/smt", "/assembly", "/box-build"]
+        industry_served:
+          weight: 20
+          signals: ["automotive", "aerospace", "medical", "industrial", "defense"]
+        certifications:
+          weight: 25
+          signals: ["ISO 9001", "IATF 16949", "AS9100", "ISO 13485", "IPC-A-610", "IPC/WHMA-A-620"]
+      veto_rules:
+        - { pattern: "authorized dealer|reseller|distributor", label: "distributor" }
+        - { pattern: "our products|product catalog", require_absence: "manufacturing services|we manufacture|we assemble", label: "oem_only" }
+        - { pattern: "research paper|academic|laboratory|university|thesis|dissertation", label: "academic" }
+        - { pattern: "add to cart|shop now|buy now|price:.\\$|shopping cart|checkout", label: "ecommerce" }
+        - { pattern: "ambulance|hospital|emergency|pharmaceutical|cosmetic|fragrance", require_absence: "medical device|PCB|electronics", label: "non_manufacturing" }
+        - { pattern: "law firm|legal advisor|attorney|avocat|cabinet juridique", label: "legal" }
+        - { pattern: "news article|press release archive|subscribe to newsletter", require_absence: "manufacturing|assembly|PCB", label: "news_site" }
+        - { pattern: "trade show|exhibition|expo|conference|summit|forum", require_absence: "we manufacture|our services|our facility", label: "events" }
+
+    machining:
+      required_families: 2
+      evidence_families:
+        process_proof:
+          weight: 30
+          signals: ["CNC milling", "CNC turning", "5-axis", "Swiss-type", "EDM", "grinding", "honing"]
+          signals_ar: ["خراطة CNC", "فرايز CNC", "تشغيل معادن", "تصنيع دقيق"]
+        metrology_tolerances:
+          weight: 25
+          signals: ["CMM", "tolerance", "microns", "Ra finish", "GD&T", "ISO 2768"]
+        materials_proof:
+          weight: 20
+          signals: ["titanium", "inconel", "stainless steel", "aluminum", "heat treat", "anodize", "plating"]
+        cert_industry:
+          weight: 25
+          signals: ["ISO 9001", "AS9100", "IATF 16949", "ISO 13485", "Nadcap", "aerospace", "medical"]
+      veto_rules:
+        - { pattern: "we sell machines|tool dealer|machine dealer|machine tools", label: "dealer" }
+        - { pattern: "training|education|course|tutorial", label: "education" }
+        - { pattern: "research paper|academic|laboratory|university", label: "academic" }
+        - { pattern: "add to cart|shop now|buy now|price:.\\$|shopping cart", label: "ecommerce" }
+        - { pattern: "cosmetic|beauty|skin care|décolletage|neck cream", label: "cosmetics" }
+        - { pattern: "trade show|exhibition|expo|conference", require_absence: "we manufacture|our machines|our shop", label: "events" }
+        - { pattern: "music festival|concert|entertainment|DJ|headlining", label: "entertainment" }
+
+    harness:
+      required_families: 2
+      evidence_families:
+        harness_language:
+          weight: 30
+          signals: ["wire harness", "cable harness", "cut strip crimp", "cable assembly"]
+          signals_ar: ["ضفيرة أسلاك", "تجميع كابلات", "تجميع ضفائر كهربائية"]
+        testing_proof:
+          weight: 25
+          signals: ["continuity test", "hi-pot", "pull test", "harness tester"]
+        standards_proof:
+          weight: 25
+          signals: ["IPC/WHMA-A-620", "UL", "CSA", "IATF 16949"]
+        production_proof:
+          weight: 20
+          signals: ["overmolding", "labeling", "kitting", "traceability", "high mix low volume"]
+      veto_rules:
+        - { pattern: "we sell wire|cable distributor|wire dealer", label: "distributor" }
+        - { pattern: "electrical contractor|building wiring|installation", label: "contractor" }
+        - { pattern: "research paper|academic|laboratory|university", label: "academic" }
+        - { pattern: "add to cart|shop now|buy now|shopping cart", label: "ecommerce" }
+        - { pattern: "spare part|replacement part|OEM part number|Kabelbaum.*BMW|Kabelbaum.*Yamaha", label: "aftermarket_parts" }
+
+    supercapacitor:
+      required_families: 2
+      evidence_families:
+        cell_proof:
+          weight: 30
+          signals: ["supercapacitor cell", "EDLC cell", "coin cell", "cylindrical cell", "pouch cell", "rated voltage"]
+          signals_ar: ["خلية مكثف فائق", "خلية سوبركاب"]
+        performance_specs:
+          weight: 25
+          signals: ["capacitance", "ESR", "cycle life", "power density", "energy density", "Farad"]
+        chemistry_type:
+          weight: 20
+          signals: ["EDLC", "LIC", "hybrid", "electrolyte", "activated carbon", "graphene"]
+        production_proof:
+          weight: 25
+          signals: ["cell production", "electrode coating", "formation", "aging", "QC testing", "datasheets"]
+      veto_rules:
+        - { pattern: "supercapacitor module|module integrator", require_absence: "cell production|cell manufacturing", label: "module_only" }
+        - { pattern: "research paper|academic|laboratory", label: "academic" }
+        - { pattern: "we distribute|authorized distributor|reseller", label: "distributor" }
+
+  # ═══════════════════════════════════════════════════════════════════
+  # PROFILING — High-signal URL paths (multilingual)
+  # ═══════════════════════════════════════════════════════════════════
+
+  priority_paths:
+    common:
+      - /services
+      - /capabilities
+      - /manufacturing
+      - /quality
+      - /certifications
+      - /compliance
+      - /facilities
+      - /locations
+      - /equipment
+      - /technology
+      - /industries
+      - /sectors
+      - /case-studies
+      - /customers
+      - /partners
+      - /news
+      - /press
+      - /careers
+      - /about
+      - /contact
+
+    ems:
+      - /pcba
+      - /smt
+      - /assembly
+      - /box-build
+      - /prototyping
+      - /npi
+
+    machining:
+      - /machining
+      - /cnc
+      - /5-axis
+      - /turning
+      - /milling
+      - /metrology
+      - /inspection
+      - /materials
+
+    harness:
+      - /wire-harness
+      - /cable-assembly
+      - /harnesses
+      - /overmolding
+      - /connectors
+
+    supercapacitor:
+      - /supercapacitor
+      - /ultracapacitor
+      - /edlc
+      - /lic
+      - /cells
+      - /datasheets
+      - /products
+
+    multilingual:
+      fr: [/usinage, /fabrication, /qualite, /certifications, /faisceaux, /services]
+      de: [/fertigung, /bearbeitung, /zerspanung, /qualitaet, /kabelbaum]
+      ar: [/تصنيع, /خدمات, /جودة]
+      es: [/fabricacion, /servicios, /calidad, /mecanizado]
+      it: [/produzione, /servizi, /qualita, /lavorazione]
+
+  # ═══════════════════════════════════════════════════════════════════
+  # STARZ REFERENCE — Our capabilities (for overlap scoring)
+  # ═══════════════════════════════════════════════════════════════════
+
+  starz_reference:
+    capabilities:
+      - SMT
+      - THT
+      - BGA
+      - fine_pitch
+      - AOI
+      - X-ray
+      - rework
+      - box_build
+      - cable_harness
+      - conformal_coating
+      - ICT
+      - functional_test
+      - DFM
+      - DFT
+      - NPI
+      - prototyping
+    certifications:
+      - ISO 9001
+      - IATF 16949
+      - IPC-A-610
+    regions:
+      - morocco
+      - africa_north
+    industries:
+      - Automotive
+      - Aerospace
+      - Industrial
+      - Renewables
+      - Power Electronics
+      - Medical
+      - Defense
+    positioning:
+      - nearshore
+      - Morocco
+      - competitive_cost
+      - EU_proximity
+      - quick_turn

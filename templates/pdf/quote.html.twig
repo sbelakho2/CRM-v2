@@ -157,13 +157,13 @@
         <div style="clear: both;"></div>
     </div>
     
-    <h3>{{ 'pdf.quote.quote_for'|trans }} {{ quote.company.name }}</h3>
+    <h3>{{ 'pdf.quote.quote_for'|trans }} {{ company_name ?? 'N/A' }}</h3>
     
     <table class="info-table">
         <tr>
             <td style="width: 50%;">
                 <div class="info-label">{{ 'company.title_singular'|trans }}</div>
-                <div class="info-value">{{ quote.company.name }}</div>
+                <div class="info-value">{{ company_name ?? 'N/A' }}</div>
                 <div class="info-label" style="margin-top: 8pt;">{{ 'common.quantity'|trans }}</div>
                 <div class="info-value">{{ quote.quantity ?? ('common.n_a'|trans) }}</div>
                 <div class="info-label" style="margin-top: 8pt;">{{ 'pdf.quote.ship_to'|trans }}</div>

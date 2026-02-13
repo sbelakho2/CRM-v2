@@ -3,22 +3,22 @@
 {% block form_label -%}
     {%- set label_attr = label_attr|merge({class: (label_attr.class|default('') ~ ' rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted')|trim}) -%}
     {{- parent() -}}
-{%- endblock form_label %}
+{% endblock form_label %}
 
 {% block form_widget_simple -%}
     {%- set attr = attr|merge({class: (attr.class|default('') ~ ' rams-form__input')|trim}) -%}
     {{- parent() -}}
-{%- endblock form_widget_simple %}
+{% endblock form_widget_simple %}
 
 {% block textarea_widget -%}
     {%- set attr = attr|merge({class: (attr.class|default('') ~ ' rams-form__input')|trim}) -%}
     {{- parent() -}}
-{%- endblock textarea_widget %}
+{% endblock textarea_widget %}
 
 {% block choice_widget_collapsed -%}
     {%- set attr = attr|merge({class: (attr.class|default('') ~ ' rams-form__select')|trim}) -%}
     {{- parent() -}}
-{%- endblock choice_widget_collapsed %}
+{% endblock choice_widget_collapsed %}
 
 {% block form_row -%}
     <div class="rams-form__group{% if errors|length > 0 %} rams-form__group--error{% endif %} rams-mb-4">
@@ -26,7 +26,7 @@
         {{- form_widget(form) -}}
         {{- form_errors(form) -}}
     </div>
-{%- endblock form_row %}
+{% endblock form_row %}
 
 {% block form_errors -%}
     {%- if errors|length > 0 -%}
@@ -36,4 +36,4 @@
             {%- endfor -%}
         </div>
     {%- endif -%}
-{%- endblock form_errors %}
+{% endblock form_errors %}

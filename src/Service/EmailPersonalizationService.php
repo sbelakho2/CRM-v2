@@ -92,7 +92,7 @@ class EmailPersonalizationService
 
     private const INDUSTRY_VALUE_PROPS = [
         'automotive' => [
-            'technical' => 'For automotive electronics, we can align on documentation requirements and support PCBA and cable harness scope as needed.',
+            'technical' => 'For automotive electronics, our ISO 9001 certified facility can align on documentation requirements and support PCBA and cable harness scope as needed.',
             'business' => 'Nearshore Morocco-based EMS option for automotive programs; happy to align on cost, lead-time, and qualification steps.',
             'value_focused' => 'Focus on manufacturability, supply continuity, and documentation planning for automotive programs.',
             'relationship' => 'Long‑term program support with clear communication and qualification steps for automotive teams.',
@@ -259,6 +259,13 @@ class EmailPersonalizationService
             'detail' => 'Conformal-coated, IP-rated assemblies with salt-spray awareness—built for your marine environment.',
             'similarity' => 'Marine electronics teams like yours',
             'outcome' => 'Marine teams {like yours|in navigation/power|building for harsh environments} cite {harsh-environment reliability|EU-proximity shipping|certification support}.',
+        ],
+        'other' => [
+            'stat' => 'Electronics manufacturers across industries {are achieving|report|have found} success with nearshore manufacturing partners.',
+            'reference' => 'electronics manufacturers across multiple industries',
+            'detail' => 'Flexible capacity and quality processes—built for your program requirements.',
+            'similarity' => 'Companies like yours',
+            'outcome' => 'Teams {like yours|in similar situations|facing comparable challenges} cite {reliable delivery|quality consistency|responsive support}.',
         ],
     ];
     // ========================= CIALDINI'S 7 PRINCIPLES FRAMEWORK =========================
@@ -1565,6 +1572,7 @@ class EmailPersonalizationService
     // ========================= TONE TRANSFORMATIONS =========================
     private const TONE_TRANSFORMATION_PATTERNS = [
         PersonalizationProfile::TONE_FORMAL => [
+            '/\bHey!?\b/' => 'Hello',
             '/\bI\'d\b/i' => 'I would',
             '/\bWe\'d\b/i' => 'We would',
             '/\bYou\'d\b/i' => 'You would',
@@ -1590,6 +1598,8 @@ class EmailPersonalizationService
             '/\bYou are\b/i' => "You're",
         ],
         PersonalizationProfile::TONE_DIRECT => [
+            '/I hope this email finds you well\.?\s*/i' => '',
+            '/\bI just wanted to\b/i' => '',
             '/\bI wanted to\b/i' => '',
             '/\bI was wondering if\b/i' => '',
             '/\bI thought I would\b/i' => '',
@@ -1610,6 +1620,21 @@ class EmailPersonalizationService
     public function getKnownCompetitors(): array
     {
         return array_keys(self::COMPETITOR_HOOKS);
+    }
+
+    /**
+     * Get competitor hook data for a known competitor
+     *
+     * Returns positioning data (hook, differentiator, value) for known competitors,
+     * or null if the competitor is not in our database.
+     *
+     * @param string $competitor Competitor name (lowercase)
+     * @return array|null Competitor hook data or null
+     */
+    public function getCompetitorHook(string $competitor): ?array
+    {
+        $key = strtolower($competitor);
+        return self::COMPETITOR_HOOKS[$key] ?? null;
     }
 
     /**
@@ -1884,7 +1909,7 @@ class EmailPersonalizationService
     private function sanitizeClaimsText(string $text): string
     {
         $replacements = [
-            '/\bISO\s*\d{4}\b/i' => 'quality-focused processes',
+            '/\bISO\s*(?!9001)\d{4}\b/i' => 'quality-focused processes',
             '/\bIATF\s*\d+\b/i' => 'automotive-grade processes',
             '/\bAS\s*\d+\b/i' => 'aerospace-grade processes',
             '/\bEN\s*\d+\b/i' => 'industry-grade processes',
@@ -2749,6 +2774,7 @@ class EmailPersonalizationService
         $settings = self::CONTENT_LENGTH_SETTINGS[$lengthSetting] ?? self::CONTENT_LENGTH_SETTINGS['standard'];
         $maxParagraphs = $settings['max_paragraphs'] ?? 5;
         $maxWords = $settings['max_words'] ?? 200;
+        $maxSentences = $settings['max_sentences'] ?? 5;
 
         $paragraphs = preg_split('/\n{2,}/', trim($content));
         if (count($paragraphs) > $maxParagraphs) {
@@ -2756,6 +2782,13 @@ class EmailPersonalizationService
         }
 
         $result = implode("\n\n", $paragraphs);
+
+        // Sentence-level trim: enforce max_sentences
+        $sentences = preg_split('/(?<=[.!?])\s+/', trim($result), -1, PREG_SPLIT_NO_EMPTY);
+        if (count($sentences) > $maxSentences) {
+            $sentences = array_slice($sentences, 0, $maxSentences);
+            $result = implode(' ', $sentences);
+        }
 
         // Word-level trim: cut at sentence boundary nearest to maxWords
         $words = str_word_count($result, 2);

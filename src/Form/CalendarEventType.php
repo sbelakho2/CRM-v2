@@ -147,7 +147,7 @@ class CalendarEventType extends AbstractType
                 'choice_label' => 'fullName',
                 'query_builder' => function (EntityRepository $er) {
                     return $er->createQueryBuilder('u')
-                        ->where('u.isActive = :active')
+                        ->where('u.active = :active')
                         ->setParameter('active', true)
                         ->orderBy('u.firstName', 'ASC');
                 },

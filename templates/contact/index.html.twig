@@ -127,9 +127,9 @@
                                 </div>
                             </td>
                             <td class="rams-table__cell">
-                                {% if contact.company %}
-                                    <a href="{{ path('app_company_show', {id: contact.company.id}) }}" class="rams-link">
-                                        {{ contact.company.name }}
+                                {% if safe_company_id(contact) %}
+                                    <a href="{{ path('app_company_show', {id: safe_company_id(contact)}) }}" class="rams-link">
+                                        {{ safe_company_name(contact) }}
                                     </a>
                                 {% else %}
                                     <span class="rams-text--muted">—</span>

@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -37,7 +38,8 @@ class QuoteReviewController extends AbstractController
         private QuoteRepository $quoteRepository,
         private BomLineRepository $bomLineRepository,
         private PricingEngine $pricingEngine,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private TranslatorInterface $translator
     ) {}
 
     /**
@@ -50,6 +52,10 @@ class QuoteReviewController extends AbstractController
         $quotesNeedingReview = $this->quoteRepository->createQueryBuilder('q')
             ->select('q', 'COUNT(b.id) as total_lines', 'SUM(CASE WHEN b.requiresReview = true AND b.manuallyVerified = false THEN 1 ELSE 0 END) as review_count')
             ->leftJoin('q.bomLines', 'b')
+            ->leftJoin('q.company', 'c')
+            ->addSelect('c')
+            ->addSelect('COALESCE(c.name, :missingCompany) AS company_name')
+            ->setParameter('missingCompany', $this->translator->trans('common.n_a'))
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['draft', 'pending_review'])
             ->groupBy('q.id')
@@ -68,10 +74,22 @@ class QuoteReviewController extends AbstractController
     #[Route('/{id}', name: 'quote_review_detail', methods: ['GET'])]
     public function review(int $id): Response
     {
-        $quote = $this->quoteRepository->find($id);
-        if (!$quote) {
+        $row = $this->quoteRepository->createQueryBuilder('q')
+            ->leftJoin('q.company', 'c')
+            ->addSelect('c')
+            ->addSelect('COALESCE(c.name, :na) AS company_name')
+            ->setParameter('na', $this->translator->trans('common.n_a'))
+            ->andWhere('q.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if (!$row) {
             throw $this->createNotFoundException('Quote not found');
         }
+
+        $quote = $row[0] ?? $row;
+        $companyName = is_array($row) ? ($row['company_name'] ?? null) : null;
 
         // Get BOM lines grouped by review status
         $bomLines = $this->bomLineRepository->findBy(
@@ -84,6 +102,7 @@ class QuoteReviewController extends AbstractController
 
         return $this->render('quote_review/detail.html.twig', [
             'quote' => $quote,
+            'company_name' => $companyName,
             'bomLines' => $bomLines,
             'stats' => $stats,
         ]);
@@ -95,6 +114,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/verify', name: 'quote_review_verify_line', methods: ['POST'])]
     public function verifyLine(int $id, Request $request): JsonResponse
     {
+        try {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
@@ -125,6 +145,9 @@ class QuoteReviewController extends AbstractController
             'message' => 'Part match verified',
             'line' => $this->serializeBomLine($bomLine)
         ]);
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
+        }
     }
 
     /**
@@ -133,6 +156,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/override', name: 'quote_review_override_line', methods: ['POST'])]
     public function overrideLine(int $id, Request $request): JsonResponse
     {
+        try {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
@@ -191,6 +215,9 @@ class QuoteReviewController extends AbstractController
             'line' => $this->serializeBomLine($bomLine),
             'quote_totals' => $this->getQuoteTotals($bomLine->getQuote())
         ]);
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
+        }
     }
 
     /**
@@ -199,6 +226,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/reject', name: 'quote_review_reject_line', methods: ['POST'])]
     public function rejectLine(int $id, Request $request): JsonResponse
     {
+        try {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
@@ -238,6 +266,9 @@ class QuoteReviewController extends AbstractController
             'message' => 'Part match rejected',
             'line' => $this->serializeBomLine($bomLine)
         ]);
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
+        }
     }
 
     /**
@@ -246,6 +277,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/{id}/verify-all-high', name: 'quote_review_verify_all_high', methods: ['POST'])]
     public function verifyAllHighConfidence(int $id): JsonResponse
     {
+        try {
         $quote = $this->quoteRepository->find($id);
         if (!$quote) {
             return new JsonResponse(['error' => 'Quote not found'], 404);
@@ -282,6 +314,9 @@ class QuoteReviewController extends AbstractController
             'message' => sprintf('Verified %d high-confidence matches', $verifiedCount),
             'verified_count' => $verifiedCount
         ]);
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
+        }
     }
 
     /**
@@ -290,6 +325,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/{id}/approve', name: 'quote_review_approve', methods: ['POST'])]
     public function approveQuote(int $id): JsonResponse
     {
+        try {
         $quote = $this->quoteRepository->find($id);
         if (!$quote) {
             return new JsonResponse(['error' => 'Quote not found'], 404);
@@ -340,6 +376,9 @@ class QuoteReviewController extends AbstractController
             'message' => 'Quote approved and ready for publishing',
             'redirect' => $this->generateUrl('quote_copilot_results', ['id' => $id])
         ]);
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
+        }
     }
 
     /**
@@ -347,6 +386,15 @@ class QuoteReviewController extends AbstractController
      */
     #[Route('/line/{id}/reprice', name: 'quote_review_reprice_line', methods: ['POST'])]
     public function repriceLine(int $id, Request $request): JsonResponse
+    {
+        try {
+            return $this->doRepriceLine($id, $request);
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
+        }
+    }
+
+    private function doRepriceLine(int $id, Request $request): JsonResponse
     {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
@@ -419,6 +467,7 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/select-alternative', name: 'quote_review_select_alternative', methods: ['POST'])]
     public function selectAlternative(int $id, Request $request): JsonResponse
     {
+        try {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
@@ -529,6 +578,9 @@ class QuoteReviewController extends AbstractController
             'line' => $this->serializeBomLine($bomLine),
             'quote_totals' => $this->getQuoteTotals($bomLine->getQuote())
         ]);
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            return new JsonResponse(['success' => false, 'error' => 'Related company has been deleted'], 400);
+        }
     }
     
     /**

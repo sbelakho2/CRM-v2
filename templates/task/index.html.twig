@@ -133,8 +133,8 @@
                         </td>
                         <td>
                             <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-link rams-text--bold">{{ task.title }}</a>
-                            {% if task.company %}
-                                <div class="rams-text--xs rams-text--muted">{{ task.company.name }}</div>
+                            {% if safe_company_id(task) %}
+                                <div class="rams-text--xs rams-text--muted">{{ safe_company_name(task) }}</div>
                             {% endif %}
                         </td>
                         <td>

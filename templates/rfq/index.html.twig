@@ -91,7 +91,7 @@
                             <div class="rams-flex-1">
                                 <div class="rams-flex rams-items-center rams-gap-2 rams-mb-2">
                                     <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-text--lg rams-text--bold">
-                                        {{ rfq.company.name }}
+                                        {{ safe_company_name(rfq) }}
                                     </a>
                                     
                                     {# Type Badge #}

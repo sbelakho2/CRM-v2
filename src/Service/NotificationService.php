@@ -211,14 +211,19 @@ class NotificationService
                 $notification->setType('quote_viewed');
                 $notification->setEntityType('Quote');
                 $notification->setEntityId($quote->getId());
+                try {
+                    $companyName = $quote->getCompany()?->getName() ?? 'Customer';
+                } catch (\Doctrine\ORM\EntityNotFoundException) {
+                    $companyName = 'Customer';
+                }
                 $notification->setMessage(sprintf(
                     'Quote #%s viewed by %s',
                     $quote->getId(),
-                    $quote->getCompany()?->getName() ?? 'Customer'
+                    $companyName
                 ));
                 $notification->setData([
                     'quote_id' => $quote->getId(),
-                    'company_name' => $quote->getCompany()?->getName(),
+                    'company_name' => $companyName,
                     'viewed_at' => $quote->getLastViewedAt()?->format('Y-m-d H:i:s')
                 ]);
 

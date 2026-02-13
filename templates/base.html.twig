@@ -307,6 +307,50 @@
                     </li>
                         </ul>
                     </li>
+                    <li class="rams-sidebar__nav-group {% if app.request.get('_route') starts with 'comp_crawler' %}is-open{% endif %}">
+                        <div class="rams-sidebar__group-header" onclick="this.parentElement.classList.toggle('is-open')">
+                            <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
+                            <span>{{ 'nav.group.competitor_intel'|trans }}</span>
+                        </div>
+                        <ul class="rams-sidebar__nav-list--nested">
+                            <li class="rams-sidebar__nav-item">
+                        <a href="{{ path('comp_crawler_dashboard') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'comp_crawler_dashboard' %}rams-sidebar__nav-link--active{% endif %}">
+                            <span class="rams-sidebar__nav-indicator"></span>
+                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="2" y="2" width="12" height="12" rx="2" stroke-dasharray="2 1"/><path d="M5 6L8 9L11 6"/>
+                            </svg>
+                            <span>{{ 'nav.comp_dashboard'|trans }}</span>
+                        </a>
+                    </li>
+                            <li class="rams-sidebar__nav-item">
+                        <a href="{{ path('comp_crawler_list') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'comp_crawler_list' %}rams-sidebar__nav-link--active{% endif %}">
+                            <span class="rams-sidebar__nav-indicator"></span>
+                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M3 4H13M3 8H13M3 12H13"/><circle cx="5" cy="4" r="0.5" fill="currentColor"/><circle cx="5" cy="8" r="0.5" fill="currentColor"/><circle cx="5" cy="12" r="0.5" fill="currentColor"/>
+                            </svg>
+                            <span>{{ 'nav.comp_list'|trans }}</span>
+                        </a>
+                    </li>
+                            <li class="rams-sidebar__nav-item">
+                        <a href="{{ path('comp_crawler_changes') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'comp_crawler_changes' %}rams-sidebar__nav-link--active{% endif %}">
+                            <span class="rams-sidebar__nav-indicator"></span>
+                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M2 13L5 10L8 13L14 7"/><path d="M10 7H14V11"/>
+                            </svg>
+                            <span>{{ 'nav.comp_changes'|trans }}</span>
+                        </a>
+                    </li>
+                            <li class="rams-sidebar__nav-item">
+                        <a href="{{ path('comp_crawler_watchlists') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'comp_crawler_watchlists' %}rams-sidebar__nav-link--active{% endif %}">
+                            <span class="rams-sidebar__nav-indicator"></span>
+                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M8 2C4 2 1 8 1 8C1 8 4 14 8 14C12 14 15 8 15 8C15 8 12 2 8 2Z"/><circle cx="8" cy="8" r="2.5"/>
+                            </svg>
+                            <span>{{ 'nav.comp_watchlists'|trans }}</span>
+                        </a>
+                    </li>
+                        </ul>
+                    </li>
                     <li class="rams-sidebar__nav-group">
                         <div class="rams-sidebar__group-header" onclick="this.parentElement.classList.toggle('is-open')">
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>

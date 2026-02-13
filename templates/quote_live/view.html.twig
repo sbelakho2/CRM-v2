@@ -15,7 +15,7 @@
                 <div class="rams-module__header--row">
                     <div>
                         <h2 class="rams-heading rams-heading--2 rams-text--white">{{ 'quote.live.title'|trans }} {{ quote.quoteNumber }}</h2>
-                        <p class="rams-text rams-text--white-muted">{{ 'quote.live.for'|trans }}: {{ quote.company.name }}</p>
+                        <p class="rams-text rams-text--white-muted">{{ 'quote.live.for'|trans }}: {{ company_name ?? 'N/A' }}</p>
                     </div>
                     <div class="rams-text--right">
                         <span class="rams-dymo rams-text--white-muted">{{ 'quote.live.valid_until'|trans }}</span>

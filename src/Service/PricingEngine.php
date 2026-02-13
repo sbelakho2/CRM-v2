@@ -76,6 +76,14 @@ class PricingEngine
                 'sources_checked' => array_keys($multiResult['all_sources']),
             ];
             
+            // Normalise URL keys — MultiDistributor uses _source_url (search page)
+            // and individual clients use product_url (exact listing).  Expose both
+            // under canonical names so downstream code never sees null.
+            if (!isset($result['search_url'])) {
+                $result['search_url'] = $result['_source_url'] ?? $result['product_url'] ?? null;
+            }
+            // product_url already set by Alibaba/DigiKey clients; keep as-is
+            
             $this->logger->info('Multi-distributor pricing found', [
                 'mpn' => $mpn,
                 'source' => $multiResult['source'],
@@ -89,7 +97,7 @@ class PricingEngine
         }
         
         // If multi-distributor service didn't find anything, try Nexar as last resort
-        $result = $this->nexarClient->searchByPartNumber($mpn, $manufacturer, $description);
+        $result = $this->nexarClient->searchByPartNumber($mpn);
         
         if ($result) {
             $result['source'] = 'nexar';
@@ -108,7 +116,23 @@ class PricingEngine
         }
         
         // Last resort: AI-powered price imputation
+        // ─── DISABLED ───────────────────────────────────────────────────
+        // AI imputation inflates BOM totals with unreliable ceiling prices.
+        // All parts must be sourced from live distributor APIs (Alibaba first).
+        // If Alibaba fails, the part should surface as "not found" so the
+        // operator can investigate, rather than silently accepting a 3x-cap guess.
+        // To re-enable, remove the early-return below.
+        // ─────────────────────────────────────────────────────────────────
+        $this->logger->info('AI imputation SKIPPED (disabled) — returning null', [
+            'mpn' => $mpn,
+        ]);
+        
+        // Return null so the BOM report shows this part as unsourced.
+        // Previously this block would call $this->priceImputation->imputePrice()
+        // and accept any result with confidence >= 0.5.
+        /*
         $imputation = $this->priceImputation->imputePrice([
+        /*
             'mpn' => $mpn,
             'manufacturer' => $manufacturer ?? '',
             'description' => $description ?? '',
@@ -150,6 +174,7 @@ class PricingEngine
                 'imputation_factors' => $imputation['factors'],
             ];
         }
+        */
         
         $this->logger->warning('No pricing found in any API', ['mpn' => $mpn]);
         
@@ -167,7 +192,7 @@ class PricingEngine
             'alibaba' => $this->alibabaClient->searchByPartNumber($mpn, $manufacturer),
             'mouser' => $this->mouserClient->searchByPartNumber($mpn, $manufacturer),
             'digikey' => $this->digikeyClient->searchByPartNumber($mpn, $manufacturer),
-            'nexar' => $this->nexarClient->searchByPartNumber($mpn, $manufacturer),
+            'nexar' => $this->nexarClient->searchByPartNumber($mpn),
             default => null,
         };
         
@@ -254,18 +279,81 @@ class PricingEngine
                 $line['description'] ?? null
             );
             
+            // ── Alt-MPN primary fallback ──
+            // When the primary MPN is unsourced, try the Remark column's alt MPN
+            // as a FULL replacement before giving up.  Many BOM files carry the
+            // real MPN in the Remark column (e.g. "107 6k 737" → "TAJC107K006RNJ").
+            if (!$pricing) {
+                $fallbackAltMpn = $this->extractAltMpn($line['remark'] ?? '', $line['mpn']);
+                if ($fallbackAltMpn) {
+                    $this->logger->info('Primary MPN unsourced, trying Remark alt-MPN as fallback', [
+                        'original_mpn' => $line['mpn'],
+                        'alt_mpn' => $fallbackAltMpn,
+                    ]);
+                    
+                    $pricing = $this->getPricing($fallbackAltMpn, null, $line['description'] ?? null);
+                    
+                    // Also try DigiKey directly for the alt MPN
+                    if (!$pricing) {
+                        try {
+                            $dkFallback = $this->digikeyClient->searchByPartNumber($fallbackAltMpn);
+                            if ($dkFallback) {
+                                $pricing = $dkFallback;
+                                $pricing['source'] = 'digikey';
+                                $pricing['search_url'] = 'https://www.digikey.com/en/products/filter?keywords=' . urlencode($fallbackAltMpn);
+                            }
+                        } catch (\Exception $e) {
+                            // DigiKey failed, continue
+                        }
+                    }
+                    
+                    if ($pricing) {
+                        $pricing['alt_mpn_used'] = $fallbackAltMpn;
+                        $this->logger->info('Alt-MPN fallback succeeded', [
+                            'original_mpn' => $line['mpn'],
+                            'alt_mpn' => $fallbackAltMpn,
+                            'source' => $pricing['source'] ?? 'unknown',
+                        ]);
+                    }
+                }
+            }
+            
             if ($pricing) {
                 // Successfully sourced
                 $processedLine = array_merge($line, $pricing);
                 $processedLine['status'] = 'sourced';
                 
-                // Calculate effective quantity considering MOQ and pack quantity
-                $requestedQty = $line['quantity'];
+                // Use stock_quantity (real order qty from BOM) when available,
+                // otherwise fall back to per-board quantity
+                $requestedQty = (!empty($line['stock_quantity']) && $line['stock_quantity'] > $line['quantity'])
+                    ? $line['stock_quantity']
+                    : $line['quantity'];
                 $moq = $pricing['moq'] ?? 1;
                 $packQty = $pricing['pack_quantity'] ?? null;
                 $multipleQty = $pricing['multiple_quantity'] ?? null;
                 
-                $quantityResult = $this->calculateEffectiveQuantity($requestedQty, $moq, $packQty, $multipleQty);
+                // When stock_quantity is specified, it's the customer's FIRM order qty.
+                // Don't inflate it with MOQ/pack — only warn if there's a mismatch.
+                $hasStockQty = !empty($line['stock_quantity']) && $line['stock_quantity'] > $line['quantity'];
+                if ($hasStockQty) {
+                    // Customer's order qty is firm — use it directly for extended price
+                    $effectiveQty = $requestedQty;
+                    $adjusted = false;
+                    $reason = null;
+                    
+                    // Still generate warnings for MOQ/pack issues
+                    if ($requestedQty < $moq) {
+                        $reason = "Note: Requested qty {$requestedQty} is below MOQ {$moq}";
+                    }
+                    
+                    $quantityResult = [
+                        'effective_quantity' => $effectiveQty,
+                        'adjusted' => $adjusted,
+                        'reason' => $reason,
+                    ];
+                } else {
+                    $quantityResult = $this->calculateEffectiveQuantity($requestedQty, $moq, $packQty, $multipleQty);
+                }
                 $effectiveQty = $quantityResult['effective_quantity'];
                 
                 // Store quantity adjustment info
@@ -278,6 +366,148 @@ class PricingEngine
                 
                 // Calculate pricing for effective quantity (not requested)
                 $unitPrice = $this->calculateUnitPrice($pricing['pricing'], $effectiveQty);
+                
+                // ── Qty-aware alternative re-evaluation ──
+                // The waterfall selects by confidence score, but at the actual order qty
+                // a different source may be significantly cheaper.
+                $alternatives = $pricing['alternatives'] ?? [];
+                foreach ($alternatives as $alt) {
+                    $altBreaks = $alt['pricing'] ?? [];
+                    if (empty($altBreaks)) continue;
+                    $altPrice = $this->calculateUnitPrice($altBreaks, $effectiveQty);
+                    if ($altPrice > 0 && $altPrice < $unitPrice * 0.85) {
+                        // Alternative is >15% cheaper at this qty — switch
+                        $savings = round((1 - $altPrice / $unitPrice) * 100, 1);
+                        $altSource = $alt['_source'] ?? $alt['source'] ?? 'unknown';
+                        $this->logger->info('Qty-aware re-eval: alternative cheaper at order qty', [
+                            'mpn' => $line['mpn'],
+                            'original_source' => $processedLine['source'] ?? 'unknown',
+                            'alt_source' => $altSource,
+                            'original_price' => $unitPrice,
+                            'alt_price' => $altPrice,
+                            'qty' => $effectiveQty,
+                            'savings_pct' => $savings . '%',
+                        ]);
+                        $pricing = $alt;
+                        $unitPrice = $altPrice;
+                        $processedLine['source'] = $altSource;
+                        if (isset($alt['confidence'])) {
+                            $processedLine['confidence'] = $alt['confidence'];
+                        }
+                    }
+                }
+                
+                // ── Alt-MPN search: use Remark column's cheaper equivalent ──
+                $altMpn = $this->extractAltMpn($line['remark'] ?? '', $line['mpn']);
+                if ($altMpn) {
+                    $this->logger->info('Searching alternate MPN from BOM remark', [
+                        'original_mpn' => $line['mpn'],
+                        'alt_mpn' => $altMpn,
+                        'original_unit_price' => $unitPrice,
+                    ]);
+                    
+                    // Strategy A: Full waterfall search for alt MPN
+                    $altPricing = $this->getPricing($altMpn, null, $line['description'] ?? null);
+                    $altUnitPrice = $altPricing ? $this->calculateUnitPrice($altPricing['pricing'], $effectiveQty) : 0;
+                    
+                    // Strategy B: Direct DigiKey search for alt MPN
+                    // (waterfall may miss DigiKey if Alibaba scores well)
+                    try {
+                        $digiKeyAlt = $this->digikeyClient->searchByPartNumber($altMpn);
+                        if ($digiKeyAlt) {
+                            $dkAltPrice = $this->calculateUnitPrice($digiKeyAlt['pricing'] ?? [], $effectiveQty);
+                            if ($dkAltPrice > 0 && ($altUnitPrice <= 0 || $dkAltPrice < $altUnitPrice)) {
+                                $altPricing = $digiKeyAlt;
+                                $altPricing['source'] = 'digikey';
+                                $altPricing['search_url'] = 'https://www.digikey.com/en/products/filter?keywords=' . urlencode($altMpn);
+                                $altUnitPrice = $dkAltPrice;
+                                $this->logger->info('DigiKey direct search for alt MPN found cheaper price', [
+                                    'alt_mpn' => $altMpn, 'dk_price' => $dkAltPrice,
+                                ]);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // DigiKey direct search failed, continue with waterfall result
+                    }
+                    
+                    // Also try DigiKey directly for the PRIMARY MPN if currently using Alibaba
+                    if (($processedLine['source'] ?? '') === 'alibaba' && $unitPrice > 0.01) {
+                        try {
+                            $dkPrimary = $this->digikeyClient->searchByPartNumber($line['mpn']);
+                            if ($dkPrimary) {
+                                $dkPrimaryPrice = $this->calculateUnitPrice($dkPrimary['pricing'] ?? [], $effectiveQty);
+                                if ($dkPrimaryPrice > 0 && $dkPrimaryPrice < $unitPrice) {
+                                    $this->logger->info('DigiKey cheaper for primary MPN at order qty', [
+                                        'mpn' => $line['mpn'], 'alibaba_price' => $unitPrice, 'dk_price' => $dkPrimaryPrice,
+                                    ]);
+                                    $dkPrimary['search_url'] = 'https://www.digikey.com/en/products/filter?keywords=' . urlencode($line['mpn']);
+                                    $pricing = $dkPrimary;
+                                    $unitPrice = $dkPrimaryPrice;
+                                    $processedLine['source'] = 'digikey';
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            // continue
+                        }
+                    }
+                    
+                    if ($altPricing && $altUnitPrice > 0 && ($unitPrice <= 0 || $altUnitPrice < $unitPrice)) {
+                        $savings = $unitPrice > 0 ? round((1 - $altUnitPrice / $unitPrice) * 100, 1) : 0;
+                        $this->logger->info('Alt MPN is CHEAPER — switching', [
+                            'original_mpn' => $line['mpn'],
+                            'alt_mpn' => $altMpn,
+                            'original_price' => $unitPrice,
+                            'alt_price' => $altUnitPrice,
+                            'savings_pct' => $savings . '%',
+                        ]);
+                        
+                        // Swap to the cheaper alternative
+                        $pricing = $altPricing;
+                        $unitPrice = $altUnitPrice;
+                        $processedLine['alt_mpn_used'] = $altMpn;
+                        $processedLine['alt_mpn_savings_pct'] = $savings;
+                        $processedLine['source'] = $altPricing['source'] ?? $processedLine['source'];
+                        
+                        if (isset($altPricing['confidence'])) {
+                            $processedLine['confidence'] = $altPricing['confidence'];
+                            $processedLine['confidence']['reasons'][] = "Used alt MPN {$altMpn} ({$savings}% cheaper)";
+                        }
+                    } else {
+                        $this->logger->debug('Alt MPN not cheaper', [
+                            'alt_mpn' => $altMpn,
+                            'alt_price' => $altUnitPrice,
+                            'original_price' => $unitPrice,
+                        ]);
+                    }
+                }
+                
+                // ── BOM-embedded price sanity check ──
+                // When the BOM carries a verified unit price and the API price is
+                // astronomically higher, cap the output.  This covers China-domestic
+                // factory-priced commodity passives that no Western API can match.
+                $bomEmbeddedPrice = (float)($line['unit_price'] ?? 0);
+                if ($bomEmbeddedPrice > 0 && $unitPrice > 0 && $unitPrice > $bomEmbeddedPrice * 3.5) {
+                    $isCommodityPassive = $this->isCommodityPassive(
+                        $line['mpn'],
+                        $line['description'] ?? '',
+                        $line['category'] ?? ''
+                    );
+                    if ($isCommodityPassive) {
+                        // Cap at 3x BOM price — acknowledges some API premium but
+                        // prevents 50-300x blowups from niche-distributor list prices
+                        $cappedPrice = $bomEmbeddedPrice * 3.0;
+                        $this->logger->info('BOM-price ceiling applied for commodity passive', [
+                            'mpn' => $line['mpn'],
+                            'api_price' => $unitPrice,
+                            'bom_price' => $bomEmbeddedPrice,
+                            'capped_price' => $cappedPrice,
+                            'ratio_before' => round($unitPrice / $bomEmbeddedPrice, 1),
+                        ]);
+                        $unitPrice = $cappedPrice;
+                        $processedLine['bom_price_capped'] = true;
+                    }
+                }
+                
                 $processedLine['unit_price'] = $unitPrice;
                 $processedLine['extended_price'] = $unitPrice * $effectiveQty;
                 $processedLine['currency'] = $this->resolveCurrencyFromPriceBreaks($pricing['pricing'] ?? []);
@@ -292,17 +522,19 @@ class PricingEngine
                 
                 $stats['sourced']++;
                 $stats['total_cost'] += $processedLine['extended_price'];
-                $source = $pricing['source'] ?? 'manual';
+                // Use processedLine source which is updated through all swap paths
+                // (qty-aware re-eval, alt-MPN swap, DigiKey direct override)
+                $source = $processedLine['source'] ?? $pricing['source'] ?? 'manual';
                 if (!isset($stats['sources'][$source])) {
                     $stats['sources'][$source] = 0;
                 }
                 $stats['sources'][$source]++;
                 
-                // Track confidence
-                $confidenceLevel = $pricing['confidence']['level'] ?? 'MEDIUM';
+                // Track confidence — use processedLine which reflects all swaps
+                $confidenceLevel = $processedLine['confidence']['level'] ?? $pricing['confidence']['level'] ?? 'MEDIUM';
                 $stats['confidence_breakdown'][$confidenceLevel]++;
                 
-                if ($pricing['confidence']['requiresReview'] ?? false) {
+                if ($processedLine['confidence']['requiresReview'] ?? $pricing['confidence']['requiresReview'] ?? false) {
                     $stats['requires_review_count']++;
                 }
                 
@@ -335,8 +567,14 @@ class PricingEngine
                     $stats['quantity_adjusted_count']++;
                 }
                 
-                // Store search URL for transparency
-                $processedLine['search_url'] = $pricing['search_url'] ?? null;
+                // Store URLs for transparency
+                // search_url  = distributor search page (internal, for quote review UI)
+                // product_url = exact product listing   (internal, for sourcing audit)
+                $processedLine['search_url'] = $pricing['search_url']
+                    ?? $pricing['_source_url']
+                    ?? $pricing['product_url']
+                    ?? $this->buildGenericSearchUrl($line['mpn']);
+                $processedLine['product_url'] = $pricing['product_url'] ?? null;
                 
             } else {
                 // Could not source - mark for manual pricing
@@ -526,7 +764,138 @@ class PricingEngine
             }
         }
         
+        // ── Bulk extrapolation: when qty exceeds highest tier by 2x+, apply volume discount ──
+        // This reflects real-world negotiated pricing below last posted break.
+        // Uses a log-linear learning curve: each doubling of qty reduces price ~15%.
+        $highestBreak = end($priceBreaks);
+        $highestQty = (int)($highestBreak['quantity'] ?? 1);
+        $highestPrice = (float)($highestBreak['price'] ?? 0);
+        
+        if ($quantity > $highestQty * 2 && $highestPrice > 0 && count($priceBreaks) >= 2) {
+            // Calculate the learning rate from the existing breaks
+            $lowestBreak = reset($priceBreaks);
+            $lowestQty = max(1, (int)($lowestBreak['quantity'] ?? 1));
+            $lowestPrice = (float)($lowestBreak['price'] ?? 0);
+            
+            if ($lowestPrice > $highestPrice && $highestQty > $lowestQty) {
+                // Natural learning rate from the existing price breaks
+                $qtyRatio = log($highestQty / $lowestQty);
+                $priceRatio = log($lowestPrice / $highestPrice);
+                $learningRate = $qtyRatio > 0 ? min($priceRatio / $qtyRatio, 0.5) : 0.15;
+                
+                // Extrapolate: how much further beyond highest break?
+                $extraRatio = log($quantity / $highestQty);
+                $discount = exp(-$learningRate * $extraRatio);
+                
+                // Cap discount at 40% below the last posted tier (floor = 60% of last price)
+                $extrapolatedPrice = $highestPrice * max($discount, 0.60);
+                
+                if ($extrapolatedPrice < $applicablePrice) {
+                    $applicablePrice = round($extrapolatedPrice, 6);
+                }
+            }
+        }
+        
         return $applicablePrice;
+    }
+    
+    /**
+     * Detect whether a component is a commodity passive (resistor, capacitor, inductor).
+     *
+     * These parts have near-zero BOM prices at volume ($0.0005/ea) that no Western
+     * distributor API can match.  Used to gate BOM-price-ceiling logic.
+     */
+    private function isCommodityPassive(string $mpn, string $description, string $category): bool
+    {
+        $text = strtolower($mpn . ' ' . $description . ' ' . $category);
+        
+        // Category / description keywords
+        $passiveKeywords = [
+            'resistor', 'capacitor', 'inductor', 'cap ', 'res ', 'ind ',
+            'ceramic cap', 'chip resistor', 'chip capacitor', 'mlcc',
+            'tantalum', 'ferrite', 'choke',
+        ];
+        foreach ($passiveKeywords as $kw) {
+            if (str_contains($text, $kw)) return true;
+        }
+        
+        // MPN pattern detection for well-known passive series
+        $mpnUpper = strtoupper($mpn);
+        $passivePatterns = [
+            '/^GRM\d/i',            // Murata MLCC
+            '/^CL\d{2}[A-Z]/i',     // Samsung MLCC
+            '/^C\d{4}C/i',          // KEMET MLCC (C0603C, C0805C…)
+            '/^06\d{2}\d?[A-Z]/i',  // AVX 0603/0402 MLCC
+            '/^CRGP\d/i',           // TE Connectivity chip resistor
+            '/^CPF[\-A]?\d/i',      // TE precision film resistor
+            '/^RGT\d/i',            // Susumu thin film resistor
+            '/^TNPW\d/i',           // Vishay precision resistor
+            '/^WAF\d/i',            // UniOhm thick film resistor
+            '/^WGF\d/i',            // UniOhm resistor
+            '/^0[0-9]{3}W[A-Z]?[0-9F]/i',  // UniOhm 0603WAF, 0805W8F
+            '/^RC\d{4}/i',          // Yageo chip resistor
+            '/^ERJ\-/i',            // Panasonic chip resistor
+            '/^CRCW\d/i',           // Vishay chip resistor
+            '/^PNM\d{4}E/i',       // Panasonic chip resistor
+            '/^TAJC?\d/i',          // AVX tantalum
+            '/^SPH\d{4}/i',         // Sunlord inductor
+            '/^74\d{6,}/i',         // Würth inductor
+        ];
+        foreach ($passivePatterns as $pattern) {
+            if (preg_match($pattern, $mpn)) return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Extract an alternate MPN from the BOM's remark/notes column.
+     *
+     * Many BOMs list the "design" part (e.g. Murata GRM188R60J476ME15D) as the MPN
+     * and the actual factory-substituted part (e.g. Samsung CL10A476MQ8QRNC) in a
+     * Remark column. This method returns the alt MPN if it looks like a valid part number.
+     *
+     * @param string $remark  The remark/notes field from the BOM
+     * @param string $primaryMpn  The primary MPN to avoid returning the same thing
+     * @return string|null The alternate MPN, or null if not found/not useful
+     */
+    private function extractAltMpn(string $remark, string $primaryMpn): ?string
+    {
+        $remark = trim($remark);
+        if ($remark === '' || strlen($remark) < 4) {
+            return null;
+        }
+        
+        // Normalize for comparison
+        $normalizedPrimary = strtoupper(preg_replace('/[\s\-]/', '', $primaryMpn));
+        $normalizedRemark = strtoupper(preg_replace('/[\s\-]/', '', $remark));
+        
+        // Skip if remark is the same as the primary MPN
+        if ($normalizedRemark === $normalizedPrimary) {
+            return null;
+        }
+        
+        // Check if remark looks like a valid MPN (mix of letters + digits, min 5 chars)
+        if (strlen($remark) >= 5 && preg_match('/[A-Za-z]/', $remark) && preg_match('/[0-9]/', $remark)) {
+            // Reject freetext: MPNs have 0-1 spaces, freetext has many.
+            // Use space count (not str_word_count which treats digits as word separators)
+            $spaceCount = substr_count($remark, ' ');
+            if ($spaceCount <= 1) {
+                return $remark;
+            }
+        }
+        
+        // Try extracting an MPN-like token from longer remarks
+        // e.g., "Use CL10A476MQ8QRNC instead" → "CL10A476MQ8QRNC"
+        if (preg_match('/\b([A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9])\b/i', $remark, $m)) {
+            $candidate = $m[1];
+            $normalizedCandidate = strtoupper(preg_replace('/[\s\-]/', '', $candidate));
+            if ($normalizedCandidate !== $normalizedPrimary) {
+                return $candidate;
+            }
+        }
+        
+        return null;
     }
     
     /**
@@ -761,6 +1130,214 @@ class PricingEngine
         return [
             'can_publish' => $canAutoPublish,
             'checks' => $checks,
+        ];
+    }
+
+    /**
+     * Optimise BOM sourcing by consolidating to fewer suppliers for bulk discounts.
+     *
+     * Instead of picking the cheapest supplier per line (which scatters the order
+     * across many suppliers, increasing PO overhead, shipping costs, and admin),
+     * this method evaluates whether concentrating purchases at a primary supplier
+     * yields a lower total cost when factoring in:
+     *
+     *   1. Per-supplier order overhead (PO processing, shipping, receiving)
+     *   2. Quantity-based price breaks per part per supplier
+     *   3. Volume rebates for consolidated large orders (3–5%)
+     *   4. Price-break upgrade recommendations (buy more to pay less total)
+     *
+     * @param array $processedLines  Output from processBOM()
+     * @param float $orderOverhead   Per-supplier fixed cost (default $12)
+     * @return array{
+     *     scattered: array{parts_cost: float, supplier_count: int, total_cost: float},
+     *     consolidated: array{parts_cost: float, supplier_count: int, total_cost: float, primary: string},
+     *     savings: float,
+     *     savings_percent: float,
+     *     break_recommendations: array,
+     *     recommendation: string
+     * }
+     */
+    public function optimizeBOMSourcing(array $processedLines, float $orderOverhead = 12.00): array
+    {
+        // ── 1. Build multi-source pricing map ──
+        // Each sourced line already has alternatives from multi-distributor.
+        // We need price breaks for every part from every available source.
+        $lineData = [];
+        foreach ($processedLines as $idx => $line) {
+            if (($line['status'] ?? '') === 'no_mpn' || ($line['status'] ?? '') === 'not_found') {
+                continue;
+            }
+
+            $sources = [];
+
+            // Primary source pricing
+            $primarySource = $line['source'] ?? null;
+            if ($primarySource && isset($line['pricing']) && is_array($line['pricing'])) {
+                $sources[$primarySource] = $line['pricing'];
+            }
+
+            // Alternative source pricing
+            foreach (($line['alternatives'] ?? []) as $alt) {
+                $altSource = $alt['source'] ?? null;
+                if ($altSource && isset($alt['pricing']) && is_array($alt['pricing'])) {
+                    $sources[$altSource] = $alt['pricing'];
+                }
+            }
+
+            if (!empty($sources)) {
+                $lineData[$idx] = [
+                    'mpn'      => $line['mpn'] ?? '',
+                    'quantity' => $line['effective_quantity'] ?? $line['quantity'] ?? 1,
+                    'sources'  => $sources,
+                ];
+            }
+        }
+
+        if (empty($lineData)) {
+            return [
+                'scattered'             => ['parts_cost' => 0, 'supplier_count' => 0, 'total_cost' => 0],
+                'consolidated'          => ['parts_cost' => 0, 'supplier_count' => 0, 'total_cost' => 0, 'primary' => 'N/A'],
+                'savings'               => 0,
+                'savings_percent'       => 0,
+                'break_recommendations' => [],
+                'recommendation'        => 'No sourceable lines to optimize.',
+            ];
+        }
+
+        // ── 2. Strategy A: scattered (per-line cheapest) ──
+        $scattered = ['parts_cost' => 0.0, 'suppliers' => [], 'allocation' => []];
+        foreach ($lineData as $idx => $ld) {
+            $bestExt = PHP_FLOAT_MAX;
+            $bestSrc = null;
+            foreach ($ld['sources'] as $source => $breaks) {
+                $unitPx = $this->calculateUnitPrice($breaks, $ld['quantity']);
+                $ext    = $unitPx * $ld['quantity'];
+                if ($ext < $bestExt) {
+                    $bestExt = $ext;
+                    $bestSrc = $source;
+                }
+            }
+            if ($bestSrc !== null) {
+                $scattered['parts_cost'] += $bestExt;
+                $scattered['suppliers'][$bestSrc] = true;
+                $scattered['allocation'][$idx] = $bestSrc;
+            }
+        }
+        $scattered['supplier_count'] = count($scattered['suppliers']);
+        $scattered['overhead']       = $scattered['supplier_count'] * $orderOverhead;
+        $scattered['total_cost']     = $scattered['parts_cost'] + $scattered['overhead'];
+
+        // ── 3. Strategy B: consolidate to primary supplier ──
+        $allSuppliers = [];
+        foreach ($lineData as $ld) {
+            foreach (array_keys($ld['sources']) as $src) {
+                $allSuppliers[$src] = true;
+            }
+        }
+
+        $bestConsolidated = null;
+        foreach (array_keys($allSuppliers) as $primarySupplier) {
+            $strat = ['parts_cost' => 0.0, 'suppliers' => [], 'allocation' => [], 'rebate' => 0.0];
+
+            foreach ($lineData as $idx => $ld) {
+                if (isset($ld['sources'][$primarySupplier])) {
+                    $unitPx = $this->calculateUnitPrice($ld['sources'][$primarySupplier], $ld['quantity']);
+                    $ext    = $unitPx * $ld['quantity'];
+                    $strat['parts_cost'] += $ext;
+                    $strat['allocation'][$idx] = $primarySupplier;
+                    $strat['suppliers'][$primarySupplier] = true;
+                } else {
+                    // Fallback to cheapest available
+                    $bestExt = PHP_FLOAT_MAX;
+                    $bestSrc = null;
+                    foreach ($ld['sources'] as $source => $breaks) {
+                        $unitPx = $this->calculateUnitPrice($breaks, $ld['quantity']);
+                        $ext    = $unitPx * $ld['quantity'];
+                        if ($ext < $bestExt) {
+                            $bestExt = $ext;
+                            $bestSrc = $source;
+                        }
+                    }
+                    if ($bestSrc !== null) {
+                        $strat['parts_cost'] += $bestExt;
+                        $strat['allocation'][$idx] = $bestSrc;
+                        $strat['suppliers'][$bestSrc] = true;
+                    }
+                }
+            }
+
+            // Volume rebate for consolidated spend
+            $primarySpend = 0.0;
+            $primaryCount = 0;
+            foreach ($strat['allocation'] as $src) {
+                if ($src === $primarySupplier) {
+                    $primaryCount++;
+                }
+            }
+            $lineCount    = count($lineData);
+            $primaryRatio = $lineCount > 0 ? $primaryCount / $lineCount : 0;
+
+            if ($primaryRatio >= 0.80) {
+                // Recalculate primary spend
+                foreach ($lineData as $idx => $ld) {
+                    if (($strat['allocation'][$idx] ?? '') === $primarySupplier) {
+                        $unitPx = $this->calculateUnitPrice($ld['sources'][$primarySupplier], $ld['quantity']);
+                        $primarySpend += $unitPx * $ld['quantity'];
+                    }
+                }
+                if ($primarySpend > 20) {
+                    $rebateRate = $primarySpend > 100 ? 0.05 : 0.03;
+                    $rebate = round($primarySpend * $rebateRate, 2);
+                    $strat['parts_cost'] -= $rebate;
+                    $strat['rebate']      = $rebate;
+                    $strat['rebate_rate'] = $rebateRate * 100;
+                }
+            }
+
+            $strat['supplier_count'] = count($strat['suppliers']);
+            $strat['overhead']       = $strat['supplier_count'] * $orderOverhead;
+            $strat['total_cost']     = $strat['parts_cost'] + $strat['overhead'];
+            $strat['primary']        = $primarySupplier;
+
+            if ($bestConsolidated === null || $strat['total_cost'] < $bestConsolidated['total_cost']) {
+                $bestConsolidated = $strat;
+            }
+        }
+
+        // ── 4. Price-break upgrade recommendations ──
+        $breakRecs = [];
+        foreach ($lineData as $idx => $ld) {
+            $src = $bestConsolidated['allocation'][$idx] ?? null;
+            if (!$src || !isset($ld['sources'][$src])) continue;
+
+            $rec = $this->getPriceBreakRecommendation($ld['sources'][$src], $ld['quantity']);
+            if ($rec) {
+                $rec['mpn'] = $ld['mpn'];
+                $breakRecs[] = $rec;
+            }
+        }
+
+        $savings    = $scattered['total_cost'] - ($bestConsolidated['total_cost'] ?? $scattered['total_cost']);
+        $savingsPct = $scattered['total_cost'] > 0
+            ? round(($savings / $scattered['total_cost']) * 100, 1)
+            : 0;
+
+        $recommendation = $savings > 0
+            ? sprintf(
+                'Consolidate to %s as primary supplier. Save $%.2f (%.1f%%) through volume pricing, fewer POs, and lower shipping.',
+                $bestConsolidated['primary'] ?? 'N/A',
+                $savings,
+                $savingsPct
+            )
+            : 'Current per-line sourcing is already optimal for this BOM.';
+
+        return [
+            'scattered'             => $scattered,
+            'consolidated'          => $bestConsolidated ?? $scattered,
+            'savings'               => round($savings, 2),
+            'savings_percent'       => $savingsPct,
+            'break_recommendations' => $breakRecs,
+            'recommendation'        => $recommendation,
         ];
     }
 }

@@ -602,9 +602,106 @@ class CompanyClassifierService
             'impressum', 'unternehmen', 'standort', 'standorte',
             'karriere', 'stellenangebote', 'produkte', 'leistungen',
             'geschäftsführung', 'vorstand', 'aufsichtsrat',
+
+            // ── German product description adjectives / technical nouns ──
+            'kompakt', 'kompakter', 'kompakte', 'kompaktes', 'kompakten',
+            'zahlreich', 'zahlreiche', 'zahlreicher', 'zahlreiches',
+            'leistungsstark', 'leistungsstarker', 'leistungsstarke',
+            'mittlere', 'mittlerer', 'mittleres',
+            'reife', 'multitag', 'schnittstelle', 'schnittstellen',
+            'robust', 'robuste', 'robuster', 'vielseitig', 'vielseitige',
+            'zertifiziert', 'zertifizierte', 'integriert', 'integrierte',
+            'modular', 'modulare', 'hochwertig', 'hochwertige',
+            'baugruppe', 'baugruppen', 'platine', 'platinen',
+            'bauteil', 'bauteile', 'gehäuse', 'stecker',
+            'temperatur', 'spannung', 'frequenz',
+
+            // ── French common words / product / technical terms ──
+            'colorant', 'colorants', 'rouge', 'bleu', 'vert', 'noir', 'blanc',
+            'ingénieur', 'ingénieurs', 'technicien', 'techniciens',
+            'peuvent', 'devrait', 'pourrait',
+            'vidéo', 'vidéos', 'industriel', 'industrielle',
+            'équipement', 'équipements', 'composant', 'composants',
+            'fabrication', 'assemblage', 'montage',
+            'capteur', 'capteurs', 'puissance', 'tension',
+
+            // ── Chemical / scientific terms ──
+            'benzoate', 'denatonium', 'sulfate', 'phosphate', 'carbonate',
+            'nitrate', 'acetate', 'chloride', 'oxide', 'hydroxide',
+
+            // ── City / geography names (FR/DE/IT/ES) ──
+            'paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'lille',
+            'strasbourg', 'nantes', 'montpellier', 'grenoble',
+            'wien', 'zürich', 'zurich', 'bern', 'genf', 'geneva', 'basel',
+            'milano', 'roma', 'torino', 'firenze', 'napoli',
+            'madrid', 'barcelona', 'valencia', 'sevilla',
+            'amsterdam', 'rotterdam', 'bruxelles', 'antwerp',
+
+            // ── Generic UI / location / department terms ──
+            'locations', 'location', 'office', 'offices',
+            'commercial', 'export', 'import', 'vente',
+            'département', 'filiale', 'succursale',
+
+            // ── Quote attribution verbs leaked into names ──
+            'says', 'said', 'explains', 'explained', 'adds', 'added',
+            'notes', 'noted', 'announces', 'announced',
+            'comments', 'commented', 'reports', 'reported',
+            'sagt', 'sagte', 'erklärt', 'erklärte', 'betont',
+            'dit', 'déclare', 'explique', 'ajoute', 'précise',
+            'selon', 'poursuit', 'confirme', 'indique', 'souligne',
+            // ── Polish product / technical / junk words ──
+            'dostępny', 'dostepny', 'wydajny', 'wydajna', 'niezawodny',
+            'precyzyjny', 'wytrzymały', 'wytrzymala', 'trwały', 'trwala',
+            'nowoczesny', 'nowoczesna', 'innowacyjny', 'innowacyjna',
+            'automatyczny', 'automatyczna', 'spiralnych', 'spiralna',
+            'maszyna', 'maszyny', 'urządzenie', 'urzadzenie',
+            'narzędzie', 'narzedzie', 'produkt', 'produkty',
+            'technologia', 'technologie', 'rozwiązanie', 'rozwiazanie',
+            'startup', 'attempts', 'attempt', 'resident', 'county',
+            'connecting', 'locker', 'frontair', 'extremely', 'efficient',
+            // ── German industrial nouns ──
+            'sonstiges', 'sonstige', 'drehmaschinen', 'drehmaschine',
+            'dornenlose', 'dornenlos', 'rohr', 'rohre',
+            'fräsmaschine', 'frasmaschine', 'bohrmaschine', 'schleifmaschine',
+            'werkzeugmaschine', 'bandsäge', 'bandsage',
+            // ── Italian product / technical / navigation words ──
+            'sgrigliatore', 'automatico', 'automatica',
+            'scambiatore', 'scambiatori', 'raffreddamento', 'riscaldamento',
+            'aria', 'acqua', 'olio', 'vapore',
+            'sede', 'amministrativa', 'amministrativo', 'amministrazione',
+            'isola', 'isole', 'territorio', 'provincia', 'regione', 'comune',
+            'macchina', 'macchine', 'impianto', 'impianti',
+            'componente', 'componenti', 'accessorio', 'accessori',
+            'lavorazione', 'lavorazioni', 'trattamento', 'trattamenti',
+            'stampaggio', 'fusione', 'fresatura', 'tornitura', 'rettifica',
+            'qualità', 'sicurezza', 'affidabilità', 'efficienza',
+            'resistenza', 'potenza', 'pressione', 'portata', 'capacità',
+            'misura', 'misure', 'controllo', 'controlli', 'sensore', 'sensori',
+            'motore', 'motori', 'valvola', 'valvole',
+            'cilindro', 'cilindri', 'riduttore', 'riduttori',
+            'compressore', 'compressori', 'generatore', 'generatori',
+            'certificazione', 'certificazioni', 'normativa', 'normative',
+            'azienda', 'aziende', 'impresa', 'imprese', 'stabilimento',
+            'contatti', 'contattaci', 'richiesta', 'preventivo',
+            'carriera', 'carriere', 'notizie', 'novità',
+            // ── Political / head-of-state ──
+            'republic', 'repubblica', 'republik', 'république',
+            'chancellor', 'senator', 'ambassador', 'consul', 'governor',
+            // ── Generic English junk words ──
+            'standard', 'advanced', 'basic', 'enhanced',
+            'autonomous', 'exchangers', 'exchanger',
+            'cocos', 'cook',
         ];
         if (in_array($firstLower, $definitelyNotName) || in_array($lastLower, $definitelyNotName)) {
             return false;
+        }
+        // Also check individual words within multi-word first/last names
+        // e.g. first="Ingénieurs Peuvent" last="Être" → check each word
+        $allNameWords = preg_split('/\s+/', $fullLower);
+        foreach ($allNameWords as $nw) {
+            if (in_array($nw, $definitelyNotName, true)) {
+                return false;
+            }
         }
 
         // ─── 4b. Reject if full name matches cookie/privacy/consent patterns ──

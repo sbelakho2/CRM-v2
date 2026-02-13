@@ -19,9 +19,9 @@
             {{ 'common.all'|trans }} {{ 'company.sectors_label'|trans }}
         </a>
         {% for sector in sectors %}
-            <a href="{{ path('app_compliance_overview', {sector: sector}) }}" 
-               class="rams-segmented-control__item {{ current_sector == sector ? 'rams-segmented-control__item--active' : '' }}">
-                {{ sector }}
+            <a href="{{ path('app_compliance_overview', {sector: sector.value}) }}" 
+               class="rams-segmented-control__item {{ current_sector == sector.value ? 'rams-segmented-control__item--active' : '' }}">
+                {{ sector.label }}
             </a>
         {% endfor %}
     </div>
@@ -49,7 +49,7 @@
                                 <h3 class="rams-heading rams-heading--3 rams-mb-1">{{ company.name }}</h3>
                                 {% if company.sector %}
                                     <span class="rams-badge rams-badge--info">
-                                        {{ company.sector }}
+                                        {{ sector_labels[company.sector] ?? company.sector }}
                                     </span>
                                 {% endif %}
                             </div>

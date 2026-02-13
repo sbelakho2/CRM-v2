@@ -56,6 +56,10 @@ services:
       $apiKey: '%env(GOOGLE_API_KEY)%'
       $searchEngineId: '%env(GOOGLE_SEARCH_ENGINE_ID)%'
 
+  # Search Provider Abstraction — bind interface to Google CSE implementation
+  App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
+    alias: App\Service\WebCrawler\SearchProvider\GoogleCSEProvider
+
   App\Service\LlmEnrichmentService:
     arguments:
       $apiKey: '%env(default::OPENAI_API_KEY)%'
@@ -70,9 +74,30 @@ services:
     arguments:
       $projectDir: '%kernel.project_dir%'
 
+  App\Service\WebCrawler\Rules\RuleEngine:
+    arguments:
+      $projectDir: '%kernel.project_dir%'
+
+  App\Command\GoldenDatasetRegressionCommand:
+    arguments:
+      $projectDir: '%kernel.project_dir%'
+
+  App\Command\QualityGateCommand:
+    arguments:
+      $projectDir: '%kernel.project_dir%'
+
   App\Service\EmailTrackingSigner:
     arguments:
       $secret: '%kernel.secret%'
+
+  # ── CompCrawler Services ──
+  App\Service\CompCrawler\CompCrawlerConfig:
+    arguments:
+      $projectDir: '%kernel.project_dir%'
+
+  App\Service\CompCrawler\CompExtractionService:
+    arguments:
+      $geminiApiKey: '%env(default::GOOGLE_API_KEY)%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

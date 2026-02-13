@@ -57,8 +57,8 @@
                                                     <span class="rams-text--bold rams-text--sm rams-block">{{ contact.firstName }} {{ contact.lastName }}</span>
                                                     <span class="rams-text--muted rams-text--xs">{{ contact.email }}</span>
                                                 </div>
-                                                {% if contact.company %}
-                                                    <span class="rams-badge">{{ contact.company.name }}</span>
+                                                {% if safe_company_id(contact) %}
+                                                    <span class="rams-badge">{{ safe_company_name(contact) }}</span>
                                                 {% endif %}
                                             </div>
                                         </div>

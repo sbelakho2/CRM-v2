@@ -1,0 +1,87 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'competitor.changes.title'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-stack">
+    <div class="rams-page-header">
+        <h1 class="rams-page-title">📊 {{ 'competitor.changes.title'|trans }}</h1>
+        <p class="rams-page-subtitle">{{ 'competitor.changes.subtitle'|trans }}</p>
+    </div>
+
+    {# ── Filters ── #}
+    <div class="rams-module rams-mb-6">
+        <div class="rams-module__content">
+            <form method="get" action="{{ path('comp_crawler_changes') }}" class="rams-flex" style="gap: 12px; align-items: end;">
+                <div>
+                    <label class="rams-label">{{ 'common.time_range'|trans|default('Time Range') }}</label>
+                    <select name="days" class="rams-input rams-input--sm">
+                        <option value="7" {% if days == 7 %}selected{% endif %}>{{ 'common.last_n_days'|trans({'%count%': 7})|default('Last 7 days') }}</option>
+                        <option value="14" {% if days == 14 %}selected{% endif %}>{{ 'common.last_n_days'|trans({'%count%': 14})|default('Last 14 days') }}</option>
+                        <option value="30" {% if days == 30 %}selected{% endif %}>{{ 'competitor.changes.filters.days_30'|trans }}</option>
+                        <option value="90" {% if days == 90 %}selected{% endif %}>{{ 'competitor.changes.filters.days_90'|trans }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="rams-label">{{ 'competitor.list.filters.status'|trans }}</label>
+                    <select name="severity" class="rams-input rams-input--sm">
+                        <option value="">{{ 'competitor.changes.filters.severity_all'|trans }}</option>
+                        <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>🔴 {{ 'common.severity.high'|trans|default('High') }}</option>
+                        <option value="medium" {% if severity_filter == 'medium' %}selected{% endif %}>🟡 {{ 'common.severity.medium'|trans|default('Medium') }}</option>
+                        <option value="low" {% if severity_filter == 'low' %}selected{% endif %}>🟢 {{ 'common.severity.low'|trans|default('Low') }}</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="rams-btn rams-btn--primary rams-btn--sm">{{ 'competitor.list.filters.apply'|trans }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── Event List ── #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ events | length }} {{ 'common.events'|trans|default('events') }}</h2>
+        </div>
+        <div class="rams-module__content">
+            {% if events | length > 0 %}
+            <table class="rams-table">
+                <thead>
+                    <tr>
+                        <th style="width: 120px;">{{ 'common.date'|trans|default('Date') }}</th>
+                        <th style="width: 120px;">{{ 'common.severity.title'|trans|default('Severity') }}</th>
+                        <th>{{ 'competitor.list.table.company'|trans }}</th>
+                        <th>{{ 'common.type'|trans|default('Type') }}</th>
+                        <th>{{ 'common.description'|trans|default('Description') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                    <tr>
+                        <td class="rams-text--xs rams-text--muted">{{ event.createdAt | date('M d, H:i') }}</td>
+                        <td>
+                            <span class="rams-badge rams-badge--{% if event.severity == 'high' %}danger{% elseif event.severity == 'medium' %}warning{% else %}info{% endif %}">
+                                {% if event.severity == 'high' %}🔴{% elseif event.severity == 'medium' %}🟡{% else %}🟢{% endif %} {{ event.severity }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ path('comp_crawler_detail', {id: event.competitor.id}) }}" class="rams-link" style="font-weight: 500;">
+                                {{ event.competitor.name }}
+                            </a>
+                            <div class="rams-font-mono rams-text--xs rams-text--muted">{{ event.competitor.canonicalDomain }}</div>
+                        </td>
+                        <td class="rams-font-mono rams-text--xs">{{ event.changeType | replace({'_': ' '}) }}</td>
+                        <td class="rams-text--xs">{{ event.diffSummary }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 48px;">
+                <p class="rams-text--muted">{{ 'common.no_results'|trans|default('No results found.') }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

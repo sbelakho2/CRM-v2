@@ -47,6 +47,10 @@ class CompanyDiscoveryService
             'CZ'  => 'Czech Republic',
             'PL'  => 'Poland',
             'RO'  => 'Romania',
+            'FI'  => 'Finland',
+            'SE'  => 'Sweden',
+            'IT'  => 'Italy',
+            'ES'  => 'Spain',
         ],
         'GB' => [
             'ENG' => 'England',
@@ -413,6 +417,17 @@ class CompanyDiscoveryService
             $company->setAccountTier('C');
             $company->setCompanyStatus(Company::STATUS_DISCOVERED);
             $company->setSourceNotes('Auto-discovered by webcrawler on ' . date('Y-m-d'));
+            
+            // ── Persist Buyer Evidence Gate results (Improvement 2A) ──
+            if (!empty($data['buyer_evidence'])) {
+                $evidenceJson = json_encode($data['buyer_evidence'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                $company->setSourceNotes(
+                    'Auto-discovered by webcrawler on ' . date('Y-m-d') . "\n"
+                    . 'Evidence Gate: ' . ($data['buyer_evidence']['verdict'] ?? 'N/A')
+                    . ' (' . ($data['buyer_evidence']['reason'] ?? '') . ")\n"
+                    . 'Families: ' . implode(', ', array_keys($data['buyer_evidence']['positive_families'] ?? []))
+                );
+            }
             $company->setCreatedAt(new \DateTime());
             $company->setUpdatedAt(new \DateTime());
 

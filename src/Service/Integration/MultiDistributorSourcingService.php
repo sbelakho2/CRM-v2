@@ -25,6 +25,7 @@ class MultiDistributorSourcingService
     // Thresholds for waterfall logic
     private const CONFIDENCE_THRESHOLD = 80; // Below this, try next distributor
     private const MIN_STOCK_THRESHOLD = 0;   // If stock <= this, try next distributor
+    private const MIN_CONFIDENCE_FLOOR = 40; // Reject any result below this confidence
     
     public function __construct(
         private AlibabaApiClient $alibabaClient,
@@ -240,18 +241,53 @@ class MultiDistributorSourcingService
         $candidates = [];
         
         foreach ($allSources as $source => $result) {
+            // Reject results with unacceptably low confidence (garbage matches)
+            $confidence = $result['confidence']['score'] ?? 0;
+            if ($confidence < self::MIN_CONFIDENCE_FLOOR) {
+                $this->logger->info('Rejecting low-confidence result', [
+                    'source' => $source,
+                    'confidence' => $confidence,
+                    'min_required' => self::MIN_CONFIDENCE_FLOOR,
+                ]);
+                continue;
+            }
+            
             $score = $this->calculateOverallScore($result, $requestedMpn);
             $candidates[] = [
                 'source' => $source,
                 'part' => $result,
                 'score' => $score,
+                'lowest_price' => $this->getLowestUnitPrice($result),
             ];
+        }
+        
+        if (empty($candidates)) {
+            return ['part' => null, 'source' => null];
+        }
+        
+        // Price-aware selection: when multiple candidates have comparable scores,
+        // the cheapest one wins. This prevents Alibaba from winning at $0.88
+        // when DigiKey has the same part at $0.09.
+        if (count($candidates) > 1) {
+            $candidates = $this->applyPriceCompetitiveness($candidates);
         }
         
         // Sort by score descending
         usort($candidates, fn($a, $b) => $b['score'] <=> $a['score']);
         
         $best = $candidates[0];
+        
+        $this->logger->debug('Best overall selected', [
+            'mpn' => $requestedMpn,
+            'source' => $best['source'],
+            'score' => $best['score'],
+            'price' => $best['lowest_price'],
+            'all_candidates' => array_map(fn($c) => [
+                'source' => $c['source'],
+                'score' => $c['score'],
+                'price' => $c['lowest_price'],
+            ], $candidates),
+        ]);
         
         return [
             'part' => $best['part'],
@@ -260,7 +296,79 @@ class MultiDistributorSourcingService
     }
     
     /**
+     * Get the lowest unit price from a result's pricing breaks
+     */
+    private function getLowestUnitPrice(array $result): ?float
+    {
+        $pricing = $result['pricing'] ?? [];
+        if (empty($pricing)) {
+            return null;
+        }
+        $lowest = PHP_FLOAT_MAX;
+        foreach ($pricing as $break) {
+            $p = $break['price'] ?? PHP_FLOAT_MAX;
+            if ($p > 0 && $p < $lowest) {
+                $lowest = $p;
+            }
+        }
+        return $lowest < PHP_FLOAT_MAX ? $lowest : null;
+    }
+    
+    /**
+     * Apply price competitiveness adjustments to candidate scores.
+     * 
+     * When two sources both match the same MPN with reasonable confidence,
+     * the cheaper one should win. This gives a bonus to the cheapest candidate
+     * and penalizes expensive ones proportionally.
+     * 
+     * Example: Alibaba at $0.88 vs DigiKey at $0.09 for the same part —
+     * DigiKey should get a huge bonus because it's 10x cheaper.
+     */
+    private function applyPriceCompetitiveness(array $candidates): array
+    {
+        // Find candidates with valid pricing
+        $priced = array_filter($candidates, fn($c) => $c['lowest_price'] !== null && $c['lowest_price'] > 0);
+        if (count($priced) < 2) {
+            return $candidates; // Nothing to compare
+        }
+        
+        // Find the cheapest price across all candidates
+        $cheapest = min(array_column($priced, 'lowest_price'));
+        
+        // Apply price ratio bonus/penalty
+        foreach ($candidates as &$candidate) {
+            $price = $candidate['lowest_price'];
+            if ($price === null || $price <= 0 || $cheapest <= 0) {
+                continue;
+            }
+            
+            $ratio = $price / $cheapest; // 1.0 = cheapest, 2.0 = 2x more expensive
+            
+            if ($ratio <= 1.2) {
+                // Within 20% of cheapest — bonus for being price-competitive
+                $candidate['score'] += 15;
+            } elseif ($ratio <= 2.0) {
+                // Up to 2x more expensive — small penalty
+                $candidate['score'] -= 5;
+            } elseif ($ratio <= 5.0) {
+                // 2x-5x more expensive — moderate penalty
+                $candidate['score'] -= 15;
+            } else {
+                // More than 5x more expensive — heavy penalty
+                $candidate['score'] -= 30;
+            }
+        }
+        unset($candidate);
+        
+        return $candidates;
+    }
+    
+    /**
      * Calculate overall score for a part result
+     * 
+     * Scoring aims for best VALUE: price × confidence × availability.
+     * Alibaba gets a source preference bonus because it provides factory-direct
+     * pricing with better bulk rates.
      */
     private function calculateOverallScore(array $result, string $requestedMpn): int
     {
@@ -270,17 +378,53 @@ class MultiDistributorSourcingService
         $confidence = $result['confidence']['score'] ?? 0;
         $score += $confidence;
         
+        // Source preference: Alibaba first (factory-direct = best bulk pricing)
+        $source = $result['_source'] ?? '';
+        if ($source === self::SOURCE_ALIBABA) {
+            $score += 15; // Strong preference for factory-direct pricing
+        }
+        
         // Stock bonus (up to +30)
+        // Alibaba estimated stock is flagged — give partial credit
         $stock = $result['stock'] ?? 0;
+        $isEstimatedStock = $result['_stock_estimated'] ?? false;
         if ($stock > 0) {
-            $score += 15;
-            if ($stock > 100) $score += 5;
-            if ($stock > 1000) $score += 5;
-            if ($stock > 10000) $score += 5;
+            if ($isEstimatedStock) {
+                // Alibaba estimated stock: partial credit (supplier can deliver)
+                $score += 10;
+                if ($stock > 1000) $score += 3;
+                if ($stock > 5000) $score += 3;
+            } else {
+                // Real stock from DigiKey/Mouser
+                $score += 15;
+                if ($stock > 100) $score += 5;
+                if ($stock > 1000) $score += 5;
+                if ($stock > 10000) $score += 5;
+            }
+        }
+        
+        // Price competitiveness bonus: lower prices get a bonus
+        // This helps Alibaba compete when it has much lower unit prices
+        $pricing = $result['pricing'] ?? [];
+        if (!empty($pricing)) {
+            $score += 10;
+            
+            // Extra bonus for very low unit prices (bulk pricing advantage)
+            $lowestPrice = PHP_FLOAT_MAX;
+            foreach ($pricing as $break) {
+                $lowestPrice = min($lowestPrice, $break['price'] ?? PHP_FLOAT_MAX);
+            }
+            if ($lowestPrice < 1.0) {
+                $score += 5; // Sub-$1 parts are well-priced
+            }
+            if ($lowestPrice < 0.10) {
+                $score += 5; // Sub-$0.10 is excellent bulk pricing
+            }
         }
         
         // Lifecycle penalty
-        $lifecycle = strtolower($result['lifecycle'] ?? '');
+        $lifecycleRaw = $result['lifecycle'] ?? '';
+        $lifecycle = strtolower(is_string($lifecycleRaw) ? $lifecycleRaw : '');
         foreach (MouserApiClient::LIFECYCLE_CRITICAL as $term) {
             if (str_contains($lifecycle, $term)) {
                 $score -= 30;
@@ -292,12 +436,6 @@ class MultiDistributorSourcingService
                 $score -= 10;
                 break;
             }
-        }
-        
-        // Has pricing bonus
-        $pricing = $result['pricing'] ?? [];
-        if (!empty($pricing)) {
-            $score += 10;
         }
         
         return max(0, $score);

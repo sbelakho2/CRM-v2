@@ -1,0 +1,204 @@
+# Golden Dataset v1 — Known-Good and Known-Bad Companies
+#
+# Each entry represents a company that has been manually verified.
+# The classification pipeline should correctly classify these.
+#
+# Fields:
+#   expected: PASS | REJECT
+#   name: Company name
+#   domain: Website domain
+#   snippet: Simulated Google snippet
+#   title: Simulated Google title
+#   country: Target region (ISO 3166-1 alpha-2)
+#   sector: Industry sector
+#   category: Why this should pass/fail
+
+entries:
+
+  # ═══════════════════════════════════════════════════════════════
+  # KNOWN GOOD — These should PASS all gates
+  # ═══════════════════════════════════════════════════════════════
+
+  - expected: PASS
+    name: "Bosch Rexroth"
+    domain: "boschrexroth.com"
+    snippet: "Bosch Rexroth designs and manufactures hydraulic, electric drives and controls. Our products include servo drives, controllers, and motion systems for industrial automation."
+    title: "Bosch Rexroth - Drive & Control Technology"
+    country: DE
+    sector: "Industrial Automation"
+    category: "Large OEM - drives & controls"
+
+  - expected: PASS
+    name: "Valeo"
+    domain: "valeo.com"
+    snippet: "Valeo is a global automotive supplier designing innovative products for smart mobility. Our product portfolio includes powertrain systems, thermal systems, and ADAS."
+    title: "Valeo - Automotive Supplier"
+    country: FR
+    sector: "Automotive"
+    category: "Large automotive OEM supplier"
+
+  - expected: PASS
+    name: "Sick AG"
+    domain: "sick.com"
+    snippet: "SICK develops sensor solutions for factory automation, logistics automation, and process automation. Our product range includes photoelectric sensors, encoders, and vision systems."
+    title: "SICK AG - Sensor Intelligence"
+    country: DE
+    sector: "Industrial Sensors"
+    category: "Sensor manufacturer - classic EMS buyer"
+
+  - expected: PASS
+    name: "Marelli"
+    domain: "marelli.com"
+    snippet: "Marelli designs and manufactures automotive lighting systems, powertrain electronics, and suspension modules. Headquarters in Saitama, Japan with R&D centers worldwide."
+    title: "Marelli - Automotive Systems"
+    country: IT
+    sector: "Automotive"
+    category: "Automotive electronics OEM"
+
+  - expected: PASS
+    name: "Teltonika"
+    domain: "teltonika.lt"
+    snippet: "Teltonika designs and manufactures IoT devices, GPS trackers, and networking equipment. Our products include industrial routers, modems, and telematics devices. Founded 1998."
+    title: "Teltonika - IoT Solutions"
+    country: DE
+    sector: "IoT / Telematics"
+    category: "IoT device manufacturer"
+
+  - expected: PASS
+    name: "Schneider Electric"
+    domain: "se.com"
+    snippet: "Schneider Electric provides energy management and automation solutions. Our products include circuit breakers, switchgear, PLCs, and building management systems."
+    title: "Schneider Electric - Energy & Automation"
+    country: FR
+    sector: "Energy"
+    category: "Large OEM - electrical products"
+
+  - expected: PASS
+    name: "Sensata Technologies"
+    domain: "sensata.com"
+    snippet: "Sensata Technologies designs and manufactures sensors and controls for automotive, HVAC, and industrial applications. We develop pressure sensors, temperature sensors, and motor protectors."
+    title: "Sensata Technologies - Sensing Solutions"
+    country: GB
+    sector: "Sensors"
+    category: "Sensor OEM - classic buyer"
+
+  - expected: PASS
+    name: "Indra Sistemas"
+    domain: "indracompany.com"
+    snippet: "Indra develops defense electronics, air traffic management systems, and transport solutions. Our products include radar systems, simulation platforms, and ticketing systems."
+    title: "Indra - Technology & Defence"
+    country: ES
+    sector: "Defence"
+    category: "Defence electronics OEM"
+
+  - expected: PASS
+    name: "Elettronica"
+    domain: "elettronica.de"
+    snippet: "Elettronica designs and manufactures electronic warfare systems, radar warning receivers, and countermeasure systems. ISO 9001 and AQAP certified."
+    title: "Elettronica - Electronic Warfare"
+    country: IT
+    sector: "Defence"
+    category: "Defence electronics manufacturer"
+
+  - expected: PASS
+    name: "Advantech"
+    domain: "advantech.com"
+    snippet: "Advantech designs industrial computers, embedded systems, and IoT devices. Our product line includes industrial motherboards, panel PCs, and edge computing platforms."
+    title: "Advantech - Industrial Computing"
+    country: DE
+    sector: "Industrial Computing"
+    category: "Embedded systems OEM"
+
+  # ═══════════════════════════════════════════════════════════════
+  # KNOWN BAD — These should be REJECTED by at least one gate
+  # ═══════════════════════════════════════════════════════════════
+
+  - expected: REJECT
+    name: "Jabil Inc"
+    domain: "jabil.com"
+    snippet: "Jabil is a global manufacturing services company providing comprehensive electronics design, production, and product management services."
+    title: "Jabil - Manufacturing Services"
+    country: US
+    sector: "EMS"
+    category: "EMS competitor"
+
+  - expected: REJECT
+    name: "Celestica"
+    domain: "celestica.com"
+    snippet: "Celestica delivers innovative supply chain solutions globally. Our electronics manufacturing services include PCB assembly, box-build, and design services."
+    title: "Celestica - EMS & Supply Chain"
+    country: GB
+    sector: "EMS"
+    category: "EMS competitor"
+
+  - expected: REJECT
+    name: "Deloitte"
+    domain: "deloitte.com"
+    snippet: "Deloitte provides audit and assurance, consulting, financial advisory, risk advisory, and tax and legal services to selected industries worldwide."
+    title: "Deloitte - Audit, Consulting, Advisory"
+    country: GB
+    sector: "Consulting"
+    category: "Consulting firm"
+
+  - expected: REJECT
+    name: "McKinsey & Company"
+    domain: "mckinsey.com"
+    snippet: "McKinsey & Company is a global management consulting firm. We serve clients across sectors with strategy consulting, operations, and technology advisory."
+    title: "McKinsey & Company - Management Consulting"
+    country: US
+    sector: "Consulting"
+    category: "Consulting firm"
+
+  - expected: REJECT
+    name: "TechTalent Solutions"
+    domain: "techtalent-solutions.com"
+    snippet: "TechTalent is a leading staffing agency providing talent acquisition and workforce solutions for engineering and manufacturing companies."
+    title: "TechTalent - Engineering Recruitment"
+    country: GB
+    sector: "Recruitment"
+    category: "Staffing agency"
+
+  - expected: REJECT
+    name: "MarketScope Research"
+    domain: "marketscope-research.com"
+    snippet: "The global EMS market featuring players like Foxconn, Jabil, Celestica is expected to grow at 6.2% CAGR. Market size will reach $650B by 2028."
+    title: "EMS Market Report 2024"
+    country: US
+    sector: "Market Research"
+    category: "Market research report"
+
+  - expected: REJECT
+    name: "TU München"
+    domain: "tum.de"
+    snippet: "Technical University of Munich offers world-class education and research in engineering, natural sciences, and life sciences. Faculty of Electrical Engineering."
+    title: "TUM - Technical University of Munich"
+    country: DE
+    sector: "Education"
+    category: "University"
+
+  - expected: REJECT
+    name: "Kuehne+Nagel"
+    domain: "kuehne-nagel.com"
+    snippet: "Kuehne+Nagel is a global logistics provider offering sea freight, air freight, contract logistics, and supply chain management services."
+    title: "Kuehne+Nagel - Global Logistics"
+    country: CH
+    sector: "Logistics"
+    category: "Logistics provider"
+
+  - expected: REJECT
+    name: "DXC Technology"
+    domain: "dxc.technology"
+    snippet: "DXC Technology is a global IT services company providing managed IT services, cloud solutions, and digital transformation consulting to enterprises."
+    title: "DXC Technology - IT Services"
+    country: US
+    sector: "IT Services"
+    category: "IT services company"
+
+  - expected: REJECT
+    name: "Lacroix Electronics"
+    domain: "lacroix-electronics.com"
+    snippet: "Lacroix Electronics provides contract electronics manufacturing services including PCB assembly, box-build, and cable harness manufacturing."
+    title: "Lacroix Electronics - EMS Provider"
+    country: FR
+    sector: "EMS"
+    category: "EMS competitor (European)"

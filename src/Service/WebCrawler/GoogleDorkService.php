@@ -3,6 +3,20 @@
 namespace App\Service\WebCrawler;
 
 use App\Service\GoogleSearchService;
+use App\Service\WebCrawler\Classifier\CompetitorProximityVeto;
+use App\Service\WebCrawler\Classifier\ServiceProductClassifier;
+use App\Service\WebCrawler\Contact\ContactQualityScorer;
+use App\Service\WebCrawler\Contact\LinkedInProfileParser;
+use App\Service\WebCrawler\Crawl\PoliteCrawlGovernor;
+use App\Service\WebCrawler\Crawl\SitemapPageDiscovery;
+use App\Service\WebCrawler\Evidence\BuyerEvidenceGate;
+use App\Service\WebCrawler\Observability\PipelineMetricsCollector;
+use App\Service\WebCrawler\Rules\RuleEngine;
+use App\Service\WebCrawler\SearchProvider\SearchProviderInterface;
+use App\Service\WebCrawler\SearchProvider\SearchResultSet;
+use App\Service\WebCrawler\Seed\DirectorySeedExtractor;
+use App\Service\WebCrawler\Text\LanguageDetector;
+use App\Service\WebCrawler\Text\TextNormalizer;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\DomCrawler\Crawler;
 use Psr\Log\LoggerInterface;
@@ -29,9 +43,39 @@ class GoogleDorkService
         private LoggerInterface $logger,
         private ?GoogleSearchService $googleSearchService = null,
         ?CompanyClassifierService $companyClassifier = null,
+        private ?SearchProviderInterface $searchProvider = null,
+        private ?BuyerEvidenceGate $buyerEvidenceGate = null,
+        private ?TextNormalizer $textNormalizer = null,
+        private ?RuleEngine $ruleEngine = null,
+        private ?ServiceProductClassifier $serviceProductClassifier = null,
+        private ?CompetitorProximityVeto $competitorProximityVeto = null,
+        private ?DirectorySeedExtractor $directorySeedExtractor = null,
+        private ?LanguageDetector $languageDetector = null,
+        private ?LinkedInProfileParser $linkedInParser = null,
+        private ?ContactQualityScorer $contactScorer = null,
+        private ?SitemapPageDiscovery $sitemapDiscovery = null,
+        private ?PoliteCrawlGovernor $crawlGovernor = null,
+        private ?PipelineMetricsCollector $metricsCollector = null,
     )
     {
         $this->classifier = $companyClassifier;
+        // Ensure TextNormalizer always available (zero-dep)
+        $this->textNormalizer ??= new TextNormalizer();
+        // Ensure LinkedIn parser and contact scorer always available (zero-dep)
+        $this->linkedInParser ??= new LinkedInProfileParser();
+        $this->contactScorer ??= new ContactQualityScorer();
+        // Ensure crawl governor always available (zero-dep)
+        $this->crawlGovernor ??= new PoliteCrawlGovernor();
+        // Ensure metrics collector always available (zero-dep)
+        $this->metricsCollector ??= new PipelineMetricsCollector();
+    }
+
+    /**
+     * Get the pipeline metrics collector for external reporting.
+     */
+    public function getMetricsCollector(): PipelineMetricsCollector
+    {
+        return $this->metricsCollector;
     }
     
     /**
@@ -40,6 +84,36 @@ class GoogleDorkService
     public function setGoogleSearchService(GoogleSearchService $service): void
     {
         $this->googleSearchService = $service;
+    }
+
+    /**
+     * Unified search method — uses the SearchProviderInterface when available,
+     * falls back to the legacy GoogleSearchService for backward compatibility.
+     *
+     * @return array{results: array, totalResults: int, searchTime: float}
+     */
+    private function executeProviderSearch(string $query, int $num = 10, int $startIndex = 1, ?string $gl = null): array
+    {
+        // Prefer the new abstraction if wired
+        if ($this->searchProvider !== null) {
+            $resultSet = $this->searchProvider->search($query, $gl, null, $num, $startIndex);
+            return $resultSet->toLegacyArray();
+        }
+
+        // Fall back to legacy concrete class
+        if ($this->googleSearchService !== null) {
+            return $this->googleSearchService->searchCompanies($query, $num, $startIndex, $gl);
+        }
+
+        return ['results' => [], 'totalResults' => 0, 'searchTime' => 0];
+    }
+
+    /**
+     * Check whether any search provider is available.
+     */
+    private function hasSearchProvider(): bool
+    {
+        return $this->searchProvider !== null || $this->googleSearchService !== null;
     }
 
     /**
@@ -55,6 +129,9 @@ class GoogleDorkService
      */
     public function searchCompanies(?string $sector, ?string $location = null, bool $executeSearch = true): array
     {
+        // ── Pipeline observability ──
+        $this->metricsCollector->startRun();
+
         $this->logger->info("Google Dork search for companies", [
             'sector' => $sector,
             'location' => $location,
@@ -64,10 +141,11 @@ class GoogleDorkService
         $searchQueries = $this->buildGoogleDorkQueries($sector, $location);
         $discovered = [];
         $allResults = [];
+        $directorySeeds = []; // Improvement 2D: seeds from directory pages
 
-        // If we have GoogleSearchService and should execute, use it
-        if ($executeSearch && $this->googleSearchService !== null) {
-            $this->logger->info("Executing searches via Google Custom Search API");
+        // If we have a search provider and should execute, use it
+        if ($executeSearch && $this->hasSearchProvider()) {
+            $this->logger->info("Executing searches via Search Provider");
             
             // Determine geo-location bias for Google API
             $region = $this->detectRegionFromLocation($location);
@@ -76,15 +154,37 @@ class GoogleDorkService
             
             foreach ($searchQueries as $query) {
                 try {
-                    $results = $this->googleSearchService->searchCompanies($query, 10, 1, $glCode);
+                    $results = $this->executeProviderSearch($query, 10, 1, $glCode);
                     
                     if (!empty($results['results'])) {
+                        $this->metricsCollector->recordCandidates(count($results['results']));
                         foreach ($results['results'] as $result) {
                             // Deduplicate by domain
                             $domain = $result['displayLink'] ?? '';
 
+                            // ── Directory seed extraction (Improvement 2D) ──
+                            // If the result is from a known B2B directory,
+                            // extract company seeds instead of blocking.
+                            if ($this->directorySeedExtractor !== null && $this->directorySeedExtractor->isDirectoryDomain($domain)) {
+                                $snippet = $result['snippet'] ?? '';
+                                $title = $result['title'] ?? '';
+                                $url = $result['link'] ?? '';
+                                $seeds = $this->directorySeedExtractor->extractSeedsFromSnippet(
+                                    $snippet, $title, $url, $domain, $region, $sector,
+                                );
+                                foreach ($seeds as $seed) {
+                                    $directorySeeds[] = $seed;
+                                }
+                                $this->logger->debug('Directory seed extraction', [
+                                    'domain' => $domain,
+                                    'seeds_found' => count($seeds),
+                                ]);
+                                continue;
+                            }
+
                             // Filter out non-company domains
                             if ($this->isBlockedDomain($domain)) {
+                                $this->metricsCollector->recordReject('domain_block', $domain);
                                 $this->logger->debug('Skipping blocked domain', ['domain' => $domain]);
                                 continue;
                             }
@@ -94,7 +194,18 @@ class GoogleDorkService
                                 
                                 // Post-filter: reject names that still look like page titles
                                 if ($this->isJunkCompanyName($companyName)) {
+                                    $this->metricsCollector->recordReject('name_junk', $companyName);
                                     $this->logger->debug('Skipping junk company name', [
+                                        'name' => $companyName,
+                                        'domain' => $domain,
+                                    ]);
+                                    continue;
+                                }
+
+                                // Giant OEM filter: real companies but not sales targets
+                                if ($this->isGiantOem($companyName)) {
+                                    $this->metricsCollector->recordReject('giant_oem', $companyName);
+                                    $this->logger->debug('Skipping giant OEM', [
                                         'name' => $companyName,
                                         'domain' => $domain,
                                     ]);
@@ -149,6 +260,87 @@ class GoogleDorkService
                                     }
                                 }
                                 
+                                // ── Buyer Evidence Gate (Improvement 2A) ──────────
+                                // Hard requirement: candidate must have evidence from
+                                // ≥2 of 4 families. Full trace persisted on lead.
+                                $evidenceResult = null;
+                                if ($this->buyerEvidenceGate !== null) {
+                                    $evidenceResult = $this->buyerEvidenceGate->evaluate(
+                                        $companyName, $snippet, $title, $domain,
+                                    );
+                                    if (!$evidenceResult->passed()) {
+                                        $this->metricsCollector->recordReject('buyer_evidence', $evidenceResult->getReason());
+                                        $this->logger->debug('Buyer Evidence Gate FAIL', [
+                                            'name'   => $companyName,
+                                            'domain' => $domain,
+                                            'reason' => $evidenceResult->getReason(),
+                                        ]);
+                                        continue;
+                                    }
+                                    $this->metricsCollector->recordAccept('buyer_evidence');
+                                }
+                                
+                                // ── Service-vs-Product Classifier (Improvement 2B) ──
+                                // Binary veto: SERVICE_PROVIDER → hard reject.
+                                // PRODUCT_COMPANY or INDETERMINATE → pass.
+                                $serviceProductVerdict = null;
+                                if ($this->serviceProductClassifier !== null) {
+                                    $serviceProductVerdict = $this->serviceProductClassifier->classify(
+                                        $companyName, $snippet, $title, $domain,
+                                    );
+                                    if ($serviceProductVerdict->isRejected()) {
+                                        $this->metricsCollector->recordReject('service_product', $serviceProductVerdict->reason);
+                                        $this->logger->debug('Service-vs-Product REJECT', [
+                                            'name'   => $companyName,
+                                            'domain' => $domain,
+                                            'reason' => $serviceProductVerdict->reason,
+                                            'svcScore' => $serviceProductVerdict->serviceScore,
+                                            'prdScore' => $serviceProductVerdict->productScore,
+                                        ]);
+                                        continue;
+                                    }
+                                    $this->metricsCollector->recordAccept('service_product');
+                                }
+                                
+                                // ── RuleEngine evaluation (Improvement 4A) ────────
+                                // Runs YAML-based rules in parallel to inline checks.
+                                // Stores the trace for observability.
+                                $ruleVerdict = null;
+
+                                // ── Competitor Proximity Veto (Improvement 2C) ──
+                                // Rejects candidates that mention known EMS competitors
+                                // alongside service-offering language.
+                                $competitorVeto = null;
+                                if ($this->competitorProximityVeto !== null) {
+                                    $competitorVeto = $this->competitorProximityVeto->evaluate(
+                                        $companyName, $snippet, $title, $domain,
+                                    );
+                                    if ($competitorVeto['vetoed']) {
+                                        $this->logger->debug('Competitor Proximity VETO', [
+                                            'name'   => $companyName,
+                                            'domain' => $domain,
+                                            'reason' => $competitorVeto['reason'],
+                                        ]);
+                                        continue;
+                                    }
+                                }
+                                if ($this->ruleEngine !== null) {
+                                    $ruleVerdict = $this->ruleEngine->evaluate(
+                                        $domain, $companyName, $snippet, $title,
+                                    );
+                                    if ($ruleVerdict->isRejected()) {
+                                        $this->metricsCollector->recordReject('rule_engine', $ruleVerdict->reason);
+                                        $this->logger->debug('RuleEngine REJECT', [
+                                            'name'   => $companyName,
+                                            'domain' => $domain,
+                                            'reason' => $ruleVerdict->reason,
+                                            'score'  => $ruleVerdict->totalScore,
+                                        ]);
+                                        continue;
+                                    }
+                                    $this->metricsCollector->recordAccept('rule_engine');
+                                }
+                                
                                 $allResults[$domain] = [
                                     'name' => $companyName,
                                     'website' => $this->extractWebsiteFromResult($result),
@@ -159,6 +351,13 @@ class GoogleDorkService
                                     'source_query' => $query,
                                     'sector' => $sector,
                                     'location' => $location,
+                                    'buyer_evidence' => $evidenceResult?->toArray(),
+                                    'service_product' => $serviceProductVerdict?->toArray(),
+                                    'competitor_veto' => $competitorVeto,
+                                    'rule_verdict' => $ruleVerdict?->toArray(),
+                                    'language' => $this->languageDetector !== null
+                                        ? $this->languageDetector->detectWithRegionRelevance($snippet . ' ' . $title, $region)
+                                        : null,
                                 ];
                             }
                         }
@@ -185,6 +384,36 @@ class GoogleDorkService
             // candidate is a REAL company by checking LinkedIn and homepage.
             $preVerifyCount = count($allResults);
             $allResults = $this->verifyCompanies($allResults);
+            
+            // ── Feed directory seeds back as unverified candidates ────
+            // Seeds from directories get their own domain searched,
+            // adding them as lightweight candidates for verification.
+            if (!empty($directorySeeds)) {
+                $this->logger->info('Directory seeds extracted', [
+                    'count' => count($directorySeeds),
+                ]);
+                foreach ($directorySeeds as $seed) {
+                    // Only add seeds that have a domain and aren't already in results
+                    if ($seed->domain !== null && !isset($allResults[$seed->domain]) && !$this->isBlockedDomain($seed->domain)) {
+                        $allResults[$seed->domain] = [
+                            'name'             => $seed->companyName,
+                            'website'          => 'https://' . $seed->domain,
+                            'title'            => $seed->companyName,
+                            'snippet'          => $seed->snippet ?? '',
+                            'link'             => $seed->sourceUrl,
+                            'displayLink'      => $seed->domain,
+                            'source_query'     => 'directory_seed:' . $seed->sourceDirectory,
+                            'sector'           => $seed->sector ?? $sector,
+                            'location'         => $location,
+                            'buyer_evidence'   => null,
+                            'service_product'  => null,
+                            'competitor_veto'  => null,
+                            'rule_verdict'     => null,
+                            'directory_seed'   => $seed->toArray(),
+                        ];
+                    }
+                }
+            }
             
             $discovered = array_values($allResults);
             
@@ -223,6 +452,10 @@ class GoogleDorkService
             $this->logger->info("=" . str_repeat("=", 70));
         }
 
+        // ── Pipeline observability: end run ──
+        $this->metricsCollector->recordOutput(count($discovered));
+        $this->metricsCollector->endRun();
+
         return $discovered;
     }
     
@@ -247,6 +480,70 @@ class GoogleDorkService
         $trimmed = trim($title);
         if ($trimmed === '' || mb_strlen($trimmed) > 120) {
             return $this->companyNameFromDomain($domain) ?: $trimmed;
+        }
+
+        // ── Foreign-language page title detection ─────────────────
+        // Detect titles that are obviously foreign-language homepage words
+        // (e.g. "Startseite - CompanyName" → the company is "CompanyName",
+        //  not "Startseite"). Also catches standalone foreign nav words.
+        $foreignHomeWords = [
+            // German
+            'startseite', 'willkommen', 'herzlich willkommen', 'über uns',
+            'uber uns', 'unternehmen', 'impressum', 'kontakt', 'produkte',
+            'leistungen', 'aktuelles', 'karriere', 'stellenangebote', 'anfahrt',
+            // French
+            'accueil', 'bienvenue', 'à propos', 'a propos', 'nos services',
+            'nos produits', 'qui sommes-nous', 'qui sommes nous', 'contactez-nous',
+            'actualités', 'actualites', 'recrutement', 'savoir-faire',
+            // Dutch
+            'welkom', 'startpagina', 'over ons', 'producten', 'diensten',
+            'vacatures', 'bedrijf', 'ons bedrijf',
+            // Czech
+            'domů', 'domu', 'úvod', 'uvod', 'vítejte', 'vitejte', 'o nás',
+            'o nas', 'kontakty', 'produkty', 'služby', 'sluzby', 'o společnosti',
+            // Finnish
+            'etusivu', 'tervetuloa', 'meistä', 'meista', 'yhteystiedot',
+            'tuotteet', 'palvelut', 'ajankohtaista',
+            // Swedish
+            'startsida', 'startsidan', 'välkommen', 'valkommen', 'om oss',
+            'kontakta oss', 'produkter', 'tjänster', 'tjanster', 'företaget',
+            'foretaget', 'nyheter', 'karriär',
+            // Italian
+            'pagina iniziale', 'benvenuto', 'benvenuti', 'chi siamo',
+            'contatti', 'contattaci', 'azienda', 'lavora con noi',
+            // Spanish
+            'inicio', 'bienvenido', 'bienvenidos', 'quiénes somos',
+            'quienes somos', 'sobre nosotros', 'contáctenos', 'contactenos',
+            'empresa', 'nuestros servicios',
+            // Polish
+            'strona główna', 'strona glowna', 'witamy', 'witaj',
+            'o nas', 'kontakt', 'produkty', 'usługi', 'uslugi', 'nasza firma',
+            // Portuguese
+            'página inicial', 'pagina inicial', 'quem somos',
+            // Norwegian/Danish
+            'hjem', 'hjemmeside', 'velkommen',
+            // Romanian
+            'acasă', 'acasa', 'despre noi',
+            // Hungarian
+            'kezdőlap', 'kezdolap', 'rólunk', 'rolunk', 'kapcsolat',
+        ];
+        // If the entire title IS a foreign-language nav word, return domain name
+        $titleLower = mb_strtolower(trim($title));
+        if (in_array($titleLower, $foreignHomeWords, true)) {
+            return $this->companyNameFromDomain($domain) ?: $trimmed;
+        }
+        // If title starts/ends with foreign nav word + separator, strip it
+        foreach ($foreignHomeWords as $fhw) {
+            // "Startseite | CompanyName" → "CompanyName"
+            if (preg_match('/^' . preg_quote($fhw, '/') . '\s*[\|–—\-:]\s*(.+)$/iu', $title, $fhwMatch)) {
+                $title = trim($fhwMatch[1]);
+                break;
+            }
+            // "CompanyName | Startseite" → "CompanyName"
+            if (preg_match('/^(.+?)\s*[\|–—\-:]\s*' . preg_quote($fhw, '/') . '\s*$/iu', $title, $fhwMatch)) {
+                $title = trim($fhwMatch[1]);
+                break;
+            }
         }
 
         // Remove trademark symbols early (before any splitting)
@@ -432,6 +729,26 @@ class GoogleDorkService
             '/\b(brochure|datasheet|whitepaper|specification|manual)\b/i',
             '/\b(investor|shareholder|annual\s+general)\s+(relations|meeting|report)/i',
             '/^(complete\s+guide|ultimate\s+guide|beginner|introduction)\b/i',
+            // ─── Market reports / research titles ─────────────────────
+            '/\bmarket\s+(20[2-4]\d|size|growth|report|forecast|analysis|outlook|share|trends?)\b/i',
+            '/\b(CAGR|compound\s+annual)\b/i',
+            '/\b(report|forecast|analysis)\s+20[2-4]\d\b/i',
+            // ─── Generic service / product descriptions ───────────────
+            '/^contract\s+(manufactur|electron|assembl)/i',
+            '/^conformal\s+(coating|coat)/i',
+            '/^(tax\s+credit|certifications?\s+(issued|for))/i',
+            '/^free\s+(member|course|download|trial|sample)\b/i',
+            // ─── Product SKU patterns ─────────────────────────────────
+            '/^[A-Z]{1,4}\d{3,}\b/',
+            // ─── Events / disasters ──────────────────────────────────
+            '/\b(earthquake|flood|hurricane|tsunami)\s+(in|near)\b/i',
+            // ─── Foreign-language machine/trade-show descriptions ─────
+            '/\b(maszyna|maschine|appareil|máquina)\s+/iu',
+            '/^(messe|feira|feria|foire)\s+/iu',
+            // ─── French/Arabic job titles as names ───────────────────
+            '/^(approvisionneur|acheteur|responsable|technicien)\b/iu',
+            // ─── IoT / development / generic tech descriptions ────────
+            '/^(IoT|AI,?\s+Robotics|3D\s+printing|Web\s+development)/i',
         ];
 
         $isGeneric = false;
@@ -472,6 +789,9 @@ class GoogleDorkService
         if (!$isGeneric && $name !== '') {
             // Final cleanup: strip trailing common suffixes that are noise
             $name = preg_replace('/\s*[-–—]\s*(Ltd|LLC|Inc|Corp|GmbH|SA|SAS|BV|NV|AG|Plc|Co|Pty|Srl|SpA)\.?\s*$/i', '', $name);
+            // Strip trailing TLD fragments accidentally included in title-derived names
+            // e.g. "Cooperconsumerhealth.nl" -> "Cooperconsumerhealth"
+            $name = preg_replace('/\.(com|net|org|io|co|fr|de|nl|it|es|pl|cz|fi|se)\.?$/i', '', $name);
             return trim($name);
         }
 
@@ -498,6 +818,89 @@ class GoogleDorkService
             'leading the way', 'powering the future', 'engineering excellence',
             'demand detroit', 'inspiring tomorrow', 'delivering power',
             'information', 'strona główna', 'strona glowna',
+            // ─── German (DE/AT/CH) navigation words ──────────────────
+            'startseite', 'start', 'willkommen', 'herzlich willkommen',
+            'über uns', 'uber uns', 'ueber uns', 'kontakt', 'kontaktieren sie uns',
+            'impressum', 'datenschutz', 'datenschutzerklärung', 'datenschutzerklaerung',
+            'produkte', 'leistungen', 'unternehmen', 'karriere',
+            'aktuelles', 'neuigkeiten', 'nachrichten', 'stellenangebote',
+            'anfahrt', 'standorte', 'referenzen', 'downloads',
+            'unser unternehmen', 'unsere produkte', 'unsere leistungen',
+            'wir über uns', 'wir uber uns', 'firmenportrait',
+            'firmenporträt', 'firmenportrae', 'firmenportraet',
+            // ─── French (FR/BE/CH) navigation words ──────────────────
+            'accueil', 'bienvenue', 'à propos', 'a propos',
+            'à propos de nous', 'a propos de nous', 'qui sommes-nous',
+            'qui sommes nous', 'contactez-nous', 'contactez nous',
+            'nos services', 'nos produits', 'nos réalisations',
+            'nos realisations', 'notre entreprise', 'notre société',
+            'notre societe', 'mentions légales', 'mentions legales',
+            'politique de confidentialité', 'politique de confidentialite',
+            'actualité', 'actualités', 'actualite', 'actualites',
+            'emplois', 'carrières', 'carrieres', 'recrutement',
+            'savoir-faire', 'savoir faire', 'présentation', 'presentation',
+            // ─── Dutch (NL/BE) navigation words ──────────────────────
+            'welkom', 'startpagina', 'over ons', 'contact',
+            'producten', 'diensten', 'bedrijf', 'vacatures',
+            'nieuws', 'privacy', 'privacyverklaring', 'cookiebeleid',
+            'ons bedrijf', 'onze producten', 'onze diensten',
+            'werken bij', 'werken bij ons',
+            // ─── Czech (CZ) navigation words ─────────────────────────
+            'domů', 'domu', 'úvod', 'uvod', 'vítejte', 'vitejte',
+            'o nás', 'o nas', 'kontakty', 'produkty',
+            'služby', 'sluzby', 'kariéra', 'kariera',
+            'novinky', 'aktuality', 'firma', 'o společnosti',
+            'o spolecnosti', 'naše produkty', 'nase produkty',
+            // ─── Finnish (FI) navigation words ───────────────────────
+            'etusivu', 'tervetuloa', 'meistä', 'meista',
+            'yhteystiedot', 'tuotteet', 'palvelut', 'yritys',
+            'uutiset', 'ajankohtaista', 'avoimet työpaikat',
+            'avoimet tyopaikat', 'tietosuoja', 'tietosuojaseloste',
+            'ota yhteyttä', 'ota yhteytta',
+            // ─── Swedish (SE) navigation words ───────────────────────
+            'startsida', 'startsidan', 'hem', 'välkommen', 'valkommen',
+            'om oss', 'kontakta oss', 'produkter', 'tjänster', 'tjanster',
+            'företaget', 'foretaget', 'nyheter', 'karriär', 'karriar',
+            'lediga jobb', 'integritetspolicy', 'integritet',
+            'våra produkter', 'vara produkter', 'våra tjänster', 'vara tjanster',
+            // ─── Italian (IT) navigation words ───────────────────────
+            'pagina iniziale', 'benvenuto', 'benvenuti',
+            'chi siamo', 'contatti', 'contattaci', 'prodotti',
+            'servizi', 'azienda', 'lavora con noi', 'carriere',
+            'novità', 'novita', 'notizie', 'privacy', 'cookie policy',
+            'la nostra azienda', 'i nostri prodotti', 'i nostri servizi',
+            // ─── Spanish (ES) navigation words ───────────────────────
+            'inicio', 'bienvenido', 'bienvenidos',
+            'quiénes somos', 'quienes somos', 'sobre nosotros',
+            'contáctenos', 'contactenos', 'contacto',
+            'productos', 'servicios', 'empresa', 'empleo', 'empleos',
+            'noticias', 'novedades', 'aviso legal', 'política de privacidad',
+            'politica de privacidad', 'trabaja con nosotros',
+            'nuestra empresa', 'nuestros productos', 'nuestros servicios',
+            // ─── Polish (PL) navigation words ────────────────────────
+            'strona główna', 'strona glowna', 'witamy', 'witaj',
+            'o nas', 'kontakt', 'produkty', 'usługi', 'uslugi',
+            'firma', 'kariera', 'praca', 'oferty pracy',
+            'aktualności', 'aktualnosci', 'polityka prywatności',
+            'polityka prywatnosci', 'nasza firma', 'nasze produkty',
+            // ─── Portuguese (PT) navigation words ────────────────────
+            'página inicial', 'pagina inicial', 'bem-vindo', 'bem vindo',
+            'quem somos', 'contactos', 'produtos', 'serviços', 'servicos',
+            'empresa', 'emprego', 'notícias', 'noticias',
+            'política de privacidade', 'politica de privacidade',
+            // ─── Norwegian/Danish navigation words ───────────────────
+            'hjem', 'hjemmeside', 'velkommen', 'om os', 'om oss',
+            'kontakt os', 'kontakt oss', 'produkter', 'tjenester',
+            'nyheder', 'ledige stillinger', 'personvern',
+            'privatlivspolitik', 'karriere',
+            // ─── Romanian navigation words ───────────────────────────
+            'acasă', 'acasa', 'bine ați venit', 'bine ati venit',
+            'despre noi', 'contact', 'produse', 'servicii',
+            'cariere', 'noutăți', 'noutati',
+            // ─── Hungarian navigation words ──────────────────────────
+            'kezdőlap', 'kezdolap', 'üdvözöljük', 'udvozoljuk',
+            'rólunk', 'rolunk', 'kapcsolat', 'termékek', 'termekek',
+            'szolgáltatások', 'szolgaltatasok', 'karrier', 'hírek', 'hirek',
         ];
         if (in_array($lower, $generics, true)) {
             return true;
@@ -597,10 +1000,17 @@ class GoogleDorkService
         }
 
         // Zero overlap: this is a name-domain mismatch
-        // But be lenient for very short domain names (3 chars) — too ambiguous
-        $mainDomainWord = max($domainWords); // longest word
-        if (strlen($mainDomainWord) <= 3) {
-            return false; // Too ambiguous to reject
+        // For very short domain basenames (≤3 chars total), too ambiguous to reject.
+        // But multi-part domains like "mgi-ci5" (6+ chars total) should still be rejected.
+        $fullDomainStr = implode('', $domainWords);
+        if (strlen($fullDomainStr) <= 3) {
+            return false; // Single short word like "abb" — too ambiguous
+        }
+
+        // Also check: does the full concatenated domain appear as substring of name?
+        $nameLowerFull = strtolower(preg_replace('/[\s\-&,\.]+/', '', $nameClean));
+        if (str_contains($nameLowerFull, $fullDomainStr) || str_contains($fullDomainStr, $nameLowerFull)) {
+            return false; // Fuzzy whole-string match
         }
 
         $this->logger->debug('Name-domain mismatch detected', [
@@ -872,6 +1282,8 @@ class GoogleDorkService
         'tioga.co.uk',  // Tioga - UK EMS
         'note-uk.co.uk',  // NOTE UK - Scandinavian EMS
         'fideltronik.com',  // Fideltronik - Polish EMS
+        'tstronic.eu', 'tstronic.com',  // TSTRONIC - Polish EMS (SMT/THT assembly)
+        'recomedic.com',  // Recomedic - Polish contract manufacturer
         'permatron.com',  // Permatron - air filtration, not buyer
 
         // ─── Distributors / Resellers ─────────────────────────────────
@@ -2289,6 +2701,272 @@ class GoogleDorkService
         'oncf.ma',                // ONCF — Moroccan national railway
         'piassaty.ma',            // Piassaty — fintech/payment app
         'lerail.com',             // Le Rail — railway news magazine
+
+        // ─── FR/DE audit: giant equipment OEMs (not EMS prospects) ────
+        'fanuc.eu', 'fanuc.com', 'fanuc.co.jp',  // FANUC — industrial robotics giant
+        'yokogawa.com', 'yokogawa.eu', 'yokogawa.co.jp',  // Yokogawa — process instruments giant
+        'kuka.com', 'kuka.cn',  // KUKA — industrial robotics
+        'yaskawa.com', 'yaskawa.eu.com', 'yaskawa.co.jp',  // Yaskawa — servo/robot OEM
+        'staubli.com',  // Stäubli — robotics/connectors OEM
+        'universalrobots.com',  // Universal Robots — cobot OEM
+        'endress.com',  // Endress+Hauser — process instrumentation
+        'emerson.com',  // Emerson — automation giant
+        'balluff.com',  // Balluff — sensor OEM
+        'sick.com',  // SICK — sensor/safety OEM
+        'ifm.com',  // ifm — sensor OEM
+        'turck.com',  // Turck — sensor OEM
+        'pilz.com',  // Pilz — safety automation OEM
+        'festo.com',  // Festo — pneumatics/automation OEM
+        'keyence.com', 'keyence.eu', 'keyence.co.jp',  // Keyence — inspection/sensor OEM
+
+        // ─── FR/DE audit: wrong industry domains ──────────────────────
+        'bonitasoft.com',  // Bonitasoft — BPM/workflow software
+        'carbios.com',  // CARBIOS — biotech enzyme plastic recycling
+        'carester.fr',  // CARESTER — rare earth processing
+        'daitokasei.com',  // Daito Kasei — cosmetics raw materials
+        'rfi.fr',  // RFI — Radio France Internationale (broadcaster)
+        'tivoly.com',  // Tivoly — cutting tools manufacturer
+        'mistralcoolers.com',  // Mistral — water cooler/dispenser maker
+        'speichim.com',  // Speichim/InterG — solvent distillation
+        'straton-plc.com',  // Straton — PLC software, not buyer
+        'aceautomation.eu',  // ACE Automation — system integrator
+
+        // ─── FR/DE audit: French government research institutes ───────
+        'cea.fr', 'list.cea.fr',  // CEA — French atomic energy commission
+        'cnrs.fr',  // CNRS — French national research centre
+        'inria.fr',  // INRIA — French CS research institute
+        'inserm.fr',  // INSERM — French medical research
+        'onera.fr',  // ONERA — French aerospace research
+        'ifremer.fr',  // Ifremer — French ocean research
+        'irstea.fr',  // Irstea — French agri/env research
+        'brgm.fr',  // BRGM — French geological survey
+
+        // ─── FR/DE audit: German government research institutes ───────
+        'fraunhofer.de',  // Fraunhofer — German applied research
+        'mpg.de', 'mpi-inf.mpg.de',  // Max Planck — German fundamental research
+        'helmholtz.de',  // Helmholtz — German research centres
+        'leibniz-gemeinschaft.de',  // Leibniz — German research
+        'dlr.de',  // DLR — German aerospace centre
+        'bam.de',  // BAM — German materials research
+        'ptb.de',  // PTB — German metrology institute
+        'kit.edu',  // KIT — Karlsruhe Institute of Technology
+
+        // ─── FR/DE audit: rubber / plastics (wrong industry) ─────────
+        'hutchinson.com',  // Hutchinson — rubber/vibration
+        'contitech.de', 'continental-industry.com',  // ContiTech — rubber/belts
+        'trelleborg.com',  // Trelleborg — polymer solutions
+        'freudenberg.com',  // Freudenberg — seals/nonwovens
+        'nok.co.jp',  // NOK — seals/rubber
+        'datwyler.com',  // Datwyler — rubber sealing
+        'globus-gummi.de',  // Globus Gummiwerke — rubber products
+        'metzeler.com',  // Metzeler — rubber/polymer
+        'simrit.com',  // Simrit — seals/rubber
+        'eriks.com', 'eriks.de',  // ERIKS — seals/rubber/industrial
+
+        // ─── FR/DE audit: machining / CNC job shops (competitors) ────
+        'hfruhstorfer.at',  // CNC machining shop
+        'kern-microtechnik.com',  // Kern — precision machining
+        'dmgmori.com',  // DMG Mori — CNC machine tool OEM
+        'trumpf.com',  // TRUMPF — laser/machine tools OEM
+        'mazak.com', 'mazakeu.com',  // Mazak — CNC machine tools OEM
+        'okuma.com', 'okuma.eu',  // Okuma — CNC machine tools OEM
+        'hermle.de',  // Hermle — milling machines OEM
+        'gildemeister.com',  // Gildemeister — machine tools
+
+        // ─── IT/GB/ES audit: CONSULTANCIES (Big Four / Big Three / IT services) ───
+        // The #1 junk leak identified by user: "consultancies like Deloitte still get through"
+        'deloitte.com', 'deloitte.co.uk', 'deloitte.it', 'deloitte.es',  // Deloitte
+        'pwc.com', 'pwc.co.uk', 'pwc.it', 'pwc.es',  // PricewaterhouseCoopers
+        'kpmg.com', 'kpmg.co.uk', 'kpmg.it', 'kpmg.es',  // KPMG
+        'mckinsey.com',  // McKinsey & Company
+        'bcg.com',  // Boston Consulting Group
+        'bain.com',  // Bain & Company
+        'accenture.com', 'accenture.it', 'accenture.es',  // Accenture
+        'capgemini.com', 'capgemini.it', 'capgemini.es',  // Capgemini
+        'infosys.com',  // Infosys
+        'tcs.com', 'tata.com',  // Tata Consultancy Services
+        'wipro.com',  // Wipro
+        'cognizant.com',  // Cognizant
+        'hcltech.com', 'hcl.com',  // HCL Technologies
+        'techmahindra.com',  // Tech Mahindra
+        'ltimindtree.com', 'lntinfotech.com',  // LTIMindtree
+        'oliverwyman.com',  // Oliver Wyman
+        'rolandberger.com',  // Roland Berger
+        'boozallen.com',  // Booz Allen Hamilton
+        'atos.net',  // Atos
+        'dxc.com', 'dxctechnology.com',  // DXC Technology
+        'cgi.com', 'cgi-group.co.uk',  // CGI Group
+        'soprasteria.com',  // Sopra Steria
+        'bearingpoint.com',  // BearingPoint
+        'alixpartners.com',  // AlixPartners
+        'at-kearney.com', 'kearney.com',  // Kearney (A.T. Kearney)
+        'strategyand.pwc.com',  // Strategy& (PwC)
+        'lkk.com',  // LEK Consulting
+        'simonkucher.com',  // Simon-Kucher
+        'protiviti.com',  // Protiviti
+        'navigantconsulting.com',  // Navigant (Guidehouse)
+        'guidehouse.com',  // Guidehouse
+        'fticonsulting.com',  // FTI Consulting
+        'mottmac.com',  // Mott MacDonald (engineering consultancy)
+        'jacobs.com',  // Jacobs Engineering (consultancy)
+        'wsp.com',  // WSP (engineering consultancy)
+        'arup.com',  // Arup (engineering consultancy)
+        'ramboll.com',  // Ramboll (engineering consultancy)
+        'sweco.com',  // Sweco (engineering consultancy)
+        'afry.com',  // AFRY (engineering consultancy)
+        'bureauveritas.com',  // Bureau Veritas (certification/consultancy)
+        'tuv.com', 'tuvnord.com', 'tuvsud.com', 'tuv-rheinland.com',  // TÜV (certification)
+        'sgs.com',  // already there but ensure it's solid
+        'intertek.com',  // Intertek (testing/certification)
+        'ul.com',  // UL (testing/certification)
+        'marsh.com', 'marshmclennan.com',  // Marsh McLennan (insurance/consulting)
+        'aon.com',  // Aon (insurance/consulting)
+        'willisgroup.com', 'wtwco.com',  // Willis Towers Watson
+        'genpact.com',  // Genpact (IT/BPO)
+        'conduent.com',  // Conduent (IT/BPO)
+        'luxoft.com',  // Luxoft (IT consulting)
+        'epam.com',  // EPAM Systems (IT services)
+        'globant.com',  // Globant (IT services)
+        'thoughtworks.com',  // Thoughtworks (IT consulting)
+        'altran.com',  // Altran (Capgemini engineering)
+        'akkodis.com',  // Akkodis (Adecco Group IT staffing/consulting)
+        'alten.com', 'alten.it', 'alten.es',  // ALTEN (engineering consultancy)
+        'assystem.com',  // Assystem (engineering consultancy)
+        'segula.com', 'segulatechnologies.com',  // SEGULA Technologies (engineering)
+        'akka.eu', 'akka-technologies.com',  // AKKA Technologies (engineering)
+
+        // ─── IT/GB/ES audit: STAFFING / RECRUITMENT firms ─────────────
+        'adecco.com', 'adecco.co.uk', 'adecco.it', 'adecco.es',  // Adecco
+        'randstad.com', 'randstad.co.uk', 'randstad.it', 'randstad.es',  // Randstad
+        'manpower.com', 'manpowergroup.com',  // ManpowerGroup
+        'hays.com', 'hays.co.uk', 'hays.it', 'hays.es',  // Hays
+        'michaelpage.com', 'michaelpage.co.uk', 'michaelpage.it', 'michaelpage.es',  // Michael Page
+        'robertwalters.com', 'robertwalters.co.uk',  // Robert Walters
+        'pagepersonnel.com', 'pagepersonnel.co.uk',  // Page Personnel
+        'roberthalf.com', 'roberthalf.co.uk',  // Robert Half
+        'kforce.com',  // Kforce
+        'kellyservices.com',  // Kelly Services
+        'gi-group.com', 'gigroup.com',  // Gi Group (Italian staffing)
+
+        // ─── IT/GB/ES audit: Italian research institutes ──────────────
+        'cnr.it',  // CNR — Italian National Research Council
+        'infn.it',  // INFN — Italian National Nuclear Physics Institute
+        'enea.it',  // ENEA — Italian National Energy Agency / research
+        'asi.it',  // ASI — Italian Space Agency
+        'iit.it',  // IIT — Italian Institute of Technology
+        'ingv.it',  // INGV — Italian National Geophysics Institute
+        'inaf.it',  // INAF — Italian National Astrophysics Institute
+        'iss.it',  // ISS — Italian National Health Institute
+        'polimi.it',  // Politecnico di Milano
+        'polito.it',  // Politecnico di Torino
+        'unibo.it',  // University of Bologna
+        'uniroma1.it',  // Sapienza University of Rome
+        'unipd.it',  // University of Padua
+        'unitn.it',  // University of Trento
+
+        // ─── IT/GB/ES audit: British research institutes ──────────────
+        'ukri.org',  // UK Research and Innovation
+        'npl.co.uk',  // National Physical Laboratory
+        'stfc.ac.uk', 'stfc.ukri.org',  // Science and Technology Facilities Council
+        'mrc.ac.uk', 'mrc.ukri.org',  // Medical Research Council
+        'epsrc.ac.uk', 'epsrc.ukri.org',  // Engineering and Physical Sciences Research Council
+        'catapult.org.uk',  // Catapult network (innovation centres)
+        'hvm.catapult.org.uk',  // HVM Catapult
+        'cpi-uk.com',  // CPI — Centre for Process Innovation
+        'amrc.co.uk',  // AMRC — Advanced Manufacturing Research Centre
+        'mrc.co.uk',  // Manufacturing Research Centre
+        'cranfield.ac.uk',  // Cranfield University
+        'imperial.ac.uk',  // Imperial College London
+        'cam.ac.uk',  // University of Cambridge
+        'ox.ac.uk',  // University of Oxford
+        'ucl.ac.uk',  // University College London
+        'ed.ac.uk',  // University of Edinburgh
+        'warwick.ac.uk',  // University of Warwick
+        'nottingham.ac.uk',  // University of Nottingham
+        'sheffield.ac.uk',  // University of Sheffield
+
+        // ─── IT/GB/ES audit: Spanish research institutes ──────────────
+        'csic.es',  // CSIC — Spanish National Research Council
+        'inta.es',  // INTA — Spanish National Aerospace Technology Institute
+        'ciemat.es',  // CIEMAT — Spanish Energy/Environment Research Centre
+        'cdti.es',  // CDTI — Spanish Innovation Technology Centre
+        'tecnalia.com',  // Tecnalia — Basque research institute
+        'ikerbasque.net',  // Ikerbasque — Basque science foundation
+        'eurecat.org',  // Eurecat — Catalan technology centre
+        'upm.es',  // Universidad Politécnica de Madrid
+        'upc.edu',  // Universitat Politècnica de Catalunya
+        'upv.es',  // Universitat Politècnica de València
+        'uc3m.es',  // Universidad Carlos III de Madrid
+        'ugr.es',  // Universidad de Granada
+        'uab.cat',  // Universitat Autònoma de Barcelona
+        'unizar.es',  // Universidad de Zaragoza
+
+        // ─── IT/GB/ES audit: Italian wrong-industry domains ───────────
+        // Wine / olive oil / food (Italy's famous non-manufacturing sectors)
+        'gamberorosso.it',  // Gambero Rosso — wine/food magazine
+        'vinitaly.com',  // Vinitaly — wine trade fair
+        'federvini.it',  // Federvini — Italian wine federation
+        'uiv.it',  // UIV — Italian wine union
+        'confindustria.it',  // Confindustria — Italian employers' confederation
+        'aidepi.it',  // AIDEPI — Italian pasta/confectionery association
+        'cfrfrancia.com',  // CFR Francia — unclear
+        'eni.com',  // Eni — Italian oil & gas giant
+        'enel.com', 'enel.it',  // Enel — Italian utility giant
+        'snam.it',  // Snam — Italian gas infrastructure
+        'terna.it',  // Terna — Italian electricity grid
+        'posteitaliane.it',  // Poste Italiane — Italian postal service
+        'mediobanca.com',  // Mediobanca — Italian investment bank
+        'unicredit.it',  // UniCredit — Italian bank
+        'intesasanpaolo.com',  // Intesa Sanpaolo — Italian bank
+        'assicurazionigenerali.com', 'generali.com',  // Generali — Italian insurance
+        'luxottica.com', 'essilorluxottica.com',  // Luxottica — eyewear (own mfg)
+
+        // ─── IT/GB/ES audit: British wrong-industry domains ───────────
+        'bp.com',  // BP — oil & gas
+        'shell.co.uk',  // Shell UK
+        'hsbc.co.uk', 'hsbc.com',  // HSBC — bank
+        'barclays.co.uk', 'barclays.com',  // Barclays — bank
+        'lloydsbank.com',  // Lloyds Bank
+        'standardchartered.com',  // Standard Chartered — bank
+        'aviva.co.uk',  // Aviva — insurance
+        'prudential.co.uk',  // Prudential — insurance
+        'legalandgeneral.com',  // L&G — insurance
+        'astrazeneca.com',  // AstraZeneca — pharma
+        'gsk.com',  // GSK — pharma
+        'unilever.com', 'unilever.co.uk',  // Unilever — FMCG
+        'diageo.com',  // Diageo — beverages
+        'reckitt.com',  // Reckitt Benckiser — consumer goods
+        'bt.com',  // BT Group — telecom
+        'vodafone.co.uk',  // Vodafone UK — telecom
+        'sky.com',  // Sky — media/telecom
+        'bbc.co.uk', 'bbc.com',  // BBC — media
+
+        // ─── IT/GB/ES audit: Spanish wrong-industry domains ───────────
+        'iberdrola.com', 'iberdrola.es',  // Iberdrola — utility giant
+        'repsol.com', 'repsol.es',  // Repsol — oil & gas
+        'telefonica.com', 'telefonica.es',  // Telefónica — telecom
+        'bbva.com', 'bbva.es',  // BBVA — bank
+        'santander.com', 'santander.es',  // Santander — bank
+        'caixabank.com',  // CaixaBank — bank
+        'mapfre.com',  // Mapfre — insurance
+        'inditex.com',  // Inditex/Zara — fashion (own retail)
+        'mango.com',  // Mango — fashion
+        'acciona.com',  // Acciona — infrastructure/renewable
+        'ferrovial.com',  // Ferrovial — infrastructure
+        'acs.es',  // ACS — construction
+        'renfe.com',  // Renfe — Spanish railway
+        'aena.es',  // Aena — Spanish airports
+        'correos.es',  // Correos — Spanish postal service
+
+        // ─── IT/GB/ES audit: UK industry directories / associations ───
+        'themanufacturer.com',  // UK manufacturing magazine
+        'makeuk.org',  // Make UK — manufacturers' association
+        'adsgroup.org.uk',  // ADS Group — UK aerospace/defence trade body
+        'techuk.org',  // techUK — UK technology trade body
+        'imeche.org',  // IMechE — Institution of Mechanical Engineers
+        'theiet.org',  // IET — Institution of Engineering and Technology
+        'gambica.org.uk',  // GAMBICA — UK automation trade body
+        'beama.org.uk',  // BEAMA — UK electrical industry trade body
     ];
 
     /**
@@ -2367,10 +3045,59 @@ class GoogleDorkService
             return true;
         }
 
-        // ─── Block Big Four consulting firm subdomains (iter13) ──
-        if (str_ends_with($domain, '.pwc.com') || str_ends_with($domain, '.deloitte.com')
-            || str_ends_with($domain, '.ey.com') || str_ends_with($domain, '.kpmg.com')
-            || str_ends_with($domain, '.mckinsey.com') || str_ends_with($domain, '.bcg.com')) {
+        // ─── Block Big Four / Big Three / major consultancy domains (iter13 + IT/GB/ES) ──
+        // Block both main domains AND subdomains of major consulting firms
+        $majorConsultancies = [
+            'pwc.com', 'deloitte.com', 'ey.com', 'kpmg.com',  // Big Four
+            'mckinsey.com', 'bcg.com', 'bain.com',  // Big Three
+            'accenture.com', 'capgemini.com',  // IT consultancies
+            'infosys.com', 'tcs.com', 'wipro.com', 'cognizant.com',  // Indian IT
+            'hcltech.com', 'techmahindra.com', 'ltimindtree.com',  // Indian IT
+            'oliverwyman.com', 'rolandberger.com', 'kearney.com',  // Strategy
+            'boozallen.com', 'guidehouse.com', 'fticonsulting.com',  // Advisory
+            'bearingpoint.com', 'alixpartners.com', 'protiviti.com',  // Advisory
+            'atos.net', 'dxc.com', 'cgi.com', 'soprasteria.com',  // IT services
+            'epam.com', 'globant.com', 'thoughtworks.com', 'luxoft.com',  // IT services
+            'genpact.com', 'conduent.com',  // BPO
+            'alten.com', 'assystem.com', 'segula.com', 'altran.com',  // Engineering consultancy
+            'mottmac.com', 'jacobs.com', 'wsp.com', 'arup.com',  // Engineering consultancy
+            'ramboll.com', 'sweco.com', 'afry.com',  // Engineering consultancy
+            'marsh.com', 'marshmclennan.com', 'aon.com', 'wtwco.com',  // Insurance consulting
+        ];
+        foreach ($majorConsultancies as $consultancy) {
+            if ($domain === $consultancy || str_ends_with($domain, '.' . $consultancy)) {
+                return true;
+            }
+        }
+
+        // ─── Block consulting / advisory / services domains ──────
+        // Companies with "consulting", "beratung", "conseil" etc. in their
+        // domain are service firms, not OEM manufacturers buying EMS assemblies.
+        if (preg_match('/\b(consulting|consultancy|consultant|advisory|advisors|beratung|conseil|advies|consulenza|consultoria|doradztwo|asesores|assessoria)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block staffing / recruitment domains ────────────────
+        if (preg_match('/\b(staffing|recruitment|recruiting|headhunt|manpower|workforce|jobboard|jobsite|emploi|lavoro|empleo|arbeit)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block certification / testing / inspection (TIC) domains ──
+        if (preg_match('/\b(tuv|tüv|certification|certifying|accreditation|registrar|inspection|testing-lab)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block IT/GB/ES research institute domains ───────────
+        // Italian research
+        if (preg_match('/\.(cnr|infn|enea|asi|iit|ingv|inaf|iss)\.it$/i', $domain)) {
+            return true;
+        }
+        // Spanish research
+        if (preg_match('/\.(csic|inta|ciemat|cdti)\.es$/i', $domain)) {
+            return true;
+        }
+        // UK research (ac.uk already blocked by TLD check, add specific ones)
+        if (preg_match('/\.(ukri|catapult)\.org(\.uk)?$/i', $domain)) {
             return true;
         }
 
@@ -2469,9 +3196,26 @@ class GoogleDorkService
             return true;
         }
 
+        // ─── Block French/German government research institute domains ──
+        if (preg_match('/\.(cea|cnrs|inria|inserm|onera|ifremer|brgm|irstea)\.fr$/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\.(fraunhofer|mpg|helmholtz|dlr|bam|ptb)\.de$/i', $domain)) {
+            return true;
+        }
+
         // ─── Block .org domains (associations, not manufacturers) ─
         // Very few legitimate OEM prospects use .org
         if (str_ends_with($domain, '.org') || preg_match('/\.org\.[a-z]{2,3}$/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block .edu domains and educational institutions ──────
+        if (preg_match('/\.edu(\.[a-z]{2,3})?$/i', $domain)) {
+            return true;
+        }
+        // French "grandes écoles" and polytechnics
+        if (preg_match('/\.(polytechnique|ensam|ensta|ens-lyon|ens-paris|mines-paristech|ec-nantes|centralesupelec|insa|utc|utt)\.fr$/i', $domain)) {
             return true;
         }
 
@@ -2531,6 +3275,36 @@ class GoogleDorkService
             return true;
         }
 
+        // ─── Consulting / advisory / services companies ───────────────
+        // Companies with "consulting" or similar words in their name are
+        // service firms, not OEM manufacturers that buy EMS assemblies.
+        // Covers English + DE/FR/NL/IT/ES/PL equivalents.
+        if (preg_match('/\b(consulting|consultancy|consultants?|consult|beratung|conseil|advies|consulenza|consultoría|consultoria|doradztwo|rådgivning|neuvonta|poradenství|poradenstvi)\b/iu', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(advisory|advisors?|berater|conseillers?|adviseurs?|consulenti|asesores?|doradcy|rådgivare)\b/iu', $name)) {
+            return true;
+        }
+
+        // ─── Foreign-language homepage words used as company names ─────
+        // "Startseite", "Accueil", "Strona główna" etc. extracted as names
+        $foreignNavJunk = [
+            'startseite', 'willkommen', 'herzlich willkommen',
+            'accueil', 'bienvenue', 'welkom', 'startpagina',
+            'domů', 'domu', 'úvod', 'uvod', 'vítejte', 'vitejte',
+            'etusivu', 'tervetuloa', 'startsida', 'startsidan',
+            'välkommen', 'valkommen', 'pagina iniziale',
+            'benvenuto', 'benvenuti', 'inicio', 'bienvenido',
+            'bienvenidos', 'strona główna', 'strona glowna',
+            'witamy', 'witaj', 'página inicial', 'pagina inicial',
+            'hjem', 'hjemmeside', 'velkommen', 'acasă', 'acasa',
+            'kezdőlap', 'kezdolap', 'impressum', 'datenschutz',
+            'mentions légales', 'mentions legales',
+        ];
+        if (in_array($lower, $foreignNavJunk, true)) {
+            return true;
+        }
+
         // ─── Names with embedded taglines/quotes ─────────────────
         // e.g. 'FM Global "Makes it Simple"', 'Company "Your Partner"'
         if (str_contains($name, '"') || str_contains($name, "\u{201C}") || str_contains($name, "\u{201D}")) {
@@ -2543,299 +3317,8 @@ class GoogleDorkService
             return true;
         }
         
-        // ─── Giant OEM / Fortune-500 blocklist ────────────────────────
-        // These are too large to be realistic EMS prospects. They have
-        // their own in-house PCBA, or use massive Tier-0 EMS providers.
-        $giantOemBlocklist = [
-            'honeywell', 'continental ag', 'continental', 'stellantis',
-            'bmw', 'bmw group', 'bmw group plants', 'general motors',
-            'volkswagen', 'volkswagen group', 'toyota', 'toyota eu',
-            'toyota motor europe', 'toyota motor',
-            'ford', 'ford motor', 'mercedes-benz', 'mercedes benz',
-            'audi', 'porsche', 'nissan', 'honda', 'hyundai', 'kia',
-            'tesla', 'volvo', 'volvo cars', 'renault', 'renault group',
-            'peugeot', 'citroen', 'fiat', 'chrysler', 'jeep', 'dodge',
-            'general electric', 'siemens', 'siemens ag', 'bosch',
-            'robert bosch', 'thyssenkrupp', 'basf', 'bayer',
-            'samsung', 'lg', 'lg electronics', 'panasonic', 'sony',
-            'philips', 'toshiba', 'hitachi', 'mitsubishi',
-            'foxconn', 'jabil', 'flex', 'celestica', 'sanmina',
-            'apple', 'google', 'amazon', 'microsoft', 'meta',
-            'intel', 'amd', 'nvidia', 'qualcomm', 'broadcom',
-            'texas instruments', 'infineon', 'stmicroelectronics',
-            'nxp', 'microchip', 'renesas', 'on semiconductor',
-            'boeing', 'airbus', 'lockheed martin', 'raytheon',
-            'northrop grumman', 'general dynamics', 'bae systems',
-            'rolls-royce', 'safran', 'thales', 'leonardo',
-            'caterpillar', 'john deere', 'deere & company',
-            'schneider electric', 'schneider electric global', 'abb', 'emerson', 'rockwell',
-            'rockwell automation', 'rockwell collins',
-            'penske', 'penske automotive group',
-            'cox automotive', 'cox automotive inc.',
-            'mckinsey', 'bain', 'bain capital', 'bcg',
-            'goldman sachs', 'jp morgan', 'morgan stanley',
-            'denso', 'denso global website', 'aisin', 'denso corporation',
-            'dupont', 'gentherm', 'gentherm incorporated', 'valero',
-            'sun chemical', 'clean harbors', 'clean harbours',
-            // ─── Missing giant OEMs from iter3/4 logs ─────────────────
-            'bombardier', 'rheinmetall', 'rivian', 'zf group', 'zf',
-            'valeo', 'baesystems', 'bae systems plc',
-            'totalenergies', 'totalenergies egypt', 'total energies',
-            'thermo fisher', 'thermo fisher scientific',
-            'covestro', 'covestro ag',
-            'astrazeneca', 'capgemini',
-            'pratt & whitney', 'pratt whitney', 'prattwhitney',
-            'somaca', 'casablanca plant',
-            'magna', 'magna international', 'lear corporation', 'lear',
-            'aptiv', 'delphi', 'delphi technologies',
-            'marelli', 'magneti marelli', 'knorr-bremse',
-            'wabash', 'wabco', 'dana', 'dana incorporated',
-            'borgwarner', 'hella', 'mahle', 'schaeffler',
-            'nidec', 'te connectivity', 'amphenol', 'molex',
-            'johnson controls', 'tyco', 'eaton',
-            'parker hannifin', 'parker', 'roper technologies',
-            'danaher', 'fortive', 'ametek',
-            'textron', 'l3harris', 'curtiss-wright',
-            'elbit systems', 'rafael', 'iai',
-            // ─── Additional from iter5 ────────────────────────────────
-            'safran electronics & defense', 'safran electronics & defen',
-            'ezz steel', 'telekom', 'capgemini morocco', 'capgemini moroc',
-            'casablanca plant (somaca)',
-            'homepage zf friedrichshafen', 'homepage zf friedrichshafen ag',
-            'zf friedrichshafen', 'zf friedrichshafen ag',
-            // ─── Additional from iter6 ────────────────────────────────
-            'caparol', 'caparol arabia', 'caparol industrial',    // BASF subsidiary (paints)
-            'hennessey special vehicles', 'hennessey',             // Custom car builder
-            'edita', 'edita food industries',                      // Egyptian snack food
-            'dorsey', 'dorsey trailers',                           // Giant trailer manufacturer
-            'gecko robotics',                                       // VC-backed tech unicorn
-            'precision aviation group', 'pag',                      // Giant MRO aviation
-            'iac', 'international automotive components',           // Giant tier-1
-            'vacker', 'vacker group',                               // HVAC trading company
-            // ─── iter7 deep sweep ─────────────────────────────────────
-            // Semiconductor giants
-            'nxp semiconductors', 'nxp semiconductor',
-            // Aerospace/defense giants
-            'ge aerospace', 'gkn aerospace', 'gkn',
-            'textron systems', 'kongsberg', 'kongsberg gruppen',
-            'hensoldt', 'hensoldt ag',
-            'diehl group', 'diehl', 'diehl defence', 'diehl aviation',
-            'chemring', 'chemring group', 'chemring group plc',
-            'joby aviation',
-            // Test equipment / instrumentation giants
-            'teradyne', 'rohde & schwarz', 'rohde schwarz',
-            'kistler', 'kistler nl',
-            // Automotive tier-1 giants
-            'benteler', 'benteler group', 'benteler automotive',
-            'horse powertrain', 'punch powertrain',
-            'seg automotive', 'seg automotive germany',
-            'zkw group', 'zkw',
-            'nexteer', 'nexteer automotive',
-            // Robotics / automation giants
-            'kuka', 'kuka ag', 'comau', 'comau spa',
-            'b&r industrial automation', 'b&r automation',
-            'kawasaki robotics', 'kawasaki heavy industries',
-            // Chemical / materials giants
-            'lyondellbasell', 'lyondellbasell industries',
-            'merck group', 'merck kgaa', 'merck',
-            'trelleborg', 'trelleborg ab', 'trelleborg sealing',
-            'dupont de nemours',
-            // Consumer/Food/Mining giants
-            'elaraby', 'elaraby group', 'el araby group',
-            'mondelez international', 'mondelēz international', 'mondelez',
-            'cosumar', 'ocp group', 'ocp',
-            'al-futtaim', 'al futtaim', 'al-futtaim group',
-            // Engineering giants
-            'fev group', 'fev', 'fev gmbh',
-            'segula technologies', 'segula',
-            // Steel giants
-            'ussteel', 'us steel', 'u.s. steel',
-            // Semiconductor / electronics giants
-            'mitsubishi electric', 'mitsubishi electric europe',
-            'mitsubishi electric europe bv france',
-            // Defense / govt bodies
-            'eurocontrol', 'icao',
-            'international civil aviation organization',
-            'federal aviation administration', 'faa',
-            // Conglomerates / consultancies
-            'grant thornton', 'grant thornton (us)',
-            'lincoln international', 'lincoln international llc',
-            'raya corp', 'raya corporation',
-            // Misc giants leaking through
-            'ge', 'daher', 'ascent aerospace',
-            'northrop grumman', 'integrated fires mission command',
-            'precisionaviationgroup',
-            'gulfex', 'gulf extrusions',
-            'gb corp', 'gb corporation',
-            'streit group',
-            'markforged',
-            'peer group', 'peer group inc.',
-            'nvidianews nvidia', 'nvidianews',
-            'gulf cryo',
-            'falcon group',
-            'opple lighting', 'opple lighting mea',
-            'infinity trailers',
-            // ─── iter11b Morocco ──────────────────────────────────────
-            'zf lifetec', 'zf-lifetec',
-            'comeca', 'comeca group',
-            'dunlop', 'dunlop tyres', 'dunlop tires',
-            // ─── iter13 Tunisia ──────────────────────────────────────────
-            'leoni', 'leoni wiring systems', 'leoni tunisia',  // Wire harness competitor
-            'nexans', 'nexans autoelectric',                    // Cable/harness competitor
-            'odoo', 'odoo sa',                                  // ERP software company
-            'sogeclair',                                        // Engineering consulting
-            'groupe telnet', 'groupe-telnet', 'telnet group',   // IT engineering services
-            // ─── iter15b Egypt ──────────────────────────────────────────
-            'midea', 'midea group', 'midea egypt',              // Giant Chinese appliance OEM
-            'haier', 'haier group', 'haier egypt',              // Giant Chinese appliance OEM
-            'ups', 'ups freight', 'ups supply chain',           // Shipping/logistics giant
-            'fedex', 'fedex express', 'fedex ground',           // Shipping/logistics giant
-            'dhl', 'dhl express', 'dhl supply chain',           // Shipping/logistics giant
-            'whirlpool', 'whirlpool corporation',               // Giant appliance OEM
-            'electrolux', 'electrolux group',                   // Giant appliance OEM
-            'beko', 'beko egypt', 'arçelik',                    // Giant appliance OEM
-            'sharp', 'sharp corporation', 'sharp egypt',        // Giant electronics OEM
-            'telecom egypt', 'te data', 'te software',          // State telecom provider
-            'cairo ict', 'cairoict',                            // Tech conference
-            'nti', 'national telecom institute',                // Government institute
-            // ─── iter15c Egypt deep inspection ──────────────────────────
-            'trane', 'trane technologies', 'trane egypt',       // Giant HVAC OEM
-            'carrier', 'carrier global', 'carrier egypt',       // Giant HVAC OEM
-            'daikin', 'daikin industries', 'daikin egypt',      // Giant HVAC OEM
-            'airbnb', 'airbnb inc',                             // Vacation rental platform
-            'data center map', 'datacentermap',                 // Directory/listing site
-            'middle east monitor',                              // News/media site
-            'trt world', 'trt',                                 // Turkish state broadcaster
-            'global uploads webflow',                           // Webflow CDN artifact
-            'solarinvertermanufacturers',                       // SEO spam/directory
-            'factocert',                                        // ISO certification consulting
-            'sbcertgroup',                                      // ISO certification consulting
-            'shipserv',                                         // Maritime procurement marketplace
-            'cairo sales stores', 'cairo sales',                // Retail store
-            'gpx global systems', 'gpx global',                 // Data center colocation
-            'radio holland',                                    // Dutch maritime electronics
-            'chloride batteries',                               // SE Asian batteries
-            'bowfin', 'bowfin boats',                           // US boat manufacturer
-            'nspo', 'nato support',                             // NATO procurement org
-            'dnb carnegie', 'dun & bradstreet', 'dun and bradstreet', // Business intelligence
-            // ─── iter15d Morocco deep inspection ────────────────────────
-            'cfm international', 'cfm', 'cfm aeroengines',     // GE/Safran jet engine JV
-            'prysmian', 'prysmian group', 'prysmian norway',    // Giant cable manufacturer
-            'inwi', 'maroc telecom', 'iam',                     // Moroccan telecom operators
-            'telus', 'telus digital', 'telus international',    // Canadian telecom giant
-            'royal mansour', 'royal mansour marrakech',         // Luxury hotel
-            'veichi', 'veichi electric',                        // Chinese VFD manufacturer
-            'resunsolargroup', 'resun solar',                   // Chinese solar company
-            'archive ouverte hal', 'hal science',               // Academic archive
-            'scispace', 'researchgate',                         // Academic platforms
-            'assemblymag', 'assembly magazine',                 // Trade publication
-            'bisinfotech',                                      // Indian tech media
-            'minkels', 'solutions for data centers',            // Dutch DC equipment
-            'fenie brossette',                                  // Stock exchange listing
-            // iter15f: Morocco iter2 junk
-            'lockheed martin', 'lockheedmartin', 'lockheed',    // US defense giant
-            'tata', 'tata advanced systems', 'tata group',      // Indian conglomerate
-            'aresia',                                           // French aerospace pyrotechnics
-            'nexo', 'nexo sa',                                  // French loudspeaker (Yamaha)
-            'gateway medtech', 'gatewaymedtech',                // Foreign MedTech consultancy
-            'qualipro', 'imagine human',                        // Tunisian/French QMS software
-            'solarctrl', 'solar ctrl',                          // Chinese solar manufacturer
-            'visionair', 'visionair maroc',                     // Electrical retail shop
-            'flexibat',                                         // Modular construction company
-            // iter15g: Morocco iter3 junk
-            'sage', 'sage publications', 'sage journals', 'sagepub', 'journals sagepub',  // Academic publisher
-            'evernex',                                          // French IT maintenance
-            'energie scoot', 'energiescoot', 'energie scoot maroc', // E-scooter parts
-            // iter15i: Tunisia iter1 massive junk
-            'lufthansa',                                        // German airline
-            'hisense', 'hisense hvac',                          // Chinese electronics giant
-            'watts', 'watts electronics',                       // US/EU water products
-            'defense advancement',                              // Defense news directory
-            'military africa',                                  // Military news
-            'nordic monitor',                                   // Scandinavian news
-            'arab reform', 'arab reform initiative',            // Policy think tank
-            'data protection laws', 'dlapiper', 'dla piper',   // Law firm
-            'lab of tomorrow', 'lab-of-tomorrow', 'giz-lot',     // GIZ project
-            'inkyfada',                                         // Journalism website
-            'switchmed',                                        // EU program
-            'bahrain turf club', 'bahrain turf', 'royal equestrian', // Horse racing
-            'motoma',                                           // Chinese battery
-            'national oilwell varco',                           // US oil & gas
-            'tesup',                                            // UK wind turbine
-            'solax', 'solax power',                             // Chinese solar inverter
-            'teltonika',                                        // Lithuanian IoT
-            'gdsdisplays', 'gds displays',                      // Chinese LED
-            'shapr3d',                                          // Hungarian 3D CAD
-            'integrity next', 'integritynext',                  // German compliance
-            'sanbor', 'sanbor medical',                         // US medical company
-            'build_me', 'build me',                             // MENA buildings program
-            'sami tube fittings', 'sami tube',                  // Indian manufacturer
-            'elmed', 'elmed project',                           // EU project
-            'evolution engineering services',                    // ME HVAC firm
-            'auxsol',                                           // Chinese solar (AUX)
-            // iter15j: Tunisia iter2 junk
-            'brika agency', 'brika',                                // Web agency artifact
-            'ilex life sciences', 'ilex',                           // US biotech
-            // iter15k: Tunisia iter3 junk
-            'hewlett packard', 'hewlett packard enterprise', 'hpe',  // Giant OEM
-            'marquardt', 'marquardt u.s', 'marquardt group',         // German/US OEM
-            'amea power',                                           // UAE mega-power company
-            'colas rail', 'colas', 'colas group',                   // French multinational
-            'talgo', 'talgo inc', 'talgo s.a.',                     // Spanish train manufacturer
-            'kfw', 'kfw group', 'kfw bankengruppe',                 // German development bank
-            'ats', 'ats global', 'ats data center solutions',       // Dutch multinational
-            'adec technologies', 'adec',                            // Swiss company
-            'cmr group', 'cmr',                                     // French company
-            'cruisemapper', 'cruise mapper',                        // Ship tracking website
-            'tunisie-foot', 'tunisie foot',                         // Football news site
-            'ingenius',                                             // French university program
-            'high-quality laboratory reagents',                     // Descriptive phrase, not company
-            'hbm', 'hbk', 'hottinger', 'hottinger baldwin',        // German multinational (Spectris)
-            'aymax',                                                // French IT/SAP consulting
-            'selt marine', 'selt marine group',                     // Algae food ingredient company
-            'tech216',                                              // German GIZ government program
-            'cim groupe', 'cim group', 'john cockerill',            // Belgian multinational
-            '2j antennas', '2j-antennas',                           // Slovak company, no Tunisia presence
-            // iter15l: Egypt iter2 junk
-            'alstom', 'alstom transport', 'alstom egypt',            // French rail OEM
-            'ratpdev', 'ratp dev', 'ratp group', 'ratp',            // French transit operator
-            'elsewedy', 'elsewedy electric', 'el sewedy',           // Egyptian conglomerate
-            // iter15l: Morocco iter2 junk
-            'lexmark', 'lexmark international',                     // US printer OEM
-            'vinci', 'vinci construction', 'vinci energies',       // French construction giant
-            'dfds', 'dfds a/s', 'dfds group',                      // Danish shipping company
-            'artelia', 'artelia group',                             // French engineering consultancy
-            'fassmer', 'fassmer werft',                             // German shipbuilder
-            'searates', 'sea rates',                                // Freight comparison website
-            'fm global',                                            // US insurance company
-            'keyter',                                               // Spanish HVAC manufacturer
-            'africa intelligence', 'africaintelligence',            // French media
-            'ship supply in casablanca',                            // Search query, not company
-            'pharmacity',                                           // Pharmacy
-            'bbamorocco', 'bba morocco',                            // Non-profit association
-            'ideo factory', 'ideo',                                 // E-learning company
-            'green bike city', 'gbc',                               // IT integrator
-            // iter15m: Morocco iter3 junk
-            'arcelormittal', 'arcelor mittal', 'rails arcelormittal',  // Steel giant
-            'sncf', 'groupe sncf', 'sncf group',                     // French national railway
-            'oncf',                                                   // Moroccan national railway
-            'piassaty',                                               // Fintech/payment app
-            'le rail', 'railway gazette', 'railwaygazette',           // Railway magazines
-        ];
-        if (in_array($lower, $giantOemBlocklist, true)) {
-            return true;
-        }
-        // Also check if the name STARTS WITH or CONTAINS a giant OEM name
-        // e.g. "Rheinmetall Aviation Services GmbH" contains "rheinmetall"
-        foreach ($giantOemBlocklist as $oem) {
-            if (strlen($oem) >= 4 && str_starts_with($lower, $oem . ' ')) {
-                return true;
-            }
-            // For longer OEM names (≥8 chars), also match anywhere in the name
-            if (strlen($oem) >= 8 && str_contains($lower, $oem)) {
-                return true;
-            }
-        }
+        // ─── Giant OEM check moved to isGiantOem() ───────────────────
+        // Not checked here — callers that need it call isGiantOem() separately.
         
         // ─── "City, Country" or "City State" patterns ─────────────────
         // "Abu Dhabi, UAE", "Cairo, Egypt", "City of Alexandria, Virginia"
@@ -3135,6 +3618,76 @@ class GoogleDorkService
         }
         
         // ─── Names containing "(en-GB)", "(en-US)" language tags ──────
+
+        // ─── Market report / research titles ──────────────────────────
+        // "Electronic Contract Manufacturing and Design Services Market 2034"
+        // "Global EMS Market Growth Report 2030", "CAGR of 5.2%"
+        if (preg_match('/\bmarket\s+(20[2-4]\d|size|growth|report|forecast|analysis|outlook|share|trends?)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(CAGR|compound\s+annual)\b/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(report|forecast|analysis)\s+20[2-4]\d\b/i', $name)) {
+            return true;
+        }
+
+        // ─── Generic service descriptions (not company names) ─────────
+        // "Contract Manufacturing", "Contract Manufacturing Services",
+        // "Contract Manufacturing Network", "Conformal Coatings"
+        if (preg_match('/^contract\s+(manufactur|electron|assembl)/i', $name)) {
+            return true;
+        }
+        if (preg_match('/^conformal\s+(coating|coat)/i', $name)) {
+            return true;
+        }
+        if (preg_match('/^(tax\s+credit|certifications?\s+(issued|for|granted))/i', $name)) {
+            return true;
+        }
+        if (preg_match('/^free\s+(member|course|download|trial|sample)\b/i', $name)) {
+            return true;
+        }
+
+        // ─── Product names / SKUs used as company names ──────────────
+        // "WH08Z200", "SJ100", "Staticide® 8695 Silicone Conformal Coating"
+        if (preg_match('/^[A-Z]{1,4}\d{3,}\b/', $name)) {
+            return true;
+        }
+        // Product with brand + model number patterns
+        if (preg_match('/^(KONTAKT\s+CHEMIE|Staticide|DOWSIL|Loctite|Humiseal)\b/i', $name)) {
+            return true;
+        }
+
+        // ─── Events / disasters / non-business content ───────────────
+        if (preg_match('/\b(earthquake|flood|hurricane|tsunami|disaster)\s+(in|near)\b/i', $name)) {
+            return true;
+        }
+
+        // ─── Names ending with ellipsis (truncated search titles) ─────
+        if (preg_match('/\.{2,}\s*$/', $name)) {
+            return true;
+        }
+
+        // ─── Foreign-language product/machine descriptions ────────────
+        // "Maszyna do zbierania i umieszczania Samsung SMT"
+        // "Messe Elektronik Entwicklung und Fertigung"
+        if (preg_match('/\b(maszyna|maschine|appareil|máquina)\s+/iu', $name)) {
+            return true;
+        }
+        if (preg_match('/^(messe|feira|feria|foire)\s+/iu', $name)) {
+            return true;
+        }
+
+        // ─── Names that are just "Ems" or other too-generic abbreviations ─
+        $tooGenericNames = ['ems', 'pcb', 'smt', 'bom', 'led', 'lcd', 'erp', 'crm', 'iot'];
+        if (in_array($lower, $tooGenericNames, true)) {
+            return true;
+        }
+
+        // ─── APPROVISIONNEUR and similar French job titles as names ───
+        if (preg_match('/^(approvisionneur|acheteur|responsable|technicien|ingénieur|ingenieur|directeur|gestionnaire)\b/iu', $name)) {
+            return true;
+        }
         if (preg_match('/\(en-[A-Z]{2}\)/i', $name)) {
             return true;
         }
@@ -3369,9 +3922,13 @@ class GoogleDorkService
         
         // ─── Single very short abbreviations (≤3 chars) ───────────────
         // Common false positives: "Ti", "Nio", "REE", "APT", "DIB"
-        // Only filter 2-char or shorter that aren't well-known
+        // Only filter 2-char or shorter that aren't well-known abbreviations
         if (mb_strlen(trim($name)) <= 2 && $wordCount === 1) {
-            return true;
+            // Allow known 2-letter company abbreviations
+            $known2Char = ['zf', 'ge', 'lg', 'hp', 'gm', 'bp', '3m'];
+            if (!in_array($lower, $known2Char, true)) {
+                return true;
+            }
         }
         
         // ─── Hosting error / placeholder page titles ──────────────────
@@ -4220,6 +4777,281 @@ class GoogleDorkService
     }
 
     /**
+     * Check if a company name belongs to a giant OEM / Fortune-500 that is
+     * too large to be a realistic EMS prospect. Separated from isJunkCompanyName()
+     * because these ARE real company names — they're just not sales targets.
+     */
+    private function isGiantOem(string $name): bool
+    {
+        $lower = strtolower(trim($name));
+
+        static $giantOemBlocklist = null;
+        if ($giantOemBlocklist === null) {
+            $giantOemBlocklist = [
+                'honeywell', 'continental ag', 'continental', 'stellantis',
+                'bmw', 'bmw group', 'bmw group plants', 'general motors',
+                'volkswagen', 'volkswagen group', 'toyota', 'toyota eu',
+                'toyota motor europe', 'toyota motor',
+                'ford', 'ford motor', 'mercedes-benz', 'mercedes benz',
+                'audi', 'porsche', 'nissan', 'honda', 'hyundai', 'kia',
+                'tesla', 'volvo', 'volvo cars', 'renault', 'renault group',
+                'peugeot', 'citroen', 'fiat', 'chrysler', 'jeep', 'dodge',
+                'general electric', 'siemens', 'siemens ag', 'bosch',
+                'robert bosch', 'thyssenkrupp', 'basf', 'bayer',
+                'samsung', 'lg', 'lg electronics', 'panasonic', 'sony',
+                'philips', 'toshiba', 'hitachi', 'mitsubishi',
+                'foxconn', 'jabil', 'flex', 'celestica', 'sanmina',
+                'apple', 'google', 'amazon', 'microsoft', 'meta',
+                'intel', 'amd', 'nvidia', 'qualcomm', 'broadcom',
+                'texas instruments', 'infineon', 'stmicroelectronics',
+                'nxp', 'microchip', 'renesas', 'on semiconductor',
+                'boeing', 'airbus', 'lockheed martin', 'raytheon',
+                'northrop grumman', 'general dynamics', 'bae systems',
+                'rolls-royce', 'safran', 'thales', 'leonardo',
+                'caterpillar', 'john deere', 'deere & company',
+                'schneider electric', 'schneider electric global', 'abb', 'emerson', 'rockwell',
+                'rockwell automation', 'rockwell collins',
+                'penske', 'penske automotive group',
+                'cox automotive', 'cox automotive inc.',
+                'mckinsey', 'bain', 'bain capital', 'bcg',
+                'goldman sachs', 'jp morgan', 'morgan stanley',
+                'denso', 'denso global website', 'aisin', 'denso corporation',
+                'dupont', 'gentherm', 'gentherm incorporated', 'valero',
+                'sun chemical', 'clean harbors', 'clean harbours',
+                'bombardier', 'rheinmetall', 'rivian', 'zf group', 'zf',
+                'valeo', 'baesystems', 'bae systems plc',
+                'totalenergies', 'totalenergies egypt', 'total energies',
+                'thermo fisher', 'thermo fisher scientific',
+                'covestro', 'covestro ag',
+                'astrazeneca', 'capgemini',
+                'pratt & whitney', 'pratt whitney', 'prattwhitney',
+                'somaca', 'casablanca plant',
+                'magna', 'magna international', 'lear corporation', 'lear',
+                'aptiv', 'delphi', 'delphi technologies',
+                'marelli', 'magneti marelli', 'knorr-bremse',
+                'wabash', 'wabco', 'dana', 'dana incorporated',
+                'borgwarner', 'hella', 'mahle', 'schaeffler',
+                'nidec', 'te connectivity', 'amphenol', 'molex',
+                'johnson controls', 'tyco', 'eaton',
+                'parker hannifin', 'parker', 'roper technologies',
+                'danaher', 'fortive', 'ametek',
+                'textron', 'l3harris', 'curtiss-wright',
+                'elbit systems', 'rafael', 'iai',
+                'safran electronics & defense', 'safran electronics & defen',
+                'ezz steel', 'telekom', 'capgemini morocco', 'capgemini moroc',
+                'casablanca plant (somaca)',
+                'homepage zf friedrichshafen', 'homepage zf friedrichshafen ag',
+                'zf friedrichshafen', 'zf friedrichshafen ag',
+                'caparol', 'caparol arabia', 'caparol industrial',
+                'hennessey special vehicles', 'hennessey',
+                'edita', 'edita food industries',
+                'dorsey', 'dorsey trailers',
+                'gecko robotics',
+                'precision aviation group', 'pag',
+                'iac', 'international automotive components',
+                'vacker', 'vacker group',
+                'nxp semiconductors', 'nxp semiconductor',
+                'ge aerospace', 'gkn aerospace', 'gkn',
+                'textron systems', 'kongsberg', 'kongsberg gruppen',
+                'hensoldt', 'hensoldt ag',
+                'diehl group', 'diehl', 'diehl defence', 'diehl aviation',
+                'chemring', 'chemring group', 'chemring group plc',
+                'joby aviation',
+                'teradyne', 'rohde & schwarz', 'rohde schwarz',
+                'kistler', 'kistler nl',
+                'benteler', 'benteler group', 'benteler automotive',
+                'horse powertrain', 'punch powertrain',
+                'seg automotive', 'seg automotive germany',
+                'zkw group', 'zkw',
+                'nexteer', 'nexteer automotive',
+                'kuka', 'kuka ag', 'comau', 'comau spa',
+                'b&r industrial automation', 'b&r automation',
+                'kawasaki robotics', 'kawasaki heavy industries',
+                'lyondellbasell', 'lyondellbasell industries',
+                'merck group', 'merck kgaa', 'merck',
+                'trelleborg', 'trelleborg ab', 'trelleborg sealing',
+                'dupont de nemours',
+                'elaraby', 'elaraby group', 'el araby group',
+                'mondelez international', 'mondelēz international', 'mondelez',
+                'cosumar', 'ocp group', 'ocp',
+                'al-futtaim', 'al futtaim', 'al-futtaim group',
+                'fev group', 'fev', 'fev gmbh',
+                'segula technologies', 'segula',
+                'ussteel', 'us steel', 'u.s. steel',
+                'mitsubishi electric', 'mitsubishi electric europe',
+                'mitsubishi electric europe bv france',
+                'eurocontrol', 'icao',
+                'international civil aviation organization',
+                'federal aviation administration', 'faa',
+                'grant thornton', 'grant thornton (us)',
+                'lincoln international', 'lincoln international llc',
+                'raya corp', 'raya corporation',
+                'ge', 'daher', 'ascent aerospace',
+                'northrop grumman', 'integrated fires mission command',
+                'precisionaviationgroup',
+                'gulfex', 'gulf extrusions',
+                'gb corp', 'gb corporation',
+                'streit group',
+                'markforged',
+                'peer group', 'peer group inc.',
+                'nvidianews nvidia', 'nvidianews',
+                'gulf cryo',
+                'falcon group',
+                'opple lighting', 'opple lighting mea',
+                'infinity trailers',
+                'zf lifetec', 'zf-lifetec',
+                'comeca', 'comeca group',
+                'dunlop', 'dunlop tyres', 'dunlop tires',
+                'leoni', 'leoni wiring systems', 'leoni tunisia',
+                'nexans', 'nexans autoelectric',
+                'odoo', 'odoo sa',
+                'sogeclair',
+                'groupe telnet', 'groupe-telnet', 'telnet group',
+                'midea', 'midea group', 'midea egypt',
+                'haier', 'haier group', 'haier egypt',
+                'ups', 'ups freight', 'ups supply chain',
+                'fedex', 'fedex express', 'fedex ground',
+                'dhl', 'dhl express', 'dhl supply chain',
+                'whirlpool', 'whirlpool corporation',
+                'electrolux', 'electrolux group',
+                'beko', 'beko egypt', 'arçelik',
+                'sharp', 'sharp corporation', 'sharp egypt',
+                'telecom egypt', 'te data', 'te software',
+                'cairo ict', 'cairoict',
+                'nti', 'national telecom institute',
+                'trane', 'trane technologies', 'trane egypt',
+                'carrier', 'carrier global', 'carrier egypt',
+                'daikin', 'daikin industries', 'daikin egypt',
+                'airbnb', 'airbnb inc',
+                'data center map', 'datacentermap',
+                'middle east monitor',
+                'trt world', 'trt',
+                'global uploads webflow',
+                'solarinvertermanufacturers',
+                'factocert',
+                'sbcertgroup',
+                'shipserv',
+                'cairo sales stores', 'cairo sales',
+                'gpx global systems', 'gpx global',
+                'radio holland',
+                'chloride batteries',
+                'bowfin', 'bowfin boats',
+                'nspo', 'nato support',
+                'dnb carnegie', 'dun & bradstreet', 'dun and bradstreet',
+                'cfm international', 'cfm', 'cfm aeroengines',
+                'prysmian', 'prysmian group', 'prysmian norway',
+                'inwi', 'maroc telecom', 'iam',
+                'telus', 'telus digital', 'telus international',
+                'royal mansour', 'royal mansour marrakech',
+                'veichi', 'veichi electric',
+                'resunsolargroup', 'resun solar',
+                'archive ouverte hal', 'hal science',
+                'scispace', 'researchgate',
+                'assemblymag', 'assembly magazine',
+                'bisinfotech',
+                'minkels', 'solutions for data centers',
+                'fenie brossette',
+                'lockheed martin', 'lockheedmartin', 'lockheed',
+                'tata', 'tata advanced systems', 'tata group',
+                'aresia',
+                'nexo', 'nexo sa',
+                'gateway medtech', 'gatewaymedtech',
+                'qualipro', 'imagine human',
+                'solarctrl', 'solar ctrl',
+                'visionair', 'visionair maroc',
+                'flexibat',
+                'sage', 'sage publications', 'sage journals', 'sagepub', 'journals sagepub',
+                'evernex',
+                'energie scoot', 'energiescoot', 'energie scoot maroc',
+                'lufthansa',
+                'hisense', 'hisense hvac',
+                'watts', 'watts electronics',
+                'defense advancement',
+                'military africa',
+                'nordic monitor',
+                'arab reform', 'arab reform initiative',
+                'data protection laws', 'dlapiper', 'dla piper',
+                'lab of tomorrow', 'lab-of-tomorrow', 'giz-lot',
+                'inkyfada',
+                'switchmed',
+                'bahrain turf club', 'bahrain turf', 'royal equestrian',
+                'motoma',
+                'national oilwell varco',
+                'tesup',
+                'solax', 'solax power',
+                'teltonika',
+                'gdsdisplays', 'gds displays',
+                'shapr3d',
+                'integrity next', 'integritynext',
+                'sanbor', 'sanbor medical',
+                'build_me', 'build me',
+                'sami tube fittings', 'sami tube',
+                'elmed', 'elmed project',
+                'evolution engineering services',
+                'auxsol',
+                'brika agency', 'brika',
+                'ilex life sciences', 'ilex',
+                'hewlett packard', 'hewlett packard enterprise', 'hpe',
+                'marquardt', 'marquardt u.s', 'marquardt group',
+                'amea power',
+                'colas rail', 'colas', 'colas group',
+                'talgo', 'talgo inc', 'talgo s.a.',
+                'kfw', 'kfw group', 'kfw bankengruppe',
+                'ats', 'ats global', 'ats data center solutions',
+                'adec technologies', 'adec',
+                'cmr group', 'cmr',
+                'cruisemapper', 'cruise mapper',
+                'tunisie-foot', 'tunisie foot',
+                'ingenius',
+                'high-quality laboratory reagents',
+                'hbm', 'hbk', 'hottinger', 'hottinger baldwin',
+                'aymax',
+                'selt marine', 'selt marine group',
+                'tech216',
+                'cim groupe', 'cim group', 'john cockerill',
+                '2j antennas', '2j-antennas',
+                'alstom', 'alstom transport', 'alstom egypt',
+                'ratpdev', 'ratp dev', 'ratp group', 'ratp',
+                'elsewedy', 'elsewedy electric', 'el sewedy',
+                'lexmark', 'lexmark international',
+                'vinci', 'vinci construction', 'vinci energies',
+                'dfds', 'dfds a/s', 'dfds group',
+                'artelia', 'artelia group',
+                'fassmer', 'fassmer werft',
+                'searates', 'sea rates',
+                'fm global',
+                'keyter',
+                'africa intelligence', 'africaintelligence',
+                'ship supply in casablanca',
+                'pharmacity',
+                'bbamorocco', 'bba morocco',
+                'ideo factory', 'ideo',
+                'green bike city', 'gbc',
+                'arcelormittal', 'arcelor mittal', 'rails arcelormittal',
+                'sncf', 'groupe sncf', 'sncf group',
+                'oncf',
+                'piassaty',
+                'le rail', 'railway gazette', 'railwaygazette',
+            ];
+        }
+
+        if (in_array($lower, $giantOemBlocklist, true)) {
+            return true;
+        }
+
+        foreach ($giantOemBlocklist as $oem) {
+            if (strlen($oem) >= 4 && str_starts_with($lower, $oem . ' ')) {
+                return true;
+            }
+            if (strlen($oem) >= 8 && str_contains($lower, $oem)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Classify a search result by analyzing its snippet to determine if
     /**
      * SYSTEMATIC HOMEPAGE CONTENT CLASSIFIER
@@ -4438,13 +5270,29 @@ class GoogleDorkService
             $score -= 35;
         }
 
-        // ─── Business/management consulting firm homepage (iter13 Tunisia) ──
+        // ─── Business/management consulting firm homepage (iter13 Tunisia + IT/GB/ES) ──
         $consultingSignals = 0;
         if (preg_match('/\b(business\s+consulting|management\s+consulting|consulting\s+firm|consulting\s+for\s+investor|market\s+entry\s+advisory)/i', $text)) $consultingSignals += 3;
         if (preg_match('/\b(strategy\s+consulting|investment\s+advisory|due\s+diligence|feasibility\s+study|market\s+research\s+consulting)/i', $text)) $consultingSignals += 3;
         if (preg_match('/\b(satisfied\s+clients?|active\s+projects?|business\s+plan|consulting\s+services?)/i', $text)) $consultingSignals += 2;
+        // Big Four / Big Three hallmarks
+        if (preg_match('/\b(audit\s+&\s+assurance|tax\s+&\s+legal|risk\s+advisory|deal\s+advisory|transaction\s+advisory|restructuring\s+advisory)/i', $text)) $consultingSignals += 3;
+        if (preg_match('/\b(our\s+(people|offices|industries|insights|perspectives|capabilities)|thought\s+leadership|industry\s+insights?|case\s+stud(y|ies)|client\s+stories)/i', $text)) $consultingSignals += 2;
+        if (preg_match('/\b(professional\s+services|assurance\s+services|advisory\s+services|consulting\s+services|managed\s+services)\s+(firm|company|provider|leader|practice)/i', $text)) $consultingSignals += 3;
+        if (preg_match('/\b(global\s+network|member\s+firm|partner\s+firm|offices?\s+in\s+\d+\s+countries|presence\s+in\s+\d+\s+countries)/i', $text)) $consultingSignals += 2;
         if ($consultingSignals >= 3) {
-            $score -= 35;
+            $score -= 40;
+        }
+
+        // ─── Major consultancy homepage by name (IT/GB/ES audit) ──────
+        // Direct name detection on homepage for maximum reliability
+        $majorConsultHomepage = 0;
+        if (preg_match('/\b(Deloitte|PricewaterhouseCoopers|PwC|Ernst\s*[&]\s*Young|KPMG|McKinsey|Boston\s+Consulting|Bain\s+&\s+Company|Accenture|Capgemini)\b/i', $text)) $majorConsultHomepage += 4;
+        if (preg_match('/\b(Infosys|Tata\s+Consultancy|TCS|Wipro|Cognizant|HCL\s+Technologies?|Tech\s+Mahindra|LTIMindtree|Oliver\s+Wyman|Roland\s+Berger)\b/i', $text)) $majorConsultHomepage += 4;
+        if (preg_match('/\b(Booz\s+Allen|BearingPoint|AlixPartners|Kearney|A\.?T\.?\s*Kearney|FTI\s+Consulting|Guidehouse|Protiviti)\b/i', $text)) $majorConsultHomepage += 4;
+        if (preg_match('/\b(audit|assurance|advisory|consulting|tax)\s+(services?|practice|solutions?)/i', $text)) $majorConsultHomepage += 2;
+        if ($majorConsultHomepage >= 4) {
+            $score -= 50;
         }
 
         // ─── Freight / logistics / transport homepage signals (iter11b) ─
@@ -4664,6 +5512,79 @@ class GoogleDorkService
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: COSMETICS / BEAUTY / PERSONAL CARE HOMEPAGE
+        // ═══════════════════════════════════════════════════════════════
+        $cosmeticsHomeSignals = 0;
+        if (preg_match('/\b(cosmetic|cosmetique|kosmetik|beauty|skincare|skin\s+care|fragrance|parfum|perfume|maquillage|makeup|personal\s+care|body\s+care|hair\s+care)\b/i', $text)) $cosmeticsHomeSignals += 3;
+        if (preg_match('/\b(pigment|colorant|excipient|emollient|surfactant|ingrédient|matière\s+première|raw\s+material.{0,15}(beauty|skin|hair|cosmetic))\b/i', $text)) $cosmeticsHomeSignals += 3;
+        if (preg_match('/\b(dermato|anti[\s-]?aging|anti[\s-]?rides|soin\s+(du\s+)?(visage|corps|cheveux)|Hautpflege|Haarpflege|Schönheit)\b/i', $text)) $cosmeticsHomeSignals += 2;
+        if ($cosmeticsHomeSignals >= 3) { $score -= 40; }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: RUBBER / SEALS / GASKETS HOMEPAGE
+        // ═══════════════════════════════════════════════════════════════
+        $rubberHomeSignals = 0;
+        if (preg_match('/\b(rubber\s+(product|moulding|molding|compound|seal|gasket|o[\s-]ring|extrusion|sheet|hose)|caoutchouc|joint\s+(torique|d.étanchéité)|Gummi(werke?|fabrik|technik|dichtung|produkt|formteil|fertigung|profil|artikel|mischung)|Kautschuk|Vulkanisation)\b/i', $text)) $rubberHomeSignals += 3;
+        if (preg_match('/\b(silicone\s+(moulding|molding|seal|gasket|tube|hose)|EPDM|NBR|Viton|neoprene|vulcanis)\b/i', $text)) $rubberHomeSignals += 2;
+        if ($rubberHomeSignals >= 3) { $score -= 35; }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: WATER COOLERS / DISPENSERS HOMEPAGE
+        // ═══════════════════════════════════════════════════════════════
+        $waterHomeSignals = 0;
+        if (preg_match('/\b(water\s+(cooler|dispenser|fountain|purifier)|fontaine\s+à\s+eau|distributeur\s+d.eau|Wasserspender|Trinkwasser(system|spender|automat))\b/i', $text)) $waterHomeSignals += 3;
+        if (preg_match('/\b(eau\s+(gazeuse|plate|filtrée|chaude|froide|tempérée)|still\s+water|sparkling\s+water|contactless\s+water|touchless\s+water|bottle[\s-]?less)\b/i', $text)) $waterHomeSignals += 2;
+        if ($waterHomeSignals >= 3) { $score -= 35; }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: CUTTING TOOLS / MACHINING HOMEPAGE
+        // ═══════════════════════════════════════════════════════════════
+        $cuttingHomeSignals = 0;
+        if (preg_match('/\b(cutting\s+tool|drill\s+bit|milling\s+cutter|end\s+mill|tap(ping)?\s+tool|reamer|carbide\s+insert|outil\s+coupant|foret|fraise|taraud|Schneidwerkzeug|Bohrer|Fräser|Wendeschneidplatte)\b/i', $text)) $cuttingHomeSignals += 3;
+        if (preg_match('/\b(CNC\s+machining\s+center|usinage|tournage|décolletage|Zerspanung|Drehmaschine|Fräsmaschine|precision\s+machining)\b/i', $text)) $cuttingHomeSignals += 2;
+        if ($cuttingHomeSignals >= 3) { $score -= 35; }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: BROADCASTING / RADIO / TV HOMEPAGE
+        // ═══════════════════════════════════════════════════════════════
+        $broadcastHomeSignals = 0;
+        if (preg_match('/\b(radio\s+(station|broadcast|internationale|france)|actualités|en\s+direct|Nachrichten|Rundfunk|Fernsehen|diffusion|émission|antenne|télévision|broadcast(er|ing))\b/i', $text)) $broadcastHomeSignals += 3;
+        if (preg_match('/\b(podcast|chronique|reportage|journaliste|rédaction|correspondant|édition|journal\s+télévisé|Sendung|Beitrag|Moderator|Redaktion)\b/i', $text)) $broadcastHomeSignals += 2;
+        if ($broadcastHomeSignals >= 3) { $score -= 40; }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: RESEARCH INSTITUTE / GOVERNMENT LAB HOMEPAGE
+        // ═══════════════════════════════════════════════════════════════
+        $researchHomeSignals = 0;
+        if (preg_match('/\b(research\s+institute|research\s+laboratory|institut\s+de\s+recherche|centre\s+de\s+recherche|laboratoire|Forschungsinstitut|Forschungszentrum|Forschungsgesellschaft)\b/i', $text)) $researchHomeSignals += 3;
+        if (preg_match('/\b(CEA|CNRS|INRIA|INSERM|ONERA|Fraunhofer|Max[\s-]Planck|Helmholtz|Leibniz|DLR|Commissariat|national\s+laboratory|public\s+research)\b/i', $text)) $researchHomeSignals += 3;
+        if (preg_match('/\b(thèse|doctorat|chercheur|publication\s+scientifique|Doktorarbeit|Promotion|Wissenschaftler|Forschungsprojekt|scientific\s+publication|research\s+paper)\b/i', $text)) $researchHomeSignals += 2;
+        if ($researchHomeSignals >= 3) { $score -= 40; }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: RARE EARTH / MINERAL PROCESSING HOMEPAGE
+        // ═══════════════════════════════════════════════════════════════
+        $rareEarthHomeSignals = 0;
+        if (preg_match('/\b(rare\s+earth|terres\s+rares|seltene\s+Erden|cerium|lanthanum|neodymium|yttrium|samarium|dysprosium|lanthanide)\b/i', $text)) $rareEarthHomeSignals += 3;
+        if (preg_match('/\b(mineral\s+(processing|separation|extraction)|hydrometallurg|pyrometallurg|ore\s+(beneficiation|processing|treatment))\b/i', $text)) $rareEarthHomeSignals += 2;
+        if ($rareEarthHomeSignals >= 3) { $score -= 35; }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: SOLVENT RECOVERY / CHEMICAL DISTILLATION HOMEPAGE
+        // ═══════════════════════════════════════════════════════════════
+        $solventHomeSignals = 0;
+        if (preg_match('/\b(solvent\s+(recovery|recycl|distill|regen)|chemical\s+(recovery|recycl|distill)|waste\s+solvent|recyclage\s+(de\s+)?solvant|Lösemittel(aufbereitung|destillation|recycling))\b/i', $text)) $solventHomeSignals += 3;
+        if (preg_match('/\b(distillation\s+(column|unit|plant|process)|fractional\s+distillation|molecular\s+distillation)\b/i', $text)) $solventHomeSignals += 2;
+        if ($solventHomeSignals >= 3) { $score -= 35; }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FR/DE AUDIT: GIANT AUTOMATION / ROBOTICS / INSTRUMENTATION OEM
+        // ═══════════════════════════════════════════════════════════════
+        if (preg_match('/\b(FANUC|KUKA|Yaskawa|Stäubli|Staubli|Universal\s+Robots|Yokogawa|Endress\s*\+?\s*Hauser|Festo|Pilz|Balluff|SICK\s+AG|Keyence|Turck|ifm\s+electronic)\b/i', $text)) {
+            $score -= 50;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // POSITIVE SIGNALS — Real manufacturer / OEM / buyer
         // These offset negatives — legitimate companies may have
         // a few dealer-like words incidentally.
@@ -4756,7 +5677,7 @@ class GoogleDorkService
         }
 
         // ─── University / Academic / Research institute ────────────
-        if (preg_match('/\b(university|universit[éèeäa]|college|academic|faculty|school\s+of|institute\s+of|research\s+center|research\s+centre|campus|professor|lecture|student|thesis|doctoral|phd)\b/i', $text)) {
+        if (preg_match('/\b(university|universit[éèeäa]|college|academic|faculty|school\s+of|institute\s+of|research\s+center|research\s+centre|campus|professor|lecture|student|thesis|doctoral|phd|Hochschule|Fachhochschule|Technische\s+Universität|école\s+(polytechnique|normale|supérieure|des\s+(mines|ponts))|grande\s+école|chercheur|laboratoire\s+(de\s+)?recherche|Forschung(sinstitut|szentrum)|Wissenschaft)\b/i', $text)) {
             $score -= 40;
         }
 
@@ -4964,6 +5885,133 @@ class GoogleDorkService
         // ─── Business/management consulting firm (iter13 Tunisia) ────
         if (preg_match('/\b(business\s+consulting|management\s+consulting|consulting\s+firm|consulting\s+for\s+investor|market\s+entry\s+advisory|investment\s+advisory)\b/i', $text)) {
             $score -= 30;
+        }
+
+        // ─── Cosmetics / beauty / skincare / fragrance (FR/DE audit) ──
+        if (preg_match('/\b(cosmetic|cosmetique|kosmetik|beauty|skincare|skin\s+care|fragrance|parfum|perfume|makeup|maquillage|hair\s+care|nail\s+care|personal\s+care|body\s+care|toiletries|dermocosm[eé]tique)\b/i', $text)) {
+            $score -= 40;
+        }
+        if (preg_match('/\b(pigment|colorant|excipient|emollient|surfactant|cosmetic\s+ingredient|raw\s+material.{0,20}cosmetic|ingrédient|matière\s+première.{0,20}cosmétique)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Plastic recycling / biorecycling / enzyme (FR/DE audit) ──
+        if (preg_match('/\b(biorecycling|bio[\s-]recycling|enzymatic\s+recycling|enzyme.{0,30}(plastic|pet|polymer)|plastic\s+recycl|PET\s+recycl|circular\s+(economy|plastic)|polylactic|bioplastic|biocomposite)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Broadcasting / radio / TV / media (FR/DE audit) ──────────
+        if (preg_match('/\b(radio\s+(station|broadcast|diffusion|france|internationale)|broadcast(er|ing)|télévision|fernsehen|rundfunk|actualités|journaliste|rédaction|émission|antenne|podcast(ing)?|chaîne|sender|nachrichtensendung)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Water dispensers / coolers / fountains (FR/DE audit) ─────
+        if (preg_match('/\b(water\s+(cooler|dispenser|fountain|purifier|filter)|fontaine\s+à\s+eau|distributeur\s+d.eau|wasserspender|wasserkühler|Trinkwasser(system|spender|automat)|eau\s+(gazeuse|plate|filtrée))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Cutting tools / drill bits / milling cutters (FR/DE audit) ─
+        if (preg_match('/\b(cutting\s+tool|drill\s+bit|milling\s+cutter|end\s+mill|tap(ping)?\s+tool|reamer|insert\s+(carbide|ceramic)|outil\s+coupant|foret|fraise|taraud|Schneidwerkzeug|Bohrer|Fräser|Hartmetall[\s-]?(werkzeug|einsatz))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Rare earth / mineral processing (FR/DE audit) ───────────
+        if (preg_match('/\b(rare\s+earth|terres\s+rares|seltene\s+Erden|cerium|lanthanum|neodymium|yttrium|samarium|dysprosium|praseodymium|lanthanide|actinide|mineral\s+processing|mineral\s+separation|ore\s+beneficiation)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Solvent / chemical recovery / distillation (FR/DE audit) ─
+        if (preg_match('/\b(solvent\s+(recovery|recycl|distill|regen)|chemical\s+(recovery|recycl|distill)|distillation\s+(plant|column|unit|service)|recyclage\s+(de\s+)?solvant|Lösemittel(aufbereitung|destillation|recycling))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Rubber manufacturing / moulding (FR/DE audit) ───────────
+        if (preg_match('/\b(rubber\s+(manufactur|moulding|molding|products?|compound|extrusion|factory)|caoutchouc|silicone\s+(moulding|molding|products?|seals?)|Gummi(werke?|fabrik|technik|herstellung|formteil|produkt|dichtung|fertigung|artikel|mischung)|Kautschuk|Vulkanisation|joint\s+(caoutchouc|torique|d.étanchéité))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Machining / CNC / precision milling / turning (FR/DE audit) ─
+        if (preg_match('/\b(cnc\s+machin|precision\s+machin|contract\s+machin|usinage|tournage|fraisage|décolletage|rectification|CNC[\s-]?Bearbeitung|Zerspanung|Drehen|Fräsen|Schleifen|precision\s+engineering\s+(company|firm|service)|job\s+shop|lohn(bearbeitung|fertigung))\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Giant industrial robot / automation OEM (FR/DE audit) ────
+        // These companies make robots/instruments, they don't BUY EMS
+        if (preg_match('/\b(FANUC|KUKA|Yaskawa|Stäubli|Staubli|Universal\s+Robots|EPSON\s+Robot|Kawasaki\s+Robot|Nachi|Comau)\b/i', $text)) {
+            $score -= 50;
+        }
+        if (preg_match('/\b(Yokogawa|Endress\s*\+?\s*Hauser|Emerson\s+(Process|Automation)|Honeywell\s+(Process|Automation)|Siemens\s+(Process|Factory)|ABB\s+(Robot|Motion)|Festo|Pilz|Keyence|Balluff|SICK\s+AG)\b/i', $text)) {
+            $score -= 50;
+        }
+
+        // ─── French/German research institutes (FR/DE audit) ──────────
+        if (preg_match('/\b(CEA|CNRS|INRIA|INSERM|ONERA|Fraunhofer|Max[\s-]Planck|Helmholtz|Leibniz|DLR|institut\s+de\s+recherche|centre\s+de\s+recherche|Forschungsinstitut|Forschungszentrum|Commissariat|laboratoire\s+national)\b/i', $text)) {
+            $score -= 40;
+        }
+        // French/German research domain patterns
+        if (preg_match('/\.(cea|cnrs|inria|inserm|onera|ifremer|brgm|irstea)\.fr$/i', $domain)) {
+            $score -= 50;
+        }
+        if (preg_match('/\.(fraunhofer|mpg|helmholtz|dlr|bam|ptb)\.de$/i', $domain)) {
+            $score -= 50;
+        }
+
+        // ─── Italian research institutes (IT/GB/ES audit) ─────────────
+        if (preg_match('/\b(CNR|Consiglio\s+Nazionale\s+delle\s+Ricerche|INFN|Istituto\s+Nazionale\s+di\s+Fisica\s+Nucleare|ENEA|Agenzia\s+nazionale\s+per\s+le\s+nuove\s+tecnologie|ASI|Agenzia\s+Spaziale\s+Italiana|IIT|Istituto\s+Italiano\s+di\s+Tecnologia|INGV|INAF|Politecnico\s+di\s+(Milano|Torino)|Universit[àa]\s+di\s+(Bologna|Roma|Padova|Trento|Milano|Firenze|Napoli|Pisa|Torino)|istituto\s+di\s+ricerca|centro\s+di\s+ricerca|centro\s+ricerche|ente\s+di\s+ricerca)\b/i', $text)) {
+            $score -= 40;
+        }
+        // Italian research domain patterns
+        if (preg_match('/\.(cnr|infn|enea|asi|iit|ingv|inaf|iss)\.it$/i', $domain)) {
+            $score -= 50;
+        }
+
+        // ─── British research institutes (IT/GB/ES audit) ─────────────
+        if (preg_match('/\b(UKRI|UK\s+Research\s+and\s+Innovation|EPSRC|STFC|MRC|BBSRC|NERC|AHRC|National\s+Physical\s+Laboratory|NPL|Catapult\s+(Network|Centre)|HVM\s+Catapult|AMRC|Advanced\s+Manufacturing\s+Research|Cranfield\s+University|Imperial\s+College|University\s+of\s+(Cambridge|Oxford|Edinburgh|Sheffield|Warwick|Nottingham|Manchester|Birmingham|Leeds|Bristol|Glasgow|Southampton|Cardiff)|Alan\s+Turing\s+Institute|Francis\s+Crick|Daresbury\s+Laboratory|Rutherford\s+Appleton)\b/i', $text)) {
+            $score -= 40;
+        }
+        // UK academic domain pattern
+        if (preg_match('/\.ac\.uk$/i', $domain)) {
+            $score -= 50;
+        }
+
+        // ─── Spanish research institutes (IT/GB/ES audit) ─────────────
+        if (preg_match('/\b(CSIC|Consejo\s+Superior\s+de\s+Investigaciones\s+Cient[íi]ficas|INTA|Instituto\s+Nacional\s+de\s+T[ée]cnica\s+Aeroespacial|CIEMAT|CDTI|Tecnalia|Ikerbasque|Eurecat|Universidad\s+Polit[ée]cnica\s+de\s+(Madrid|Valencia|Catalu[ñn]a)|Universitat\s+Polit[èe]cnica\s+de\s+(Catalunya|Val[èe]ncia)|centro\s+de\s+investigaci[oó]n|instituto\s+de\s+investigaci[oó]n|centro\s+tecnol[oó]gico)\b/i', $text)) {
+            $score -= 40;
+        }
+        // Spanish research domain patterns
+        if (preg_match('/\.(csic|inta|ciemat|cdti)\.es$/i', $domain)) {
+            $score -= 50;
+        }
+
+        // ─── Major consultancy firm names (IT/GB/ES audit) ────────────
+        // Detect by company name even when domain is not in blocklist
+        if (preg_match('/\b(Deloitte|PricewaterhouseCoopers|PwC|Ernst\s*[&]\s*Young|KPMG|McKinsey|Boston\s+Consulting|Bain\s+&\s+Company|Accenture|Capgemini|Infosys|Tata\s+Consultancy|Wipro|Cognizant|HCL\s+Technologies?|Tech\s+Mahindra|Oliver\s+Wyman|Roland\s+Berger|Booz\s+Allen|BearingPoint|AlixPartners|A\.?T\.?\s*Kearney|Kearney|FTI\s+Consulting|Guidehouse|Protiviti)\b/i', $text)) {
+            $score -= 50;
+        }
+
+        // ─── Italian wrong-industry: wine / olive oil / fashion (IT/GB/ES audit) ──
+        if (preg_match('/\b(viticoltura|cantina|vigneto|enoteca|vino\s+(rosso|bianco|italiano)|olio\s+d.oliva|frantoio|oleificio|olio\s+extravergine|denominazione\s+di\s+origine|DOC|DOCG|IGT)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Spanish wrong-industry: wine / tourism (IT/GB/ES audit) ──
+        if (preg_match('/\b(bodega|vi[ñn]edo|denominaci[oó]n\s+de\s+origen|rioja|ribera\s+del\s+duero|turismo|hostelería|alojamiento|hotel\s+rural|casa\s+rural|parador)\b/i', $text)) {
+            $score -= 40;
+        }
+
+        // ─── Heating / plumbing / HVAC installer (not OEM) ──────────
+        if (preg_match('/\b(plumber|plumbing|chauffagiste|heating\s+engineer|boiler\s+install|Heizungsbauer|Sanitärinstallateur|plombier|installateur\s+(chauffage|sanitaire)|Klempner)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Textile / clothing / fashion (FR/DE audit) ──────────────
+        if (preg_match('/\b(textile|vêtement|confection|couture|mode\s+(femme|homme)|Textil(industrie|herstellung)|Bekleidung|Schneiderei|habillement)\b/i', $text)) {
+            $score -= 35;
+        }
+
+        // ─── Wine / food / agriculture (FR/DE audit) ─────────────────
+        if (preg_match('/\b(vignoble|viticulteur|vigneron|domaine\s+viticole|château\s+(vin|viticole)|Weingut|Winzer|Weinbau|cave\s+coopérative|brasserie|brauerei)\b/i', $text)) {
+            $score -= 35;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -5266,6 +6314,27 @@ class GoogleDorkService
             'telecom(s|munication)?\s+(news|industry)\s+(site|portal|publication|magazine)',
             'megaproject|mega[\s-]?project|giga[\s-]?project',
             'government\s+development\s+(project|zone|authority)',
+            // ── IT/GB/ES audit: expanded consultancy detection ──
+            'professional\s+services\s+(firm|company|provider|leader)',
+            'audit\s+(&|and)\s+assurance',
+            'tax\s+(&|and)\s+legal\s+(services?|advisory)',
+            'risk\s+advisory\s+(services?|practice|firm)',
+            'deal\s+advisory',
+            'transaction\s+(advisory|services)',
+            'restructuring\s+(advisory|services|consulting)',
+            'digital\s+consulting',
+            'technology\s+consulting',
+            'operations?\s+consulting',
+            'human\s+capital\s+consulting',
+            'change\s+management\s+consulting',
+            'supply\s+chain\s+consulting',
+            'transformation\s+consulting',
+            'implementation\s+(partner|services|consulting)',
+            'IT\s+(consulting|advisory)\s+(firm|company|services|practice)',
+            // ── IT/GB/ES audit: Big Four / Big Three by name in snippet ──
+            '\b(Deloitte|PwC|PricewaterhouseCoopers|Ernst\s*&\s*Young|KPMG)\b.*\b(audit|assurance|advisory|tax|consulting)',
+            '\b(McKinsey|BCG|Boston\s+Consulting|Bain)\b.*\b(strategy|consulting|advisory)',
+            '\b(Accenture|Capgemini|Infosys|TCS|Wipro|Cognizant)\b.*\b(consulting|services|solutions|digital)',
         ];
 
         foreach ($consultingSignals as $pattern) {
@@ -6093,6 +7162,172 @@ class GoogleDorkService
             }
         }
 
+        // ─── 38. CNC MACHINING / PRECISION MACHINING JOB SHOPS (FR/DE audit) ──
+        $machiningSignals = [
+            '\bcnc\s+(machining|turning|milling|grinding)\s+(services?|company|shop|center|centre)',
+            '\bprecision\s+(machining|engineering|components?)\s+(services?|company|shop|specialist)',
+            '\bcontract\s+machin(ing|e\s+shop)',
+            '\bjob\s+shop\s+(machining|manufacturing)',
+            '\b(turning|milling|grinding|boring|drilling|honing)\s+(services?|shop|center|centre)\b',
+            '\businage\s+(de\s+)?précision',
+            '\businage\s+(CNC|numérique|mécanique)',
+            '\btournage[\s,]+fraisage',
+            '\bdécolletage\s+(de\s+)?précision',
+            '\brectification\s+(cylindrique|plane)',
+            '\bCNC[\s-]?Bearbeitung\b',
+            '\bZerspanung(stechnik)?\b',
+            '\bDreh[\s-]?(und|&)\s+Fräs(teile|bearbeitung)',
+            '\bLohnfertigung\b',
+            '\bPräzisionsteile\b',
+            '\bmachine\s+tool\s+(manufactur|builder|maker|company|OEM)',
+        ];
+
+        foreach ($machiningSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('CNC/machining job shop detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 39. GIANT ROBOTICS / AUTOMATION / INSTRUMENTATION OEMs (FR/DE audit) ──
+        // These companies make robots/instruments — they don't buy EMS services
+        $giantAutomationSignals = [
+            '\b(FANUC|KUKA|Yaskawa|Stäubli|Staubli)\s+(corporation|robotics?|robot|america|europe)',
+            '\b(Universal\s+Robots|EPSON\s+Robots?|Kawasaki\s+Robot|Nachi\s+Robot|Comau)\b',
+            '\b(Yokogawa|Endress\s*\+?\s*Hauser)\s+(electric|process|field|test|measurement)',
+            '\bindustrial\s+robot(ics)?\s+(manufacturer|maker|company|leader|pioneer|global)',
+            '\b(collaborative|cobot|articulated|SCARA|delta)\s+robot\s+(manufacturer|maker|company)',
+            '\bfactory\s+automation\s+(company|leader|pioneer|global)',
+            '\bprocess\s+(instrumentation|measurement)\s+(company|leader|manufacturer)',
+            '\bmeasurement\s+(and|&)\s+(control|instrumentation)\s+(company|manufacturer)',
+        ];
+
+        foreach ($giantAutomationSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Giant automation/robotics OEM detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 40. COSMETICS / BEAUTY / PERSONAL CARE (FR/DE audit) ───
+        $cosmeticsSignals = [
+            '\bcosmetic(s|que)?\s+(manufactur|company|ingredient|raw\s+material|supplier|brand|industry)',
+            '\bbeauty\s+(brand|company|product|industry)',
+            '\bskincare\s+(brand|company|product|range)',
+            '\bhair\s+care\s+(brand|company|product)',
+            '\bfragrance\s+(house|company|brand|manufactur)',
+            '\bpersonal\s+care\s+(product|brand|company|manufactur)',
+            '\bpigment\s+(manufactur|supplier).*cosmetic',
+            '\bcolorant\s+(manufactur|supplier)',
+            '\bmatière\s+première\b.*\b(cosmétique|beauté)',
+            '\bKosmetik(hersteller|industrie|rohstoff)',
+        ];
+
+        foreach ($cosmeticsSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Cosmetics/beauty company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 41. WATER COOLERS / DISPENSERS / FOUNTAINS (FR/DE audit) ─
+        $waterCoolerSignals = [
+            '\bwater\s+(cooler|dispenser|fountain|purifier|filter)\s+(manufactur|company|supplier|brand)',
+            '\bfontaine\s+à\s+eau\b',
+            '\bdistributeur\s+d.eau\b',
+            '\bWasserspender\b',
+            '\bTrinkwasser(system|automat|spender)\b',
+            '\bdrinking\s+water\s+(system|machine|dispenser|fountain)',
+            '\bbottleless\s+water\b',
+            '\bpoint[\s-]of[\s-]use\s+water\b',
+        ];
+
+        foreach ($waterCoolerSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Water cooler/dispenser company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 42. CUTTING TOOLS / TOOLING / DRILL (FR/DE audit) ──────
+        $cuttingToolSignals = [
+            '\bcutting\s+tool(s)?\s+(manufactur|company|supplier|brand|producer)',
+            '\bdrill\s+bit(s)?\s+(manufactur|company|supplier)',
+            '\bmilling\s+cutter(s)?\s+(manufactur|company|supplier)',
+            '\bcarbide\s+(tool|insert|end\s+mill)\s+(manufactur|company|supplier)',
+            '\boutil(s|lage)?\s+coupant(s)?\b',
+            '\bSchneidwerkzeug(e|hersteller)\b',
+            '\bWerkzeug(hersteller|technik|maschine)\b',
+            '\bhigh[\s-]?speed\s+steel\s+tool\b',
+            '\btooling\s+(manufactur|company|supplier|solutions?)',
+        ];
+
+        foreach ($cuttingToolSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Cutting tool manufacturer detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 43. FRENCH/GERMAN RESEARCH INSTITUTES (FR/DE audit) ────
+        $researchInstSignals = [
+            '\binstitut\s+de\s+recherche\b',
+            '\bcentre\s+(national|de)\s+(la\s+)?recherche',
+            '\blaboratoire\s+(national|de\s+recherche)',
+            '\bCommissariat\s+à\s+l.énergie',
+            '\bForschungsinstitut\b',
+            '\bForschungszentrum\b',
+            '\bForschungsgesellschaft\b',
+            '\b(Fraunhofer|Max[\s-]Planck|Helmholtz|Leibniz)[\s-](Institut|Gesellschaft|Zentrum)\b',
+            '\b(CEA|CNRS|INRIA|INSERM|ONERA)[\s-](List|Tech|Leti|Liten|Saclay|Grenoble)\b',
+        ];
+
+        foreach ($researchInstSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('French/German research institute detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 44. BROADCASTING / RADIO / TV (FR/DE audit) ────────────
+        $broadcastSignals = [
+            '\bradio\s+(station|broadcast|internationale|france|diffusion)',
+            '\b(télévision|fernsehen|rundfunk|broadcast(er|ing)\s+company)\b',
+            '\bTV\s+(channel|station|network|broadcast)\b',
+            '\bactualités\s+(internationales?|en\s+direct|monde)',
+            '\bNachrichten(sendung|portal|agentur)\b',
+            '\b(podcast|streaming)\s+(platform|company|service|network)',
+            '\bmedia\s+(company|group|corporation|network|house)\b',
+        ];
+
+        foreach ($broadcastSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Broadcasting/radio/TV company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -6125,7 +7360,7 @@ class GoogleDorkService
      */
     private function verifyCompanies(array $candidates): array
     {
-        if (empty($candidates) || $this->googleSearchService === null) {
+        if (empty($candidates) || !$this->hasSearchProvider()) {
             return $candidates;
         }
 
@@ -6472,15 +7707,30 @@ class GoogleDorkService
         if (!empty($enrichment['name'])) {
             $newName = $enrichment['name'];
             // Strip TLD suffixes that may have crept in
-            $newName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu)$/i', '', $newName);
+            $newName = preg_replace('/\.(com|net|org|io|co|biz|info|us|eu|fr|de|nl|it|es|pl|cz|fi|se)\.?$/i', '', $newName);
             // Strip trademark symbols
             $newName = preg_replace('/[®™©]/u', '', $newName);
             // Strip trailing dashes and descriptive suffixes
             $newName = preg_replace('/\s*[-–—]\s*(Electrifying|Driving|Powering|Leading|Global|The).*$/i', '', $newName);
             $newName = preg_replace('/\s*[-–—]\s*$/i', '', $newName);
             $newName = trim($newName);
-            if (!$this->isJunkCompanyName($newName) && mb_strlen($newName) >= 2) {
-                $data['name'] = $newName;
+            if (!$this->isJunkCompanyName($newName)
+                && !$this->isGenericPageWord($newName)
+                && mb_strlen($newName) >= 2) {
+                // Re-check name-domain plausibility before accepting the override.
+                // LinkedIn sometimes returns a completely different company name
+                // (e.g. parent company, subsidiary, or unrelated entity).
+                $domain = $data['displayLink'] ?? '';
+                if ($domain !== '' && $this->isNameDomainMismatch($newName, $domain)) {
+                    // The new name doesn't match the domain — keep the original name
+                    $this->logger->debug('LinkedIn name override rejected (name-domain mismatch)', [
+                        'original' => $data['name'] ?? '?',
+                        'rejected' => $newName,
+                        'domain' => $domain,
+                    ]);
+                } else {
+                    $data['name'] = $newName;
+                }
             }
         }
 
@@ -6521,6 +7771,17 @@ class GoogleDorkService
                 $unique[] = $c;
             }
             $data['contacts'] = array_slice($unique, 0, 5); // Max 5 contacts
+
+            // ── Improvement 5A: Score and rank contacts by quality ──
+            if ($this->contactScorer !== null && !empty($data['contacts'])) {
+                $companyDomain = $data['displayLink'] ?? '';
+                foreach ($data['contacts'] as &$ct) {
+                    $ct['company_domain'] = $companyDomain;
+                    $ct['role_score'] = $this->linkedInParser->computeRoleScore($ct['job_title'] ?? '');
+                }
+                unset($ct);
+                $data['contacts'] = $this->contactScorer->scoreAndSort($data['contacts']);
+            }
         }
 
         return $data;
@@ -6543,7 +7804,7 @@ class GoogleDorkService
         $query = 'site:linkedin.com/company "' . $cleanName . '"';
 
         try {
-            $results = $this->googleSearchService->searchCompanies($query, 3);
+            $results = $this->executeProviderSearch($query, 3);
             if (!empty($results['results'])) {
                 $first = $results['results'][0];
                 $title = $first['title'] ?? '';
@@ -6555,11 +7816,24 @@ class GoogleDorkService
                     'description' => $this->extractLinkedInDescription($snippet),
                 ];
 
-                // Parse LinkedIn title: "CompanyName | LinkedIn"
-                if (preg_match('/^(.+?)\s*[|–—-]\s*(LinkedIn|Overview)/i', $title, $m)) {
-                    $linkedInName = trim($m[1]);
-                    if (mb_strlen($linkedInName) >= 2 && mb_strlen($linkedInName) <= 80) {
-                        $enrichment['name'] = $linkedInName;
+                // ── Improvement 5A: Use LinkedInProfileParser for company pages ──
+                $companyPageData = $this->linkedInParser->parseCompanyPage($link, $title, $snippet);
+                if ($companyPageData !== null) {
+                    if (!empty($companyPageData['company_name'])) {
+                        $enrichment['name'] = $companyPageData['company_name'];
+                    }
+                    if (!empty($companyPageData['employee_hint'])) {
+                        $enrichment['employee_hint'] = $companyPageData['employee_hint'];
+                    }
+                }
+
+                // Fallback: parse LinkedIn title if parser didn't extract name
+                if (empty($enrichment['name'])) {
+                    if (preg_match('/^(.+?)\s*[|–—-]\s*(LinkedIn|Overview)/i', $title, $m)) {
+                        $linkedInName = trim($m[1]);
+                        if (mb_strlen($linkedInName) >= 2 && mb_strlen($linkedInName) <= 80) {
+                            $enrichment['name'] = $linkedInName;
+                        }
                     }
                 }
 
@@ -6647,7 +7921,18 @@ class GoogleDorkService
             return null;
         }
 
+        // Polite crawl: check governor before homepage fetch
+        $domain = parse_url($url, PHP_URL_HOST) ?? '';
+        if ($this->crawlGovernor !== null && !$this->crawlGovernor->canRequest($domain)) {
+            $this->logger->debug('verifyAndEnrichViaHomepage: crawl limit reached', ['domain' => $domain]);
+            return null;
+        }
+
         try {
+            if ($this->crawlGovernor !== null) {
+                $this->crawlGovernor->throttle($domain);
+            }
+
             $response = $this->httpClient->request('GET', $url, [
                 'timeout' => 5,
                 'max_redirects' => 3,
@@ -6660,7 +7945,14 @@ class GoogleDorkService
 
             $statusCode = $response->getStatusCode();
             if ($statusCode >= 400) {
+                if ($this->crawlGovernor !== null && $statusCode >= 429) {
+                    $this->crawlGovernor->reportError($domain, $statusCode);
+                }
                 return null;
+            }
+
+            if ($this->crawlGovernor !== null) {
+                $this->crawlGovernor->reportSuccess($domain);
             }
 
             $html = $this->smartTruncateHtml($response->getContent(false), 250000);
@@ -6849,7 +8141,8 @@ class GoogleDorkService
                     'max_redirects' => 2,
                     'headers' => [
                         'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept' => 'text/html',
+                        'Accept' => 'text/html,application/xhtml+xml',
+                        'Accept-Language' => 'en-US,en;q=0.9',
                     ],
                 ]);
             } catch (\Exception $e) {
@@ -7105,7 +8398,7 @@ class GoogleDorkService
                             if (!empty($parts)) {
                                 $info['address'] = implode(', ', $parts);
                             }
-                        } elseif (is_string($addr) && mb_strlen($addr) >= 5) {
+                        } elseif (is_string($addr) && mb_strlen($addr) >= 15) {
                             $info['address'] = $addr;
                         }
                     }
@@ -7235,10 +8528,14 @@ class GoogleDorkService
         //   123 Main Street, City, State ZIP, Country
         //   Postal code patterns: US (12345), UK (AB12 3CD), EU (D-12345)
         if (!$info['address']) {
+            // Strip cookie banners from footer too
+            $cleanHtml = $this->stripCookieBannerHtml($html);
             // Strip all tags but keep text content — only look in the last
             // 30% of HTML (footer area) to avoid grabbing random addresses
-            $footerHtml = substr($html, (int)(strlen($html) * 0.65));
+            $footerHtml = substr($cleanHtml, (int)(strlen($cleanHtml) * 0.65));
             $footerText = strip_tags($footerHtml);
+            // Normalize whitespace (strip excessive newlines/tabs)
+            $footerText = preg_replace('/\s+/', ' ', $footerText);
 
             // US-style: 123 Street Name, City, ST 12345
             if (preg_match('/(\d{1,5}\s+[A-Z][a-zA-Z\s]{3,30},\s*[A-Z][a-zA-Z\s]{2,20},?\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)/u', $footerText, $addrMatch)) {
@@ -7248,9 +8545,45 @@ class GoogleDorkService
             elseif (preg_match('/([A-Z][a-zA-Z\s]{2,25},\s*[A-Z][a-zA-Z\s]{2,25},?\s*[A-Z]{1,2}\d{1,2}\s*\d[A-Z]{2})/u', $footerText, $addrMatch)) {
                 $info['address'] = trim($addrMatch[1]);
             }
+            // EU-style: Streetname 123, D-12345 City or Straße 5, 12345 München
+            elseif (preg_match('/([A-ZÀ-Ÿ][a-zà-ÿA-ZÀ-Ÿ\-\.\s]{2,30}\s+\d{1,5}[a-z]?\s*,\s*(?:[A-Z]{1,3}[\-\s]?)?\d{4,5}\s+[A-ZÀ-Ÿ][a-zà-ÿ\s\-]{2,25})/u', $footerText, $addrMatch)) {
+                $info['address'] = trim($addrMatch[1]);
+            }
             // Generic: look for lines with street keywords near postal codes
             elseif (preg_match('/((?:Street|Str\.|Avenue|Ave\.|Boulevard|Blvd\.|Road|Rd\.|Drive|Dr\.|Lane|Way|Place|Court|Suite|Floor)[^,\n]{0,40},\s*[A-Z][a-zA-Z\s]{2,30})/iu', $footerText, $addrMatch)) {
-                $info['address'] = trim($addrMatch[1]);
+                $candidate = trim($addrMatch[1]);
+                // Validate: must NOT contain sentence fragments / verbose text
+                if (mb_strlen($candidate) <= 120 && !preg_match('/\b(we can|to access|click|button|please|will be|you can|content|cookie|datenschutz|impressum|wird|werden|können|the actual)\b/i', $candidate)) {
+                    $info['address'] = $candidate;
+                }
+            }
+        }
+
+        // Validate any address (whether from Schema.org or footer text)
+        if (!empty($info['address'])) {
+            // Reject if it starts with lowercase (not a proper address)
+            if (preg_match('/^[a-z]/', $info['address'])) {
+                $info['address'] = null;
+            }
+            // Reject if it contains sentence-like fragments
+            if (!empty($info['address']) && preg_match('/\b(to access|click the|button below|we can|content|please|actual|will be|you can|the button|wird die|werden die|können Sie|for all means|from production|all the way|means of|environment for|as a manufacturing|manufacturing company|lanet\.|planet\.)\b/i', $info['address'])) {
+                $info['address'] = null;
+            }
+            // Reject if too short (likely truncated/incomplete — need at least street + city)
+            if (!empty($info['address']) && mb_strlen($info['address']) < 15) {
+                $info['address'] = null;
+            }
+            // Reject if it's mostly not address-like (has many function words)
+            if (!empty($info['address']) && preg_match_all('/\b(the|and|for|with|that|this|from|have|has|are|was|were|been|will|would|could|should|which|their|about)\b/i', $info['address']) > 3) {
+                $info['address'] = null;
+            }
+            // Reject if address contains no digits (valid addresses have street numbers or postal codes)
+            if (!empty($info['address']) && !preg_match('/\d/', $info['address'])) {
+                $info['address'] = null;
+            }
+            // Reject if address contains date patterns (news/press release fragments)
+            if (!empty($info['address']) && preg_match('/\b(January|February|March|April|May|June|July|August|September|October|November|December|20\d{2})\b/i', $info['address'])) {
+                $info['address'] = null;
             }
         }
 
@@ -7269,7 +8602,12 @@ class GoogleDorkService
             }
         }
 
-        // Limit to 3 contacts max
+        // Limit to 3 contacts max — clean HTML artifacts and filter out non-person artifacts
+        $info['contacts'] = array_map(fn(array $c) => $this->cleanContactFields($c), $info['contacts']);
+        $info['contacts'] = array_values(array_filter(
+            $info['contacts'],
+            fn(array $c) => $this->isValidPersonContact($c)
+        ));
         $info['contacts'] = array_slice($info['contacts'], 0, 3);
 
         return $info;
@@ -7398,6 +8736,10 @@ class GoogleDorkService
         $name = trim($fullName);
         // Strip common prefixes (including "MR.MOHAMED" without space)
         $name = preg_replace('/^(Mr\.?|Mrs\.?|Ms\.?|Mme\.?|Dr\.?|Prof\.?|Eng\.?|Ir\.?)\s*/i', '', $name);
+        // Strip common suffixes (German format "Firstname Lastname Dr")
+        $name = preg_replace('/\s+(Dr\.?|Prof\.?|Eng\.?|Ir\.?|Dipl\.\s*\w+\.?|M\.?\s*Sc\.?|B\.?\s*Sc\.?|MBA|PhD|Jr\.?|Sr\.?|MS|BS|BA|MA|PE|PMP|CSM®?|CPA|CISSP|PgMP)$/i', '', $name);
+        // Strip trailing comma + title/degree ("Firstname Lastname, MS")
+        $name = preg_replace('/,\s*(Dr\.?|Prof\.?|PhD|MBA|Eng\.?|Jr\.?|Sr\.?|MS|MSc|BSc|BS|BA|MA|PE|PMP|CSM®?|CPA|CISSP|PgMP|LEED\s*AP|CPHIMS|FACHE|RN|MD|DO|DDS|DMD|JD|LLM|CFA|CFP|SPHR|SHRM)\.?$/i', '', $name);
         $name = trim($name);
 
         if (mb_strlen($name) < 4) return null;
@@ -7473,6 +8815,53 @@ class GoogleDorkService
             'industrial automation', 'digital transformation',
             'supply chain', 'quality assurance', 'quality control',
             'lunar communications', 'ground support',
+
+            // Sentence fragments that look like 2-3 word names
+            'preference of', 'have been', 'has been', 'will be',
+            'would be', 'cooperating with', 'from the',
+            'president award', 'presidents award',
+            'eliquo tech', 'jpg german',
+            'lufthansa ground', 'ground handling',
+
+            // French section headings / page labels
+            'adresse siège', 'siège social', 'savoir faire', 'savoir-faire',
+            'nos implantations', 'nos réalisations', 'nos services',
+            'nos clients', 'nos métiers', 'notre histoire',
+            'address head', 'head office', 'siège social',
+
+            // Product descriptions that look like names
+            'hydrogen fuel', 'fuel cell', 'ics eliminate',
+            'software provider', 'software solutions',
+            'cooling systems', 'magnetic components',
+
+            // Job titles that get parsed as person names
+            'chief strategy', 'chief executive', 'chief financial',
+            'chief operating', 'chief technology', 'chief marketing',
+            'chief information', 'chief digital', 'chief commercial',
+            'board of', 'board directors', 'supervisory board',
+            'managing director', 'general manager', 'executive director',
+            'vice president', 'senior vice', 'executive vice',
+
+            // Form field labels
+            'first name', 'last name', 'full name', 'work email', 'work phone',
+            'email address', 'phone number', 'your name', 'your email',
+            'custom text', 'custom showcase', 'action call',
+
+            // Country/territory names parsed as person names
+            'puerto rico', 'south africa', 'north africa', 'saudi arabia',
+            'new zealand', 'costa rica', 'sri lanka',
+
+            // German phrases that look like 2-word names
+            'deutsche handelsflotte', 'deine zukunft', 'meine zukunft',
+            'perfekte systemintegration', 'unbenannter verlauf',
+            'analyse wird', 'polarity protection', 'label printer',
+            'speech tests', 'capacity free', 'leadership team',
+            'code of', 'code conduct',
+            // More observed junk from DE results
+            'common grounds', 'eco inverter', 'spectrum water',
+            'ethische geschäftspraktiken', 'berichtet nachfolgend',
+            'noopener noreferrer', 'noreferrer noopener',
+            'peter engineer', 'service zu',
         ];
 
         foreach ($blacklistPhrases as $phrase) {
@@ -7535,6 +8924,19 @@ class GoogleDorkService
             'kontakt', 'datenschutz', 'impressum', 'unternehmen',
             'geschäftsleitung', 'führungsteam', 'geschäftsführung',
             'verwenden', 'akzeptieren', 'einstellungen',
+            // German words that were missing (auxiliary verbs, possessives, common nouns)
+            'wird', 'werden', 'wurde', 'können', 'müssen', 'sollen', 'dürfen',
+            'deine', 'deiner', 'meine', 'meiner', 'zukunft', 'perfekte',
+            'verlauf', 'analyse', 'mittels', 'während', 'trotz',
+            'handelsflotte', 'unbenannter', 'unbenannte', 'bausatz',
+            'megawatt', 'systemintegration', 'ansprechpartner',
+            'menü', 'schlie', 'schließen', 'entwickelt', 'deutsche',
+            'startseite', 'inhalt', 'ergebnis',
+            // English form/product/action terms
+            'first', 'last', 'phone', 'email', 'fax', 'printer',
+            'label', 'showcase', 'conduct', 'speech', 'tests',
+            'text', 'action', 'passionate', 'capacity', 'polarity',
+            'liquid', 'cooled', 'develops', 'rico', 'puerto', 'africa',
             // French prepositions/articles
             'les', 'des', 'une', 'aux', 'par', 'sur', 'dans', 'pour',
             'avec', 'sans', 'est', 'sont', 'ont', 'nous', 'vous',
@@ -7544,13 +8946,25 @@ class GoogleDorkService
             'worden', 'kunnen', 'moeten',
             // Polish
             'nie', 'tak', 'jest', 'lub', 'czy', 'jak', 'przy',
-            'zgoda', 'polityka', 'pliki',
+            'zgoda', 'polityka', 'pliki', 'plików', 'plikow',
+            'ciasteczka', 'prywatność', 'prywatnosc', 'wymagane',
+            'funkcjonalne', 'statystyczne', 'marketingowe', 'odrzucam',
+            'niezbędne', 'niezbedne', 'ustawienia', 'zewnętrzne',
+            'dogodne', 'terminy', 'godziny', 'pracy',
+            // Czech cookie/consent
+            'soubory', 'souborů', 'souboru', 'zásady', 'zasady',
+            'ochrana', 'osobních', 'osobnich', 'údajů', 'udaju',
+            'nastavení', 'nastaveni', 'přijmout', 'prijmout',
+            'odmítnout', 'odmitnout', 'nezbytné', 'funkční', 'funkcni',
+            'statistické', 'statisticke',
             // Italian
             'gli', 'sono', 'nel', 'della', 'dello', 'delle',
             'utilizziamo', 'accetta', 'consenso',
             // Spanish
             'los', 'las', 'sus', 'somos', 'puede', 'pueden',
-            'aceptar', 'privacidad',
+            'aceptar', 'privacidad', 'productos', 'nuestros', 'nuestra',
+            'utiliza', 'dejar', 'frecuencia', 'cardiaca',
+            'electrolitica', 'electrolítica',
             // Misc non-name words that leaked as contacts
             'industry', 'collaborations', 'collaboration', 'innovation',
             'innovations', 'initiative', 'initiatives', 'integration',
@@ -7559,6 +8973,22 @@ class GoogleDorkService
             'organization', 'association', 'application', 'applications',
             'environment', 'performance', 'efficiency', 'sustainability',
             'microsoft', 'google', 'facebook', 'linkedin', 'twitter',
+            'ground', 'campaigns', 'campaign', 'procurement',
+            // Product/chemistry/engineering terms
+            'hydrogen', 'fuel', 'cell', 'eliminate', 'bulky', 'cooling',
+            'magnetic', 'reduce', 'supplies', 'provider', 'software',
+            // French section heading words
+            'adresse', 'siège', 'implantations', 'réalisations',
+            'savoir', 'faire', 'nos', 'notre',
+            'recrutement', 'embauche', 'candidature', 'candidatures',
+            // Job title words that get parsed as names
+            'vice', 'chief', 'officer', 'chairman', 'chairwoman',
+            'directs', 'director', 'president', 'executive',
+            'board', 'supervisory', 'strategy', 'strategist',
+            // Marketing slogans that look like names
+            'elevating', 'connectivity', 'vehicle', 'innovative',
+            'redefining', 'transforming', 'empowering', 'enabling',
+            'pioneering', 'advancing', 'accelerating',
         ];
 
         foreach ($parts as $part) {
@@ -7569,6 +8999,12 @@ class GoogleDorkService
 
         $firstName = array_shift($parts);
         $lastName = implode(' ', $parts);
+
+        // Reject fully-lowercase input — likely a phrase, not a person name
+        // e.g. "john smith" (probably from anchor text / generic page content)
+        if (preg_match('/^[a-zà-ÿ\s]+$/u', $name)) {
+            return null;
+        }
 
         // Reject trailing prepositions/articles (parsing artifacts like "Bacher as", "Reipert as")
         $originalLastName = $lastName;
@@ -7616,6 +9052,607 @@ class GoogleDorkService
     }
 
     /**
+     * Strip cookie consent banners, GDPR/DSGVO notices, and privacy overlays
+     * from HTML before extracting contacts/addresses.
+     *
+     * European (especially German) sites commonly have cookie consent banners
+     * that use Title Case words and sentence fragments that match person-name
+     * regex patterns. This causes junk contacts like:
+     *   "Notice Data Protection" → first=Notice, last=Data Protection
+     *   "Individuelle Datenschutzeinstellungen" → Title-Cased words parsed
+     *   "Because Required Functional" → parsed as 3-word person name
+     *
+     * This method removes:
+     * 1. <div> blocks with cookie/consent/privacy CSS classes
+     * 2. <div> blocks with DSGVO/GDPR/Datenschutz CSS classes  
+     * 3. Inline <script> blocks (contain no contact data)
+     * 4. <noscript> blocks (contain no useful contact data)
+     * 5. <style> blocks
+     */
+    private function stripCookieBannerHtml(string $html): string
+    {
+        // ── 1. Remove cookie/consent/privacy overlay divs ──────────
+        // Match div/section/aside elements with cookie/consent/privacy in their class or id.
+        // Uses a non-greedy match with balanced tag heuristic (limited depth).
+        $cookiePatterns = [
+            // Class-based patterns (most common)
+            '/<(?:div|section|aside|dialog|footer)[^>]*(?:class|id)="[^"]*\b(?:cookie[-_]?(?:consent|banner|notice|bar|popup|modal|overlay|wall|wrap|container|message|info|settings|preferences|layer)|consent[-_]?(?:banner|bar|modal|popup|overlay|manager|container|wrapper|dialog)|gdpr[-_]?(?:banner|notice|bar|popup|modal|overlay|consent)|dsgvo[-_]?(?:banner|hinweis|notice|consent)|privacy[-_]?(?:banner|notice|bar|popup|modal|overlay|settings)|data[-_]?protection|datenschutz(?:[-_]?(?:hinweis|banner|einstellungen))?|cc[-_]?(?:banner|window|revoke)|cmp[-_]?(?:banner|modal|container)|onetrust[-_]?(?:banner|consent)|klaro|cookiebot|borlabs[-_]?cookie|usercentrics|quantcast[-_]?choice|complianz|osano)\b[^"]*"[^>]*>[\s\S]{0,15000}?<\/(?:div|section|aside|dialog|footer)>/i',
+            // ID-based patterns
+            '/<(?:div|section|aside|dialog)[^>]*id="[^"]*\b(?:cookie|consent|gdpr|dsgvo|privacy|onetrust|klaro|cookiebot|usercentrics|CybotCookiebot)\b[^"]*"[^>]*>[\s\S]{0,15000}?<\/(?:div|section|aside|dialog)>/i',
+        ];
+
+        foreach ($cookiePatterns as $pattern) {
+            $html = preg_replace($pattern, '', $html) ?? $html;
+        }
+
+        // ── 2. Remove <script> blocks ──────────────────────────────
+        $html = preg_replace('/<script\b[^>]*>[\s\S]*?<\/script>/i', '', $html) ?? $html;
+
+        // ── 3. Remove <noscript> blocks ────────────────────────────
+        $html = preg_replace('/<noscript\b[^>]*>[\s\S]*?<\/noscript>/i', '', $html) ?? $html;
+
+        // ── 4. Remove <style> blocks ───────────────────────────────
+        $html = preg_replace('/<style\b[^>]*>[\s\S]*?<\/style>/i', '', $html) ?? $html;
+
+        return $html;
+    }
+
+    /**
+     * Validate that a contact looks like a real person and not a 
+     * foreign-language UI artifact, cookie banner text, or company name.
+     *
+     * Returns true if the contact should be KEPT, false if rejected.
+     */
+    /**
+     * Clean HTML entities and whitespace artifacts from contact fields.
+     */
+    private function cleanContactFields(array $contact): array
+    {
+        foreach (['first_name', 'last_name', 'job_title'] as $field) {
+            if (!empty($contact[$field])) {
+                $v = $contact[$field];
+                $v = html_entity_decode($v, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $v = str_replace(["\xC2\xA0", "\u{00A0}"], ' ', $v);   // &nbsp; as UTF-8
+                $v = preg_replace('/&#\d+;/', '', $v);                  // numeric entities like &#8211;
+                $v = strip_tags($v);
+                // Remove © ® ™ symbols
+                $v = str_replace(['©', '®', '™'], '', $v);
+                // For name fields: strip non-Latin characters (Korean 님, Chinese, Japanese, etc.)
+                if ($field !== 'job_title') {
+                    $v = preg_replace('/[^\p{Latin}\s\-\'.]/u', '', $v);
+                }
+                $v = preg_replace('/\s+/', ' ', trim($v));
+                $contact[$field] = $v;
+            }
+        }
+
+        // Strip degree suffixes from last name ("Oglesbee, MS" → "Oglesbee")
+        if (!empty($contact['last_name'])) {
+            // Strip comma + any all-caps certification/degree suffix
+            $contact['last_name'] = preg_replace('/,\s*[A-Z][A-Z®\.]{1,20}$/', '', $contact['last_name']);
+            $contact['last_name'] = trim($contact['last_name']);
+        }
+
+        // Strip German title suffixes stuck to name fields
+        // e.g. "Quartaro Geschäftsführer" → "Quartaro"
+        $titleSuffixes = ['Geschäftsführer', 'Geschäftsführerin', 'Vorstandsvorsitzender', 'Vorstand', 'Inhaber', 'Inhaberin', 'Prokurist', 'Betriebsleiter'];
+        foreach (['first_name', 'last_name'] as $field) {
+            if (!empty($contact[$field])) {
+                foreach ($titleSuffixes as $suffix) {
+                    if (str_contains($contact[$field], $suffix)) {
+                        $contact[$field] = trim(str_ireplace($suffix, '', $contact[$field]));
+                    }
+                }
+            }
+        }
+
+        // Clean concatenated LinkedIn title fields
+        // e.g. "CEOChristian Hahn CEOHossein..." → truncate to first meaningful title
+        if (!empty($contact['job_title'])) {
+            $jt = $contact['job_title'];
+            // Detect concatenation: title word immediately followed by uppercase name
+            // Pattern: "CEO/Director/Manager/Head of..." then "UppercaseName" without space
+            if (preg_match('/^(.{5,}?)(CEO|CTO|CFO|COO|Director|Manager|Head|VP|President|Founder)[A-Z][a-z]/u', $jt, $m)) {
+                $jt = trim($m[1]);
+            }
+            // Also truncate at pattern: "role)Name" — when role text runs into another name
+            if (preg_match('/^(.{5,}?)(?:[a-z])([A-Z][a-z]{2,}\s+[A-Z][a-z]{2,})/u', $jt, $m)) {
+                $jt = trim($m[1]);
+            }
+            // If still looks concatenated (multiple uppercase runs separated by lowercase), limit length
+            if (mb_strlen($jt) > 80) {
+                $jt = mb_substr($jt, 0, 80);
+            }
+            $contact['job_title'] = $jt;
+        }
+
+        return $contact;
+    }
+
+    private function isValidPersonContact(array $contact): bool
+    {
+        $firstName = $contact['first_name'] ?? '';
+        $lastName = $contact['last_name'] ?? '';
+        $fullName = trim("$firstName $lastName");
+
+        if (empty($firstName) || empty($lastName)) {
+            return false;
+        }
+
+        // ── 0. Reject email addresses leaking as names ───────────
+        if (str_contains($fullName, '@') || str_contains($fullName, '<') || str_contains($fullName, '>')) {
+            return false;
+        }
+
+        // ── 0b. Strip German/English title suffixes stuck to names ──
+        $titleSuffixes = [
+            'Geschäftsführer', 'Geschäftsführerin', 'Geschaeftsfuehrer',
+            'Vorstandsvorsitzender', 'Vorstandsvorsitzende', 'Vorstand',
+            'Aufsichtsratsvorsitzender', 'Prokurist', 'Inhaber', 'Inhaberin',
+            'Betriebsleiter', 'Betriebsleiterin', 'Leiter', 'Leiterin',
+            'Werkleiter', 'Vertriebsleiter',
+        ];
+        foreach ($titleSuffixes as $suffix) {
+            if (str_contains($lastName, $suffix)) {
+                $lastName = trim(str_ireplace($suffix, '', $lastName));
+                $contact['last_name'] = $lastName;
+            }
+            if (str_contains($firstName, $suffix)) {
+                $firstName = trim(str_ireplace($suffix, '', $firstName));
+                $contact['first_name'] = $firstName;
+            }
+        }
+        $fullName = trim("$firstName $lastName");
+        if (empty($firstName) || empty($lastName)) {
+            return false;
+        }
+
+        $firstLower = mb_strtolower($firstName);
+        $lastLower = mb_strtolower($lastName);
+        $fullLower = mb_strtolower($fullName);
+
+        // ── 1. Reject cookie/consent/GDPR/privacy artifacts ──────
+        $cookieWords = [
+            'cookie', 'cookies', 'consent', 'gdpr', 'dsgvo', 'privacy',
+            'datenschutz', 'einstellungen', 'akzeptieren', 'ablehnen',
+            'erforderlich', 'notwendig', 'funktional', 'statistik',
+            'zustimmen', 'bestätigen', 'bestatigen', 'auswahl',
+            'personalisierung', 'marketing', 'analytik', 'analytics',
+            'datenschutzeinstellungen', 'cookie-details', 'cookie-informationen',
+            'hinweis', 'banner', 'notice', 'accept', 'reject', 'decline',
+            'manage', 'preferences', 'settings', 'necessary', 'functional',
+            'performance', 'targeting', 'required', 'optional', 'allowed',
+            'consentement', 'accepter', 'refuser', 'nécessaire', 'fonctionnel',
+            'toestemming', 'accepteren', 'noodzakelijk', 'functioneel',
+            'consenso', 'accetta', 'rifiuta', 'necessario',
+            'aceptar', 'rechazar', 'necesario',
+            'zgoda', 'akceptuję', 'wymagane',
+            'samtycke', 'godkänn', 'nödvändig',
+            'suostumus', 'hyväksy', 'välttämätön',
+            'souhlas', 'souhlasím', 'nezbytné',
+        ];
+
+        foreach ($cookieWords as $cw) {
+            if (str_contains($firstLower, $cw) || str_contains($lastLower, $cw)) {
+                return false;
+            }
+        }
+
+        // ── 2. Reject full phrases that are clearly not people ───
+        $junkPhrases = [
+            'data protection', 'legal notice', 'cookie policy', 'cookie settings',
+            'privacy policy', 'privacy notice', 'terms conditions',
+            'wind tunnel', 'supply chain', 'quality control', 'quality assurance',
+            'press releases', 'news events', 'social media',
+            'diese zwecke', 'ihre daten', 'dritte weiter', 'weitere informationen',
+            'informationen anzeigen', 'informationen ausblenden',
+            'individuelle datenschutz', 'benutzerdefinierten attribut',
+            'inhaltlich verantwortlich', 'angaben gemäß', 'verantwortlich für',
+            'contact legal', 'all rights', 'rights reserved',
+            'technical support', 'customer service', 'customer support',
+            'general inquiry', 'general enquiry',
+            'preference of', 'have been', 'has been', 'will be', 'would be',
+            'cooperating with', 'successfully', 'from the very',
+            'president award', 'presidents award',
+            // French consent/institutional phrases
+            'certains de ces', 'activation de ces', 'ecole nationale',
+            'école nationale', 'agence gardeners', 'comparison study',
+            'for dietmar', 'indoor led', 'led strip', 'fast boot',
+            'immediate boot', 'flex align', 'box overlap',
+            'accordion box', 'accordion item', 'announcement scroll',
+            'integrated micro', 'interface dual', 'supports conductive',
+            'discover ondina', 'latest posts', 'options panoramique',
+            'references naval', 'partenariats afrique',
+            'anesthésie loco', 'ouvèze payre',
+            'islands colombia', 'native cantonese', 'key milestones',
+            'small business', 'business program',
+            // Polish junk phrases
+            'przez nas', 'godziny pracy', 'biuro projektowe',
+            'gliwicki park', 'park techniki', 'dogodne terminy',
+            'fully professional', 'many private', 'operators will',
+            'three companies', 'term orientation', 'magic garden',
+            'rd party', 'link wp', 'service après', 'service apres',
+            'spiralnych cormak', 'pasc borehole',
+            // Polish institutional
+            'polsko-chińska', 'polsko-chinska', 'izba gospodarcza',
+            'koleje małopolskie', 'koleje malopolskie',
+            'polskie radio', 'common direction',
+            // Czech junk phrases
+            'soubory cookie', 'ochrana osobních', 'ochrana osobnich',
+            'zásady ochrany', 'zasady ochrany',
+            // Product-category phrases (Roger access control products)
+            'access control', 'standard access', 'advanced access', 'locker access',
+            'connecting rkd', 'block uk', 'extremely efficient',
+            // Italian product / geography phrases
+            'oil exchangers', 'sede amministrativa', 'isole cocos',
+            'scambiatori aria', 'scambiatori acqua', 'scambiatori olio',
+            'sgrigliatore automatico', 'cooling groups',
+            // Head-of-state / political title phrases
+            'president of the', 'presidente della', 'président de la',
+            'prime minister', 'premier ministre', 'primo ministro',
+            'head of state', 'chef de l\'état', 'capo dello stato',
+            'italian republic', 'french republic', 'polish republic',
+            'repubblica italiana', 'république française',
+            // German industrial product phrases
+            'sonstiges drehmaschinen', 'dornenlose rohr',
+            // PL startup / generic phrases
+            'startup attempts', 'county resident',
+        ];
+        foreach ($junkPhrases as $phrase) {
+            if (str_contains($fullLower, $phrase)) {
+                return false;
+            }
+        }
+
+        // ── 3. Reject company name fragments parsed as contacts ──
+        // Pattern: "CompanyName Location" like "Rtw Rohrtechnik Warburg"
+        $companyIndicators = [
+            'gmbh', 'ag', 'ohg', 'kg', 'mbh', 'ug', 'se', 'bv', 'nv',
+            'srl', 'spa', 'sarl', 'sas', 'sa', 'ltd', 'llc', 'inc',
+            'corp', 'plc', 'pty', 'co.', 'oy', 'ab', 'as', 'a/s',
+            'sp.', 's.r.o.', 'a.s.', 'z.o.o.', 'k.s.',  // Polish & Czech legal forms
+        ];
+        foreach ($companyIndicators as $ind) {
+            if (str_contains($fullLower, " $ind") || str_ends_with($fullLower, " $ind")) {
+                return false;
+            }
+        }
+
+        // ── 4. Reject if name starts with "Of " or "For " (parsing artifact) ─
+        if (str_starts_with($firstName, 'Of ') || $firstLower === 'of'
+            || str_starts_with($firstName, 'For ') || $firstLower === 'for') {
+            return false;
+        }
+
+        // ── 5. Reject if first or last name matches a known company-name word ─
+        // "Rtw Rohrtechnik" is a company name, not a person
+        $companyNameWords = [
+            'gmbh', 'rohrtechnik', 'elektronik', 'technik', 'werke',
+            'maschinenbau', 'maschinen', 'fahrzeugbau', 'werkzeugbau',
+            'systems', 'industries', 'solutions', 'technologies',
+            'technology', 'electronics', 'engineering', 'manufacturing',
+            'automotive', 'aerospace', 'industrial', 'group', 'holding',
+            'international', 'global', 'worldwide', 'corporation',
+            'enterprise', 'company', 'limited', 'incorporated',
+        ];
+        if (in_array($lastLower, $companyNameWords, true)) {
+            return false;
+        }
+
+        // Reject if name contains a city name suffix (company branch patterns)
+        // e.g. "Rtw Rohrtechnik Warburg" = company + city, not a person
+        if (preg_match('/\b(warburg|halberstadt|münchen|berlin|hamburg|frankfurt|stuttgart|düsseldorf|köln|nürnberg|dresden|leipzig|hannover|bremen|dortmund|essen|duisburg|warszawa|kraków|krakow|gdańsk|gdansk|wrocław|wroclaw|poznań|poznan|łódź|lodz|katowice|szczecin|lublin|białystok|bialystok|gdynia|częstochowa|czestochowa|radom|sosnowiec|toruń|torun|kielce|rzeszów|rzeszow|gliwice|olsztyn|bielsko|bydgoszcz|milano|roma|torino|firenze|bologna|napoli|genova|palermo|venezia|verona|padova|brescia|modena|parma|bergamo|catania|bari|messina)\b/iu', $fullLower)) {
+            return false;
+        }
+
+        // ── 6. Reject common non-person English/German words ──────
+        $nonPersonWords = [
+            'notice', 'because', 'required', 'functional', 'diese',
+            'zwecke', 'ihre', 'benutzerdefinierten', 'attribut',
+            'individuelle', 'informationen', 'anzeigen', 'ausblenden',
+            'inhaltlich', 'verantwortlich', 'angaben', 'tunnel',
+            'contact', 'general', 'technical', 'customer',
+            // Common parsing artifacts from German Impressum pages
+            'bildnachweise', 'bildnachweis', 'fotonachweis', 'quellenangaben',
+            'haftungsausschluss', 'rechtshinweis', 'rechtshinweise',
+            'nutzungsbedingungen', 'geschäftsbedingungen',
+            'allgemeine', 'allgemeiner', 'besondere', 'besonderer',
+            'vertretungsberechtigter', 'vertretungsberechtigt',
+            'handelsregister', 'registergericht', 'amtsgericht',
+            // Common sentence-fragment first words that aren't names
+            'generated', 'through', 'close', 'cooperation',
+            'click', 'button', 'here', 'below', 'above',
+            'managing', 'leading', 'providing', 'delivering',
+            'creating', 'building', 'making', 'developing',
+            'offering', 'serving', 'supporting', 'helping',
+            // Financial/legal/corporate terms
+            'funds', 'advised', 'fund', 'advisory', 'capital',
+            'portfolio', 'investment', 'investments', 'equity',
+            'acquisition', 'acquisitions', 'venture', 'ventures',
+            'partner', 'partners', 'associates', 'advisors',
+            // Transportation/logistics
+            'transportation', 'production', 'logistics', 'supply',
+            'distribution', 'warehouse', 'freight',
+            // Sentence fragments and gerunds that aren't names
+            'preference', 'successfully', 'cooperating', 'beginning',
+            'owners', 'owner', 'award', 'awards', 'prize', 'prizes',
+            'ship', 'ships', 'been', 'have', 'has', 'were', 'was',
+            'tech', 'jpg', 'png', 'pdf', 'svg', 'gif', 'img',
+            // Product/technical terms
+            'hydrogen', 'fuel', 'cell', 'cooling', 'magnetic',
+            'eliminate', 'bulky', 'reduce', 'supplies', 'provider',
+            'software', 'implantations', 'réalisations',
+            'savoir', 'faire', 'siège', 'adresse',
+            // Spanish product/UI words
+            'productos', 'nuestros', 'nuestra', 'utiliza', 'dejar',
+            'frecuencia', 'cardiaca', 'electrolitica', 'electrolítica',
+            // French department/section words
+            'recrutement', 'embauche', 'candidature', 'candidatures',
+            'direction', 'comptabilité', 'ressources', 'humaines',
+            'juridique', 'logistique', 'achats', 'approvisionnement',
+            // Job title words that get parsed as part of names
+            'vice', 'chief', 'officer', 'chairman', 'chairwoman',
+            'directs', 'director', 'president', 'executive',
+            'board', 'supervisory', 'strategy', 'strategist',
+            // Marketing slogans
+            'elevating', 'connectivity', 'vehicle', 'innovative',
+            'redefining', 'transforming', 'empowering', 'enabling',
+            'pioneering', 'advancing', 'accelerating',
+            // German common words missing from initial list
+            'deine', 'deiner', 'deinem', 'deinen', 'meine', 'meiner', 'meinem', 'meinen',
+            'zukunft', 'perfekte', 'perfekter', 'optimale', 'optimaler', 'aktuelle', 'aktueller',
+            'verlauf', 'ergebnis', 'übersicht', 'mittels', 'während', 'trotz', 'gemäß',
+            'wird', 'werden', 'wurde', 'können', 'müssen', 'sollen', 'dürfen',
+            'deutsche', 'deutscher', 'deutsches', 'deutschen',
+            'handelsflotte', 'unbenannter', 'unbenannte', 'bausatz',
+            'megawatt', 'kilowatt', 'gigawatt',
+            'systemintegration', 'ansprechpartner', 'menü', 'schließen', 'schlie',
+            'analyse', 'synthese', 'bewertung', 'verfahren', 'entwickelt',
+            'startseite', 'inhalt', 'suche', 'ergebnisse',
+            // Form field labels
+            'first', 'last', 'phone', 'email', 'fax', 'mobile', 'submit',
+            'field', 'placeholder', 'input', 'textarea', 'checkbox',
+            // English product/feature/marketing terms
+            'passionate', 'leadership', 'capacity', 'polarity', 'liquid',
+            'develops', 'printer', 'showcase', 'conduct', 'speech',
+            'tests', 'test', 'text', 'label', 'action', 'cooled',
+            // Country/territory names
+            'puerto', 'rico', 'africa', 'zealand', 'lanka', 'costa',
+            'islands', 'colombia', 'comoros', 'cantonese', 'native',
+            'milestones', 'milestone', 'program', 'programme', 'business',
+            'small', 'cambodia', 'congo', 'guinea', 'samoa', 'tonga',
+            'vanuatu', 'kiribati', 'tuvalu', 'nauru', 'palau',
+            // HTML attributes parsed as names
+            'noopener', 'noreferrer', 'nofollow', 'target', 'blank',
+            'href', 'class', 'style', 'onclick', 'onload',
+            // More German words and business terms
+            'ethische', 'geschäftspraktiken', 'nachfolgend', 'berichtet',
+            'vorstand', 'geschäftsbericht', 'essor', 'inverter',
+            'chiller', 'spectrum', 'struktur', 'strukture',
+            // Product/tech terms that get parsed as names
+            'solar', 'carport', 'tracker', 'inverter', 'chiller',
+            'grounds', 'common',
+            // German adjectives/nouns that appear as marketing phrases
+            'hohe', 'hoher', 'hohes', 'hohem', 'klare', 'klarer', 'klares',
+            'flexibilität', 'kommunikation', 'kompetenz', 'qualität',
+            'zuverlässigkeit', 'sicherheit', 'nachhaltigkeit', 'effizienz',
+            'excellence', 'ineering', 'omplete', 'olutions', // truncated words
+            // More marketing / slogan words
+            'complete', 'solutions', 'reliable', 'quality', 'superior',
+            'premium', 'excellence', 'dedicated', 'committed',
+            'integrity', 'sustainable', 'trusted', 'precision',
+            // Italian/Spanish junk
+            'azienda', 'empresa', 'società', 'sociedad',
+            // Ansprechpartner context (German for "contact person" label)
+            'ansprechpartner', 'kontaktperson',
+            // HTML/CSS UI element names that get scraped as contact names
+            'accordion', 'scroll', 'overlap', 'announcement', 'carousel',
+            'slider', 'dropdown', 'modal', 'popup', 'tooltip', 'sidebar',
+            'footer', 'header', 'navbar', 'breadcrumb', 'pagination',
+            'toggle', 'collapse', 'tab', 'tabs', 'panel', 'widget',
+            'boot', 'align', 'flex', 'grid', 'container', 'wrapper',
+            'overlay', 'badge', 'alert', 'progress', 'spinner',
+            'thumbnail', 'jumbotron', 'navigation', 'menu',
+            'immediate', 'panoramique', 'conductive', 'supports',
+            'indoor', 'outdoor', 'strip', 'led', 'posts', 'latest',
+            'interface', 'dual', 'integrated', 'micro', 'comparison',
+            'discover', 'references', 'partenariats',
+            // French common words / consent text / institutional
+            'certains', 'activation', 'ces', 'sont', 'nécessaires',
+            'fonctionnement', 'aide', 'améliorer', 'notre', 'site',
+            'cookies', 'consentement', 'accepter', 'refuser',
+            'personnaliser', 'paramètres', 'gérer', 'préférences',
+            'nationale', 'civile', 'ecole', 'école', 'agence',
+            'anesthésie', 'loco', 'énergies', 'energies',
+            'naval', 'ouvèze', 'payre',
+            // More French institutional / section words
+            'association', 'fédération', 'federation', 'syndicat',
+            'chambre', 'commerce', 'ministère', 'ministere',
+            'autorite', 'autorité', 'régulation', 'regulation',
+            // Polish common words / institutional / navigation
+            'biuro', 'projektowe', 'projektowy', 'gliwicki', 'techniki',
+            'park', 'spiralnych', 'pasja', 'główna', 'glowna',
+            'przez', 'nas', 'plików', 'plikow', 'strona',
+            'aktualności', 'aktualnosci', 'oferta', 'cennik',
+            'referencje', 'realizacje', 'więcej', 'wiecej',
+            'informacje', 'szczegóły', 'szczegoly', 'dowiedz',
+            'firma', 'grupa', 'spółka', 'spolka', 'oddział', 'oddzial',
+            'dział', 'dzial', 'zespół', 'zespol', 'zakład', 'zaklad',
+            'centrum', 'instytut', 'izba', 'gospodarcza', 'gospodarcze',
+            'koleje', 'małopolskie', 'malopolskie', 'polsko',
+            'chińska', 'chinska', 'kierunek', 'orientacja',
+            'witamy', 'witaj', 'usługi', 'uslugi', 'nasza', 'nasz',
+            'tutaj', 'więcej', 'dalej', 'wstecz', 'dalsze',
+            // Czech common words / institutional / navigation
+            'společnost', 'spolecnost', 'oddělení', 'oddeleni',
+            'hlavní', 'hlavni', 'závod', 'zavod', 'ústav', 'ustav',
+            'práce', 'prace', 'český', 'cesky', 'česká', 'ceska',
+            'nový', 'novy', 'nová', 'nova', 'nové', 'nove',
+            'nabídka', 'nabidka', 'aktuality', 'kariéra', 'kariera',
+            'přehled', 'prehled', 'vyhledávání', 'vyhledavani',
+            'řešení', 'reseni', 'výrobky', 'vyrobky',
+            // English sentence fragments / marketing junk
+            'fully', 'professional', 'operators', 'depart',
+            'aircraft', 'private', 'many', 'three', 'companies',
+            'orientation', 'cooperation', 'borehole', 'calibrator',
+            'magic', 'garden', 'party',
+            'après', 'apres',
+            // ── German product description adjectives/nouns (iter: DE Automotive/Industrial junk) ──
+            'kompakt', 'kompakter', 'kompakte', 'kompaktes', 'kompaktem', 'kompakten',
+            'zahlreich', 'zahlreiche', 'zahlreicher', 'zahlreiches', 'zahlreichen',
+            'leistungsstark', 'leistungsstarker', 'leistungsstarke', 'leistungsstarkes',
+            'mittlere', 'mittlerer', 'mittleres', 'mittlerem',
+            'reife', 'reifen', 'multitag', 'multicore', 'multisensor',
+            'schnittstelle', 'schnittstellen', 'steuerung', 'steuerungen',
+            'robust', 'robuste', 'robuster', 'robustes', 'robustem',
+            'vielseitig', 'vielseitige', 'vielseitiger', 'vielseitiges',
+            'zertifiziert', 'zertifizierte', 'zertifizierter', 'zertifiziertes',
+            'integriert', 'integrierte', 'integrierter', 'integriertes',
+            'automatisiert', 'automatisierte', 'automatisierter',
+            'modular', 'modulare', 'modularer', 'modulares',
+            'kundenspezifisch', 'kundenspezifische', 'kundenspezifischer',
+            'hochwertig', 'hochwertige', 'hochwertiger', 'hochwertiges',
+            'langlebig', 'langlebige', 'langlebiger',
+            'wartungsfrei', 'wartungsfreie', 'wartungsfreier',
+            'temperatur', 'temperaturen', 'spannung', 'spannungen',
+            'frequenz', 'frequenzen', 'leistung', 'leistungen',
+            'baugruppe', 'baugruppen', 'platine', 'platinen',
+            'bauteil', 'bauteile', 'gehäuse', 'stecker', 'buchse',
+            'widerstand', 'kondensator', 'transistor', 'diode',
+            // ── French common words / product / scientific terms ──
+            'colorant', 'colorants', 'rouge', 'bleu', 'vert', 'noir', 'blanc',
+            'ingénieur', 'ingénieurs', 'technicien', 'techniciens',
+            'peuvent', 'devrait', 'devront', 'pourrait', 'pourraient',
+            'vidéo', 'vidéos', 'audio', 'photo', 'photos',
+            'industriel', 'industrielle', 'industriels', 'industrielles',
+            'réseau', 'réseaux', 'système', 'systèmes',
+            'équipement', 'équipements', 'composant', 'composants',
+            'fabrication', 'production', 'assemblage', 'montage',
+            'mesure', 'mesures', 'contrôle', 'capteur', 'capteurs',
+            'puissance', 'tension', 'courant', 'fréquence',
+            // ── Chemical / scientific compound terms ──
+            'benzoate', 'denatonium', 'sulfate', 'phosphate', 'carbonate',
+            'nitrate', 'acetate', 'chloride', 'oxide', 'hydroxide',
+            'polymer', 'polymère', 'résine', 'silicone', 'silicium',
+            // ── City / geography names (FR/DE/IT/ES) ──
+            'paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'lille',
+            'nice', 'strasbourg', 'nantes', 'montpellier', 'grenoble',
+            'rennes', 'rouen', 'toulon', 'reims', 'dijon', 'angers',
+            'wien', 'vienna', 'zürich', 'zurich', 'bern', 'genf', 'geneva',
+            'basel', 'graz', 'linz', 'salzburg', 'innsbruck', 'lausanne',
+            'milano', 'roma', 'torino', 'firenze', 'bologna', 'napoli',
+            'madrid', 'barcelona', 'valencia', 'sevilla', 'bilbao',
+            'amsterdam', 'rotterdam', 'bruxelles', 'brussels', 'antwerp',
+            // ── Generic UI / location / department terms ──
+            'locations', 'location', 'office', 'offices', 'bureau', 'bureaux',
+            'commercial', 'export', 'import', 'vente', 'ventes',
+            'département', 'departement', 'filiale', 'filiales',
+            'succursale', 'succursales', 'siège', 'siege',
+            'atelier', 'ateliers', 'usine', 'usines', 'entrepôt',
+            // ── Quote attribution verbs ("Says John Smith" → "Says" leaked into name) ──
+            'says', 'said', 'explains', 'explained', 'adds', 'added',
+            'notes', 'noted', 'states', 'stated', 'announces', 'announced',
+            'comments', 'commented', 'reports', 'reported',
+            'sagt', 'sagte', 'erklärt', 'erklärte', 'betont', 'betonte',
+            'dit', 'déclare', 'explique', 'ajoute', 'précise', 'affirme',
+            'selon', 'poursuit', 'confirme', 'indique', 'souligne',
+            // ── Polish product / technical / navigation words ──
+            'dostępny', 'dostepny', 'dostępne', 'dostepne', 'wydajny', 'wydajna', 'wydajne',
+            'niezawodny', 'niezawodna', 'niezawodne', 'precyzyjny', 'precyzyjna',
+            'wytrzymały', 'wytrzymala', 'trwały', 'trwala', 'skuteczny', 'skuteczna',
+            'nowoczesny', 'nowoczesna', 'nowoczesne', 'innowacyjny', 'innowacyjna',
+            'automatyczny', 'automatyczna', 'automatyczne', 'spiralnych', 'spiralna',
+            'maszyna', 'maszyny', 'urządzenie', 'urzadzenie', 'urządzenia', 'urzadzenia',
+            'narzędzie', 'narzedzie', 'narzędzia', 'narzedzia', 'element', 'elementy',
+            'produkt', 'produkty', 'rozwiązanie', 'rozwiazanie', 'rozwiązania', 'rozwiazania',
+            'technologia', 'technologie', 'system', 'systemy', 'moduł', 'modul', 'moduły', 'moduly',
+            'łożysko', 'lozysko', 'łożyska', 'lozyska', 'przekładnia', 'przekladnia',
+            'silnik', 'silniki', 'pompa', 'pompy', 'zawór', 'zawor', 'zawory',
+            'czujnik', 'czujniki', 'sterownik', 'sterowniki', 'przetwornik', 'przetworniki',
+            'sprężarka', 'sprezarka', 'kompresor', 'agregat', 'agregaty',
+            'obróbka', 'obrobka', 'spawanie', 'toczenie', 'frezowanie', 'szlifowanie',
+            'startup', 'attempts', 'attempt', 'resident', 'county',
+            'connecting', 'locker', 'frontair', 'extremely', 'efficient',
+            // ── German industrial nouns missing from prior lists ──
+            'sonstiges', 'sonstige', 'sonstiger', 'drehmaschinen', 'drehmaschine',
+            'dornenlose', 'dornenlos', 'rohr', 'rohre', 'rohren',
+            'fräsmaschine', 'frasmaschine', 'fräsmaschinen', 'frasmaschinen',
+            'bohrmaschine', 'bohrmaschinen', 'schleifmaschine', 'schleifmaschinen',
+            'werkzeugmaschine', 'werkzeugmaschinen', 'bandsäge', 'bandsage',
+            'hobelmaschine', 'pressmaschine', 'stanzmaschine',
+            // ── Italian product / technical / navigation words ──
+            'sgrigliatore', 'automatico', 'automatica', 'automatici', 'automatiche',
+            'scambiatore', 'scambiatori', 'raffreddamento', 'riscaldamento',
+            'aria', 'acqua', 'olio', 'vapore', 'gas',
+            'sede', 'amministrativa', 'amministrativo', 'amministrazione',
+            'isola', 'isole', 'territorio', 'provincia', 'regione', 'comune',
+            'macchina', 'macchine', 'impianto', 'impianti', 'apparecchiatura',
+            'componente', 'componenti', 'accessorio', 'accessori',
+            'lavorazione', 'lavorazioni', 'produzione', 'produzioni',
+            'trattamento', 'trattamenti', 'verniciatura', 'saldatura',
+            'stampaggio', 'fusione', 'fresatura', 'tornitura', 'rettifica',
+            'qualità', 'sicurezza', 'affidabilità', 'efficienza', 'prestazione',
+            'resistenza', 'potenza', 'pressione', 'portata', 'capacità',
+            'misura', 'misure', 'controllo', 'controlli', 'sensore', 'sensori',
+            'motore', 'motori', 'pompa', 'valvola', 'valvole',
+            'cilindro', 'cilindri', 'pistone', 'pistoni', 'riduttore', 'riduttori',
+            'compressore', 'compressori', 'generatore', 'generatori',
+            'trasformatore', 'trasformatori', 'inverter', 'convertitore',
+            'catalogo', 'brochure', 'scheda', 'tecnica', 'manuale',
+            'certificazione', 'certificazioni', 'normativa', 'normative',
+            // ── Italian navigation / institutional ──
+            'azienda', 'aziende', 'impresa', 'imprese', 'stabilimento',
+            'reparto', 'reparti', 'ufficio', 'uffici', 'laboratorio',
+            'magazzino', 'deposito', 'officina', 'fonderia', 'acciaieria',
+            'contatti', 'contattaci', 'richiesta', 'preventivo',
+            'notizie', 'eventi', 'novità', 'comunicato', 'stampa',
+            'carriera', 'carriere', 'lavora', 'posizioni', 'aperte',
+            'chi', 'siamo', 'storia', 'missione', 'visione', 'valori',
+            // ── Political / head-of-state title words ──
+            'republic', 'repubblica', 'republik', 'république', 'rzeczpospolita',
+            'monarchy', 'kingdom', 'principality', 'chancellor', 'minister',
+            'senator', 'congressman', 'parliamentarian', 'ambassador',
+            'consul', 'governor', 'mayor', 'prefect', 'prefecture',
+            // ── Generic English words that leak as contacts ──
+            'standard', 'advanced', 'basic', 'enhanced', 'premium',
+            'autonomous', 'exchangers', 'exchanger', 'cooling', 'heating',
+            'cocos', 'cook',
+        ];
+        if (in_array($firstLower, $nonPersonWords, true) || in_array($lastLower, $nonPersonWords, true)) {
+            return false;
+        }
+        // Also check individual words within multi-word names (e.g. "Brandon Managing")
+        $nameWords = preg_split('/\s+/', $fullLower);
+        foreach ($nameWords as $nw) {
+            if (in_array($nw, $nonPersonWords, true)) {
+                return false;
+            }
+        }
+
+        // ── Reject concatenated text (camelCase or runTogether patterns) ──
+        // e.g. "DevelopmentSteffen" or "CEOChristian" — indicates parsing failure
+        if (preg_match('/[a-z][A-Z]/', $firstName) || preg_match('/[a-z][A-Z]/', $lastName)) {
+            return false;
+        }
+        // Reject if first or last name has more than 15 consecutive lowercase chars
+        // (likely a compound word, not a name)
+        if (preg_match('/[a-zà-ÿ]{16,}/u', $firstName) || preg_match('/[a-zà-ÿ]{16,}/u', $lastName)) {
+            return false;
+        }
+        // Reject names containing "MBA" or degree abbreviations stuck to name
+        if (preg_match('/MBA|PhD|PMP|MSc|BSc$/i', $firstName) || preg_match('/MBA|PhD|PMP|MSc|BSc$/i', $lastName)) {
+            return false;
+        }
+
+        // ── Final safety net: classifier-based person name check ──
+        if ($this->classifier && !$this->classifier->isLikelyPersonName($firstName, $lastName)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Extract named contacts from HTML "Contact Us" / about / general pages.
      *
      * Looks for person-name + email/phone patterns in:
@@ -7628,6 +9665,9 @@ class GoogleDorkService
      */
     private function extractNamedContactsFromHtml(string $html): array
     {
+        // ── CRITICAL: Strip cookie banners BEFORE contact extraction ──
+        $html = $this->stripCookieBannerHtml($html);
+
         $contacts = [];
         $titlePattern = '/\b(CEO|CTO|CFO|COO|CIO|CHRO|CMO|CSO|CPO'
             . '|VP|Vice\s*President|President|Chairman|Director|Managing\s*Director'
@@ -7784,6 +9824,10 @@ class GoogleDorkService
             $unique[] = $c;
         }
 
+        // ── Clean HTML artifacts & filter out non-person contacts ──
+        $unique = array_map(fn(array $c) => $this->cleanContactFields($c), $unique);
+        $unique = array_values(array_filter($unique, fn(array $c) => $this->isValidPersonContact($c)));
+
         return array_slice($unique, 0, 5);
     }
 
@@ -7846,6 +9890,35 @@ class GoogleDorkService
 
         // Normalize base URL
         $base = rtrim($website, '/');
+
+        // ── Sitemap-first page discovery ──
+        // If we have a SitemapPageDiscovery service, prefer sitemap-sourced
+        // pages since they reflect the site's actual structure, then fall
+        // back to hardcoded paths if the sitemap yields nothing.
+        $sitemapPaths = [];
+        if ($this->sitemapDiscovery !== null) {
+            try {
+                $domain = parse_url($base, PHP_URL_HOST) ?? '';
+                $sitemapPages = $this->sitemapDiscovery->discoverPages($domain);
+                foreach ($sitemapPages as $page) {
+                    $path = parse_url($page['url'], PHP_URL_PATH);
+                    if ($path !== null && $path !== '/' && $path !== '') {
+                        $sitemapPaths[] = $path;
+                    }
+                }
+                if (!empty($sitemapPaths)) {
+                    $this->logger->debug('scrapeSubpagesForContacts: sitemap provided paths', [
+                        'domain' => $domain,
+                        'count'  => count($sitemapPaths),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                $this->logger->debug('scrapeSubpagesForContacts: sitemap discovery failed', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         $subpages = [
             // Contact pages
             '/contact', '/contact-us', '/contactus', '/kontakt',
@@ -7901,19 +9974,41 @@ class GoogleDorkService
             '/mot-du-president', '/mot-du-directeur',
         ];
 
+        // Merge sitemap paths at the front (higher quality) and deduplicate
+        if (!empty($sitemapPaths)) {
+            $subpages = array_values(array_unique(array_merge($sitemapPaths, $subpages)));
+        }
+
         $enrichment = ['contacts' => []];
 
+        // ── Polite crawl governor ──
+        $crawlDomain = parse_url($base, PHP_URL_HOST) ?? '';
+
         // Fire concurrent requests for all subpages
+        // Prioritize /en/ paths for multilingual EU sites
         $responses = [];
         foreach ($subpages as $path) {
+            // Check crawl governor before each request
+            if ($this->crawlGovernor !== null && !$this->crawlGovernor->canRequest($crawlDomain)) {
+                $this->logger->debug('scrapeSubpagesForContacts: crawl limit reached', [
+                    'domain' => $crawlDomain,
+                    'path'   => $path,
+                ]);
+                break;
+            }
+
             try {
+                if ($this->crawlGovernor !== null) {
+                    $this->crawlGovernor->throttle($crawlDomain);
+                }
                 $url = $base . $path;
                 $responses[$path] = $this->httpClient->request('GET', $url, [
                     'timeout' => 4,
                     'max_redirects' => 2,
                     'headers' => [
                         'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept' => 'text/html',
+                        'Accept' => 'text/html,application/xhtml+xml',
+                        'Accept-Language' => 'en-US,en;q=0.9',
                     ],
                 ]);
             } catch (\Exception $e) {
@@ -7925,7 +10020,18 @@ class GoogleDorkService
         foreach ($responses as $path => $response) {
             try {
                 $code = $response->getStatusCode();
-                if ($code >= 400) continue;
+                if ($code >= 400) {
+                    // Report error to crawl governor for backoff
+                    if ($this->crawlGovernor !== null && $code >= 429) {
+                        $this->crawlGovernor->reportError($crawlDomain, $code);
+                    }
+                    continue;
+                }
+
+                // Report success to crawl governor
+                if ($this->crawlGovernor !== null) {
+                    $this->crawlGovernor->reportSuccess($crawlDomain);
+                }
 
                 $html = $this->smartTruncateHtml($response->getContent(false), 200000);
                 if (empty($html)) continue;
@@ -8020,6 +10126,9 @@ class GoogleDorkService
      */
     private function extractTeamPageContacts(string $html): array
     {
+        // ── CRITICAL: Strip cookie banners BEFORE contact extraction ──
+        $html = $this->stripCookieBannerHtml($html);
+
         $contacts = [];
         $titlePattern = '/\b(CEO|CTO|CFO|COO|CIO|CHRO|CMO|CSO|CPO|CLO|CDO'
             . '|VP|Vice\s*President|President|Chairman|Chairwoman|Chairperson'
@@ -8257,6 +10366,10 @@ class GoogleDorkService
             $unique[] = $c;
         }
 
+        // ── Clean HTML artifacts & filter out non-person contacts ──
+        $unique = array_map(fn(array $c) => $this->cleanContactFields($c), $unique);
+        $unique = array_values(array_filter($unique, fn(array $c) => $this->isValidPersonContact($c)));
+
         return array_slice($unique, 0, 5);
     }
 
@@ -8428,7 +10541,16 @@ class GoogleDorkService
         }
         $emails = array_values(array_unique(array_map('strtolower', $emails)));
 
-        $genericFirsts = ['customer', 'sales', 'info', 'support', 'admin', 'general', 'office', 'technical', 'human', 'contact', 'service', 'marketing', 'accounts', 'billing', 'help', 'enquiry', 'inquiry', 'reception', 'webmaster', 'mail', 'noreply', 'no-reply', 'news', 'team', 'hello', 'hi'];
+        $genericFirsts = ['customer', 'sales', 'info', 'support', 'admin', 'general', 'office', 'technical', 'human', 'contact', 'service', 'marketing', 'accounts', 'billing', 'help', 'enquiry', 'inquiry', 'reception', 'webmaster', 'mail', 'noreply', 'no-reply', 'news', 'team', 'hello', 'hi',
+            // French department names
+            'recrutement', 'direction', 'comptabilite', 'ressources', 'juridique', 'achats', 'communication', 'logistique',
+            // German department names
+            'vertrieb', 'verwaltung', 'buchhaltung', 'einkauf', 'technik', 'personal', 'empfang', 'zentrale',
+            // Dutch department names
+            'verkoop', 'inkoop', 'administratie', 'ontvangst', 'klantenservice',
+        ];
+        // Department/role names that appear as the "last name" part in email-derived contacts
+        $genericLasts = ['sales', 'support', 'info', 'admin', 'marketing', 'billing', 'service', 'services', 'office', 'team', 'campaigns', 'campaign', 'procurement', 'purchasing', 'finance', 'accounting', 'legal', 'press', 'media', 'hr', 'it', 'ops', 'operations', 'logistics', 'warehouse', 'shipping', 'production', 'engineering', 'design', 'development', 'research', 'quality', 'compliance', 'safety', 'security', 'reception', 'general', 'web', 'digital', 'communications', 'events', 'careers', 'jobs', 'training'];
 
         foreach ($emails as $email) {
             $local = strtolower(explode('@', $email)[0] ?? '');
@@ -8451,7 +10573,8 @@ class GoogleDorkService
                 if (str_contains($lastName, '-')) {
                     $lastName = implode('-', array_map('ucfirst', explode('-', $lastName)));
                 }
-                if (!in_array(strtolower($firstName), $genericFirsts, true)) {
+                if (!in_array(strtolower($firstName), $genericFirsts, true)
+                    && !in_array(strtolower($m[2]), $genericLasts, true)) {
                     $contacts[] = [
                         'first_name' => $firstName,
                         'last_name' => $lastName,
@@ -8527,7 +10650,7 @@ class GoogleDorkService
      */
     private function searchLinkedInDecisionMakers(string $companyName): array
     {
-        if ($this->googleSearchService === null) {
+        if (!$this->hasSearchProvider()) {
             return [];
         }
 
@@ -8590,7 +10713,7 @@ class GoogleDorkService
             }
 
             try {
-                $results = $this->googleSearchService->searchCompanies($query, 10);
+                $results = $this->executeProviderSearch($query, 10);
                 $items = $results['results'] ?? [];
 
                 foreach ($items as $item) {
@@ -8621,7 +10744,13 @@ class GoogleDorkService
                     }
 
                     // ── Try parsing the title format ─────────────
-                    $contact = $this->parseLinkedInProfileTitle($title, $link);
+                    // Use new LinkedInProfileParser first (Improvement 5A)
+                    $contact = $this->linkedInParser->parseProfile($link, $title, $snippet);
+
+                    // Fallback to legacy parser if new one returns null
+                    if ($contact === null) {
+                        $contact = $this->parseLinkedInProfileTitle($title, $link);
+                    }
 
                     // ── Fallback: extract name from URL slug ─────
                     if ($contact === null) {
@@ -8780,7 +10909,7 @@ class GoogleDorkService
         if (empty($contacts)) {
             foreach ($webQueries as $wq) {
                 try {
-                    $webResults = $this->googleSearchService->searchCompanies($wq, 5);
+                    $webResults = $this->executeProviderSearch($wq, 5);
                     $webItems = $webResults['results'] ?? [];
 
                     foreach ($webItems as $wi) {
@@ -8868,6 +10997,10 @@ class GoogleDorkService
             $seen[$key] = true;
             $unique[] = $c;
         }
+
+        // Clean HTML artifacts and filter out non-person contacts
+        $unique = array_map(fn(array $c) => $this->cleanContactFields($c), $unique);
+        $unique = array_values(array_filter($unique, fn(array $c) => $this->isValidPersonContact($c)));
 
         return array_slice($unique, 0, 3);
     }
@@ -9044,9 +11177,11 @@ class GoogleDorkService
 
         // Strip certifications/credentials from name portion
         // e.g. "Ramzi Bejaoui, PMP®, PMI-RMP®" → "Ramzi Bejaoui"
-        $fullName = preg_replace('/,\s*(PMP|PMI|CPA|CFA|MBA|PhD|PE|CPIM|CSCP|CPSM|PgMP|ACP|CAPM|CSM|ITIL|PRINCE2|CSSBB|CISA|CISSP|CEH|LEED|SHRM|SPHR|PHR|Six Sigma|Scrum|RMP|PSM|PSPO|SAFe|CSP|PSP|ASP|CHMM|CQE|CRE|CMQ|CQA|FACS|FRCS|MRCS|MD|DO|DDS|DMD|RN|BSN|MSN|FNP|CMA|RMA|CPC|COC|RHIT|RHIA|CCTM|CSSO|CSSM|LSSGB|LSSBB|CEM|CEP|CMVP|CBAP|TOGAF)[®™]?[\s,]*/i', '', $fullName);
+        $fullName = preg_replace('/,\s*(PMP|PMI|CPA|CFA|MBA|PhD|PE|MS|MSc|BSc|BS|BA|MA|MEng|BEng|MPhil|CPIM|CSCP|CPSM|PgMP|ACP|CAPM|CSM|ITIL|PRINCE2|CSSBB|CISA|CISSP|CEH|LEED|SHRM|SPHR|PHR|Six Sigma|Scrum|RMP|PSM|PSPO|SAFe|CSP|PSP|ASP|CHMM|CQE|CRE|CMQ|CQA|FACS|FRCS|MRCS|MD|DO|DDS|DMD|RN|BSN|MSN|FNP|CMA|RMA|CPC|COC|RHIT|RHIA|CCTM|CSSO|CSSM|LSSGB|LSSBB|CEM|CEP|CMVP|CBAP|TOGAF|MELSSMBB)[®™]?[\s,]*/i', '', $fullName);
         // Also strip standalone cert abbreviations at end: "Name CERT"
-        $fullName = preg_replace('/\s+(?:PMP|MBA|PhD|PE|CPIM|CSCP|LEED|ITIL|PRINCE2)[®™]*$/i', '', $fullName);
+        $fullName = preg_replace('/\s+(?:PMP|MBA|PhD|PE|MS|MSc|BSc|CPIM|CSCP|LEED|ITIL|PRINCE2|MELSSMBB)[®™]*$/i', '', $fullName);
+        // Catch-all: strip comma + any remaining all-caps suffix (generic credential pattern)
+        $fullName = preg_replace('/,\s*[A-Z][A-Z®™\.]{1,20}$/', '', $fullName);
         $fullName = trim($fullName, " \t,");
 
         // Validate full name
@@ -9866,8 +12001,8 @@ class GoogleDorkService
      */
     public function customSearch(string $query): array
     {
-        if (!$this->googleSearchService) {
-            $this->logger->warning('customSearch() called but GoogleSearchService not configured');
+        if (!$this->hasSearchProvider()) {
+            $this->logger->warning('customSearch() called but no search provider configured');
             return [];
         }
 
@@ -9876,7 +12011,7 @@ class GoogleDorkService
         $allResults = [];
 
         try {
-            $results = $this->googleSearchService->searchCompanies($query, 10);
+            $results = $this->executeProviderSearch($query, 10);
 
             if (!empty($results['results'])) {
                 foreach ($results['results'] as $result) {
@@ -9889,7 +12024,7 @@ class GoogleDorkService
                     if (!isset($allResults[$domain])) {
                         $companyName = $this->extractCompanyName($result['title'] ?? '', $domain);
 
-                        if ($this->isJunkCompanyName($companyName)) {
+                        if ($this->isJunkCompanyName($companyName) || $this->isGiantOem($companyName)) {
                             continue;
                         }
 

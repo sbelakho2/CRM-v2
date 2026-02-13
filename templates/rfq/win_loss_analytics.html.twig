@@ -233,7 +233,7 @@
                     <div class="rams-p-3 rams-bg-panel rams-border rams-rounded">
                         <div class="rams-flex rams-justify-between rams-items-start rams-mb-2">
                             <span class="rams-text--xs rams-text--bold">
-                                {{ item.rfq.company ? item.rfq.company.name : 'Unknown' }}
+                                {{ safe_company_name(item.rfq, 'Unknown') }}
                             </span>
                             <span class="rams-text-3xs rams-text--muted rams-font-mono">
                                 {{ item.rfq.decisionDate ? item.rfq.decisionDate|date('M Y') : item.rfq.createdAt|date('M Y') }}
@@ -277,7 +277,7 @@
                     <div class="rams-p-3 rams-bg-panel rams-border rams-border--success rams-rounded">
                         <div class="rams-flex rams-justify-between rams-items-start rams-mb-2">
                             <span class="rams-text--xs rams-text--bold rams-text--success">
-                                {{ item.rfq.company ? item.rfq.company.name : 'Unknown' }}
+                                {{ safe_company_name(item.rfq, 'Unknown') }}
                             </span>
                             <span class="rams-text-3xs rams-text--muted rams-font-mono">
                                 {{ item.rfq.awardDate ? item.rfq.awardDate|date('M Y') : item.rfq.createdAt|date('M Y') }}
@@ -334,7 +334,7 @@
                             {% endif %}
                         </td>
                         <td class="rams-table__td">
-                            {{ rfq.company ? rfq.company.name : '-' }}
+                            {{ safe_company_name(rfq, '-') }}
                         </td>
                         <td class="rams-table__td rams-font-mono rams-text--xs">
                             {{ rfq.type ?? '-' }}

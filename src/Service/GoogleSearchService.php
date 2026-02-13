@@ -106,6 +106,11 @@ class GoogleSearchService
             'q' => $query,
             'num' => min($resultsPerPage, 10), // Max 10 per request
             'start' => $startIndex,
+            // Force English-language results to avoid foreign-language page
+            // titles being misinterpreted as company names (e.g. "Startseite",
+            // "Accueil", "Strona główna")
+            'lr' => 'lang_en',  // Restrict to English-language pages
+            'hl' => 'en',       // Interface language = English
         ];
         
         // Add geo-location bias if specified (ISO 3166-1 alpha-2 country code)

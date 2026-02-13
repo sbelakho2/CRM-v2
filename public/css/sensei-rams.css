@@ -4499,7 +4499,7 @@ a.rams-module:hover {
 /* Industrial Guidance Module */
 .rams-module--guidance {
     border-left: 4px solid var(--rams-steel);
-    background: linear-gradient(to right, rgba(74, 144, 226, 0.05), var(--rams-module) 100%);
+    background: var(--rams-module);
     position: relative;
 }
 

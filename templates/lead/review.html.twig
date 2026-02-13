@@ -174,14 +174,14 @@
                                             </svg>
                                             {{ 'lead.add_to_companies'|trans }}
                                         </button>
-                                    {% elseif lead.company %}
+                                    {% elseif safe_company_id(lead) %}
                                         <span class="rams-badge rams-badge--success">
                                             <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                             </svg>
                                             {{ 'lead.in_crm'|trans }}
                                         </span>
-                                        <a href="{{ path('app_company_show', {id: lead.company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.view_company'|trans }}">
+                                        <a href="{{ path('app_company_show', {id: safe_company_id(lead)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.view_company'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                             </svg>

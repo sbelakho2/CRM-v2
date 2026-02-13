@@ -39,7 +39,7 @@
                         <div class="rams-form__group">
                             <label for="type" class="rams-dymo">{{ 'activity.type'|trans }}</label>
                             <select name="type" id="type" class="rams-form__select">
-                                <option value="">{{ 'common.all'|trans }} {{ 'activity.types_label'|trans }}</option>
+                                <option value="">{{ 'activity.all_types'|trans }}</option>
                                 {% for type in types %}
                                     <option value="{{ type }}" {% if current_type == type %}selected{% endif %}>{{ ('activity.types.' ~ type|lower|replace({' ': '_', '-': '_'}) )|trans }}</option>
                                 {% endfor %}
@@ -50,7 +50,7 @@
                         <div class="rams-form__group">
                             <label for="company" class="rams-dymo">{{ 'activity.company'|trans }}</label>
                             <select name="company" id="company" class="rams-form__select">
-                                <option value="">{{ 'common.all'|trans }} {{ 'company.title'|trans }}</option>
+                                <option value="">{{ 'company.all_companies'|trans }}</option>
                                 {% for company in companies %}
                                     <option value="{{ company.id }}" {% if current_company == company.id %}selected{% endif %}>{{ company.name }}</option>
                                 {% endfor %}
@@ -61,7 +61,7 @@
                         <div class="rams-form__group">
                             <label for="user" class="rams-dymo">{{ 'activity.team_member'|trans }}</label>
                             <select name="user" id="user" class="rams-form__select">
-                                <option value="">{{ 'common.all'|trans }} {{ 'activity.users_label'|trans }}</option>
+                                <option value="">{{ 'activity.all_members'|trans }}</option>
                                 {% for user in users %}
                                     <option value="{{ user.id }}" {% if current_user == user.id %}selected{% endif %}>{{ user.firstName }} {{ user.lastName }}</option>
                                 {% endfor %}
@@ -70,13 +70,13 @@
 
                         {# Date From #}
                         <div class="rams-form__group">
-                            <label for="date_from" class="rams-dymo">{{ 'common.from_date'|trans }}</label>
+                            <label for="date_from" class="rams-dymo">{{ 'activity.from_date'|trans }}</label>
                             <input type="date" name="date_from" id="date_from" value="{{ current_date_from }}" class="rams-form__input"/>
                         </div>
 
                         {# Date To #}
                         <div class="rams-form__group">
-                            <label for="date_to" class="rams-dymo">{{ 'common.to_date'|trans }}</label>
+                            <label for="date_to" class="rams-dymo">{{ 'activity.to_date'|trans }}</label>
                             <input type="date" name="date_to" id="date_to" value="{{ current_date_to }}" class="rams-form__input"/>
                         </div>
                     </div>
@@ -111,7 +111,7 @@
 
         {# Results Count #}
         <div class="rams-results-count">
-            {{ 'common.showing'|trans }} <span class="rams-results-count__value">{{ activities|length }}</span> {{ 'activity.title'|trans|lower }}
+            {{ 'activity.showing_count'|trans({'%count%': activities|length}) }}
         </div>
 
         {# Activities List #}
@@ -183,7 +183,7 @@
                             <circle cx="8" cy="8" r="6" stroke-width="2"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4V8L11 11"/>
                         </svg>
-                        <h3 class="rams-empty-state__title">{{ 'activity.no_activities'|trans }}</h3>
+                        <h3 class="rams-empty-state__title">{{ 'activity.empty.no_activities'|trans }}</h3>
                         <p class="rams-empty-state__description">{{ 'activity.create_first'|trans }}</p>
                         <div class="rams-empty-state__actions">
                             <a href="{{ path('app_activity_new') }}" class="rams-btn rams-btn--primary">

@@ -54,9 +54,17 @@ class UnifiedPdfGeneratorService
             $quote->getIssuingCompany()
         );
 
+        // Safely resolve company name (company row may have been deleted)
+        try {
+            $companyName = $quote->getCompany()?->getName() ?? 'N/A';
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            $companyName = 'N/A';
+        }
+
         // Render the quote template
         $html = $this->twig->render('pdf/quote.html.twig', [
             'quote' => $quote,
+            'company_name' => $companyName,
             'issuer' => $issuingProfile,
         ]);
 
@@ -116,8 +124,14 @@ class UnifiedPdfGeneratorService
         
         // 3. Create document
         $filename = sprintf('dfm_report_%s_%s.pdf', $quote->getQuoteNumber(), date('Ymd'));
+        try {
+            $company = $quote->getCompany();
+            $company?->getId(); // force proxy init
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            $company = null;
+        }
         return $this->createDocument(
-            $quote->getCompany(),
+            $company,
             'dfm_report',
             $pdfContent,
             $filename
@@ -166,8 +180,14 @@ class UnifiedPdfGeneratorService
         
         // 3. Create document
         $filename = sprintf('cost_breakdown_%s_%s.pdf', $quote->getQuoteNumber(), date('Ymd'));
+        try {
+            $company = $quote->getCompany();
+            $company?->getId(); // force proxy init
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            $company = null;
+        }
         return $this->createDocument(
-            $quote->getCompany(),
+            $company,
             'cost_breakdown',
             $pdfContent,
             $filename
@@ -214,8 +234,14 @@ class UnifiedPdfGeneratorService
         
         // 3. Create document
         $filename = sprintf('exceptions_%s_%s.pdf', $quote->getQuoteNumber(), date('Ymd'));
+        try {
+            $company = $quote->getCompany();
+            $company?->getId(); // force proxy init
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            $company = null;
+        }
         return $this->createDocument(
-            $quote->getCompany(),
+            $company,
             'exceptions_report',
             $pdfContent,
             $filename
@@ -262,8 +288,14 @@ class UnifiedPdfGeneratorService
         
         // 3. Create document
         $filename = sprintf('sourcing_risk_%s_%s.pdf', $quote->getQuoteNumber(), date('Ymd'));
+        try {
+            $company = $quote->getCompany();
+            $company?->getId(); // force proxy init
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            $company = null;
+        }
         return $this->createDocument(
-            $quote->getCompany(),
+            $company,
             'sourcing_risk',
             $pdfContent,
             $filename
@@ -286,9 +318,20 @@ class UnifiedPdfGeneratorService
      */
     public function generateAuditTrailPdf($entity): ComplianceDocument
     {
+        // Safely resolve company name (company row may have been deleted)
+        try {
+            $companyName = method_exists($entity, 'getCompany')
+                ? ($entity->getCompany()?->getName() ?? 'N/A')
+                : 'N/A';
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            $companyName = 'N/A';
+        }
+
         // 1. Render audit trail template
         $html = $this->twig->render('pdf/audit_trail.html.twig', [
             'entity' => $entity,
+            'quote' => $entity,
+            'company_name' => $companyName,
         ]);
         
         // 2. Generate PDF
@@ -309,8 +352,14 @@ class UnifiedPdfGeneratorService
         $entityId = method_exists($entity, 'getId') ? $entity->getId() : 'unknown';
         $filename = sprintf('audit_trail_%s_%s_%s.pdf', strtolower($entityType), $entityId, date('Ymd'));
         
+        try {
+            $auditCompany = method_exists($entity, 'getCompany') ? $entity->getCompany() : null;
+            $auditCompany?->getId(); // force proxy init
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            $auditCompany = null;
+        }
         return $this->createDocument(
-            $entity->getCompany(),
+            $auditCompany,
             'audit_trail',
             $pdfContent,
             $filename
@@ -395,7 +444,7 @@ class UnifiedPdfGeneratorService
      * 6. Persist and flush
      */
     private function createDocument(
-        Company $company,
+        ?Company $company,
         string $documentType,
         string $pdfContent,
         string $filename,
@@ -404,19 +453,28 @@ class UnifiedPdfGeneratorService
         // 1. Calculate SHA-256 hash
         $sha256Hash = $this->calculateHash($pdfContent);
         
-        // 2. Create upload directory
-        $uploadDir = sprintf('public/uploads/documents/%d', $company->getId());
+        // 2. Safely resolve company ID (company may have been deleted)
+        try {
+            $companyId = $company?->getId();
+        } catch (\Doctrine\ORM\EntityNotFoundException) {
+            $companyId = null;
+        }
+
+        // 3. Create upload directory
+        $uploadDir = sprintf('public/uploads/documents/%s', $companyId ?? 'orphaned');
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
         
-        // 3. Save PDF file
+        // 4. Save PDF file
         $filepath = "$uploadDir/$filename";
         file_put_contents($filepath, $pdfContent);
         
-        // 4. Create ComplianceDocument entity
+        // 5. Create ComplianceDocument entity
         $document = new ComplianceDocument();
-        $document->setCompanyId($company->getId());
+        if ($companyId) {
+            $document->setCompanyId($companyId);
+        }
         $document->setDocumentType($documentType);
         $document->setFilePath($filepath);
         $document->setSha256Hash($sha256Hash);

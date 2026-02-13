@@ -180,7 +180,7 @@
             <td style="width: 25%; background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.quote_number'|trans|default('Quote Number') }}</strong></td>
             <td style="width: 25%;">{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</td>
             <td style="width: 25%; background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.customer'|trans|default('Customer') }}</strong></td>
-            <td style="width: 25%;">{{ quote.company.name ?? 'N/A' }}</td>
+            <td style="width: 25%;">{{ company_name ?? 'N/A' }}</td>
         </tr>
         <tr>
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.created'|trans|default('Created') }}</strong></td>

@@ -27,10 +27,10 @@
                     {% if contact.jobTitle %}
                         <span class="rams-text--muted rams-text--sm">{{ contact.jobTitle }}</span>
                     {% endif %}
-                    {% if contact.company %}
+                    {% if safe_company_id(contact) %}
                         <span class="rams-text--muted rams-text--xs">·</span>
-                        <a href="{{ path('app_company_show', {id: contact.company.id}) }}" class="rams-link rams-text--sm">
-                            {{ contact.company.name }}
+                        <a href="{{ path('app_company_show', {id: safe_company_id(contact)}) }}" class="rams-link rams-text--sm">
+                            {{ safe_company_name(contact) }}
                         </a>
                     {% endif %}
                     {% if contact.role %}
@@ -90,9 +90,9 @@
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'contact.fields.company'|trans }}</dt>
                             <dd class="rams-definition-list__desc">
-                                {% if contact.company %}
-                                    <a href="{{ path('app_company_show', {id: contact.company.id}) }}" class="rams-link">
-                                        {{ contact.company.name }}
+                                {% if safe_company_id(contact) %}
+                                    <a href="{{ path('app_company_show', {id: safe_company_id(contact)}) }}" class="rams-link">
+                                        {{ safe_company_name(contact) }}
                                     </a>
                                 {% else %}
                                     <span class="rams-text--muted">—</span>
@@ -140,7 +140,7 @@
             <div class="rams-module">
                 <div class="rams-module__header">
                     <h2 class="rams-module__title">{{ 'contact.show.recent_activities'|trans }}</h2>
-                    <a href="{{ path('app_activity_new', {contact: contact.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">+ {{ 'activity.actions.log'|trans }}</a>
+                    <a href="{{ path('app_activity_new', {contact: contact.id, redirect: 'app_contact_show', redirect_params: {id: contact.id}|json_encode}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">+ {{ 'activity.actions.log'|trans }}</a>
                 </div>
                 <div class="rams-module__content">
                     {% if contact.activities is empty %}

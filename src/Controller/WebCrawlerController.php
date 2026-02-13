@@ -91,6 +91,8 @@ class WebCrawlerController extends AbstractController
     #[Route('/discover', name: 'app_webcrawler_discover', methods: ['POST'])]
     public function discover(Request $request): JsonResponse
     {
+        set_time_limit(120);
+
         $sector = $request->request->get('sector');
         $location = $request->request->get('location');
         $keywords = $request->request->get('keywords', '');
@@ -139,6 +141,8 @@ class WebCrawlerController extends AbstractController
     #[Route('/search-google', name: 'app_webcrawler_search_google', methods: ['POST'])]
     public function searchGoogle(Request $request): JsonResponse
     {
+        set_time_limit(120);
+
         $sector = $request->request->get('sector');
         $location = $request->request->get('location');
         $locationLabel = $this->resolveLocationLabel($location);

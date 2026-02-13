@@ -1,0 +1,69 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'competitor.watchlists.title'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-stack">
+    <div class="rams-page-header">
+        <h1 class="rams-page-title">👁️ {{ 'competitor.watchlists.title'|trans }}</h1>
+        <p class="rams-page-subtitle">{{ 'competitor.watchlists.subtitle'|trans }}</p>
+    </div>
+
+    {% if watchlists | length > 0 %}
+    <div class="rams-grid rams-grid--3col rams-mb-6">
+        {% for wl in watchlists %}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ wl.name }}</h2>
+                {% if wl.alertEnabled %}
+                    <span class="rams-badge rams-badge--success rams-text--xs">{{ 'common.alerts'|trans|default('Alerts') }} ON</span>
+                {% else %}
+                    <span class="rams-badge rams-badge--muted rams-text--xs">{{ 'common.alerts'|trans|default('Alerts') }} OFF</span>
+                {% endif %}
+            </div>
+            <div class="rams-module__content">
+                {% if wl.description %}
+                <p class="rams-text--xs rams-text--muted rams-mb-4">{{ wl.description }}</p>
+                {% endif %}
+
+                <table class="rams-table rams-table--kv rams-text--xs">
+                    {% if wl.filterRegion %}
+                    <tr><td class="rams-text--muted">{{ 'competitor.list.filters.region'|trans }}</td><td>{{ wl.filterRegion | replace({'_': ' '}) | capitalize }}</td></tr>
+                    {% endif %}
+                    {% if wl.filterSector %}
+                    <tr><td class="rams-text--muted">Sector</td><td>{{ wl.filterSector }}</td></tr>
+                    {% endif %}
+                    {% if wl.filterType %}
+                    <tr><td class="rams-text--muted">{{ 'competitor.list.filters.type'|trans }}</td><td>{{ wl.filterType | replace({'_': ' '}) }}</td></tr>
+                    {% endif %}
+                    <tr><td class="rams-text--muted">{{ 'competitor.watchlists.table.competitors'|trans }}</td><td>{{ wl.competitors | length }}</td></tr>
+                    <tr><td class="rams-text--muted">{{ 'common.created'|trans|default('Created') }}</td><td>{{ wl.createdAt | date('M d, Y') }}</td></tr>
+                </table>
+
+                {% if wl.competitors | length > 0 %}
+                <div style="margin-top: 12px; border-top: 1px solid var(--rams-border); padding-top: 12px;">
+                    <div class="rams-text--xs rams-text--muted rams-mb-2">{{ 'competitor.watchlists.table.competitors'|trans }}:</div>
+                    {% for c in wl.competitors | slice(0, 5) %}
+                    <div class="rams-text--xs" style="padding: 2px 0;">
+                        <a href="{{ path('comp_crawler_detail', {id: c.id}) }}" class="rams-link">{{ c.name }}</a>
+                        <span class="rams-text--muted">({{ c.threatScore }})</span>
+                    </div>
+                    {% endfor %}
+                    {% if wl.competitors | length > 5 %}
+                    <div class="rams-text--xs rams-text--muted">+{{ wl.competitors | length - 5 }} {{ 'common.more'|trans|default('more') }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="rams-module">
+        <div class="rams-module__content" style="text-align: center; padding: 48px;">
+            <p class="rams-text--muted">{{ 'common.no_results'|trans|default('No results found.') }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

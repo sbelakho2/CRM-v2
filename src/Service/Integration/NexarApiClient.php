@@ -20,6 +20,7 @@ class NexarApiClient
     
     private float $lastRequestTime = 0;
     private ?string $accessToken = null;
+    private bool $quotaExceeded = false; // Fail-fast: stop trying after quota error
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -34,6 +35,11 @@ class NexarApiClient
      */
     public function searchByPartNumber(string $partNumber): ?array
     {
+        // Fail-fast: if we already exceeded the quota, don't waste time
+        if ($this->quotaExceeded) {
+            return null;
+        }
+        
         $cacheKey = 'nexar_part_' . md5($partNumber);
         
         return $this->cache->get($cacheKey, function (ItemInterface $item) use ($partNumber) {
@@ -67,20 +73,22 @@ query SearchPart($mpn: String!) {
         bestDatasheet {
           url
         }
-      }
-      sellers {
-        company {
-          name
-        }
-        offers {
-          inventoryLevel
-          prices {
-            quantity
-            price
-            currency
+        sellers(authorizedOnly: false) {
+          company {
+            name
           }
-          clickUrl
-          sku
+          offers {
+            inventoryLevel
+            moq
+            packaging
+            prices {
+              quantity
+              price
+              currency
+            }
+            clickUrl
+            sku
+          }
         }
       }
     }
@@ -105,6 +113,17 @@ GRAPHQL;
                 $data = $response->toArray();
                 
                 if (isset($data['errors'])) {
+                    // Detect quota exceeded — fail-fast for all subsequent calls
+                    foreach ($data['errors'] as $err) {
+                        if (str_contains($err['message'] ?? '', 'exceeded your part limit')) {
+                            $this->quotaExceeded = true;
+                            $this->logger->error('Nexar API quota exceeded — disabling all further Nexar requests', [
+                                'part_number' => $partNumber,
+                            ]);
+                            return null;
+                        }
+                    }
+                    
                     $this->logger->warning('Nexar API error', [
                         'part_number' => $partNumber,
                         'errors' => $data['errors']
@@ -120,22 +139,30 @@ GRAPHQL;
                 
                 $result = $results[0];
                 $part = $result['part'] ?? [];
-                $sellers = $result['sellers'] ?? [];
+                $sellers = $part['sellers'] ?? [];
                 
                 // Find best pricing from all sellers
                 $allPricing = [];
                 $maxStock = 0;
+                $minMoq = 1;
                 
                 foreach ($sellers as $seller) {
                     foreach ($seller['offers'] ?? [] as $offer) {
                         $stock = $offer['inventoryLevel'] ?? 0;
-                        $maxStock = max($maxStock, $stock);
+                        if (is_numeric($stock)) {
+                            $maxStock = max($maxStock, (int) $stock);
+                        }
+                        
+                        $offerMoq = $offer['moq'] ?? 1;
+                        if (is_numeric($offerMoq) && $offerMoq > 0) {
+                            $minMoq = max($minMoq, (int) $offerMoq);
+                        }
                         
                         foreach ($offer['prices'] ?? [] as $price) {
                             $allPricing[] = [
                                 'quantity' => $price['quantity'] ?? 0,
                                 'price' => (float) ($price['price'] ?? 0),
-                                'currency' => $price['currency'] ?? null
+                                'currency' => $price['currency'] ?? 'USD'
                             ];
                         }
                     }
@@ -151,8 +178,14 @@ GRAPHQL;
                     'datasheet' => $part['bestDatasheet']['url'] ?? null,
                     'pricing' => array_slice($allPricing, 0, 5), // Top 5 price breaks
                     'stock' => $maxStock,
+                    'moq' => $minMoq,
                     'leadtime_days' => 0, // Nexar doesn't provide lead time
                     'specs' => $this->parseSpecs($part['specs'] ?? []),
+                    'confidence' => [
+                        'score' => 75,
+                        'level' => 'MEDIUM',
+                        'warnings' => ['Nexar aggregator — verify pricing with authorized distributor'],
+                    ],
                 ];
                 
             } catch (\Exception $e) {

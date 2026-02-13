@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
@@ -26,7 +27,8 @@ class ComplianceController extends AbstractController
         private ComplianceDocumentRepository $complianceDocumentRepository,
         private CompliancePackService $compliancePackService,
         private SluggerInterface $slugger,
-        private GuidanceNotificationService $guidanceService
+        private GuidanceNotificationService $guidanceService,
+        private TranslatorInterface $translator
     ) {}
 
     #[Route('/company/{id}', name: 'app_compliance_company', methods: ['GET'])]
@@ -34,11 +36,10 @@ class ComplianceController extends AbstractController
     {
         // Only active companies can enter compliance pipeline
         if (!$company->canEnterCompliance()) {
-            $this->addFlash('error', sprintf(
-                'Company "%s" must be in Active status to access compliance. Current status: %s',
-                $company->getName(),
-                ucfirst($company->getCompanyStatus())
-            ));
+            $this->addFlash('warning', $this->translator->trans('compliance.flash.company_must_be_active', [
+                '%company%' => $company->getName(),
+                '%status%' => ucfirst($company->getCompanyStatus()),
+            ]));
             return $this->redirectToRoute('app_company_index');
         }
 
@@ -66,64 +67,17 @@ class ComplianceController extends AbstractController
         ]);
     }
 
-    #[Route('/document/{id}/upload', name: 'app_compliance_upload', methods: ['POST'])]
-    public function uploadDocument(Request $request, ComplianceDocument $document): Response
-    {
-        $file = $request->files->get('file');
-
-        if ($file) {
-            $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $safeFilename = $this->slugger->slug($originalFilename);
-            $newFilename = $safeFilename.'-'.uniqid().'.'.$file->guessExtension();
-
-            try {
-                $uploadsDirectory = $this->getParameter('kernel.project_dir').'/var/uploads/compliance';
-                
-                if (!is_dir($uploadsDirectory)) {
-                    mkdir($uploadsDirectory, 0777, true);
-                }
-
-                $file->move($uploadsDirectory, $newFilename);
-
-                $document->setFilePath($newFilename);
-                $document->setProvided(true);
-                $document->setUploadedAt(new \DateTime());
-
-                $this->entityManager->flush();
-
-                // Auto-dismiss "add compliance" notification if it exists for this company
-                $company = $document->getCompany();
-                $companyId = $company->getId();
-                $this->guidanceService->autoDismissNotifications("company_{$companyId}_add_compliance");
-
-                // Provide guidance after document upload
-                $this->guidanceService->afterComplianceDocumentUploaded(
-                    $company->getName(),
-                    $companyId
-                );
-
-                $this->addFlash('success', 'Document uploaded successfully!');
-            } catch (FileException $e) {
-                $this->addFlash('error', 'Error uploading file: ' . $e->getMessage());
-            }
-        }
-
-        return $this->redirectToRoute('app_compliance_company', [
-            'id' => $document->getCompany()->getId()
-        ]);
-    }
-
     #[Route('/document/{id}/download', name: 'app_compliance_download', methods: ['GET'])]
     public function downloadDocument(ComplianceDocument $document): Response
     {
         if (!$document->getFilePath()) {
-            throw $this->createNotFoundException('No file available for this document.');
+            throw $this->createNotFoundException($this->translator->trans('compliance.error.no_file'));
         }
 
         $filePath = $this->getParameter('kernel.project_dir').'/var/uploads/compliance/'.$document->getFilePath();
 
         if (!file_exists($filePath)) {
-            throw $this->createNotFoundException('File not found.');
+            throw $this->createNotFoundException($this->translator->trans('compliance.error.file_not_found'));
         }
 
         return new BinaryFileResponse($filePath);
@@ -149,12 +103,61 @@ class ComplianceController extends AbstractController
             $document->setUploadedAt(null);
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Document removed successfully!');
+            $this->addFlash('success', $this->translator->trans('compliance.flash.document_removed'));
             
             return $this->redirectToRoute('app_compliance_company', ['id' => $companyId]);
         }
 
         return $this->redirectToRoute('app_company_index');
+    }
+
+    #[Route('/document/{id}/upload', name: 'app_compliance_upload', methods: ['POST'])]
+    public function uploadDocument(Request $request, ComplianceDocument $document): Response
+    {
+        $file = $request->files->get('file');
+        if (!$file) {
+            $this->addFlash('danger', $this->translator->trans('compliance.error.no_file'));
+            return $this->redirectToRoute('app_compliance_company', ['id' => $document->getCompany()->getId()]);
+        }
+
+        $uploadDir = $this->getParameter('kernel.project_dir').'/var/uploads/compliance';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0775, true);
+        }
+
+        try {
+            $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $safeFilename = $this->slugger->slug($originalFilename);
+            $newFilename = $safeFilename.'-'.uniqid().'.'.$file->guessExtension();
+
+            $file->move($uploadDir, $newFilename);
+
+            // Delete old file if replacing
+            if ($document->getFilePath()) {
+                $oldPath = $uploadDir.'/'.$document->getFilePath();
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $document->setFilePath($newFilename);
+            $document->setProvided(true);
+            $document->setUploadedAt(new \DateTimeImmutable());
+            $this->entityManager->flush();
+
+            $this->guidanceService->recordAction('compliance_uploaded', [
+                'name' => $document->getName(),
+                'company' => $document->getCompany()->getName(),
+            ]);
+
+            $this->addFlash('success', $this->translator->trans('compliance.flash.document_uploaded', [
+                '%name%' => $document->getName(),
+            ]));
+        } catch (FileException $e) {
+            $this->addFlash('danger', $this->translator->trans('compliance.error.upload_failed'));
+        }
+
+        return $this->redirectToRoute('app_compliance_company', ['id' => $document->getCompany()->getId()]);
     }
 
     #[Route('/document/{id}/toggle-required', name: 'app_compliance_toggle_required', methods: ['POST'])]
@@ -164,7 +167,7 @@ class ComplianceController extends AbstractController
             $document->setRequired(!$document->isRequired());
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Document requirement updated!');
+            $this->addFlash('success', $this->translator->trans('compliance.flash.requirement_updated'));
         }
 
         return $this->redirectToRoute('app_compliance_company', [
@@ -195,11 +198,10 @@ class ComplianceController extends AbstractController
             $document->snooze($days, $reason ?: null, $snoozedBy);
             $this->entityManager->flush();
             
-            $this->addFlash('success', sprintf(
-                'Alerts snoozed for %d days until %s',
-                $days,
-                $document->getSnoozedUntil()->format('M j, Y')
-            ));
+            $this->addFlash('success', $this->translator->trans('compliance.flash.alerts_snoozed', [
+                '%days%' => $days,
+                '%until%' => $document->getSnoozedUntil()->format('M j, Y'),
+            ]));
         }
         
         // Redirect back to referrer or company compliance page
@@ -223,7 +225,7 @@ class ComplianceController extends AbstractController
             $document->clearSnooze();
             $this->entityManager->flush();
             
-            $this->addFlash('success', 'Snooze cleared - alerts are now active.');
+            $this->addFlash('success', $this->translator->trans('compliance.flash.snooze_cleared'));
         }
         
         // Redirect back to referrer or company compliance page
@@ -269,27 +271,48 @@ class ComplianceController extends AbstractController
             return $b['stats']['completion_percentage'] <=> $a['stats']['completion_percentage'];
         });
 
+        [$sectors, $sectorLabels] = $this->buildSectorOptions();
+
         return $this->render('compliance/overview.html.twig', [
             'compliance_data' => $complianceData,
             'current_sector' => $sector,
-            'sectors' => [
-                'Automotive',
-                'Aerospace',
-                'Industrial',
-                'Rail',
-                'Renewables',
-                'Medical',
-                'Defense',
-                'Telecom',
-                'HVAC',
-                'Marine',
-                'Power Electronics',
-                'Consumer Electronics',
-                'Data Center',
-                'Energy Storage',
-                'Other',
-            ],
+            'sectors' => $sectors,
+            'sector_labels' => $sectorLabels,
         ]);
+    }
+
+    private function buildSectorOptions(): array
+    {
+        $sectorKeys = [
+            'Automotive' => 'company.sectors.automotive',
+            'Aerospace' => 'company.sectors.aerospace',
+            'Industrial' => 'company.sectors.industrial',
+            'Rail' => 'company.sectors.rail',
+            'Renewables' => 'company.sectors.renewables',
+            'Medical' => 'company.sectors.medical',
+            'Defense' => 'company.sectors.defense',
+            'Telecom' => 'company.sectors.telecom',
+            'HVAC' => 'company.sectors.hvac',
+            'Marine' => 'company.sectors.marine',
+            'Power Electronics' => 'company.sectors.power_electronics',
+            'Consumer Electronics' => 'company.sectors.consumer_electronics',
+            'Data Center' => 'company.sectors.data_center',
+            'Energy Storage' => 'company.sectors.energy_storage',
+            'Other' => 'company.sectors.other',
+        ];
+
+        $sectors = [];
+        $labels = [];
+        foreach ($sectorKeys as $value => $key) {
+            $label = $this->translator->trans($key);
+            $sectors[] = [
+                'value' => $value,
+                'label' => $label,
+            ];
+            $labels[$value] = $label;
+        }
+
+        return [$sectors, $labels];
     }
 
     #[Route('/company/{id}/generate-pack', name: 'app_compliance_generate_pack', methods: ['POST'])]
@@ -306,7 +329,7 @@ class ComplianceController extends AbstractController
             // Generate new pack
             $this->compliancePackService->initializeCompliancePackForCompany($company);
 
-            $this->addFlash('success', 'Compliance pack generated successfully!');
+            $this->addFlash('success', $this->translator->trans('compliance.flash.pack_generated'));
         }
 
         return $this->redirectToRoute('app_compliance_company', ['id' => $company->getId()]);

@@ -145,11 +145,7 @@
                                     <td class="rams-table__cell">{{ attendee.name }}</td>
                                     <td class="rams-table__cell rams-table__cell--muted">{{ attendee.email }}</td>
                                     <td class="rams-table__cell rams-table__cell--muted">
-                                        {% if attendee.company %}
-                                            {{ attendee.company.name }}
-                                        {% else %}
-                                            {{ 'common.n_a'|trans }}
-                                        {% endif %}
+                                        {{ safe_company_name(attendee, 'common.n_a'|trans) }}
                                     </td>
                                     <td class="rams-table__cell rams-table__cell--muted">{{ attendee.registeredAt|date('M d, Y') }}</td>
                                     <td class="rams-table__cell">

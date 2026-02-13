@@ -61,9 +61,17 @@ class InteractiveLiveQuoteController extends AbstractController
         
         // Get tier pricing
         $tierPricing = $this->liveQuoteService->calculateTierPricing($quote);
-        
+
+        // Safely resolve company name (company row may have been deleted)
+        try {
+            $companyName = $quote->getCompany()?->getName() ?? 'N/A';
+        } catch (\Doctrine\ORM\EntityNotFoundException $e) {
+            $companyName = 'N/A';
+        }
+
         return $this->render('quote_live/view.html.twig', [
             'quote' => $quote,
+            'company_name' => $companyName,
             'tierPricing' => $tierPricing,
             'token' => $token,
         ]);

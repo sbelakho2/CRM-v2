@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Autonomous Sales Dashboard Controller
@@ -23,6 +24,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/autonomous-sales')]
 class AutonomousSalesDashboardController extends AbstractController
 {
+    public function __construct(
+        private TranslatorInterface $translator,
+    ) {}
+
     #[Route('', name: 'autonomous_sales_index', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
     public function index(
@@ -296,6 +301,11 @@ class AutonomousSalesDashboardController extends AbstractController
         return $this->redirectToRoute('autonomous_sales_index');
     }
 
+    private function trans(string $id, array $parameters = []): string
+    {
+        return $this->translator->trans($id, $parameters);
+    }
+
     // ==================== PRIVATE HELPERS (translate ML → plain English) ====================
 
     /**
@@ -326,31 +336,31 @@ class AutonomousSalesDashboardController extends AbstractController
         // Overall status: green / yellow / red
         if (!$enabled) {
             $status = 'off';
-            $statusLabel = 'Turned off';
-            $statusDesc = 'The sales automation system is currently disabled. Turn it on to start optimizing outreach.';
+            $statusLabel = $this->trans('autonomous_sales.health.off_label');
+            $statusDesc = $this->trans('autonomous_sales.health.off_desc');
         } elseif ($safeMode) {
             $status = 'red';
-            $statusLabel = 'Paused for safety';
-            $statusDesc = 'Email performance has dropped below the safety threshold. The system has automatically paused non-essential sends to protect your sender reputation. Only proven email variations are being used.';
+            $statusLabel = $this->trans('autonomous_sales.health.paused_label');
+            $statusDesc = $this->trans('autonomous_sales.health.paused_desc');
         } elseif ($quarantined > 0 || $totalArms < 3) {
             $status = 'yellow';
-            $statusLabel = 'Needs attention';
+            $statusLabel = $this->trans('autonomous_sales.health.needs_attention_label');
             $issues = [];
             if ($totalArms < 3) {
-                $issues[] = 'The system needs at least 3 email variations to optimize effectively. Click "Set up default variations" below.';
+                $issues[] = $this->trans('autonomous_sales.health.needs_variations', ['%min%' => 3]);
             }
             if ($quarantined > 0) {
-                $issues[] = sprintf('%d email variation(s) were automatically disabled due to poor performance.', $quarantined);
+                $issues[] = $this->trans('autonomous_sales.health.quarantined_variations', ['%count%' => $quarantined]);
             }
             $statusDesc = implode(' ', $issues);
         } elseif ($totalTrials === 0) {
             $status = 'yellow';
-            $statusLabel = 'Ready to start';
-            $statusDesc = 'The system is set up but has not sent any emails yet. Run an optimization cycle to begin testing.';
+            $statusLabel = $this->trans('autonomous_sales.health.ready_label');
+            $statusDesc = $this->trans('autonomous_sales.health.ready_desc');
         } else {
             $status = 'green';
-            $statusLabel = 'Running well';
-            $statusDesc = 'The system is actively optimizing your outreach emails. It automatically tests different subject lines and templates, and sends more traffic to the best performers.';
+            $statusLabel = $this->trans('autonomous_sales.health.running_label');
+            $statusDesc = $this->trans('autonomous_sales.health.running_desc');
         }
 
         return [

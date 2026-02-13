@@ -70,17 +70,51 @@ class PartMatchConfidenceCalculator
             $score += $mfrScore['points'];
             $reasons = array_merge($reasons, $mfrScore['reasons']);
         } else {
-            // No manufacturer to compare, give partial credit
-            $score += 15;
-            $reasons[] = 'No manufacturer specified in BOM (partial credit)';
+            // No manufacturer in BOM.  When the MPN is an exact match the
+            // part identity is already proven — give full manufacturer credit.
+            if ($mpnScore['points'] >= 40) {
+                $score += 25;
+                $reasons[] = 'Full manufacturer credit (MPN match proves identity)';
+            } else {
+                $score += 18;
+                $reasons[] = 'No manufacturer specified in BOM (partial credit)';
+            }
         }
         
         // 3. Description Matching (max 15 points)
         if ($requestedDescription) {
+            $returnedDescription = $apiResult['description'] ?? '';
+            // Safeguard: ensure description is a string
+            if (!is_string($returnedDescription)) {
+                $returnedDescription = is_array($returnedDescription) ? implode(' ', array_filter($returnedDescription, 'is_string')) : (string) $returnedDescription;
+            }
+            
+            // Before standard description matching, check if the API result's
+            // description/title contains the MPN itself — this is a strong signal
+            // for Alibaba results where titles like "C0603C104K4RAC7411 ICs Electronic Component"
+            // wouldn't match BOM descriptions like "100nF 0603" but ARE the right part
+            $normalizedMpn = strtolower(preg_replace('/[\s\-_\.]+/', '', $requestedMpn));
+            $normalizedDesc = strtolower(preg_replace('/[\s\-_\.]+/', '', $returnedDescription));
+            $mpnInDescription = str_contains($normalizedDesc, $normalizedMpn);
+            
             $descScore = $this->scoreDescriptionMatch(
                 $requestedDescription,
-                $apiResult['description'] ?? ''
+                $returnedDescription
             );
+            
+            // If MPN matches exactly (50 pts) and description overlap is poor,
+            // give generous credit — the MPN match proves identity, and BOM
+            // descriptions are often garbled or minimal.
+            if ($mpnScore['points'] >= 40 && $descScore['points'] < 12) {
+                $descScore['points'] = 12;
+                $descScore['reasons'] = ['Description credit boosted (strong MPN match overrides weak BOM description)'];
+                $descScore['warnings'] = [];
+            } elseif ($mpnInDescription && $descScore['points'] < 10) {
+                $descScore['points'] = 10;
+                $descScore['reasons'] = ['MPN found in product title/description'];
+                $descScore['warnings'] = [];
+            }
+            
             $score += $descScore['points'];
             $reasons = array_merge($reasons, $descScore['reasons']);
             $warnings = array_merge($warnings, $descScore['warnings']);
@@ -281,10 +315,14 @@ class PartMatchConfidenceCalculator
             $reasons[] = 'Pricing data available';
         }
         
-        // Has stock info
+        // Has stock info (real or estimated)
         if (isset($apiResult['stock']) && $apiResult['stock'] > 0) {
             $points += 2;
-            $reasons[] = 'In-stock availability confirmed';
+            if ($apiResult['_stock_estimated'] ?? false) {
+                $reasons[] = 'Supplier availability estimated (factory stock)';
+            } else {
+                $reasons[] = 'In-stock availability confirmed';
+            }
         }
         
         // Has datasheet
@@ -300,7 +338,8 @@ class PartMatchConfidenceCalculator
             
             // Warn about obsolete parts
             $obsoleteTerms = ['obsolete', 'discontinued', 'end of life', 'eol', 'nrnd'];
-            if (in_array(strtolower($apiResult['lifecycle']), $obsoleteTerms)) {
+            $lifecycle = is_string($apiResult['lifecycle']) ? $apiResult['lifecycle'] : '';
+            if (in_array(strtolower($lifecycle), $obsoleteTerms)) {
                 $reasons[] = 'WARNING: Part is obsolete/discontinued';
             }
         }
@@ -310,7 +349,23 @@ class PartMatchConfidenceCalculator
             $points += 1;
         }
         
-        return ['points' => $points, 'reasons' => $reasons];
+        // Alibaba-specific: verified supplier is a quality signal
+        if (!empty($apiResult['supplier_type']) && str_contains($apiResult['supplier_type'], 'Verified')) {
+            $points += 1;
+            $reasons[] = 'Verified supplier';
+        }
+        
+        // Alibaba-specific: trade assurance
+        if (!empty($apiResult['trade_assurance'])) {
+            $points += 1;
+            $reasons[] = 'Trade assurance protection';
+        }
+        
+        // Floor: results with real pricing + stock are inherently useful
+        if ($points < 5 && !empty($apiResult['pricing']) && is_array($apiResult['pricing'])) {
+            $points = max($points, 5);
+        }
+        return ['points' => min(10, $points), 'reasons' => $reasons];
     }
     
     /**
@@ -394,7 +449,7 @@ class PartMatchConfidenceCalculator
         }
         
         // Check for obsolete parts
-        $lifecycle = strtolower($apiResult['lifecycle'] ?? '');
+        $lifecycle = strtolower(is_string($apiResult['lifecycle'] ?? '') ? ($apiResult['lifecycle'] ?? '') : '');
         if (in_array($lifecycle, ['obsolete', 'discontinued', 'eol', 'nrnd'])) {
             return true;
         }

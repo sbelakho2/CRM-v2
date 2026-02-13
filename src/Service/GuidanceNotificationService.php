@@ -170,10 +170,10 @@ class GuidanceNotificationService
         if ($activityCount === 0) {
             $this->addGuidance(
                 'info',
-                "⚡ Log your first activity with {$companyName} to track engagement",
-                [],
+                'activity.log_first_activity_with',
+                ['%name%' => $companyName],
                 $this->urlGenerator->generate('app_activity_new', ['company' => $companyId]),
-                'Log Activity',
+                'activity.log_activity',
                 "company_{$companyId}_log_activity"
             );
         }
@@ -190,10 +190,10 @@ class GuidanceNotificationService
         // Suggest logging an activity
         $this->addGuidance(
             'info',
-            "📞 Log your first interaction with {$contactName} to start tracking engagement",
-            [],
+            'activity.log_first_interaction',
+            ['%name%' => $contactName],
             $this->urlGenerator->generate('app_activity_new', ['contact' => $contactId]),
-            'Log Activity',
+            'activity.log_activity',
             "contact_{$contactId}_log_activity"
         );
     }
@@ -249,10 +249,10 @@ class GuidanceNotificationService
             $companyId = $activity->getCompany()?->getId();
             $this->addGuidance(
                 'warning',
-                "⏰ Schedule a follow-up activity for {$companyName} - don't lose momentum!",
-                [],
+                'activity.schedule_follow_up',
+                ['%name%' => $companyName],
                 $companyId ? $this->urlGenerator->generate('app_activity_new', ['company' => $companyId]) : $this->urlGenerator->generate('app_activity_new'),
-                'Schedule Follow-up',
+                'activity.log_activity',
                 "activity_{$activityId}_followup"
             );
         }

@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ rfq.company.name }} - {{ 'rfq.show.title'|trans }}{% endblock %}
+{% block title %}{{ safe_company_name(rfq) }} - {{ 'rfq.show.title'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack rams-gap-6">
@@ -13,10 +13,10 @@
                     <li class="rams-breadcrumb__separator">/</li>
                     <li class="rams-breadcrumb__item"><a href="{{ path('app_rfq_index') }}" class="rams-breadcrumb__link">{{ 'rfq.index.title'|trans }}</a></li>
                     <li class="rams-breadcrumb__separator">/</li>
-                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ rfq.company.name }}</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ safe_company_name(rfq) }}</li>
                 </ol>
             </nav>
-            <h1 class="rams-page-title">{{ rfq.company.name }}</h1>
+            <h1 class="rams-page-title">{{ safe_company_name(rfq) }}</h1>
         </div>
         <div class="rams-page-actions">
             <div class="rams-btn-group">
@@ -64,7 +64,11 @@
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'rfq.fields.company'|trans }}</dt>
                             <dd class="rams-definition-list__desc">
-                                <a href="{{ path('app_company_show', {id: rfq.company.id}) }}" class="rams-link">{{ rfq.company.name }}</a>
+                                {% if safe_company_id(rfq) %}
+                                    <a href="{{ path('app_company_show', {id: safe_company_id(rfq)}) }}" class="rams-link">{{ safe_company_name(rfq) }}</a>
+                                {% else %}
+                                    <span class="rams-text--muted">{{ safe_company_name(rfq) }}</span>
+                                {% endif %}
                             </dd>
                         </div>
 
@@ -260,14 +264,16 @@
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-2">
-                        <a href="{{ path('app_company_show', {id: rfq.company.id}) }}" class="rams-btn rams-w-full">
+                        {% if safe_company_id(rfq) %}
+                        <a href="{{ path('app_company_show', {id: safe_company_id(rfq)}) }}" class="rams-btn rams-w-full">
                             <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M2 13V5L8 2L14 5V13"/><rect x="5" y="8" width="2" height="5"/><rect x="9" y="8" width="2" height="5"/>
                             </svg>
                             {{ 'rfq.actions.view_company'|trans }}
                         </a>
 
-                        <a href="{{ path('app_activity_new', {company: rfq.company.id}) }}" class="rams-btn rams-w-full">
+                        <a href="{{ path('app_activity_new', {company: safe_company_id(rfq), redirect: 'app_rfq_show', redirect_params: {id: rfq.id}|json_encode}) }}" class="rams-btn rams-w-full">
+                        {% endif %}
                             <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="8" cy="8" r="6"/><path d="M8 4V8L11 11"/>
                             </svg>

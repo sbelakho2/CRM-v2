@@ -27,19 +27,19 @@
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
                 <div class="rams-metric__label text-rams-red">{{ 'quote.review.high_priority'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-red">{{ quotes|filter(q => q[2] > 5)|length }}</div>
+                <div class="rams-metric__value tabular-nums text-rams-red">{{ quotes|filter(q => q.review_count > 5)|length }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
                 <div class="rams-metric__label text-rams-green">{{ 'quote.review.ready_approve'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-green">{{ quotes|filter(q => q[2] == 0)|length }}</div>
+                <div class="rams-metric__value tabular-nums text-rams-green">{{ quotes|filter(q => q.review_count == 0)|length }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
                 <div class="rams-metric__label text-rams-orange">{{ 'quote.review.in_progress'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-orange">{{ quotes|filter(q => q[2] > 0 and q[2] <= 5)|length }}</div>
+                <div class="rams-metric__value tabular-nums text-rams-orange">{{ quotes|filter(q => q.review_count > 0 and q.review_count <= 5)|length }}</div>
             </div>
         </div>
     </div>
@@ -78,14 +78,14 @@
                     <tbody>
                         {% for quote in quotes %}
                             {% set q = quote[0] %}
-                            {% set totalLines = quote[1] %}
-                            {% set reviewCount = quote[2] %}
+                            {% set totalLines = quote.total_lines %}
+                            {% set reviewCount = quote.review_count %}
                             <tr>
                                 <td>
                                     <div class="font-bold">{{ q.quoteNumber }}</div>
                                     <div class="text-xs text-rams-muted tabular-nums">{{ q.totalCost|format_currency(q.currency, null, 2) }}</div>
                                 </td>
-                                <td>{{ q.company.name ?: 'common.n_a'|trans }}</td>
+                                <td>{{ quote.company_name ?? ('common.n_a'|trans) }}</td>
                                 <td class="tabular-nums">{{ totalLines }} {{ 'quote.lines'|trans }}</td>
                                 <td>
                                     {% if reviewCount == 0 %}

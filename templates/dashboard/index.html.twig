@@ -13,7 +13,7 @@
     <div class="rams-page-header">
         <div>
             <h1 class="rams-page-title">{{ 'dashboard.title'|trans }}</h1>
-            <p class="rams-page-subtitle">{{ 'dashboard.overview'|trans }} - 90 {{ 'dashboard.days'|trans|default('DAYS') }}</p>
+            <p class="rams-page-subtitle">{{ 'dashboard.overview'|trans }} - 90 {{ 'dashboard.days'|trans }}</p>
         </div>
     </div>
 
@@ -48,7 +48,7 @@
             <div class="rams-module__content">
                 <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
                     <div class="rams-metric">
-                        <span class="rams-metric__label rams-uppercase rams-text--3xs rams-font-mono">{{ 'common.submit'|trans }} {{ 'rfq.title'|trans }}</span>
+                        <span class="rams-metric__label rams-uppercase rams-text--3xs rams-font-mono">{{ 'rfq.submitted_rfqs'|trans }}</span>
                         <span class="rams-metric__value rams-text--xl">{{ kpis.rfq_count }}</span>
                     </div>
                     <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
@@ -206,7 +206,7 @@
                         </div>
                         <div class="rams-flex-1 rams-overflow-hidden">
                             <p class="rams-text--xs rams-text--bold rams-uppercase rams-font-mono rams-mb-0">{{ activity.type }}</p>
-                            <p class="rams-text-3xs rams-text--muted rams-truncate rams-mb-0">{{ activity.company.name }}</p>
+                            <p class="rams-text-3xs rams-text--muted rams-truncate rams-mb-0">{{ safe_company_name(activity) }}</p>
                         </div>
                         <span class="rams-text-3xs rams-text--muted rams-font-mono rams-uppercase">{{ activity.activityDate|date('M d') }}</span>
                     </div>
@@ -263,7 +263,7 @@
                         <div>
                             <p class="rams-text--xs rams-text--bold rams-mb-0">{{ doc.name }}</p>
                             <p class="rams-text-3xs rams-text--muted rams-mb-0">
-                                {{ doc.company ? doc.company.name : 'No Company' }}
+                                {{ safe_company_name(doc, 'No Company') }}
                             </p>
                         </div>
                     </div>

@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'rfq.edit.title'|trans }} - {{ rfq.company.name }}{% endblock %}
+{% block title %}{{ 'rfq.edit.title'|trans }} - {{ safe_company_name(rfq) }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack rams-gap-6">
@@ -13,13 +13,13 @@
                     <li class="rams-breadcrumb__separator">/</li>
                     <li class="rams-breadcrumb__item"><a href="{{ path('app_rfq_index') }}" class="rams-breadcrumb__link">{{ 'rfq.index.title'|trans }}</a></li>
                     <li class="rams-breadcrumb__separator">/</li>
-                    <li class="rams-breadcrumb__item"><a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-breadcrumb__link">{{ rfq.company.name }}</a></li>
+                    <li class="rams-breadcrumb__item"><a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-breadcrumb__link">{{ safe_company_name(rfq) }}</a></li>
                     <li class="rams-breadcrumb__separator">/</li>
                     <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'common.edit'|trans }}</li>
                 </ol>
             </nav>
             <h1 class="rams-page-title">{{ 'rfq.edit.title'|trans }}</h1>
-            <p class="rams-page-subtitle">{{ rfq.company.name }}</p>
+            <p class="rams-page-subtitle">{{ safe_company_name(rfq) }}</p>
         </div>
     </div>
 

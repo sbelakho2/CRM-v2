@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'quote.estimator.title'|trans }} - {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-module">
+    <div class="rams-module__header">
+        <h1 class="rams-module__title">{{ 'quote.estimator.title'|trans }}</h1>
+        <p class="rams-module__subtitle rams-text--muted">{{ 'quote.estimator.subtitle'|trans }}</p>
+    </div>
+    <div class="rams-module__body">
+        <p class="rams-text--muted">{{ 'quote.estimator.description'|trans }}</p>
+    </div>
+</div>
+{% endblock %}

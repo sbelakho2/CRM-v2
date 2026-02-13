@@ -18,7 +18,15 @@
             <p class="rams-page-subtitle">{{ supplier.region }}</p>
         </div>
         <div class="rams-page-actions">
-            <span class="rams-badge rams-badge--lg">{{ supplier.status }}</span>
+            {% set status_raw = supplier.status|default('') %}
+            {% set status_label = status_raw == 'Active'
+                ? 'supplier.portal.status_active'|trans
+                : (status_raw == 'Pending'
+                    ? 'supplier.portal.status_pending'|trans
+                    : (status_raw == 'Inactive'
+                        ? 'supplier.portal.status_inactive'|trans
+                        : (status_raw ? status_raw : 'common.n_a'|trans))) %}
+            <span class="rams-badge rams-badge--lg">{{ status_label }}</span>
         </div>
     </div>
 

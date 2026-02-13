@@ -124,7 +124,11 @@ class ActivityController extends AbstractController
         $activities = $qb->getQuery()->getResult();
 
         // Get filter options
-        $types = ['Call', 'Email', 'Meeting', 'Follow-up', 'Site Visit', 'Demo'];
+        $types = [
+            'Call', 'Email', 'Meeting', 'Follow-up', 'Site Visit', 'Demo', 
+            'Proposal', 'Negotiation', 'Task', 'Note', 
+            'LinkedIn Message', 'LinkedIn Connection Request', 'LinkedIn InMail', 'Other'
+        ];
         
         $companies = $this->companyRepository->createQueryBuilder('c')
             ->orderBy('c.name', 'ASC')
@@ -238,7 +242,23 @@ class ActivityController extends AbstractController
 
             $this->addFlash('success', 'Activity logged successfully!');
 
-            return $this->redirectToRoute('app_activity_index');
+            $targetRoute = $request->query->get('redirect', 'app_activity_index');
+            $targetParams = [];
+            
+            $redirectParams = $request->query->get('redirect_params');
+            if ($redirectParams) {
+                $targetParams = json_decode($redirectParams, true) ?: [];
+            } elseif ($targetRoute === 'app_company_show' && $activity->getCompany()) {
+                $targetParams = ['id' => $activity->getCompany()->getId()];
+            } elseif ($targetRoute === 'app_contact_show' && $activity->getContact()) {
+                $targetParams = ['id' => $activity->getContact()->getId()];
+            }
+
+            try {
+                return $this->redirectToRoute($targetRoute, $targetParams);
+            } catch (\Exception $e) {
+                return $this->redirectToRoute('app_activity_index');
+            }
         }
 
         // For pre-selected contact, get just that contact's data for initial display

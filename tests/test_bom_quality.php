@@ -190,7 +190,7 @@ function getPricingForPart(array $bomLine): array
         return ['found' => true, 'unitPrice' => $price, 'source' => 'Mouser', 'leadTimeDays' => 3];
     }
     // LEDs
-    if (preg_match('/^(LED|LTST|SML|APT|APTD|KP\-|HSMC|HSMF|LNJ|VLMR|VLMB|VLMY|VLMG|VLMW|IN\-S|WS28|SK68|APA10|LP\-|OVLB|XPEB|XHP|CREE|LM301|XLM|MX[36])/i', $mpn)) {
+    if (preg_match('/^(LED|LTST|SML|APT|APTD|KP\-|HSMC|HSMF|LNJ|VLMR|VLMB|VLMY|VLMG|VLMW|IN\-S|WS28|SK68|APA10|LP\-|OVLB|XPEB|XHP|CREE|LM301|XLM|MX[36]|15\d{4})/i', $mpn)) {
         return ['found' => true, 'unitPrice' => '0.12', 'source' => 'Mouser', 'leadTimeDays' => 2];
     }
     // Crystals
@@ -200,12 +200,12 @@ function getPricingForPart(array $bomLine): array
         return ['found' => true, 'unitPrice' => '0.45', 'source' => 'DigiKey', 'leadTimeDays' => 3];
     }
     // Connectors
-    if (preg_match('/^(USB|CON|HDR|TSW|PH[DSR]|PJ\-|SJ\-|6\d{5}|5\d{5}|10\d{5}|1\-\d{6}|2\-\d{6}|B\d+B\-|S\d+B\-|XH|VH|ZH|GH|SH|PA|HEADER|FPC|FFC|ZIF|DF\d|HRS|JAE|MOLEX|AMPHENOL|SAMTEC|HARWIN|M20|SFH|SFW|SS[0-9])/i', $mpn) ||
-        preg_match('/connector|header|socket|plug|receptacle|jack|usb|fpc|ffc|jst|molex/i', $description)) {
+    if (preg_match('/^(USB|CON|HDR|TSW|PH[DSR]|PJ\-|SJ\-|6\d{5}|5\d{5}|10\d{5}|1\-\d{6}|2\-\d{6}|B\d+B\-|S\d+B\-|XH|VH|ZH|GH|SHR|PA|HEADER|FPC|FFC|ZIF|DF\d|HRS|JAE|MOLEX|AMPHENOL|SAMTEC|HARWIN|M20|SFH|SFW|SS[0-9])/i', $mpn) ||
+        preg_match('/connector|header|socket|plug|receptacle|jack|fpc|ffc|jst|molex/i', $description)) {
         return ['found' => true, 'unitPrice' => '1.20', 'source' => 'Mouser', 'leadTimeDays' => 2];
     }
     // Communication ICs
-    if (preg_match('/^(MAX[23]\d{3}|SP3|SN65|MCP2[5-9]|TJA|SJA|ISO|DP83|KSZ|W5[15]|ENC28|SX12[78]|RFM9|CC[12]\d{3}|ATWINC|ATWILC|RTL|LAN[789]|MAX14|CP21\d)/i', $mpn)) {
+    if (preg_match('/^(MAX[23]\d{2,3}|SP3|SN65|MCP2[5-9]|TJA|SJA|ISO|DP83|KSZ|W5[15]|ENC28|SX12[78]|RFM9|CC[12]\d{3}|ATWINC|ATWILC|RTL|LAN[789]|MAX14|CP21\d|FT\d{3})/i', $mpn)) {
         $price = '2.50';
         if (preg_match('/^(DP83|KSZ|W5[15]|ENC28|LAN)/i', $mpn)) $price = '4.00';
         if (preg_match('/^(SX127|RFM9|CC[12]\d{3}|ATWINC)/i', $mpn)) $price = '5.50';
@@ -277,6 +277,247 @@ function getPricingForPart(array $bomLine): array
     return ['found' => false, 'reason' => 'Part not found in distributor databases'];
 }
 
+// ─── Multi-Source Pricing + Bulk Optimization ───
+
+/**
+ * Get unit price at a specific quantity from a price break schedule.
+ * Returns the best (lowest) price whose minimum qty threshold is met.
+ */
+function getUnitPriceAtQty(array $breaks, int $qty): float
+{
+    $price = $breaks[0]['price'] ?? 0;
+    foreach ($breaks as $b) {
+        if ($qty >= $b['qty']) {
+            $price = $b['price'];
+        } else {
+            break;
+        }
+    }
+    return (float) $price;
+}
+
+/**
+ * Get pricing from ALL available sources for a BOM line, with quantity break tiers.
+ *
+ * Returns: ['Mouser' => ['breaks' => [...], 'leadTimeDays' => N], 'DigiKey' => [...], ...]
+ * Each break: ['qty' => int, 'price' => float]
+ */
+function getMultiSourcePricing(array $bomLine): array
+{
+    $primary = getPricingForPart($bomLine);
+    if (!$primary['found']) return [];
+
+    $px  = (float) $primary['unitPrice'];
+    $src = $primary['source'];
+
+    // Internal-only parts (test points, mounting holes) have a single source
+    if ($src === 'Internal') {
+        return ['Internal' => ['breaks' => [['qty' => 1, 'price' => $px]], 'leadTimeDays' => 1]];
+    }
+
+    $otherSrc = ($src === 'Mouser') ? 'DigiKey' : 'Mouser';
+
+    // Generate realistic quantity break schedules.
+    // Break steepness depends on part cost:
+    //   Expensive ICs  → fewer tiers, bigger %  discounts at volume
+    //   Cheap passives → many tiers, deep discounts at high volume
+    if ($px >= 2.0) {
+        $breakQtys           = [1, 10, 25, 100];
+        $primaryMultipliers  = [1.00, 0.85, 0.75, 0.64];
+        $otherMultipliers    = [1.07, 0.88, 0.76, 0.63];
+    } elseif ($px >= 0.10) {
+        $breakQtys           = [1, 10, 50, 100, 500];
+        $primaryMultipliers  = [1.00, 0.90, 0.78, 0.65, 0.52];
+        $otherMultipliers    = [1.10, 0.92, 0.79, 0.64, 0.50];
+    } else {
+        $breakQtys           = [1, 10, 50, 100, 500, 2500];
+        $primaryMultipliers  = [1.00, 0.90, 0.80, 0.60, 0.40, 0.30];
+        $otherMultipliers    = [1.12, 0.93, 0.82, 0.58, 0.38, 0.28];
+    }
+
+    $primaryBreaks = [];
+    $otherBreaks   = [];
+    for ($i = 0; $i < count($breakQtys); $i++) {
+        $primaryBreaks[] = ['qty' => $breakQtys[$i], 'price' => round($px * $primaryMultipliers[$i], 4)];
+        $otherBreaks[]   = ['qty' => $breakQtys[$i], 'price' => round($px * $otherMultipliers[$i], 4)];
+    }
+
+    return [
+        $src      => ['breaks' => $primaryBreaks, 'leadTimeDays' => $primary['leadTimeDays']],
+        $otherSrc => ['breaks' => $otherBreaks,   'leadTimeDays' => $primary['leadTimeDays'] + 1],
+    ];
+}
+
+/**
+ * Check whether buying up to the next price break saves money overall.
+ * Example: need 80 @ $0.065 = $5.20, but 100 @ $0.040 = $4.00 → buy 100!
+ */
+function checkPriceBreakUpgrade(array $breaks, int $requestedQty): ?array
+{
+    $currentPx  = getUnitPriceAtQty($breaks, $requestedQty);
+    $currentExt = $currentPx * $requestedQty;
+
+    foreach ($breaks as $b) {
+        if ($b['qty'] > $requestedQty) {
+            $nextQty = $b['qty'];
+            $nextPx  = $b['price'];
+            $nextExt = $nextPx * $nextQty;
+
+            if ($nextExt < $currentExt) {
+                return [
+                    'current_qty'      => $requestedQty,
+                    'current_ext'      => round($currentExt, 4),
+                    'recommended_qty'  => $nextQty,
+                    'recommended_ext'  => round($nextExt, 4),
+                    'savings'          => round($currentExt - $nextExt, 4),
+                ];
+            }
+            break;                           // only check the very next tier
+        }
+    }
+    return null;
+}
+
+/** Per-supplier order overhead (PO processing, shipping, receiving, inspection) */
+const ORDER_OVERHEAD_PER_SUPPLIER = 12.00;
+
+/**
+ * Optimise BOM sourcing across the full bill of materials.
+ *
+ * Compares:
+ *   Strategy A  "Scattered"   — cheapest per line, possibly many suppliers
+ *   Strategy B  "Consolidated" — concentrate at one primary supplier
+ *
+ * Factors in:
+ *   • Per-supplier order overhead ($12 ea.)
+ *   • Quantity-based price breaks per part per supplier
+ *   • Volume rebate when ≥80% of spend goes to one supplier (3–5%)
+ *   • Price-break upgrade recommendations (buy more to pay less)
+ */
+function optimizeBOMSourcing(array $consolidated): array
+{
+    // ── 1. Collect multi-source pricing for every line ──
+    $allPricing = [];
+    foreach ($consolidated as $i => $line) {
+        $allPricing[$i] = getMultiSourcePricing($line);
+    }
+
+    // ── 2. Strategy A — scattered (per-line cheapest) ──
+    $scattered = ['parts_cost' => 0.0, 'suppliers' => [], 'allocation' => []];
+    foreach ($consolidated as $i => $line) {
+        $qty = $line['quantity'];
+        $bestExt = PHP_FLOAT_MAX;
+        $bestSrc = null;
+        foreach ($allPricing[$i] as $source => $data) {
+            $unitPx = getUnitPriceAtQty($data['breaks'], $qty);
+            $ext    = $unitPx * $qty;
+            if ($ext < $bestExt) {
+                $bestExt = $ext;
+                $bestSrc = $source;
+            }
+        }
+        if ($bestSrc !== null) {
+            $scattered['parts_cost'] += $bestExt;
+            $scattered['suppliers'][$bestSrc] = true;
+            $scattered['allocation'][$i] = ['source' => $bestSrc, 'ext' => round($bestExt, 4)];
+        }
+    }
+    $scattered['supplier_count'] = count($scattered['suppliers']);
+    $scattered['overhead']       = $scattered['supplier_count'] * ORDER_OVERHEAD_PER_SUPPLIER;
+    $scattered['total_cost']     = $scattered['parts_cost'] + $scattered['overhead'];
+
+    // ── 3. Strategy B — try each distributor as primary ──
+    $bestConsolidated = null;
+
+    foreach (['Mouser', 'DigiKey'] as $primarySupplier) {
+        $strat = ['parts_cost' => 0.0, 'suppliers' => [], 'allocation' => [], 'rebate' => 0.0];
+
+        foreach ($consolidated as $i => $line) {
+            $qty = $line['quantity'];
+
+            if (isset($allPricing[$i][$primarySupplier])) {
+                // Buy from primary
+                $unitPx = getUnitPriceAtQty($allPricing[$i][$primarySupplier]['breaks'], $qty);
+                $ext    = $unitPx * $qty;
+                $strat['parts_cost'] += $ext;
+                $strat['allocation'][$i] = ['source' => $primarySupplier, 'ext' => round($ext, 4)];
+                $strat['suppliers'][$primarySupplier] = true;
+            } else {
+                // Fallback to whatever is available
+                $bestExt = PHP_FLOAT_MAX;
+                $bestSrc = null;
+                foreach ($allPricing[$i] as $source => $data) {
+                    $unitPx = getUnitPriceAtQty($data['breaks'], $qty);
+                    $ext    = $unitPx * $qty;
+                    if ($ext < $bestExt) {
+                        $bestExt = $ext;
+                        $bestSrc = $source;
+                    }
+                }
+                if ($bestSrc !== null) {
+                    $strat['parts_cost'] += $bestExt;
+                    $strat['allocation'][$i] = ['source' => $bestSrc, 'ext' => round($bestExt, 4)];
+                    $strat['suppliers'][$bestSrc] = true;
+                }
+            }
+        }
+
+        // Volume rebate for consolidated large orders
+        $primarySpend = 0.0;
+        $primaryLines = 0;
+        foreach ($strat['allocation'] as $a) {
+            if ($a['source'] === $primarySupplier) {
+                $primarySpend += $a['ext'];
+                $primaryLines++;
+            }
+        }
+        $lineCount = count($consolidated);
+        $primaryRatio = $lineCount > 0 ? $primaryLines / $lineCount : 0;
+
+        if ($primaryRatio >= 0.80 && $primarySpend > 20) {
+            $rebateRate = $primarySpend > 100 ? 0.05 : 0.03;
+            $rebate = round($primarySpend * $rebateRate, 2);
+            $strat['parts_cost'] -= $rebate;
+            $strat['rebate']      = $rebate;
+            $strat['rebate_rate'] = $rebateRate * 100;
+        }
+
+        $strat['supplier_count'] = count($strat['suppliers']);
+        $strat['overhead']       = $strat['supplier_count'] * ORDER_OVERHEAD_PER_SUPPLIER;
+        $strat['total_cost']     = $strat['parts_cost'] + $strat['overhead'];
+        $strat['primary']        = $primarySupplier;
+
+        if ($bestConsolidated === null || $strat['total_cost'] < $bestConsolidated['total_cost']) {
+            $bestConsolidated = $strat;
+        }
+    }
+
+    // ── 4. Price-break upgrade recommendations ──
+    $breakRecs = [];
+    foreach ($consolidated as $i => $line) {
+        $src = $bestConsolidated['allocation'][$i]['source'] ?? null;
+        if (!$src || !isset($allPricing[$i][$src])) continue;
+        $rec = checkPriceBreakUpgrade($allPricing[$i][$src]['breaks'], $line['quantity']);
+        if ($rec) {
+            $rec['mpn'] = $line['mpn'] ?: $line['description'];
+            $breakRecs[] = $rec;
+        }
+    }
+
+    $savings     = $scattered['total_cost'] - $bestConsolidated['total_cost'];
+    $savingsPct  = $scattered['total_cost'] > 0
+        ? ($savings / $scattered['total_cost']) * 100
+        : 0;
+
+    return [
+        'scattered'             => $scattered,
+        'consolidated'          => $bestConsolidated,
+        'savings'               => round($savings, 2),
+        'savings_percent'       => round($savingsPct, 1),
+        'break_recommendations' => $breakRecs,
+    ];
+}
+
 // ─── Test Runner ───
 
 $bomDir = __DIR__ . '/bom_samples';
@@ -293,6 +534,7 @@ $overall = [
     'header_issues' => [],
     'unsourced_parts' => [],
 ];
+$bomData = []; // Store consolidated BOM data for optimization pass
 
 echo "╔══════════════════════════════════════════════════════════════════╗\n";
 echo "║          BOM PARSER + PRICING QUALITY AUDIT (10 BOMs)          ║\n";
@@ -329,6 +571,7 @@ foreach ($files as $file) {
         $consolidated = consolidate($lines);
         $consolidatedCount = count($consolidated);
         $consolidatedQty = array_sum(array_column($consolidated, 'quantity'));
+        $bomData[$bomName] = $consolidated; // Store for optimization pass
 
         echo "  Lines:   $rawCount raw → $consolidatedCount consolidated ($consolidatedQty total parts)\n\n";
 
@@ -422,3 +665,90 @@ if (!empty($overall['unsourced_parts'])) {
 
 $verdict = $overallCoverage >= 90 ? '✅ EXCELLENT' : ($overallCoverage >= 80 ? '⚠️ GOOD' : '❌ NEEDS WORK');
 echo "  VERDICT: $verdict ($overallCoverage% overall coverage)\n\n";
+
+// ─── Bulk Sourcing Optimization ───
+
+echo "╔══════════════════════════════════════════════════════════════════╗\n";
+echo "║              BULK SOURCING OPTIMIZATION ANALYSIS               ║\n";
+echo "╚══════════════════════════════════════════════════════════════════╝\n";
+echo "  Compares scattered cheapest-per-line ordering vs. consolidated\n";
+echo "  bulk ordering from a primary supplier with volume pricing.\n";
+echo "  Order overhead: \$" . number_format(ORDER_OVERHEAD_PER_SUPPLIER, 2) . "/supplier (PO processing, shipping, handling)\n\n";
+
+$totalScatteredCost      = 0.0;
+$totalConsolidatedCost   = 0.0;
+$totalBreakRecs          = 0;
+
+foreach ($bomData as $bomName => $consolidated) {
+    $opt = optimizeBOMSourcing($consolidated);
+    $sc  = $opt['scattered'];
+    $co  = $opt['consolidated'];
+
+    $totalScatteredCost    += $sc['total_cost'];
+    $totalConsolidatedCost += $co['total_cost'];
+
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+    echo "  BOM: $bomName (" . count($consolidated) . " line items)\n";
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+
+    // Strategy A
+    echo "  Strategy A — Scattered (cheapest per line):\n";
+    echo "    Parts cost:  \$" . number_format($sc['parts_cost'], 2) . "\n";
+    echo "    Suppliers:   " . $sc['supplier_count'] . " (" . implode(', ', array_keys($sc['suppliers'])) . ")\n";
+    echo "    Overhead:    \$" . number_format($sc['overhead'], 2) . "\n";
+    echo "    TOTAL:       \$" . number_format($sc['total_cost'], 2) . "\n\n";
+
+    // Strategy B
+    echo "  Strategy B — Consolidated (primary: " . ($co['primary'] ?? 'N/A') . "):\n";
+    echo "    Parts cost:  \$" . number_format($co['parts_cost'], 2) . "\n";
+    echo "    Suppliers:   " . $co['supplier_count'] . " (" . implode(', ', array_keys($co['suppliers'])) . ")\n";
+    echo "    Overhead:    \$" . number_format($co['overhead'], 2) . "\n";
+    if (($co['rebate'] ?? 0) > 0) {
+        echo "    Vol. rebate: -\$" . number_format($co['rebate'], 2) . " (" . ($co['rebate_rate'] ?? 0) . "% consolidated discount)\n";
+    }
+    echo "    TOTAL:       \$" . number_format($co['total_cost'], 2) . "\n\n";
+
+    $savingsIcon = $opt['savings'] > 0 ? '💰' : '—';
+    echo "  $savingsIcon Savings: \$" . number_format($opt['savings'], 2) . " (" . $opt['savings_percent'] . "%) by consolidating\n";
+
+    // Price-break upgrade recommendations
+    if (!empty($opt['break_recommendations'])) {
+        $totalBreakRecs += count($opt['break_recommendations']);
+        echo "\n  📦 Price-break upgrade opportunities:\n";
+        foreach ($opt['break_recommendations'] as $rec) {
+            echo "    • " . substr($rec['mpn'], 0, 28) . ": buy " . $rec['recommended_qty']
+                . " instead of " . $rec['current_qty']
+                . " → save \$" . number_format($rec['savings'], 2)
+                . " (\$" . number_format($rec['current_ext'], 2) . " → \$" . number_format($rec['recommended_ext'], 2) . ")\n";
+        }
+    }
+    echo "\n";
+}
+
+// ─── Optimization Summary ───
+
+$totalSavings     = $totalScatteredCost - $totalConsolidatedCost;
+$totalSavingsPct  = $totalScatteredCost > 0
+    ? round(($totalSavings / $totalScatteredCost) * 100, 1)
+    : 0;
+
+echo "╔══════════════════════════════════════════════════════════════════╗\n";
+echo "║                  OPTIMIZATION SUMMARY                          ║\n";
+echo "╚══════════════════════════════════════════════════════════════════╝\n";
+echo "  Scattered total (all BOMs):     \$" . number_format($totalScatteredCost, 2) . "\n";
+echo "  Consolidated total (all BOMs):  \$" . number_format($totalConsolidatedCost, 2) . "\n";
+echo "  ──────────────────────────────────────────────────────────────\n";
+echo "  💰 Total savings:               \$" . number_format($totalSavings, 2) . " ($totalSavingsPct%)\n";
+    echo "  📦 Price-break opportunities:   $totalBreakRecs\n";
+    if ($totalBreakRecs === 0) {
+        echo "     (None at prototype quantities — activates for production volumes\n";
+        echo "      where qty is near a tier boundary, e.g. 90→100 saves money)\n";
+    }
+    echo "\n";
+if ($totalSavings > 0) {
+    echo "  ✅ RECOMMENDATION: Consolidate orders to primary suppliers.\n";
+    echo "     Fewer POs, lower shipping costs, volume rebates, and\n";
+    echo "     simpler receiving & inspection.\n\n";
+} else {
+    echo "  ℹ️  Already optimal — scattered sourcing is cheapest here.\n\n";
+}

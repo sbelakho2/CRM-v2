@@ -75,7 +75,7 @@ class CompanyDiscoveryServiceTest extends TestCase
         $this->mockQueryBuilder(null);
 
         $this->em->expects($this->exactly(2))->method('persist');
-        $this->em->expects($this->once())->method('flush');
+        $this->em->expects($this->exactly(2))->method('flush');
 
         $result = $this->service->discoverCompanies($sector, $location);
 

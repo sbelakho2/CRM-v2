@@ -80,7 +80,7 @@
                 <span>{{ quote.quoteNumber }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'quote.review.review'|trans }}: {{ quote.quoteNumber }}</h1>
-            <p class="rams-page__subtitle">{{ quote.company.name ?: 'common.n_a'|trans }} · {{ quote.createdAt|date('M j, Y g:i A') }}</p>
+            <p class="rams-page__subtitle">{{ company_name ?? ('common.n_a'|trans) }} · {{ quote.createdAt|date('M j, Y g:i A') }}</p>
         </div>
         <div class="rams-page__actions">
             <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" class="rams-btn uppercase" title="{{ 'quote.copilot.download_pdf'|trans }}">
