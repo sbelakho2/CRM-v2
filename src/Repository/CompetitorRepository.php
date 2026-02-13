@@ -58,7 +58,7 @@ class CompetitorRepository extends ServiceEntityRepository
     /**
      * Dashboard query: get competitors with filters
      *
-     * @param array $filters Keys: status, directness, type, region, sector, search, minThreat, minOverlap
+     * @param array $filters Keys: status, directness, type, region, country, sector, search, minThreat, minOverlap, proofGrade, seedOnly
      * @param string $sortBy Column to sort by
      * @param string $sortDir ASC or DESC
      * @return Competitor[]
@@ -66,38 +66,7 @@ class CompetitorRepository extends ServiceEntityRepository
     public function findFiltered(array $filters = [], string $sortBy = 'threatScore', string $sortDir = 'DESC', int $limit = 100, int $offset = 0): array
     {
         $qb = $this->createQueryBuilder('c');
-
-        if (!empty($filters['status'])) {
-            $qb->andWhere('c.status = :status')->setParameter('status', $filters['status']);
-        }
-        if (!empty($filters['directness'])) {
-            $qb->andWhere('c.directness = :directness')->setParameter('directness', $filters['directness']);
-        }
-        if (!empty($filters['type'])) {
-            $qb->andWhere('c.competitorTypes LIKE :type')
-               ->setParameter('type', '%"' . $filters['type'] . '"%');
-        }
-        if (!empty($filters['region'])) {
-            $qb->andWhere('c.regions LIKE :region')
-               ->setParameter('region', '%"' . $filters['region'] . '"%');
-        }
-        if (!empty($filters['sector'])) {
-            $qb->andWhere('c.industries LIKE :sector')
-               ->setParameter('sector', '%"' . $filters['sector'] . '"%');
-        }
-        if (!empty($filters['search'])) {
-            $qb->andWhere('c.name LIKE :search OR c.canonicalDomain LIKE :search')
-               ->setParameter('search', '%' . $filters['search'] . '%');
-        }
-        if (isset($filters['minThreat'])) {
-            $qb->andWhere('c.threatScore >= :minThreat')->setParameter('minThreat', (int)$filters['minThreat']);
-        }
-        if (isset($filters['minOverlap'])) {
-            $qb->andWhere('c.overlapScore >= :minOverlap')->setParameter('minOverlap', (int)$filters['minOverlap']);
-        }
-        if (!empty($filters['seedOnly'])) {
-            $qb->andWhere('c.seedOnly = :seedOnly')->setParameter('seedOnly', $filters['seedOnly'] === 'yes');
-        }
+        $this->applyFilters($qb, $filters);
 
         // Validate sort column
         $validSorts = ['threatScore', 'overlapScore', 'strategicRelevanceScore', 'name', 'createdAt', 'updatedAt', 'lastCrawledAt', 'status'];
@@ -118,7 +87,14 @@ class CompetitorRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('c')
             ->select('COUNT(c.id)');
+        $this->applyFilters($qb, $filters);
 
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /** Shared filter application for findFiltered / countFiltered */
+    private function applyFilters(\Doctrine\ORM\QueryBuilder $qb, array $filters): void
+    {
         if (!empty($filters['status'])) {
             $qb->andWhere('c.status = :status')->setParameter('status', $filters['status']);
         }
@@ -129,12 +105,34 @@ class CompetitorRepository extends ServiceEntityRepository
             $qb->andWhere('c.competitorTypes LIKE :type')
                ->setParameter('type', '%"' . $filters['type'] . '"%');
         }
+        if (!empty($filters['region'])) {
+            $qb->andWhere('c.regions LIKE :region')
+               ->setParameter('region', '%"' . $filters['region'] . '"%');
+        }
+        if (!empty($filters['country'])) {
+            $qb->andWhere('c.hqCountry LIKE :country')
+               ->setParameter('country', '%' . $filters['country'] . '%');
+        }
+        if (!empty($filters['sector'])) {
+            $qb->andWhere('c.industries LIKE :sector')
+               ->setParameter('sector', '%"' . $filters['sector'] . '"%');
+        }
         if (!empty($filters['search'])) {
             $qb->andWhere('c.name LIKE :search OR c.canonicalDomain LIKE :search')
                ->setParameter('search', '%' . $filters['search'] . '%');
         }
-
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        if (isset($filters['minThreat']) && $filters['minThreat'] !== null) {
+            $qb->andWhere('c.threatScore >= :minThreat')->setParameter('minThreat', (int)$filters['minThreat']);
+        }
+        if (isset($filters['minOverlap']) && $filters['minOverlap'] !== null) {
+            $qb->andWhere('c.overlapScore >= :minOverlap')->setParameter('minOverlap', (int)$filters['minOverlap']);
+        }
+        if (!empty($filters['proofGrade'])) {
+            $qb->andWhere('c.proofGrade = :proofGrade')->setParameter('proofGrade', $filters['proofGrade']);
+        }
+        if (!empty($filters['seedOnly'])) {
+            $qb->andWhere('c.seedOnly = :seedOnly')->setParameter('seedOnly', $filters['seedOnly'] === 'yes');
+        }
     }
 
     /** Get all verified/profiled/monitoring competitors (active pipeline) */

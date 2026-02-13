@@ -587,15 +587,8 @@ HELP
             return null;
         }
 
-        // Reject single-word names that look like first names, not companies
-        $wordCount = str_word_count($name);
-        if ($wordCount <= 1 && mb_strlen($name) < 20 && !preg_match('/[A-Z]{2,}/', $name)) {
-            // Single short word with no uppercase run → likely a person first name
-            return null;
-        }
-
-        // Reject names that are just numbers or very short
-        if (mb_strlen($name) < 3 || preg_match('/^\d+$/', $name)) {
+        // Reject names that are just numbers or very short (< 2 chars)
+        if (mb_strlen($name) < 2 || preg_match('/^\d+$/', $name)) {
             return null;
         }
 
@@ -639,6 +632,11 @@ HELP
 
         if ($existingCompany !== null) {
             $company = $existingCompany;
+            // Fix name if it still has platform suffixes (legacy data)
+            $existingClean = $this->cleanCompanyName($company->getName() ?? '');
+            if ($existingClean !== null && $existingClean !== $company->getName()) {
+                $company->setName($existingClean);
+            }
             // Update sector if not set
             if (empty($company->getSector()) && !empty($sector)) {
                 $company->setSector($sector);
@@ -675,9 +673,57 @@ HELP
         }
 
         foreach ($contacts as $c) {
-            $firstName = $c['first_name'] ?? '';
-            $lastName = $c['last_name'] ?? '';
+            $firstName = trim($c['first_name'] ?? '');
+            $lastName = trim($c['last_name'] ?? '');
             if (empty($firstName) || empty($lastName)) {
+                continue;
+            }
+
+            // ── Contact-level junk filter ──────────────────────────
+            $fullName = mb_strtolower("{$firstName} {$lastName}");
+            $jobTitle = mb_strtolower($c['job_title'] ?? '');
+
+            // Skip email-alias "names" (e.g. "Avl Deutschland", "Italy Hotline", "Salesinfo Avlitaly")
+            $junkContactWords = [
+                'hotline', 'info', 'salesinfo', 'support', 'contact',
+                'admin', 'webmaster', 'noreply', 'marketing', 'sales',
+                'helpdesk', 'service', 'general', 'generale', 'direzione',
+                'redazione', 'segreteria', 'ufficio', 'reception',
+            ];
+            $isJunkContact = false;
+            foreach ($junkContactWords as $jw) {
+                if (str_contains($fullName, $jw)) {
+                    $isJunkContact = true;
+                    break;
+                }
+            }
+            if ($isJunkContact) {
+                continue;
+            }
+
+            // Skip country/region names used as first names (e.g. "Italy Hotline", "Avl Croatia")
+            $countryFirstNames = [
+                'italy', 'italia', 'france', 'deutschland', 'germany', 'poland',
+                'polska', 'croatia', 'españa', 'spain', 'europe', 'asia',
+            ];
+            if (in_array(mb_strtolower($firstName), $countryFirstNames, true)
+                || in_array(mb_strtolower($lastName), $countryFirstNames, true)) {
+                continue;
+            }
+
+            // Skip political/head-of-state titles in job title
+            $politicalTitles = [
+                'president of the', 'presidente della', 'président de la',
+                'prime minister', 'head of state', 'king of', 'queen of',
+                'chancellor of', 'italian republic', 'french republic',
+            ];
+            foreach ($politicalTitles as $pt) {
+                if (str_contains($jobTitle, $pt)) {
+                    $isJunkContact = true;
+                    break;
+                }
+            }
+            if ($isJunkContact) {
                 continue;
             }
 

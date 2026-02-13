@@ -3010,6 +3010,28 @@ class GoogleDorkService
             }
         }
 
+        // ─── Block market research / report seller domains ───────
+        $marketResearchDomains = [
+            'polarismarketresearch.com', 'grandviewresearch.com', 'marketsandmarkets.com',
+            'mordorintelligence.com', 'transparencymarketresearch.com', 'alliedmarketresearch.com',
+            'researchandmarkets.com', 'futuremarketinsights.com', 'precedenceresearch.com',
+            'straitsresearch.com', 'emergenresearch.com', 'verifiedmarketresearch.com',
+            'expertmarketresearch.com', 'dataintelo.com', 'coherentmarketinsights.com',
+            'globenewswire.com', 'prnewswire.com', 'businesswire.com',
+            'reportlinker.com', 'psmarketresearch.com', 'reportsinsights.com',
+            'imarcgroup.com', 'sphericalinsights.com', 'factmr.com',
+        ];
+        foreach ($marketResearchDomains as $mrd) {
+            if ($domain === $mrd || str_ends_with($domain, '.' . $mrd)) {
+                return true;
+            }
+        }
+
+        // ─── Block emergency / disaster mapping domains ──────────
+        if (str_contains($domain, 'emergency.copernicus') || str_contains($domain, 'copernicus.eu')) {
+            return true;
+        }
+
         // ─── Block job portal subdomains ───────────────────────────
         if (str_contains($domain, '.myworkdayjobs.com') || str_contains($domain, '.workday.com')) {
             return true;
@@ -3688,6 +3710,21 @@ class GoogleDorkService
         if (preg_match('/^(approvisionneur|acheteur|responsable|technicien|ingénieur|ingenieur|directeur|gestionnaire)\b/iu', $name)) {
             return true;
         }
+
+        // ─── Product/equipment category descriptions ──────────────────
+        // "Standard Thermal Vacuum Chambers", "High-Power RF Amplifiers"
+        if (preg_match('/^(standard|custom|advanced|portable|industrial|commercial|high[\s-]power)\s+(\w+\s+)+(chamber|amplifier|module|fixture|enclosure|antenna|sensor|detector|converter|inverter|controller|panel|valve|pump|motor|generator|transformer|capacitor|inductor|resistor|relay|switch|connector|terminal|bracket|mount|housing)s?\s*$/i', $name)) {
+            return true;
+        }
+
+        // ─── "Platform for X" / "Solution for X" — tech platform names ─
+        if (preg_match('/\bplatform\s+for\s+/i', $name)) {
+            return true;
+        }
+        if (preg_match('/\bsolution\s+for\s+(materials?|data|analytics|ai|ml|cloud)/i', $name)) {
+            return true;
+        }
+
         if (preg_match('/\(en-[A-Z]{2}\)/i', $name)) {
             return true;
         }

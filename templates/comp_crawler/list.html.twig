@@ -36,6 +36,15 @@
                     </select>
                 </div>
                 <div>
+                    <label class="rams-label">{{ 'competitor.list.filters.region'|trans|default('Region') }}</label>
+                    <select name="region" class="rams-input rams-input--sm">
+                        <option value="">{{ 'competitor.list.filters.all_regions'|trans|default('All Regions') }}</option>
+                        {% for code, label in regions %}
+                            <option value="{{ code }}" {% if filters.region == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
                     <label class="rams-label">{{ 'competitor.list.filters.proof'|trans }}</label>
                     <select name="proofGrade" class="rams-input rams-input--sm">
                         <option value="">{{ 'common.all'|trans|default('All') }}</option>
@@ -57,10 +66,10 @@
                     <label class="rams-label">{{ 'competitor.list.filters.directness'|trans }}</label>
                     <select name="directness" class="rams-input rams-input--sm">
                         <option value="">{{ 'common.all'|trans|default('All') }}</option>
-                        <option value="head_to_head" {% if filters.directness == 'head_to_head' %}selected{% endif %}>Head-to-Head</option>
+                        <option value="direct" {% if filters.directness == 'direct' %}selected{% endif %}>Direct</option>
                         <option value="adjacent" {% if filters.directness == 'adjacent' %}selected{% endif %}>Adjacent</option>
-                        <option value="niche_overlap" {% if filters.directness == 'niche_overlap' %}selected{% endif %}>Niche Overlap</option>
-                        <option value="potential" {% if filters.directness == 'potential' %}selected{% endif %}>Potential</option>
+                        <option value="partner_candidate" {% if filters.directness == 'partner_candidate' %}selected{% endif %}>Partner Candidate</option>
+                        <option value="future_threat" {% if filters.directness == 'future_threat' %}selected{% endif %}>Future Threat</option>
                     </select>
                 </div>
                 <div class="rams-flex rams-gap-2">
@@ -85,6 +94,7 @@
                         <th>{{ 'competitor.list.table.overlap'|trans }}</th>
                         <th>{{ 'competitor.list.table.proof'|trans }}</th>
                         <th>{{ 'competitor.list.table.country'|trans }}</th>
+                        <th>{{ 'competitor.list.filters.region'|trans|default('Region') }}</th>
                         <th>Certs</th>
                         <th>Crawled</th>
                     </tr>
@@ -125,6 +135,16 @@
                             </span>
                         </td>
                         <td class="rams-text--xs">{{ c.hqCountry | default('—') }}</td>
+                        <td class="rams-text--xs">
+                            {% for r in c.regions | default([]) | slice(0, 2) %}
+                                <span class="rams-badge rams-badge--muted rams-text--xs">{{ r | replace({'_': ' '}) }}</span>
+                            {% endfor %}
+                            {% if c.regions | default([]) | length > 2 %}
+                                <span class="rams-text--xs rams-text--muted">+{{ c.regions | length - 2 }}</span>
+                            {% elseif c.regions | default([]) | length == 0 %}
+                                —
+                            {% endif %}
+                        </td>
                         <td class="rams-text--xs">{{ c.certifications | length }}</td>
                         <td class="rams-text--xs rams-text--muted">
                             {{ c.lastCrawledAt ? c.lastCrawledAt | date('M d') : '—' }}
@@ -132,7 +152,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10" class="rams-text--muted" style="text-align: center; padding: 32px;">
+                        <td colspan="11" class="rams-text--muted" style="text-align: center; padding: 32px;">
                             {{ 'common.no_results'|trans|default('No results found.') }}
                         </td>
                     </tr>

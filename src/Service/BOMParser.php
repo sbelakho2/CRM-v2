@@ -70,7 +70,7 @@ class BOMParser
             'designator', 'designators', 'refdes', 'reference', 'references',
             'ref', 'refdesignator', 'referencedesignator', 'referencedesignators',
             'component', 'components', 'partreference', 'circuitdesignator',
-            'refid', 'referenceid',
+            'refid', 'referenceid', 'name',
         ],
         'mpn' => [
             'mpn', 'partnumber', 'partno', 'pn',
@@ -85,7 +85,7 @@ class BOMParser
             'componentmanufacturer',
         ],
         'qty' => [
-            'quantity', 'qty', 'count', 'amount',
+            'quantity', 'qty', 'count', 'amount', 'nbr',
             'qtyperboard', 'qtyperunit', 'qtyboard', 'qtyeach', 'qtyrequired',
             'quantityperboard', 'quantityrequired', 'quantityneeded',
             'pcsperboard', 'pcs', 'numberofparts', 'numparts', 'num',
@@ -141,6 +141,7 @@ class BOMParser
             'buildquantity', 'buildqty', 'lotqty', 'lotsize',
             'annualqty', 'annualquantity', 'annualusage',
             'projectqty', 'projectquantity',
+            'moq', 'moqqty', 'minimumorderquantity',
         ],
         'unit_price' => [
             'unitprice', 'unitpriceusd', 'unitcost', 'unitcostusd',
@@ -174,7 +175,7 @@ class BOMParser
         'supplier_pn'  => ['supplierpn', 'distributorpn', 'orderno', 'ordercode'],
         'category'     => ['category', 'classifi'],
         'remark'       => ['remark', 'alternat', 'substitut', 'replacement'],
-        'stock_quantity' => ['stockq', 'orderq', 'souhaite', 'buildq', 'lotq', 'annualq', 'projectq', 'totalq', 'purchaseq', 'buyq'],
+        'stock_quantity' => ['stockq', 'orderq', 'souhaite', 'buildq', 'lotq', 'annualq', 'projectq', 'totalq', 'purchaseq', 'buyq', 'moq'],
         'unit_price'   => ['unitpri', 'unitcost', 'priceper', 'priceea', 'costper', 'costea'],
         'total_price'  => ['totalpri', 'totalcost', 'extpri', 'extcost', 'linepri', 'linecost', 'linetotal', 'subtotal'],
     ];
@@ -613,6 +614,20 @@ class BOMParser
             }
         }
 
+        // Promote remark → MPN when MPN is unmapped and the remark header
+        // indicates alternative/substitute part numbers (common in sourcing BOMs)
+        if (!isset($map['mpn']) && isset($map['remark'])) {
+            $remarkHeader = $this->normalizeHeader((string)($row[$map['remark']] ?? ''));
+            if (str_contains($remarkHeader, 'alternative')
+                || str_contains($remarkHeader, 'alternate')
+                || str_contains($remarkHeader, 'substitute')
+                || str_contains($remarkHeader, 'replacement')
+            ) {
+                $map['mpn'] = $map['remark'];
+                unset($map['remark']);
+            }
+        }
+
         return [$map, $score];
     }
 
@@ -731,6 +746,16 @@ class BOMParser
 
         // Must have at least MPN or description
         if ($mpn === '' && $description === '' && $value === '') {
+            return null;
+        }
+
+        // Skip DNP (Do Not Populate) / custom lines with no real MPN
+        $dnpTokens = ['dnp', 'donotpopulate', 'donotplace', 'noload', 'custom'];
+        $mpnNorm = strtolower(preg_replace('/[\s\-_]/', '', $mpn));
+        $valNorm = strtolower(preg_replace('/[\s\-_]/', '', $value ?: $description));
+        if (in_array($mpnNorm, $dnpTokens, true)
+            || ($mpn === '' && in_array($valNorm, $dnpTokens, true))
+        ) {
             return null;
         }
 

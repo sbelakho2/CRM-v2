@@ -8,6 +8,7 @@ use App\Repository\CompetitorChangeEventRepository;
 use App\Repository\CompetitorRepository;
 use App\Repository\CompetitorWatchlistRepository;
 use App\Service\CompCrawler\CompScoringService;
+use App\Service\RegionStandardizationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -71,6 +72,9 @@ class CompCrawlerController extends AbstractController
         $total = $this->competitorRepo->countFiltered($filters);
         $totalPages = max(1, (int) ceil($total / $limit));
 
+        // Build region options from RegionStandardizationService labels + any extra regions in DB
+        $regionOptions = $this->buildRegionOptions();
+
         return $this->render('comp_crawler/list.html.twig', [
             'competitors' => $competitors,
             'filters' => $filters,
@@ -85,6 +89,7 @@ class CompCrawlerController extends AbstractController
                 Competitor::STATUS_REJECTED,
             ],
             'types' => Competitor::VALID_TYPES,
+            'regions' => $regionOptions,
         ]);
     }
 
@@ -168,5 +173,47 @@ class CompCrawlerController extends AbstractController
     {
         $stats = $this->competitorRepo->getDashboardStats();
         return new JsonResponse($stats);
+    }
+
+    // ─── Helpers ────────────────────────────────────────────────────────────────
+
+    /**
+     * Build region filter options: primary markets first, then other regions from DB.
+     * Returns [ 'code' => 'Label', ... ]
+     */
+    private function buildRegionOptions(): array
+    {
+        // Primary regions for Starz Electronics (always shown, in this order)
+        $primaryRegions = [
+            'morocco'    => 'Morocco',
+            'tunisia'    => 'Tunisia',
+            'egypt'      => 'Egypt',
+            'eu_west'    => 'EU — West (FR, BE, NL)',
+            'eu_central' => 'EU — Central (DE, AT, CH, PL)',
+            'eu_south'   => 'EU — South (ES, IT, PT)',
+            'eu_north'   => 'EU — North (Nordics)',
+            'uk'         => 'United Kingdom & Ireland',
+            'us_east'    => 'US — East Coast',
+            'us_west'    => 'US — West Coast',
+            'us_central' => 'US — Central / Midwest',
+            'us_south'   => 'US — South / Texas',
+        ];
+
+        // Discover any extra region codes stored in the DB that aren't in primary list
+        $conn = $this->em->getConnection();
+        $rows = $conn->fetchFirstColumn("SELECT DISTINCT regions FROM competitors WHERE regions IS NOT NULL AND regions != '[]'");
+        $extraLabels = RegionStandardizationService::REGION_LABELS;
+        $extras = [];
+        foreach ($rows as $json) {
+            $codes = json_decode($json, true) ?: [];
+            foreach ($codes as $code) {
+                if (!isset($primaryRegions[$code]) && !isset($extras[$code])) {
+                    $extras[$code] = $extraLabels[$code] ?? ucwords(str_replace('_', ' ', $code));
+                }
+            }
+        }
+        asort($extras);
+
+        return array_merge($primaryRegions, $extras);
     }
 }

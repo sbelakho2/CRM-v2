@@ -32,6 +32,8 @@ class RegionStandardizationService
     public const REGION_INDIA = 'india';
     public const REGION_AUSTRALIA_NZ = 'australia_nz';
     public const REGION_MIDDLE_EAST = 'middle_east';
+    public const REGION_TUNISIA = 'tunisia';
+    public const REGION_EGYPT = 'egypt';
     public const REGION_AFRICA_NORTH = 'africa_north';
     public const REGION_AFRICA_SUB = 'africa_sub';
     public const REGION_MEXICO = 'mexico';
@@ -61,6 +63,8 @@ class RegionStandardizationService
         self::REGION_INDIA,
         self::REGION_AUSTRALIA_NZ,
         self::REGION_MIDDLE_EAST,
+        self::REGION_TUNISIA,
+        self::REGION_EGYPT,
         self::REGION_AFRICA_NORTH,
         self::REGION_AFRICA_SUB,
         self::REGION_MEXICO,
@@ -109,7 +113,9 @@ class RegionStandardizationService
         self::REGION_INDIA => 'India',
         self::REGION_AUSTRALIA_NZ => 'Australia & New Zealand',
         self::REGION_MIDDLE_EAST => 'Middle East (UAE, SA, IL)',
-        self::REGION_AFRICA_NORTH => 'North Africa (excl. Morocco)',
+        self::REGION_TUNISIA => 'Tunisia',
+        self::REGION_EGYPT => 'Egypt',
+        self::REGION_AFRICA_NORTH => 'North Africa (Other)',
         self::REGION_AFRICA_SUB => 'Sub-Saharan Africa',
         self::REGION_MEXICO => 'Mexico',
         self::REGION_BRAZIL => 'Brazil',
