@@ -2435,78 +2435,8 @@ body {
 }
 
 /* ============================================
-   24. RESPONSIVE
+   24. RESPONSIVE (handled by Section 6)
    ============================================ */
-
-@media (max-width: 1024px) {
-    .rams-sidebar {
-        width: 64px;
-    }
-    
-    .rams-sidebar__header,
-    .rams-sidebar__nav-link span,
-    .rams-sidebar__subtitle,
-    .rams-sidebar__footer .rams-sidebar__status-text {
-        display: none;
-    }
-    
-    .rams-sidebar__nav-link {
-        justify-content: center;
-        padding: var(--space-3);
-    }
-    
-    .rams-main {
-        margin-left: 64px;
-    }
-
-    body.is-sidebar-open .rams-sidebar {
-        width: min(320px, 85vw);
-    }
-
-    body.is-sidebar-open .rams-sidebar__header,
-    body.is-sidebar-open .rams-sidebar__nav-link span,
-    body.is-sidebar-open .rams-sidebar__subtitle,
-    body.is-sidebar-open .rams-sidebar__footer .rams-sidebar__status-text {
-        display: block;
-    }
-
-    body.is-sidebar-open .rams-sidebar__header {
-        display: flex;
-    }
-
-    body.is-sidebar-open .rams-sidebar__nav-link {
-        justify-content: flex-start;
-        padding: var(--space-2) var(--space-4);
-    }
-}
-
-@media (max-width: 768px) {
-    :root {
-        --sidebar-width: 0px;
-    }
-    
-    .rams-sidebar {
-        transform: translateX(-100%);
-        width: 240px;
-    }
-    
-    .rams-sidebar--open {
-        transform: translateX(0);
-    }
-    
-    .rams-main {
-        margin-left: 0;
-        padding: var(--space-4);
-        padding-top: calc(56px + var(--space-4));
-    }
-    
-    .rams-bezel,
-    .rams-screw {
-        display: none;
-    }
-    
-
-}
 
 /* ============================================
    25. AUTH PAGE STYLES
