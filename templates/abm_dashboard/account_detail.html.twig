@@ -17,13 +17,13 @@
         </ol>
     </nav>
 
-    <div class="rams-grid rams-grid--3 rams-gap-6">
+    <div class="rams-grid rams-grid--3 rams-gap-6 mobile-stack">
         {# Main Content - 2 columns #}
-        <div class="rams-grid-span-2 rams-stack rams-gap-6">
+        <div class="rams-grid-span-2 rams-stack rams-gap-6 mobile-w-full">
             {# Account Header Module #}
             <div class="rams-module">
                 <div class="rams-module__content">
-                    <div class="rams-flex rams-justify-between rams-items-start rams-mb-6">
+                    <div class="rams-flex rams-justify-between rams-items-start rams-mb-6 mobile-stack">
                         <div>
                             <h1 class="rams-page-title rams-mb-1">{{ account.name | default('Account') }}</h1>
                             <p class="rams-text--muted rams-text--xs rams-uppercase">{{ account.industry | default('Industry') }}</p>
@@ -119,7 +119,7 @@
         </div>
 
         {# Sidebar - 1 column #}
-        <div class="rams-stack rams-gap-6">
+        <div class="rams-stack rams-gap-6 mobile-w-full">
             {# Engagement Metrics Module #}
             <div class="rams-module">
                 <div class="rams-module__header">

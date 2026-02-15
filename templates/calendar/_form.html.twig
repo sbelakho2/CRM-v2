@@ -1,7 +1,7 @@
 {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
-    <div class="rams-grid rams-grid--3 rams-gap-6">
+    <div class="rams-grid rams-grid--3 rams-gap-6 mobile-stack">
         <!-- Event Details -->
-        <div class="rams-grid-span-2">
+        <div class="rams-grid-span-2 mobile-w-full">
             <div class="rams-module">
                 <div class="rams-module__header">
                     <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'calendar.event_details'|trans }}</h3>
@@ -18,7 +18,7 @@
                 </div>
             </div>
 
-            <div class="rams-actions rams-mt-6">
+            <div class="rams-actions rams-mt-6 mobile-stack">
                 <button type="submit" class="rams-btn rams-btn--orange uppercase">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
@@ -29,7 +29,7 @@
             </div>
         </div>
 
-        <div>
+        <div class="mobile-w-full">
             <!-- Date & Time -->
             <div class="rams-module rams-mb-6">
                 <div class="rams-module__header">

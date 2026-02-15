@@ -18,8 +18,8 @@
             </nav>
             <h1 class="rams-page-title">{{ safe_company_name(rfq) }}</h1>
         </div>
-        <div class="rams-page-actions">
-            <div class="rams-btn-group">
+        <div class="rams-page-actions mobile-stack">
+            <div class="rams-btn-group mobile-stack">
                 <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn">
                     <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
@@ -39,8 +39,8 @@
         </div>
     </div>
 
-    <div class="rams-grid rams-grid--3 rams-gap-6">
-        <div class="rams-grid-span-2 rams-stack rams-gap-6">
+    <div class="rams-grid rams-grid--3 rams-gap-6 mobile-stack">
+        <div class="rams-grid-span-2 rams-stack rams-gap-6 mobile-w-full">
             {# RFQ Details Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
@@ -235,7 +235,7 @@
         </div>
 
         {# Sidebar #}
-        <div class="rams-stack rams-gap-6">
+        <div class="rams-stack rams-gap-6 mobile-w-full">
             {# Status Update Module #}
             <div class="rams-module">
                 <div class="rams-module__header">

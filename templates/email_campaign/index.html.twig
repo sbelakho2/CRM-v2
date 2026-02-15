@@ -10,7 +10,7 @@
             <h1 class="rams-page-title">{{ 'email_campaign.title'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'email_campaign.subtitle_integrated'|trans }}</p>
         </div>
-        <div class="rams-page-actions">
+        <div class="rams-page-actions mobile-stack">
             <a href="{{ path('app_email_campaign_new') }}" class="rams-btn rams-btn--primary uppercase">
                 <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -21,7 +21,7 @@
     </div>
 
     {# Filters #}
-    <div class="rams-flex rams-flex-wrap rams-gap-4">
+    <div class="rams-flex rams-flex-wrap rams-gap-4 mobile-stack">
         <div class="rams-segmented-control">
             <a href="{{ path('app_email_campaign_index', {status: 'all', language: currentLanguage}) }}" 
                class="rams-segmented-control__item {{ currentStatus == 'all' ? 'rams-segmented-control__item--active' : '' }}">
@@ -90,7 +90,7 @@
                                 <span class="rams-dymo rams-mt-2">{{ campaign.touchCount }}-{{ 'email_campaign.touch_sequence'|trans }}</span>
                             </div>
                             
-                            <div class="rams-btn-group" onclick="event.stopPropagation()">
+                            <div class="rams-btn-group mobile-stack" onclick="event.stopPropagation()">
                                 <a href="{{ path('app_email_campaign_send', {id: campaign.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm uppercase">
                                     {{ 'email_campaign.send_emails'|trans }}
                                 </a>

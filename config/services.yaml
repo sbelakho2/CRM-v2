@@ -56,9 +56,13 @@ services:
       $apiKey: '%env(GOOGLE_API_KEY)%'
       $searchEngineId: '%env(GOOGLE_SEARCH_ENGINE_ID)%'
 
-  # Search Provider Abstraction — bind interface to Google CSE implementation
+  # Search Provider Abstraction — bind interface to active search implementation
+  # Option A: Google CSE (paid, $0.005/query, ~$16/run)
+  # App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
+  #   alias: App\Service\WebCrawler\SearchProvider\GoogleCSEProvider
+  # Option B: Free multi-engine scraping (Brave + DuckDuckGo, $0/query)
   App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
-    alias: App\Service\WebCrawler\SearchProvider\GoogleCSEProvider
+    alias: App\Service\WebCrawler\SearchProvider\ScrapingSearchProvider
 
   App\Service\LlmEnrichmentService:
     arguments:

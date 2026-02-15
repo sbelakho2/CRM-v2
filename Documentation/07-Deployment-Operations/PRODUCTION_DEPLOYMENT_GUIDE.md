@@ -1,8 +1,459 @@
 # Starz Morocco CRM – Production Deployment Guide (Release V1)
 
 **Audience**: DevOps, SecOps, Release Manager  
-**Revision**: October 30, 2025  
-**Status**: Approved pending SecOps credential rotation (ticket SEC-1432)
+**Revision**: February 14, 2026  
+**Status**: ✅ LIVE in Production
+
+---
+
+## 0. Live Production Environment
+
+> **Status:** ✅ LIVE  
+> **Last deployed:** February 14, 2026  
+> **Deployed by:** sadok.aaron@starzelectronics.com
+
+---
+
+### 0.1 Server Access
+
+| Item | Value |
+|------|-------|
+| **Domain** | [https://www.starzcrm.com](https://www.starzcrm.com) |
+| **VPS Provider** | OVH |
+| **VPS IPv4** | `51.68.130.83` |
+| **VPS IPv6 Gateway** | `2001:41d0:601:1100::1` |
+| **OS** | Ubuntu 25.04 (Plucky Puffin), kernel 6.14 |
+| **Hostname** | `vps-8f00ba1b` |
+| **Resources** | 4 vCPU · 11 GB RAM · 96 GB SSD |
+| **SSH User** | `ubuntu` (has sudo) |
+
+### 0.2 SSH Key Setup
+
+The VPS authenticates with an **Ed25519 SSH key** stored on the local development machine.
+
+| Item | Value |
+|------|-------|
+| **Private key** | `~/.ssh/id_ed25519` (local machine) |
+| **Public key** | `~/.ssh/id_ed25519.pub` |
+| **Key fingerprint** | `SHA256:n76K9aIjHfDxs6cl5kqD1sj+rs3+7mUgfxQ5CRSnUuo` |
+| **Key identity** | `sadok.aaron@starzelectronics.com` |
+
+**Public key content** (installed in VPS `~ubuntu/.ssh/authorized_keys`):
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINViy1z2XQaThQHSHFoISA1mfdAN/N0RtGDQ1JNDAe0c sadok.aaron@starzelectronics.com
+```
+
+**Connect to server:**
+```bash
+ssh -i ~/.ssh/id_ed25519 ubuntu@51.68.130.83
+```
+
+> **Important:** The key authenticates as user `ubuntu`, not `root`. Password authentication is also enabled on the server but not required since the key is authorized.
+
+**To add this key to a new machine:**
+1. Copy `~/.ssh/id_ed25519` and `~/.ssh/id_ed25519.pub` to the new machine's `~/.ssh/` directory.
+2. Set permissions: `chmod 600 ~/.ssh/id_ed25519 && chmod 644 ~/.ssh/id_ed25519.pub`
+3. Connect: `ssh -i ~/.ssh/id_ed25519 ubuntu@51.68.130.83`
+
+---
+
+### 0.3 Application Stack (Installed Versions)
+
+| Component | Version | Config / Notes |
+|-----------|---------|----------------|
+| **PHP** | 8.4.5 (FPM) | Socket: `/run/php/php8.4-fpm.sock` |
+| **Nginx** | 1.26.3 | Config: `/etc/nginx/sites-available/starzcrm` |
+| **MySQL** | 8.4.7 | Local socket, managed by systemd |
+| **Node.js** | 20.18.1 | For Webpack Encore frontend asset builds |
+| **Composer** | 2.9.5 | `/usr/local/bin/composer` |
+| **Certbot** | Installed | SSL auto-renewal via systemd timer |
+
+**Systemd service status (all `active`):**
+```
+nginx          → active
+php8.4-fpm     → active
+mysql          → active
+```
+
+---
+
+### 0.4 Database
+
+| Item | Value |
+|------|-------|
+| **Engine** | MySQL 8.4.7 |
+| **Database name** | `starz_crm` |
+| **User** | `crm_user` |
+| **Password** | `StarzCRM2026Secure` |
+| **Host** | `127.0.0.1:3306` |
+| **DSN** | `mysql://crm_user:StarzCRM2026Secure@127.0.0.1:3306/starz_crm?serverVersion=8.4&charset=utf8mb4` |
+| **Tables** | 77 tables (created via Doctrine `schema:create`) |
+
+**Access MySQL on server:**
+```bash
+ssh -i ~/.ssh/id_ed25519 ubuntu@51.68.130.83
+sudo mysql starz_crm
+# or with credentials:
+mysql -u crm_user -pStarzCRM2026Secure starz_crm
+```
+
+**Data loaded (February 14, 2026):**
+
+| Table | Records |
+|-------|---------|
+| companies | 12 |
+| competitors | 85 |
+| competitor_change_events | 96 |
+| competitor_page_fingerprints | 5 |
+| learned_competitors | 29 |
+| contacts | 24 |
+
+---
+
+### 0.5 VPS File System Layout
+
+```
+/var/www/starzcrm/                    ← Application root (owner: ubuntu:www-data)
+├── .env                              ← Base environment (committed, non-secret)
+├── .env.local                        ← Production overrides (NOT committed, secrets here)
+├── bin/
+│   └── console                       ← Symfony CLI (chmod +x)
+├── config/
+│   ├── packages/                     ← Symfony bundle configs
+│   ├── routes/                       ← Route definitions
+│   ├── rules/                        ← WebCrawler rule packs
+│   ├── bundles.php
+│   ├── services.yaml
+│   └── routes.yaml
+├── external_data/                    ← Classifier data, company boost lists
+├── migrations/                       ← Doctrine migration files
+├── node_modules/                     ← Node.js dependencies (installed on server)
+├── public/                           ← Nginx document root
+│   ├── index.php                     ← Symfony front controller
+│   └── build/                        ← Compiled JS/CSS assets (Webpack Encore output)
+│       ├── app.*.css
+│       ├── app.*.js
+│       ├── runtime.*.js
+│       ├── entrypoints.json
+│       └── manifest.json
+├── src/                              ← PHP source code
+│   ├── Command/                      ← Console commands (app:create-admin, etc.)
+│   ├── Controller/                   ← HTTP controllers
+│   ├── Entity/                       ← Doctrine ORM entities
+│   ├── Repository/                   ← Doctrine repositories
+│   ├── Service/                      ← Business logic services
+│   └── Kernel.php
+├── templates/                        ← Twig templates
+├── translations/                     ← i18n translation files
+├── var/                              ← Runtime (owner: www-data:www-data)
+│   ├── cache/prod/                   ← Compiled container, routes, templates
+│   └── log/
+│       └── prod.log                  ← Application log
+├── vendor/                           ← Composer dependencies (installed on server)
+├── assets/                           ← Frontend source (Stimulus controllers, SCSS)
+├── composer.json / composer.lock
+├── package.json / package-lock.json
+├── webpack.config.js
+└── tailwind.config.js
+```
+
+**Key file ownership rules:**
+- `/var/www/starzcrm/` → `ubuntu:www-data` (755 dirs, 644 files)
+- `/var/www/starzcrm/var/` → `www-data:www-data` (775) — PHP-FPM writes here
+- `/var/www/starzcrm/bin/console` → must be `chmod +x`
+
+---
+
+### 0.6 Production Environment Config (`.env.local`)
+
+This file lives at `/var/www/starzcrm/.env.local` on the VPS and is **never committed to Git**:
+
+```dotenv
+APP_ENV=prod
+APP_DEBUG=0
+APP_SECRET=244d17a4c3d68e3d1def8e87a42b90e9
+
+DATABASE_URL="mysql://crm_user:StarzCRM2026Secure@127.0.0.1:3306/starz_crm?serverVersion=8.4&charset=utf8mb4"
+
+MAILER_DSN=***REMOVED***
+MAILER_FROM_ADDRESS=contact@starzelectronics.site
+MAILER_FROM_NAME="Starz Electronics"
+
+DEFAULT_LOCALE=en
+DEFAULT_URI=https://www.starzcrm.com
+
+MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=0
+LOCK_DSN=flock
+```
+
+---
+
+### 0.7 Nginx Configuration
+
+Config file: `/etc/nginx/sites-available/starzcrm`  
+Symlink: `/etc/nginx/sites-enabled/starzcrm`  
+Default site: **removed** (`sites-enabled/default` deleted)
+
+```nginx
+# HTTPS server (port 443) — managed by Certbot
+server {
+    server_name www.starzcrm.com starzcrm.com;
+    root /var/www/starzcrm/public;
+
+    location / {
+        try_files $uri /index.php$is_args$args;
+    }
+
+    location ~ ^/index\.php(/|$) {
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+        fastcgi_buffer_size 128k;
+        fastcgi_buffers 4 256k;
+        fastcgi_busy_buffers_size 256k;
+        internal;
+    }
+
+    location ~ \.php$ {
+        return 404;
+    }
+
+    error_log /var/log/nginx/starzcrm_error.log;
+    access_log /var/log/nginx/starzcrm_access.log;
+    client_max_body_size 20M;
+
+    listen [::]:443 ssl ipv6only=on;   # managed by Certbot
+    listen 443 ssl;                     # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/www.starzcrm.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/www.starzcrm.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+# HTTP → HTTPS redirect (port 80)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name www.starzcrm.com starzcrm.com;
+
+    if ($host = www.starzcrm.com) { return 301 https://$host$request_uri; }
+    if ($host = starzcrm.com) { return 301 https://$host$request_uri; }
+    return 404;
+}
+```
+
+---
+
+### 0.8 SSL Certificate
+
+| Item | Value |
+|------|-------|
+| **Provider** | Let's Encrypt (via Certbot) |
+| **Domains** | `www.starzcrm.com`, `starzcrm.com` |
+| **Certificate** | `/etc/letsencrypt/live/www.starzcrm.com/fullchain.pem` |
+| **Private Key** | `/etc/letsencrypt/live/www.starzcrm.com/privkey.pem` |
+| **Expires** | May 15, 2026 |
+| **Auto-renewal** | Yes — Certbot systemd timer runs automatically |
+
+**Manual renewal (if needed):**
+```bash
+ssh -i ~/.ssh/id_ed25519 ubuntu@51.68.130.83
+sudo certbot renew --dry-run    # test
+sudo certbot renew              # force renew
+```
+
+---
+
+### 0.9 Admin Login
+
+| Item | Value |
+|------|-------|
+| **Login URL** | [https://www.starzcrm.com/login](https://www.starzcrm.com/login) |
+| **Admin email** | `sadok.aaron@starzelectronics.com` |
+| **Role** | `ROLE_ADMIN` |
+
+**To create additional users:**
+```bash
+ssh -i ~/.ssh/id_ed25519 ubuntu@51.68.130.83
+cd /var/www/starzcrm
+sudo -u www-data php bin/console app:create-admin \
+  --email=newuser@example.com \
+  --password='SecurePassword123' \
+  --firstName=John \
+  --lastName=Doe
+```
+
+---
+
+### 0.10 Common Operations Cheat Sheet
+
+```bash
+# ─── SSH Access ─────────────────────────────────────────────
+ssh -i ~/.ssh/id_ed25519 ubuntu@51.68.130.83
+
+# ─── Service Management ────────────────────────────────────
+sudo systemctl restart php8.4-fpm         # Restart PHP
+sudo systemctl restart nginx              # Restart Nginx
+sudo systemctl restart mysql              # Restart MySQL
+sudo systemctl status php8.4-fpm nginx mysql  # Check all services
+
+# ─── Symfony Console ───────────────────────────────────────
+cd /var/www/starzcrm
+sudo -u www-data php bin/console cache:clear --env=prod        # Clear cache
+sudo -u www-data php bin/console cache:warmup --env=prod       # Warm cache
+sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction --env=prod  # Run migrations
+sudo -u www-data php bin/console app:create-admin              # Create admin (interactive)
+php bin/console list                                            # List all commands
+
+# ─── Logs ──────────────────────────────────────────────────
+tail -f /var/www/starzcrm/var/log/prod.log              # Symfony app log
+tail -f /var/log/nginx/starzcrm_error.log               # Nginx errors
+tail -f /var/log/nginx/starzcrm_access.log              # Nginx access
+journalctl -u php8.4-fpm -f                             # PHP-FPM systemd log
+journalctl -u mysql -f                                  # MySQL systemd log
+
+# ─── Frontend Assets ──────────────────────────────────────
+cd /var/www/starzcrm
+npm run build                          # Rebuild Webpack Encore (production)
+ls -la public/build/                   # Verify built assets
+
+# ─── Database ─────────────────────────────────────────────
+sudo mysql starz_crm                   # Quick MySQL access
+sudo mysql starz_crm -e "SHOW TABLES;" # List tables
+sudo mysqldump starz_crm > /tmp/backup_$(date +%Y%m%d).sql  # Backup
+
+# ─── File Permissions Fix ─────────────────────────────────
+sudo chown -R ubuntu:www-data /var/www/starzcrm
+sudo chown -R www-data:www-data /var/www/starzcrm/var
+sudo find /var/www/starzcrm -type d -exec chmod 755 {} \;
+sudo find /var/www/starzcrm -type f -exec chmod 644 {} \;
+sudo chmod +x /var/www/starzcrm/bin/console
+sudo chmod -R 775 /var/www/starzcrm/var
+```
+
+---
+
+### 0.11 Full Deployment Procedure (from local machine)
+
+Use this process to deploy code updates from the local development machine to the VPS.
+
+**Prerequisites:**
+- SSH key `~/.ssh/id_ed25519` available on local machine
+- Local project at `~/IdeaProjects/CRM-v2`
+
+#### Step 1: Create deployment tarball
+
+```bash
+cd ~/IdeaProjects/CRM-v2
+
+tar czf /tmp/crm-deploy.tar.gz \
+  --exclude='./var' \
+  --exclude='./vendor' \
+  --exclude='./node_modules' \
+  --exclude='./.git' \
+  --exclude='./public/build' \
+  --exclude='./.env.local' \
+  --exclude='./.env.test' \
+  --exclude='./ml' \
+  --exclude='./.venv' \
+  --exclude='./models' \
+  --exclude='./test-results' \
+  --exclude='./playwright-report' \
+  --exclude='./.phpunit.result.cache' \
+  --exclude='./.output.txt' \
+  --exclude='*.zip' \
+  --exclude='*.xlsx' \
+  --exclude='*.xls' \
+  --exclude='*.pdf' \
+  .
+
+# Verify size — should be ~3 MB
+ls -lh /tmp/crm-deploy.tar.gz
+```
+
+> **Why exclude `ml/` and `.venv/`?** These directories contain Python ML models (8 GB+) and are not needed for the web application.
+
+#### Step 2: Upload to VPS
+
+```bash
+scp -i ~/.ssh/id_ed25519 /tmp/crm-deploy.tar.gz ubuntu@51.68.130.83:/tmp/
+```
+
+#### Step 3: Deploy on server
+
+```bash
+ssh -i ~/.ssh/id_ed25519 ubuntu@51.68.130.83
+```
+
+Then on the server:
+```bash
+cd /var/www/starzcrm
+
+# Back up current .env.local (contains production secrets)
+cp .env.local /tmp/.env.local.bak
+
+# Extract new code
+sudo rm -rf /var/www/starzcrm/*
+cd /var/www/starzcrm
+tar xzf /tmp/crm-deploy.tar.gz
+
+# Restore production config
+cp /tmp/.env.local.bak .env.local
+chmod +x bin/console
+
+# Install PHP dependencies
+composer install --no-dev --optimize-autoloader --no-interaction
+
+# Install Node dependencies and build frontend
+npm install
+npx encore production
+
+# Run database migrations
+sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction --env=prod
+
+# Fix file ownership
+sudo chown -R ubuntu:www-data /var/www/starzcrm
+sudo chown -R www-data:www-data /var/www/starzcrm/var
+sudo chmod -R 775 /var/www/starzcrm/var
+sudo chmod +x /var/www/starzcrm/bin/console
+
+# Clear and warm cache
+sudo -u www-data php bin/console cache:clear --env=prod --no-debug
+sudo -u www-data php bin/console cache:warmup --env=prod --no-debug
+
+# Restart PHP-FPM to pick up changes
+sudo systemctl restart php8.4-fpm
+```
+
+#### Step 4: Verify deployment
+
+```bash
+# From local machine:
+curl -sI https://www.starzcrm.com | head -5
+# Should return: HTTP/1.1 302 Found (redirecting to /login)
+
+curl -sI https://www.starzcrm.com/login | head -3
+# Should return: HTTP/1.1 200 OK
+```
+
+---
+
+### 0.12 Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| 502 Bad Gateway | `sudo systemctl restart php8.4-fpm` — PHP-FPM crashed |
+| 500 Internal Server Error | Check `tail /var/www/starzcrm/var/log/prod.log` and `tail /var/log/nginx/starzcrm_error.log` |
+| Permission denied on `var/` | `sudo chown -R www-data:www-data /var/www/starzcrm/var && sudo chmod -R 775 /var/www/starzcrm/var` |
+| `bin/console` not executable | `sudo chmod +x /var/www/starzcrm/bin/console` |
+| Class not found errors | `cd /var/www/starzcrm && composer dump-autoload --optimize` |
+| Missing assets (broken CSS/JS) | `cd /var/www/starzcrm && npm run build` |
+| SSL certificate expired | `sudo certbot renew` |
+| MySQL won't start | `sudo journalctl -u mysql -n 50` to check logs |
+| Cache issues after deploy | `sudo -u www-data php bin/console cache:clear --env=prod` |
+| `.env.local` missing after deploy | Restore from backup: `cp /tmp/.env.local.bak /var/www/starzcrm/.env.local` |
 
 ---
 

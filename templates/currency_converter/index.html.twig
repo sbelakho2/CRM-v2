@@ -14,7 +14,7 @@
             <h1 class="rams-page__title">{{ 'currency_converter.title'|trans }}</h1>
             <p class="rams-page__subtitle">{{ 'currency_converter.subtitle'|trans }}</p>
         </div>
-        <div class="rams-page__actions">
+        <div class="rams-page__actions mobile-stack">
             <button type="button" id="btn-refresh-rates" class="rams-btn rams-btn--primary uppercase" title="{{ 'currency_converter.refresh_all_tooltip'|trans }}">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M2 8a6 6 0 0110.472-4M14 8a6 6 0 01-10.472 4"/>
@@ -115,7 +115,7 @@
                     </div>
 
                     {# Convert Button #}
-                    <div class="rams-actions rams-mt-6">
+                    <div class="rams-actions rams-mt-6 mobile-stack">
                         <button type="submit" id="btn-convert" class="rams-btn rams-btn--primary uppercase rams-w-full">
                             {{ 'currency_converter.convert_btn'|trans }}
                         </button>

@@ -17,7 +17,7 @@
             </div>
             <h1 class="rams-page__title">{{ 'task.edit_task'|trans }}</h1>
         </div>
-        <div class="rams-page__actions">
+        <div class="rams-page__actions mobile-stack">
             <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-btn uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M10 4L6 8L10 12"/>
@@ -60,7 +60,7 @@
                 {{ form_row(form.company) }}
             </div>
 
-            <div class="rams-actions rams-mt-6">
+            <div class="rams-actions rams-mt-6 mobile-stack">
                 <button type="submit" class="rams-btn rams-btn--primary uppercase">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>

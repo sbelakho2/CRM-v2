@@ -21,7 +21,7 @@
     </div>
 
     {# Form Module #}
-    <div class="rams-module rams-module--narrow rams-mx-auto">
+    <div class="rams-module rams-module--narrow rams-mx-auto mobile-w-full">
         <div class="rams-module__header">
             <h2 class="rams-module__title">{{ 'rfq.show.details'|trans }}</h2>
         </div>
@@ -30,13 +30,13 @@
             
                 {# Company & Basic Info #}
                 <div class="rams-grid rams-grid--2 rams-gap-4">
-                    <div class="rams-form__group rams-grid-span-2">
+                    <div class="rams-form__group rams-grid-span-2 mobile-w-full">
                         {{ form_label(form.company, 'rfq.fields.company'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                         {{ form_widget(form.company, {'attr': {'class': 'rams-form__select'}}) }}
                         {{ form_errors(form.company) }}
                     </div>
 
-                    <div class="rams-form__group rams-grid-span-2">
+                    <div class="rams-form__group rams-grid-span-2 mobile-w-full">
                         {{ form_label(form.contact, 'rfq.fields.contact'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                         {{ form_widget(form.contact, {'attr': {'class': 'rams-form__select'}}) }}
                         {{ form_errors(form.contact) }}

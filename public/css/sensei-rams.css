@@ -134,7 +134,7 @@
     
     /* Layout */
     --sidebar-width: 240px;
-    --status-bar-height: 32px;
+    --status-bar-height: 0px;
     --bezel-width: 8px;
     
     /* Semantic Background Colors (for alerts, badges, highlights) */
@@ -308,59 +308,7 @@ body {
     height: 100%;
 }
 
-/* ============================================
-   4. STATUS BAR
-   ============================================ */
-
-.rams-status-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: var(--status-bar-height);
-    background: var(--rams-chassis);
-    border-top: 1px solid var(--rams-line);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 var(--space-6);
-    font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    line-height: var(--leading-2xs);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--rams-muted);
-    z-index: 100;
-}
-
-.rams-status-bar__section {
-    display: flex;
-    gap: var(--space-6);
-}
-
-.rams-status-bar__item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.rams-status-bar__indicator {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--rams-green);
-    box-shadow: 0 0 6px rgba(45, 140, 60, 0.5);
-}
-
-.rams-status-bar__indicator--warning {
-    background: var(--rams-orange);
-    box-shadow: 0 0 6px rgba(255, 190, 0, 0.5);
-}
-
-.rams-status-bar__indicator--error {
-    background: var(--rams-red);
-    box-shadow: 0 0 6px rgba(214, 45, 45, 0.5);
-}
+/* Status bar removed */
 
 /* ============================================
    5. RACK SIDEBAR
@@ -528,6 +476,76 @@ body {
     color: var(--rams-green);
 }
 
+.rams-mobile-header {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--rams-module);
+    border-bottom: 1px solid var(--rams-line);
+    z-index: 70;
+    padding: 0 var(--space-4);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.rams-mobile-header__toggle {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--rams-line);
+    background: var(--rams-panel);
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.rams-mobile-header__toggle-bar {
+    display: block;
+    width: 16px;
+    height: 2px;
+    background: var(--rams-foreground);
+    opacity: 0.8;
+}
+
+.rams-mobile-header__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.rams-mobile-header__logo {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--rams-panel);
+    border: 1px solid var(--rams-line);
+    object-fit: fill;
+}
+
+.rams-mobile-header__title {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.rams-sidebar__overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--rams-overlay);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-normal);
+    z-index: 60;
+}
+
 /* ============================================
    6. MAIN CONTENT AREA
    ============================================ */
@@ -541,6 +559,47 @@ body {
 
 .rams-main--full {
     margin-left: 0;
+}
+
+@media (max-width: 1024px) {
+    .rams-bezel {
+        display: none;
+    }
+
+    .rams-mobile-header {
+        display: flex;
+    }
+
+    .rams-sidebar {
+        width: min(320px, 85vw);
+        transform: translateX(-100%);
+        transition: transform var(--duration-normal);
+        z-index: 80;
+        padding-top: 0;
+    }
+
+    .rams-main {
+        margin-left: 0;
+        padding: var(--space-4);
+        padding-top: calc(56px + var(--space-4));
+    }
+
+    .rams-main.rams-main--full {
+        padding-top: var(--space-8);
+    }
+
+    body.is-sidebar-open {
+        overflow: hidden;
+    }
+
+    body.is-sidebar-open .rams-sidebar {
+        transform: translateX(0);
+    }
+
+    body.is-sidebar-open .rams-sidebar__overlay {
+        opacity: 1;
+        pointer-events: auto;
+    }
 }
 
 /* ============================================
@@ -2399,6 +2458,26 @@ body {
     .rams-main {
         margin-left: 64px;
     }
+
+    body.is-sidebar-open .rams-sidebar {
+        width: min(320px, 85vw);
+    }
+
+    body.is-sidebar-open .rams-sidebar__header,
+    body.is-sidebar-open .rams-sidebar__nav-link span,
+    body.is-sidebar-open .rams-sidebar__subtitle,
+    body.is-sidebar-open .rams-sidebar__footer .rams-sidebar__status-text {
+        display: block;
+    }
+
+    body.is-sidebar-open .rams-sidebar__header {
+        display: flex;
+    }
+
+    body.is-sidebar-open .rams-sidebar__nav-link {
+        justify-content: flex-start;
+        padding: var(--space-2) var(--space-4);
+    }
 }
 
 @media (max-width: 768px) {
@@ -2418,6 +2497,7 @@ body {
     .rams-main {
         margin-left: 0;
         padding: var(--space-4);
+        padding-top: calc(56px + var(--space-4));
     }
     
     .rams-bezel,
@@ -2425,10 +2505,7 @@ body {
         display: none;
     }
     
-    .rams-status-bar {
-        font-size: 8px;
-        padding: 0 var(--space-3);
-    }
+
 }
 
 /* ============================================
@@ -4646,4 +4723,318 @@ a.rams-module:hover {
         border: 1px solid #ccc;
         break-inside: avoid;
     }
+}
+
+/* ============================================
+   MOBILE UI/UX SWEEP - RESPONSIVE OVERRIDES
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* 1. Page Header Stacking */
+    .rams-page-header,
+    .rams-page__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-4);
+    }
+
+    .rams-page-actions,
+    .rams-page__actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .rams-page-actions .rams-btn,
+    .rams-page__actions .rams-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .rams-page__title-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-2);
+    }
+
+    .rams-page__meta {
+        flex-wrap: wrap;
+        row-gap: var(--space-1);
+    }
+
+    .rams-page,
+    .rams-page__container,
+    .rams-page__container--narrow {
+        width: 100%;
+        max-width: 100%;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .rams-page-title,
+    .rams-page__title {
+        word-break: break-word;
+        hyphens: auto;
+    }
+
+    /* 2. Grid Collapsing specifically for 3+ cols */
+    .grid-cols-3, 
+    .grid-cols-4, 
+    .grid-cols-5, 
+    .grid-cols-6, 
+    .grid-cols-12 {
+        grid-template-columns: 1fr !important;
+    }
+
+    .grid-cols-2 {
+        grid-template-columns: 1fr; /* Optional for 2-col, usually looks better stacked */
+    }
+
+    .rams-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rams-grid-span-2,
+    .rams-grid-span-3,
+    .rams-grid-span-full {
+        grid-column: 1 / -1;
+    }
+
+    /* 3. Modal Responsiveness */
+    .rams-modal {
+        max-width: 90vw;
+        max-height: 85vh;
+        margin: var(--space-4);
+    }
+    
+    .rams-modal__footer {
+        flex-direction: column-reverse; /* Put primary action at top or preserve order but stack */
+        gap: var(--space-3);
+    }
+
+    .rams-modal__footer .rams-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* 4. Form Controls */
+    .rams-input-group,
+    div[class*="flex"][class*="gap-"] > input,
+    div[class*="flex"][class*="gap-"] > select {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .rams-form__row--2,
+    .rams-form__row--3,
+    .rams-form__row--4,
+    .rams-form__row--5,
+    .rams-form__row--6 {
+        grid-template-columns: 1fr;
+    }
+
+    .rams-action-links {
+        flex-wrap: wrap;
+        row-gap: var(--space-2);
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    select,
+    textarea,
+    .rams-form-control,
+    .rams-form__select,
+    .rams-select {
+        width: 100% !important;
+        max-width: 100%;
+        font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+
+    /* 5. Metric Cards & Stats */
+    .rams-metric-grid,
+    [class*="grid-cols-4"] .rams-metric {
+        grid-template-columns: 1fr;
+    }
+
+    .rams-metric__value {
+        font-size: var(--text-2xl); /* Scale down huge numbers */
+    }
+
+    /* 6. Table Mobile Adjustments */
+    .rams-table-container {
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+        margin: 0 calc(var(--space-4) * -1); /* Bleed to edges */
+        width: calc(100% + var(--space-8));
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .rams-table th,
+    .rams-table td {
+        padding: var(--space-3) var(--space-2); /* Tighter horizontal padding */
+        white-space: nowrap; /* Force scroll instead of weird wrapping */
+    }
+
+    .rams-alert {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-2);
+    }
+
+    .rams-module__header,
+    .rams-module__footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-3);
+    }
+
+    .rams-actions,
+    .rams-actions--sm,
+    .rams-form__actions,
+    .rams-page-header__actions,
+    .rams-module__header-actions,
+    .rams-module__header__actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-2);
+    }
+
+    .rams-actions .rams-btn,
+    .rams-actions--sm .rams-btn,
+    .rams-form__actions .rams-btn,
+    .rams-page-header__actions .rams-btn,
+    .rams-module__header-actions .rams-btn,
+    .rams-module__header__actions .rams-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .rams-module__footer .rams-btn,
+    .rams-module__header .rams-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .rams-btn {
+        min-height: 44px;
+    }
+
+    .rams-module--narrow {
+        max-width: 100%;
+    }
+
+    .rams-flex {
+        flex-wrap: wrap;
+    }
+
+    .rams-flex.rams-justify-between {
+        align-items: flex-start;
+        row-gap: var(--space-2);
+    }
+    
+    /* 7. Typography Scaling */
+    h1, .rams-heading--1 { font-size: var(--text-2xl); }
+    h2, .rams-heading--2 { font-size: var(--text-xl); }
+    h3, .rams-heading--3 { font-size: var(--text-lg); }
+
+    /* 8. Spacing Reductions */
+    .rams-main {
+        padding: var(--space-4);
+    }
+    
+    .rams-module {
+        margin-bottom: var(--space-4);
+    }
+
+    /* 9. Utility Overrides */
+    .hidden-mobile {
+        display: none !important;
+    }
+    
+    .flex-mobile-col {
+        flex-direction: column !important;
+    }
+    
+    .w-full-mobile {
+        width: 100% !important;
+    }
+
+    .rams-breadcrumb__list {
+        flex-wrap: wrap;
+        row-gap: var(--space-1);
+    }
+
+    .rams-btn-group {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .rams-btn-group .rams-btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+
+    .rams-breadcrumb {
+        margin-bottom: var(--space-3);
+    }
+
+    .rams-breadcrumb__item,
+    .rams-breadcrumb__link,
+    .rams-breadcrumb__separator {
+        font-size: var(--text-xs);
+    }
+
+    .rams-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .rams-tab {
+        flex: 0 0 auto;
+    }
+
+    /* 10. Mobile Utility Classes (Trigger ONLY on mobile) */
+    .mobile-only {
+        display: block !important;
+    }
+    
+    .mobile-hidden {
+        display: none !important;
+    }
+    
+    .mobile-stack {
+        flex-direction: column !important;
+    }
+    
+    .mobile-w-full {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .mobile-h-auto {
+        height: auto !important;
+    }
+    
+    .mobile-text-center {
+        text-align: center !important;
+    }
+    
+    .mobile-text-left {
+        text-align: left !important;
+    }
+    
+    .mobile-mb-2 { margin-bottom: var(--space-2) !important; }
+    .mobile-mb-4 { margin-bottom: var(--space-4) !important; }
+    
+    .mobile-p-2 { padding: var(--space-2) !important; }
+    .mobile-p-0 { padding: 0 !important; }
+}
+
+/* Default state for mobile-only classes (hidden on desktop) */
+.mobile-only {
+    display: none !important;
 }

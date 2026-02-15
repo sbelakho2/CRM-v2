@@ -41,8 +41,8 @@
                 {% endif %}
             </div>
         </div>
-        <div class="rams-page-actions">
-            <div class="rams-btn-group">
+        <div class="rams-page-actions mobile-stack">
+            <div class="rams-btn-group mobile-stack">
                 {% if company.companyStatus == 'discovered' %}
                     <form method="post" action="{{ path('app_company_approve', {id: company.id}) }}" class="rams-inline-block">
                         <input type="hidden" name="_token" value="{{ csrf_token('approve' ~ company.id) }}">
@@ -83,9 +83,9 @@
         </div>
     </div>
 
-    <div class="rams-grid rams-grid--3 rams-gap-6">
+    <div class="rams-grid rams-grid--3 rams-gap-6 mobile-stack">
         {# Main Content - 2 columns #}
-        <div class="rams-grid-span-2 rams-stack rams-gap-6">
+        <div class="rams-grid-span-2 rams-stack rams-gap-6 mobile-w-full">
             {# Company Information Module #}
             <div class="rams-module">
                 <div class="rams-module__header">

@@ -3003,7 +3003,7 @@ class GoogleDorkService
         }
 
         // ─── Block known multi-TLD shopping sites ──────────────────
-        $multiTldSites = ['ubuy'];
+        $multiTldSites = ['ubuy', 'temu', 'shein', 'wish', 'banggood', 'gearbest'];
         foreach ($multiTldSites as $site) {
             if (preg_match('/^' . preg_quote($site, '/') . '\.[a-z]{2,6}$/i', $domain)) {
                 return true;
@@ -3240,6 +3240,124 @@ class GoogleDorkService
         if (preg_match('/\.(polytechnique|ensam|ensta|ens-lyon|ens-paris|mines-paristech|ec-nantes|centralesupelec|insa|utc|utt)\.fr$/i', $domain)) {
             return true;
         }
+        // German Hochschulen
+        if (preg_match('/\b(hochschule|fachhochschule|universitaet|universitât|studieren)\b/i', $domain)) {
+            return true;
+        }
+        // Italian/Spanish/Polish polytechnics
+        if (preg_match('/\b(politecnico|universita|universidad|uczelnia|uniwersytet)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block automotive retail / dealer domains ─────────────
+        // Car dealerships, tire shops, car rental, auto parts e-shops,
+        // used car portals, driving schools — NOT automotive OEMs
+        if (preg_match('/\b(autohaus|autodealer|autohandel|autoankauf|autoverkauf|autobazar|autobörse|autoboerse|automarkt|autoservice)\b/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\b(concessionnaire|concessionario|concesionario)\b/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\b(reifenhandel|reifen24|reifendirekt|pneu|pneumatic|pneumatici|neumaticos|opony|tyre|tire[-]?shop)\b/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\b(autovermietung|mietwagen|autoverhuur|location[-]?voiture|autonoleggio|alquiler[-]?coches|car[-]?rental|rent[-]?a[-]?car|wypozyczalnia)\b/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\b(autoteile|autoersatzteile|autoteile24|piecesauto|ricambi|recambios|czesci[-]?samochodowe|autodily|car[-]?parts|auto[-]?parts)\b/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\b(fahrschule|autoecole|auto[-]?ecole|autoescuela|autoscuola|autoskola|rijschool|szkola[-]?jazdy|driving[-]?school)\b/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\b(gebrauchtwagen|occasion[-]?auto|vehicule[-]?occasion|usato|usado|uzywane|ojete)\b/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\b(carwash|autowasche|autowash|tuning[-]?shop|chiptuning)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block gambling / betting / casino domains ────────────
+        if (preg_match('/\b(casino|poker|bet365|betting|wetten|gambling|spielhalle|spielothek|loterie|lotteria|slot[-]?machine|sportwetten|pari[-]?sportif|scommesse)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block travel / tourism / hotel domains ───────────────
+        if (preg_match('/\b(reisebuero|reisebüro|voyages|viaggio|turismo|agencia[-]?viajes|biuro[-]?podrozy|cestovni[-]?kancelar|travel[-]?agency|booking|trivago)\b/i', $domain)) {
+            return true;
+        }
+        if (preg_match('/\b(hotel|hostel|ferienwohnung|gite|chambre[-]?hote|pensione|albergue|pension)\b/i', $domain)) {
+            // Exception: "hotel" in a company that manufactures hotel equipment
+            if (!preg_match('/(equip|tech|system|elektronik|electric)/i', $domain)) {
+                return true;
+            }
+        }
+
+        // ─── Block insurance domains (multi-language) ─────────────
+        if (preg_match('/\b(versicherung|assurance|assicurazione|seguro|verzekering|ubezpieczenie|pojisteni|insurance)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block agriculture / farming domains ──────────────────
+        if (preg_match('/\b(landwirtschaft|agriculture|agrikultur|agrarbetrieb|boerderij|rolnictwo|zemedelstvi|azienda[-]?agricola|explotacion[-]?agricola)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block cleaning / facility maintenance ────────────────
+        if (preg_match('/\b(reinigung|nettoyage|pulizia|limpieza|schoonmaak|sprzatanie|uklid|cleaning[-]?service|gebaude[-]?reinigung)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block hosting / web agency domains ───────────────────
+        if (preg_match('/\b(webdesign|werbeagentur|agence[-]?web|web[-]?agency|agenzia[-]?web|agencia[-]?digital|hosting|webhoster|internetagentur)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block plumbing / HVAC / heating (service firms) ──────
+        if (preg_match('/\b(sanitaer|sanitär|heizung|klempner|plombier|chauffagiste|idraulico|fontanero|loodgieter|hydraulik|installateur[-]?chauffage)\b/i', $domain)) {
+            // Exception: industrial heating systems manufacturers
+            if (!preg_match('/(industrial|gmbh|ag|systems?|technology)/i', $domain)) {
+                return true;
+            }
+        }
+
+        // ─── Block moving companies (multi-language) ──────────────
+        if (preg_match('/\b(umzug|umzuege|demenagement|déménagement|trasloco|mudanza|verhuiz|przeprowadzk|stehovani)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block flower shops / gift shops ──────────────────────
+        if (preg_match('/\b(blumenladen|blumenversand|fleuriste|fiorista|floreria|kwiaciarnia|kvetinarstvi|flower[-]?shop|florist)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block pet / veterinary domains ───────────────────────
+        if (preg_match('/\b(tierarzt|tierarztpraxis|tierklinik|veterinaire|veterinario|weterynarz|veterinar|petshop|pet[-]?store|zoofachhandel)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block solar / PV installer domains ──────────────────
+        if (preg_match('/\b(solarinstall|photovoltaik[-]?install|solar[-]?panel|solaranlage|solarteur|panneau[-]?solaire|impianto[-]?fotovoltaico|installador[-]?solar)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block beauty / cosmetics / spa domains ───────────────
+        if (preg_match('/\b(kosmetik|cosmeti[ck]|parfumerie|schoenheitspflege|beauty[-]?salon|spa[-]?wellness|friseur|coiffeur|parrucchiere|peluqueria|fryzjer|kadernictvi)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block bakery / food production domains ───────────────
+        if (preg_match('/\b(baeckerei|bäckerei|boulangerie|panificio|panaderia|piekarnia|pekarstvi|konditorei|patisserie|metzgerei|boucherie|macelleria|carniceria)\b/i', $domain)) {
+            return true;
+        }
+
+        // ─── Block country-specific marketplace / classified TLDs ─
+        $multiTldMarketplaces = ['ubuy', 'temu', 'shein', 'wish', 'banggood', 'gearbest'];
+        foreach ($multiTldMarketplaces as $site) {
+            if (preg_match('/^' . preg_quote($site, '/') . '\.[a-z]{2,6}$/i', $domain)) {
+                return true;
+            }
+        }
 
         foreach (self::DOMAIN_BLOCKLIST as $blocked) {
             // Exact match
@@ -3272,8 +3390,11 @@ class GoogleDorkService
         $words = preg_split('/\s+/', trim($name));
         $wordCount = count($words);
         
-        // Empty or very short (single char)
+        // Empty or very short (< 3 chars, unless ALL-CAPS acronym like "ZF", "ABB")
         if (mb_strlen($name) < 2) {
+            return true;
+        }
+        if (mb_strlen($name) < 3 && !preg_match('/^[A-Z]{2,}$/', $name)) {
             return true;
         }
         
@@ -3416,6 +3537,16 @@ class GoogleDorkService
             'vyansa intelligence', 'vyansaintelligence',
         ];
         if (in_array($lower, $newsOutlets, true)) {
+            return true;
+        }
+
+        // ─── Events / conferences / exhibitions / trade shows ────────────
+        // These are not companies — they're event names extracted from titles
+        if (preg_match('/\b(event[s]?|conference|exhibition|trade\s*show|expo(sition)?|summit|symposium|congress|convention|forum|workshop|webinar|meetup|hackathon|salon|messe|foire|feria|feira|salone|targi|congresso|congrès|congres)\b/iu', $name)) {
+            return true;
+        }
+        // Specific event patterns: "Hannover Messe 2025", "GITEX Global", "CES 2025"
+        if (preg_match('/\b(GITEX|CES|MWC|IFA|CEBIT|HANNOVER|ELECTRONICA|PRODUCTRONICA|EMBEDDED\s+WORLD|SENSOR|PCIM|SMT\s+CONNECT)\b/i', $name)) {
             return true;
         }
 
@@ -3566,6 +3697,22 @@ class GoogleDorkService
         }
         // ─── Education / training entities ─────────────────────────
         if (preg_match('/\b(education\s+(center|centre|institute|group|egypt|maroc)|certificate|professional\s+certificate|training\s+(center|centre|institute|academy))\b/i', $name)) {
+            return true;
+        }
+        // ─── Universities / higher education ────────────────────────
+        if (preg_match('/\b(universit[yéàäità]|university|academ[yia]|école|ecole|schule|hochschule|fachhochschule|politechnik[ai]|politecnico|istituto|instytut|fakultät|fakulta|college|campus)\b/iu', $name)) {
+            return true;
+        }
+        // ─── Real estate / property development companies ───────────
+        if (preg_match('/\b(real\s*estate|property\s+(develop|invest|manag|group|holdings?)|immobili[eaè]r[ea]?|nieruchomości|nieruchomosci|grundstück|grundstueck|makelaar|makelaardij|logistic[s]?\s*(park|center|centre|developer))\b/iu', $name)) {
+            return true;
+        }
+        // ─── Hospitality / tourism companies ────────────────────────
+        if (preg_match('/\b(hospitality|tourism|turismo|tourismus|hôtel|reise[n]?\b|gastro|gastronomie)\b/iu', $name)) {
+            return true;
+        }
+        // ─── Pure financial / investment holding companies ───────────
+        if (preg_match('/\b(private\s+equity|venture\s+capital|hedge\s+fund|investment\s+(fund|bank|group|holding)|asset\s+management|wealth\s+management|kapitalanlage|fondi|fundusz)\b/iu', $name)) {
             return true;
         }
         // ─── Lighting / paint brand distributors ───────────────────
@@ -4802,6 +4949,165 @@ class GoogleDorkService
             '/\bfoundry\b/i',
             '/\biron\s+(works|casting|foundry)/i',
             '/\bscrap\s+(metal|steel|iron)/i',
+
+            // ─── Multi-language automotive retail / service (NOT OEMs) ──
+            // DE: Autohaus, Werkstatt, Autovermietung, Fahrschule
+            '/\b(autohaus|autowerkstatt|kfz[\s-]werkstatt|kfz[\s-]meister|kfz[\s-]betrieb)\b/i',
+            '/\b(autovermietung|mietwagen|gebrauchtwagen[\s-]?händler|gebrauchtwagen[\s-]?handler)\b/i',
+            '/\b(fahrschule|führerschein|fuhrerschein)\b/i',
+            '/\b(reifenhandel|reifenservice|reifenmontage|reifen[\s-]?center|reifendienst)\b/i',
+            '/\b(autoversicherung|kfz[\s-]versicherung|kfz[\s-]zulassung)\b/i',
+            '/\b(tankstelle|abschleppdienst|pannenhilfe|autolackierung|autoglas)\b/i',
+            '/\b(tüv[\s-]?station|hauptuntersuchung|abgasuntersuchung)\b/i',
+            // FR: concessionnaire, garage, auto-école, location
+            '/\b(concessionnaire\s+auto|garage\s+auto|carrosserie|carrossier)\b/i',
+            '/\b(auto[\s-]?école|auto[\s-]?ecole|permis\s+de\s+conduire)\b/i',
+            '/\b(location\s+de\s+(voiture|véhicule|vehicule))\b/i',
+            '/\b(pièces?\s+(auto|détachée|detachee)|casse\s+auto|recyclage\s+auto)\b/i',
+            '/\b(pneumatici[eè]n|centre\s+auto|contrôle\s+technique|controle\s+technique)\b/i',
+            // IT: concessionaria, autofficina, carrozzeria
+            '/\b(concessionari[ao]|autofficina|carrozzeria|autonoleggio)\b/i',
+            '/\b(autoscuola|gommist[ao]|ricambi\s+auto|autodemolizione)\b/i',
+            '/\b(revisione\s+auto|bollo\s+auto|assicurazione\s+auto)\b/i',
+            // ES: concesionario, taller, autoescuela
+            '/\b(taller\s+(mecánico|mecanico|de\s+coches)|autoescuela|agencia\s+de\s+autos)\b/i',
+            '/\b(neumáticos|neumaticos|alquiler\s+de\s+(coches|vehículos|vehiculos))\b/i',
+            '/\b(recambios\s+auto|desguace|chatarrer[oí]a)\b/i',
+            // NL: autodealer, garage, rijschool
+            '/\b(autodealer|autogarage|rijschool|autoverhuur|banden[\s-]?service)\b/i',
+            '/\b(autodemontage|autorecycling|apk[\s-]?keuring|autoschadeherstel)\b/i',
+            // PL: salon samochodowy, warsztat, szkoła jazdy
+            '/\b(salon\s+samochodowy|warsztat\s+samochodowy|szko[lł]a\s+jazdy)\b/i',
+            '/\b(wypo[żz]yczalnia|wypozyczalnia|opony|wulkanizacja|lakiernia)\b/i',
+            '/\b(stacja\s+kontroli\s+pojazdów|stacja\s+kontroli\s+pojazdow)\b/i',
+            // CZ: autobazar, autoservis, autoškola
+            '/\b(autobazar|autoservis|auto[šs]kola|autoskola|pneuservis)\b/i',
+            '/\b(autolakovn[aá]|autolakovna|p[uů]j[čc]ovna\s+aut|pujcovna\s+aut)\b/i',
+
+            // ─── Multi-language construction / trades ───────────────────
+            '/\b(bauunternehmen|baufirma|baumeister|zimmerei|dachdecker)\b/i',
+            '/\b(entreprise\s+de\s+construction|maçon|couvreur|charpentier)\b/i',
+            '/\b(impresa\s+(edile|di\s+costruzion)|muratore|carpentiere)\b/i',
+            '/\b(empresa\s+(constructora|de\s+construcción)|alba[ñn]il)\b/i',
+            '/\b(bouwbedrijf|aannemer|dakdekker|timmerman|metselaar)\b/i',
+            '/\b(firma\s+budowlana|deweloper|ciesla|dekarz|murarz)\b/i',
+            '/\b(stavební\s+firma|stavba|zedník|pokrývač|tesař)\b/i',
+
+            // ─── Multi-language beauty / wellness / health ──────────────
+            '/\b(kosmetik[\s-]?studio|friseur[\s-]?salon|nagelstudio|massagepraxis)\b/i',
+            '/\b(salon\s+de\s+(coiffure|beauté|beaute)|institut\s+de\s+beauté)\b/i',
+            '/\b(parrucchiere|centro\s+estetico|salone\s+di\s+bellezza)\b/i',
+            '/\b(peluquer[ií]a|centro\s+de\s+belleza|est[eé]tica)\b/i',
+            '/\b(schoonheidssalon|kapsalon|nagelstudio|massagesalon)\b/i',
+            '/\b(salon\s+fryzjerski|gabinet\s+kosmetyczny|salon\s+urody)\b/i',
+            '/\b(kade[řr]nictv[ií]|kosmetick[ýy]\s+salon|masá[žz]e)\b/i',
+
+            // ─── Multi-language bakery / food / butcher ──────────────────
+            '/\b(bäckerei|baeckerei|konditorei|metzgerei|fleischerei)\b/i',
+            '/\b(boulangerie|pâtisserie|patisserie|boucherie|charcuterie|fromagerie)\b/i',
+            '/\b(panificio|pasticceria|macelleria|salumificio|caseificio)\b/i',
+            '/\b(panadería|panaderia|pastelería|pasteleria|carnicería|carniceria)\b/i',
+            '/\b(bakkerij|slagerij|kaaswinkel|vishandel)\b/i',
+            '/\b(piekarnia|cukiernia|masarnia|w[eę]dliniarnia)\b/i',
+            '/\b(pekárna|pekarna|cukrárna|cukrarna|řeznictví|reznictvi)\b/i',
+
+            // ─── Multi-language moving / transport ───────────────────────
+            '/\b(umzugsunternehmen|spedition|möbelspedition|moebelspedition)\b/i',
+            '/\b(d[eé]m[eé]nagement|entreprise\s+de\s+d[eé]m[eé]nagement)\b/i',
+            '/\b(trasloc[hi]|ditta\s+di\s+traslochi)\b/i',
+            '/\b(empresa\s+de\s+mudanzas|mudanzas)\b/i',
+            '/\b(verhuisbedrijf|verhuizing)\b/i',
+            '/\b(firma\s+przeprowadzkowa|przeprowadzki)\b/i',
+            '/\b(st[eě]hovac[ií]\s+firma|st[eě]hov[aá]n[ií])\b/i',
+
+            // ─── Multi-language insurance ────────────────────────────────
+            '/\b(versicherungsmakler|versicherungsagentur|versicherungsgesellschaft)\b/i',
+            '/\b(compagnie\s+d.assurance|courtier\s+d.assurance|cabinet\s+d.assurance)\b/i',
+            '/\b(compagnia\s+di\s+assicurazion|agenzia\s+assicurativ)\b/i',
+            '/\b(compañ[ií]a\s+de\s+seguros|correduría\s+de\s+seguros|correduria)\b/i',
+            '/\b(verzekeringsmaatschappij|verzekeringsagent)\b/i',
+            '/\b(towarzystwo\s+ubezpiecze[nń]|ubezpieczenia)\b/i',
+            '/\b(pojišťovna|pojistovna|pojištění|pojisteni)\b/i',
+
+            // ─── Multi-language web agency / digital marketing ──────────
+            '/\b(werbeagentur|internetagentur|medienagentur|digitalagentur)\b/i',
+            '/\b(agence\s+(web|digitale|de\s+communication|marketing))\b/i',
+            '/\b(agenzia\s+(web|digitale|di\s+comunicazione|marketing))\b/i',
+            '/\b(agencia\s+(web|digital|de\s+marketing|de\s+publicidad))\b/i',
+            '/\b(webbureau|reclamebureau|marketingbureau|communicatiebureau)\b/i',
+            '/\b(agencja\s+(reklamowa|interaktywna|marketingowa|PR))\b/i',
+            '/\b(reklamn[ií]\s+agentura|marketingov[aá]\s+agentura|webov[aá]\s+agentura)\b/i',
+
+            // ─── Multi-language cleaning / facility services ────────────
+            '/\b(reinigungsfirma|gebäudereinigung|gebaeudereinigung|hausmeisterservice)\b/i',
+            '/\b(entreprise\s+de\s+nettoyage|soci[eé]t[eé]\s+de\s+nettoyage)\b/i',
+            '/\b(impresa\s+di\s+pulizie?|servizi\s+di\s+pulizia)\b/i',
+            '/\b(empresa\s+de\s+limpieza|servicios?\s+de\s+limpieza)\b/i',
+            '/\b(schoonmaakbedrijf|schoonmaakdienst)\b/i',
+            '/\b(firma\s+sprz[aą]taj[aą]ca|us[lł]ugi\s+sprz[aą]tania)\b/i',
+            '/\b([uú]klidov[aá]\s+firma|[uú]klidov[eé]\s+slu[zž]by)\b/i',
+
+            // ─── Multi-language plumbing / HVAC / electrician (trades) ──
+            '/\b(klempner|sanitär|sanitaer|heizungsbau|elektroinstallation)\b/i',
+            '/\b(plombier|chauffagiste|[eé]lectricien)\b/i',
+            '/\b(idraulico|elettricista|termoidraulic)\b/i',
+            '/\b(fontanero|electricista|climatizaci[oó]n)\b/i',
+            '/\b(loodgieter|elektricien|verwarmingsinstallateur)\b/i',
+            '/\b(hydraulik|elektryk|instalator)\b/i',
+            '/\b(instalat[eé]r|elektrik[aá][řr]|topen[ií])\b/i',
+
+            // ─── Multi-language real estate ──────────────────────────────
+            '/\b(immobilienmakler|immobilienagentur|hausverwaltung)\b/i',
+            '/\b(agence\s+immobili[eè]re|agent\s+immobilier|promoteur\s+immobilier)\b/i',
+            '/\b(agenzia\s+immobiliare|agente\s+immobiliare)\b/i',
+            '/\b(agencia\s+inmobiliaria|inmobiliaria|promotora\s+inmobiliaria)\b/i',
+            '/\b(makelaar|vastgoedkantoor|makelaardij)\b/i',
+            '/\b(biuro\s+nieruchomo[sś]ci|agencja\s+nieruchomo[sś]ci)\b/i',
+            '/\b(realitn[ií]\s+(kancel[aá][řr]|makl[eé][řr]))\b/i',
+
+            // ─── Multi-language veterinary / pet ─────────────────────────
+            '/\b(tierarztpraxis|tierklinik|tierheim|zoofachhandel)\b/i',
+            '/\b(clinique\s+v[eé]t[eé]rinaire|cabinet\s+v[eé]t[eé]rinaire)\b/i',
+            '/\b(clinica\s+veterinaria|ambulatorio\s+veterinario)\b/i',
+            '/\b(cl[ií]nica\s+veterinaria|hospital\s+veterinario)\b/i',
+            '/\b(dierenkliniek|dierenarts|dierenwinkel)\b/i',
+            '/\b(lecznica\s+weterynaryjna|klinika\s+weterynaryjna)\b/i',
+            '/\b(veterin[aá]rn[ií]\s+klinika|veterin[aá]rn[ií]\s+ordinace)\b/i',
+
+            // ─── Multi-language flower / garden ──────────────────────────
+            '/\b(blumenladen|blumengeschäft|blumengeschaeft|gärtnerei|gaertnerei)\b/i',
+            '/\b(fleuriste|jardinerie|p[eé]pini[eè]re)\b/i',
+            '/\b(fioraio|fiorista|vivaio|giardinaggio)\b/i',
+            '/\b(florister[ií]a|jardiner[ií]a|vivero)\b/i',
+            '/\b(bloemenwinkel|tuincentrum|kwekerij)\b/i',
+            '/\b(kwiaciarnia|szkó[lł]ka\s+ro[sś]lin)\b/i',
+            '/\b(kv[eě]tin[aá][řr]stv[ií]|zahradnictv[ií])\b/i',
+
+            // ─── Multi-language driving school ───────────────────────────
+            '/\b(fahrschule|fahrstunde|fahrlehrer)\b/i',
+            '/\b(auto[\s-]?[eé]cole|moniteur\s+de\s+conduite)\b/i',
+            '/\b(scuola\s+guida|autoscuola)\b/i',
+            '/\b(autoescuela|escuela\s+de\s+conducci[oó]n)\b/i',
+            '/\b(rijschool|rijinstructeur)\b/i',
+            '/\b(szko[lł]a\s+jazdy|nauka\s+jazdy)\b/i',
+            '/\b(auto[šs]kola|autoškola)\b/i',
+
+            // ─── Multi-language pharmacy / drugstore ─────────────────────
+            '/\b(apotheke|drogerie)\b/i',
+            '/\b(pharmacie|parapharmacie)\b/i',
+            '/\b(farmacia|parafarmacia)\b/i',
+            '/\b(apotheek|drogisterij)\b/i',
+            '/\b(apteka|drogeria)\b/i',
+            '/\b(l[eé]k[aá]rna)\b/i',
+
+            // ─── Multi-language funeral services ─────────────────────────
+            '/\b(bestattung|bestattungsinstitut|beerdigungsinstitut)\b/i',
+            '/\b(pompes\s+fun[eè]bres|fun[eé]rarium)\b/i',
+            '/\b(onoranze\s+funebri|pompe\s+funebri)\b/i',
+            '/\b(funeraria|servicios?\s+funerarios?)\b/i',
+            '/\b(uitvaart(verzorging|centrum)|begrafenisondernemer)\b/i',
+            '/\b(zak[lł]ad\s+pogrzebowy)\b/i',
+            '/\b(poh[řr]ebn[ií]\s+slu[žz]ba|poh[řr]ebn[ií]\s+[uú]stav)\b/i',
         ];
         
         foreach ($junkPatterns as $pattern) {
@@ -7748,6 +8054,7 @@ class GoogleDorkService
             // Strip trademark symbols
             $newName = preg_replace('/[®™©]/u', '', $newName);
             // Strip trailing dashes and descriptive suffixes
+            $newName = preg_replace('/\s*[-–—|·]\s*(LinkedIn|Facebook|Twitter|Indeed|Glassdoor|Crunchbase|Overview|About).*$/i', '', $newName);
             $newName = preg_replace('/\s*[-–—]\s*(Electrifying|Driving|Powering|Leading|Global|The).*$/i', '', $newName);
             $newName = preg_replace('/\s*[-–—]\s*$/i', '', $newName);
             $newName = trim($newName);
@@ -9654,6 +9961,33 @@ class GoogleDorkService
             'standard', 'advanced', 'basic', 'enhanced', 'premium',
             'autonomous', 'exchangers', 'exchanger', 'cooling', 'heating',
             'cocos', 'cook',
+            // ── Place/country names parsed as person names ──
+            'morocco', 'maroc', 'marokko', 'turkey', 'türkiye', 'turkiye',
+            'india', 'china', 'japan', 'brasil', 'brazil', 'mexico',
+            'canada', 'australia', 'russia', 'world', 'global',
+            'schweiz', 'suisse', 'svizzera', 'österreich', 'osterreich',
+            'nederland', 'belgique', 'belgio', 'belgien',
+            // ── German job titles parsed as first names ──
+            'werksleiter', 'betriebsleiter', 'abteilungsleiter',
+            'projektleiter', 'vertriebsleiter', 'produktionsleiter',
+            'personalleiter', 'einkaufsleiter', 'fertigungsleiter',
+            'qualitätsleiter', 'entwicklungsleiter', 'werkleiter',
+            // ── French job titles parsed as first names ──
+            'directeur', 'directrice', 'responsable', 'gérant', 'gerant',
+            // ── Italian job titles parsed as first names ──
+            'dirigente', 'direttore', 'direttrice',
+            // ── Polish job titles parsed as first names ──
+            'kierownik', 'dyrektor', 'prezes',
+            // ── Organization-name words parsed as person names ──
+            'trade', 'centre', 'center', 'federation', 'foundation',
+            'institute', 'chamber', 'council', 'commission', 'committee',
+            'authority', 'agency', 'bureau', 'ministry', 'department',
+            'experiences', 'collective', 'consortium', 'syndicate',
+            'cooperative', 'alliance',
+            // ── LinkedIn-scraped garbage suffixes ──
+            'emphasized', 'highlighted', 'underlined', 'selected',
+            'verified', 'updated', 'promoted', 'featured', 'sponsored',
+            'recommended', 'endorsed', 'approved', 'certified',
         ];
         if (in_array($firstLower, $nonPersonWords, true) || in_array($lastLower, $nonPersonWords, true)) {
             return false;
@@ -11789,22 +12123,16 @@ class GoogleDorkService
         // ══════════════════════════════════════════════════════════════
 
         $exclude = ' -site:linkedin.com -site:wikipedia.org -site:youtube.com'
-            . ' -site:facebook.com -site:twitter.com -site:instagram.com'
-            . ' -textile -apparel -garment -knitwear -tannery -footwear'
-            . ' -"chamber of commerce" -"trade association" -"manufacturers association"'
-            . ' -"packaging company" -"printing company" -"corrugated"'
-            . ' -"plastic injection" -"injection molding" -"blow molding"'
-            . ' -"furniture manufacturer" -"woodworking" -"glass manufacturer"'
-            . ' -"steel mill" -foundry -"scrap metal"'
-            . ' -recruitment -"job vacancy" -"job opening" -careers'
-            // New: block common non-target categories at query level (saves API $)
-            . ' -pharmaceutical -biotech -"drug discovery" -"clinical trial"'
-            . ' -"game studio" -"video game" -gaming'
-            . ' -"investment fund" -"hedge fund" -"private equity" -"venture capital"'
-            . ' -"chemical company" -petrochemical -fertilizer -agrochemical'
-            . ' -"job board" -"job portal" -"job listing"'
-            . ' -"news agency" -"news site" -newspaper -magazine'
-            . ' -"law firm" -attorney -solicitor -"legal services"';
+            . ' -site:facebook.com -site:twitter.com -site:instagram.com';
+            // NOTE: Keyword/phrase exclusions (-textile, -"chamber of commerce", etc.)
+            // have been REMOVED from query-level filtering. They bloated queries to
+            // ~920 chars (94% exclusion junk), triggering bot detection across ALL
+            // 28 scraping engines. All filtering is now handled by:
+            //   - QueryOptimizer::filterResults() (post-scrape, multi-language)
+            //   - GoogleDorkService::isBlockedDomain() / isJunkCompanyName()
+            //   - BuyerEvidenceGate / ServiceProductClassifier / CompetitorProximityVeto
+            // The -site: exclusions above are kept for Google CSE API (paid fallback)
+            // which bypasses the scraping optimizer.
 
         // Build a flexible location term: just city + country words, unquoted
         // Also ensure country context is always present to prevent ambiguity

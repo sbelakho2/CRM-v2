@@ -10,7 +10,7 @@
             <h1 class="rams-page-title">{{ 'supplier.portal.title'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'supplier.portal.subtitle'|trans }}</p>
         </div>
-        <div class="rams-page-actions">
+        <div class="rams-page-actions mobile-stack">
             <a href="#add-supplier" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 3V13M3 8H13"/>
@@ -27,7 +27,7 @@
         </div>
         <div class="rams-module__content">
             <p class="rams-text--sm rams-text--muted rams-mb-3">{{ 'supplier.portal.add_supplier_help'|trans }}</p>
-            <form method="post" action="{{ path('supplier_portal_discover') }}" class="rams-form rams-grid rams-grid--3">
+            <form method="post" action="{{ path('supplier_portal_discover') }}" class="rams-form rams-grid rams-grid--3 mobile-stack">
                 <div class="rams-form__group">
                     <label class="rams-form__label rams-dymo">{{ 'supplier.portal.company_name'|trans }}</label>
                     <input type="text" name="company_name" class="rams-form__input" placeholder="{{ 'supplier.portal.company_name_placeholder'|trans }}" required>
@@ -52,7 +52,7 @@
     {# Search and Filter #}
     <div class="rams-module">
         <div class="rams-module__content">
-            <form class="rams-form rams-grid rams-grid--3">
+            <form class="rams-form rams-grid rams-grid--3 mobile-stack">
                 <div class="rams-form__group">
                     <label class="rams-form__label rams-dymo">{{ 'common.search'|trans }}</label>
                     <input type="text" placeholder="{{ 'supplier.portal.search_placeholder'|trans }}" class="rams-form__input">
@@ -119,7 +119,7 @@
                                 </td>
                                 <td class="rams-table__cell rams-text--xs">{{ supplier.region | default('common.n_a'|trans) }}</td>
                                 <td class="rams-table__cell rams-table__cell--actions">
-                                    <div class="rams-btn-group">
+                                    <div class="rams-btn-group mobile-stack">
                                         <a href="{{ path('supplier_portal_detail', {id: supplier.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
                                         <button class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</button>
                                         <button class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</button>
@@ -147,11 +147,11 @@
     </div>
 
     {# Pagination #}
-    <div class="rams-flex rams-justify-between rams-items-center">
+    <div class="rams-flex rams-justify-between rams-items-center mobile-stack">
         <p class="rams-text--muted rams-text--xs">
             {{ 'common.showing'|trans }} <span class="rams-badge">{{ suppliers | length }}</span> {{ 'common.of'|trans }} 100+ {{ 'supplier.portal.suppliers'|trans }}
         </p>
-        <div class="rams-btn-group">
+        <div class="rams-btn-group mobile-stack">
             <button class="rams-btn rams-btn--sm">{{ 'common.previous'|trans }}</button>
             <button class="rams-btn rams-btn--sm">{{ 'common.next'|trans }}</button>
         </div>

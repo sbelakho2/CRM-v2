@@ -10,7 +10,7 @@
             <h1 class="rams-page-title">{{ 'lead_discovery.results'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'lead_discovery.query_label'|trans }}: <span class="rams-text--bold">{{ query }}</span></p>
         </div>
-        <div class="rams-page-actions">
+        <div class="rams-page-actions mobile-stack">
             <a href="{{ path('lead_discovery_index') }}" class="rams-btn">
                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M11 4L13 8L11 12M5 4L3 8L5 12"/>
@@ -70,7 +70,7 @@
             {# Import Actions #}
             <div class="rams-module rams-mb-4">
                 <div class="rams-module__content">
-                    <form method="post" action="{{ path('lead_discovery_import') }}" id="importForm" class="rams-form rams-flex rams-justify-between rams-items-center">
+                    <form method="post" action="{{ path('lead_discovery_import') }}" id="importForm" class="rams-form rams-flex rams-justify-between rams-items-center mobile-stack">
                         <div class="rams-flex rams-items-center rams-gap-4">
                             <label class="rams-form__checkbox-container">
                                 <input type="checkbox" id="selectAll" class="rams-form__checkbox-input">
@@ -80,7 +80,7 @@
                                 <span id="selectedCount">0</span> {{ 'lead_discovery.selected'|trans }}
                             </span>
                         </div>
-                        <div class="rams-btn-group">
+                        <div class="rams-btn-group mobile-stack">
                             <button 
                                 type="submit" 
                                 class="rams-btn rams-btn--primary"

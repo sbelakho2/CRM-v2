@@ -17,7 +17,7 @@
             <h1 class="rams-page-title">{{ supplier.name }}</h1>
             <p class="rams-page-subtitle">{{ supplier.region }}</p>
         </div>
-        <div class="rams-page-actions">
+        <div class="rams-page-actions mobile-stack">
             {% set status_raw = supplier.status|default('') %}
             {% set status_label = status_raw == 'Active'
                 ? 'supplier.portal.status_active'|trans
@@ -30,9 +30,9 @@
         </div>
     </div>
 
-    <div class="rams-grid rams-grid--3 rams-gap-6">
+    <div class="rams-grid rams-grid--3 rams-gap-6 mobile-stack">
         {# Main Content #}
-        <div class="rams-stack rams-gap-6 rams-grid-span-2">
+        <div class="rams-stack rams-gap-6 rams-grid-span-2 mobile-w-full">
             {# Supplier Header Metrics #}
             <div class="rams-module">
                 <div class="rams-module__content">
@@ -118,7 +118,7 @@
         </div>
 
         {# Sidebar #}
-        <div class="rams-stack rams-gap-6">
+        <div class="rams-stack rams-gap-6 mobile-w-full">
             {# Performance Metrics #}
             <div class="rams-module">
                 <div class="rams-module__header">

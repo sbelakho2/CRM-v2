@@ -13,7 +13,7 @@
             <h1 class="rams-page-title">{{ 'autonomous_sales.page_title'|trans }}</h1>
             <p class="rams-page-subtitle">{{ dynamic_subtitle.key|trans(dynamic_subtitle.params) }}</p>
         </div>
-        <div class="rams-page-header__actions">
+        <div class="rams-page-header__actions mobile-w-full">
             <form method="post" action="{{ path('autonomous_sales_toggle') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_toggle') }}">
                 <button type="submit" class="rams-btn {% if enabled %}rams-btn--primary{% endif %}">
@@ -244,7 +244,7 @@
                                 <div class="rams-module__content">
                                     <h4 class="rams-text--bold rams-mb-2">{{ 'autonomous_sales.quick_optimize_title'|trans }}</h4>
                                     <p class="rams-text--sm rams-text--muted rams-mb-3">{{ 'autonomous_sales.quick_optimize_desc'|trans }}</p>
-                                    <form method="post" action="{{ path('autonomous_sales_hourly_run') }}" class="rams-flex rams-gap-3">
+                                    <form method="post" action="{{ path('autonomous_sales_hourly_run') }}" class="rams-flex rams-gap-3 mobile-stack">
                                         <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_hourly_run') }}">
                                         <input type="hidden" name="dryRun" value="1">
                                         <input type="hidden" name="limit" value="50">
@@ -257,7 +257,7 @@
                                 <div class="rams-module__content">
                                     <h4 class="rams-text--bold rams-mb-2">{{ 'autonomous_sales.quick_score_title'|trans }}</h4>
                                     <p class="rams-text--sm rams-text--muted rams-mb-3">{{ 'autonomous_sales.quick_score_desc'|trans }}</p>
-                                    <form method="post" action="{{ path('autonomous_sales_score_leads') }}" class="rams-flex rams-gap-3">
+                                    <form method="post" action="{{ path('autonomous_sales_score_leads') }}" class="rams-flex rams-gap-3 mobile-stack">
                                         <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_score_leads') }}">
                                         <input type="hidden" name="limit" value="50">
                                         <button type="submit" class="rams-btn">{{ 'autonomous_sales.quick_score_button'|trans }}</button>

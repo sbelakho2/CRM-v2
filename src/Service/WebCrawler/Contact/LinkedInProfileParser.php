@@ -161,8 +161,8 @@ final class LinkedInProfileParser
 
         $companyName = null;
 
-        // Extract from title: "ACME Corp | LinkedIn" or "ACME Corp: Overview | LinkedIn"
-        $cleaned = preg_replace('/\s*[|·:]\s*(Overview|LinkedIn|About).*$/i', '', $title);
+        // Extract from title: "ACME Corp | LinkedIn" or "ACME Corp - LinkedIn" or "ACME Corp: Overview | LinkedIn"
+        $cleaned = preg_replace('/\s*[|·:\-–—]\s*(Overview|LinkedIn|About).*$/i', '', $title);
         $cleaned = trim($cleaned);
 
         if (mb_strlen($cleaned) >= 2 && mb_strlen($cleaned) <= 120) {

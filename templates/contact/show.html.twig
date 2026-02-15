@@ -17,7 +17,7 @@
 
     {# Page Header #}
     <div class="rams-page-header">
-        <div class="rams-flex rams-items-center rams-gap-4">
+        <div class="rams-flex rams-items-center rams-gap-4 mobile-stack">
             <div class="rams-badge rams-badge--xl rams-badge--circle rams-badge--primary">
                 {{ contact.firstName|slice(0, 1) }}{{ contact.lastName|slice(0, 1) }}
             </div>
@@ -40,8 +40,8 @@
             </div>
         </div>
         
-        <div class="rams-page-actions">
-            <div class="rams-btn-group">
+        <div class="rams-page-actions mobile-stack">
+            <div class="rams-btn-group mobile-stack">
                 <a href="{{ path('app_contact_edit', {id: contact.id}) }}" class="rams-btn">
                     <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
@@ -61,9 +61,9 @@
         </div>
     </div>
 
-    <div class="rams-grid rams-grid--3 rams-gap-6">
+    <div class="rams-grid rams-grid--3 rams-gap-6 mobile-stack">
         {# Main Content #}
-        <div class="rams-grid-span-2 rams-stack rams-gap-6">
+        <div class="rams-grid-span-2 rams-stack rams-gap-6 mobile-w-full">
             {# Contact Information Module #}
             <div class="rams-module">
                 <div class="rams-module__header">
@@ -173,7 +173,7 @@
         </div>
 
         {# Sidebar #}
-        <div class="rams-stack rams-gap-6">
+        <div class="rams-stack rams-gap-6 mobile-w-full">
             {# Contact Details Module #}
             <div class="rams-module">
                 <div class="rams-module__header">

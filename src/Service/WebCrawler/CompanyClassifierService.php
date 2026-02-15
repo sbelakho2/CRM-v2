@@ -691,6 +691,31 @@ class CompanyClassifierService
             'standard', 'advanced', 'basic', 'enhanced',
             'autonomous', 'exchangers', 'exchanger',
             'cocos', 'cook',
+
+            // ── Product specification / technical measurement terms ──
+            'coaxial', 'antenna', 'antennas', 'thermal', 'density',
+            'complexity', 'impedance', 'attenuation', 'bandwidth',
+            'wavelength', 'amplitude', 'conductivity', 'resistivity',
+            'dielectric', 'inductance', 'capacitance', 'reactance',
+            'connector', 'connectors', 'cable', 'cables', 'wire', 'wires',
+            'harness', 'receptacle', 'socket', 'sockets', 'terminal', 'terminals',
+            'sensor', 'sensors', 'detector', 'detectors', 'actuator', 'actuators',
+            'module', 'modules', 'panel', 'panels', 'relay', 'relays',
+            'switch', 'switches', 'fuse', 'fuses', 'plug', 'plugs',
+            'pump', 'pumps', 'valve', 'valves', 'turbine', 'turbines',
+            'compressor', 'compressors', 'generator', 'generators',
+            'inverter', 'inverters', 'motor', 'motors',
+            'hvac', 'cooling', 'heating', 'evaporative', 'condenser', 'condensers',
+            'gasket', 'gaskets', 'shrink', 'tube', 'tubes',
+            'voltage', 'current', 'resistance', 'frequency', 'tolerance',
+            'dimension', 'dimensions', 'rating', 'ratings', 'range',
+            'stability', 'output', 'input', 'capacity',
+            'rail', 'railway', 'railroad', 'transit', 'transport',
+            'aerospace', 'defense', 'defence', 'marine', 'naval',
+            'replacement', 'upgrade', 'upgrades', 'configuration',
+            'specification', 'specifications', 'description',
+            'alternative', 'extraordinary', 'operating',
+            'vat', 'id', 'pid', 'sku', 'ref', 'qty',
         ];
         if (in_array($firstLower, $definitelyNotName) || in_array($lastLower, $definitelyNotName)) {
             return false;

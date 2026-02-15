@@ -26,13 +26,13 @@
     <form method="post" class="rams-form">
         <input type="hidden" name="_token" value="{{ csrf_token('campaign_send' ~ campaign.id) }}">
         
-        <div class="rams-grid rams-grid--3 rams-gap-6">
+        <div class="rams-grid rams-grid--3 rams-gap-6 mobile-stack">
             {# Contact Selection #}
-            <div class="rams-grid-span-2">
+            <div class="rams-grid-span-2 mobile-w-full">
                 <div class="rams-module">
                     <div class="rams-module__header">
                         <h2 class="rams-module__title">{{ 'email_campaign.select_contacts'|trans }}</h2>
-                        <div class="rams-btn-group">
+                        <div class="rams-btn-group mobile-stack">
                             <button type="button" onclick="selectAll()" class="rams-btn rams-btn--ghost rams-btn--sm uppercase">
                                 {{ 'common.select'|trans }} {{ 'common.all'|trans }}
                             </button>
@@ -71,7 +71,7 @@
             </div>
 
             {# Send Options Sidebar #}
-            <div class="rams-stack rams-gap-6">
+            <div class="rams-stack rams-gap-6 mobile-w-full">
                 <div class="rams-module">
                     <div class="rams-module__header">
                         <h2 class="rams-module__title">{{ 'email_campaign.send_options'|trans }}</h2>

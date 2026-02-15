@@ -9,7 +9,7 @@
             <h1 class="rams-page-title">{{ 'company.discovered.title'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'company.discovered.subtitle'|trans }}</p>
         </div>
-        <div class="rams-page-actions">
+        <div class="rams-page-actions mobile-stack">
             <a href="{{ path('app_company_discovered_export', {format: 'xlsx', sector: current_sector, region: current_region, search: current_search}) }}" class="rams-btn">
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -53,7 +53,7 @@
                         <input type="text" name="search" value="{{ current_search }}" class="rams-form__input" placeholder="{{ 'company.discovered.filter_search_placeholder'|trans }}" />
                     </div>
                 </div>
-                <div class="rams-flex rams-gap-2">
+                <div class="rams-flex rams-gap-2 mobile-stack">
                     <button type="submit" class="rams-btn rams-btn--primary">{{ 'company.discovered.filter_apply'|trans }}</button>
                     <a href="{{ path('app_company_discovered') }}" class="rams-btn">{{ 'company.discovered.filter_clear'|trans }}</a>
                 </div>

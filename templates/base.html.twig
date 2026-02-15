@@ -99,6 +99,19 @@
     {% if not isAuthPage %}
         {# Industrial Bezel Frame (Desktop only) #}
         <div class="rams-bezel" aria-hidden="true"></div>
+
+        {# Mobile Top Bar #}
+        <header class="rams-mobile-header" role="banner">
+            <button class="rams-mobile-header__toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
+                <span class="rams-mobile-header__toggle-bar"></span>
+                <span class="rams-mobile-header__toggle-bar"></span>
+                <span class="rams-mobile-header__toggle-bar"></span>
+            </button>
+            <div class="rams-mobile-header__brand">
+                <img src="{{ asset('images/logo.png') }}" alt="{{ 'app.name'|trans }} logo" class="rams-mobile-header__logo">
+                <span class="rams-mobile-header__title">{{ 'app.name'|trans }}</span>
+            </div>
+        </header>
         
         {# Rack Sidebar #}
         <aside class="rams-sidebar" role="navigation" aria-label="{{ 'accessibility.navigation'|trans }}">
@@ -487,20 +500,9 @@
                 </div>
             </div>
         </aside>
-        
-        <footer class="rams-status-bar" role="contentinfo">
-            <div class="rams-status-bar__section">
-                <span class="rams-status-bar__item">{{ 'status_bar.station'|trans }}: SENSEI-ALPHA-01</span>
-                <span class="rams-status-bar__item">{{ 'status_bar.os_version'|trans }}: {{ 'app.version'|trans }}-RAMS</span>
-            </div>
-            <div class="rams-status-bar__section">
-                <span class="rams-status-bar__item">
-                    <span class="rams-status-bar__indicator"></span>
-                    {{ 'status_bar.integrity'|trans }}: {{ 'status_bar.optimal'|trans }}
-                </span>
-                <span class="rams-status-bar__item tabular-nums" id="system-clock"></span>
-            </div>
-        </footer>
+
+        <div class="rams-sidebar__overlay" aria-hidden="true"></div>
+
     {% endif %}
     
     {# Main Content Area #}
@@ -543,21 +545,6 @@
         {% include 'components/alert_modal.html.twig' ignore missing %}
     {% endif %}
     
-    {# System Clock Script #}
-    <script>
-    (function() {
-        function updateClock() {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
-            const clockEl = document.getElementById('system-clock');
-            if (clockEl) {
-                clockEl.textContent = timeStr;
-            }
-        }
-        updateClock();
-        setInterval(updateClock, 1000);
-    })();
-    </script>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -569,6 +556,43 @@
                 group.classList.add('is-open');
             }
         }
+
+        const body = document.body;
+        const toggleButton = document.querySelector('.rams-mobile-header__toggle');
+        const overlay = document.querySelector('.rams-sidebar__overlay');
+        const navLinks = document.querySelectorAll('.rams-sidebar__nav-link');
+
+        function closeSidebar() {
+            body.classList.remove('is-sidebar-open');
+            if (toggleButton) {
+                toggleButton.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        function toggleSidebar() {
+            const isOpen = body.classList.toggle('is-sidebar-open');
+            if (toggleButton) {
+                toggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+        }
+
+        if (toggleButton) {
+            toggleButton.addEventListener('click', toggleSidebar);
+        }
+
+        if (overlay) {
+            overlay.addEventListener('click', closeSidebar);
+        }
+
+        navLinks.forEach(function(link) {
+            link.addEventListener('click', closeSidebar);
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeSidebar();
+            }
+        });
     });
     </script>
 

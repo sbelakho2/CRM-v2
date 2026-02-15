@@ -18,7 +18,7 @@
             </nav>
             <h1 class="rams-page-title">{{ 'abm_dashboard.accounts'|trans }}</h1>
         </div>
-        <div class="rams-page-actions">
+        <div class="rams-page-actions mobile-stack">
             <a href="{{ path('abm_dashboard_account_new') }}" class="rams-btn rams-btn--primary">
                 <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 3V13M3 8H13"/>
@@ -31,7 +31,7 @@
     {# Filters #}
     <div class="rams-module">
         <div class="rams-module__content">
-            <form class="rams-form rams-grid rams-grid--3">
+            <form class="rams-form rams-grid rams-grid--3 mobile-stack">
                 <div class="rams-form__group">
                     <label class="rams-form__label rams-dymo">{{ 'common.search'|trans }}</label>
                     <input type="text" placeholder="{{ 'abm_dashboard.search_accounts'|trans }}" class="rams-form__input">
@@ -99,7 +99,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="rams-module__footer rams-flex rams-gap-2" onclick="event.stopPropagation()">
+                    <div class="rams-module__footer rams-flex rams-gap-2 mobile-stack" onclick="event.stopPropagation()">
                         <a href="{{ path('abm_dashboard_account_detail', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm rams-flex-1">
                             {{ 'common.view'|trans }}
                         </a>

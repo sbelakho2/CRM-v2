@@ -12,7 +12,7 @@
                 <h1 class="rams-page__title">{{ 'lead.review'|trans }}</h1>
                 <p class="rams-page__subtitle">{{ 'lead.review_subtitle'|trans }}</p>
             </div>
-            <div class="rams-page__actions">
+            <div class="rams-page__actions mobile-stack">
                 <a href="{{ path('app_lead_dashboard') }}" class="rams-btn uppercase">
                     <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M2 14V6l6-4 6 4v8M6 14V9h4v5"/>
@@ -31,7 +31,7 @@
         {# Filters #}
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content">
-                <form method="get" class="rams-form rams-form--inline">
+                <form method="get" class="rams-form rams-form--inline mobile-stack">
                     <div class="rams-form__group">
                         <label class="rams-dymo">{{ 'lead.region'|trans }}</label>
                         <select name="region" class="rams-form__select">

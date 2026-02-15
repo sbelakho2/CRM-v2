@@ -129,7 +129,7 @@
             </div>
             <h1 class="rams-page__title">{{ 'calendar.title'|trans }}</h1>
         </div>
-        <div class="rams-page__actions">
+        <div class="rams-page__actions mobile-stack">
             <a href="{{ path('calendar_new') }}" class="rams-btn rams-btn--orange uppercase">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 2V14M2 8H14"/>
@@ -139,8 +139,8 @@
         </div>
     </div>
 
-    <div class="rams-grid rams-grid--4 rams-gap-6">
-        <div class="rams-grid-span-1">
+    <div class="rams-grid rams-grid--4 rams-gap-6 mobile-stack">
+        <div class="rams-grid-span-1 mobile-w-full">
              <div class="rams-module rams-mb-4">
                  <div class="rams-module__header">
                      <h3 class="rams-module__title">{{ 'calendar.views'|trans }}</h3>
@@ -172,7 +172,7 @@
              </div>
         </div>
 
-        <div class="rams-grid-span-3">
+        <div class="rams-grid-span-3 mobile-w-full">
            <div class="rams-module">
                <div class="rams-module__content" style="min-height: 700px;">
                    <div id="calendar" style="height: 100%;"></div>

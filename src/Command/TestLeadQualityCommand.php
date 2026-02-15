@@ -44,6 +44,19 @@ class TestLeadQualityCommand extends Command
         'ES' => 'Spain',
         'PL' => 'Poland',
         'GB' => 'United Kingdom',
+        // MENA
+        'MA' => 'Morocco',
+        'EG' => 'Egypt',
+        'TN' => 'Tunisia',
+        // GCC
+        'SA' => 'Saudi Arabia',
+        'AE' => 'United Arab Emirates',
+        'QA' => 'Qatar',
+        'KW' => 'Kuwait',
+        'BH' => 'Bahrain',
+        'OM' => 'Oman',
+        // Americas
+        'US' => 'United States',
     ];
 
     /**
@@ -106,6 +119,14 @@ class TestLeadQualityCommand extends Command
         'acasă', 'acasa', 'despre noi',
         // Hungarian
         'kezdőlap', 'kezdolap', 'rólunk', 'rolunk', 'kapcsolat',
+        // Arabic (transliterated navigation / UI)
+        'الصفحة الرئيسية', 'الرئيسية', 'من نحن', 'اتصل بنا',
+        'خدماتنا', 'المنتجات', 'أخبار', 'وظائف', 'حول', 'تواصل',
+        'معلومات', 'سياسة الخصوصية', 'الشروط والأحكام',
+        'القائمة', 'بحث', 'المزيد', 'تسجيل', 'دخول',
+        // Arabic transliterations that appear as scraped names
+        'accueil', 'bienvenue', 'savoir-faire',
+        'anasayfa', 'hakkimizda', 'iletisim',
     ];
 
     /**
@@ -163,6 +184,15 @@ class TestLeadQualityCommand extends Command
         'tjanster', 'nyheter', 'godkänn', 'samtycke',
         // Cookie consent terms (appear as "names" when scraped)
         'cookie', 'cookies', 'gdpr', 'dsgvo',
+        // Arabic UI / consent / organizational artifacts
+        'موافق', 'رفض', 'إعدادات', 'ملفات', 'تعريف',
+        'الارتباط', 'خصوصية', 'شركة', 'مؤسسة', 'مجموعة',
+        'هيئة', 'وزارة', 'جمعية', 'غرفة', 'اتحاد',
+        // Arabic honorifics / titles that get scraped as names
+        'sheikh', 'shaikh', 'cheikh', 'emir', 'hajj', 'hajji',
+        'sayyid', 'sayyed', 'ustaz', 'ustadh', 'mudir',
+        // Turkish UI artifacts (for GCC mixed content)
+        'anasayfa', 'hakkimizda', 'iletisim', 'hizmetler', 'ürünler', 'urunler',
     ];
 
     /**
@@ -577,19 +607,117 @@ HELP
      */
     private function cleanCompanyName(string $raw): ?string
     {
-        // Strip common platform suffixes
-        $name = preg_replace('/\s*[-–|·]\s*(LinkedIn|Facebook|Twitter|Indeed|Glassdoor|Crunchbase|Bloomberg|ZoomInfo|YouTube|Xing|Viadeo)$/i', '', $raw);
+        // Strip common platform suffixes (" - LinkedIn", " | LinkedIn", etc.)
+        $name = preg_replace('/\s*[-–—|·]\s*(LinkedIn|Facebook|Twitter|Indeed|Glassdoor|Crunchbase|Bloomberg|ZoomInfo|YouTube|Xing|Viadeo)(\s.*)?$/i', '', $raw);
         // Strip trailing " - Page" / " ... | Something"
         $name = preg_replace('/\s*\|\s*[^|]+$/', '', $name);
+        // Strip HTML artifacts like "<", ">", "&amp;", "&lt;"
+        $name = preg_replace('/\s*<\s*$/', '', $name);
+        $name = preg_replace('/^\s*<\s*/', '', $name);
+        // Decode HTML entities (&amp; → &, etc.)
+        $name = html_entity_decode($name, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $name = trim($name, " \t\n\r\0\x0B.,;:-–");
 
         if ($name === '') {
             return null;
         }
 
-        // Reject names that are just numbers or very short (< 2 chars)
-        if (mb_strlen($name) < 2 || preg_match('/^\d+$/', $name)) {
+        // Reject if name STILL contains "LinkedIn" (e.g. from middle of string)
+        if (preg_match('/\blinkedin\b/i', $name)) {
+            // Try stripping it
+            $name = preg_replace('/\s*[-–—|·]?\s*LinkedIn\s*/i', '', $name);
+            $name = trim($name, " \t\n\r\0\x0B.,;:-–");
+            if ($name === '' || preg_match('/\blinkedin\b/i', $name)) {
+                return null;
+            }
+        }
+
+        // Reject event/conference names
+        if (preg_match('/\b(event[s]?|conference|exhibition|trade\s*show|expo(sition)?|summit|symposium|congress|convention|forum|workshop|webinar|salon|messe|foire|feria|feira|salone|targi)\b/iu', $name)) {
             return null;
+        }
+
+        // Reject educational institutions (universities, academies, schools)
+        if (preg_match('/\b(universit[yéàäità]|university|academ[yia]|école|ecole|schule|hochschule|fachhochschule|politechnik[ai]|politecnico|istituto|instytut|fakultät|fakulta|college|campus)\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject real estate / property development companies
+        if (preg_match('/\b(real\s*estate|property\s+(develop|invest|manag)|immobili[eaè]r[ea]?|nieruchomości|nieruchomosci|grundstück|grundstueck|makelaar|makelaardij|logistic[s]?\s*(park|center|centre|developer))\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject hospitality / hotel / tourism companies
+        if (preg_match('/\b(hotel[s]?\b|hospitality|hostel|resort[s]?|tourism|turismo|tourismus|hôtel|reise|reisen|gastro|gastronomie)\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject pure financial / investment holding companies
+        if (preg_match('/\b(private\s+equity|venture\s+capital|hedge\s+fund|investment\s+(fund|bank|group|holding)|asset\s+management|wealth\s+management|kapitalanlage|fondi|fundusz)\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject government / ministry / sovereign entities
+        if (preg_match('/\b(ministry|ministère|ministere|وزارة|government\s+of|authority\s+of|sovereign\s+wealth|public\s+authority|municipal(ity)?|prefecture)\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject free zones / industrial parks / economic zones (not real companies)
+        if (preg_match('/\b(free\s*zone|free\s*trade\s*zone|economic\s*zone|industrial\s*(city|zone|park|estate)|special\s+economic|منطقة\s+(حرة|صناعية|اقتصادية))\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject telecom operators / carriers (too big, not EMS prospects)
+        if (preg_match('/\b(etisalat|du\s+telecom|zain\s+|stc\b|mobily|ooredoo|maroc\s+telecom|orange\s+(maroc|tunisie|egypt)|vodafone\s+(egypt|qatar)|we\s+telecom)\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject MENA conglomerates / megacorps (too large for EMS)
+        if (preg_match('/\b(sabic|ma\'?aden|aramco|adnoc|emaar|damac|al[- ]?(futtaim|ghurair|habtoor|rajhi|tayer|shaya|kharafi|zamil|jaber)|majid\s+al\s+futtaim)\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject names containing Arabic script (non-Latin, can't be valid company names for our CRM)
+        if (preg_match('/[\x{0600}-\x{06FF}]{3,}/u', $name)) {
+            return null;
+        }
+
+        // Reject recruitment / staffing / job boards
+        if (preg_match('/\b(recruitment|staffing|job\s*board|career[s]?\s*(page|site|portal)|recrutement|naukri|bayt\.com|wuzzuf|gulftalent|emploi)\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject news / media outlets
+        if (preg_match('/\b(newspaper|news\s+(agency|outlet|portal)|al[\s-]?(jazeera|arabiya|ahram|masry|youm)|daily\s+news|morning\s+star|gazette|tribune)\b/iu', $name)) {
+            return null;
+        }
+
+        // Reject names that are just numbers or very short (< 3 chars)
+        if (mb_strlen($name) < 3 || preg_match('/^\d+$/', $name)) {
+            return null;
+        }
+
+        // Reject names that look like a single common first name (not a company)
+        if (preg_match('/^[A-Z][a-z]{2,10}$/', $name)) {
+            $commonFirstNames = [
+                'Roger', 'Peter', 'Michael', 'Thomas', 'Daniel', 'Martin',
+                'Stefan', 'Robert', 'David', 'Paul', 'James', 'John',
+                'Marco', 'Andrea', 'Mario', 'Giuseppe', 'Giovanni', 'Paolo',
+                'Pierre', 'Jean', 'Jacques', 'Marie', 'Hans', 'Klaus',
+                'Marek', 'Tomasz', 'Piotr', 'Adam', 'Jan', 'Anna',
+                'Carlos', 'Maria', 'Ahmed', 'Ali', 'Omar', 'Hassan',
+                // Common Arabic/MENA first names
+                'Mohamed', 'Mohammed', 'Muhammad', 'Ahmad', 'Hussein',
+                'Youssef', 'Karim', 'Mustafa', 'Khalid', 'Ibrahim',
+                'Ismail', 'Rachid', 'Hamid', 'Nabil', 'Fouad',
+                'Jawad', 'Aziz', 'Driss', 'Samir', 'Tarek',
+                'Fatima', 'Amina', 'Khadija', 'Meryem', 'Salma',
+            ];
+            // Only reject if it matches a known first name — don't reject
+            // legitimate single-word company names like "Borri", "Chemont"
+            if (in_array($name, $commonFirstNames, true)) {
+                return null;
+            }
         }
 
         return $name;
@@ -609,6 +737,31 @@ HELP
         string $countryCode,
         string $countryName,
     ): void {
+        // Skip if EntityManager was closed by a previous failed flush
+        if (!$this->entityManager->isOpen()) {
+            return;
+        }
+
+        try {
+            $this->doPersistCompanyWithContacts($name, $domain, $result, $contacts, $sector, $countryCode, $countryName);
+        } catch (\Exception $e) {
+            // Log but don't crash — the validation run should continue
+            // The EntityManager may be closed now, subsequent persists will be skipped
+        }
+    }
+
+    /**
+     * Internal: actually persist a company and its contacts.
+     */
+    private function doPersistCompanyWithContacts(
+        string $name,
+        string $domain,
+        array $result,
+        array $contacts,
+        string $sector,
+        string $countryCode,
+        string $countryName,
+    ): void {
         // ── Clean company name ─────────────────────────────────────
         $cleanName = $this->cleanCompanyName($name);
         if ($cleanName === null) {
@@ -619,15 +772,26 @@ HELP
         $website = $result['website'] ?? ('https://' . $domain);
         $websiteNorm = preg_replace('#^https?://(www\.)?#i', '', rtrim($website, '/'));
 
-        // Check for existing company by website domain
+        // Check for existing company by website domain (use DQL for robustness)
         $existingCompany = null;
-        $allCompanies = $this->entityManager->getRepository(Company::class)->findAll();
-        foreach ($allCompanies as $c) {
-            $cWebsite = preg_replace('#^https?://(www\.)?#i', '', rtrim($c->getWebsite() ?? '', '/'));
-            if ($cWebsite !== '' && strcasecmp($cWebsite, $websiteNorm) === 0) {
-                $existingCompany = $c;
-                break;
+        try {
+            $qb = $this->entityManager->createQueryBuilder();
+            $qb->select('c')
+               ->from(Company::class, 'c')
+               ->where('c.website IS NOT NULL')
+               ->andWhere('c.website != :empty')
+               ->setParameter('empty', '');
+            $allCompanies = $qb->getQuery()->getResult();
+
+            foreach ($allCompanies as $c) {
+                $cWebsite = preg_replace('#^https?://(www\.)?#i', '', rtrim($c->getWebsite() ?? '', '/'));
+                if ($cWebsite !== '' && strcasecmp($cWebsite, $websiteNorm) === 0) {
+                    $existingCompany = $c;
+                    break;
+                }
             }
+        } catch (\Exception $e) {
+            $existingCompany = null;
         }
 
         if ($existingCompany !== null) {
@@ -668,8 +832,14 @@ HELP
 
         // Persist contacts — dedup by first+last name within the same company
         $existingContactNames = [];
-        foreach ($company->getContacts() as $ec) {
-            $existingContactNames[] = mb_strtolower(trim($ec->getFirstName() . ' ' . $ec->getLastName()));
+        try {
+            if ($existingCompany !== null) {
+                foreach ($company->getContacts() as $ec) {
+                    $existingContactNames[] = mb_strtolower(trim($ec->getFirstName() . ' ' . $ec->getLastName()));
+                }
+            }
+        } catch (\Exception $e) {
+            // Lazy loading failed — proceed with empty list
         }
 
         foreach ($contacts as $c) {
@@ -683,12 +853,62 @@ HELP
             $fullName = mb_strtolower("{$firstName} {$lastName}");
             $jobTitle = mb_strtolower($c['job_title'] ?? '');
 
-            // Skip email-alias "names" (e.g. "Avl Deutschland", "Italy Hotline", "Salesinfo Avlitaly")
+            // ── Layer 1: Clean HTML entities in fields before evaluation ──
+            if (!empty($c['job_title'])) {
+                $c['job_title'] = html_entity_decode($c['job_title'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $jobTitle = mb_strtolower($c['job_title']);
+            }
+            $lastName = html_entity_decode($lastName, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $firstName = html_entity_decode($firstName, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            // ── Layer 1b: Strip junk prefix words from first name ──
+            // e.g. "Emphasizes Peter" → "Peter", "Highlights Maria" → "Maria"
+            $firstName = preg_replace('/^(Emphasizes|Highlights|Features|Showcases|Presents|Introduces)\s+/i', '', $firstName);
+            $firstName = trim($firstName);
+            if (empty($firstName)) {
+                continue;
+            }
+
+            // ── Layer 2: Strip credential/designation suffixes from last name ──
+            // e.g. "Borri MCIOB AMICE" → "Borri", "Aquilas AVI" → "Aquilas"
+            $lastName = preg_replace('/\s+(?:[A-Z]{2,6}\s*)+$/', '', $lastName);
+            $lastName = trim($lastName);
+            if (empty($lastName)) {
+                continue;
+            }
+
+            // ── Layer 3: Strip garbage suffix words from last name ──
+            // e.g. "Kretschmer emphasized" → "Kretschmer"
+            $garbageSuffixes = [
+                'emphasized', 'highlighted', 'underlined', 'selected',
+                'verified', 'updated', 'promoted', 'featured', 'sponsored',
+                'recommended', 'endorsed', 'approved', 'certified',
+                'became', 'proposed', 'announced', 'explained', 'stated',
+                'reported', 'described', 'mentioned', 'noted', 'added',
+                'takes', 'says', 'told', 'believes', 'argues', 'claims',
+                'reveals', 'confirms', 'discusses', 'suggests',
+            ];
+            foreach ($garbageSuffixes as $gs) {
+                if (preg_match('/\s+' . preg_quote($gs, '/') . '$/i', $lastName)) {
+                    $lastName = preg_replace('/\s+' . preg_quote($gs, '/') . '$/i', '', $lastName);
+                    $lastName = trim($lastName);
+                    break;
+                }
+            }
+            if (empty($lastName)) {
+                continue;
+            }
+
+            // Recalculate fullName after cleaning
+            $fullName = mb_strtolower("{$firstName} {$lastName}");
+
+            // ── Layer 4: Skip email-alias "names" ──
             $junkContactWords = [
                 'hotline', 'info', 'salesinfo', 'support', 'contact',
                 'admin', 'webmaster', 'noreply', 'marketing', 'sales',
                 'helpdesk', 'service', 'general', 'generale', 'direzione',
                 'redazione', 'segreteria', 'ufficio', 'reception',
+                'cookie', 'privacy', 'disclaimer', 'terms',
             ];
             $isJunkContact = false;
             foreach ($junkContactWords as $jw) {
@@ -701,21 +921,207 @@ HELP
                 continue;
             }
 
-            // Skip country/region names used as first names (e.g. "Italy Hotline", "Avl Croatia")
-            $countryFirstNames = [
+            // ── Layer 5: Skip country/region/place names used as first or last names ──
+            $placeNames = [
                 'italy', 'italia', 'france', 'deutschland', 'germany', 'poland',
                 'polska', 'croatia', 'españa', 'spain', 'europe', 'asia',
+                'morocco', 'maroc', 'marokko', 'africa', 'afrika', 'america',
+                'americas', 'world', 'global', 'international', 'turkey',
+                'türkiye', 'turkiye', 'india', 'china', 'japan', 'brasil',
+                'brazil', 'mexico', 'canada', 'australia', 'russia',
+                'schweiz', 'suisse', 'svizzera', 'österreich', 'osterreich',
+                'nederland', 'belgique', 'belgio', 'belgien',
+                // MENA / GCC / US places that get scraped as contact names
+                'egypt', 'egypte', 'tunisia', 'tunisie', 'tunisien',
+                'saudi', 'arabia', 'emirates', 'qatar', 'bahrain',
+                'kuwait', 'oman', 'dubai', 'sharjah', 'ajman',
+                'riyadh', 'jeddah', 'dammam', 'jubail', 'yanbu',
+                'doha', 'muscat', 'manama', 'cairo', 'alexandria',
+                'casablanca', 'rabat', 'tangier', 'tanger', 'marrakech',
+                'tunis', 'sfax', 'sousse', 'monastir',
+                // US states / cities that appear as names
+                'texas', 'california', 'florida', 'virginia', 'michigan',
+                'ohio', 'georgia', 'carolina', 'jersey', 'york',
+                'houston', 'dallas', 'atlanta', 'boston', 'chicago',
+                'detroit', 'seattle', 'denver', 'phoenix', 'portland',
+                'philadelphia', 'pittsburgh', 'charlotte', 'austin',
+                'washington', 'colorado', 'minnesota', 'illinois',
+                'wisconsin', 'indiana', 'tennessee', 'oregon',
+                'connecticut', 'massachusetts', 'maryland', 'arizona',
             ];
-            if (in_array(mb_strtolower($firstName), $countryFirstNames, true)
-                || in_array(mb_strtolower($lastName), $countryFirstNames, true)) {
+            if (in_array(mb_strtolower($firstName), $placeNames, true)
+                || in_array(mb_strtolower($lastName), $placeNames, true)) {
                 continue;
             }
 
-            // Skip political/head-of-state titles in job title
+            // ── Layer 6: Skip German/foreign job-title words parsed as first name ──
+            $jobTitleAsName = [
+                'werksleiter', 'geschäftsführer', 'geschaeftsfuehrer',
+                'betriebsleiter', 'abteilungsleiter', 'projektleiter',
+                'vertriebsleiter', 'produktionsleiter', 'personalleiter',
+                'directeur', 'responsable', 'dirigente', 'direttore',
+                'kierownik', 'dyrektor', 'prezes', 'zarząd', 'zarzad',
+                'vedoucí', 'vedouci', 'ředitel', 'reditel',
+                'toimitusjohtaja', 'verkställande',
+                'vertreten', 'ansprechpartner', 'kontaktperson',
+                'inhaber', 'eigentümer', 'eigentuemer', 'gründer', 'gruender',
+                // Arabic/MENA job titles that get scraped as first names
+                'mudir', 'mudeer', 'ra\'is', 'rais', 'nayib',
+                'mohandess', 'mohandis', 'sahib',
+                'gérant', 'gerant', 'fondateur', 'cofondateur',
+                'président', 'administrateur',
+                // German corporate-value words scraped as first names
+                'integrität', 'integritaet', 'respekt', 'teamgeist',
+                'ownership', 'nachhaltigkeit', 'verantwortung',
+            ];
+            if (in_array(mb_strtolower($firstName), $jobTitleAsName, true)) {
+                continue;
+            }
+
+            // ── Layer 6b: Skip marketing adjectives / technical words as first name ──
+            $marketingFirstNames = [
+                'inspired', 'beyond', 'traditional', 'indirect', 'direct',
+                'nuclear', 'advanced', 'innovative', 'premium', 'superior',
+                'ultimate', 'optimal', 'reliable', 'sustainable', 'certified',
+                'integrated', 'automated', 'portable', 'compact', 'modular',
+                'customized', 'specialized', 'dedicated', 'complete',
+                'local', 'regional', 'national', 'spare', 'variable',
+                'frequency', 'accommodation', 'fabrications', 'fabrication',
+                'fenix', 'seawater', 'desalination', 'alternative',
+                'different', 'consumer', 'various', 'multiple',
+                'temperature', 'alarm', 'spiral', 'wound', 'ring',
+                'cab', 'replacement', 'specialist', 'chillers',
+                'combine', 'configuration', 'standard', 'custom',
+                'mechanical', 'electrical', 'structural', 'chemical',
+            ];
+            if (in_array(mb_strtolower($firstName), $marketingFirstNames, true)) {
+                continue;
+            }
+
+            // ── Layer 6c: Skip month names as first/last name ──
+            $monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
+                'july', 'august', 'september', 'october', 'november', 'december'];
+            if (in_array(mb_strtolower($firstName), $monthNames, true)
+                || in_array(mb_strtolower($lastName), $monthNames, true)) {
+                continue;
+            }
+
+            // ── Layer 7: Skip organization names parsed as person names ──
+            // e.g. "World Trade Centre", "Morocco Experiences"
+            $orgNameWords = [
+                'trade', 'centre', 'center', 'association', 'federation',
+                'foundation', 'institute', 'chamber', 'council', 'commission',
+                'committee', 'authority', 'agency', 'bureau', 'board',
+                'ministry', 'department', 'experiences', 'collective',
+                'consortium', 'syndicate', 'cooperative', 'alliance',
+                // MENA/GCC organization words
+                'zone', 'industrial', 'petroleum', 'petrochemical',
+                'refinery', 'pipeline', 'shipping', 'logistics',
+                'petroleum', 'airways', 'airlines', 'telecom',
+                'holdings', 'conglomerate', 'group', 'enterprise',
+                'corporation', 'limited', 'incorporated',
+                // Generic org/role words that appear as person names
+                'positions', 'alliances', 'opening', 'strategic',
+                'auto', 'motors', 'energy', 'power', 'resources',
+                'partners', 'ventures', 'capital', 'network', 'systems',
+                'solutions', 'technologies', 'services', 'industries',
+                // Product categories / technical words parsed as names
+                'hvac', 'detectors', 'detector', 'sensors', 'sensor',
+                'pumps', 'valves', 'compressors', 'turbines', 'generators',
+                'cooling', 'heating', 'evaporative', 'condensers',
+                'automation', 'robotics', 'actuators', 'inverters',
+                'panels', 'modules', 'components', 'equipment',
+                'machines', 'machinery', 'tools', 'instruments',
+                // More product/sector words
+                'tube', 'tubes', 'shrink', 'wire', 'cable', 'cables',
+                'sciences', 'life', 'view', 'display', 'drives', 'drive',
+                'plug', 'plugs', 'filter', 'filters', 'connector', 'connectors',
+                'switch', 'switches', 'relay', 'relays', 'fuse', 'fuses',
+                'audit', 'parts', 'units', 'unit', 'assembly',
+                // Transport/sector words
+                'rail', 'railway', 'railroad', 'transit', 'transport',
+                'aerospace', 'defense', 'defence', 'marine', 'naval',
+                'devices', 'departments', 'divisions', 'operations',
+                // Product specification / technical words
+                'gaskets', 'gasket', 'upgrades', 'upgrade', 'replacement',
+                'range', 'stability', 'message', 'connection', 'connections',
+                'specification', 'specifications', 'capacity', 'tolerance',
+                'pressure', 'voltage', 'dimension', 'dimensions',
+                'rating', 'ratings', 'performance', 'efficiency',
+                'combine', 'configuration', 'output', 'input',
+                'events', 'event', 'description', 'current',
+                'händetrockner', 'handdroger', 'update', 'plug',
+                'job', 'jobs', 'career', 'careers', 'vacancy', 'vacancies',
+                // Product specification / measurement terms
+                'density', 'complexity', 'impedance', 'attenuation',
+                'bandwidth', 'wavelength', 'amplitude', 'conductivity',
+                'resistivity', 'dielectric', 'inductance', 'capacitance',
+                'reactance', 'resistance', 'receptacle', 'socket', 'sockets',
+                'terminal', 'terminals', 'harness', 'antenna', 'antennas',
+                'coaxial', 'vat', 'id', 'pid', 'sku', 'ref', 'qty',
+            ];
+            if (in_array(mb_strtolower($lastName), $orgNameWords, true)
+                || in_array(mb_strtolower($firstName), $orgNameWords, true)) {
+                continue;
+            }
+
+            // ── Layer 7c: Reject 1-2 char uppercase abbreviation "names" ──
+            // e.g. "LS" / "Life Sciences", "ST" / "Shrink Tube"
+            if (preg_match('/^[A-Z]{1,2}$/', $firstName) && !preg_match('/^[A-Z][a-z]$/', $firstName)) {
+                continue;
+            }
+
+            // ── Layer 7b: Skip if fullName matches company name pattern ──
+            // e.g. "Raya Auto", "Windmason Arabia" = clearly the company name
+            if (preg_match('/^[A-Z][a-z]+\s+(Auto|Motors|Energy|Power|Group|Corp|Inc|Ltd|Systems|Tech|Electronics|Industries|Arabia|Egypt|Morocco|Tunisia|Dubai|Qatar|Kuwait)$/u', "{$firstName} {$lastName}")) {
+                continue;
+            }
+
+            // ── Layer 7c: Skip product-description contacts (2+ technical/product words) ──
+            $productWords = ['hvac', 'cooling', 'heating', 'evaporative', 'condenser', 'compressor',
+                'pump', 'valve', 'turbine', 'generator', 'motor', 'inverter', 'actuator',
+                'detector', 'sensor', 'panel', 'module', 'unit', 'drive', 'frequency',
+                'nuclear', 'thermal', 'solar', 'hydraulic', 'pneumatic', 'electric',
+                'indirect', 'direct', 'variable', 'fresh', 'air', 'water', 'desalination',
+                'fabrication', 'fabrications', 'spare', 'parts', 'accommodation', 'units',
+                'audit', 'rig', 'plant', 'plants', 'seawater',
+                'gasket', 'gaskets', 'wound', 'spiral', 'ring', 'connection',
+                'range', 'stability', 'temperature', 'alarm', 'message',
+                'upgrade', 'upgrades', 'replacement', 'cab', 'chillers',
+                'combine', 'pressure', 'voltage', 'rating', 'output'];
+            $fnLow = mb_strtolower($firstName);
+            $lnLow = mb_strtolower($lastName);
+            $fnIsProduct = in_array($fnLow, $productWords, true);
+            $lnIsProduct = in_array($lnLow, $productWords, true);
+            // If both first and last are product words, or last is multi-word and all product words
+            if ($fnIsProduct && $lnIsProduct) {
+                continue;
+            }
+            if ($fnIsProduct && str_contains($lastName, ' ')) {
+                $lnParts = explode(' ', $lastName);
+                $allProduct = true;
+                foreach ($lnParts as $lnp) {
+                    if (!in_array(mb_strtolower($lnp), $productWords, true)) {
+                        $allProduct = false;
+                        break;
+                    }
+                }
+                if ($allProduct) {
+                    continue;
+                }
+            }
+
+            // ── Layer 8: Skip political/head-of-state titles in job title ──
             $politicalTitles = [
                 'president of the', 'presidente della', 'président de la',
                 'prime minister', 'head of state', 'king of', 'queen of',
                 'chancellor of', 'italian republic', 'french republic',
+                'minister-president', 'ministerpräsident',
+                // MENA / GCC political
+                'emir of', 'sultan of', 'crown prince', 'royal court',
+                'sheikh of', 'ruler of', 'governor of', 'wali of',
+                'his highness', 'his excellency', 'her excellency',
+                'his majesty', 'her majesty', 'his royal',
             ];
             foreach ($politicalTitles as $pt) {
                 if (str_contains($jobTitle, $pt)) {
@@ -724,6 +1130,89 @@ HELP
                 }
             }
             if ($isJunkContact) {
+                continue;
+            }
+
+            // ── Layer 9: Validate job title is a real job title ──
+            // Reject mottos, quotes, weather forecasts, Latin phrases, etc.
+            if (!empty($jobTitle)) {
+                // Must contain at least one recognizable job/role word, OR be very short (≤3 words)
+                $jobWordCount = count(explode(' ', trim($jobTitle)));
+
+                // Reject obvious non-job patterns (> 4 words and no job-related word)
+                if ($jobWordCount > 4) {
+                    $hasJobWord = (bool) preg_match('/\b(manager|director|officer|chief|head|lead|senior|junior|engineer|developer|designer|analyst|specialist|coordinator|supervisor|executive|president|vice|founder|owner|partner|ceo|cfo|cto|coo|cio|vp|svp|evp|avp|intern|trainee|assistant|associate|consultant|architect|technician|operator|foreman|controller|accountant|administrator|secretary|procurement|purchasing|buyer|planner|logistics|supply\s+chain|quality|production|manufacturing|operations|sales|business|commercial|marketing|finance|hr|human\s+resources|it\s+|research|development|r&d)\b/iu', $jobTitle);
+
+                    if (!$hasJobWord) {
+                        // This is likely a motto, quote, weather, or garbage
+                        continue;
+                    }
+                }
+
+                // Reject known non-job patterns
+                $junkJobPatterns = [
+                    '/\b(weather|rain|sunny|cloud|temperature|forecast)\b/i',
+                    '/\b(i know that|labor omnia|carpe diem|memento mori|cogito ergo|veni vidi|ad astra)\b/i',
+                    '/^vertreten\s+durch$/i',
+                    '/^\s*&\s*$/',              // just an ampersand
+                    '/&amp;?\s*$/i',            // trailing HTML entity
+                ];
+                $junkJob = false;
+                foreach ($junkJobPatterns as $jp) {
+                    if (preg_match($jp, $jobTitle)) {
+                        $junkJob = true;
+                        break;
+                    }
+                }
+                if ($junkJob) {
+                    // Don't skip entirely — just clear the job title (person may be real)
+                    $c['job_title'] = '';
+                    $jobTitle = '';
+                }
+
+                // Clean trailing HTML entities / truncation artifacts from job title
+                $c['job_title'] = preg_replace('/\s*&amp;?\s*$/', '', $c['job_title'] ?? '');
+                $c['job_title'] = preg_replace('/\s*\.\.\.\s*$/', '', $c['job_title'] ?? '');
+            }
+
+            // ── Layer 10: Reject if last name has spaces + looks like compound junk ──
+            // e.g. "Trade Centre" (2 generic words), but allow "van der Berg", "de la Cruz"
+            if (str_contains($lastName, ' ')) {
+                $lastParts = explode(' ', $lastName);
+                $nameParticles = ['van', 'von', 'de', 'del', 'della', 'di', 'da', 'le', 'la', 'el', 'al', 'bin', 'ben', 'ibn', 'der', 'den', 'het', 'op', 'ten', 'ter', 'zu', 'dos', 'das', 'do'];
+                $isCompound = false;
+                foreach ($lastParts as $lp) {
+                    if (in_array(mb_strtolower($lp), $nameParticles, true)) {
+                        $isCompound = true;
+                        break;
+                    }
+                }
+                // If NOT a legitimate compound name, and contains org/generic words, reject
+                if (!$isCompound) {
+                    foreach ($lastParts as $lp) {
+                        if (in_array(mb_strtolower($lp), $orgNameWords, true)) {
+                            $isJunkContact = true;
+                            break;
+                        }
+                    }
+                    if ($isJunkContact) {
+                        continue;
+                    }
+                }
+            }
+
+            // ── Layer 11: Reject Arabic-script names (not Latin-parseable for CRM) ──
+            if (preg_match('/[\x{0600}-\x{06FF}]{2,}/u', $firstName . ' ' . $lastName)) {
+                continue;
+            }
+
+            // ── Layer 12: Skip common Arabic honorifics parsed as first name ──
+            $arabicHonorifics = [
+                'sheikh', 'shaikh', 'cheikh', 'hajj', 'hajji', 'haji',
+                'sayyid', 'sayyed', 'sayed', 'ustaz', 'ustadh', 'mudir',
+                'effendi', 'pasha', 'basha', 'agha', 'bey', 'beyefendi',
+            ];
+            if (in_array(mb_strtolower($firstName), $arabicHonorifics, true)) {
                 continue;
             }
 
@@ -755,7 +1244,15 @@ HELP
             $existingContactNames[] = $contactKey;
         }
 
-        $this->entityManager->flush();
+        try {
+            $this->entityManager->flush();
+        } catch (\Exception $e) {
+            // Reset the EntityManager if flush fails (corrupted UnitOfWork)
+            if (!$this->entityManager->isOpen()) {
+                // EntityManager was closed by the failed flush — cannot recover
+                return;
+            }
+        }
     }
 
     /**
@@ -788,8 +1285,8 @@ HELP
         }
 
         // ─── 3. Name is too short or too long ────────────────────
-        if (mb_strlen($name) < 2) {
-            $issues[] = 'Name too short';
+        if (mb_strlen($name) < 3) {
+            $issues[] = 'Name too short (< 3 chars)';
         }
         if (mb_strlen($name) > 60) {
             $issues[] = 'Name too long (likely a sentence)';
@@ -801,7 +1298,7 @@ HELP
         }
 
         // ─── 5. Name ends in TLD ─────────────────────────────────
-        if (preg_match('/\.(com|net|org|io|co|fr|de|nl|it|es|pl|cz|fi|se)$/i', $name)) {
+        if (preg_match('/\.(com|net|org|io|co|fr|de|nl|it|es|pl|cz|fi|se|ma|tn|eg|ae|sa|qa|kw|bh|om|us)$/i', $name)) {
             $issues[] = 'Name ends in TLD';
         }
 
@@ -817,6 +1314,66 @@ HELP
         ];
         if (in_array($nameLower, $genericNames, true)) {
             $issues[] = "Generic page section name: '{$name}'";
+        }
+
+        // ─── 8. Educational institution ──────────────────────────
+        if (preg_match('/\b(universit[yéàäità]|university|academ[yia]|école|ecole|schule|hochschule|fachhochschule|politechnik[ai]|politecnico|istituto|instytut|college|campus)\b/iu', $nameLower)) {
+            $issues[] = "Educational institution: '{$name}'";
+        }
+
+        // ─── 9. Real estate / property development ───────────────
+        if (preg_match('/\b(real\s*estate|property\s+(develop|invest|manag)|immobili[eaè]r[ea]?|nieruchomości|nieruchomosci|logistic[s]?\s*(park|center|centre|developer))\b/iu', $nameLower)) {
+            $issues[] = "Real estate/property: '{$name}'";
+        }
+
+        // ─── 10. Hospitality / hotel / tourism ──────────────────
+        if (preg_match('/\b(hotel[s]?\b|hospitality|hostel|resort[s]?|tourism|turismo|tourismus|hôtel|gastronomie)\b/iu', $nameLower)) {
+            $issues[] = "Hospitality/tourism: '{$name}'";
+        }
+
+        // ─── 11. Pure financial / investment ─────────────────────
+        if (preg_match('/\b(private\s+equity|venture\s+capital|hedge\s+fund|investment\s+(fund|bank|group|holding)|asset\s+management|wealth\s+management)\b/iu', $nameLower)) {
+            $issues[] = "Financial/investment: '{$name}'";
+        }
+
+        // ─── 12. Government / ministry / sovereign entity ────────
+        if (preg_match('/\b(ministry|ministère|ministere|وزارة|government\s+of|authority\s+of|sovereign\s+wealth|public\s+authority|municipal(ity)?|prefecture)\b/iu', $nameLower)) {
+            $issues[] = "Government entity: '{$name}'";
+        }
+
+        // ─── 13. Free zone / industrial park / economic zone ─────
+        if (preg_match('/\b(free\s*zone|free\s*trade\s*zone|economic\s*zone|industrial\s*(city|zone|park|estate)|special\s+economic|منطقة)\b/iu', $nameLower)) {
+            $issues[] = "Free zone/industrial park: '{$name}'";
+        }
+
+        // ─── 14. Telecom operator / carrier (too big) ────────────
+        if (preg_match('/\b(etisalat|zain\b|stc\b|mobily|ooredoo|maroc\s+telecom|vodafone\s+(egypt|qatar))\b/iu', $nameLower)) {
+            $issues[] = "Telecom operator: '{$name}'";
+        }
+
+        // ─── 15. Arabic script in name (non-Latin) ───────────────
+        if (preg_match('/[\x{0600}-\x{06FF}]{3,}/u', $name)) {
+            $issues[] = "Arabic script in name: '{$name}'";
+        }
+
+        // ─── 16. MENA conglomerate / megacorp ────────────────────
+        if (preg_match('/\b(sabic|aramco|adnoc|emaar|damac|al[- ]?(futtaim|ghurair|habtoor|rajhi))\b/iu', $nameLower)) {
+            $issues[] = "MENA conglomerate: '{$name}'";
+        }
+
+        // ─── 17. News / media outlet ─────────────────────────────
+        if (preg_match('/\b(al[\s-]?(jazeera|arabiya|ahram|masry|youm)|daily\s+news|gazette|tribune)\b/iu', $nameLower)) {
+            $issues[] = "News/media outlet: '{$name}'";
+        }
+
+        // ─── 18. Recruitment / staffing / job board ──────────────
+        if (preg_match('/\b(recruitment|staffing|job\s*board|naukri|bayt|wuzzuf|gulftalent)\b/iu', $nameLower)) {
+            $issues[] = "Recruitment/job board: '{$name}'";
+        }
+
+        // ─── 19. Name ends in MENA/GCC TLD ──────────────────────
+        if (preg_match('/\.(ma|tn|eg|ae|sa|qa|kw|bh|om|us)$/i', $name)) {
+            $issues[] = "Name ends in MENA/US TLD: '{$name}'";
         }
 
         return $issues;
@@ -908,6 +1465,33 @@ HELP
             'director', 'manager', 'president', 'chairman', 'officer',
             'chief', 'executive', 'vice', 'board', 'supervisory',
             'team', 'staff', 'department',
+            // German corporate-value words
+            'integrität', 'integritaet', 'respekt', 'teamgeist',
+            'ownership', 'nachhaltigkeit', 'verantwortung',
+            // Generic org / sector words scraped as names
+            'positions', 'alliances', 'opening', 'strategic',
+            'auto', 'motors', 'energy', 'power', 'resources',
+            'partners', 'ventures', 'capital', 'network',
+            'solutions', 'technologies', 'services', 'industries',
+            'emphasizes', 'highlights', 'featured', 'becoming',
+            // Product / marketing / technical words scraped as names
+            'inspired', 'beyond', 'traditional', 'indirect', 'nuclear',
+            'advanced', 'innovative', 'premium', 'superior', 'optimal',
+            'reliable', 'sustainable', 'integrated', 'automated',
+            'portable', 'compact', 'modular', 'customized', 'specialized',
+            'hvac', 'detectors', 'detector', 'sensors', 'sensor',
+            'pumps', 'valves', 'compressors', 'turbines', 'generators',
+            'cooling', 'heating', 'evaporative', 'condensers',
+            'panels', 'modules', 'components', 'equipment',
+            'machines', 'machinery', 'tools', 'instruments',
+            'fabrications', 'fabrication', 'accommodation', 'spare',
+            'frequency', 'variable', 'desalination', 'seawater',
+            // More product/sector words
+            'tube', 'tubes', 'shrink', 'wire', 'cable', 'cables',
+            'sciences', 'life', 'view', 'display', 'drives', 'drive',
+            'plug', 'plugs', 'filter', 'filters', 'connector', 'connectors',
+            'switch', 'switches', 'relay', 'relays', 'fuse', 'fuses',
+            'audit', 'parts', 'units', 'unit', 'assembly', 'fenix',
         ];
 
         // Junk full-name phrases
@@ -930,6 +1514,12 @@ HELP
             'anesthésie loco', 'ouvèze payre',
             'islands colombia', 'native cantonese', 'key milestones',
             'small business', 'business program',
+            // German corporate value phrases
+            'integrität respekt', 'integritaet respekt',
+            'respekt teamgeist', 'teamgeist ownership',
+            // Generic org-as-person phrases
+            'opening positions', 'strategic alliances', 'raya auto',
+            'emphasizes peter', 'emphasizes mark', 'emphasizes john',
             // Polish junk phrases
             'przez nas', 'godziny pracy', 'biuro projektowe',
             'gliwicki park', 'park techniki', 'dogodne terminy',
@@ -943,6 +1533,12 @@ HELP
             // Czech junk phrases
             'soubory cookie', 'ochrana osobních', 'ochrana osobnich',
             'zásady ochrany', 'zasady ochrany',
+            // Product-description phrases (SA/GCC/MENA)
+            'inspired hvac', 'beyond traditional', 'indirect direct',
+            'nuclear detectors', 'windmason arabia', 'spare parts',
+            'accommodation units', 'local fabrications', 'rig audit',
+            'seawater desalination', 'variable frequency',
+            'autoliv tunisia', 'silec tunisia',
         ];
 
         foreach ($contacts as $contact) {
@@ -965,9 +1561,142 @@ HELP
                 continue;
             }
 
+            // ── Smart cleanup: strip credential suffixes from last name ──
+            // e.g. "Borri MCIOB AMICE" → "Borri"
+            $lastName = preg_replace('/\s+(?:[A-Z]{2,6}\s*)+$/', '', $lastName);
+            $lastName = trim($lastName);
+            if (empty($lastName)) {
+                continue;
+            }
+
+            // ── Smart cleanup: strip garbage suffix words ──
+            $lastName = preg_replace('/\s+(emphasized|highlighted|underlined|selected|verified|updated|promoted|featured|sponsored|recommended|endorsed|approved|certified|became|proposed|announced|explained|stated|reported|described|mentioned|noted|added)$/i', '', $lastName);
+            $lastName = trim($lastName);
+            if (empty($lastName)) {
+                continue;
+            }
+
             $firstLower = mb_strtolower($firstName);
             $lastLower = mb_strtolower($lastName);
             $fullLower = mb_strtolower("{$firstName} {$lastName}");
+
+            // ── Skip place/country names as first or last name ──
+            static $placeNamesGate = [
+                'morocco', 'maroc', 'marokko', 'africa', 'afrika', 'america',
+                'americas', 'world', 'global', 'international', 'turkey',
+                'türkiye', 'turkiye', 'india', 'china', 'japan',
+                // MENA / GCC / US places
+                'egypt', 'egypte', 'tunisia', 'tunisie', 'saudi', 'arabia',
+                'emirates', 'qatar', 'bahrain', 'kuwait', 'oman',
+                'dubai', 'sharjah', 'ajman', 'riyadh', 'jeddah',
+                'dammam', 'jubail', 'doha', 'muscat', 'manama',
+                'cairo', 'alexandria', 'casablanca', 'rabat', 'tangier',
+                'tanger', 'marrakech', 'tunis', 'sfax', 'sousse',
+                'texas', 'california', 'florida', 'virginia', 'michigan',
+                'ohio', 'georgia', 'carolina', 'houston', 'dallas',
+                'atlanta', 'boston', 'chicago', 'detroit', 'seattle',
+                'denver', 'phoenix', 'portland', 'philadelphia',
+                'washington', 'colorado', 'minnesota', 'illinois',
+            ];
+            if (in_array($firstLower, $placeNamesGate, true)
+                || in_array($lastLower, $placeNamesGate, true)) {
+                continue;
+            }
+
+            // ── Skip German/foreign job titles parsed as first name ──
+            static $jobTitleAsNameGate = [
+                'werksleiter', 'geschäftsführer', 'geschaeftsfuehrer',
+                'betriebsleiter', 'abteilungsleiter', 'projektleiter',
+                'directeur', 'responsable', 'dirigente', 'direttore',
+                'kierownik', 'dyrektor', 'prezes',
+                'vertreten', 'ansprechpartner', 'kontaktperson',
+                'inhaber', 'eigentümer', 'eigentuemer', 'gründer', 'gruender',
+                // Arabic/MENA job titles
+                'mudir', 'mudeer', 'rais', 'nayib', 'mohandess', 'mohandis',
+                'gérant', 'gerant', 'fondateur', 'cofondateur',
+                'président', 'administrateur',
+            ];
+            if (in_array($firstLower, $jobTitleAsNameGate, true)) {
+                continue;
+            }
+
+            // ── Skip organization names parsed as person names ──
+            static $orgNameWordsGate = [
+                'trade', 'centre', 'center', 'association', 'federation',
+                'foundation', 'institute', 'chamber', 'council', 'commission',
+                'committee', 'authority', 'agency', 'bureau', 'board',
+                'ministry', 'department', 'experiences', 'collective',
+                'consortium', 'syndicate', 'cooperative', 'alliance',
+                // MENA/GCC organization words
+                'zone', 'industrial', 'petroleum', 'petrochemical',
+                'refinery', 'pipeline', 'shipping', 'logistics',
+                'airways', 'airlines', 'telecom',
+                'holdings', 'conglomerate', 'enterprise',
+                'corporation', 'limited', 'incorporated',
+                // Generic org/role words
+                'positions', 'alliances', 'opening', 'strategic',
+                'auto', 'motors', 'energy', 'power', 'resources',
+                'partners', 'ventures', 'capital', 'network',
+                'solutions', 'technologies', 'services', 'industries',
+                // Product categories / technical
+                'hvac', 'detectors', 'detector', 'sensors', 'sensor',
+                'pumps', 'valves', 'compressors', 'turbines', 'generators',
+                'cooling', 'heating', 'evaporative', 'condensers',
+                'automation', 'robotics', 'actuators', 'inverters',
+                'panels', 'modules', 'components', 'equipment',
+                'machines', 'machinery', 'tools', 'instruments',
+                // Transport/sector words
+                'rail', 'railway', 'railroad', 'transit', 'transport',
+                'aerospace', 'defense', 'defence', 'marine', 'naval',
+                'devices', 'departments', 'divisions', 'operations',
+                // Product specification / technical words
+                'gaskets', 'gasket', 'upgrades', 'upgrade', 'replacement',
+                'range', 'stability', 'message', 'connection', 'connections',
+                'specification', 'specifications', 'capacity', 'tolerance',
+                'pressure', 'voltage', 'dimension', 'dimensions',
+                'rating', 'ratings', 'performance', 'efficiency',
+                'combine', 'configuration', 'output', 'input',
+                'events', 'event', 'description', 'current',
+                'händetrockner', 'handdroger', 'update', 'plug',
+                'job', 'jobs', 'career', 'careers', 'vacancy', 'vacancies',
+                // Product specification / measurement terms
+                'density', 'complexity', 'impedance', 'attenuation',
+                'bandwidth', 'wavelength', 'amplitude', 'conductivity',
+                'resistivity', 'dielectric', 'inductance', 'capacitance',
+                'reactance', 'resistance', 'receptacle', 'socket', 'sockets',
+                'terminal', 'terminals', 'harness', 'antenna', 'antennas',
+                'coaxial', 'vat', 'id', 'pid', 'sku', 'ref', 'qty',
+            ];
+            if (in_array($lastLower, $orgNameWordsGate, true)
+                || in_array($firstLower, $orgNameWordsGate, true)) {
+                continue;
+            }
+
+            // ── Skip marketing/technical adjective first names ──
+            static $marketingFirstNamesGate = [
+                'inspired', 'beyond', 'traditional', 'indirect', 'direct',
+                'nuclear', 'advanced', 'innovative', 'premium', 'superior',
+                'alternative', 'different', 'consumer', 'various', 'multiple',
+                'temperature', 'alarm', 'spiral', 'wound', 'ring',
+                'cab', 'replacement', 'specialist', 'chillers',
+                'combine', 'configuration', 'standard', 'custom',
+                'mechanical', 'electrical', 'structural', 'chemical',
+                'extraordinary', 'operating', 'pengering',
+                'coaxial', 'antenna', 'antennas', 'thermal',
+                'impedance', 'dielectric', 'bandwidth', 'wavelength',
+                'vat', 'receptacle', 'harness',
+            ];
+            if (in_array($firstLower, $marketingFirstNamesGate, true)) {
+                continue;
+            }
+
+            // ── Skip month names as contact names ──
+            static $monthNamesGate = ['january', 'february', 'march', 'april',
+                'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+            if (in_array($firstLower, $monthNamesGate, true)
+                || in_array($lastLower, $monthNamesGate, true)) {
+                continue;
+            }
 
             // Skip foreign junk words
             if (in_array($firstLower, self::FOREIGN_CONTACT_JUNK, true)
@@ -977,6 +1706,21 @@ HELP
             // Skip if first/last is a navigation word
             if (in_array($firstLower, self::FOREIGN_JUNK_WORDS, true)
                 || in_array($lastLower, self::FOREIGN_JUNK_WORDS, true)) {
+                continue;
+            }
+
+            // Skip Arabic-script names (not parseable for Latin CRM)
+            if (preg_match('/[\x{0600}-\x{06FF}]{2,}/u', $firstName . $lastName)) {
+                continue;
+            }
+
+            // Skip Arabic honorifics parsed as first name
+            static $arabicHonorificsGate = [
+                'sheikh', 'shaikh', 'cheikh', 'hajj', 'hajji', 'haji',
+                'sayyid', 'sayyed', 'sayed', 'ustaz', 'ustadh', 'mudir',
+                'effendi', 'pasha', 'basha', 'agha', 'bey',
+            ];
+            if (in_array($firstLower, $arabicHonorificsGate, true)) {
                 continue;
             }
 
@@ -1007,6 +1751,25 @@ HELP
             // Name parts shouldn't be too long (likely compound nouns, not names)
             if (mb_strlen($firstName) > 20 || mb_strlen($lastName) > 25) {
                 continue;
+            }
+
+            // ── Compound last-name org check ──
+            // e.g. "Brookville Equipment Corporation" → last="Equipment Corporation"
+            if (str_contains($lastName, ' ')) {
+                $lnPartsGate = explode(' ', $lastName);
+                $nameParticles = ['de', 'van', 'von', 'der', 'den', 'del', 'della', 'di', 'la', 'le', 'al', 'el', 'bin', 'ibn', 'abu', 'abd'];
+                $realParts = array_filter($lnPartsGate, fn($p) => !in_array(mb_strtolower($p), $nameParticles, true));
+                if (count($realParts) > 0) {
+                    $orgHits = 0;
+                    foreach ($realParts as $rp) {
+                        if (in_array(mb_strtolower($rp), $orgNameWordsGate, true)) {
+                            $orgHits++;
+                        }
+                    }
+                    if ($orgHits >= 1 && $orgHits >= count($realParts) * 0.5) {
+                        continue;
+                    }
+                }
             }
 
             // Passed all checks — this is a real person contact
@@ -1145,6 +1908,11 @@ HELP
         }
 
         $lower = mb_strtolower($text);
+
+        // Quick win: if text contains Arabic script, it's foreign
+        if (preg_match('/[\x{0600}-\x{06FF}]{3,}/u', $text)) {
+            return true;
+        }
 
         // German markers
         $deMarkers = ['und', 'für', 'fur', 'der', 'die', 'das', 'ist', 'von', 'mit', 'auf', 'aus', 'bei', 'nach', 'über', 'werden', 'haben', 'sein', 'sich', 'werden', 'alle', 'nicht', 'auch', 'noch', 'ein', 'eine', 'einem', 'einen', 'einer'];

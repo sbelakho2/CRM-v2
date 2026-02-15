@@ -17,8 +17,8 @@
             <h1 class="rams-page-title">{{ 'rfq.win_loss_analytics'|trans|default('Win/Loss Analytics') }}</h1>
             <p class="rams-page-subtitle">{{ 'rfq.competitive_intelligence'|trans|default('Competitive Intelligence & Performance Insights') }}</p>
         </div>
-        <div class="rams-flex rams-gap-2 rams-items-center rams-flex-wrap">
-            <form method="GET" class="rams-flex rams-gap-2 rams-items-center rams-flex-wrap" id="analytics-filter-form">
+        <div class="rams-flex rams-gap-2 rams-items-center rams-flex-wrap mobile-stack">
+            <form method="GET" class="rams-flex rams-gap-2 rams-items-center rams-flex-wrap mobile-stack" id="analytics-filter-form">
                 {# Preset Period Select #}
                 <select name="period" class="rams-form__select rams-form__select--sm" id="period-select">
                     <option value="30" {{ period == '30' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_30_days'|trans|default('Last 30 Days') }}</option>
@@ -31,7 +31,7 @@
                 </select>
                 
                 {# Custom Date Range Inputs (shown when Custom is selected) #}
-                <div id="custom-date-range" class="rams-flex rams-gap-2 rams-items-center" style="{{ custom_range ? '' : 'display: none;' }}">
+                <div id="custom-date-range" class="rams-flex rams-gap-2 rams-items-center mobile-stack" style="{{ custom_range ? '' : 'display: none;' }}">
                     <label class="rams-text-3xs rams-text--muted">{{ 'filters.from'|trans|default('From') }}</label>
                     <input type="date" name="start_date" value="{{ start_date|default('')|date('Y-m-d') }}" 
                            class="rams-form__input rams-form__input--sm" style="width: 140px;"

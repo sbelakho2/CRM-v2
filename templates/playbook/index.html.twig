@@ -10,7 +10,7 @@
             <h1 class="rams-page-title">{{ 'playbook.title'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'playbook.subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('app_playbook_new') }}" class="rams-btn rams-btn--primary">
+        <a href="{{ path('app_playbook_new') }}" class="rams-btn rams-btn--primary mobile-w-full">
             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
@@ -75,7 +75,7 @@
                             {% endif %}
                         </td>
                         <td class="rams-table__cell">
-                            <div class="rams-btn-group">
+                            <div class="rams-btn-group mobile-stack">
                                 <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.view'|trans }}</a>
                                 <a href="{{ path('app_playbook_edit', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.edit'|trans }}</a>
                                 <form action="{{ path('app_playbook_delete', {id: playbook.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'playbook.delete_confirm'|trans }}', {variant: 'danger'})">

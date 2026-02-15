@@ -24,8 +24,8 @@
                 </span>
             </div>
         </div>
-        <div class="rams-page-actions">
-            <div class="rams-btn-group">
+        <div class="rams-page-actions mobile-stack">
+            <div class="rams-btn-group mobile-stack">
                 <form method="post" action="{{ path('app_email_campaign_toggle_active', {id: campaign.id}) }}" class="rams-inline-block">
                     <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ campaign.id) }}">
                     <button type="submit" class="rams-btn">
@@ -103,7 +103,7 @@
                 {% for i in 1..campaign.touchCount %}
                     {% set touch = touchMetrics[i] %}
                     <div class="rams-p-4 rams-border rams-rounded rams-bg-panel">
-                        <div class="rams-flex rams-justify-between rams-items-center rams-mb-4">
+                        <div class="rams-flex rams-justify-between rams-items-center rams-mb-4 mobile-stack">
                             <div class="rams-flex rams-items-center rams-gap-3">
                                 <span class="rams-badge rams-badge--primary rams-badge--lg">{{ i }}</span>
                                 <div>
@@ -111,7 +111,7 @@
                                     <span class="rams-text--muted rams-text--xs rams-block">{{ touch.total }} {{ 'email_campaign.sent'|trans|lower }}</span>
                                 </div>
                             </div>
-                            <div class="rams-flex rams-gap-6">
+                            <div class="rams-flex rams-gap-6 mobile-stack">
                                 <div class="rams-metric rams-text--right">
                                     <span class="rams-metric__label rams-text--xs">{{ 'email_campaign.opens'|trans }}</span>
                                     <span class="rams-metric__value rams-text--lg rams-text--success">{{ touch.open_rate|number_format(1) }}%</span>
@@ -201,7 +201,7 @@
                                         </div>
                                     </td>
                                     <td class="rams-table__cell rams-table__cell--actions">
-                                        <div class="rams-btn-group">
+                                        <div class="rams-btn-group mobile-stack">
                                             {% if not send.replied %}
                                                 <form method="post" action="{{ path('app_email_send_mark_replied', {id: send.id}) }}" class="rams-inline-block">
                                                     <input type="hidden" name="_token" value="{{ csrf_token('mark_replied' ~ send.id) }}">
