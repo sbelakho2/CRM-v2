@@ -1,0 +1,131 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Audit Log - {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-flex rams-flex-col rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">Audit Log</h1>
+            <p class="rams-page-subtitle">System activity and change history</p>
+        </div>
+    </div>
+
+    {# Filters Module #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <span class="rams-module__title">{{ 'filters.title'|trans }}</span>
+        </div>
+        <div class="rams-module__content">
+            <form method="get" action="{{ path('app_audit_log_index') }}" class="rams-form">
+                <div class="rams-form__row rams-form__row--4 rams-mb-4">
+                    <div class="rams-form__group rams-mb-0">
+                        <label for="entity_type" class="rams-dymo">Entity Type</label>
+                        <select name="entity_type" id="entity_type" class="rams-form__select">
+                            <option value="">All Types</option>
+                            {% for type in entity_types %}
+                                <option value="{{ type }}" {% if current_entity_type == type %}selected{% endif %}>{{ type }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="rams-form__group rams-mb-0">
+                        <label for="entity_id" class="rams-dymo">Entity ID</label>
+                        <input type="text" name="entity_id" id="entity_id" value="{{ current_entity_id }}" placeholder="Enter ID" class="rams-form__input" />
+                    </div>
+
+                    <div class="rams-form__group rams-mb-0">
+                        <label for="action" class="rams-dymo">Action</label>
+                        <select name="action" id="action" class="rams-form__select">
+                            <option value="">All Actions</option>
+                            {% for act in actions %}
+                                <option value="{{ act }}" {% if current_action == act %}selected{% endif %}>{{ act|capitalize }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="rams-form__group rams-mb-0 rams-flex rams-items-end">
+                        <button type="submit" class="rams-btn rams-btn--primary w-full">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Audit Log Table #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <span class="rams-module__title">Activity Log ({{ audit_logs|length }} records)</span>
+        </div>
+        <div class="rams-module__content rams-p-0">
+            <div class="rams-table-wrapper">
+                <table class="rams-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Entity Type</th>
+                            <th>Entity ID</th>
+                            <th>IP Address</th>
+                            <th class="text-center">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in audit_logs %}
+                            <tr>
+                                <td>
+                                    <span class="text-sm">{{ log.createdAt|date('Y-m-d H:i:s') }}</span>
+                                </td>
+                                <td>
+                                    {% if log.user %}
+                                        <span class="rams-badge rams-badge--info">{{ log.user.fullName|default(log.user.email) }}</span>
+                                    {% else %}
+                                        <span class="rams-badge rams-badge--neutral">System</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.action == 'create' %}
+                                        <span class="rams-badge rams-badge--success">Create</span>
+                                    {% elseif log.action == 'update' %}
+                                        <span class="rams-badge rams-badge--warning">Update</span>
+                                    {% elseif log.action == 'delete' %}
+                                        <span class="rams-badge rams-badge--danger">Delete</span>
+                                    {% else %}
+                                        <span class="rams-badge rams-badge--neutral">{{ log.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.entityType }}</td>
+                                <td>{{ log.entityId }}</td>
+                                <td>
+                                    <span class="text-xs text-rams-muted">{{ log.ipAddress|default('N/A') }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ path('app_audit_log_show', {'id': log.id}) }}" class="rams-btn rams-btn--sm rams-btn--ghost">
+                                        <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-8">
+                                    <p class="text-rams-muted">No audit log entries found</p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

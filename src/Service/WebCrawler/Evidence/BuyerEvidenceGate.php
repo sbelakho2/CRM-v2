@@ -15,6 +15,7 @@ use App\Service\WebCrawler\Text\TextNormalizer;
  *   2. MANUFACTURING_OEM — Owns factory/production lines, does own manufacturing
  *   3. BUYER_PROCUREMENT — Has procurement/purchasing/supply-chain language
  *   4. ORG_FOOTPRINT    — Credible corporate footprint (HQ, employees, certs, global presence)
+ *   5. SECTOR_ALIGNMENT — Snippet mentions target sector vocabulary (Automotive, Aerospace, etc.)
  *
  * Each piece of evidence is stored as an EvidenceItem with family, signal, weight,
  * and source (snippet, title, homepage, LinkedIn). The gate's decision + full trace
@@ -47,6 +48,7 @@ class BuyerEvidenceGate
      * @param string $title      Google search title
      * @param string $domain     Root domain
      * @param string $homepageText Homepage body text (if fetched)
+     * @param string|null $sector  Target sector for sector-relevance check
      *
      * @return BuyerEvidenceResult
      */
@@ -56,6 +58,7 @@ class BuyerEvidenceGate
         string $title,
         string $domain,
         string $homepageText = '',
+        ?string $sector = null,
     ): BuyerEvidenceResult {
         $evidence = [];
         $antiEvidence = [];
@@ -118,11 +121,31 @@ class BuyerEvidenceGate
             'nasze produkty'                => 12,
             'naše produkty'                 => 12,
             'nase produkty'                 => 12,
+            // Additional product signals for sparse snippets
+            'our solutions'                 => 10,
+            'our capabilities'              => 10,
+            'our technology'                => 10,
+            'we provide'                    => 8,
+            'we supply'                     => 8,
+            'we deliver'                    => 8,
+            'custom solutions'              => 10,
+            'our systems'                   => 10,
+            'we specialize'                 => 10,
+            'we specialise'                 => 10,
+            // DE
+            'unsere lösungen'               => 10,
+            'unsere loesungen'              => 10,
+            'wir liefern'                   => 8,
+            // FR
+            'nos solutions'                 => 10,
+            'nous fournissons'              => 8,
         ];
         $productPatterns = [
             '/\b(inverter|converter|controller|sensor|actuator|module|radar|lidar|avionics|telematics|infotainment|instrument\s+cluster|battery\s+management|bms|ecu|power\s+supply|ups|generator|switchgear|transformer|motor\s+drive|vfd|plc|hmi|scada)\b/i' => 15,
             '/\b(our\s+range\s+of|our\s+line\s+of|we\s+offer\s+a\s+range|our\s+solutions?\s+include|our\s+system)\b/i' => 10,
             '/\b(designed\s+and\s+(manufactured|produced)|engineered\s+for|proprietary\s+(technology|design|system))\b/i' => 15,
+            '/\b(leading\s+(provider|supplier|manufacturer)\s+of)\b/i' => 10,
+            '/\b(products?\s+for\s+the\s+(automotive|aerospace|medical|industrial|defense|energy|marine))\b/i' => 10,
         ];
 
         foreach ($productSignals as $signal => $weight) {
@@ -213,11 +236,41 @@ class BuyerEvidenceGate
             'výrobní závod'                 => 12,
             'vyrobni zavod'                 => 12,
             'kontrola kvality'              => 8,
+            // Additional manufacturing signals for sparse snippets
+            'manufacturer'                  => 8,
+            'we manufacture'                => 15,
+            'we produce'                    => 12,
+            'producer'                      => 5,
+            'production'                    => 5,
+            'manufactures'                  => 10,
+            'manufactured by'               => 10,
+            'custom manufactur'             => 12,
+            // DE
+            'hersteller'                    => 10,
+            'wir produzieren'               => 12,
+            'produziert'                    => 5,
+            // FR
+            'fabricant'                     => 10,
+            'nous fabriquons'               => 12,
+            // IT
+            'produttore'                    => 10,
+            'fabbricante'                   => 10,
+            // ES
+            'fabricante'                    => 10,
+            // NL
+            'fabrikant'                     => 10,
+            // PL
+            'producent'                     => 10,
+            // CZ
+            'výrobce'                       => 10,
+            'vyrobce'                       => 10,
         ];
         $mfgPatterns = [
             '/\b(our\s+factory|our\s+plant|our\s+production|our\s+facility|in[\s-]house\s+manufactur)\b/i' => 15,
             '/\b(own\s+(factory|plant|production|facility|manufactur))\b/i' => 15,
             '/\b(iso\s+9001|iatf\s+16949|as9100|iso\s+13485|iso\s+14001|nadcap)\b/i' => 10,
+            '/\b(manufactur(er|ing|es?)\s+of\b)/i' => 10,
+            '/\b(global|world|international)\s+(manufactur|leader)\b/i' => 8,
         ];
 
         foreach ($mfgSignals as $signal => $weight) {
@@ -376,9 +429,10 @@ class BuyerEvidenceGate
             '/\b(ce\s+mark|rohs\s+complian|reach\s+complian|ul\s+listed|etl\s+listed|csa\s+approved|atex)\b/i' => 10,
         ];
         // Domain-based footprint
-        if (preg_match('/\.(com|co|net)$/i', $normalizedDomain) && !preg_match('/\.(wordpress|blogspot|wix|squarespace)\.com$/i', $normalizedDomain)) {
-            $evidence[] = new EvidenceItem('ORG_FOOTPRINT', 'commercial_tld', 5, 'domain');
-        }
+        // NOTE: Removed commercial_tld (.com/.co/.net = 5pts) — too permissive.
+        // A .com domain is NOT evidence of being an EMS buyer. Every news site,
+        // standards body, and chemical company also has a .com domain.
+        // Only country-code TLDs for target regions give a small signal.
         if (preg_match('/\.(ae|eg|ma|de|fr|nl|cz|pl|ro|us|it|gb|es|uk|tn|sa|qa|kw|bh|om|ch|at|be|dk|se|no|fi|hu|hr|si|sk|bg)$/i', $normalizedDomain)) {
             $evidence[] = new EvidenceItem('ORG_FOOTPRINT', 'target_region_tld', 5, 'domain');
         }
@@ -415,6 +469,9 @@ class BuyerEvidenceGate
             'TELECOM'       => '/\b(telecom\s+operator|telekommunikation|opérateur\s+télécom|operateur\s+telecom|operatore\s+telecomunicazion|mobile\s+network|mobilfunk|réseau\s+mobile|reseau\s+mobile|rete\s+mobile|internet\s+provider|fournisseur\s+d.accès|aanbieder)\b/i',
             'LOGISTICS'     => '/\b(freight\s+forward|spediteur|spedition|transitaire|spedizioniere|transportista|courier\s+service|kurierdienst|livraison|corriere|mensajería|mensajeria|bezorgdienst|kurierski)\b/i',
             'GAMBLING'      => '/\b(casino|poker|bet365|betting|gambling|spielhalle|spielothek|slot\s+machine|sportwetten|bookmaker|pari[\s-]?sportif|scommesse)\b/i',
+            'STANDARDS_BODY' => '/\b(standards?\s+(body|organization|organisation|institute|authority|committee)|standardization|standardisation|normalization|normalisation|technick[\x{00e9}e]\s+normy|normes?\s+techniques?|DIN\s+standard|ANSI\s+standard|BSI\s+Group|ISO\s+(committee|standard|certification\s+body)|IEC\s+standard|CEN\b|CENELEC|norms?\s+(database|catalog|catalogue|search|portal)|technick[\x{00e9}e]\s+předpisy|certification\s+(body|institute|organisation|organization))\b/iu',
+            'CHEMICAL_MATERIALS' => '/\b(chemical\s+(company|producer|supplier|group|division)|commodity\s+chemical|specialty\s+chemical|petrochemical|polymer\s+(producer|supplier|manufacturer)|resin\s+(producer|supplier)|styrene|polystyrene|polyethylene|polypropylene|polyurethane|styrolution|styrenics|plastics?\s+(supplier|producer|manufacturer|company)|raw\s+material\s+(supplier|producer)|basic\s+materials?|chemical\s+industry|bulk\s+chemical|chemical\s+distribution)\b/i',
+            'NEWS_CONTENT' => '/\b(breaking\s+news|latest\s+news|top\s+stories|headlines|trending|opinion\s+column|exclusive\s+interview|showbiz|celebrity|tabloid|read\s+more\s+at|subscribe\s+to\s+(our|the)\s+newsletter|news\s+desk|news\s+feed|royal\s+family)\b/i',
         ];
         $antiDomain = [
             'GOVERNMENT' => '/\.(gov|mil|edu)(\.[a-z]{2,3})?$/i',
@@ -429,6 +486,42 @@ class BuyerEvidenceGate
         foreach ($antiDomain as $family => $pattern) {
             if (preg_match($pattern, $normalizedDomain)) {
                 $antiEvidence[] = new EvidenceItem($family, $normalizedDomain, -50, 'anti_domain');
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // SECTOR RELEVANCE CHECK — if a sector is specified, require
+        // at least minimal vocabulary match for that sector. This
+        // prevents generic companies (news sites, chemical companies,
+        // standards bodies) from passing just because they have
+        // "factory" + "employees" in their text.
+        //
+        // Also: matching sector vocabulary adds a positive SECTOR_ALIGNMENT
+        // signal, helping companies with sparse snippets that clearly
+        // mention the target sector.
+        // ══════════════════════════════════════════════════════════════
+        if ($sector !== null) {
+            $sectorRelevancePatterns = [
+                'Automotive' => '/\b(automotive|vehicle|car\s+manufactur|auto(mobile)?\s+(industry|sector|manufactur|OEM|supplier)|IATF\s+16949|powertrain|chassis|body\s+electronics|ADAS|ECU|engine\s+control|infotainment|dashboard|steering|braking|suspension|drivetrain|EV\s+(platform|battery|motor)|electric\s+vehicle|connected\s+car|autonomous\s+driv|tier[\s-]?[12]|Fahrzeug|Automobilzulieferer|Automobilindustrie|automobile|véhicule|industrie\s+automobile|costruttore\s+auto|fabricante\s+de\s+automóvil|motoryzacja)\b/iu',
+                'Aerospace' => '/\b(aerospace|aviation|aircraft|airframe|avionics|aerostructure|space\s+(industry|sector)|satellite|rocket|propulsion|AS9100|DO-178|DO-254|Luftfahrt|aéronautique|aeronautica|aeroespacial)\b/iu',
+                'Medical' => '/\b(medical\s+device|medtech|healthcare\s+equipment|surgical|diagnostic|implant|clinical|patient\s+monitor|ISO\s+13485|Medizintechnik|dispositif\s+médical|dispositivo\s+medico)\b/iu',
+                'Defense' => '/\b(defense|defence|military|naval|army|tactical|ammunition|missile|radar\s+system|ITAR|mil[\s-]?spec|Rüstung|défense|difesa|defensa)\b/iu',
+                'Energy' => '/\b(energy|renewable|solar|wind\s+turbine|power\s+generation|grid|smart\s+grid|energy\s+storage|battery\s+system|photovoltaic|Energie|énergie|energia)\b/iu',
+                'Industrial' => '/\b(industrial\s+(automation|control|equipment|machinery)|factory\s+automation|process\s+control|PLC|SCADA|HMI|motion\s+control|Industrieautomation|automatisation\s+industrielle|automazione\s+industriale)\b/iu',
+                'Telecom' => '/\b(telecom|5G|antenna|base\s+station|network\s+equipment|fiber\s+optic|optical\s+transport|Telekommunikation|télécommunication|telecomunicazioni)\b/iu',
+                'Marine' => '/\b(marine|maritime|shipbuilding|naval\s+architect|offshore|vessel|ship\s+system|Schiffbau|maritime\s+industrie|costruzione\s+navale)\b/iu',
+            ];
+
+            $sectorNorm = ucfirst(strtolower(trim($sector)));
+            if (isset($sectorRelevancePatterns[$sectorNorm])) {
+                $hasSectorRelevance = (bool) preg_match($sectorRelevancePatterns[$sectorNorm], $text);
+                if ($hasSectorRelevance) {
+                    // Positive: sector vocabulary found → boost as 5th evidence family
+                    $evidence[] = new EvidenceItem('SECTOR_ALIGNMENT', $sectorNorm . ' vocabulary', 10, 'sector_check');
+                } else {
+                    // Negative: completely missing sector vocabulary → anti-evidence
+                    $antiEvidence[] = new EvidenceItem('NO_SECTOR_RELEVANCE', 'no ' . $sectorNorm . ' vocabulary', -20, 'sector_check');
+                }
             }
         }
 

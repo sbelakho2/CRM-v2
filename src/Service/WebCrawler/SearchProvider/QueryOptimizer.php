@@ -91,8 +91,23 @@ final class QueryOptimizer
         // ─── Patent / IP databases ────────────────────────────────────
         'espacenet.com', 'patents.google.com', 'tmdn.org', 'dpma.de',
         // ─── Wire services / press release ────────────────────────────
-        'globenewswire.com', 'prnewswire.com', 'businesswire.com',
-    ];
+        'globenewswire.com', 'prnewswire.com', 'businesswire.com',        // ── Major news sites (compound-word domains __ misses) ────────
+        'dailymail.co.uk', 'mailonline.com', 'mirror.co.uk',
+        'thesun.co.uk', 'huffpost.com', 'foxnews.com',
+        'nbcnews.com', 'cbsnews.com', 'usatoday.com', 'cnbc.com',
+        'thedrive.com', 'autoweek.com', 'motortrend.com',
+        'caranddriver.com', 'autoblog.com', 'jalopnik.com',
+        'autocar.co.uk', 'topgear.com', 'insideevs.com',
+        'electrive.com', 'electrive.net', 'cleantechnica.com',
+        'spiegel.de', 'faz.net', 'handelsblatt.com',
+        'lemonde.fr', 'lefigaro.fr', 'lesechos.fr',
+        'corriere.it', 'repubblica.it', 'elpais.com',
+        // ── Standards bodies / certification orgs ─────────────────────
+        'iso.org', 'iec.ch', 'din.de', 'ansi.org', 'bsigroup.com',
+        'ul.com', 'tuv.com', 'dekra.com', 'intertek.com', 'sgs.com',
+        'bureauveritas.com', 'dnv.com', 'afnor.org',
+        'technickenormy.cz', 'normservis.cz', 'beuth.de',
+        'sae.org', 'astm.org',    ];
 
     /** Keywords indicating non-target results (for post-filtering) — ALL LANGUAGES */
     private const BLOCKED_KEYWORDS = [

@@ -1,0 +1,98 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Audit History: {{ entity_type }} #{{ entity_id }} - {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-flex rams-flex-col rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">Audit History</h1>
+            <p class="rams-page-subtitle">{{ entity_type }} #{{ entity_id }}</p>
+        </div>
+        <div class="rams-page-actions">
+            <a href="{{ path('app_audit_log_index') }}" class="rams-btn">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Audit Log
+            </a>
+        </div>
+    </div>
+
+    {# Audit Log Table #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <span class="rams-module__title">Activity History ({{ audit_logs|length }} records)</span>
+        </div>
+        <div class="rams-module__content rams-p-0">
+            <div class="rams-table-wrapper">
+                <table class="rams-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Changed Fields</th>
+                            <th class="text-center">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in audit_logs %}
+                            <tr>
+                                <td>
+                                    <span class="text-sm">{{ log.createdAt|date('Y-m-d H:i:s') }}</span>
+                                </td>
+                                <td>
+                                    {% if log.user %}
+                                        <span class="rams-badge rams-badge--info">{{ log.user.fullName|default(log.user.email) }}</span>
+                                    {% else %}
+                                        <span class="rams-badge rams-badge--neutral">System</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.action == 'create' %}
+                                        <span class="rams-badge rams-badge--success">Create</span>
+                                    {% elseif log.action == 'update' %}
+                                        <span class="rams-badge rams-badge--warning">Update</span>
+                                    {% elseif log.action == 'delete' %}
+                                        <span class="rams-badge rams-badge--danger">Delete</span>
+                                    {% else %}
+                                        <span class="rams-badge rams-badge--neutral">{{ log.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.changedFields is not empty %}
+                                        {% for field in log.changedFields|slice(0, 3) %}
+                                            <span class="rams-badge rams-badge--neutral rams-mr-1">{{ field }}</span>
+                                        {% endfor %}
+                                        {% if log.changedFields|length > 3 %}
+                                            <span class="text-xs text-rams-muted">+{{ log.changedFields|length - 3 }} more</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-rams-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ path('app_audit_log_show', {'id': log.id}) }}" class="rams-btn rams-btn--sm rams-btn--ghost">
+                                        <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-8">
+                                    <p class="text-rams-muted">No audit history for this entity</p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

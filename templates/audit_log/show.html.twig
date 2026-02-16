@@ -1,0 +1,134 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Audit Log #{{ audit_log.id }} - {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-flex rams-flex-col rams-gap-6">
+    {# Page Header #}
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">Audit Log Entry #{{ audit_log.id }}</h1>
+            <p class="rams-page-subtitle">{{ audit_log.action|capitalize }} on {{ audit_log.entityType }}</p>
+        </div>
+        <div class="rams-page-actions">
+            <a href="{{ path('app_audit_log_index') }}" class="rams-btn">
+                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Audit Log
+            </a>
+        </div>
+    </div>
+
+    <div class="rams-grid rams-grid--2 rams-gap-6 mobile-stack">
+        {# Details Module #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-module__title">Entry Details</span>
+            </div>
+            <div class="rams-module__content">
+                <dl class="rams-dl">
+                    <div class="rams-dl__row">
+                        <dt class="rams-dl__term">ID</dt>
+                        <dd class="rams-dl__desc">{{ audit_log.id }}</dd>
+                    </div>
+                    <div class="rams-dl__row">
+                        <dt class="rams-dl__term">Timestamp</dt>
+                        <dd class="rams-dl__desc">{{ audit_log.createdAt|date('Y-m-d H:i:s') }}</dd>
+                    </div>
+                    <div class="rams-dl__row">
+                        <dt class="rams-dl__term">User</dt>
+                        <dd class="rams-dl__desc">
+                            {% if audit_log.user %}
+                                <span class="rams-badge rams-badge--info">{{ audit_log.user.fullName|default(audit_log.user.email) }}</span>
+                            {% else %}
+                                <span class="rams-badge rams-badge--neutral">System</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="rams-dl__row">
+                        <dt class="rams-dl__term">Action</dt>
+                        <dd class="rams-dl__desc">
+                            {% if audit_log.action == 'create' %}
+                                <span class="rams-badge rams-badge--success">Create</span>
+                            {% elseif audit_log.action == 'update' %}
+                                <span class="rams-badge rams-badge--warning">Update</span>
+                            {% elseif audit_log.action == 'delete' %}
+                                <span class="rams-badge rams-badge--danger">Delete</span>
+                            {% else %}
+                                <span class="rams-badge rams-badge--neutral">{{ audit_log.action }}</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="rams-dl__row">
+                        <dt class="rams-dl__term">Entity Type</dt>
+                        <dd class="rams-dl__desc">{{ audit_log.entityType }}</dd>
+                    </div>
+                    <div class="rams-dl__row">
+                        <dt class="rams-dl__term">Entity ID</dt>
+                        <dd class="rams-dl__desc">{{ audit_log.entityId }}</dd>
+                    </div>
+                    <div class="rams-dl__row">
+                        <dt class="rams-dl__term">IP Address</dt>
+                        <dd class="rams-dl__desc">{{ audit_log.ipAddress|default('N/A') }}</dd>
+                    </div>
+                    <div class="rams-dl__row">
+                        <dt class="rams-dl__term">User Agent</dt>
+                        <dd class="rams-dl__desc text-xs">{{ audit_log.userAgent|default('N/A') }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        {# Changed Fields Module #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-module__title">Changed Fields</span>
+            </div>
+            <div class="rams-module__content">
+                {% if audit_log.changedFields is not empty %}
+                    <ul class="rams-list">
+                        {% for field in audit_log.changedFields %}
+                            <li class="rams-list__item">
+                                <span class="rams-badge rams-badge--neutral">{{ field }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-rams-muted">No specific field changes recorded</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="rams-grid rams-grid--2 rams-gap-6 mobile-stack">
+        {# Old Values Module #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-module__title">Old Values</span>
+            </div>
+            <div class="rams-module__content">
+                {% if audit_log.oldValues is not empty %}
+                    <pre class="rams-code"><code>{{ audit_log.oldValues|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                {% else %}
+                    <p class="text-rams-muted">No old values recorded</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# New Values Module #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <span class="rams-module__title">New Values</span>
+            </div>
+            <div class="rams-module__content">
+                {% if audit_log.newValues is not empty %}
+                    <pre class="rams-code"><code>{{ audit_log.newValues|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                {% else %}
+                    <p class="text-rams-muted">No new values recorded</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

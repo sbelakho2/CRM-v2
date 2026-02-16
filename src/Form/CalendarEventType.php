@@ -196,8 +196,8 @@ class CalendarEventType extends AbstractType
                 },
                 'query_builder' => function (EntityRepository $er) {
                     return $er->createQueryBuilder('l')
-                        ->where('l.status NOT IN (:closed)')
-                        ->setParameter('closed', ['converted', 'rejected'])
+                        ->where('l.reviewStatus NOT IN (:closed)')
+                        ->setParameter('closed', ['denied'])
                         ->orderBy('l.createdAt', 'DESC');
                 },
                 'attr' => [

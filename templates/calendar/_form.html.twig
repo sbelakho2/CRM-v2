@@ -44,13 +44,15 @@
                     </div>
 
                     <div class="rams-grid rams-grid--1 rams-gap-2">
-                        {{ form_row(form.start) }}
-                        {{ form_row(form.end) }}
+                        {{ form_row(form.startAt) }}
+                        {{ form_row(form.endAt) }}
                     </div>
                     
-                    {% if form.recurrence is defined %}
+                    {% if form.isRecurring is defined %}
                     <div class="rams-alert rams-alert--info rams-mt-4">
-                        {{ form_row(form.recurrence) }}
+                        {{ form_row(form.isRecurring) }}
+                        {{ form_row(form.recurringFrequency) }}
+                        {{ form_row(form.recurringUntil) }}
                     </div>
                     {% endif %}
                 </div>
@@ -63,11 +65,11 @@
                 </div>
                 <div class="rams-module__content">
                     {{ form_row(form.location) }}
-                    {{ form_row(form.url) }}
+                    {{ form_row(form.meetingUrl) }}
                     
                     <div class="rams-form__group">
                         <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'calendar.color_code'|trans }}</label>
-                        {{ form_widget(form.backgroundColor, {'attr': {'class': 'rams-form__input', 'type': 'color', 'style': 'height: 48px; padding: 2px;'}}) }}
+                        {{ form_widget(form.color, {'attr': {'class': 'rams-form__input', 'type': 'color', 'style': 'height: 48px; padding: 2px;'}}) }}
                     </div>
                 </div>
              </div>

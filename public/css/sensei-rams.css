@@ -4873,6 +4873,7 @@ a.rams-module:hover {
     /* 8. Spacing Reductions */
     .rams-main {
         padding: var(--space-4);
+        padding-top: calc(56px + var(--space-4));
     }
     
     .rams-module {

@@ -110,6 +110,57 @@ blocked_domains:
   - theguardian.com
   - forbes.com
   - businessinsider.com
+  - dailymail.co.uk
+  - mailonline.com
+  - mirror.co.uk
+  - thesun.co.uk
+  - huffpost.com
+  - foxnews.com
+  - nbcnews.com
+  - cbsnews.com
+  - usatoday.com
+  - cnbc.com
+  - thedrive.com
+  - autoweek.com
+  - motortrend.com
+  - caranddriver.com
+  - autoblog.com
+  - jalopnik.com
+  - autocar.co.uk
+  - topgear.com
+  - insideevs.com
+  - electrive.com
+  - cleantechnica.com
+  - spiegel.de
+  - faz.net
+  - handelsblatt.com
+  - lemonde.fr
+  - lefigaro.fr
+  - lesechos.fr
+  - corriere.it
+  - repubblica.it
+  - elpais.com
+
+  # Standards bodies / certification orgs
+  - iso.org
+  - iec.ch
+  - din.de
+  - ansi.org
+  - bsigroup.com
+  - ul.com
+  - tuv.com
+  - dekra.com
+  - intertek.com
+  - sgs.com
+  - bureauveritas.com
+  - dnv.com
+  - afnor.org
+  - technickenormy.cz
+  - normservis.cz
+  - beuth.de
+  - sae.org
+  - astm.org
+  - iatfglobaloversight.org
 
   # Market research / report sellers
   - polarismarketresearch.com
@@ -293,6 +344,24 @@ wrong_type_patterns:
     action: "reject"
     weight: -35
     description: "Food/beverage/agriculture"
+
+  - name: "standards_body"
+    pattern: '(standards?\s+(body|organization|organisation|institute|authority|committee)|standardization|standardisation|normalization|normalisation|technical\s+standard|national\s+standard|norms?\s+(database|catalog|catalogue|portal)|certification\s+(body|institute|organisation))'
+    action: "reject"
+    weight: -40
+    description: "Standards body / norms organization"
+
+  - name: "chemical_materials"
+    pattern: '(chemical\s+(company|producer|supplier|group|division)|commodity\s+chemical|specialty\s+chemical|petrochemical|polymer\s+(producer|supplier|manufacturer)|styrene|polystyrene|polyethylene|polypropylene|polyurethane|styrenics|plastics?\s+(supplier|producer|manufacturer|company)|raw\s+material\s+(supplier|producer)|chemical\s+industry|bulk\s+chemical)'
+    action: "reject"
+    weight: -40
+    description: "Chemical / polymer / raw materials company"
+
+  - name: "news_content"
+    pattern: '(breaking\s+news|latest\s+news|top\s+stories|headlines|trending|showbiz|celebrity|tabloid|exclusive\s+interview|royal\s+family|news\s+desk|news\s+feed)'
+    action: "reject"
+    weight: -50
+    description: "News/media content page"
 
   - name: "logistics_shipping"
     pattern: '(shipping\s+(company|line|services?)|freight\s+(forward|transport)|logistics\s+(provider|company|services?))'

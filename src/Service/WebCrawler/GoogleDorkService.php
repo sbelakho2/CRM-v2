@@ -266,7 +266,7 @@ class GoogleDorkService
                                 $evidenceResult = null;
                                 if ($this->buyerEvidenceGate !== null) {
                                     $evidenceResult = $this->buyerEvidenceGate->evaluate(
-                                        $companyName, $snippet, $title, $domain,
+                                        $companyName, $snippet, $title, $domain, '', $sector,
                                     );
                                     if (!$evidenceResult->passed()) {
                                         $this->metricsCollector->recordReject('buyer_evidence', $evidenceResult->getReason());
@@ -1073,6 +1073,31 @@ class GoogleDorkService
         'news.siemens.com', 'thetimesherald.com', 'easyengineering.eu',
         'aviation-safety.net', 'avherald.com', 'aerosociety.com',
         'wiringharnessnews.de',
+        // Major news outlets with compound-word domains (\b misses these)
+        'dailymail.co.uk', 'mailonline.com', 'mirror.co.uk',
+        'thesun.co.uk', 'huffpost.com', 'foxnews.com', 'nbcnews.com',
+        'cbsnews.com', 'abcnews.go.com', 'cnbc.com', 'usatoday.com',
+        'thedrive.com', 'autoweek.com', 'motortrend.com',
+        'caranddriver.com', 'autoblog.com', 'jalopnik.com',
+        'autocar.co.uk', 'topgear.com', 'pistonheads.com',
+        'automobilwoche.de', 'auto-motor-und-sport.de',
+        'automobil-produktion.de', 'springerprofessional.de',
+        'auto-medienportal.net', 'electrive.com', 'electrive.net',
+        'cleantechnica.com', 'insideevs.com', 'greencarreports.com',
+        'leparisien.fr', 'lefigaro.fr', 'lemonde.fr', 'lesechos.fr',
+        'usinenouvelle.com', 'spiegel.de', 'sueddeutsche.de',
+        'faz.net', 'handelsblatt.com', 'wirtschaftswoche.de',
+        'corriere.it', 'repubblica.it', 'elpais.com', 'elmundo.es',
+        'nos.nl', 'rtlnieuws.nl', 'nu.nl', 'telegraaf.nl',
+        'gazeta.pl', 'wp.pl', 'onet.pl', 'novinky.cz', 'idnes.cz',
+
+        // ─── Standards bodies / norms / certification orgs ────────────
+        'iso.org', 'iec.ch', 'din.de', 'ansi.org', 'bsigroup.com',
+        'cenelec.eu', 'cen.eu', 'etsi.org', 'astm.org', 'sae.org',
+        'ul.com', 'tuv.com', 'dekra.com', 'intertek.com', 'sgs.com',
+        'bureauveritas.com', 'dnv.com', 'lrqa.com', 'afnor.org',
+        'normservis.cz', 'technickenormy.cz', 'normy.biz',
+        'beuth.de', 'vde.com', 'vdi.de', 'iatfglobaloversight.org',
 
         // ─── Market research / Reports / Think tanks ──────────────────
         'kenresearch.com', 'statista.com', 'grandviewresearch.com',
@@ -3038,11 +3063,22 @@ class GoogleDorkService
         }
 
         // ─── Block domains with news/media/magazine in the name ───
-        // These are almost never real companies
+        // These are almost never real companies.
+        // Use both \b word-boundary AND str_contains for compound words
+        // like "dailymail", "foxnews", "autonews", "techcrunch".
         if (preg_match('/\b(news|magazine|insider|tribune|herald|chronicle|times|gazette|dispatch|journal|digest|observer|telegraph|daily|weekly|monthly|media)\b/i', $domain)) {
             // Exception: domains where the word is part of a real company name
-            // (checked manually — very few genuine cases)
             if (!preg_match('/(siemens|boeing|airbus|safran|thales|dassault)/i', $domain)) {
+                return true;
+            }
+        }
+        // Also catch compound-word news domains where \b fails
+        $compoundNewsParts = ['dailymail', 'foxnews', 'nbcnews', 'cbsnews', 'abcnews',
+            'huffpost', 'buzzfeed', 'techcrunch', 'autonews', 'autoblog',
+            'autoweek', 'motortrend', 'jalopnik', 'topgear', 'insideevs',
+            'electrive', 'automobilwoche', 'greencar', 'cleantechnica'];
+        foreach ($compoundNewsParts as $newsPart) {
+            if (str_contains($domain, $newsPart)) {
                 return true;
             }
         }
@@ -3055,6 +3091,20 @@ class GoogleDorkService
         // ─── Block certification / audit domains ─────────────────
         if (preg_match('/\b(certification|certifying|accreditation|registrar)\b/i', $domain)) {
             return true;
+        }
+
+        // ─── Block standards body / norms / normalization domains ──
+        if (preg_match('/\b(standard|norm|normy|normen|normes|norme)\b/i', $domain)) {
+            // Exception: industrial companies that happen to have 'standard' in name
+            if (!preg_match('/(electric|motor|industri|aero|tech)/i', $domain)) {
+                return true;
+            }
+        }
+        $standardsBodies = ['technickenormy', 'normservis', 'beuth', 'normy'];
+        foreach ($standardsBodies as $sb) {
+            if (str_contains($domain, $sb)) {
+                return true;
+            }
         }
 
         // ─── Block shipping / logistics company subdomains ───────
@@ -6013,6 +6063,16 @@ class GoogleDorkService
         if (preg_match('/\b(newspaper|news\s+agency|media\s+company|publishing|editorial|journalist|reporter|correspondent|newsroom|magazine|podcast|broadcast)\b/i', $text)) {
             $score -= 40;
         }
+        // Broader news content signals (catch sites like Daily Mail that
+        // don't use explicit "newspaper" in snippets)
+        if (preg_match('/\b(breaking\s+news|latest\s+news|top\s+stories|headlines|trending\s+(now|today)|opinion\s+column|read\s+more\s+at|subscribe\s+to\s+(our|the)\s+newsletter|news\s+desk|news\s+feed|showbiz|celebrity|tabloid|exclusive\s+interview|royal\s+family)\b/i', $text)) {
+            $score -= 50;
+        }
+
+        // ─── Standards body / Normalization / Certification org ──────
+        if (preg_match('/\b(standards?\s+(body|organization|organisation|institute|authority)|standardization|standardisation|normalization|normalisation|technick[ée]\s+normy|normes?\s+techniques?|technical\s+standard|national\s+standard|international\s+standard|DIN\s+standard|ANSI\s+standard|BSI\s+Group|ISO\s+(committee|standard|certification)|IEC\s+standard|CEN\b|CENELEC|norms?\s+(database|catalog|catalogue|search|portal))\b/i', $text)) {
+            $score -= 40;
+        }
 
         // ─── Event / Conference / Exhibition ───────────────────────
         if (preg_match('/\b(trade\s+show|exhibition|expo|conference|summit|forum|congress|symposium|convention|fair|show\s+daily|auto\s+show|motor\s+show)\b/i', $text)) {
@@ -6105,8 +6165,8 @@ class GoogleDorkService
             $score -= 40;
         }
 
-        // ─── Chemical / Agrochemical / Fertilizer ──────────────────
-        if (preg_match('/\b(chemical\s+(company|manufacturer|plant|producer)|specialty\s+chemical|petrochemical\s+(company|plant)|agrochemical|fertilizer\s+(company|plant|producer)|adhesive\s+manufacturer|paint\s+manufacturer|coating\s+company|solvent|polymer\s+producer)\b/i', $text)) {
+        // ─── Chemical / Agrochemical / Fertilizer / Polymer / Materials ──
+        if (preg_match('/\b(chemical\s+(company|manufacturer|plant|producer|group|division)|specialty\s+chemical|petrochemical\s+(company|plant)|agrochemical|fertilizer\s+(company|plant|producer)|adhesive\s+manufacturer|paint\s+manufacturer|coating\s+company|solvent|polymer\s+(producer|supplier|manufacturer)|styrene|polystyrene|polyethylene|polypropylene|polyurethane|styrolution|styrenics|plastics?\s+(supplier|producer|manufacturer|company)|raw\s+material\s+(supplier|producer)|basic\s+materials?|resin\s+(supplier|producer|manufacturer)|chemical\s+industry|commodity\s+chemical|bulk\s+chemical)\b/i', $text)) {
             $score -= 35;
         }
 

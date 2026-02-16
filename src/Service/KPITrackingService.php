@@ -25,13 +25,6 @@ class KPITrackingService
         $start = new \DateTime('-90 days');
         $end = new \DateTime();
         $displayCurrency = $this->currencyConverter->getDisplayCurrency();
-        $targetPipelineSource = 3500000;
-        $targetPipelineSourceCurrency = 'USD';
-        $targetPipeline = $this->currencyConverter->convert(
-            $targetPipelineSource,
-            $targetPipelineSourceCurrency,
-            $displayCurrency
-        );
 
         return [
             'pipeline_value' => $this->calculatePipelineValue($start, $end, $displayCurrency),
@@ -41,13 +34,6 @@ class KPITrackingService
             'framework_agreements' => $this->getFrameworkAgreements($start, $end),
             'portal_signups' => $this->getPortalSignups($start, $end),
             'webinar_attendees' => $this->getWebinarAttendees($start, $end),
-            'target_pipeline' => $targetPipeline,
-            'target_pipeline_currency' => $displayCurrency,
-            'target_pipeline_source' => $targetPipelineSource,
-            'target_pipeline_source_currency' => $targetPipelineSourceCurrency,
-            'target_rfqs' => 12,
-            'target_npis' => 2,
-            'target_frameworks' => 1,
         ];
     }
 

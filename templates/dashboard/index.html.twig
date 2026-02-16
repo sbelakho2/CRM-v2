@@ -31,15 +31,6 @@
                     </div>
                     <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
                 </div>
-                <div class="rams-stack rams-gap-1">
-                    <div class="rams-flex rams-justify-between rams-items-center">
-                        <span class="rams-text--3xs rams-text--muted rams-uppercase rams-font-mono">{{ 'common.total'|trans }}: {{ (kpis.target_pipeline / 1000000)|format_currency(kpis.target_pipeline_currency|default(display_currency()), null, 1) }}{{ 'common.million_short'|trans }}</span>
-                        <span class="rams-badge rams-badge--info rams-badge--xs rams-font-mono">{{ pipeline_progress }}%</span>
-                    </div>
-                    <div class="rams-progress rams-progress--compact">
-                        <div class="rams-progress__bar rams-progress__bar--info" style="width: {{ pipeline_progress }}%;"></div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -52,15 +43,6 @@
                         <span class="rams-metric__value rams-text--xl">{{ kpis.rfq_count }}</span>
                     </div>
                     <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
-                </div>
-                <div class="rams-stack rams-gap-1">
-                    <div class="rams-flex rams-justify-between rams-items-center">
-                        <span class="rams-text--3xs rams-text--muted rams-uppercase rams-font-mono">{{ 'common.total'|trans }}: {{ kpis.target_rfqs }}</span>
-                        <span class="rams-badge rams-badge--success rams-badge--xs rams-font-mono">{{ rfq_progress }}%</span>
-                    </div>
-                    <div class="rams-progress rams-progress--compact">
-                        <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ rfq_progress }}%;"></div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -75,15 +57,6 @@
                     </div>
                     <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
                 </div>
-                <div class="rams-stack rams-gap-1">
-                    <div class="rams-flex rams-justify-between rams-items-center">
-                        <span class="rams-text--3xs rams-text--muted rams-uppercase rams-font-mono">{{ 'common.total'|trans }}: {{ kpis.target_npis }}</span>
-                        <span class="rams-badge rams-badge--primary rams-badge--xs rams-font-mono">{{ npi_progress }}%</span>
-                    </div>
-                    <div class="rams-progress rams-progress--compact">
-                        <div class="rams-progress__bar rams-progress__bar--primary" style="width: {{ npi_progress }}%;"></div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -96,15 +69,6 @@
                         <span class="rams-metric__value rams-text--xl">{{ kpis.framework_agreements }}</span>
                     </div>
                     <div class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span></div>
-                </div>
-                <div class="rams-stack rams-gap-1">
-                    <div class="rams-flex rams-justify-between rams-items-center">
-                        <span class="rams-text--3xs rams-text--muted rams-uppercase rams-font-mono">{{ 'common.total'|trans }}: {{ kpis.target_frameworks }}</span>
-                        <span class="rams-badge rams-badge--warning rams-badge--xs rams-font-mono">{{ framework_progress }}%</span>
-                    </div>
-                    <div class="rams-progress rams-progress--compact">
-                        <div class="rams-progress__bar rams-progress__bar--warning" style="width: {{ framework_progress }}%;"></div>
-                    </div>
                 </div>
             </div>
         </div>
