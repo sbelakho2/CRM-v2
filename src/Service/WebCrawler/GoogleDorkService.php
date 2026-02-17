@@ -1277,6 +1277,8 @@ class GoogleDorkService
         'wireevents.com', 'ensun.io',
         'aviationsuppliers.org',  // trade association, not OEM
         'india-briefing.com',  // news/analysis
+        'egypt-business.com',  // Egyptian business directory
+        'egypttoday.com', 'www.egypttoday.com',  // Egyptian news site
 
         // ─── International organizations / Banks / NGOs ───────────────
         'ifc.org', 'worldbank.org', 'imf.org', 'afdb.org', 'undp.org',
@@ -3636,6 +3638,12 @@ class GoogleDorkService
             return true;
         }
 
+        // ─── "<Country>Today" news site names ──────────────────────────
+        // "EgyptToday", "IndiaToday" etc. — news portals, not companies
+        if (preg_match('/^(egypt|india|china|morocco|tunisia|saudi|qatar|dubai|turkey|nigeria|kenya|ghana|pakistan|brazil|mexico|africa|arab|gulf|middle\s*east|asia)\s*today$/i', $name)) {
+            return true;
+        }
+
         // ─── Descriptive phrases used as names ───────────────────
         // e.g. "High-Quality Laboratory Reagents" — taglines extracted from page titles
         if (preg_match('/^(high[- ]quality|best|top|leading|premium|professional|advanced|reliable|trusted|innovative|affordable)\s/i', $name)) {
@@ -3893,6 +3901,13 @@ class GoogleDorkService
         }
         // Certification bodies extracted as company names
         if (preg_match('/^(scs|sgs|tuv|bsi)\s*certification/i', $name)) {
+            return true;
+        }
+
+        // ─── "<Country> Business" directory names ─────────────────────
+        // "Egypt Business", "Morocco Business", "India Business" etc.
+        // are business directories, not real companies.
+        if (preg_match('/^(egypt|morocco|india|china|turkey|tunisia|saudi|qatar|dubai|uae|jordan|oman|bahrain|kuwait|nigeria|kenya|ghana|vietnam|thailand|indonesia|malaysia|pakistan|bangladesh|philippines|mexico|brazil|colombia|chile|peru|argentina|south\s+africa|algeria|libya|iraq|iran|lebanon|syria|yemen)\s+(business|directory|guide|portal|pages|listings?|finder|connect|hub|today|insider|monitor)\s*$/i', $name)) {
             return true;
         }
         
