@@ -10,6 +10,7 @@ use App\Service\WebCrawler\Contact\LinkedInProfileParser;
 use App\Service\WebCrawler\Crawl\PoliteCrawlGovernor;
 use App\Service\WebCrawler\Crawl\SitemapPageDiscovery;
 use App\Service\WebCrawler\Evidence\BuyerEvidenceGate;
+use App\Service\WebCrawler\Evidence\BuyerEvidenceResult;
 use App\Service\WebCrawler\Observability\PipelineMetricsCollector;
 use App\Service\WebCrawler\Rules\RuleEngine;
 use App\Service\WebCrawler\SearchProvider\SearchProviderInterface;
@@ -106,6 +107,43 @@ class GoogleDorkService
         }
 
         return ['results' => [], 'totalResults' => 0, 'searchTime' => 0];
+    }
+
+    /**
+     * Execute a search specifically for LinkedIn queries (site:linkedin.com).
+     *
+     * Most scraped search engines cannot handle site:linkedin.com queries —
+     * they either don't index LinkedIn, don't support the site: operator,
+     * or return empty results. Burning all 28 engines wastes 4+ minutes per
+     * query with zero results.
+     *
+     * This method goes directly to Google CSE, which reliably handles
+     * LinkedIn site-restricted searches. Cost: $0.005 per call.
+     *
+     * For NON-LinkedIn queries, use executeProviderSearch() instead.
+     */
+    private function executeLinkedInSearch(string $query, int $num = 10): array
+    {
+        // Use Google CSE directly — the only reliable engine for site:linkedin.com
+        if ($this->googleSearchService !== null) {
+            try {
+                $result = $this->googleSearchService->searchCompanies($query, $num);
+                $this->logger->debug('LinkedIn search via Google CSE', [
+                    'query' => $query,
+                    'results' => count($result['results'] ?? []),
+                ]);
+                return $result;
+            } catch (\Exception $e) {
+                $this->logger->warning('LinkedIn search via Google CSE failed', [
+                    'query' => $query,
+                    'error' => $e->getMessage(),
+                ]);
+                // Fall through to scraping provider
+            }
+        }
+
+        // Fallback: use full provider search (will burn 28 engines, slow)
+        return $this->executeProviderSearch($query, $num);
     }
 
     /**
@@ -236,15 +274,10 @@ class GoogleDorkService
                                     continue;
                                 }
                                 
-                                // Smart positive-signal scoring: reject companies with
-                                // no evidence of being a real EMS buyer
-                                if (!$this->isLikelyEMSBuyer($companyName, $snippet, $title, $domain)) {
-                                    $this->logger->debug('Skipping low-score candidate (not likely EMS buyer)', [
-                                        'name' => $companyName,
-                                        'domain' => $domain,
-                                    ]);
-                                    continue;
-                                }
+                                // NOTE: isLikelyEMSBuyer() removed — redundant with
+                                // BuyerEvidenceGate which provides the same positive/negative
+                                // signal scoring but with homepage rescue and family-based
+                                // evidence evaluation. Running both was double-jeopardy.
                                 
                                 // Knowledge-base classifier: uses Gemini-trained local
                                 // knowledge base for a second layer of scoring. Zero API calls.
@@ -268,6 +301,31 @@ class GoogleDorkService
                                     $evidenceResult = $this->buyerEvidenceGate->evaluate(
                                         $companyName, $snippet, $title, $domain, '', $sector,
                                     );
+                                    if (
+                                        !$evidenceResult->passed()
+                                        && $this->shouldAttemptEvidenceHomepageRescue($evidenceResult, $result, $domain)
+                                    ) {
+                                        $homepageEvidenceText = $this->fetchEvidenceHomepageText($domain);
+                                        if ($homepageEvidenceText !== '') {
+                                            $rescuedResult = $this->buyerEvidenceGate->evaluate(
+                                                $companyName,
+                                                $snippet,
+                                                $title,
+                                                $domain,
+                                                $homepageEvidenceText,
+                                                $sector,
+                                            );
+                                            if ($rescuedResult->passed()) {
+                                                $this->logger->info('Buyer Evidence Gate rescued by homepage text', [
+                                                    'name' => $companyName,
+                                                    'domain' => $domain,
+                                                    'initial_reason' => $evidenceResult->getReason(),
+                                                    'rescued_reason' => $rescuedResult->getReason(),
+                                                ]);
+                                                $evidenceResult = $rescuedResult;
+                                            }
+                                        }
+                                    }
                                     if (!$evidenceResult->passed()) {
                                         $this->metricsCollector->recordReject('buyer_evidence', $evidenceResult->getReason());
                                         $this->logger->debug('Buyer Evidence Gate FAIL', [
@@ -278,6 +336,20 @@ class GoogleDorkService
                                         continue;
                                     }
                                     $this->metricsCollector->recordAccept('buyer_evidence');
+                                }
+
+                                // ── Location Presence Validation ────────────────
+                                // Verify candidate has actual presence in the target
+                                // location. Prevents US companies appearing in Egypt
+                                // searches etc. (e.g. Hope Global → no Egypt presence)
+                                if ($location !== null && !$this->hasLocationPresence($snippet, $title, $domain, $location)) {
+                                    $this->metricsCollector->recordReject('location_presence', $companyName);
+                                    $this->logger->debug('No location presence evidence', [
+                                        'name'     => $companyName,
+                                        'domain'   => $domain,
+                                        'location' => $location,
+                                    ]);
+                                    continue;
                                 }
                                 
                                 // ── Service-vs-Product Classifier (Improvement 2B) ──
@@ -560,7 +632,7 @@ class GoogleDorkService
         // "Lucid Motors | About Us" → right is generic, pick left
         // "Everrati - Electrifying Icons" → left is brand, pick left
         $name = $title;
-        if (preg_match('/^(.+?)\s*[\|｜–—]\s*(.+)$/u', $title, $pipeMatch)) {
+        if (preg_match('/^(.+?)\s*[\|｜–—ᐅ›▸▶→◆⯈]\s*(.+)$/u', $title, $pipeMatch)) {
             $left = trim($pipeMatch[1]);
             $right = trim($pipeMatch[2]);
             $leftIsGeneric = $this->isGenericPageWord($left);
@@ -588,8 +660,20 @@ class GoogleDorkService
             $afterDash = trim($m[2]);
             $beforeIsGeneric = $this->isGenericPageWord($beforeDash);
             $afterIsGeneric = $this->isGenericPageWord($afterDash);
+            // If one side is a descriptive phrase ("Solutions for automotive")
+            // and the other is a short brand/acronym ("DSA"), prefer the brand
+            $beforeIsDescriptive = preg_match('/\b(solutions?|services?|products?|systems?|technologies?|partner|consulting)\s+(for|in|of|to|and|&)\s+/i', $beforeDash);
+            $afterIsDescriptive = preg_match('/\b(solutions?|services?|products?|systems?|technologies?|partner|consulting)\s+(for|in|of|to|and|&)\s+/i', $afterDash);
+            // Short all-caps words (2-6 chars) are acronyms/brands, not generic in this context
+            $afterIsAcronym = preg_match('/^[A-Z]{2,6}$/', $afterDash);
+            $beforeIsAcronym = preg_match('/^[A-Z]{2,6}$/', $beforeDash);
+            if ($beforeIsDescriptive && ($afterIsAcronym || (!$afterIsGeneric && mb_strlen($afterDash) >= 2 && mb_strlen($afterDash) <= 40))) {
+                $name = $afterDash;
+            } elseif ($afterIsDescriptive && ($beforeIsAcronym || (!$beforeIsGeneric && mb_strlen($beforeDash) >= 2 && mb_strlen($beforeDash) <= 40))) {
+                $name = $beforeDash;
+            }
             // If before-dash is a clean brand name (short, capitalised), prefer it
-            if (!$beforeIsGeneric && mb_strlen($beforeDash) >= 2 && mb_strlen($beforeDash) <= 40) {
+            elseif (!$beforeIsGeneric && mb_strlen($beforeDash) >= 2 && mb_strlen($beforeDash) <= 40) {
                 $name = $beforeDash;
             } elseif (!$afterIsGeneric && mb_strlen($afterDash) >= 2 && mb_strlen($afterDash) <= 40) {
                 $name = $afterDash;
@@ -597,9 +681,14 @@ class GoogleDorkService
         }
 
         // Remove leading prefixes like "MAKING - ", "Visit of plants Morocco - "
-        $name = preg_replace('/^(MAKING|Visit of plants?|List of all|Contacts and locations|About|Overview of)\s*[-–—:]\s*/iu', '', $name);
-        // "Welcome to" doesn't need a separator — strip it directly
+        $name = preg_replace('/^(MAKING|Visit of plants?|List of all|Contacts and locations|About\s+us|About|Overview of|Homepage)\s*[-–—:\s]\s*/iu', '', $name);
+        // "Welcome to" / "We are" don't need a separator — strip directly
         $name = preg_replace('/^Welcome\s+to\s+/iu', '', $name);
+        $name = preg_replace('/^We\s+are\s+/iu', '', $name);
+        // Strip language tags: "(EN)", "(DE)", "(FR)" etc.
+        $name = preg_replace('/\s*\((?:EN|DE|FR|ES|IT|NL|PL|CZ|FI|SE|NO|DA|PT|RU|JP|CN|KR|AR|HE|TR|HU|RO|BG|HR|SK|SI|LT|LV|EE|EL|UK|INT)\)\s*$/iu', '', $name);
+        // Strip trailing language labels: "in English", "- English"
+        $name = preg_replace('/\s*[-–—]?\s*\b(in\s+)?(English|Deutsch|Français|Español|Italiano|Nederlands)\s*$/iu', '', $name);
         // Remove trailing ": Home", ": Home Page", ": Homepage", ": Products", ": Services"
         $name = preg_replace('/\s*:\s*(Home(\s*Page)?|Homepage|Products?|Services?|Solutions?|Contact(\s+Us)?|About(\s+Us)?|Careers?|Overview)\s*$/i', '', $name);
         // General colon stripping: if a colon remains, take the shorter side
@@ -621,7 +710,21 @@ class GoogleDorkService
         $name = preg_replace('/\s*\.{2,}\s*$/', '', $name);
         // Clean up trailing dashes/spaces ("W Motors -" → "W Motors")
         $name = preg_replace('/\s*[-–—]\s*$/', '', $name);
+        // Strip trailing descriptive taglines:
+        // "AED Vantage automotive electronics partner" → "AED Vantage"
+        // Only strip known industry descriptors + terminal role word
+        $name = preg_replace('/\s+(?:(?:automotive|electronics?|industrial|manufacturing|engineering|technology|digital|software|hardware|mechanical|electrical|technical|global|local|regional|contract|trusted|reliable|leading|your)\s+){0,3}(partner|supplier|provider|specialist|expert|distributor|manufacturer|contractor|consultant|leader|pioneer|innovator)\s*$/i', '', $name);
         $name = trim($name);
+
+        // ─── Location-as-name detection ──────────────────────────────
+        // "St. Egidien / Germany" → not a company name, try domain
+        // "City / Country" or "City, Country" patterns
+        if (preg_match('/^[\p{L}\s\.\-]+\s*[\/,]\s*(Germany|Deutschland|France|UK|USA|China|Japan|India|Morocco|Tunisia|Egypt|Turkey|Italy|Spain|Netherlands|Belgium|Austria|Switzerland|Czech|Poland|Sweden|Finland|Norway|Denmark|Hungary|Romania|Bulgaria|Croatia|Serbia|Slovenia|Slovakia|Lithuania|Latvia|Estonia|Portugal|Greece|Brasil|Brazil|Mexico|Canada|Australia)\s*$/iu', $name)) {
+            $domainName = $this->companyNameFromDomain($domain);
+            if ($domainName) {
+                $name = $domainName;
+            }
+        }
 
         // --- Step 2: detect "junk" titles that are not company names ---
         $genericPatterns = [
@@ -641,6 +744,14 @@ class GoogleDorkService
             '/^(sitemap|prices?|inside|downloads?|author:|corporate\s+profile)$/i',
             '/^(overseas\s+hubs|global\s+network|quality\s+at\s+)$/i',
             '/^cairo$/i',  // city name, not a company
+            // ─── About-page / nav headings — not company names ────────
+            '/^our\s+(company|history|story|team|mission|vision|values?|approach|philosophy|expertise|journey)\b/i',
+            '/^(company|corporate)\s+(history|overview|profile|information|about)\b/i',
+            '/^(factory|plant|office|headquarters?|facility)\s+(visit|tour|location)\b/i',
+            '/^(who|what|how|why|when|where)\s+(are|is|do|does|we|to)\b/i',
+            '/^(discover|explore|learn|read)\s+(more|about|our)\b/i',
+            '/\b(at\s+a\s+glance|in\s+brief|overview|fact\s+sheet)\b/i',
+            '/\b(opens?|launches?|announces?|expands?|invests?|acquires?|partners?|builds?|plans?|signs?|wins?|receives?|delivers?|starts?|completes?|begins?|reports?)\s+(first|new|its|a|an|the|battery|major|record|multi|\$|€|£)\b/i',
             // ─── Document / report titles — never company names ───────
             '/\b(sustainability|annual|esg)\s+report\b/i',
             '/\bpdf\b/i',
@@ -747,6 +858,9 @@ class GoogleDorkService
             '/^(messe|feira|feria|foire)\s+/iu',
             // ─── French/Arabic job titles as names ───────────────────
             '/^(approvisionneur|acheteur|responsable|technicien)\b/iu',
+            // ─── Industry descriptor phrases ──────────────────────────
+            '/\bin\s+the\s+\w+\s+industry\b/i',  // "OEM & Tier 1 in the automotive industry"
+            '/^OEM\s*[&,]\s*Tier\b/i',            // "OEM & Tier 1 ..."
             // ─── IoT / development / generic tech descriptions ────────
             '/^(IoT|AI,?\s+Robotics|3D\s+printing|Web\s+development)/i',
         ];
@@ -1145,6 +1259,7 @@ class GoogleDorkService
 
         // ─── Chinese wholesale / Made-in-China ────────────────────────
         'made-in-china.com', 'en.made-in-china.com', 'm.made-in-china.com',
+        'anebonmetal.com',             // Chinese CNC parts supplier
 
         // ─── Cloud / Pure-software (not EMS buyers) ───────────────────
         'azure.microsoft.com', 'aws.amazon.com', 'cloud.google.com',
@@ -1938,6 +2053,7 @@ class GoogleDorkService
         'bundeswirtschaftsministerium.de', // German gov ministry
         'cityofrc.us',                 // City government
         'yesvirginiabeach.com',        // Tourism promotion
+        'indiantourismblogs.com',      // Tourism blog
 
         // UNIVERSITIES / RESEARCH (non-.edu domains)
         'ku.ac.ae',                    // Khalifa University (UAE)
@@ -3073,13 +3189,33 @@ class GoogleDorkService
             }
         }
         // Also catch compound-word news domains where \b fails
+        // e.g. "opportimes.com", "dailymail.co.uk", "arabfinance.com"
         $compoundNewsParts = ['dailymail', 'foxnews', 'nbcnews', 'cbsnews', 'abcnews',
             'huffpost', 'buzzfeed', 'techcrunch', 'autonews', 'autoblog',
             'autoweek', 'motortrend', 'jalopnik', 'topgear', 'insideevs',
-            'electrive', 'automobilwoche', 'greencar', 'cleantechnica'];
+            'electrive', 'automobilwoche', 'greencar', 'cleantechnica',
+            'opportimes', 'arabfinance', 'middleeasteye',
+        ];
         foreach ($compoundNewsParts as $newsPart) {
             if (str_contains($domain, $newsPart)) {
                 return true;
+            }
+        }
+        // Catch domains where media words are embedded as suffixes
+        // e.g. "opportimes.com" → root "opportimes" ends with "times"
+        $domainRoot = preg_replace('/\.[a-z]{2,6}(\.[a-z]{2,3})?$/i', '', $domain);
+        $mediaSuffixes = ['times', 'news', 'daily', 'tribune', 'herald',
+            'gazette', 'chronicle', 'dispatch', 'observer', 'telegraph',
+            'monitor', 'journal', 'digest', 'weekly', 'monthly', 'magazine',
+            'insider', 'post', 'media',
+        ];
+        foreach ($mediaSuffixes as $suffix) {
+            // Only match as suffix when preceded by at least 2 chars (avoid false positives on short domains)
+            if (str_ends_with($domainRoot, $suffix) && strlen($domainRoot) > strlen($suffix) + 1) {
+                // Exception: protect legitimate companies
+                if (!preg_match('/(siemens|boeing|airbus|safran|thales|dassault)/i', $domain)) {
+                    return true;
+                }
             }
         }
 
@@ -3155,8 +3291,38 @@ class GoogleDorkService
         }
 
         // ─── Block certification / testing / inspection (TIC) domains ──
-        if (preg_match('/\b(tuv|tüv|certification|certifying|accreditation|registrar|inspection|testing-lab)\b/i', $domain)) {
+        // Catch T[ÜU]V variants, cert-containing domains, and known TIC companies
+        if (preg_match('/\b(tuv|tüv|tuev|certification|certifying|accreditation|registrar|inspection|testing-lab)\b/i', $domain)) {
             return true;
+        }
+        // Catch certification-related substrings in compound domain names
+        // e.g. "proficert.com", "eurocert.de", "qualicert.ch"
+        $domainRootForCert = preg_replace('/\.[a-z]{2,6}(\.[a-z]{2,3})?$/i', '', $domain);
+        $certSubstrings = ['certif', 'zertif', 'accredit', 'homolog', 'proficert',
+            'eurocert', 'qualicert', 'isocert', 'certqua', 'tuvcert',
+        ];
+        foreach ($certSubstrings as $certSub) {
+            if (str_contains($domainRootForCert, $certSub)) {
+                return true;
+            }
+        }
+        // Block known TIC company domains
+        $ticDomains = [
+            'tuv-nord.com', 'tuv-nord.de', 'tuev-nord.de', 'tuev-nord.com',
+            'tuvsud.com', 'tuv-sud.de', 'tuev-sued.de',
+            'tuv.com', 'tuvrheinland.com', 'tuv-rheinland.de',
+            'dekra.com', 'dekra.de', 'dekra.fr',
+            'sgs.com', 'intertek.com', 'bureauveritas.com',
+            'dnv.com', 'dnvgl.com', 'lr.org', 'lloydsregister.com',
+            'bsigroup.com', 'ul.com', 'ul-europe.com',
+            'applus.com', 'eurofins.com', 'lrqa.com', 'nqa.com',
+            'proficert.com', 'proficert.de',
+            'kiwa.com', 'nemko.com', 'csa-group.org',
+        ];
+        foreach ($ticDomains as $ticD) {
+            if ($domain === $ticD || str_ends_with($domain, '.' . $ticD)) {
+                return true;
+            }
         }
 
         // ─── Block IT/GB/ES research institute domains ───────────
@@ -3462,6 +3628,14 @@ class GoogleDorkService
             return true;
         }
 
+        // ─── Compound single-word names with embedded non-company substrings ──
+        // "Indiantourismblogs" — domain-derived names where "tourism"/"blog"
+        // are embedded without word boundaries. Legitimate manufacturers never
+        // have these substrings in their name.
+        if ($wordCount <= 2 && preg_match('/(tourism|tourist|travel|blog|vlog|podcast|recipe|gossip|forum|wiki|review|coupon|deal|discount|gambling|casino|betting|escort|dating)/i', $name)) {
+            return true;
+        }
+
         // ─── Descriptive phrases used as names ───────────────────
         // e.g. "High-Quality Laboratory Reagents" — taglines extracted from page titles
         if (preg_match('/^(high[- ]quality|best|top|leading|premium|professional|advanced|reliable|trusted|innovative|affordable)\s/i', $name)) {
@@ -3585,8 +3759,30 @@ class GoogleDorkService
             // ── iter12 all-region ──
             'argaam', 'developing telecoms', 'developingtelecoms',
             'vyansa intelligence', 'vyansaintelligence',
+            // ── iter14 precision fix ──
+            'opportimes', 'middle east eye', 'arabfinance',
         ];
         if (in_array($lower, $newsOutlets, true)) {
+            return true;
+        }
+
+        // ─── Certification / Testing / Inspection company names ──────────
+        // TÜV NORD, Proficert, Dekra, SGS, etc. are TIC companies, not buyers
+        $ticCompanyNames = [
+            'tüv nord', 'tuv nord', 'tuev nord',
+            'tüv süd', 'tuv sud', 'tuev sued', 'tuv sued',
+            'tüv rheinland', 'tuv rheinland', 'tuev rheinland',
+            'dekra', 'sgs', 'intertek', 'bureau veritas',
+            'dnv', 'dnv gl', 'lloyd\'s register', 'lloyds register',
+            'bsi group', 'ul solutions', 'applus', 'eurofins',
+            'lrqa', 'nqa', 'proficert', 'kiwa', 'nemko',
+            'csa group', 'underwriters laboratories',
+        ];
+        if (in_array($lower, $ticCompanyNames, true)) {
+            return true;
+        }
+        // Catch names starting with TÜV/TUV (e.g. "TÜV NORD GROUP", "TUV SUD Asia")
+        if (preg_match('/^t[üÜuU]e?v\b/iu', $name)) {
             return true;
         }
 
@@ -3627,6 +3823,17 @@ class GoogleDorkService
             return true;
         }
         if (preg_match('/^\w+\s+(monitor|dispatch)$/i', $name)) {
+            return true;
+        }
+        // "X Times" (news sites: "Opportimes", "Financial Times", "Arab Times")
+        // Only when "times" is last word or merged suffix
+        if (preg_match('/times\s*$/i', $name)) {
+            return true;
+        }
+        // ─── Certification / Testing / Inspection body name patterns ──
+        // Names with "certif", "accredit", "inspection", "testing body",
+        // "conformity", "homologation", "prüf" etc. are TIC companies
+        if (preg_match('/\b(certific|accreditat|certifying|conformity\s+assessment|homologation|notified\s+body|inspection\s+(body|agency|services?|authority)|testing\s+(body|institute|laborator|services?)|Prüfstelle|Prüfinstitut|Zertifizierung|organisme\s+de\s+certification)\b/iu', $name)) {
             return true;
         }
         // ─── Non-target content words ─────────────────────────────────
@@ -4129,8 +4336,8 @@ class GoogleDorkService
         }
         
         // ─── Gibberish / random letter combos ─────────────────────────
-        if ($wordCount === 1 && mb_strlen($name) >= 4 && mb_strlen($name) <= 8 && !preg_match('/[aeiouAEIOU]{1,}/', $name)) {
-            return true;  // No vowels = likely gibberish
+        if ($wordCount === 1 && mb_strlen($name) >= 4 && mb_strlen($name) <= 8 && !preg_match('/[aeiouAEIOU]{1,}/', $name) && !preg_match('/^[A-Z]{3,6}$/', $name)) {
+            return true;  // No vowels & not an all-caps acronym = likely gibberish
         }
         
         // ─── Oil & Gas / National Oil Companies ───────────────────────
@@ -4890,7 +5097,7 @@ class GoogleDorkService
             '/\bintelligence\b/i',                      // intelligence news
             '/\bdock\s*411/i',                          // logistics app
             '/\bspinet(ix)?/i',                         // digital signage
-            '/\bholding\b/i',                           // holding companies
+            '/^holding(\s+(company|group|s\.?a\.?|gmbh|corp|inc|ltd))?$/i', // standalone "Holding" / "Holding Company" (not "Küster Holding GmbH")
             '/\benvironment\s+monitoring/i',            // generic services
             // ── iter14 additional patterns ────────────────────────────────
             '/\boil\s*(&|and)\s*gas/i',                  // oil & gas companies
@@ -6501,6 +6708,350 @@ class GoogleDorkService
     }
 
     /**
+     * Retry borderline BuyerEvidence failures with homepage text.
+     *
+     * This improves recall for real companies that had sparse SERP snippets,
+     * while avoiding expensive retries for obviously bad candidates.
+     */
+    private function shouldAttemptEvidenceHomepageRescue(
+        BuyerEvidenceResult $evidenceResult,
+        array $result,
+        string $domain,
+    ): bool {
+        if ($evidenceResult->passed()) {
+            return false;
+        }
+
+        // Don't rescue strong negatives.
+        if ($evidenceResult->getTotalAntiScore() >= 40) {
+            return false;
+        }
+
+        // Allow rescue even with 0 positive families — the homepage text
+        // often contains strong evidence that sparse snippets don't show.
+        // Previously required ≥1 positive family, which blocked legitimate
+        // companies with uninformative snippets from getting a fair chance.
+
+        // Don't spend rescue attempts on obvious article/news/career URLs.
+        $link = strtolower((string) ($result['link'] ?? ''));
+        if ($link !== '' && preg_match('/\/(news|blog|press|article|articles|insights?|media|events?|jobs?|careers?)\b/i', $link)) {
+            return false;
+        }
+
+        // Rescue for normal commercial domains only.
+        if ($this->isBlockedDomain($domain)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Fetch homepage text for evidence rescue.
+     */
+    private function fetchEvidenceHomepageText(string $domain): string
+    {
+        $cleanDomain = preg_replace('#^https?://#i', '', trim($domain));
+        $cleanDomain = preg_replace('#/.*$#', '', (string) $cleanDomain);
+        if ($cleanDomain === '') {
+            return '';
+        }
+
+        $urls = [
+            'https://' . $cleanDomain,
+            'http://' . $cleanDomain,
+        ];
+
+        foreach ($urls as $url) {
+            try {
+                $response = $this->httpClient->request('GET', $url, [
+                    'timeout' => 5,
+                    'max_redirects' => 2,
+                    'headers' => [
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept' => 'text/html,application/xhtml+xml',
+                        'Accept-Language' => 'en-US,en;q=0.9',
+                    ],
+                ]);
+
+                $statusCode = $response->getStatusCode();
+                if ($statusCode >= 400) {
+                    continue;
+                }
+
+                $html = $response->getContent(false);
+                if ($html === '') {
+                    continue;
+                }
+
+                $html = $this->smartTruncateHtml($html, 200000);
+                $html = preg_replace('/<(script|style|noscript)\b[^>]*>.*?<\/\1>/is', ' ', $html) ?? $html;
+                $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $text = preg_replace('/\s+/u', ' ', $text) ?? '';
+                $text = trim($text);
+
+                if ($text !== '') {
+                    return mb_substr($text, 0, 6000);
+                }
+            } catch (\Throwable) {
+                // Try next candidate URL.
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Validate that a candidate has evidence of presence in the target location.
+     *
+     * When searching for "Egypt", companies like Hope Global (US-based, no
+     * Egypt operations) can appear because Google returns results from any page
+     * mentioning both the company and the country. This check verifies that
+     * the snippet/title/domain actually indicates local operations.
+     *
+     * Returns true if location presence is verified (or not applicable).
+     * Returns false if the company clearly has NO connection to the target location.
+     */
+    private function hasLocationPresence(string $snippet, string $title, string $domain, ?string $location): bool
+    {
+        if ($location === null || $location === '') {
+            return true; // No location filter → always pass
+        }
+
+        $text = strtolower($snippet . ' ' . $title);
+        $locationLower = strtolower(trim($location));
+
+        // Map location to country and expected terms
+        $locationVocab = $this->getLocationVocabulary($locationLower);
+        if ($locationVocab === null) {
+            return true; // Unknown location → don't filter
+        }
+
+        // Check domain TLD — a ccTLD is strong location presence evidence
+        foreach ($locationVocab['tlds'] as $tld) {
+            if (preg_match('/\.' . preg_quote($tld, '/') . '$/i', $domain)) {
+                return true;
+            }
+        }
+
+        // Check text for any location terms (country name, city names, etc.)
+        foreach ($locationVocab['terms'] as $term) {
+            if (str_contains($text, $term)) {
+                return true;
+            }
+        }
+
+        // No location evidence found in snippet, title, or domain
+        return false;
+    }
+
+    /**
+     * Get country/city vocabulary for location-presence validation.
+     *
+     * @return array{tlds: string[], terms: string[]}|null
+     */
+    private function getLocationVocabulary(string $location): ?array
+    {
+        // Normalize common location strings to country entries
+        $locationMap = [
+            // Egypt
+            'egypt' => 'EG', 'cairo' => 'EG', 'alexandria' => 'EG',
+            'suez' => 'EG', '6th of october city' => 'EG',
+            '10th of ramadan city' => 'EG', 'giza' => 'EG',
+            'port said' => 'EG', 'ismailia' => 'EG',
+            // Morocco
+            'morocco' => 'MA', 'casablanca' => 'MA', 'rabat' => 'MA',
+            'tangier' => 'MA', 'tanger' => 'MA', 'fez' => 'MA', 'fes' => 'MA',
+            'marrakech' => 'MA', 'kenitra' => 'MA', 'nouaceur' => 'MA',
+            'tanger automotive city morocco' => 'MA',
+            'tanger free zone morocco' => 'MA',
+            'atlantic free zone kenitra morocco' => 'MA',
+            'casablanca morocco' => 'MA', 'nouaceur morocco' => 'MA',
+            // Tunisia
+            'tunisia' => 'TN', 'tunis' => 'TN', 'sfax' => 'TN',
+            'sousse' => 'TN', 'bizerte' => 'TN', 'nabeul' => 'TN',
+            'tunis tunisia' => 'TN', 'sfax tunisia' => 'TN',
+            'sousse tunisia' => 'TN', 'bizerte tunisia' => 'TN',
+            'nabeul tunisia' => 'TN',
+            // GCC
+            'dubai' => 'AE', 'abu dhabi' => 'AE',
+            'riyadh' => 'SA', 'jeddah' => 'SA', 'dammam' => 'SA',
+            'doha' => 'QA', 'muscat' => 'OM', 'kuwait' => 'KW',
+            'bahrain' => 'BH', 'manama' => 'BH',
+            // Germany
+            'germany' => 'DE', 'deutschland' => 'DE',
+            'berlin' => 'DE', 'munich' => 'DE', 'münchen' => 'DE',
+            'stuttgart' => 'DE', 'hamburg' => 'DE', 'frankfurt' => 'DE',
+            'düsseldorf' => 'DE', 'nuremberg' => 'DE', 'nürnberg' => 'DE',
+            // France
+            'france' => 'FR', 'paris' => 'FR', 'lyon' => 'FR',
+            'toulouse' => 'FR', 'marseille' => 'FR', 'bordeaux' => 'FR',
+            'grenoble' => 'FR', 'strasbourg' => 'FR',
+            // Netherlands
+            'netherlands' => 'NL', 'eindhoven' => 'NL', 'amsterdam' => 'NL',
+            'rotterdam' => 'NL', 'the hague' => 'NL', 'utrecht' => 'NL',
+            // Czech Republic
+            'czech republic' => 'CZ', 'czechia' => 'CZ',
+            'prague' => 'CZ', 'brno' => 'CZ', 'ostrava' => 'CZ',
+            // Poland
+            'poland' => 'PL', 'warsaw' => 'PL', 'wroclaw' => 'PL',
+            'krakow' => 'PL', 'gdansk' => 'PL', 'poznan' => 'PL',
+            // Romania
+            'romania' => 'RO', 'bucharest' => 'RO', 'timisoara' => 'RO',
+            'cluj' => 'RO', 'brasov' => 'RO',
+            // Italy
+            'italy' => 'IT', 'milan' => 'IT', 'rome' => 'IT',
+            'turin' => 'IT', 'torino' => 'IT', 'bologna' => 'IT',
+            // Spain
+            'spain' => 'ES', 'madrid' => 'ES', 'barcelona' => 'ES',
+            'valencia' => 'ES', 'seville' => 'ES', 'bilbao' => 'ES',
+            // UK
+            'england' => 'GB', 'scotland' => 'GB', 'wales' => 'GB',
+            'london' => 'GB', 'birmingham' => 'GB', 'manchester' => 'GB',
+            'edinburgh' => 'GB', 'glasgow' => 'GB', 'cardiff' => 'GB',
+            // US
+            'new york' => 'US', 'texas' => 'US', 'massachusetts' => 'US',
+            'michigan detroit' => 'US', 'michigan' => 'US', 'detroit' => 'US',
+            'north carolina' => 'US', 'pennsylvania' => 'US',
+            'california' => 'US', 'florida' => 'US',
+            // Scandinavia
+            'finland' => 'FI', 'helsinki' => 'FI',
+            'sweden' => 'SE', 'stockholm' => 'SE', 'gothenburg' => 'SE',
+        ];
+
+        $countryVocab = [
+            'EG' => [
+                'tlds' => ['eg'],
+                'terms' => ['egypt', 'cairo', 'alexandria', 'giza', 'suez', 'port said',
+                    'ismailia', '6th of october', '10th of ramadan', 'new cairo',
+                    'smart village', 'maadi', 'heliopolis', 'nasr city',
+                    'egyptian', 'sadat city'],
+            ],
+            'MA' => [
+                'tlds' => ['ma'],
+                'terms' => ['morocco', 'moroccan', 'casablanca', 'tangier', 'tanger',
+                    'rabat', 'fez', 'fes', 'marrakech', 'kenitra', 'nouaceur',
+                    'mohammedia', 'meknes', 'agadir', 'oujda', 'tetouan',
+                    'tanger med', 'automotive city', 'free zone'],
+            ],
+            'TN' => [
+                'tlds' => ['tn'],
+                'terms' => ['tunisia', 'tunisian', 'tunis', 'sfax', 'sousse',
+                    'bizerte', 'nabeul', 'monastir', 'gabès', 'gabes',
+                    'kairouan', 'ben arous'],
+            ],
+            'AE' => [
+                'tlds' => ['ae'],
+                'terms' => ['uae', 'united arab emirates', 'dubai', 'abu dhabi',
+                    'sharjah', 'ajman', 'rak', 'ras al khaimah', 'fujairah',
+                    'jebel ali', 'emirati', 'emirates'],
+            ],
+            'SA' => [
+                'tlds' => ['sa'],
+                'terms' => ['saudi', 'saudi arabia', 'riyadh', 'jeddah', 'dammam',
+                    'khobar', 'jubail', 'yanbu', 'neom', 'kingdom'],
+            ],
+            'QA' => [
+                'tlds' => ['qa'],
+                'terms' => ['qatar', 'qatari', 'doha', 'lusail'],
+            ],
+            'DE' => [
+                'tlds' => ['de'],
+                'terms' => ['germany', 'german', 'deutschland', 'berlin', 'munich',
+                    'münchen', 'muenchen', 'stuttgart', 'hamburg', 'frankfurt',
+                    'düsseldorf', 'duesseldorf', 'nuremberg', 'nürnberg', 'nuernberg',
+                    'bavari', 'nordrhein', 'hessen', 'baden', 'sachsen'],
+            ],
+            'FR' => [
+                'tlds' => ['fr'],
+                'terms' => ['france', 'french', 'paris', 'lyon', 'toulouse',
+                    'marseille', 'bordeaux', 'grenoble', 'strasbourg', 'nantes',
+                    'lille', 'montpellier', 'île-de-france', 'ile-de-france'],
+            ],
+            'NL' => [
+                'tlds' => ['nl'],
+                'terms' => ['netherlands', 'dutch', 'holland', 'eindhoven', 'amsterdam',
+                    'rotterdam', 'the hague', 'utrecht', 'brainport', 'delft'],
+            ],
+            'CZ' => [
+                'tlds' => ['cz'],
+                'terms' => ['czech', 'czechia', 'prague', 'praha', 'brno', 'ostrava',
+                    'plzen', 'pilsen', 'liberec', 'olomouc', 'české', 'ceske'],
+            ],
+            'PL' => [
+                'tlds' => ['pl'],
+                'terms' => ['poland', 'polish', 'warsaw', 'warszawa', 'wroclaw',
+                    'wrocław', 'krakow', 'kraków', 'gdansk', 'gdańsk',
+                    'poznan', 'poznań', 'łódź', 'lodz', 'katowice'],
+            ],
+            'RO' => [
+                'tlds' => ['ro'],
+                'terms' => ['romania', 'romanian', 'bucharest', 'bucurești', 'bucuresti',
+                    'timisoara', 'timișoara', 'cluj', 'brasov', 'brașov',
+                    'sibiu', 'constanta', 'constanța', 'iasi', 'iași'],
+            ],
+            'IT' => [
+                'tlds' => ['it'],
+                'terms' => ['italy', 'italian', 'italia', 'milan', 'milano', 'rome',
+                    'roma', 'turin', 'torino', 'bologna', 'florence', 'firenze',
+                    'naples', 'napoli', 'genoa', 'genova', 'venice', 'venezia'],
+            ],
+            'ES' => [
+                'tlds' => ['es'],
+                'terms' => ['spain', 'spanish', 'españa', 'espana', 'madrid',
+                    'barcelona', 'valencia', 'seville', 'sevilla', 'bilbao',
+                    'malaga', 'málaga', 'zaragoza'],
+            ],
+            'GB' => [
+                'tlds' => ['uk', 'co.uk'],
+                'terms' => ['uk', 'united kingdom', 'britain', 'british', 'england',
+                    'scotland', 'wales', 'london', 'birmingham', 'manchester',
+                    'edinburgh', 'glasgow', 'cardiff', 'leeds', 'bristol',
+                    'sheffield', 'liverpool', 'nottingham', 'southampton'],
+            ],
+            'US' => [
+                'tlds' => ['us'],
+                'terms' => ['usa', 'united states', 'u.s.', 'u.s.a.', 'america',
+                    'american', 'new york', 'texas', 'massachusetts', 'michigan',
+                    'detroit', 'north carolina', 'pennsylvania', 'california',
+                    'florida', 'ohio', 'illinois', 'boston', 'chicago',
+                    'san jose', 'san francisco', 'los angeles', 'houston',
+                    'philadelphia', 'phoenix', 'dallas', 'austin', 'atlanta',
+                    'seattle', 'denver', 'minneapolis', 'portland', 'charlotte',
+                    'raleigh', 'pittsburgh'],
+            ],
+            'FI' => [
+                'tlds' => ['fi'],
+                'terms' => ['finland', 'finnish', 'helsinki', 'tampere', 'oulu', 'turku', 'espoo'],
+            ],
+            'SE' => [
+                'tlds' => ['se'],
+                'terms' => ['sweden', 'swedish', 'stockholm', 'gothenburg', 'göteborg',
+                    'malmö', 'malmo', 'linköping', 'linkoping', 'västerås', 'vasteras'],
+            ],
+            'KW' => [
+                'tlds' => ['kw'],
+                'terms' => ['kuwait', 'kuwaiti'],
+            ],
+            'BH' => [
+                'tlds' => ['bh'],
+                'terms' => ['bahrain', 'bahraini', 'manama'],
+            ],
+            'OM' => [
+                'tlds' => ['om'],
+                'terms' => ['oman', 'omani', 'muscat'],
+            ],
+        ];
+
+        $countryCode = $locationMap[$location] ?? null;
+        if ($countryCode === null) {
+            return null;
+        }
+
+        return $countryVocab[$countryCode] ?? null;
+    }
+
+    /**
      * Classify a search result by analyzing its snippet to determine if
      * the company is an EMS COMPETITOR (provides the same services as
      * Starz) rather than an EMS BUYER (potential customer).
@@ -6605,13 +7156,15 @@ class GoogleDorkService
         }
 
         // ─── 4. COMPONENT SUPPLIER signals ───────────────────────────
-        // Companies that sell components (connectors, semiconductors, LEDs)
+        // Companies that sell/distribute components (not manufacturers —
+        // component manufacturers may actually BUY EMS services)
         $componentSignals = [
-            '(connector|terminal|contact)\s+(manufactur|supplier|producer)',
-            '(semiconductor|chip|ic|led|mosfet|transistor)\s+(manufactur|supplier|producer)',
-            '(resistor|capacitor|inductor|transformer)\s+(manufactur|supplier)',
+            '(connector|terminal|contact)\s+(supplier|distribut)',
+            '(semiconductor|chip|ic|led|mosfet|transistor)\s+(supplier|distribut)',
+            '(resistor|capacitor|inductor|transformer)\s+(supplier|distribut)',
             '(raw\s+material|copper\s+wire|solder|flux)\s+suppli',
-            'component\s+(manufactur|suppli|produc)',
+            'component\s+(suppli|distribut)',
+            'electronic\s+component\s+distribut',
         ];
 
         foreach ($componentSignals as $pattern) {
@@ -7961,10 +8514,59 @@ class GoogleDorkService
             }
         }
 
-        // ── PHASE 2: LinkedIn verification + enrichment (PAID) ────
-        // Only for candidates NOT already verified via homepage.
+        // ── PHASE 2: Verification for candidates NOT verified via homepage ──
+        // OPTIMIZATION: Check benefit-of-the-doubt FIRST to avoid burning
+        // engine quota on LinkedIn verification that would accept them anyway.
+        // LinkedIn company-page searches try all 28 engines (~4 min each when
+        // rate-limited), but BOTD accepts candidates with plausible domains.
+        //
+        // NOTE: homepage_rejected is NOT a gate for BOTD. The homepage classifier
+        // checks for dealer/non-target content but has high false-positive rates
+        // (e.g. Fft, Omron were rejected but are legitimate companies). Companies
+        // with branded domains are real companies regardless of homepage content.
+        // The BuyerEvidenceGate later in the pipeline handles buyer filtering.
         foreach ($needsLinkedIn as $domain => $data) {
             $name = $data['name'];
+
+            // ── FAST PATH: Benefit-of-the-doubt for branded-domain companies ──
+            // If the candidate has a branded domain, accept immediately.
+            // This saves 4+ minutes of futile LinkedIn engine-burning per
+            // candidate. A branded domain proves the company exists; whether
+            // it's a buyer target is handled by BuyerEvidenceGate downstream.
+            $domainParts = explode('.', $domain);
+            $baseName = $domainParts[0] ?? '';
+            $looksLikeCompanyDomain = (
+                mb_strlen($baseName) >= 3 &&
+                mb_strlen($baseName) <= 30 &&
+                !preg_match('/\d{4,}/', $baseName) &&
+                !preg_match('/^(info|shop|store|buy|deal|free|best|top|my|the|get|go|web|net|online)$/i', $baseName)
+            );
+
+            if ($looksLikeCompanyDomain) {
+                $data['verification_status'] = 'benefit_of_doubt';
+                if (!empty($data['homepage_rejected'])) {
+                    $data['verification_status'] = 'benefit_of_doubt_homepage_rejected';
+                }
+                // Enrich via subpages (fast — direct HTTP, no search engines)
+                if (empty($data['contacts']) || empty($data['address'])) {
+                    $sub = $this->scrapeSubpagesForContacts($data['website'] ?? '', $data['name']);
+                    if ($sub) { $data = $this->mergeEnrichment($data, $sub); }
+                }
+                if (empty($data['contacts'])) {
+                    $ec = $this->extractContactsFromEmails($data);
+                    if ($ec) { $data['contacts'] = $ec; }
+                }
+                $verified[$domain] = $data;
+                $this->logger->info('Accepted via benefit-of-the-doubt (fast path, skipped LinkedIn)', [
+                    'name' => $name, 'domain' => $domain,
+                    'homepage_rejected' => !empty($data['homepage_rejected']),
+                ]);
+                continue;
+            }
+
+            // ── SLOW PATH: Full LinkedIn verification for uncertain candidates ──
+            // Only runs for: generic domains (too short, numeric, generic words)
+            // that can't be trusted as branded company domains.
 
             // Step 2a: LinkedIn check with extracted name
             $linkedInResult = $this->checkLinkedInCompanyPage($name);
@@ -7974,7 +8576,6 @@ class GoogleDorkService
                 $this->logger->debug('Verified+enriched via LinkedIn', [
                     'name' => $data['name'], 'domain' => $domain,
                 ]);
-                // Also scrape subpages for contacts/address
                 if (empty($data['contacts']) || empty($data['address'])) {
                     $sub = $this->scrapeSubpagesForContacts($data['website'] ?? '', $data['name']);
                     if ($sub) { $data = $this->mergeEnrichment($data, $sub); $verified[$domain] = $data; }
@@ -7982,17 +8583,6 @@ class GoogleDorkService
                 if (empty($data['contacts'])) {
                     $ec = $this->extractContactsFromEmails($data);
                     if ($ec) { $data['contacts'] = $ec; $verified[$domain] = $data; }
-                }
-                // Google→LinkedIn person search (1 API call)
-                if (empty($data['contacts'])) {
-                    $liContacts = $this->searchLinkedInDecisionMakers($data['name']);
-                    if (!empty($liContacts)) {
-                        $data['contacts'] = $liContacts;
-                        $verified[$domain] = $data;
-                        $this->logger->info('Found contacts via Google→LinkedIn search (LI-verified)', [
-                            'company' => $data['name'], 'count' => count($liContacts),
-                        ]);
-                    }
                 }
                 usleep(250000);
                 continue;
@@ -8009,7 +8599,6 @@ class GoogleDorkService
                     $this->logger->debug('Verified via LinkedIn (domain name)', [
                         'original' => $name, 'corrected' => $data['name'],
                     ]);
-                    // Full contact enrichment (was missing — just did continue before)
                     if (empty($data['contacts']) || empty($data['address'])) {
                         $sub = $this->scrapeSubpagesForContacts($data['website'] ?? '', $data['name']);
                         if ($sub) { $data = $this->mergeEnrichment($data, $sub); $verified[$domain] = $data; }
@@ -8018,73 +8607,17 @@ class GoogleDorkService
                         $ec = $this->extractContactsFromEmails($data);
                         if ($ec) { $data['contacts'] = $ec; $verified[$domain] = $data; }
                     }
-                    if (empty($data['contacts'])) {
-                        $liContacts = $this->searchLinkedInDecisionMakers($data['name']);
-                        if (!empty($liContacts)) {
-                            $data['contacts'] = $liContacts;
-                            $verified[$domain] = $data;
-                            $this->logger->info('Found contacts via Google→LinkedIn search (domain-LI-verified)', [
-                                'company' => $data['name'], 'count' => count($liContacts),
-                            ]);
-                        }
-                    }
                     usleep(250000);
                     continue;
                 }
                 usleep(250000);
             }
 
-            // ── BENEFIT OF THE DOUBT ──────────────────────────────
-            // Companies that passed all 4 upstream filters (blocked domain,
-            // junk name, competitor/wrong-type, isLikelyEMSBuyer) but
-            // couldn't be verified via homepage or LinkedIn.
-            //
-            // Common reasons for verification failure:
-            //  - Cloudflare / bot-protection blocks homepage scrape
-            //  - Small/medium company without a LinkedIn page
-            //  - LinkedIn page exists but Google didn't index it yet
-            //
-            // Instead of hard-rejecting, accept if the domain looks like
-            // a plausible company domain (short, branded, not generic).
-            $domainParts = explode('.', $domain);
-            $baseName = $domainParts[0] ?? '';
-            $looksLikeCompanyDomain = (
-                mb_strlen($baseName) >= 3 &&         // at least 3 chars
-                mb_strlen($baseName) <= 30 &&        // not absurdly long
-                !preg_match('/\d{4,}/', $baseName) && // no long digit strings
-                !preg_match('/^(info|shop|store|buy|deal|free|best|top|my|the|get|go|web|net|online)$/i', $baseName) // not generic
-            );
-
-            if ($looksLikeCompanyDomain && empty($data['homepage_rejected'])) {
-                $data['verification_status'] = 'unverified_accepted';
-                // Try subpage scraping for contacts/address
-                if (empty($data['contacts']) || empty($data['address'])) {
-                    $sub = $this->scrapeSubpagesForContacts($data['website'] ?? '', $data['name']);
-                    if ($sub) { $data = $this->mergeEnrichment($data, $sub); }
-                }
-                if (empty($data['contacts'])) {
-                    $ec = $this->extractContactsFromEmails($data);
-                    if ($ec) { $data['contacts'] = $ec; }
-                }
-                // Google→LinkedIn person search (1 API call)
-                if (empty($data['contacts'])) {
-                    $liContacts = $this->searchLinkedInDecisionMakers($data['name']);
-                    if (!empty($liContacts)) {
-                        $data['contacts'] = $liContacts;
-                        $this->logger->info('Found contacts via Google→LinkedIn search (benefit-of-doubt)', [
-                            'company' => $data['name'], 'count' => count($liContacts),
-                        ]);
-                    }
-                }
-                $verified[$domain] = $data;
-                $this->logger->info('Accepted unverified company (benefit of doubt)', [
-                    'name' => $name, 'domain' => $domain,
-                ]);
-            } else {
-                $this->logger->info('Rejected unverified company (generic domain)', [
-                    'name' => $name, 'domain' => $domain,
-                ]);
-            }
+            // LinkedIn couldn't verify — reject (homepage already rejected or domain too generic)
+            $this->logger->info('Rejected unverified company', [
+                'name' => $name, 'domain' => $domain,
+                'homepage_rejected' => !empty($data['homepage_rejected']),
+            ]);
         }
 
         $this->logger->info('Company verification completed', [
@@ -8208,7 +8741,10 @@ class GoogleDorkService
         $query = 'site:linkedin.com/company "' . $cleanName . '"';
 
         try {
-            $results = $this->executeProviderSearch($query, 3);
+            // Use Google CSE directly for site:linkedin.com queries.
+            // Most scraped engines can't handle LinkedIn site-restricted
+            // searches (28 engines × 3-5s = 4+ min wasted with 0 results).
+            $results = $this->executeLinkedInSearch($query, 3);
             if (!empty($results['results'])) {
                 $first = $results['results'][0];
                 $title = $first['title'] ?? '';
@@ -8462,7 +8998,7 @@ class GoogleDorkService
             // Arabic-ish transliterated patterns
             'manajem', 'idara',
         ];
-        $linkRegex = '/(' . implode('|', $linkPatterns) . ')/i';
+        $linkRegex = '#(' . implode('|', $linkPatterns) . ')#i';
 
         // Find all <a> tags with href containing relevant keywords
         $discoveredUrls = [];
@@ -11144,7 +11680,10 @@ class GoogleDorkService
             }
 
             try {
-                $results = $this->executeProviderSearch($query, 10);
+                // Use Google CSE directly for site:linkedin.com queries.
+                // Most scraped engines can't handle LinkedIn site-restricted
+                // searches, so burning 28 engines is futile.
+                $results = $this->executeLinkedInSearch($query, 10);
                 $items = $results['results'] ?? [];
 
                 foreach ($items as $item) {
@@ -12232,11 +12771,15 @@ class GoogleDorkService
         } else {
             switch ($sector) {
             case 'Automotive':
-                $queries[] = "\"IATF 16949\" {$sector} manufacturer{$locationTerm}" . $exclude;
-                $queries[] = "{$sector} OEM \"ECU\" OR \"body electronics\" OR \"powertrain\"{$locationTerm}" . $exclude;
-                $queries[] = "{$sector} \"tier 1\" supplier electronics company{$locationTerm}" . $exclude;
-                $queries[] = "{$sector} manufacturer \"electronic\" \"our products\" OR \"our capabilities\"{$locationTerm}" . $exclude;
-                $queries[] = "{$sector} company \"EV\" OR \"electric vehicle\" electronics{$locationTerm}" . $exclude;
+                // ── Primary: find OEM manufacturers that HAVE products ──
+                $queries[] = "automotive manufacturer \"our products\" OR \"our solutions\"{$locationTerm}" . $exclude;
+                $queries[] = "automotive OEM manufacturer electronics{$locationTerm}" . $exclude;
+                $queries[] = "automotive \"tier 1\" supplier manufacturer{$locationTerm}" . $exclude;
+                // ── Technical product queries — companies making these BUY EMS ──
+                $queries[] = "\"ECU\" OR \"powertrain\" OR \"ADAS\" manufacturer{$locationTerm}" . $exclude;
+                $queries[] = "\"electric vehicle\" OR \"EV\" electronics manufacturer{$locationTerm}" . $exclude;
+                // ── About-us style queries — high intent for real companies ──
+                $queries[] = "automotive electronics company \"about us\" OR \"founded\"{$locationTerm}" . $exclude;
                 break;
             case 'Aerospace':
                 $queries[] = "\"AS9100\" {$sector} company{$locationTerm}" . $exclude;

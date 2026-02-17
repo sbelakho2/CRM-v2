@@ -57,18 +57,20 @@ final class ScraperHttpClientFactory
         ];
 
         if ($this->proxyUrl !== null && $this->proxyUrl !== '') {
-            $options['proxy'] = $this->proxyUrl;
             // Increase timeout for proxy overhead (extra hop)
             $options['timeout'] = 30;
 
             // Mask credentials for logging
             $maskedUrl = preg_replace('#://([^:]+):([^@]+)@#', '://***:***@', $this->proxyUrl);
-            $this->logger->info('ScraperHttpClientFactory: proxy enabled', [
+            $this->logger->info('ScraperHttpClientFactory: proxy enabled with per-request IP rotation', [
                 'proxy' => $maskedUrl,
             ]);
 
-            // Use CurlHttpClient explicitly — NativeHttpClient can't do HTTPS through HTTP proxy
-            $this->client = new CurlHttpClient($options);
+            // RotatingProxyHttpClient creates a new CurlHttpClient per request
+            // with a unique session ID baked into the proxy URL. This is necessary
+            // because Symfony's CurlHttpClient ignores per-request proxy options
+            // due to curl_multi connection pooling.
+            $this->client = new RotatingProxyHttpClient($options, $this->proxyUrl, $this->logger);
         } else {
             $this->logger->debug('ScraperHttpClientFactory: no proxy configured — direct connection');
             $this->client = HttpClient::create($options);

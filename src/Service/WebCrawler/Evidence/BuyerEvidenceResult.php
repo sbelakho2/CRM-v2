@@ -52,15 +52,38 @@ final class BuyerEvidenceResult
 
         $distinctPosFamilies = count($posFamilies);
         $distinctAntiFamilies = count($antFamilies);
+        $coreFamilies = array_values(array_intersect(
+            array_keys($posFamilies),
+            BuyerEvidenceGate::CORE_FAMILIES,
+        ));
+        $hasStructuredSectorSignals = isset($posFamilies['ORG_FOOTPRINT'], $posFamilies['SECTOR_ALIGNMENT'])
+            && $distinctAntiFamilies === 0
+            && $totalPos >= BuyerEvidenceGate::MIN_TOTAL_POSITIVE_SCORE;
+        $hardVetoAntiFamilies = array_values(array_intersect(
+            array_keys($antFamilies),
+            BuyerEvidenceGate::HARD_VETO_ANTI_FAMILIES,
+        ));
 
         // Decision logic
-        if ($distinctAntiFamilies > BuyerEvidenceGate::MAX_ANTI_FAMILIES) {
+        if (!empty($hardVetoAntiFamilies)) {
+            $this->passed = false;
+            $this->reason = sprintf(
+                'Hard-veto anti-evidence detected (%s)',
+                implode(', ', $hardVetoAntiFamilies),
+            );
+        } elseif ($distinctAntiFamilies > BuyerEvidenceGate::MAX_ANTI_FAMILIES) {
             $this->passed = false;
             $this->reason = sprintf(
                 'Anti-evidence in %d families (%s) exceeds max %d',
                 $distinctAntiFamilies,
                 implode(', ', array_keys($antFamilies)),
                 BuyerEvidenceGate::MAX_ANTI_FAMILIES,
+            );
+        } elseif (count($coreFamilies) === 0 && !$hasStructuredSectorSignals) {
+            $this->passed = false;
+            $this->reason = sprintf(
+                'No core buyer-intent family (%s)',
+                implode(', ', BuyerEvidenceGate::CORE_FAMILIES),
             );
         } elseif ($distinctPosFamilies < BuyerEvidenceGate::MIN_FAMILIES) {
             $this->passed = false;
@@ -70,13 +93,29 @@ final class BuyerEvidenceResult
                 $distinctPosFamilies > 0 ? implode(', ', array_keys($posFamilies)) : 'none',
                 BuyerEvidenceGate::MIN_FAMILIES,
             );
+        } elseif ($totalPos < BuyerEvidenceGate::MIN_TOTAL_POSITIVE_SCORE) {
+            $this->passed = false;
+            $this->reason = sprintf(
+                'Positive score %d below minimum %d',
+                $totalPos,
+                BuyerEvidenceGate::MIN_TOTAL_POSITIVE_SCORE,
+            );
         } else {
             $this->passed = true;
-            $this->reason = sprintf(
-                'Passed with %d families (%s)',
-                $distinctPosFamilies,
-                implode(', ', array_keys($posFamilies)),
-            );
+            if (count($coreFamilies) === 0 && $hasStructuredSectorSignals) {
+                $this->reason = sprintf(
+                    'Passed via structured sector signals (%d families, score=%d)',
+                    $distinctPosFamilies,
+                    $totalPos,
+                );
+            } else {
+                $this->reason = sprintf(
+                    'Passed with %d families (%s), score=%d',
+                    $distinctPosFamilies,
+                    implode(', ', array_keys($posFamilies)),
+                    $totalPos,
+                );
+            }
         }
     }
 

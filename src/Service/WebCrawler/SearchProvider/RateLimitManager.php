@@ -3,6 +3,7 @@
 namespace App\Service\WebCrawler\SearchProvider;
 
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Intelligent rate limit manager for multi-engine web scraping.
@@ -43,12 +44,14 @@ final class RateLimitManager
     /** Jitter range (0.0 to 1.0 = percentage of delay to randomize) */
     private const JITTER_FACTOR = 0.3;
 
-    /** Cache file for persistent state */
-    private const STATE_FILE = '/tmp/scraping_rate_limit_state.json';
+    /** State file path */
+    private readonly string $stateFile;
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        #[Autowire('%kernel.project_dir%')] string $projectDir,
     ) {
+        $this->stateFile = $projectDir . '/var/scraping_rate_limit_state.json';
         $this->loadState();
     }
 
@@ -271,8 +274,8 @@ final class RateLimitManager
 
     private function loadState(): void
     {
-        if (file_exists(self::STATE_FILE)) {
-            $data = file_get_contents(self::STATE_FILE);
+        if (file_exists($this->stateFile)) {
+            $data = file_get_contents($this->stateFile);
             if ($data) {
                 $decoded = json_decode($data, true);
                 if (is_array($decoded)) {
@@ -292,6 +295,6 @@ final class RateLimitManager
     private function saveState(): void
     {
         $json = json_encode($this->engineState, JSON_PRETTY_PRINT);
-        file_put_contents(self::STATE_FILE, $json, LOCK_EX);
+        file_put_contents($this->stateFile, $json, LOCK_EX);
     }
 }

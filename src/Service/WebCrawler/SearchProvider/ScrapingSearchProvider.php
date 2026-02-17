@@ -257,6 +257,9 @@ final class ScrapingSearchProvider implements SearchProviderInterface
                         $this->rateLimitManager->recordSuccess($engineName);
                         $elapsed = microtime(true) - $startTime;
 
+                        // Google CSE is reserved as absolute last resort only.
+                        // Free engines provide sufficient coverage when not rate-limited.
+
                         $this->logger->info('ScrapingSearchProvider: success', [
                             'engine' => $engineName,
                             'results_raw' => count($results),
@@ -437,7 +440,13 @@ final class ScrapingSearchProvider implements SearchProviderInterface
         $searchResults = [];
         foreach ($rawResults as $raw) {
             $url = $raw['link'] ?? '';
-            $displayLink = $raw['displayLink'] ?? $this->extractRootDomain($url);
+            $displayLink = $raw['displayLink'] ?? '';
+
+            // Guard: if displayLink contains breadcrumb separators (›, >, …)
+            // from <cite> text, discard it and derive a clean domain from the URL.
+            if (empty($displayLink) || preg_match('/[›>…]/u', $displayLink)) {
+                $displayLink = $this->extractRootDomain($url);
+            }
 
             $searchResults[] = new SearchResult(
                 url: $url,

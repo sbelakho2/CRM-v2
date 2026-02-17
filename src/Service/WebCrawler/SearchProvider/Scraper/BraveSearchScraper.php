@@ -379,10 +379,23 @@ final class BraveSearchScraper implements SearchEngineScraper
     /**
      * Extract root domain from URL, stripping www. prefix.
      * This becomes `displayLink` — the pipeline's primary dedup key.
+     *
+     * Brave's <cite> text uses › (U+203A) breadcrumb separators, e.g.
+     * "tuvsud.com › home › dienstleistungen".  PHP's parse_url() treats
+     * the › as part of the hostname, returning the entire breadcrumb.
+     * We strip everything from the first whitespace/› onward BEFORE parsing.
      */
     private function extractDisplayLink(string $url): string
     {
+        // Strip Brave breadcrumb suffixes: "tuvsud.com › path" → "tuvsud.com"
+        // Also handles "tuvsud.com > path" and "tuvsud.com ... path" variants
+        $url = preg_replace('/\s*[›>…].*/u', '', $url);
+
         $host = parse_url($url, PHP_URL_HOST);
+        if (!$host) {
+            // Fallback: maybe we got a bare domain without scheme
+            $host = parse_url('https://' . ltrim($url, '/ '), PHP_URL_HOST);
+        }
         if (!$host) {
             return '';
         }

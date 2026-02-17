@@ -7,8 +7,9 @@ use App\Service\WebCrawler\Text\TextNormalizer;
 /**
  * Buyer Evidence Gate (Improvement 2A)
  *
- * Hard requirement: a candidate must accumulate evidence from at least 2 of 4
- * evidence "families" before it can be promoted to a Lead.
+ * Hard requirement: a candidate must accumulate evidence from at least 2
+ * families, include at least one core buyer-intent family, and pass minimum
+ * score thresholds before it can be promoted to a Lead.
  *
  * Evidence Families:
  *   1. PRODUCT_PORTFOLIO — Company designs/sells its own products or systems
@@ -28,10 +29,36 @@ use App\Service\WebCrawler\Text\TextNormalizer;
 class BuyerEvidenceGate
 {
     // Minimum number of distinct positive families required to pass
-    public const MIN_FAMILIES = 2;
+    // Lowered from 2→1: snippet-only assessment often has just 1 family.
+    // Homepage rescue and verification provide additional filtering.
+    public const MIN_FAMILIES = 1;
+
+    // Minimum summed positive score required to pass
+    // Lowered from 15→8: a single core-family signal (e.g., "manufacturer" = 8-10)
+    // should be enough to advance to homepage verification.
+    public const MIN_TOTAL_POSITIVE_SCORE = 8;
 
     // Maximum number of distinct anti-evidence families before hard-reject
     public const MAX_ANTI_FAMILIES = 1;
+
+    // At least one of these "buyer intent" families must be present.
+    public const CORE_FAMILIES = [
+        'PRODUCT_PORTFOLIO',
+        'MANUFACTURING_OEM',
+        'BUYER_PROCUREMENT',
+    ];
+
+    // Single-hit hard veto anti-families.
+    public const HARD_VETO_ANTI_FAMILIES = [
+        'NEWS_CONTENT',
+        'STANDARDS_BODY',
+        'CHEMICAL_MATERIALS',
+        'MARKET_REPORT',
+        'GOVERNMENT',
+        'ACADEMIC',
+        'CERTIFICATION_TESTING',
+        'MEDIA',
+    ];
 
     private TextNormalizer $normalizer;
 
@@ -454,7 +481,7 @@ class BuyerEvidenceGate
         $antiPatterns = [
             'GOVERNMENT'    => '/\b(government|authority|ministry|department\s+of|bureau\s+of|municipality|behörde|behoerde|ministerium|gemeinde|préfecture|prefecture|municipalité|municipalite|ministerio|gemeente|urząd|urzad|ministerstvo)\b/i',
             'ACADEMIC'      => '/\b(university|universit[éèeäa]|college|school\s+of|institute\s+of|research\s+cent[er]|academic|professor|doctoral|hochschule|fachhochschule|politecnico|universidad|uczelnia|univerzita|szkoła\s+wyższa|szkola\s+wyzsza)\b/i',
-            'MEDIA'         => '/\b(newspaper|news\s+agency|media\s+company|publishing|journalist|magazine|podcast|broadcast|zeitung|zeitschrift|verlag|redaktion|quotidiano|giornale|periódico|periodico|gazeta|wydawnictwo|noviny|časopis|casopis)\b/i',
+            'MEDIA'         => '/\b(newspaper|news\s+agency|media\s+company|publishing|journalist|magazine|podcast|broadcast|zeitung|zeitschrift|verlag|redaktion|quotidiano|giornale|periódico|periodico|gazeta|wydawnictwo|noviny|časopis|casopis|press\s+(agency|release|office|review|group)|newsroom|correspondent|reporter|editorial|tabloid|media\s+group|media\s+house|news\s+portal|news\s+site|online\s+news|digital\s+news|noticias|actualit[ée]s|nachrichten|dagblad|krant|tageszeitung|wochenzeitung)\b/i',
             'FINANCIAL'     => '/\b(bank|banking|insurance|fintech|financial\s+services|credit\s+union|stock\s+exchange|brokerage|versicherung|assurance|assicurazione|seguro|verzekering|ubezpieczenie|pojišťovna|pojistovna)\b/i',
             'HEALTHCARE'    => '/\b(hospital|clinic|medical\s+center|patient\s+care|nursing|physician|pharmacy|krankenhaus|klinik|hôpital|hopital|ospedale|ziekenhuis|szpital|nemocnice|apotheke|pharmacie|farmacia|apteka|lékárna|lekarna)\b/i',
             'CONSULTING'    => '/\b(consulting\s+firm|law\s+firm|legal\s+services|accounting\s+firm|audit\s+firm|management\s+consult|advisory\s+firm|beratungsunternehmen|anwaltskanzlei|cabinet\s+d.avocat|cabinet\s+de\s+conseil|studio\s+legale|advocatenkantoor|kancelaria\s+prawna|advokátní\s+kancelář|advokatni\s+kancelar)\b/i',
@@ -471,11 +498,20 @@ class BuyerEvidenceGate
             'GAMBLING'      => '/\b(casino|poker|bet365|betting|gambling|spielhalle|spielothek|slot\s+machine|sportwetten|bookmaker|pari[\s-]?sportif|scommesse)\b/i',
             'STANDARDS_BODY' => '/\b(standards?\s+(body|organization|organisation|institute|authority|committee)|standardization|standardisation|normalization|normalisation|technick[\x{00e9}e]\s+normy|normes?\s+techniques?|DIN\s+standard|ANSI\s+standard|BSI\s+Group|ISO\s+(committee|standard|certification\s+body)|IEC\s+standard|CEN\b|CENELEC|norms?\s+(database|catalog|catalogue|search|portal)|technick[\x{00e9}e]\s+předpisy|certification\s+(body|institute|organisation|organization))\b/iu',
             'CHEMICAL_MATERIALS' => '/\b(chemical\s+(company|producer|supplier|group|division)|commodity\s+chemical|specialty\s+chemical|petrochemical|polymer\s+(producer|supplier|manufacturer)|resin\s+(producer|supplier)|styrene|polystyrene|polyethylene|polypropylene|polyurethane|styrolution|styrenics|plastics?\s+(supplier|producer|manufacturer|company)|raw\s+material\s+(supplier|producer)|basic\s+materials?|chemical\s+industry|bulk\s+chemical|chemical\s+distribution)\b/i',
-            'NEWS_CONTENT' => '/\b(breaking\s+news|latest\s+news|top\s+stories|headlines|trending|opinion\s+column|exclusive\s+interview|showbiz|celebrity|tabloid|read\s+more\s+at|subscribe\s+to\s+(our|the)\s+newsletter|news\s+desk|news\s+feed|royal\s+family)\b/i',
+            'NEWS_CONTENT' => '/\b(breaking\s+news|latest\s+news|top\s+stories|headlines|trending|opinion\s+column|exclusive\s+interview|showbiz|celebrity|tabloid|read\s+more\s+at|subscribe\s+to\s+(our|the)\s+newsletter|news\s+desk|news\s+feed|royal\s+family|press\s+release|wire\s+service|syndicated|news\s+wire|dateline|byline|special\s+report|in\s+the\s+news|news\s+update|live\s+coverage)\b/i',
+            // ─── Certification / Testing / Inspection (TIC) companies ──────
+            // Only match when the text describes THE COMPANY as a cert body,
+            // NOT when a manufacturer merely mentions being certified BY one.
+            // Individual cert body names (TÜV, Bureau Veritas, etc.) are only
+            // checked via domain pattern below — a snippet saying "TÜV certified"
+            // about a manufacturer should NOT trigger this veto.
+            'CERTIFICATION_TESTING' => '/\b(certification\s+(services?|company|authority|provider|scheme|program)|we\s+certif(y|ied)|certif(y|ying|ication)\s+(to|against|for|of)\s+(iso|iec|en\s|din|astm|ul\b|csa\b)|certified?\s+auditor|accreditation\s+(body|services?|authority|scheme)|accredited\s+(body|laboratory|lab)|testing\s+(and|&)\s+(certification|inspection)|inspection\s+(and|&)\s+(certification|testing)|inspection\s+(services?|body|company|authority|provider)|TIC\s+(industry|services?|sector|company)|third[\s-]?party\s+(audit|inspection|testing|certification|assessment)|conformity\s+assessment|notified\s+body|type[\s-]?approval|homologation|product\s+certification|management\s+system\s+certification|certification\s+mark|kitemark|CE[\s-]?marking\s+(services?|body|notified)|Zertifizierung(sstelle)?|Pr[üu]f[\s-]?(stelle|labor|institut|dienst|ung)|organisme\s+de\s+certification|organismo\s+di\s+certificazione|organismo\s+de\s+certificaci[oó]n|Ente\s+di\s+certificazione|certificeringsinstantie|jednostka\s+certyfikuj[aą]ca|certifika[čc]n[ií]\s+(org[aá]n|společnost))\b/iu',
         ];
         $antiDomain = [
             'GOVERNMENT' => '/\.(gov|mil|edu)(\.[a-z]{2,3})?$/i',
             'ACADEMIC'   => '/\.ac\.(uk|za|nz|jp|kr)$/i',
+            'CERTIFICATION_TESTING' => '/\b(tuv|t[üu]v|tuev|dekra|sgs|intertek|bureauveritas|lrqa|dnv|eurofins|applus|nqa|cert|proficert)\b/i',
+            'MEDIA'      => '/(news|times|tribune|herald|gazette|chronicle|dispatch|observer|telegraph|daily|journal|digest|magazine|monitor|post|media)(\.|\b)/i',
         ];
 
         foreach ($antiPatterns as $family => $pattern) {
