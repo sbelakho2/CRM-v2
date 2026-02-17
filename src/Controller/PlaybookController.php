@@ -166,20 +166,60 @@ class PlaybookController extends AbstractController
         ]);
     }
 
-    #[Route('/builder/triggers', name: 'app_playbook_builder_triggers', methods: ['GET'])]
-    public function builderTriggers(): Response
+    #[Route('/builder/triggers/{id}', name: 'app_playbook_builder_triggers', methods: ['GET', 'POST'])]
+    public function builderTriggers(Request $request, Playbook $playbook): Response
     {
+        if ($request->isMethod('POST')) {
+            $payload = $request->request->get('trigger_rules', '[]');
+            $decoded = json_decode($payload, true);
+
+            if (!is_array($decoded)) {
+                $this->addFlash('error', $this->translator->trans('playbook.flash.invalid_rules'));
+            } else {
+                $playbook->setTriggerRules(json_encode($decoded));
+                $playbook->setUpdatedAt(new \DateTime());
+                $this->entityManager->flush();
+                $this->addFlash('success', $this->translator->trans('playbook.flash.updated'));
+                return $this->redirectToRoute('app_playbook_builder_triggers', ['id' => $playbook->getId()]);
+            }
+        }
+
         return $this->render('playbook/builder_triggers.html.twig', [
+            'playbook' => $playbook,
             'availableTriggers' => $this->getAvailableTriggers(),
+            'currentTriggers' => $this->decodeJsonArray($playbook->getTriggerRules()),
         ]);
     }
 
-    #[Route('/builder/actions', name: 'app_playbook_builder_actions', methods: ['GET'])]
-    public function builderActions(): Response
+    #[Route('/builder/actions/{id}', name: 'app_playbook_builder_actions', methods: ['GET', 'POST'])]
+    public function builderActions(Request $request, Playbook $playbook): Response
     {
+        if ($request->isMethod('POST')) {
+            $payload = $request->request->get('actions', '[]');
+            $decoded = json_decode($payload, true);
+
+            if (!is_array($decoded)) {
+                $this->addFlash('error', $this->translator->trans('playbook.flash.invalid_actions'));
+            } else {
+                $playbook->setActions(json_encode($decoded));
+                $playbook->setUpdatedAt(new \DateTime());
+                $this->entityManager->flush();
+                $this->addFlash('success', $this->translator->trans('playbook.flash.updated'));
+                return $this->redirectToRoute('app_playbook_builder_actions', ['id' => $playbook->getId()]);
+            }
+        }
+
         return $this->render('playbook/builder_actions.html.twig', [
+            'playbook' => $playbook,
             'availableActions' => $this->getAvailableActions(),
+            'currentActions' => $this->decodeJsonArray($playbook->getActions()),
         ]);
+    }
+
+    private function decodeJsonArray(?string $value): array
+    {
+        $decoded = json_decode($value ?? '[]', true);
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function getAvailableTriggers(): array

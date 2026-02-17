@@ -654,6 +654,7 @@ class CommandCenterService
         $recentQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.createdAt >= :monthAgo')
             ->setParameter('monthAgo', $monthAgo)
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
 
@@ -677,6 +678,7 @@ class CommandCenterService
         $pipelineQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
 

@@ -1,0 +1,170 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'playbook.builder_triggers'|trans|default('Playbook Triggers') }}{% endblock %}
+
+{% block body %}
+<div class="rams-stack">
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'playbook.builder_triggers'|trans|default('Playbook Triggers') }}</h1>
+            <p class="rams-page-subtitle">{{ 'playbook.builder_triggers_subtitle'|trans|default('Choose the conditions that start a playbook.') }}</p>
+            <div class="rams-text--muted rams-text--xs">{{ playbook.name }}</div>
+        </div>
+        <div class="rams-btn-group mobile-stack">
+            <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.back'|trans|default('Back') }}</a>
+            <a href="{{ path('app_playbook_builder_actions', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'playbook.actions'|trans|default('Actions') }}</a>
+        </div>
+    </div>
+
+    <form method="post" action="{{ path('app_playbook_builder_triggers', {id: playbook.id}) }}" class="rams-stack rams-gap-6">
+        <input type="hidden" name="trigger_rules" id="trigger-rules-input" value="" />
+
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'playbook.current_triggers'|trans|default('Current Triggers') }}</h2>
+            </div>
+            <div class="rams-module__content">
+                <div id="trigger-rules-list" class="rams-stack rams-gap-3"></div>
+                <div id="trigger-rules-empty" class="rams-empty-state" style="display: none;">
+                    {{ 'playbook.no_triggers'|trans|default('No triggers added yet.') }}
+                </div>
+            </div>
+        </div>
+
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'playbook.available_triggers'|trans|default('Available Triggers') }}</h2>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-grid rams-grid--2 rams-gap-4">
+                    {% for groupKey, group in availableTriggers %}
+                        <div class="rams-card">
+                            <div class="rams-card__content">
+                                <div class="rams-text--bold rams-mb-2">{{ group.label }}</div>
+                                <div class="rams-stack rams-gap-2">
+                                    {% for trigger in group.triggers %}
+                                        <div class="rams-flex rams-items-center rams-justify-between rams-gap-2">
+                                            <div>
+                                                <div class="rams-text--sm rams-text--bold">{{ trigger.label }}</div>
+                                                <div class="rams-text--xs rams-text--muted">{{ trigger.field }} · {{ trigger.type }}</div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                class="rams-btn rams-btn--ghost rams-btn--sm trigger-add-btn"
+                                                data-group="{{ groupKey }}"
+                                                data-field="{{ trigger.field }}"
+                                                data-label="{{ trigger.label }}"
+                                                data-type="{{ trigger.type }}"
+                                                data-options="{{ trigger.options|default([])|json_encode|e('html_attr') }}"
+                                            >
+                                                {{ 'common.add'|trans|default('Add') }}
+                                            </button>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="rams-flex rams-justify-end">
+            <button type="submit" class="rams-btn rams-btn--primary">
+                {{ 'common.save'|trans|default('Save') }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function() {
+    const initial = {{ currentTriggers|json_encode|raw }};
+    const listEl = document.getElementById('trigger-rules-list');
+    const emptyEl = document.getElementById('trigger-rules-empty');
+    const inputEl = document.getElementById('trigger-rules-input');
+    let selected = Array.isArray(initial) ? initial : [];
+
+    function sync() {
+        inputEl.value = JSON.stringify(selected);
+        if (selected.length === 0) {
+            listEl.innerHTML = '';
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+        listEl.innerHTML = selected.map((rule, idx) => {
+            const label = rule.label || rule.field || 'Trigger';
+            const type = rule.type || '';
+            return `
+                <div class="rams-card">
+                    <div class="rams-card__content rams-grid rams-grid--4 rams-gap-3 rams-items-center">
+                        <div>
+                            <div class="rams-text--bold">${label}</div>
+                            <div class="rams-text--xs rams-text--muted">${rule.field || ''} · ${type}</div>
+                        </div>
+                        <div>
+                            <label class="rams-text--xs rams-text--muted">Operator</label>
+                            <input class="rams-form__input" data-idx="${idx}" data-field="operator" value="${rule.operator || 'eq'}" />
+                        </div>
+                        <div>
+                            <label class="rams-text--xs rams-text--muted">Value</label>
+                            <input class="rams-form__input" data-idx="${idx}" data-field="value" value="${(rule.value === undefined || rule.value === null) ? '' : rule.value}" />
+                        </div>
+                        <div class="rams-flex rams-justify-end">
+                            <button type="button" class="rams-btn rams-btn--danger rams-btn--ghost" data-remove="${idx}">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    document.querySelectorAll('.trigger-add-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            let options = [];
+            try {
+                options = JSON.parse(btn.dataset.options || '[]');
+            } catch (e) {
+                options = [];
+            }
+
+            selected.push({
+                group: btn.dataset.group || '',
+                field: btn.dataset.field || '',
+                label: btn.dataset.label || '',
+                type: btn.dataset.type || '',
+                options: Array.isArray(options) ? options : [],
+                operator: 'eq',
+                value: ''
+            });
+            sync();
+        });
+    });
+
+    listEl.addEventListener('input', (event) => {
+        const target = event.target;
+        const idx = target.getAttribute('data-idx');
+        const field = target.getAttribute('data-field');
+        if (idx === null || field === null) {
+            return;
+        }
+        selected[Number(idx)][field] = target.value;
+        sync();
+    });
+
+    listEl.addEventListener('click', (event) => {
+        const target = event.target;
+        const remove = target.getAttribute('data-remove');
+        if (remove === null) {
+            return;
+        }
+        selected.splice(Number(remove), 1);
+        sync();
+    });
+
+    sync();
+})();
+</script>
+{% endblock %}

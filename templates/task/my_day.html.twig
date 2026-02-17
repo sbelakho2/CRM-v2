@@ -3,6 +3,8 @@
 {% block title %}{{ 'task.my_day_title'|trans }}{% endblock %}
 
 {% block body %}
+{% set completed_today = stats.by_status['done']|default(0) %}
+{% set remaining_today = todayTasks|length %}
 <div class="rams-page">
     <div class="rams-page__header">
         <div class="rams-page__header-content">
@@ -36,11 +38,11 @@
             </div>
 
             <!-- Overdue -->
-             {% if overdue_tasks|length > 0 %}
+             {% if overdueTasks|length > 0 %}
             <div class="rams-mb-6">
                 <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-red rams-mb-3">{{ 'task.overdue'|trans }}</h3>
                 <div class="rams-flex rams-flex-col rams-gap-2">
-                    {% for task in overdue_tasks %}
+                    {% for task in overdueTasks %}
                         {{ include('task/_task_item_row.html.twig', {task: task, overdue: true}) }}
                     {% endfor %}
                 </div>
@@ -51,7 +53,7 @@
             <div class="rams-mb-6">
                 <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-3">{{ 'task.today'|trans }}</h3>
                 <div class="rams-flex rams-flex-col rams-gap-2">
-                    {% for task in today_tasks %}
+                    {% for task in todayTasks %}
                         {{ include('task/_task_item_row.html.twig', {task: task}) }}
                     {% else %}
                         <div class="rams-module rams-p-8 rams-text--center rams-text--muted">
@@ -72,11 +74,11 @@
                     <div class="rams-flex rams-flex-col rams-gap-6">
                         <div class="rams-metric">
                             <div class="rams-metric__label">{{ 'task.completed_today'|trans }}</div>
-                            <div class="rams-metric__value tabular-nums">{{ completed_today|default(0) }}</div>
+                            <div class="rams-metric__value tabular-nums">{{ completed_today }}</div>
                         </div>
                         <div class="rams-metric">
                             <div class="rams-metric__label text-rams-orange">{{ 'task.remaining'|trans }}</div>
-                            <div class="rams-metric__value tabular-nums text-rams-orange">{{ remaining_today|default(0) }}</div>
+                            <div class="rams-metric__value tabular-nums text-rams-orange">{{ remaining_today }}</div>
                         </div>
                     </div>
                 </div>

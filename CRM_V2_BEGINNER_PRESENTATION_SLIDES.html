@@ -1,0 +1,1675 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM v2 Beginner Slides</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" />
+  <style>
+    .reveal { font-size: 28px; }
+    .reveal .slides section { text-align: left; }
+    .reveal h1, .reveal h2, .reveal h3 { margin-bottom: 0.4em; }
+    .img-wrap { text-align: center; margin: 0.3em 0; }
+    .img-wrap img { max-height: 48vh; width: auto; border: 1px solid #ddd; }
+    .reveal p { margin: 0.22em 0; line-height: 1.24; }
+    .reveal ul, .reveal ol { margin: 0.2em 0 0.2em 1.2em; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      
+<section>
+  <h1>CRM v2 Executive Walkthrough</h1>
+  <p>Narrative presentation generated from live product pages, routes, and implementation documentation.</p>
+  <p><small>Generated: 2/16/2026, 7:18:43 PM</small></p>
+</section>
+<section>
+  <h2>Business Story</h2>
+  <ul>
+    <li>Converts fragmented sales activity into one managed lifecycle: discovery → qualification → RFQ → quote → retention</li>
+    <li>Links growth engines (ABM, campaigns, web discovery) with execution engines (tasks, meetings, pipeline control)</li>
+    <li>Turns operational behavior into measurable outcomes through route-level governance and analytics loops</li>
+  </ul>
+</section>
+<section>
+  <h2>How To Present Each Slide</h2>
+  <ol>
+    <li>Open with narrative: what problem this page solves in the journey</li>
+    <li>Show live demo focus: the 2 controls that drive execution</li>
+    <li>Close with business outcome: what changes in speed, quality, or conversion</li>
+    <li>Reference implementation anchor to prove this is built into the product, not concept-only</li>
+  </ol>
+</section>
+
+      
+<section>
+  <h3>01. / — Dashboard</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/001_home.png" alt="/ screenshot" />
+  </div>
+  <p><strong>Module:</strong> Executive Dashboard (Cross-module KPIs)</p>
+  <p><strong>Module Purpose:</strong> Daily operating cockpit for sales, marketing, and operations health.</p>
+  <p><strong>UI Context:</strong> Overview - 90 days</p>
+  <p><strong>Narrative:</strong> We open with shared visibility so leadership can prioritize from one operational truth. Strategic command surface that merges pipeline health, reminders, and conversion signals for day-start prioritization.</p>
+  <p><strong>Core Function:</strong> Strategic command surface that merges pipeline health, reminders, and conversion signals for day-start prioritization.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Review pending lead approvals, RFQ stage risk, and task backlog before assigning team priorities.</li>
+    <li>Use KPI drift vs prior period to decide whether to push discovery, outreach, or quote acceleration today.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>No direct entity creation; this route aggregates cross-module indicators into a single decision layer.</li>
+    <li>Improves leadership response speed when conversion or activity trends deviate from target.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_dashboard [ANY]. Documentation basis: SYSTEM_OVERVIEW + GUIDANCE_NOTIFICATION_SYSTEM.</small></p>
+</section>
+
+
+<section>
+  <h3>02. /abm-dashboard — ABM Dashboard</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/002_abm-dashboard.png" alt="/abm-dashboard screenshot" />
+  </div>
+  <p><strong>Module:</strong> ABM Workspace (ABM Account/Playbook)</p>
+  <p><strong>Module Purpose:</strong> Prioritize high-value target accounts and coordinate focused plays.</p>
+  <p><strong>UI Context:</strong> Target, engage, and convert high-value accounts</p>
+  <p><strong>Narrative:</strong> This is the strategic targeting layer where ABM focus is set before outreach spend. ABM control layer for selecting target accounts, orchestrating playbooks, and measuring account progression against strategic segments.</p>
+  <p><strong>Core Function:</strong> ABM control layer for selecting target accounts, orchestrating playbooks, and measuring account progression against strategic segments.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize accounts by fit, engagement, and buying signals before launching account-specific plays.</li>
+    <li>Use account and playbook views together to connect strategy intent with concrete next outreach actions.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Maintains ABM entity state used by downstream campaign targeting and account-level reporting.</li>
+    <li>Improves focus on high-value opportunities rather than high-volume but low-fit activity.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: abm_dashboard_index [GET]. Documentation basis: SYSTEM_OVERVIEW + ABM docs.</small></p>
+</section>
+
+
+<section>
+  <h3>03. /abm-dashboard/account/new — New Account</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/003_abm-dashboard__account__new.png" alt="/abm-dashboard/account/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> ABM Workspace (ABM Account/Playbook)</p>
+  <p><strong>Module Purpose:</strong> Prioritize high-value target accounts and coordinate focused plays.</p>
+  <p><strong>UI Context:</strong> Create Account ABM target account</p>
+  <p><strong>Narrative:</strong> Here we decide which accounts deserve focused attention and coordinated plays. ABM control layer for selecting target accounts, orchestrating playbooks, and measuring account progression against strategic segments.</p>
+  <p><strong>Core Function:</strong> ABM control layer for selecting target accounts, orchestrating playbooks, and measuring account progression against strategic segments.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize accounts by fit, engagement, and buying signals before launching account-specific plays.</li>
+    <li>Use account and playbook views together to connect strategy intent with concrete next outreach actions.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Maintains ABM entity state used by downstream campaign targeting and account-level reporting.</li>
+    <li>Improves focus on high-value opportunities rather than high-volume but low-fit activity.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: abm_dashboard_account_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW + ABM docs.</small></p>
+</section>
+
+
+<section>
+  <h3>04. /abm-dashboard/accounts — Target Accounts</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/004_abm-dashboard__accounts.png" alt="/abm-dashboard/accounts screenshot" />
+  </div>
+  <p><strong>Module:</strong> ABM Workspace (ABM Account/Playbook)</p>
+  <p><strong>Module Purpose:</strong> Prioritize high-value target accounts and coordinate focused plays.</p>
+  
+  <p><strong>Narrative:</strong> Here we decide which accounts deserve focused attention and coordinated plays. ABM control layer for selecting target accounts, orchestrating playbooks, and measuring account progression against strategic segments.</p>
+  <p><strong>Core Function:</strong> ABM control layer for selecting target accounts, orchestrating playbooks, and measuring account progression against strategic segments.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize accounts by fit, engagement, and buying signals before launching account-specific plays.</li>
+    <li>Use account and playbook views together to connect strategy intent with concrete next outreach actions.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Maintains ABM entity state used by downstream campaign targeting and account-level reporting.</li>
+    <li>Improves focus on high-value opportunities rather than high-volume but low-fit activity.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: abm_dashboard_accounts [GET]. Documentation basis: SYSTEM_OVERVIEW + ABM docs.</small></p>
+</section>
+
+
+<section>
+  <h3>05. /abm-dashboard/playbooks — ABM Playbooks</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/005_abm-dashboard__playbooks.png" alt="/abm-dashboard/playbooks screenshot" />
+  </div>
+  <p><strong>Module:</strong> ABM Workspace (ABM Account/Playbook)</p>
+  <p><strong>Module Purpose:</strong> Prioritize high-value target accounts and coordinate focused plays.</p>
+  
+  <p><strong>Narrative:</strong> Here we decide which accounts deserve focused attention and coordinated plays. ABM control layer for selecting target accounts, orchestrating playbooks, and measuring account progression against strategic segments.</p>
+  <p><strong>Core Function:</strong> ABM control layer for selecting target accounts, orchestrating playbooks, and measuring account progression against strategic segments.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize accounts by fit, engagement, and buying signals before launching account-specific plays.</li>
+    <li>Use account and playbook views together to connect strategy intent with concrete next outreach actions.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Maintains ABM entity state used by downstream campaign targeting and account-level reporting.</li>
+    <li>Improves focus on high-value opportunities rather than high-volume but low-fit activity.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: abm_dashboard_playbooks [GET]. Documentation basis: SYSTEM_OVERVIEW + ABM docs.</small></p>
+</section>
+
+
+<section>
+  <h3>06. /activities — Activities</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/006_activities.png" alt="/activities screenshot" />
+  </div>
+  <p><strong>Module:</strong> Activity Tracking (Activity)</p>
+  <p><strong>Module Purpose:</strong> Capture interactions and keep account engagement history accurate.</p>
+  <p><strong>UI Context:</strong> Track and manage all customer interactions</p>
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Interaction evidence layer that records calls, meetings, and touchpoints used to evaluate account momentum and follow-up discipline.</p>
+  <p><strong>Core Function:</strong> Interaction evidence layer that records calls, meetings, and touchpoints used to evaluate account momentum and follow-up discipline.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Log each customer interaction with outcome context so next-step decisions are based on facts, not memory.</li>
+    <li>Use timeline/history to detect stalled accounts and trigger corrective outreach before opportunities cool.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Writes or retrieves activity records linked to companies/contacts for full relationship traceability.</li>
+    <li>Raises forecast confidence by making engagement recency and quality visible across the team.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_activity_index [GET]. Documentation basis: SYSTEM_OVERVIEW + GUIDANCE_NOTIFICATION_SYSTEM.</small></p>
+</section>
+
+
+<section>
+  <h3>07. /activities/new — Log New Activity</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/007_activities__new.png" alt="/activities/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Activity Tracking (Activity)</p>
+  <p><strong>Module Purpose:</strong> Capture interactions and keep account engagement history accurate.</p>
+  <p><strong>UI Context:</strong> Record a new interaction with a company or contact</p>
+  <p><strong>Narrative:</strong> At this moment, the team creates a new object that unlocks downstream execution. Interaction evidence layer that records calls, meetings, and touchpoints used to evaluate account momentum and follow-up discipline.</p>
+  <p><strong>Core Function:</strong> Interaction evidence layer that records calls, meetings, and touchpoints used to evaluate account momentum and follow-up discipline.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Log each customer interaction with outcome context so next-step decisions are based on facts, not memory.</li>
+    <li>Use timeline/history to detect stalled accounts and trigger corrective outreach before opportunities cool.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Writes or retrieves activity records linked to companies/contacts for full relationship traceability.</li>
+    <li>Raises forecast confidence by making engagement recency and quality visible across the team.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_activity_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW + GUIDANCE_NOTIFICATION_SYSTEM.</small></p>
+</section>
+
+
+<section>
+  <h3>08. /activities/timeline — Activity Timeline</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/008_activities__timeline.png" alt="/activities/timeline screenshot" />
+  </div>
+  <p><strong>Module:</strong> Activity Tracking (Activity)</p>
+  <p><strong>Module Purpose:</strong> Capture interactions and keep account engagement history accurate.</p>
+  <p><strong>UI Context:</strong> A chronological view of all customer interactions</p>
+  <p><strong>Narrative:</strong> At this stage, this page advances execution in the customer lifecycle. Interaction evidence layer that records calls, meetings, and touchpoints used to evaluate account momentum and follow-up discipline.</p>
+  <p><strong>Core Function:</strong> Interaction evidence layer that records calls, meetings, and touchpoints used to evaluate account momentum and follow-up discipline.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Log each customer interaction with outcome context so next-step decisions are based on facts, not memory.</li>
+    <li>Use timeline/history to detect stalled accounts and trigger corrective outreach before opportunities cool.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Writes or retrieves activity records linked to companies/contacts for full relationship traceability.</li>
+    <li>Raises forecast confidence by making engagement recency and quality visible across the team.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_activity_timeline [GET]. Documentation basis: SYSTEM_OVERVIEW + GUIDANCE_NOTIFICATION_SYSTEM.</small></p>
+</section>
+
+
+<section>
+  <h3>09. /admin/audit — Audit Log</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/009_admin__audit.png" alt="/admin/audit screenshot" />
+  </div>
+  <p><strong>Module:</strong> Administration (Users/Datasets/Fields/Audit records)</p>
+  <p><strong>Module Purpose:</strong> Control users, datasets, audit, and custom-field governance.</p>
+  <p><strong>UI Context:</strong> System activity and change history</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Core Function:</strong> Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to enforce schema discipline, import governance, and controlled permission changes.</li>
+    <li>Review audit/history outputs before major process changes to avoid silent regressions in production data.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists configuration and governance state that affects behavior across all business modules.</li>
+    <li>Reduces compliance and reliability risk through explicit change tracking and controlled administration.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_audit_log_index [GET]. Documentation basis: SYSTEM_OVERVIEW + deployment docs.</small></p>
+</section>
+
+
+<section>
+  <h3>10. /admin/custom-fields — Custom Fields</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/010_admin__custom-fields.png" alt="/admin/custom-fields screenshot" />
+  </div>
+  <p><strong>Module:</strong> Administration (Users/Datasets/Fields/Audit records)</p>
+  <p><strong>Module Purpose:</strong> Control users, datasets, audit, and custom-field governance.</p>
+  
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Core Function:</strong> Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to enforce schema discipline, import governance, and controlled permission changes.</li>
+    <li>Review audit/history outputs before major process changes to avoid silent regressions in production data.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists configuration and governance state that affects behavior across all business modules.</li>
+    <li>Reduces compliance and reliability risk through explicit change tracking and controlled administration.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: custom_field_index [GET]. Documentation basis: SYSTEM_OVERVIEW + deployment docs.</small></p>
+</section>
+
+
+<section>
+  <h3>11. /admin/custom-fields/new — New Custom Field</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/011_admin__custom-fields__new.png" alt="/admin/custom-fields/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Administration (Users/Datasets/Fields/Audit records)</p>
+  <p><strong>Module Purpose:</strong> Control users, datasets, audit, and custom-field governance.</p>
+  
+  <p><strong>Narrative:</strong> This is a record-intake step where entry quality determines later velocity. Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Core Function:</strong> Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to enforce schema discipline, import governance, and controlled permission changes.</li>
+    <li>Review audit/history outputs before major process changes to avoid silent regressions in production data.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists configuration and governance state that affects behavior across all business modules.</li>
+    <li>Reduces compliance and reliability risk through explicit change tracking and controlled administration.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: custom_field_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW + deployment docs.</small></p>
+</section>
+
+
+<section>
+  <h3>12. /admin/datasets — Dataset Administration</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/012_admin__datasets.png" alt="/admin/datasets screenshot" />
+  </div>
+  <p><strong>Module:</strong> Administration (Users/Datasets/Fields/Audit records)</p>
+  <p><strong>Module Purpose:</strong> Control users, datasets, audit, and custom-field governance.</p>
+  <p><strong>UI Context:</strong> Manage and import system datasets</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Core Function:</strong> Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to enforce schema discipline, import governance, and controlled permission changes.</li>
+    <li>Review audit/history outputs before major process changes to avoid silent regressions in production data.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists configuration and governance state that affects behavior across all business modules.</li>
+    <li>Reduces compliance and reliability risk through explicit change tracking and controlled administration.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: admin_dataset_index [GET]. Documentation basis: SYSTEM_OVERVIEW + deployment docs.</small></p>
+</section>
+
+
+<section>
+  <h3>13. /admin/datasets/history — Dataset Version History</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/013_admin__datasets__history.png" alt="/admin/datasets/history screenshot" />
+  </div>
+  <p><strong>Module:</strong> Administration (Users/Datasets/Fields/Audit records)</p>
+  <p><strong>Module Purpose:</strong> Control users, datasets, audit, and custom-field governance.</p>
+  
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Core Function:</strong> Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to enforce schema discipline, import governance, and controlled permission changes.</li>
+    <li>Review audit/history outputs before major process changes to avoid silent regressions in production data.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists configuration and governance state that affects behavior across all business modules.</li>
+    <li>Reduces compliance and reliability risk through explicit change tracking and controlled administration.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: admin_dataset_history [GET]. Documentation basis: SYSTEM_OVERVIEW + deployment docs.</small></p>
+</section>
+
+
+<section>
+  <h3>14. /admin/datasets/import — Import Dataset</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/014_admin__datasets__import.png" alt="/admin/datasets/import screenshot" />
+  </div>
+  <p><strong>Module:</strong> Administration (Users/Datasets/Fields/Audit records)</p>
+  <p><strong>Module Purpose:</strong> Control users, datasets, audit, and custom-field governance.</p>
+  <p><strong>UI Context:</strong> Upload new data files to the system</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Core Function:</strong> Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to enforce schema discipline, import governance, and controlled permission changes.</li>
+    <li>Review audit/history outputs before major process changes to avoid silent regressions in production data.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists configuration and governance state that affects behavior across all business modules.</li>
+    <li>Reduces compliance and reliability risk through explicit change tracking and controlled administration.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: admin_dataset_import_form [GET]. Documentation basis: SYSTEM_OVERVIEW + deployment docs.</small></p>
+</section>
+
+
+<section>
+  <h3>15. /admin/users — Users</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/015_admin__users.png" alt="/admin/users screenshot" />
+  </div>
+  <p><strong>Module:</strong> Administration (Users/Datasets/Fields/Audit records)</p>
+  <p><strong>Module Purpose:</strong> Control users, datasets, audit, and custom-field governance.</p>
+  <p><strong>UI Context:</strong> Manage system users and their permissions</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Core Function:</strong> Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to enforce schema discipline, import governance, and controlled permission changes.</li>
+    <li>Review audit/history outputs before major process changes to avoid silent regressions in production data.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists configuration and governance state that affects behavior across all business modules.</li>
+    <li>Reduces compliance and reliability risk through explicit change tracking and controlled administration.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: admin_user_index [GET]. Documentation basis: SYSTEM_OVERVIEW + deployment docs.</small></p>
+</section>
+
+
+<section>
+  <h3>16. /admin/users/new — New User</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/016_admin__users__new.png" alt="/admin/users/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Administration (Users/Datasets/Fields/Audit records)</p>
+  <p><strong>Module Purpose:</strong> Control users, datasets, audit, and custom-field governance.</p>
+  <p><strong>UI Context:</strong> Add a new user to the system</p>
+  <p><strong>Narrative:</strong> This is a record-intake step where entry quality determines later velocity. Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Core Function:</strong> Governance and platform-control surface for maintaining data model integrity, user access, and operational traceability.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to enforce schema discipline, import governance, and controlled permission changes.</li>
+    <li>Review audit/history outputs before major process changes to avoid silent regressions in production data.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists configuration and governance state that affects behavior across all business modules.</li>
+    <li>Reduces compliance and reliability risk through explicit change tracking and controlled administration.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: admin_user_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW + deployment docs.</small></p>
+</section>
+
+
+<section>
+  <h3>17. /autonomous-sales — Sales Automation</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/017_autonomous-sales.png" alt="/autonomous-sales screenshot" />
+  </div>
+  <p><strong>Module:</strong> Autonomous Sales (Autonomous orchestration state)</p>
+  <p><strong>Module Purpose:</strong> Control and observe distributed outbound automation workflows.</p>
+  <p><strong>UI Context:</strong> Turn on to start automated outreach</p>
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Automation control plane for autonomous outbound execution, quality guardrails, and distributed orchestration monitoring.</p>
+  <p><strong>Core Function:</strong> Automation control plane for autonomous outbound execution, quality guardrails, and distributed orchestration monitoring.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Tune automation boundaries and monitor output quality before scaling volume.</li>
+    <li>Use this route to verify learning loops, targeting quality, and fail-safe behavior remain healthy.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Updates automation state and influences behavior of downstream autonomous outreach pipelines.</li>
+    <li>Improves throughput without sacrificing relevance when guardrails are actively maintained.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: autonomous_sales_index [GET]. Documentation basis: AUTONOMOUS_SALES_V2.</small></p>
+</section>
+
+
+<section>
+  <h3>18. /calendar — Calendar</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/018_calendar.png" alt="/calendar screenshot" />
+  </div>
+  <p><strong>Module:</strong> Calendar Planning (Calendar events)</p>
+  <p><strong>Module Purpose:</strong> Schedule events and synchronize time-based execution with sales motion.</p>
+  
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Core Function:</strong> Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Manage slots, availability, and booking links to reduce friction from first interest to confirmed meeting.</li>
+    <li>Use calendar signals to protect high-value selling time and avoid scheduling bottlenecks.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists schedule and booking state tied to pipeline execution timelines.</li>
+    <li>Increases meeting conversion by shortening the delay between engagement and appointment.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: calendar_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>19. /calendar/new — New Calendar Event</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/019_calendar__new.png" alt="/calendar/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Calendar Planning (Calendar events)</p>
+  <p><strong>Module Purpose:</strong> Schedule events and synchronize time-based execution with sales motion.</p>
+  
+  <p><strong>Narrative:</strong> At this moment, the team creates a new object that unlocks downstream execution. Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Core Function:</strong> Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Manage slots, availability, and booking links to reduce friction from first interest to confirmed meeting.</li>
+    <li>Use calendar signals to protect high-value selling time and avoid scheduling bottlenecks.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists schedule and booking state tied to pipeline execution timelines.</li>
+    <li>Increases meeting conversion by shortening the delay between engagement and appointment.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: calendar_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>20. /calendar/search — Search Calendar</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/020_calendar__search.png" alt="/calendar/search screenshot" />
+  </div>
+  <p><strong>Module:</strong> Calendar Planning (Calendar events)</p>
+  <p><strong>Module Purpose:</strong> Schedule events and synchronize time-based execution with sales motion.</p>
+  <p><strong>UI Context:</strong> Find events by title or description</p>
+  <p><strong>Narrative:</strong> At this stage, this page advances execution in the customer lifecycle. Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Core Function:</strong> Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Manage slots, availability, and booking links to reduce friction from first interest to confirmed meeting.</li>
+    <li>Use calendar signals to protect high-value selling time and avoid scheduling bottlenecks.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists schedule and booking state tied to pipeline execution timelines.</li>
+    <li>Increases meeting conversion by shortening the delay between engagement and appointment.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: calendar_search [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>21. /command-center — Command Center</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/021_command-center.png" alt="/command-center screenshot" />
+  </div>
+  <p><strong>Module:</strong> Command Center (Cross-module operational signals)</p>
+  <p><strong>Module Purpose:</strong> Operational intelligence panel for alerts, actions, metrics, and quote signals.</p>
+  <p><strong>UI Context:</strong> System Overview</p>
+  <p><strong>Narrative:</strong> Here the team turns alerts into coordinated execution before risk compounds. Real-time operational intelligence panel for alerts, metric shifts, and action prioritization across active revenue workflows.</p>
+  <p><strong>Core Function:</strong> Real-time operational intelligence panel for alerts, metric shifts, and action prioritization across active revenue workflows.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Triages alerts by business impact first, then drills into root-cause pages for corrective action.</li>
+    <li>Use data/actions/metrics views together to convert signal detection into immediate execution.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Aggregates and surfaces operational events from multiple modules into one response layer.</li>
+    <li>Reduces reaction latency when opportunities or risks change quickly.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: command_center_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>22. /comp-crawler — 🔍 Competitor Intelligence</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/022_comp-crawler.png" alt="/comp-crawler screenshot" />
+  </div>
+  <p><strong>Module:</strong> Competitive Crawler (Competitor pages and signals)</p>
+  <p><strong>Module Purpose:</strong> Monitor competitor footprint changes and watchlist intelligence.</p>
+  <p><strong>UI Context:</strong> Discovery, profiling, and change monitoring of competitive landscape</p>
+  <p><strong>Narrative:</strong> At this stage, this page advances execution in the customer lifecycle. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: comp_crawler_dashboard [GET]. Documentation basis: LEADBOT/WEBCRAWLER docs.</small></p>
+</section>
+
+
+<section>
+  <h3>23. /comp-crawler/changes — 📊 Change Feed</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/023_comp-crawler__changes.png" alt="/comp-crawler/changes screenshot" />
+  </div>
+  <p><strong>Module:</strong> Competitive Crawler (Competitor pages and signals)</p>
+  <p><strong>Module Purpose:</strong> Monitor competitor footprint changes and watchlist intelligence.</p>
+  <p><strong>UI Context:</strong> Real-time monitoring of competitor digital footprint changes</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: comp_crawler_changes [GET]. Documentation basis: LEADBOT/WEBCRAWLER docs.</small></p>
+</section>
+
+
+<section>
+  <h3>24. /comp-crawler/list — 📋 Competitor Repository</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/024_comp-crawler__list.png" alt="/comp-crawler/list screenshot" />
+  </div>
+  <p><strong>Module:</strong> Competitive Crawler (Competitor pages and signals)</p>
+  <p><strong>Module Purpose:</strong> Monitor competitor footprint changes and watchlist intelligence.</p>
+  <p><strong>UI Context:</strong> 85 Comprehensive list of identified market competitors</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: comp_crawler_list [GET]. Documentation basis: LEADBOT/WEBCRAWLER docs.</small></p>
+</section>
+
+
+<section>
+  <h3>25. /comp-crawler/watchlists — 👁️ Watchlists</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/025_comp-crawler__watchlists.png" alt="/comp-crawler/watchlists screenshot" />
+  </div>
+  <p><strong>Module:</strong> Competitive Crawler (Competitor pages and signals)</p>
+  <p><strong>Module Purpose:</strong> Monitor competitor footprint changes and watchlist intelligence.</p>
+  <p><strong>UI Context:</strong> Segmented groups of competitors for targeted monitoring</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: comp_crawler_watchlists [GET]. Documentation basis: LEADBOT/WEBCRAWLER docs.</small></p>
+</section>
+
+
+<section>
+  <h3>26. /companies — Companies</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/026_companies.png" alt="/companies screenshot" />
+  </div>
+  <p><strong>Module:</strong> Company Management (Company)</p>
+  <p><strong>Module Purpose:</strong> Maintain target and active buyer accounts with qualification context.</p>
+  <p><strong>UI Context:</strong> Filter companies</p>
+  <p><strong>Narrative:</strong> Strong account records here prevent friction across every later stage. Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Core Function:</strong> Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Maintain high-quality account/contact attributes before triggering RFQ, campaign, or meeting actions.</li>
+    <li>Use discovered/new/edit flows to prevent duplicate or incomplete records from entering core operations.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists core CRM entities that every downstream workflow relies on.</li>
+    <li>Improves personalization, routing accuracy, and handoff quality across teams.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_company_index [GET]. Documentation basis: SYSTEM_OVERVIEW + LEADS_TO_COMPANIES_GUIDE.</small></p>
+</section>
+
+
+<section>
+  <h3>27. /companies/discovered — Discovered Companies</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/027_companies__discovered.png" alt="/companies/discovered screenshot" />
+  </div>
+  <p><strong>Module:</strong> Company Management (Company)</p>
+  <p><strong>Module Purpose:</strong> Maintain target and active buyer accounts with qualification context.</p>
+  <p><strong>UI Context:</strong> Review and approve companies found by the webcrawler (not in compliance).</p>
+  <p><strong>Narrative:</strong> This is the master-account layer where downstream execution quality is determined. Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Core Function:</strong> Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Maintain high-quality account/contact attributes before triggering RFQ, campaign, or meeting actions.</li>
+    <li>Use discovered/new/edit flows to prevent duplicate or incomplete records from entering core operations.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists core CRM entities that every downstream workflow relies on.</li>
+    <li>Improves personalization, routing accuracy, and handoff quality across teams.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_company_discovered [GET]. Documentation basis: SYSTEM_OVERVIEW + LEADS_TO_COMPANIES_GUIDE.</small></p>
+</section>
+
+
+<section>
+  <h3>28. /companies/new — New Company</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/028_companies__new.png" alt="/companies/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Company Management (Company)</p>
+  <p><strong>Module Purpose:</strong> Maintain target and active buyer accounts with qualification context.</p>
+  <p><strong>UI Context:</strong> Create your first company to get started.</p>
+  <p><strong>Narrative:</strong> This is the master-account layer where downstream execution quality is determined. Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Core Function:</strong> Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Maintain high-quality account/contact attributes before triggering RFQ, campaign, or meeting actions.</li>
+    <li>Use discovered/new/edit flows to prevent duplicate or incomplete records from entering core operations.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists core CRM entities that every downstream workflow relies on.</li>
+    <li>Improves personalization, routing accuracy, and handoff quality across teams.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_company_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW + LEADS_TO_COMPANIES_GUIDE.</small></p>
+</section>
+
+
+<section>
+  <h3>29. /compliance/overview — Compliance Overview</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/029_compliance__overview.png" alt="/compliance/overview screenshot" />
+  </div>
+  <p><strong>Module:</strong> Compliance Tracking (Compliance document requirements)</p>
+  <p><strong>Module Purpose:</strong> Track document readiness, expiry risk, and remediation actions.</p>
+  <p><strong>UI Context:</strong> Monitor and manage company compliance requirements</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. This page serves as the operational list and triage surface for Compliance Tracking.</p>
+  <p><strong>Core Function:</strong> This page serves as the operational list and triage surface for Compliance Tracking.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use the primary controls on this screen to complete the current workflow step without leaving module context.</li>
+    <li>Validate data quality before saving so downstream reports, automations, and handoffs remain reliable.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Commits state changes (or filtered views) tied to this route and preserves an auditable operational trail.</li>
+    <li>Improves team execution quality by reducing ambiguity about the next action owner and lifecycle step.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_compliance_overview [GET]. Documentation basis: SYSTEM_OVERVIEW + GUIDANCE_NOTIFICATION_SYSTEM.</small></p>
+</section>
+
+
+<section>
+  <h3>30. /contacts — Contacts</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/030_contacts.png" alt="/contacts screenshot" />
+  </div>
+  <p><strong>Module:</strong> Contact Management (Contact)</p>
+  <p><strong>Module Purpose:</strong> Track procurement stakeholders and relationship quality by account.</p>
+  <p><strong>UI Context:</strong> Manage your contacts and relationships</p>
+  <p><strong>Narrative:</strong> This is the stakeholder intelligence layer that powers personalized execution. Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Core Function:</strong> Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Maintain high-quality account/contact attributes before triggering RFQ, campaign, or meeting actions.</li>
+    <li>Use discovered/new/edit flows to prevent duplicate or incomplete records from entering core operations.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists core CRM entities that every downstream workflow relies on.</li>
+    <li>Improves personalization, routing accuracy, and handoff quality across teams.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_contact_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>31. /contacts/new — New Contact</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/031_contacts__new.png" alt="/contacts/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Contact Management (Contact)</p>
+  <p><strong>Module Purpose:</strong> Track procurement stakeholders and relationship quality by account.</p>
+  <p><strong>UI Context:</strong> Add a new contact to the system</p>
+  <p><strong>Narrative:</strong> Accurate contact context here drives better outreach timing and conversion quality. Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Core Function:</strong> Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Maintain high-quality account/contact attributes before triggering RFQ, campaign, or meeting actions.</li>
+    <li>Use discovered/new/edit flows to prevent duplicate or incomplete records from entering core operations.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists core CRM entities that every downstream workflow relies on.</li>
+    <li>Improves personalization, routing accuracy, and handoff quality across teams.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_contact_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>32. /currency-converter — Currency Converter</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/032_currency-converter.png" alt="/currency-converter screenshot" />
+  </div>
+  <p><strong>Module:</strong> Currency Converter (FX conversion records)</p>
+  <p><strong>Module Purpose:</strong> Normalize commercial values for quoting and procurement scenarios.</p>
+  <p><strong>UI Context:</strong> Live exchange rates from central bank APIs — conversions update system-wide FX data</p>
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Analytical support layer for decision-grade reporting and commercial normalization workflows.</p>
+  <p><strong>Core Function:</strong> Analytical support layer for decision-grade reporting and commercial normalization workflows.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to standardize comparisons and remove ambiguity from performance interpretation.</li>
+    <li>Treat report/conversion outputs as operational inputs for next actions, not static artifacts.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Produces decision-support artifacts and normalized values consumed by sales operations.</li>
+    <li>Improves consistency of executive and team-level planning decisions.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: currency_converter_index [GET]. Documentation basis: Controller + service implementation.</small></p>
+</section>
+
+
+<section>
+  <h3>33. /discovery-pipeline — Discovery Pipeline</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/033_discovery-pipeline.png" alt="/discovery-pipeline screenshot" />
+  </div>
+  <p><strong>Module:</strong> Discovery Pipeline (Discovery pipeline stages)</p>
+  <p><strong>Module Purpose:</strong> Track discovery throughput and progress from capture to qualification.</p>
+  
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: discovery_pipeline_index [GET]. Documentation basis: WEBCRAWLER_README.</small></p>
+</section>
+
+
+<section>
+  <h3>34. /email-campaigns/ — Email Campaigns</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/034_email-campaigns__.png" alt="/email-campaigns/ screenshot" />
+  </div>
+  <p><strong>Module:</strong> Email Campaigns (EmailCampaign + EmailSend)</p>
+  <p><strong>Module Purpose:</strong> Manage campaign lifecycle, send execution, and engagement tracking.</p>
+  <p><strong>UI Context:</strong> Run multi-touch campaigns. Contacts who unsubscribe are blocked across all email modules. Send limits count emails from both campaigns and automated outreach to prevent over-emailing.</p>
+  <p><strong>Narrative:</strong> This stage turns outreach execution into repeatable signal-driven improvement. Outreach orchestration surface for campaign/webinar execution, audience management, and engagement telemetry loops.</p>
+  <p><strong>Core Function:</strong> Outreach orchestration surface for campaign/webinar execution, audience management, and engagement telemetry loops.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Build or adjust sequences based on observed open/click/reply behavior and audience fit.</li>
+    <li>Use send and analytics pages as one loop: launch, measure, refine, relaunch.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Writes campaign/send entities and tracks engagement events for measurable iteration.</li>
+    <li>Improves outreach efficiency by reducing untargeted volume and increasing response relevance.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_email_campaign_index [GET]. Documentation basis: EMAIL_CAMPAIGN_QUICK_REFERENCE.</small></p>
+</section>
+
+
+<section>
+  <h3>35. /email-campaigns/new — Create campaign</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/035_email-campaigns__new.png" alt="/email-campaigns/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Email Campaigns (EmailCampaign + EmailSend)</p>
+  <p><strong>Module Purpose:</strong> Manage campaign lifecycle, send execution, and engagement tracking.</p>
+  <p><strong>UI Context:</strong> Setup sequence</p>
+  <p><strong>Narrative:</strong> This stage turns outreach execution into repeatable signal-driven improvement. Outreach orchestration surface for campaign/webinar execution, audience management, and engagement telemetry loops.</p>
+  <p><strong>Core Function:</strong> Outreach orchestration surface for campaign/webinar execution, audience management, and engagement telemetry loops.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Build or adjust sequences based on observed open/click/reply behavior and audience fit.</li>
+    <li>Use send and analytics pages as one loop: launch, measure, refine, relaunch.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Writes campaign/send entities and tracks engagement events for measurable iteration.</li>
+    <li>Improves outreach efficiency by reducing untargeted volume and increasing response relevance.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_email_campaign_new [GET|POST]. Documentation basis: EMAIL_CAMPAIGN_QUICK_REFERENCE.</small></p>
+</section>
+
+
+<section>
+  <h3>36. /guidance/all — Notifications</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/036_guidance__all.png" alt="/guidance/all screenshot" />
+  </div>
+  <p><strong>Module:</strong> Guidance Notifications (Session guidance events)</p>
+  <p><strong>Module Purpose:</strong> Provide contextual best-practice prompts after critical user actions.</p>
+  
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Core Function:</strong> Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize due actions by urgency and business impact, then close or re-scope explicitly.</li>
+    <li>Use guidance prompts to avoid workflow gaps after key actions (new company, activity, conversion).</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists task/guidance state that operationalizes next steps after major workflow events.</li>
+    <li>Improves follow-up reliability and reduces dropped commitments.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_guidance_all [GET]. Documentation basis: GUIDANCE_NOTIFICATION_SYSTEM.</small></p>
+</section>
+
+
+<section>
+  <h3>37. /lead-discovery/ — Lead Discovery</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/037_lead-discovery__.png" alt="/lead-discovery/ screenshot" />
+  </div>
+  <p><strong>Module:</strong> Lead Discovery Queue (Lead queue)</p>
+  <p><strong>Module Purpose:</strong> Triage discovered leads before conversion into account and contact records.</p>
+  
+  <p><strong>Narrative:</strong> This is where discovery volume is converted into qualified opportunity flow. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: lead_discovery_index [GET]. Documentation basis: WEBCRAWLER_README.</small></p>
+</section>
+
+
+<section>
+  <h3>38. /leads/ — Provisional leads</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/038_leads__.png" alt="/leads/ screenshot" />
+  </div>
+  <p><strong>Module:</strong> Lead Operations (Lead)</p>
+  <p><strong>Module Purpose:</strong> Review, approve, deny, and convert discovered leads into CRM entities.</p>
+  
+  <p><strong>Narrative:</strong> The team filters for fit here so sales effort stays focused and economical. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_lead_index [ANY]. Documentation basis: WEBCRAWLER_README + LEADS_TO_COMPANIES_GUIDE.</small></p>
+</section>
+
+
+<section>
+  <h3>39. /leads/dashboard — Lead Dashboard</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/039_leads__dashboard.png" alt="/leads/dashboard screenshot" />
+  </div>
+  <p><strong>Module:</strong> Lead Operations (Lead)</p>
+  <p><strong>Module Purpose:</strong> Review, approve, deny, and convert discovered leads into CRM entities.</p>
+  
+  <p><strong>Narrative:</strong> The team filters for fit here so sales effort stays focused and economical. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_lead_dashboard [ANY]. Documentation basis: WEBCRAWLER_README + LEADS_TO_COMPANIES_GUIDE.</small></p>
+</section>
+
+
+<section>
+  <h3>40. /leads/review — Lead Review</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/040_leads__review.png" alt="/leads/review screenshot" />
+  </div>
+  <p><strong>Module:</strong> Lead Operations (Lead)</p>
+  <p><strong>Module Purpose:</strong> Review, approve, deny, and convert discovered leads into CRM entities.</p>
+  
+  <p><strong>Narrative:</strong> The team filters for fit here so sales effort stays focused and economical. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_lead_review [ANY]. Documentation basis: WEBCRAWLER_README + LEADS_TO_COMPANIES_GUIDE.</small></p>
+</section>
+
+
+<section>
+  <h3>41. /meetings — Meetings</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/041_meetings.png" alt="/meetings screenshot" />
+  </div>
+  <p><strong>Module:</strong> Meeting Scheduler (Meeting)</p>
+  <p><strong>Module Purpose:</strong> Generate booking links, expose availability, and capture meeting pipeline.</p>
+  <p><strong>UI Context:</strong> Schedule and manage meeting slots</p>
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Core Function:</strong> Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Manage slots, availability, and booking links to reduce friction from first interest to confirmed meeting.</li>
+    <li>Use calendar signals to protect high-value selling time and avoid scheduling bottlenecks.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists schedule and booking state tied to pipeline execution timelines.</li>
+    <li>Increases meeting conversion by shortening the delay between engagement and appointment.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: meeting_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>42. /meetings/calendar — Meeting Calendar</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/042_meetings__calendar.png" alt="/meetings/calendar screenshot" />
+  </div>
+  <p><strong>Module:</strong> Meeting Scheduler (Meeting)</p>
+  <p><strong>Module Purpose:</strong> Generate booking links, expose availability, and capture meeting pipeline.</p>
+  
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Core Function:</strong> Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Manage slots, availability, and booking links to reduce friction from first interest to confirmed meeting.</li>
+    <li>Use calendar signals to protect high-value selling time and avoid scheduling bottlenecks.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists schedule and booking state tied to pipeline execution timelines.</li>
+    <li>Increases meeting conversion by shortening the delay between engagement and appointment.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: meeting_calendar [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>43. /meetings/generate — Generate Recurring Slots</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/043_meetings__generate.png" alt="/meetings/generate screenshot" />
+  </div>
+  <p><strong>Module:</strong> Meeting Scheduler (Meeting)</p>
+  <p><strong>Module Purpose:</strong> Generate booking links, expose availability, and capture meeting pipeline.</p>
+  <p><strong>UI Context:</strong> Create multiple meeting slots at once based on your availability.</p>
+  <p><strong>Narrative:</strong> At this stage, this page advances execution in the customer lifecycle. Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Core Function:</strong> Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Manage slots, availability, and booking links to reduce friction from first interest to confirmed meeting.</li>
+    <li>Use calendar signals to protect high-value selling time and avoid scheduling bottlenecks.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists schedule and booking state tied to pipeline execution timelines.</li>
+    <li>Increases meeting conversion by shortening the delay between engagement and appointment.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: meeting_generate [GET|POST]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>44. /meetings/my-link — My Booking Link</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/044_meetings__my-link.png" alt="/meetings/my-link screenshot" />
+  </div>
+  <p><strong>Module:</strong> Meeting Scheduler (Meeting)</p>
+  <p><strong>Module Purpose:</strong> Generate booking links, expose availability, and capture meeting pipeline.</p>
+  
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Core Function:</strong> Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Manage slots, availability, and booking links to reduce friction from first interest to confirmed meeting.</li>
+    <li>Use calendar signals to protect high-value selling time and avoid scheduling bottlenecks.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists schedule and booking state tied to pipeline execution timelines.</li>
+    <li>Increases meeting conversion by shortening the delay between engagement and appointment.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: meeting_my_link [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>45. /meetings/new — Create Meeting Slot</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/045_meetings__new.png" alt="/meetings/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Meeting Scheduler (Meeting)</p>
+  <p><strong>Module Purpose:</strong> Generate booking links, expose availability, and capture meeting pipeline.</p>
+  
+  <p><strong>Narrative:</strong> This is a record-intake step where entry quality determines later velocity. Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Core Function:</strong> Scheduling operations surface that converts outreach intent into booked conversations and keeps follow-up cadence predictable.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Manage slots, availability, and booking links to reduce friction from first interest to confirmed meeting.</li>
+    <li>Use calendar signals to protect high-value selling time and avoid scheduling bottlenecks.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists schedule and booking state tied to pipeline execution timelines.</li>
+    <li>Increases meeting conversion by shortening the delay between engagement and appointment.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: meeting_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>46. /playbooks/ — ABM Playbooks</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/046_playbooks__.png" alt="/playbooks/ screenshot" />
+  </div>
+  <p><strong>Module:</strong> ABM Playbooks (Playbook)</p>
+  <p><strong>Module Purpose:</strong> Define repeatable account engagement motions for target segments.</p>
+  <p><strong>UI Context:</strong> Automated workflows for account-based marketing</p>
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. This page serves as the operational list and triage surface for ABM Playbooks.</p>
+  <p><strong>Core Function:</strong> This page serves as the operational list and triage surface for ABM Playbooks.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use the primary controls on this screen to complete the current workflow step without leaving module context.</li>
+    <li>Validate data quality before saving so downstream reports, automations, and handoffs remain reliable.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Commits state changes (or filtered views) tied to this route and preserves an auditable operational trail.</li>
+    <li>Improves team execution quality by reducing ambiguity about the next action owner and lifecycle step.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_playbook_index [GET]. Documentation basis: 04-ABM-Automation docs.</small></p>
+</section>
+
+
+<section>
+  <h3>47. /playbooks/new — New Playbook</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/047_playbooks__new.png" alt="/playbooks/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> ABM Playbooks (Playbook)</p>
+  <p><strong>Module Purpose:</strong> Define repeatable account engagement motions for target segments.</p>
+  <p><strong>UI Context:</strong> Automated workflows for account-based marketing</p>
+  <p><strong>Narrative:</strong> This is a record-intake step where entry quality determines later velocity. This page serves as the new-record intake and validation surface for ABM Playbooks.</p>
+  <p><strong>Core Function:</strong> This page serves as the new-record intake and validation surface for ABM Playbooks.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use the primary controls on this screen to complete the current workflow step without leaving module context.</li>
+    <li>Validate data quality before saving so downstream reports, automations, and handoffs remain reliable.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Commits state changes (or filtered views) tied to this route and preserves an auditable operational trail.</li>
+    <li>Improves team execution quality by reducing ambiguity about the next action owner and lifecycle step.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_playbook_new [GET|POST]. Documentation basis: 04-ABM-Automation docs.</small></p>
+</section>
+
+
+<section>
+  <h3>48. /profile — My Profile</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/048_profile.png" alt="/profile screenshot" />
+  </div>
+  <p><strong>Module:</strong> User Profile (User profile)</p>
+  <p><strong>Module Purpose:</strong> Manage user preferences and personal account context.</p>
+  
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Core Function:</strong> Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Maintain high-quality account/contact attributes before triggering RFQ, campaign, or meeting actions.</li>
+    <li>Use discovered/new/edit flows to prevent duplicate or incomplete records from entering core operations.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists core CRM entities that every downstream workflow relies on.</li>
+    <li>Improves personalization, routing accuracy, and handoff quality across teams.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: profile_index [GET|POST]. Documentation basis: NEW_USER_GUIDE.</small></p>
+</section>
+
+
+<section>
+  <h3>49. /quote-copilot — Quote CoPilot</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/049_quote-copilot.png" alt="/quote-copilot screenshot" />
+  </div>
+  <p><strong>Module:</strong> Quote CoPilot (Quote + BOM insights)</p>
+  <p><strong>Module Purpose:</strong> Support quote analysis and sourcing decisions with assisted workflows.</p>
+  
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Core Function:</strong> Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Validate pricing, risk, and readiness signals before advancing quote or RFQ stage.</li>
+    <li>Use pipeline and analytics views to separate velocity issues from win-rate quality issues.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists RFQ/quote status changes and supporting decisions tied to revenue forecasting.</li>
+    <li>Improves conversion quality by enforcing structured commercial checkpoints.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: quote_copilot_index [GET]. Documentation basis: Quote controller/service implementation.</small></p>
+</section>
+
+
+<section>
+  <h3>50. /quote-copilot/quotes — Quote List</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/050_quote-copilot__quotes.png" alt="/quote-copilot/quotes screenshot" />
+  </div>
+  <p><strong>Module:</strong> Quote CoPilot (Quote + BOM insights)</p>
+  <p><strong>Module Purpose:</strong> Support quote analysis and sourcing decisions with assisted workflows.</p>
+  
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Core Function:</strong> Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Validate pricing, risk, and readiness signals before advancing quote or RFQ stage.</li>
+    <li>Use pipeline and analytics views to separate velocity issues from win-rate quality issues.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists RFQ/quote status changes and supporting decisions tied to revenue forecasting.</li>
+    <li>Improves conversion quality by enforcing structured commercial checkpoints.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: quote_copilot_list [GET]. Documentation basis: Quote controller/service implementation.</small></p>
+</section>
+
+
+<section>
+  <h3>51. /quote-review — Quote Review</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/051_quote-review.png" alt="/quote-review screenshot" />
+  </div>
+  <p><strong>Module:</strong> Quote Review (Quote review records)</p>
+  <p><strong>Module Purpose:</strong> Validate pricing and commercial readiness before customer-facing steps.</p>
+  <p><strong>UI Context:</strong> Review generated quotes and price coverage</p>
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Core Function:</strong> Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Validate pricing, risk, and readiness signals before advancing quote or RFQ stage.</li>
+    <li>Use pipeline and analytics views to separate velocity issues from win-rate quality issues.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists RFQ/quote status changes and supporting decisions tied to revenue forecasting.</li>
+    <li>Improves conversion quality by enforcing structured commercial checkpoints.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: quote_review_index [GET]. Documentation basis: Quote review workflow implementation.</small></p>
+</section>
+
+
+<section>
+  <h3>52. /reports — Reports</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/052_reports.png" alt="/reports screenshot" />
+  </div>
+  <p><strong>Module:</strong> Report Builder (Report definitions + exports)</p>
+  <p><strong>Module Purpose:</strong> Create reusable analytics artifacts for performance and pipeline review.</p>
+  
+  <p><strong>Narrative:</strong> This is where operational output becomes decision-grade insight. Analytical support layer for decision-grade reporting and commercial normalization workflows.</p>
+  <p><strong>Core Function:</strong> Analytical support layer for decision-grade reporting and commercial normalization workflows.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to standardize comparisons and remove ambiguity from performance interpretation.</li>
+    <li>Treat report/conversion outputs as operational inputs for next actions, not static artifacts.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Produces decision-support artifacts and normalized values consumed by sales operations.</li>
+    <li>Improves consistency of executive and team-level planning decisions.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: report_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>53. /reports/new — Create New Report</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/053_reports__new.png" alt="/reports/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Report Builder (Report definitions + exports)</p>
+  <p><strong>Module Purpose:</strong> Create reusable analytics artifacts for performance and pipeline review.</p>
+  
+  <p><strong>Narrative:</strong> This layer translates activity into clear planning and accountability signals. Analytical support layer for decision-grade reporting and commercial normalization workflows.</p>
+  <p><strong>Core Function:</strong> Analytical support layer for decision-grade reporting and commercial normalization workflows.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Use this page to standardize comparisons and remove ambiguity from performance interpretation.</li>
+    <li>Treat report/conversion outputs as operational inputs for next actions, not static artifacts.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Produces decision-support artifacts and normalized values consumed by sales operations.</li>
+    <li>Improves consistency of executive and team-level planning decisions.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: report_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>54. /rfqs/ — RFQ Pipeline</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/054_rfqs__.png" alt="/rfqs/ screenshot" />
+  </div>
+  <p><strong>Module:</strong> RFQ Pipeline (RFQ)</p>
+  <p><strong>Module Purpose:</strong> Move opportunities from intake through status gates to outcome analysis.</p>
+  <p><strong>UI Context:</strong> Track and manage RFQs</p>
+  <p><strong>Narrative:</strong> This is where quote readiness and stage confidence are actively managed. Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Core Function:</strong> Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Validate pricing, risk, and readiness signals before advancing quote or RFQ stage.</li>
+    <li>Use pipeline and analytics views to separate velocity issues from win-rate quality issues.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists RFQ/quote status changes and supporting decisions tied to revenue forecasting.</li>
+    <li>Improves conversion quality by enforcing structured commercial checkpoints.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_rfq_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>55. /rfqs/analytics/win-loss — Win/Loss Analytics</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/055_rfqs__analytics__win-loss.png" alt="/rfqs/analytics/win-loss screenshot" />
+  </div>
+  <p><strong>Module:</strong> RFQ Pipeline (RFQ)</p>
+  <p><strong>Module Purpose:</strong> Move opportunities from intake through status gates to outcome analysis.</p>
+  <p><strong>UI Context:</strong> rfq.competitive_intelligence</p>
+  <p><strong>Narrative:</strong> This is where quote readiness and stage confidence are actively managed. Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Core Function:</strong> Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Validate pricing, risk, and readiness signals before advancing quote or RFQ stage.</li>
+    <li>Use pipeline and analytics views to separate velocity issues from win-rate quality issues.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists RFQ/quote status changes and supporting decisions tied to revenue forecasting.</li>
+    <li>Improves conversion quality by enforcing structured commercial checkpoints.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_rfq_win_loss_analytics [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>56. /rfqs/new — New RFQ</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/056_rfqs__new.png" alt="/rfqs/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> RFQ Pipeline (RFQ)</p>
+  <p><strong>Module Purpose:</strong> Move opportunities from intake through status gates to outcome analysis.</p>
+  
+  <p><strong>Narrative:</strong> This is where quote readiness and stage confidence are actively managed. Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Core Function:</strong> Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Validate pricing, risk, and readiness signals before advancing quote or RFQ stage.</li>
+    <li>Use pipeline and analytics views to separate velocity issues from win-rate quality issues.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists RFQ/quote status changes and supporting decisions tied to revenue forecasting.</li>
+    <li>Improves conversion quality by enforcing structured commercial checkpoints.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_rfq_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>57. /rfqs/pipeline — RFQ Pipeline</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/057_rfqs__pipeline.png" alt="/rfqs/pipeline screenshot" />
+  </div>
+  <p><strong>Module:</strong> RFQ Pipeline (RFQ)</p>
+  <p><strong>Module Purpose:</strong> Move opportunities from intake through status gates to outcome analysis.</p>
+  <p><strong>UI Context:</strong> Track RFQs across stages</p>
+  <p><strong>Narrative:</strong> This is where quote readiness and stage confidence are actively managed. Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Core Function:</strong> Commercial execution surface where opportunity economics, quote readiness, and stage movement are actively controlled.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Validate pricing, risk, and readiness signals before advancing quote or RFQ stage.</li>
+    <li>Use pipeline and analytics views to separate velocity issues from win-rate quality issues.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists RFQ/quote status changes and supporting decisions tied to revenue forecasting.</li>
+    <li>Improves conversion quality by enforcing structured commercial checkpoints.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_rfq_pipeline [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>58. /supplier-portal — Supplier Portal</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/058_supplier-portal.png" alt="/supplier-portal screenshot" />
+  </div>
+  <p><strong>Module:</strong> Supplier Portal (Supplier portal records)</p>
+  <p><strong>Module Purpose:</strong> Manage external supplier registration and participation signals.</p>
+  <p><strong>UI Context:</strong> Manage supplier onboarding and portal access</p>
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Core Function:</strong> Master-data workspace that keeps account and stakeholder records complete, current, and execution-ready.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Maintain high-quality account/contact attributes before triggering RFQ, campaign, or meeting actions.</li>
+    <li>Use discovered/new/edit flows to prevent duplicate or incomplete records from entering core operations.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists core CRM entities that every downstream workflow relies on.</li>
+    <li>Improves personalization, routing accuracy, and handoff quality across teams.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: supplier_portal_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>59. /tasks — Tasks</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/059_tasks.png" alt="/tasks screenshot" />
+  </div>
+  <p><strong>Module:</strong> Task Execution (Task)</p>
+  <p><strong>Module Purpose:</strong> Plan, prioritize, and complete operational commitments.</p>
+  
+  <p><strong>Narrative:</strong> This is the discipline layer where commitments become completed work. Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Core Function:</strong> Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize due actions by urgency and business impact, then close or re-scope explicitly.</li>
+    <li>Use guidance prompts to avoid workflow gaps after key actions (new company, activity, conversion).</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists task/guidance state that operationalizes next steps after major workflow events.</li>
+    <li>Improves follow-up reliability and reduces dropped commitments.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_task_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>60. /tasks/kanban — Kanban Board</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/060_tasks__kanban.png" alt="/tasks/kanban screenshot" />
+  </div>
+  <p><strong>Module:</strong> Task Execution (Task)</p>
+  <p><strong>Module Purpose:</strong> Plan, prioritize, and complete operational commitments.</p>
+  
+  <p><strong>Narrative:</strong> Execution reliability is built here through ownership and due-date control. Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Core Function:</strong> Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize due actions by urgency and business impact, then close or re-scope explicitly.</li>
+    <li>Use guidance prompts to avoid workflow gaps after key actions (new company, activity, conversion).</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists task/guidance state that operationalizes next steps after major workflow events.</li>
+    <li>Improves follow-up reliability and reduces dropped commitments.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_task_kanban [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>61. /tasks/my-day — My Day</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/061_tasks__my-day.png" alt="/tasks/my-day screenshot" />
+  </div>
+  <p><strong>Module:</strong> Task Execution (Task)</p>
+  <p><strong>Module Purpose:</strong> Plan, prioritize, and complete operational commitments.</p>
+  <p><strong>UI Context:</strong> Monday, February 16, 2026</p>
+  <p><strong>Narrative:</strong> Execution reliability is built here through ownership and due-date control. Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Core Function:</strong> Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize due actions by urgency and business impact, then close or re-scope explicitly.</li>
+    <li>Use guidance prompts to avoid workflow gaps after key actions (new company, activity, conversion).</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists task/guidance state that operationalizes next steps after major workflow events.</li>
+    <li>Improves follow-up reliability and reduces dropped commitments.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_task_my_day [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>62. /tasks/new — Create Task</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/062_tasks__new.png" alt="/tasks/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Task Execution (Task)</p>
+  <p><strong>Module Purpose:</strong> Plan, prioritize, and complete operational commitments.</p>
+  
+  <p><strong>Narrative:</strong> Execution reliability is built here through ownership and due-date control. Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Core Function:</strong> Execution discipline layer that turns intent into assigned, time-bound, and trackable follow-up actions.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Prioritize due actions by urgency and business impact, then close or re-scope explicitly.</li>
+    <li>Use guidance prompts to avoid workflow gaps after key actions (new company, activity, conversion).</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Persists task/guidance state that operationalizes next steps after major workflow events.</li>
+    <li>Improves follow-up reliability and reduces dropped commitments.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_task_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>63. /webcrawler — LeadBot WebCrawler</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/063_webcrawler.png" alt="/webcrawler screenshot" />
+  </div>
+  <p><strong>Module:</strong> Webcrawler Discovery (Discovered company/contact candidates)</p>
+  <p><strong>Module Purpose:</strong> Generate and enrich high-relevance lead candidates with region-configurable fit scoring.</p>
+  <p><strong>UI Context:</strong> Discover companies using Google Dorks and LinkedIn search</p>
+  <p><strong>Narrative:</strong> Here execution is prioritized and routed to the right owners. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_webcrawler_index [GET]. Documentation basis: WEBCRAWLER_README + LEADBOT_INTEGRATION.</small></p>
+</section>
+
+
+<section>
+  <h3>64. /webcrawler/dork-generator — Dork Generator</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/064_webcrawler__dork-generator.png" alt="/webcrawler/dork-generator screenshot" />
+  </div>
+  <p><strong>Module:</strong> Webcrawler Discovery (Discovered company/contact candidates)</p>
+  <p><strong>Module Purpose:</strong> Generate and enrich high-relevance lead candidates with region-configurable fit scoring.</p>
+  <p><strong>UI Context:</strong> Generate custom Google search queries for company discovery</p>
+  <p><strong>Narrative:</strong> At this stage, this page advances execution in the customer lifecycle. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_webcrawler_dork_generator [GET]. Documentation basis: WEBCRAWLER_README + LEADBOT_INTEGRATION.</small></p>
+</section>
+
+
+<section>
+  <h3>65. /webcrawler/keyword-expansion — Keyword Expansion</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/065_webcrawler__keyword-expansion.png" alt="/webcrawler/keyword-expansion screenshot" />
+  </div>
+  <p><strong>Module:</strong> Webcrawler Discovery (Discovered company/contact candidates)</p>
+  <p><strong>Module Purpose:</strong> Generate and enrich high-relevance lead candidates with region-configurable fit scoring.</p>
+  
+  <p><strong>Narrative:</strong> At this stage, this page advances execution in the customer lifecycle. Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Core Function:</strong> Discovery and qualification surface for finding, scoring, and promoting high-fit targets into the active CRM funnel.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Apply relevance evidence, dedupe checks, and qualification thresholds before promotion decisions.</li>
+    <li>Use review/discovered views to keep low-fit noise out of core company and contact datasets.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Creates or updates lead/discovery entities with explicit status transitions and review rationale.</li>
+    <li>Improves top-of-funnel quality and reduces wasted downstream selling effort.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_webcrawler_keyword_expansion [GET|POST]. Documentation basis: WEBCRAWLER_README + LEADBOT_INTEGRATION.</small></p>
+</section>
+
+
+<section>
+  <h3>66. /webinars — Webinars</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/066_webinars.png" alt="/webinars screenshot" />
+  </div>
+  <p><strong>Module:</strong> Webinar Operations (Webinar + registrations)</p>
+  <p><strong>Module Purpose:</strong> Plan sessions and route webinar activity into follow-up workflows.</p>
+  
+  <p><strong>Narrative:</strong> This step gives the team operational control over active work. Outreach orchestration surface for campaign/webinar execution, audience management, and engagement telemetry loops.</p>
+  <p><strong>Core Function:</strong> Outreach orchestration surface for campaign/webinar execution, audience management, and engagement telemetry loops.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Build or adjust sequences based on observed open/click/reply behavior and audience fit.</li>
+    <li>Use send and analytics pages as one loop: launch, measure, refine, relaunch.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Writes campaign/send entities and tracks engagement events for measurable iteration.</li>
+    <li>Improves outreach efficiency by reducing untargeted volume and increasing response relevance.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_webinar_index [GET]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+
+<section>
+  <h3>67. /webinars/new — New Webinar</h3>
+  <div class="img-wrap">
+    <img src="presentation_screenshots/067_webinars__new.png" alt="/webinars/new screenshot" />
+  </div>
+  <p><strong>Module:</strong> Webinar Operations (Webinar + registrations)</p>
+  <p><strong>Module Purpose:</strong> Plan sessions and route webinar activity into follow-up workflows.</p>
+  
+  <p><strong>Narrative:</strong> This is a record-intake step where entry quality determines later velocity. Outreach orchestration surface for campaign/webinar execution, audience management, and engagement telemetry loops.</p>
+  <p><strong>Core Function:</strong> Outreach orchestration surface for campaign/webinar execution, audience management, and engagement telemetry loops.</p>
+  <p><strong>Live Demo Focus:</strong></p>
+  <ul>
+    <li>Build or adjust sequences based on observed open/click/reply behavior and audience fit.</li>
+    <li>Use send and analytics pages as one loop: launch, measure, refine, relaunch.</li>
+  </ul>
+  <p><strong>Business Outcomes:</strong></p>
+  <ul>
+    <li>Writes campaign/send entities and tracks engagement events for measurable iteration.</li>
+    <li>Improves outreach efficiency by reducing untargeted volume and increasing response relevance.</li>
+  </ul>
+  <p><small>Implementation anchor: Route contract from code: app_webinar_new [GET|POST]. Documentation basis: SYSTEM_OVERVIEW.</small></p>
+</section>
+
+      
+<section>
+  <h2>Closing Narrative</h2>
+  <p>The platform’s advantage is orchestration: every page moves the same revenue journey forward with auditable state transitions and measurable feedback loops.</p>
+  <p><small>Demo sequence: Dashboard → Discovery → Master Data → Commercial Pipeline → Execution Discipline → Growth Loops → Reporting.</small></p>
+</section>
+
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      controls: true,
+      progress: true,
+      center: false,
+      hash: true,
+      transition: 'slide',
+      pdfSeparateFragments: false
+    });
+  </script>
+</body>
+</html>

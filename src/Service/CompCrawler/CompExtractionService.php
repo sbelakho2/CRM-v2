@@ -633,27 +633,98 @@ PROMPT;
     }
 
     /**
-     * Call Gemini Flash API.
+     * Call Gemini Flash API with retry and response validation.
      */
     private function callGemini(string $prompt): string
     {
         $url = self::GEMINI_ENDPOINT . '?key=' . $this->geminiApiKey;
+        $maxAttempts = 3;
+        $lastException = null;
 
-        $response = $this->httpClient->request('POST', $url, [
-            'json' => [
-                'contents' => [
-                    ['parts' => [['text' => $prompt]]],
-                ],
-                'generationConfig' => [
-                    'temperature' => 0.1,
-                    'maxOutputTokens' => 4096,
-                ],
-            ],
-            'timeout' => 45,
-        ]);
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $response = $this->httpClient->request('POST', $url, [
+                    'json' => [
+                        'contents' => [
+                            ['parts' => [['text' => $prompt]]],
+                        ],
+                        'generationConfig' => [
+                            'temperature' => 0.1,
+                            'maxOutputTokens' => 4096,
+                        ],
+                    ],
+                    'timeout' => 60,
+                ]);
 
-        $data = $response->toArray();
-        return $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                $statusCode = $response->getStatusCode();
+
+                // Rate limit — back off and retry
+                if ($statusCode === 429) {
+                    $delay = $attempt * 5; // 5s, 10s, 15s
+                    $this->logger->warning('CompExtract: Gemini rate limited (429), waiting {delay}s (attempt {a}/{m})', [
+                        'delay' => $delay, 'a' => $attempt, 'm' => $maxAttempts,
+                    ]);
+                    sleep($delay);
+                    continue;
+                }
+
+                // Server error — retry
+                if ($statusCode >= 500) {
+                    $this->logger->warning('CompExtract: Gemini server error {code} (attempt {a}/{m})', [
+                        'code' => $statusCode, 'a' => $attempt, 'm' => $maxAttempts,
+                    ]);
+                    sleep($attempt * 2);
+                    continue;
+                }
+
+                $data = $response->toArray(false);
+
+                // Validate response structure
+                if (!isset($data['candidates']) || !is_array($data['candidates']) || empty($data['candidates'])) {
+                    $this->logger->warning('CompExtract: Gemini returned no candidates (attempt {a}/{m})', [
+                        'a' => $attempt, 'm' => $maxAttempts,
+                    ]);
+                    if ($attempt < $maxAttempts) {
+                        sleep($attempt);
+                        continue;
+                    }
+                    return '';
+                }
+
+                $candidate = $data['candidates'][0];
+                if (!isset($candidate['content']['parts'][0]['text'])) {
+                    // Could be a safety block or empty response
+                    $finishReason = $candidate['finishReason'] ?? 'unknown';
+                    $this->logger->warning('CompExtract: Gemini empty response, finishReason={reason}', [
+                        'reason' => $finishReason,
+                    ]);
+                    return '';
+                }
+
+                // Log token usage for cost tracking
+                $usage = $data['usageMetadata'] ?? [];
+                if (!empty($usage)) {
+                    $this->logger->debug('CompExtract: Gemini tokens — prompt={p} completion={c} total={t}', [
+                        'p' => $usage['promptTokenCount'] ?? 0,
+                        'c' => $usage['candidatesTokenCount'] ?? 0,
+                        't' => $usage['totalTokenCount'] ?? 0,
+                    ]);
+                }
+
+                return $candidate['content']['parts'][0]['text'];
+            } catch (\Throwable $e) {
+                $lastException = $e;
+                $this->logger->warning('CompExtract: Gemini call failed (attempt {a}/{m}): {msg}', [
+                    'a' => $attempt, 'm' => $maxAttempts, 'msg' => $e->getMessage(),
+                ]);
+
+                if ($attempt < $maxAttempts) {
+                    sleep($attempt * 2);
+                }
+            }
+        }
+
+        throw $lastException ?? new \RuntimeException('Gemini API failed after ' . $maxAttempts . ' attempts');
     }
 
     /**

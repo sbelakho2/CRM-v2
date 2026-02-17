@@ -6,6 +6,7 @@ use App\Entity\Competitor;
 use App\Entity\CompetitorPageFingerprint;
 use App\Repository\CompetitorPageFingerprintRepository;
 use App\Service\FastWebScraperService;
+use App\Service\WebCrawler\SearchProvider\HeaderRandomizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -16,16 +17,33 @@ use Psr\Log\LoggerInterface;
  *  - Shallow: homepage + 10–25 high-signal URLs
  *  - Deep: up to 100–200 pages + PDFs (bounded)
  *
- * Respects robots.txt, TOS blocks, and politeness delays.
+ * Features:
+ *  - curl_multi concurrent fetching for speed
+ *  - HeaderRandomizer for anti-detection (reused from LeadBot)
+ *  - Retry with exponential backoff on transient errors
+ *  - Sitemap gzip support + sitemap index recursion
+ *  - Proper SSL verification (with selective fallback)
+ *  - Content caching between pipeline phases via filesystem
  */
 class CompProfileCrawlerService
 {
+    /** Maximum concurrent connections for curl_multi */
+    private const MAX_CONCURRENT = 10;
+
+    /** Maximum retry attempts for transient failures */
+    private const MAX_RETRIES = 3;
+
+    /** Cache directory for content between pipeline phases */
+    private const CACHE_DIR = 'var/comp_crawl_cache';
+
     public function __construct(
         private readonly CompCrawlerConfig $config,
         private readonly FastWebScraperService $scraper,
+        private readonly HeaderRandomizer $headerRandomizer,
         private readonly CompetitorPageFingerprintRepository $fingerprintRepo,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly string $projectDir,
     ) {}
 
     /**
@@ -51,6 +69,59 @@ class CompProfileCrawlerService
     }
 
     /**
+     * Retrieve cached crawl content for a competitor (used by extract phase).
+     * Returns empty array if no cache exists.
+     */
+    public function getCachedContent(Competitor $competitor): array
+    {
+        $cacheFile = $this->getCacheFilePath($competitor);
+        if (!file_exists($cacheFile)) {
+            return [];
+        }
+
+        $data = @json_decode(file_get_contents($cacheFile), true);
+        if (!is_array($data)) {
+            return [];
+        }
+
+        // Handle new envelope format with _meta
+        if (isset($data['_meta']) && isset($data['content'])) {
+            return $data['content'];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Retrieve metadata from the cached crawl (e.g. pages_changed count).
+     */
+    public function getCachedMeta(Competitor $competitor): array
+    {
+        $cacheFile = $this->getCacheFilePath($competitor);
+        if (!file_exists($cacheFile)) {
+            return ['pages_changed' => 0, 'cached_at' => 0];
+        }
+
+        $data = @json_decode(file_get_contents($cacheFile), true);
+        if (is_array($data) && isset($data['_meta'])) {
+            return $data['_meta'];
+        }
+
+        return ['pages_changed' => 0, 'cached_at' => 0];
+    }
+
+    /**
+     * Clear cached crawl content for a competitor.
+     */
+    public function clearCache(Competitor $competitor): void
+    {
+        $cacheFile = $this->getCacheFilePath($competitor);
+        if (file_exists($cacheFile)) {
+            @unlink($cacheFile);
+        }
+    }
+
+    /**
      * Core crawl method.
      */
     private function crawl(Competitor $competitor, int $maxPages, string $mode): array
@@ -68,23 +139,26 @@ class CompProfileCrawlerService
         // 1. Build URL priority list
         $urls = $this->buildUrlList($competitor, $baseUrl, $maxPages);
 
-        // 2. Fetch pages
+        // Filter out LinkedIn URLs
+        $urls = array_values(array_filter($urls, fn(string $u) => !str_contains($u, 'linkedin.com')));
+
+        // Limit to maxPages
+        $urls = array_slice($urls, 0, $maxPages);
+
+        // 2. Fetch pages using curl_multi for concurrency
         $content = [];
         $pagesCrawled = 0;
         $pagesChanged = 0;
         $crawledUrls = [];
         $delayMs = $this->config->getRequestDelayMs();
 
-        foreach ($urls as $url) {
-            if ($pagesCrawled >= $maxPages) break;
+        // Process URLs in batches via curl_multi
+        $batches = array_chunk($urls, self::MAX_CONCURRENT);
 
-            // LinkedIn check — URL-only, never fetch
-            if (str_contains($url, 'linkedin.com')) {
-                continue;
-            }
+        foreach ($batches as $batch) {
+            $batchResults = $this->fetchBatch($batch, $domain);
 
-            try {
-                $html = $this->fetchPage($url);
+            foreach ($batchResults as $url => $html) {
                 if ($html === null) continue;
 
                 $pagesCrawled++;
@@ -114,12 +188,11 @@ class CompProfileCrawlerService
                 }
 
                 $content[$url] = $html;
+            }
 
-                // Politeness delay
+            // Politeness delay between batches (per-domain courtesy)
+            if (!empty($batches) && $batch !== end($batches)) {
                 usleep($delayMs * 1000);
-
-            } catch (\Throwable $e) {
-                $this->logger->warning("CompCrawler: Failed to fetch {$url}: {$e->getMessage()}");
             }
         }
 
@@ -136,6 +209,11 @@ class CompProfileCrawlerService
 
         $this->em->flush();
 
+        // Cache content to filesystem for extract phase (avoids double-crawl)
+        if (!empty($content)) {
+            $this->cacheContent($competitor, $content, $pagesChanged);
+        }
+
         $this->logger->info("CompCrawler: {$mode} crawl of {$domain} complete", [
             'pages_crawled' => $pagesCrawled,
             'pages_changed' => $pagesChanged,
@@ -150,6 +228,173 @@ class CompProfileCrawlerService
     }
 
     /**
+     * Fetch a batch of URLs concurrently using curl_multi.
+     *
+     * @param string[] $urls URLs to fetch
+     * @param string $domain Domain for header context
+     * @return array<string, string|null> URL → HTML content (null on failure)
+     */
+    private function fetchBatch(array $urls, string $domain): array
+    {
+        $results = [];
+        $handles = [];
+        $mh = curl_multi_init();
+
+        // Determine region hint from domain TLD for Accept-Language
+        $parts = explode('.', $domain);
+        $tld = end($parts);
+        $regionMap = ['de' => 'de', 'fr' => 'fr', 'it' => 'it', 'es' => 'es', 'nl' => 'nl', 'ma' => 'ar', 'ae' => 'ar'];
+        $regionHint = $regionMap[$tld] ?? null;
+
+        foreach ($urls as $url) {
+            $ch = curl_init();
+
+            // Get randomized headers from HeaderRandomizer
+            $headers = $this->headerRandomizer->getRandomHeaders($regionHint, $url);
+
+            $httpHeaders = [];
+            foreach ($headers as $key => $value) {
+                if ($key === 'User-Agent') continue; // Set via CURLOPT_USERAGENT
+                $httpHeaders[] = "{$key}: {$value}";
+            }
+
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_TIMEOUT => (int) $this->config->get('crawl.timeout_seconds', 30),
+                CURLOPT_USERAGENT => $headers['User-Agent'] ?? $this->headerRandomizer->getRandomUserAgent(),
+                CURLOPT_SSL_VERIFYPEER => true,  // Secure by default
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_ENCODING => '',  // Accept gzip/deflate/br
+                CURLOPT_HTTPHEADER => $httpHeaders,
+            ]);
+
+            curl_multi_add_handle($mh, $ch);
+            $handles[(int) $ch] = ['ch' => $ch, 'url' => $url];
+        }
+
+        // Execute all handles concurrently
+        $active = null;
+        do {
+            $status = curl_multi_exec($mh, $active);
+            if ($active) {
+                curl_multi_select($mh, 1);
+            }
+        } while ($active && $status === CURLM_OK);
+
+        // Collect results
+        $failedUrls = [];
+        foreach ($handles as $info) {
+            $ch = $info['ch'];
+            $url = $info['url'];
+
+            $response = curl_multi_getcontent($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+
+            if ($httpCode >= 200 && $httpCode < 400 && $response) {
+                $results[$url] = $response;
+            } else {
+                // Track for retry on transient errors
+                if ($httpCode >= 500 || $httpCode === 0 || $httpCode === 429) {
+                    $failedUrls[] = $url;
+                    $this->logger->debug("CompCrawler: Transient failure for {$url} (HTTP {$httpCode})", [
+                        'error' => $curlError,
+                    ]);
+                } else {
+                    $this->logger->debug("CompCrawler: Permanent failure for {$url} (HTTP {$httpCode})");
+                    $results[$url] = null;
+                }
+            }
+        }
+
+        curl_multi_close($mh);
+
+        // Retry transient failures with exponential backoff (sequential, SSL fallback)
+        foreach ($failedUrls as $url) {
+            $html = $this->fetchWithRetry($url, $regionHint);
+            $results[$url] = $html;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Fetch a single URL with retry and exponential backoff.
+     * Falls back to SSL-verify-off on certificate errors.
+     */
+    private function fetchWithRetry(string $url, ?string $regionHint = null): ?string
+    {
+        $delays = [1000, 3000, 9000]; // ms between retries
+
+        for ($attempt = 0; $attempt < self::MAX_RETRIES; $attempt++) {
+            if ($attempt > 0) {
+                usleep($delays[$attempt - 1] * 1000);
+            }
+
+            $headers = $this->headerRandomizer->getRandomHeaders($regionHint, $url);
+            $httpHeaders = [];
+            foreach ($headers as $key => $value) {
+                if ($key === 'User-Agent') continue;
+                $httpHeaders[] = "{$key}: {$value}";
+            }
+
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_TIMEOUT => (int) $this->config->get('crawl.timeout_seconds', 30),
+                CURLOPT_USERAGENT => $headers['User-Agent'] ?? $this->headerRandomizer->getRandomUserAgent(),
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_ENCODING => '',
+                CURLOPT_HTTPHEADER => $httpHeaders,
+            ]);
+
+            // On last attempt, relax SSL for sites with bad certs
+            if ($attempt === self::MAX_RETRIES - 1) {
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            }
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($httpCode >= 200 && $httpCode < 400 && $response) {
+                return $response;
+            }
+
+            // Rate limited — wait longer
+            if ($httpCode === 429) {
+                $this->logger->info("CompCrawler: Rate limited on {$url}, backing off");
+                usleep(($delays[$attempt] ?? 9000) * 2 * 1000);
+            }
+
+            $this->logger->debug("CompCrawler: Retry {$attempt} failed for {$url} (HTTP {$httpCode}): {$curlError}");
+        }
+
+        return null;
+    }
+
+    /**
+     * Fetch a single page (used for sitemaps, verification, and single-page needs).
+     * Uses HeaderRandomizer and SSL verification with fallback.
+     */
+    public function fetchPage(string $url): ?string
+    {
+        return $this->fetchWithRetry($url);
+    }
+
+    /**
      * Build prioritized URL list for a competitor.
      */
     private function buildUrlList(Competitor $competitor, string $baseUrl, int $maxPages): array
@@ -160,10 +405,14 @@ class CompProfileCrawlerService
         $urls[] = $baseUrl;
         $urls[] = $baseUrl . '/';
 
-        // 2. Try sitemap
+        // 2. Try sitemap (with gzip support)
         $sitemapUrls = $this->parseSitemap($baseUrl . '/sitemap.xml');
         if (empty($sitemapUrls)) {
             $sitemapUrls = $this->parseSitemap($baseUrl . '/sitemap_index.xml');
+        }
+        // Try gzipped sitemap
+        if (empty($sitemapUrls)) {
+            $sitemapUrls = $this->parseSitemap($baseUrl . '/sitemap.xml.gz');
         }
 
         // 3. Priority paths based on competitor type
@@ -202,14 +451,23 @@ class CompProfileCrawlerService
     }
 
     /**
-     * Parse sitemap.xml for URLs.
+     * Parse sitemap.xml for URLs (supports gzip and sitemap indexes).
      */
     private function parseSitemap(string $sitemapUrl): array
     {
         $urls = [];
         try {
-            $xml = $this->fetchPage($sitemapUrl);
-            if (!$xml) return [];
+            $raw = $this->fetchPage($sitemapUrl);
+            if (!$raw) return [];
+
+            // Handle gzip-compressed sitemaps
+            $xml = $raw;
+            if (str_ends_with($sitemapUrl, '.gz') || substr($raw, 0, 2) === "\x1f\x8b") {
+                $decompressed = @gzdecode($raw);
+                if ($decompressed !== false) {
+                    $xml = $decompressed;
+                }
+            }
 
             // Suppress XML errors
             libxml_use_internal_errors(true);
@@ -221,9 +479,10 @@ class CompProfileCrawlerService
                 $urls[] = (string) $entry->loc;
             }
 
-            // Sitemap index
+            // Sitemap index — recursively parse child sitemaps
             foreach ($doc->sitemap ?? [] as $entry) {
-                $subUrls = $this->parseSitemap((string) $entry->loc);
+                $childUrl = (string) $entry->loc;
+                $subUrls = $this->parseSitemap($childUrl);
                 $urls = array_merge($urls, $subUrls);
                 if (count($urls) > 500) break;
             }
@@ -234,37 +493,6 @@ class CompProfileCrawlerService
         }
 
         return array_slice($urls, 0, 500);
-    }
-
-    /**
-     * Fetch a page via curl with proper headers.
-     */
-    private function fetchPage(string $url): ?string
-    {
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 5,
-            CURLOPT_TIMEOUT => (int) $this->config->get('crawl.timeout_seconds', 30),
-            CURLOPT_USERAGENT => $this->config->get('crawl.user_agent', 'StarzCompBot/1.0'),
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_HTTPHEADER => [
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language: en-US,en;q=0.9,fr;q=0.8,de;q=0.7,ar;q=0.6',
-            ],
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode >= 200 && $httpCode < 400 && $response) {
-            return $response;
-        }
-
-        return null;
     }
 
     /**
@@ -296,5 +524,36 @@ class CompProfileCrawlerService
         }
 
         return 'general';
+    }
+
+    // ─── Content Caching ───────────────────────────────────────────────────
+
+    /**
+     * Cache crawl content to filesystem for later use by extract phase.
+     */
+    private function cacheContent(Competitor $competitor, array $content, int $pagesChanged = 0): void
+    {
+        $cacheDir = $this->projectDir . '/' . self::CACHE_DIR;
+        if (!is_dir($cacheDir)) {
+            @mkdir($cacheDir, 0775, true);
+        }
+
+        $cacheFile = $this->getCacheFilePath($competitor);
+        $payload = [
+            '_meta' => [
+                'pages_changed' => $pagesChanged,
+                'cached_at' => time(),
+            ],
+            'content' => $content,
+        ];
+        file_put_contents($cacheFile, json_encode($payload, JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * Get filesystem cache path for a competitor's crawl content.
+     */
+    private function getCacheFilePath(Competitor $competitor): string
+    {
+        return $this->projectDir . '/' . self::CACHE_DIR . '/' . md5($competitor->getCanonicalDomain()) . '.json';
     }
 }

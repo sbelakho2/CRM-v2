@@ -117,8 +117,15 @@
 </div>
 
 <script>
-const availableTriggers = {{ availableTriggers|json_encode|raw }};
-const availableActions = {{ availableActions|json_encode|raw }};
+const triggerGroupsRaw = {{ availableTriggers|json_encode|raw }};
+const actionMapRaw = {{ availableActions|json_encode|raw }};
+const availableTriggers = Object.values(triggerGroupsRaw || {}).flatMap(group => group.triggers || []);
+const availableActions = Object.entries(actionMapRaw || {}).map(([key, action]) => ({
+    type: key,
+    label: action.label || key,
+    params: action.params || [],
+    description: action.description || ''
+}));
 const i18n = {
     selectField: '{{ 'playbook.rule.select_field'|trans|e('js') }}',
     selectAction: '{{ 'playbook.action.select_action'|trans|e('js') }}',

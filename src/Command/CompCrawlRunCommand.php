@@ -198,10 +198,11 @@ HELP
             $types = $candidate->getCompetitorTypes();
             $primaryType = $types[0] ?? 'ems';
 
-            // Quick fetch of homepage for verification
-            $homepage = @file_get_contents("https://{$candidate->getCanonicalDomain()}");
+            // Fetch homepage using the proper crawler (with retry, headers, SSL)
+            $domain = $candidate->getCanonicalDomain();
+            $homepage = $this->crawler->fetchPage("https://{$domain}");
             if (!$homepage) {
-                $homepage = @file_get_contents("http://{$candidate->getCanonicalDomain()}");
+                $homepage = $this->crawler->fetchPage("http://{$domain}");
             }
 
             if (!$homepage) {
@@ -213,6 +214,21 @@ HELP
             }
 
             $result = $this->verification->verify($candidate, $homepage);
+
+            // Homepage rescue: if initial pass fails, try key subpages
+            if (!$result['passed'] && !$result['veto']) {
+                $rescuePaths = ['/about', '/capabilities', '/services', '/certifications', '/quality'];
+                $combinedText = $homepage;
+                foreach ($rescuePaths as $path) {
+                    $subpage = $this->crawler->fetchPage("https://{$domain}{$path}");
+                    if ($subpage) {
+                        $combinedText .= "\n" . $subpage;
+                    }
+                }
+                if (strlen($combinedText) > strlen($homepage)) {
+                    $result = $this->verification->verify($candidate, $combinedText);
+                }
+            }
 
             if ($result['passed']) {
                 $candidate->setStatus(Competitor::STATUS_VERIFIED);
@@ -303,9 +319,19 @@ HELP
                 continue;
             }
 
-            // Quick crawl for extraction
-            $crawlResult = $this->crawler->shallowCrawl($competitor);
-            if (empty($crawlResult['content'])) {
+            // Use cached content from crawl phase (avoids double-crawl)
+            $content = $this->crawler->getCachedContent($competitor);
+            $meta = $this->crawler->getCachedMeta($competitor);
+            $pagesChanged = $meta['pages_changed'] ?? 0;
+
+            // Only re-crawl if no cache exists
+            if (empty($content)) {
+                $crawlResult = $this->crawler->shallowCrawl($competitor);
+                $content = $crawlResult['content'] ?? [];
+                $pagesChanged = $crawlResult['pages_changed'] ?? 0;
+            }
+
+            if (empty($content)) {
                 $io->progressAdvance();
                 continue;
             }
@@ -314,10 +340,10 @@ HELP
             $oldSnapshot = $this->changeDetector->buildSnapshot($competitor);
 
             // Extract
-            $extractResult = $this->extraction->extract($competitor, $crawlResult['content']);
+            $extractResult = $this->extraction->extract($competitor, $content);
 
             // Detect changes
-            $this->changeDetector->detectChanges($competitor, $extractResult['profile'], $oldSnapshot);
+            $this->changeDetector->detectChanges($competitor, $extractResult['profile'], $oldSnapshot, $pagesChanged);
 
             // Promote to monitoring if we have good data
             if (!empty($extractResult['profile']['certifications']) || !empty($extractResult['profile']['capabilities'])) {
@@ -325,6 +351,9 @@ HELP
                     $competitor->setStatus(Competitor::STATUS_MONITORING);
                 }
             }
+
+            // Clear cache after successful extraction
+            $this->crawler->clearCache($competitor);
 
             $extracted++;
             $io->progressAdvance();
@@ -412,7 +441,7 @@ HELP
         // Verify
         if (in_array($phase, ['verify', 'crawl', 'extract', 'all'])) {
             $io->text("  Verifying...");
-            $homepage = @file_get_contents("https://{$canonical}");
+            $homepage = $this->crawler->fetchPage("https://{$canonical}");
             if ($homepage) {
                 $result = $this->verification->verify($competitor, $homepage);
                 $io->text("    Verified: " . ($result['passed'] ? 'YES' : 'NO') . " | Score: {$result['score']}");

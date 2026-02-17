@@ -33,7 +33,7 @@ class CompChangeDetectorService
      *
      * @return CompetitorChangeEvent[]  New change events created
      */
-    public function detectChanges(Competitor $competitor, array $newProfile, array $oldSnapshot): array
+    public function detectChanges(Competitor $competitor, array $newProfile, array $oldSnapshot, int $pagesChanged = 0): array
     {
         $events = [];
 
@@ -65,7 +65,7 @@ class CompChangeDetectorService
         ));
 
         // ─── Website structural change ──────────────────────────────────
-        $pageChanges = $this->detectPageChanges($competitor);
+        $pageChanges = $pagesChanged > 0 ? $pagesChanged : $this->detectPageChanges($competitor);
         if ($pageChanges > 5) {
             $events[] = $this->createEvent(
                 $competitor,
@@ -246,23 +246,18 @@ class CompChangeDetectorService
 
     /**
      * Count how many page fingerprints changed since last check.
+     *
+     * Note: After crawl, fingerprint hashes are already updated, so we can't reliably
+     * distinguish changed vs unchanged just from fingerprint data. Prefer passing
+     * $pagesChanged from the crawl result via detectChanges() parameter.
+     * This fallback returns 0 to avoid false-positive "website restructure" alerts.
      */
     private function detectPageChanges(Competitor $competitor): int
     {
-        $fingerprints = $this->fingerprintRepo->findAllForCompetitor($competitor->getId());
-        $changed = 0;
-
-        foreach ($fingerprints as $fp) {
-            // If lastCheckedAt equals lastCrawledAt approximately, it was just checked
-            // and if the content changed, it was already recorded during crawl
-            if ($fp->getLastCheckedAt() && $fp->getLastCheckedAt() > new \DateTime('-1 hour')) {
-                // Recently checked — count if content hash changed
-                // (The ProfileCrawler already updated the hash, so we just count)
-                $changed++;
-            }
-        }
-
-        return $changed;
+        // The crawl phase already updates content hashes, so we cannot reliably
+        // detect changes after the fact. Return 0 as a safe fallback.
+        // The accurate count is passed as $pagesChanged parameter to detectChanges().
+        return 0;
     }
 
     /**

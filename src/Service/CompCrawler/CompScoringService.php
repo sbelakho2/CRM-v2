@@ -3,6 +3,8 @@
 namespace App\Service\CompCrawler;
 
 use App\Entity\Competitor;
+use App\Repository\CompetitorRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -21,6 +23,8 @@ class CompScoringService
 
     public function __construct(
         private readonly CompCrawlerConfig $config,
+        private readonly CompetitorRepository $competitorRepo,
+        private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
     ) {
         $ref = $this->config->getStarzReference();
@@ -352,9 +356,9 @@ class CompScoringService
         $employees = $competitor->getEmployeeEstimate();
         if ($employees && $employees > 100) $score += 20;
 
-        // Multi-site = expanding
-        $locations = count($competitor->getCapabilities()); // Proxy
-        if ($locations > 5) $score += 15;
+        // Multi-site = expanding (use actual regions + facilities, not capabilities)
+        $locations = count($competitor->getRegions()) + count($competitor->getFacilities());
+        if ($locations > 3) $score += 15;
 
         // High proof grade = serious player
         if (in_array($competitor->getProofGrade(), ['A', 'B'])) $score += 20;
@@ -424,8 +428,26 @@ class CompScoringService
      */
     public function scoreAll(): array
     {
-        // This will be called from CLI command — entity manager will be injected there
-        $this->logger->info('CompScoring: Batch scoring not implemented at service level — use CLI command');
-        return ['scored' => 0, 'avg_threat' => 0, 'avg_overlap' => 0];
+        $competitors = $this->competitorRepo->findActive();
+        $scored = 0;
+        $totalThreat = 0;
+        $totalOverlap = 0;
+
+        foreach ($competitors as $competitor) {
+            $result = $this->score($competitor);
+            $totalThreat += $result['threat'];
+            $totalOverlap += $result['overlap'];
+            $scored++;
+        }
+
+        $this->em->flush();
+
+        $this->logger->info('CompScoring: Batch scored {count} competitors', ['count' => $scored]);
+
+        return [
+            'scored' => $scored,
+            'avg_threat' => $scored > 0 ? round($totalThreat / $scored, 1) : 0,
+            'avg_overlap' => $scored > 0 ? round($totalOverlap / $scored, 1) : 0,
+        ];
     }
 }

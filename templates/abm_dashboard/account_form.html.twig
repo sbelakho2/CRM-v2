@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ pageTitle }}{% endblock %}
+{% block title %}{{ pageTitle|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack rams-gap-6">
@@ -20,7 +20,7 @@
     {# Page Header #}
     <div class="rams-page-header">
         <div>
-            <h1 class="rams-page-title">{{ pageTitle }}</h1>
+            <h1 class="rams-page-title">{{ pageTitle|trans }}</h1>
             <p class="rams-page-subtitle">{{ account ? 'abm_dashboard.update_account'|trans : 'abm_dashboard.create_account'|trans }} ABM target account</p>
         </div>
     </div>

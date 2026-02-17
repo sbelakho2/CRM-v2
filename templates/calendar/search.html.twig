@@ -1,0 +1,82 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'calendar.search'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <div class="rams-page__header">
+        <div class="rams-page__header-content">
+            <div class="rams-breadcrumb">
+                <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <a href="{{ path('calendar_index') }}">{{ 'calendar.title'|trans }}</a>
+                <span class="rams-breadcrumb-separator">/</span>
+                <span>{{ 'calendar.search'|trans }}</span>
+            </div>
+            <h1 class="rams-page__title">{{ 'calendar.search'|trans }}</h1>
+            <p class="rams-page__subtitle">{{ 'calendar.search_subtitle'|trans|default('Find events by title or notes.') }}</p>
+        </div>
+    </div>
+
+    <div class="rams-module rams-mb-6">
+        <div class="rams-module__content">
+            <form method="get" action="{{ path('calendar_search') }}" class="rams-flex rams-gap-2 mobile-stack">
+                <input type="text" name="q" value="{{ query }}" class="rams-form__input" placeholder="{{ 'calendar.search_placeholder'|trans|default('Search events...') }}" />
+                <button type="submit" class="rams-btn rams-btn--orange uppercase">
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="7" cy="7" r="5" />
+                        <path d="M11 11l3 3" />
+                    </svg>
+                    {{ 'calendar.search'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'calendar.search_results'|trans|default('Search results') }}</h2>
+        </div>
+        <div class="rams-module__content">
+            {% if events is not empty %}
+                <table class="rams-table">
+                    <thead class="rams-table__header">
+                        <tr>
+                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.name'|trans }}</th>
+                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.date'|trans }}</th>
+                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.type'|trans }}</th>
+                            <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="rams-table__body">
+                        {% for event in events %}
+                            <tr class="rams-table__row">
+                                <td class="rams-table__cell rams-text--bold">{{ event.title }}</td>
+                                <td class="rams-table__cell rams-text--muted">
+                                    {% if event.start %}
+                                        {{ event.start|date('Y-m-d H:i') }}
+                                    {% else %}
+                                        {{ 'common.n_a'|trans }}
+                                    {% endif %}
+                                </td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--gray">{{ event.eventType|default('calendar.event')|trans }}</span>
+                                </td>
+                                <td class="rams-table__cell rams-table__cell--actions">
+                                    <a href="{{ path('calendar_show', {id: event.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                        {{ 'common.view'|trans }}
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="rams-empty-state">
+                    {{ query ? ('calendar.no_results'|trans|default('No events match your search.')) : ('calendar.search_hint'|trans|default('Search for events to see results.')) }}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -86,7 +86,8 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         events: '{{ path('meeting_api_slots') }}',
         eventClick: function(info) {
-            window.location.href = '{{ path('meeting_show', {id: '__ID__'}) }}'.replace('__ID__', info.event.id);
+            const baseUrl = '{{ path('meeting_show', {id: 0}) }}';
+            window.location.href = baseUrl.replace('/0', '/' + info.event.id);
         },
         dateClick: function(info) {
             window.location.href = '{{ path('meeting_new') }}?start=' + info.dateStr;

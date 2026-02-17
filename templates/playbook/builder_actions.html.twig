@@ -1,0 +1,167 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'playbook.builder_actions'|trans|default('Playbook Actions') }}{% endblock %}
+
+{% block body %}
+<div class="rams-stack">
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'playbook.builder_actions'|trans|default('Playbook Actions') }}</h1>
+            <p class="rams-page-subtitle">{{ 'playbook.builder_actions_subtitle'|trans|default('Choose what happens after a trigger fires.') }}</p>
+            <div class="rams-text--muted rams-text--xs">{{ playbook.name }}</div>
+        </div>
+        <div class="rams-btn-group mobile-stack">
+            <a href="{{ path('app_playbook_show', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'common.back'|trans|default('Back') }}</a>
+            <a href="{{ path('app_playbook_builder_triggers', {id: playbook.id}) }}" class="rams-btn rams-btn--ghost">{{ 'playbook.trigger_rules'|trans|default('Triggers') }}</a>
+        </div>
+    </div>
+
+    <form method="post" action="{{ path('app_playbook_builder_actions', {id: playbook.id}) }}" class="rams-stack rams-gap-6">
+        <input type="hidden" name="actions" id="actions-input" value="" />
+
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'playbook.current_actions'|trans|default('Current Actions') }}</h2>
+            </div>
+            <div class="rams-module__content">
+                <div id="actions-list" class="rams-stack rams-gap-3"></div>
+                <div id="actions-empty" class="rams-empty-state" style="display: none;">
+                    {{ 'playbook.no_actions'|trans|default('No actions added yet.') }}
+                </div>
+            </div>
+        </div>
+
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'playbook.available_actions'|trans|default('Available Actions') }}</h2>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-grid rams-grid--2 rams-gap-4">
+                    {% for actionKey, action in availableActions %}
+                        <div class="rams-card">
+                            <div class="rams-card__content">
+                                <div class="rams-text--bold rams-mb-2">{{ action.label }}</div>
+                                <p class="rams-text--muted rams-text--xs rams-mb-2">{{ action.description }}</p>
+                                <div class="rams-flex rams-justify-end">
+                                    <button
+                                        type="button"
+                                        class="rams-btn rams-btn--ghost rams-btn--sm action-add-btn"
+                                        data-type="{{ actionKey }}"
+                                        data-label="{{ action.label }}"
+                                        data-params="{{ action.params|default([])|json_encode|e('html_attr') }}"
+                                    >
+                                        {{ 'common.add'|trans|default('Add') }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="rams-flex rams-justify-end">
+            <button type="submit" class="rams-btn rams-btn--primary">
+                {{ 'common.save'|trans|default('Save') }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function() {
+    const initial = {{ currentActions|json_encode|raw }};
+    const listEl = document.getElementById('actions-list');
+    const emptyEl = document.getElementById('actions-empty');
+    const inputEl = document.getElementById('actions-input');
+    let selected = Array.isArray(initial) ? initial : [];
+
+    function sync() {
+        inputEl.value = JSON.stringify(selected);
+        if (selected.length === 0) {
+            listEl.innerHTML = '';
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        emptyEl.style.display = 'none';
+        listEl.innerHTML = selected.map((action, idx) => {
+            const title = action.label || action.type || 'Action';
+            const params = action.params || {};
+            const paramsHtml = Object.keys(params).map(key => {
+                return `
+                    <div>
+                        <label class="rams-text--xs rams-text--muted">${key}</label>
+                        <input class="rams-form__input" data-idx="${idx}" data-param="${key}" value="${(params[key] === undefined || params[key] === null) ? '' : params[key]}" />
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="rams-card">
+                    <div class="rams-card__content rams-grid rams-grid--3 rams-gap-3">
+                        <div>
+                            <div class="rams-text--bold">${title}</div>
+                            <div class="rams-text--xs rams-text--muted">${action.type || ''}</div>
+                        </div>
+                        <div class="rams-grid rams-grid--2 rams-gap-2">${paramsHtml}</div>
+                        <div class="rams-flex rams-justify-end">
+                            <button type="button" class="rams-btn rams-btn--danger rams-btn--ghost" data-remove="${idx}">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    document.querySelectorAll('.action-add-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            let paramDefs = [];
+            try {
+                paramDefs = JSON.parse(btn.dataset.params || '[]');
+            } catch (e) {
+                paramDefs = [];
+            }
+
+            const params = {};
+            (paramDefs || []).forEach(param => {
+                params[param.name] = '';
+            });
+
+            selected.push({
+                type: btn.dataset.type || '',
+                label: btn.dataset.label || '',
+                params: params
+            });
+            sync();
+        });
+    });
+
+    listEl.addEventListener('input', (event) => {
+        const target = event.target;
+        const idx = target.getAttribute('data-idx');
+        const param = target.getAttribute('data-param');
+        if (idx === null || param === null) {
+            return;
+        }
+        if (!selected[Number(idx)].params) {
+            selected[Number(idx)].params = {};
+        }
+        selected[Number(idx)].params[param] = target.value;
+        sync();
+    });
+
+    listEl.addEventListener('click', (event) => {
+        const target = event.target;
+        const remove = target.getAttribute('data-remove');
+        if (remove === null) {
+            return;
+        }
+        selected.splice(Number(remove), 1);
+        sync();
+    });
+
+    sync();
+})();
+</script>
+{% endblock %}

@@ -211,40 +211,69 @@ class AdminDatasetController extends AbstractController
         // 2. Build version history queries for each dataset type
         $tariffHistory = $this->entityManager->getRepository(TariffRate::class)
             ->createQueryBuilder('t')
-            ->select('t.versionUuid', 't.importedAt', 'COUNT(t.id) as rowCount')
-            ->where('t.versionUuid IS NOT NULL')
-            ->groupBy('t.versionUuid', 't.importedAt')
-            ->orderBy('t.importedAt', 'DESC')
+            ->select('t.versionId', 't.createdAt', 'COUNT(t.id) as rowCount')
+            ->where('t.versionId IS NOT NULL')
+            ->groupBy('t.versionId', 't.createdAt')
+            ->orderBy('t.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
         
         $freightHistory = $this->entityManager->getRepository(FreightTable::class)
             ->createQueryBuilder('f')
-            ->select('f.versionUuid', 'f.importedAt', 'COUNT(f.id) as rowCount')
-            ->where('f.versionUuid IS NOT NULL')
-            ->groupBy('f.versionUuid', 'f.importedAt')
-            ->orderBy('f.importedAt', 'DESC')
+            ->select('f.versionId', 'f.createdAt', 'COUNT(f.id) as rowCount')
+            ->where('f.versionId IS NOT NULL')
+            ->groupBy('f.versionId', 'f.createdAt')
+            ->orderBy('f.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
         
         $fxHistory = $this->entityManager->getRepository(FxRate::class)
             ->createQueryBuilder('fx')
-            ->select('fx.versionUuid', 'fx.importedAt', 'COUNT(fx.id) as rowCount')
-            ->where('fx.versionUuid IS NOT NULL')
-            ->groupBy('fx.versionUuid', 'fx.importedAt')
-            ->orderBy('fx.importedAt', 'DESC')
+            ->select('fx.versionId', 'fx.createdAt', 'COUNT(fx.id) as rowCount')
+            ->where('fx.versionId IS NOT NULL')
+            ->groupBy('fx.versionId', 'fx.createdAt')
+            ->orderBy('fx.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
         
-        // 3. Combine all history records with type labels
-        $combinedHistory = array_merge(
-            array_map(fn($h) => array_merge($h, ['type' => 'tariff_rate']), $tariffHistory),
-            array_map(fn($h) => array_merge($h, ['type' => 'freight_table']), $freightHistory),
-            array_map(fn($h) => array_merge($h, ['type' => 'fx_rate']), $fxHistory)
-        );
+        // 3. Combine all history records with type labels and normalize field names for template
+        $tariffMapped = array_map(fn($h) => [
+            'version' => $h['versionId'],
+            'dataset_name' => 'Tariff Rates',
+            'uploaded_by' => 'System',
+            'created_at' => $h['createdAt'],
+            'record_count' => $h['rowCount'],
+            'is_active' => false,
+            'type' => 'tariff_rate',
+            'description' => null,
+        ], $tariffHistory);
+        
+        $freightMapped = array_map(fn($h) => [
+            'version' => $h['versionId'],
+            'dataset_name' => 'Freight Table',
+            'uploaded_by' => 'System',
+            'created_at' => $h['createdAt'],
+            'record_count' => $h['rowCount'],
+            'is_active' => false,
+            'type' => 'freight_table',
+            'description' => null,
+        ], $freightHistory);
+        
+        $fxMapped = array_map(fn($h) => [
+            'version' => $h['versionId'],
+            'dataset_name' => 'FX Rates',
+            'uploaded_by' => 'System',
+            'created_at' => $h['createdAt'],
+            'record_count' => $h['rowCount'],
+            'is_active' => false,
+            'type' => 'fx_rate',
+            'description' => null,
+        ], $fxHistory);
+        
+        $combinedHistory = array_merge($tariffMapped, $freightMapped, $fxMapped);
         
         // 4. Sort by import date descending
-        usort($combinedHistory, fn($a, $b) => $b['importedAt'] <=> $a['importedAt']);
+        usort($combinedHistory, fn($a, $b) => ($b['created_at'] ?? new \DateTime('1970-01-01')) <=> ($a['created_at'] ?? new \DateTime('1970-01-01')));
         
         // 5. Apply type filter if specified
         if ($datasetType) {
@@ -256,7 +285,7 @@ class AdminDatasetController extends AbstractController
         
         // 6. Render history template
         return $this->render('admin_dataset/history.html.twig', [
-            'history' => $combinedHistory,
+            'versions' => $combinedHistory,
             'filterType' => $datasetType,
             'pageTitle' => 'admin_dataset.history.title'
         ]);
