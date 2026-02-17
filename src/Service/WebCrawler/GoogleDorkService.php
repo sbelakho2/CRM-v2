@@ -263,15 +263,28 @@ class GoogleDorkService
                                     continue;
                                 }
                                 
-                                // Name-Domain plausibility: reject if the extracted
-                                // name has zero resemblance to the domain. Catches
-                                // mismatches like "Federal Aviation Admin" → totalenergies.eg
+                                // Name-Domain plausibility: if the extracted name
+                                // has zero resemblance to the domain, try falling back
+                                // to a domain-derived name instead of rejecting outright.
+                                // This rescues cases like "Factory Automation" → autec-sondermaschinenbau.de
+                                // where the Google title is a generic page heading but the
+                                // company behind the domain is a real prospect.
                                 if ($this->isNameDomainMismatch($companyName, $domain)) {
-                                    $this->logger->debug('Skipping name-domain mismatch', [
-                                        'name' => $companyName,
-                                        'domain' => $domain,
-                                    ]);
-                                    continue;
+                                    $domainDerivedName = $this->companyNameFromDomain($domain);
+                                    if ($domainDerivedName !== '' && !$this->isJunkCompanyName($domainDerivedName) && !$this->isGiantOem($domainDerivedName)) {
+                                        $this->logger->debug('Name-domain mismatch rescued via domain-derived name', [
+                                            'original_name' => $companyName,
+                                            'domain_name' => $domainDerivedName,
+                                            'domain' => $domain,
+                                        ]);
+                                        $companyName = $domainDerivedName;
+                                    } else {
+                                        $this->logger->debug('Skipping name-domain mismatch', [
+                                            'name' => $companyName,
+                                            'domain' => $domain,
+                                        ]);
+                                        continue;
+                                    }
                                 }
 
                                 // Semantic filter: reject EMS competitors, distributors,
@@ -1202,6 +1215,7 @@ class GoogleDorkService
         'news.siemens.com', 'thetimesherald.com', 'easyengineering.eu',
         'aviation-safety.net', 'avherald.com', 'aerosociety.com',
         'wiringharnessnews.de',
+        'totaltele.com',         // Total Telecom news site
         // Major news outlets with compound-word domains (\b misses these)
         'dailymail.co.uk', 'mailonline.com', 'mirror.co.uk',
         'thesun.co.uk', 'huffpost.com', 'foxnews.com', 'nbcnews.com',
@@ -1692,6 +1706,11 @@ class GoogleDorkService
         'gimmi.com',  // medical endoscopy OEM (own mfg)
         'saint-gobain-northamerica.com',  // materials (own mfg)
         'germanelectronics.com',  // generic electronics portal
+        'chemeurope.com',         // chemistry information portal, not a manufacturer
+        'kruse.de',               // FPGA distributor, not a manufacturer
+        'plattform-i40.de',       // government/industry initiative, not a company
+        'smartfactory.de',        // DFKI research initiative, not a company
+        'thm.de',                 // Technische Hochschule Mittelhessen (university)
         'bizlinktech.com',  // BizLink - cable assembly competitor
         'axalta.com',  // coatings
         'wilo.com',  // pump manufacturer
@@ -3394,6 +3413,10 @@ class GoogleDorkService
         if (preg_match('/\b(consulting|consultancy|consultant|advisory|advisors|beratung|conseil|advies|consulenza|consultoria|doradztwo|asesores|assessoria)\b/i', $domain)) {
             return true;
         }
+        // German consulting compound-word domains (no word boundary — compounds)
+        if (preg_match('/(unternehmensberatung|managementberatung|strategieberatung|personalberatung|prozessberatung|organisationsberatung|itberatung|logistikberatung)/i', $domain)) {
+            return true;
+        }
 
         // ─── Block staffing / recruitment domains ────────────────
         if (preg_match('/\b(staffing|recruitment|recruiting|headhunt|manpower|workforce|jobboard|jobsite|emploi|lavoro|empleo|arbeit)\b/i', $domain)) {
@@ -4543,7 +4566,7 @@ class GoogleDorkService
             'arabic', 'french', 'german', 'chinese', 'japanese', 'korean',
             'spanish', 'analog', 'digital', 'global', 'international',
             'regional', 'advanced', 'premium', 'standard', 'classic',
-            'industries', 'manufacturing', 'engineering', 'technology',
+            'industries', 'industrie', 'manufacturing', 'engineering', 'technology',
             'avionics', 'connectors', 'certifications', 'amazon', 'default',
             'welcome', 'untitled', 'homepage', 'main', 'index', 'demo',
             'barbados', 'liberia', 'togo', 'morocco', 'tunisia',
@@ -4809,7 +4832,7 @@ class GoogleDorkService
         }
 
         // ─── University / Academic institution patterns ──────────────
-        if (preg_match('/\b(university|universit(é|eit|ät)|^TU\s+)/i', $name)) {
+        if (preg_match('/\b(university|universit(é|eit|ät)|^TU\s+|^TH\s+|^FH\s+)/i', $name)) {
             return true;
         }
 
@@ -5850,6 +5873,19 @@ class GoogleDorkService
             $score -= 35;
         }
 
+        // ─── Component / semiconductor / FPGA distributor homepage signals ──
+        // Standalone chip/FPGA/component distributors (not OEM manufacturers)
+        $chipDistributorSignals = 0;
+        if (preg_match('/\b(fpga|asic|cpld|soc|microcontroller|mcu|dsp)\s+(distribut|supplier|source)/i', $text)) $chipDistributorSignals += 4;
+        if (preg_match('/\b(chip|semiconductor|ic|component)\s+(distribut|supplier|wholesal)/i', $text)) $chipDistributorSignals += 3;
+        if (preg_match('/\breliable\s+source\s+for\s+(chip|component|semiconductor|fpga|ic|high[\s-]?performance)/i', $text)) $chipDistributorSignals += 4;
+        if (preg_match('/\b(we\s+(distribut|supply|stock|sell)\s+.{0,40}(fpga|asic|chip|semiconductor|ic|component))/i', $text)) $chipDistributorSignals += 4;
+        if (preg_match('/\b(product\s+(portfolio|range|catalog)\s*[:.]?\s*.{0,60}(xilinx|altera|intel|lattice|microchip|analog\s+devices|texas\s+instruments|nxp|stmicro|infineon))/i', $text)) $chipDistributorSignals += 3;
+        if (preg_match('/\b(franchised|authorized)\s+(distribut|supplier|partner)/i', $text)) $chipDistributorSignals += 3;
+        if ($chipDistributorSignals >= 4) {
+            $score -= 40;
+        }
+
         // ─── Software company / IT services homepage signals (iter11) ─
         $softwareSignals = 0;
         if (preg_match('/\b(software\s+(company|development|solutions?|house|firm|services?)|custom\s+software|bespoke\s+software|offshore\s+software|nearshore\s+software)/i', $text)) $softwareSignals += 3;
@@ -6004,6 +6040,18 @@ class GoogleDorkService
         if (preg_match('/\b(professional\s+services|assurance\s+services|advisory\s+services|consulting\s+services|managed\s+services)\s+(firm|company|provider|leader|practice)/i', $text)) $consultingSignals += 3;
         if (preg_match('/\b(global\s+network|member\s+firm|partner\s+firm|offices?\s+in\s+\d+\s+countries|presence\s+in\s+\d+\s+countries)/i', $text)) $consultingSignals += 2;
         if ($consultingSignals >= 3) {
+            $score -= 40;
+        }
+
+        // ─── DE/FR/IT: multilingual consulting homepage (iter-DE-Industrial) ──
+        $deConsultSignals = 0;
+        if (preg_match('/\b(Unternehmensberatung|Managementberatung|Strategieberatung|Personalberatung|Organisationsberatung|Prozessberatung|Logistikberatung|IT[\s-]Beratung)\b/i', $text)) $deConsultSignals += 4;
+        if (preg_match('/\b(wir\s+beraten|beraten\s+wir|unsere\s+Beratung|Beratung\s+(und|&)\s+(Coaching|Training|Umsetzung))\b/i', $text)) $deConsultSignals += 3;
+        if (preg_match('/\b(Interim[\s-]?Management|Change[\s-]?Management|Digitale\s+Transformation)\b.*\b(Beratung|beraten|Consulting)\b/i', $text)) $deConsultSignals += 3;
+        if (preg_match('/\b(Referenzen|Kundenstimmen|unsere\s+Kunden|Branchen(kompetenz|erfahrung|wissen))\b/i', $text) && $deConsultSignals > 0) $deConsultSignals += 2;
+        if (preg_match('/\b(conseil\s+en\s+(management|stratégie|organisation|direction)|cabinet\s+de\s+(conseil|consulting))\b/i', $text)) $deConsultSignals += 4;
+        if (preg_match('/\b(consulenza\s+(aziendale|strategica|direzionale|gestionale)|società\s+di\s+consulenza)\b/i', $text)) $deConsultSignals += 4;
+        if ($deConsultSignals >= 3) {
             $score -= 40;
         }
 
@@ -7241,6 +7289,11 @@ class GoogleDorkService
             'we\s+(distribut|supply|stock|sell)\s+(electronic|component|semiconductor)',
             'electronic\s+component\s+distribut',
             'trading\s+company',
+            // ── Broader chip/FPGA/semiconductor distributor patterns ──
+            '(fpga|asic|cpld|soc|microcontroller|mcu|dsp|memory|flash|dram|gpu)\s+distribut',
+            '(chip|semiconductor|ic)\s+distribut',
+            '\bdistribut(or|ion)\b.*\b(high[\s-]?performance\s+chip|fpga|asic|semiconductor|ic|component)',
+            '\breliable\s+source\s+for\s+(chip|component|semiconductor|fpga|ic)',
         ];
 
         foreach ($distributorSignals as $pattern) {
@@ -7284,6 +7337,7 @@ class GoogleDorkService
         $componentSignals = [
             '(connector|terminal|contact)\s+(supplier|distribut)',
             '(semiconductor|chip|ic|led|mosfet|transistor)\s+(supplier|distribut)',
+            '(fpga|asic|cpld|soc|microcontroller|mcu|dsp)\s+(supplier|distribut)',
             '(resistor|capacitor|inductor|transformer)\s+(supplier|distribut)',
             '(raw\s+material|copper\s+wire|solder|flux)\s+suppli',
             'component\s+(suppli|distribut)',
@@ -7414,6 +7468,19 @@ class GoogleDorkService
             '\b(Deloitte|PwC|PricewaterhouseCoopers|Ernst\s*&\s*Young|KPMG)\b.*\b(audit|assurance|advisory|tax|consulting)',
             '\b(McKinsey|BCG|Boston\s+Consulting|Bain)\b.*\b(strategy|consulting|advisory)',
             '\b(Accenture|Capgemini|Infosys|TCS|Wipro|Cognizant)\b.*\b(consulting|services|solutions|digital)',
+            // ── DE/FR/IT: multilingual consulting detection ──
+            '\b(Unternehmensberatung|Managementberatung|Strategieberatung|Personalberatung|Prozessberatung)\b',
+            '\bBeratung(sunternehmen|sgesellschaft|sfirma|sleistung|shaus)?\b',
+            '\b(wir\s+beraten|beraten\s+wir|Berater|beratend)\b',
+            '\b(Interim[\s-]?Management|Coaching|Organisationsentwicklung)\b.*\b(Beratung|beraten|consult)',
+            '\bconseil\s+(en\s+)?(management|stratégie|organisation|entreprise|direction)',
+            '\bcabinet\s+de\s+(conseil|consulting)',
+            '\bconsulenza\s+(aziendale|strategica|direzionale|gestionale|manageriale)',
+            '\b(società|studio)\s+di\s+consulenza\b',
+            // ── Generic consulting role/service phrases ──
+            '\b(we\s+)?(help|assist|support|enable|empower)\s+(companies|businesses|organizations|clients|firms)\s+(to\s+)?(transform|optimize|improve|grow|succeed|achieve|navigate)',
+            '\b(trusted\s+)?(advisor|partner)\s+for\s+(business|digital|strategic)\s+(transformation|change|growth)',
+            '\b(change|transformation|turnaround)\s+management\s+(consult|advis|firm|company|services)',
         ];
 
         foreach ($consultingSignals as $pattern) {
@@ -12916,6 +12983,13 @@ class GoogleDorkService
                 $queries[] = "industrial \"motor drives\" OR \"PLC\" OR \"controllers\" manufacturer{$locationTerm}" . $exclude;
                 $queries[] = "\"factory automation\" OR \"process automation\" equipment company{$locationTerm}" . $exclude;
                 $queries[] = "industrial \"robotics\" OR \"motion control\" manufacturer{$locationTerm}" . $exclude;
+                // ── Additional queries: sensors, instrumentation, Industrie 4.0 ──
+                $queries[] = "industrial \"sensors\" OR \"instrumentation\" OR \"measurement\" manufacturer{$locationTerm}" . $exclude;
+                $queries[] = "\"industrial automation\" OR \"Automatisierungstechnik\" company{$locationTerm}" . $exclude;
+                $queries[] = "\"Maschinenbau\" OR \"Sondermaschinenbau\" OR \"Anlagenbau\" manufacturer{$locationTerm}" . $exclude;
+                $queries[] = "industrial \"control systems\" OR \"HMI\" OR \"SCADA\" manufacturer{$locationTerm}" . $exclude;
+                $queries[] = "\"Industrie 4.0\" OR \"smart factory\" equipment company{$locationTerm}" . $exclude;
+                $queries[] = "industrial \"power supply\" OR \"embedded systems\" manufacturer{$locationTerm}" . $exclude;
                 break;
             case 'Rail':
                 $queries[] = "railway OR rail \"signalling\" OR \"rolling stock\" company{$locationTerm}" . $exclude;
@@ -12939,6 +13013,11 @@ class GoogleDorkService
                 $queries[] = "\"5G\" OR \"LTE\" OR \"wireless\" infrastructure manufacturer{$locationTerm}" . $exclude;
                 $queries[] = "\"fiber optic\" OR \"optical transceiver\" OR \"network switch\" manufacturer{$locationTerm}" . $exclude;
                 $queries[] = "\"cable assembly\" OR \"RF connector\" telecom manufacturer{$locationTerm}" . $exclude;
+                // ── Additional: telecom hardware OEMs, not operators/consultants ──
+                $queries[] = "telecom \"network equipment\" OR \"radio unit\" OR \"small cell\" manufacturer{$locationTerm}" . $exclude;
+                $queries[] = "\"microwave radio\" OR \"mmWave\" OR \"beamforming\" equipment company{$locationTerm}" . $exclude;
+                $queries[] = "\"Nachrichtentechnik\" OR \"Funktechnik\" OR \"Kommunikationstechnik\" manufacturer{$locationTerm}" . $exclude;
+                $queries[] = "telecom \"power amplifier\" OR \"filter\" OR \"duplexer\" manufacturer{$locationTerm}" . $exclude;
                 break;
             case 'HVAC':
                 $queries[] = "HVAC OR \"heat pump\" equipment manufacturer{$locationTerm}" . $exclude;
