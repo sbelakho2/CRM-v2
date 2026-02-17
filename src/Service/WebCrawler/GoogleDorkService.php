@@ -227,6 +227,19 @@ class GoogleDorkService
                                 continue;
                             }
 
+                            // ── ccTLD region mismatch filter ──
+                            // Reject domains whose country-code TLD clearly
+                            // belongs to a different region (e.g. .it domain
+                            // in an Egypt search, .de in a Morocco search).
+                            if ($this->isCcTldRegionMismatch($domain, $region)) {
+                                $this->metricsCollector->recordReject('cctld_mismatch', $domain);
+                                $this->logger->debug('Skipping ccTLD region mismatch', [
+                                    'domain' => $domain,
+                                    'region' => $region,
+                                ]);
+                                continue;
+                            }
+
                             if (!isset($allResults[$domain])) {
                                 $companyName = $this->extractCompanyName($result['title'] ?? '', $domain);
                                 
@@ -466,7 +479,7 @@ class GoogleDorkService
                 ]);
                 foreach ($directorySeeds as $seed) {
                     // Only add seeds that have a domain and aren't already in results
-                    if ($seed->domain !== null && !isset($allResults[$seed->domain]) && !$this->isBlockedDomain($seed->domain)) {
+                    if ($seed->domain !== null && !isset($allResults[$seed->domain]) && !$this->isBlockedDomain($seed->domain) && !$this->isCcTldRegionMismatch($seed->domain, $region)) {
                         $allResults[$seed->domain] = [
                             'name'             => $seed->companyName,
                             'website'          => 'https://' . $seed->domain,
@@ -1179,6 +1192,8 @@ class GoogleDorkService
         'zdnet.com', 'techcrunch.com', 'wired.com', 'theverge.com',
         'datacenterknowledge.com', 'eenewseurope.com', 'electronicdesign.com',
         'eetimes.com', 'edn.com', 'fierceelectronics.com', 'etnow.com',
+        'electronicspecifier.com',   // UK electronics news/reviews
+        'agbi.com',                  // Arabian Gulf Business Insight (news)
         'kfor.com', 'prnewswire.com', 'businesswire.com', 'globenewswire.com',
         'fdiintelligence.com', 'autonews.com', 'wiringharnessnews.com',
         'gulfstreamnews.com', 'themanufacturer.com', 'mddionline.com',
@@ -3111,6 +3126,99 @@ class GoogleDorkService
         'gambica.org.uk',  // GAMBICA — UK automation trade body
         'beama.org.uk',  // BEAMA — UK electrical industry trade body
     ];
+
+    /**
+     * Check if a domain's country-code TLD belongs to a completely
+     * different region than the current search target.
+     *
+     * e.g. searching for Egypt → .it (Italy) domain = mismatch
+     *      searching for Germany → .eg (Egypt) domain = mismatch
+     *
+     * Only triggers for UNAMBIGUOUS mismatches. Generic TLDs (.com,
+     * .net, .org, .io, .co) are always allowed. Neighbouring/related
+     * countries are NOT rejected (e.g. .ae is allowed for GCC).
+     */
+    private function isCcTldRegionMismatch(string $domain, string $region): bool
+    {
+        if ($region === 'GENERIC' || $region === '') {
+            return false;
+        }
+
+        // Extract the TLD
+        $domain = strtolower(preg_replace('/^www\./', '', $domain));
+        if (!preg_match('/\.([a-z]{2,3})$/', $domain, $m)) {
+            return false;
+        }
+        $tld = $m[1];
+
+        // Generic TLDs — always OK
+        static $genericTlds = [
+            'com', 'net', 'org', 'io', 'co', 'biz', 'info', 'pro',
+            'xyz', 'dev', 'app', 'tech', 'online', 'site', 'store',
+            'global', 'int', 'edu', 'gov', 'mil', 'aero', 'coop',
+        ];
+        if (in_array($tld, $genericTlds, true)) {
+            return false;
+        }
+
+        // Map each TLD to its region code (same codes detectRegionFromLocation uses)
+        static $tldToRegion = [
+            // North Africa / Middle East
+            'ma' => 'MA', 'tn' => 'TN', 'eg' => 'EG',
+            'ae' => 'GCC', 'sa' => 'GCC', 'qa' => 'GCC',
+            'bh' => 'GCC', 'om' => 'GCC', 'kw' => 'GCC',
+            // Europe
+            'de' => 'DE', 'fr' => 'FR', 'pl' => 'PL', 'nl' => 'NL',
+            'it' => 'IT', 'es' => 'ES', 'be' => 'BE', 'at' => 'AT',
+            'cz' => 'CZ', 'se' => 'SE', 'dk' => 'DK', 'fi' => 'FI',
+            'no' => 'NO', 'ch' => 'CH', 'ro' => 'RO', 'hu' => 'HU',
+            'pt' => 'PT', 'ie' => 'IE',
+            'uk' => 'GB', 'gb' => 'GB',
+            // Asia
+            'cn' => 'CN', 'jp' => 'JP', 'kr' => 'KR', 'in' => 'IN',
+            'tw' => 'TW', 'th' => 'TH', 'vn' => 'VN', 'id' => 'ID',
+            'my' => 'MY', 'sg' => 'SG', 'ph' => 'PH',
+            // Americas
+            'us' => 'US', 'ca' => 'CA', 'mx' => 'MX', 'br' => 'BR',
+            'ar' => 'AR', 'cl' => 'CL', 'co' => 'CO',
+            // Other
+            'au' => 'AU', 'nz' => 'NZ', 'za' => 'ZA',
+            'ru' => 'RU', 'ua' => 'UA', 'tr' => 'TR', 'il' => 'IL',
+            'ng' => 'NG', 'ke' => 'KE', 'pk' => 'PK',
+        ];
+
+        $domainRegion = $tldToRegion[$tld] ?? null;
+        if ($domainRegion === null) {
+            // Unknown ccTLD — allow it through
+            return false;
+        }
+
+        // Same region → OK
+        if ($domainRegion === $region) {
+            return false;
+        }
+
+        // Allow EU cross-matches: an .it domain is OK when searching
+        // for EU, or vice versa. Define compatible region groups.
+        static $euGroup = ['DE', 'FR', 'PL', 'NL', 'IT', 'ES', 'BE', 'AT',
+            'CZ', 'SE', 'DK', 'FI', 'NO', 'CH', 'RO', 'HU', 'PT', 'IE', 'GB', 'EU'];
+        static $gccGroup = ['GCC', 'AE', 'SA', 'QA', 'BH', 'OM', 'KW'];
+        static $nafricaGroup = ['MA', 'TN', 'EG'];
+
+        // Within the same broad group → allow
+        if (in_array($region, $euGroup, true) && in_array($domainRegion, $euGroup, true)) {
+            return false;
+        }
+        if (in_array($region, $gccGroup, true) && in_array($domainRegion, $gccGroup, true)) {
+            return false;
+        }
+
+        // North Africa countries are NOT interchangeable — Egypt ≠ Morocco
+        // But a .com.eg domain found in EG search is fine (same region match above).
+
+        // If we reach here, the ccTLD region doesn't match → mismatch
+        return true;
+    }
 
     /**
      * Check if a domain should be excluded from company import.
