@@ -107,7 +107,6 @@ final class BraveSearchScraper implements SearchEngineScraper
                     'User-Agent' => $userAgent,
                     'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                     'Accept-Language' => $acceptLang,
-                    'Accept-Encoding' => 'gzip, deflate, br',
                     'DNT' => '1',
                     'Connection' => 'keep-alive',
                     'Upgrade-Insecure-Requests' => '1',

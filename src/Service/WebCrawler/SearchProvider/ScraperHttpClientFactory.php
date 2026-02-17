@@ -4,6 +4,7 @@ namespace App\Service\WebCrawler\SearchProvider;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpClient\CurlHttpClient;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -49,7 +50,6 @@ final class ScraperHttpClientFactory
             'max_redirects' => 5,
             'headers' => [
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Encoding' => 'gzip, deflate, br',
                 'DNT' => '1',
                 'Connection' => 'keep-alive',
                 'Upgrade-Insecure-Requests' => '1',
@@ -58,17 +58,22 @@ final class ScraperHttpClientFactory
 
         if ($this->proxyUrl !== null && $this->proxyUrl !== '') {
             $options['proxy'] = $this->proxyUrl;
+            // Increase timeout for proxy overhead (extra hop)
+            $options['timeout'] = 30;
 
             // Mask credentials for logging
             $maskedUrl = preg_replace('#://([^:]+):([^@]+)@#', '://***:***@', $this->proxyUrl);
             $this->logger->info('ScraperHttpClientFactory: proxy enabled', [
                 'proxy' => $maskedUrl,
             ]);
+
+            // Use CurlHttpClient explicitly — NativeHttpClient can't do HTTPS through HTTP proxy
+            $this->client = new CurlHttpClient($options);
         } else {
             $this->logger->debug('ScraperHttpClientFactory: no proxy configured — direct connection');
+            $this->client = HttpClient::create($options);
         }
 
-        $this->client = HttpClient::create($options);
         return $this->client;
     }
 }
