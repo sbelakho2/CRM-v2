@@ -56,15 +56,26 @@ services:
       $apiKey: '%env(GOOGLE_API_KEY)%'
       $searchEngineId: '%env(GOOGLE_SEARCH_ENGINE_ID)%'
 
+  # ── Scraper HTTP Client Binding ──
+  # Creates a proxy-aware HttpClient via factory, bound to all search engine scrapers
+  # so they route through the residential proxy (SCRAPER_PROXY_URL in .env)
+  scraper.http_client:
+    class: Symfony\Contracts\HttpClient\HttpClientInterface
+    factory: ['@App\Service\WebCrawler\SearchProvider\ScraperHttpClientFactory', 'createClient']
+
+  App\Service\WebCrawler\SearchProvider\Scraper\:
+    resource: '../src/Service/WebCrawler/SearchProvider/Scraper/'
+    exclude: '../src/Service/WebCrawler/SearchProvider/Scraper/SearchEngineScraper.php'
+    bind:
+      Symfony\Contracts\HttpClient\HttpClientInterface: '@scraper.http_client'
+
   # Search Provider Abstraction — bind interface to active search implementation
-  # Option A: Google CSE (paid, $0.005/query) — works from datacenter IPs
+  # Option A: Free multi-engine scraping via residential proxy ($0/query + proxy cost)
   App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
-    alias: App\Service\WebCrawler\SearchProvider\GoogleCSEProvider
-  # Option B: Free multi-engine scraping (Brave + DuckDuckGo, $0/query)
-  # NOTE: Disabled — all 27 scrapers fail on OVH VPS datacenter IP
-  #       (403s, CAPTCHAs, consent redirects from all search engines)
+    alias: App\Service\WebCrawler\SearchProvider\ScrapingSearchProvider
+  # Option B: Google CSE (paid, $0.005/query) — works from datacenter IPs
   # App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
-  #   alias: App\Service\WebCrawler\SearchProvider\ScrapingSearchProvider
+  #   alias: App\Service\WebCrawler\SearchProvider\GoogleCSEProvider
 
   App\Service\LlmEnrichmentService:
     arguments:
