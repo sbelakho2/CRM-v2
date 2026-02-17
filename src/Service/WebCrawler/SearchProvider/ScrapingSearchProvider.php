@@ -221,6 +221,17 @@ final class ScrapingSearchProvider implements SearchProviderInterface
             'query_optimized' => $queryNeedsOptimization,
         ]);
 
+        // If no engines available (all in cooldown), skip directly to Google CSE fallback
+        if (empty($availableEngines)) {
+            $this->logger->warning('ScrapingSearchProvider: no engines available (all in cooldown), skipping to fallback', [
+                'query' => mb_substr($query, 0, 80),
+                'total_engines' => count($this->engines),
+            ]);
+            // Jump directly to Google CSE fallback below
+            $lastError = null;
+            goto googleCseFallback;
+        }
+
         // Try each engine in priority order
         $lastError = null;
         $attemptCount = 0;
@@ -300,6 +311,7 @@ final class ScrapingSearchProvider implements SearchProviderInterface
         }
 
         // All free scraping engines exhausted — try Google CSE API as paid fallback
+        googleCseFallback:
         if ($this->enableGoogleApiFallback && $this->googleCSEProvider->isAvailable()) {
             $this->logger->notice('ScrapingSearchProvider: all free engines exhausted, falling back to Google CSE API (paid)', [
                 'query' => mb_substr($query, 0, 80),
@@ -341,11 +353,12 @@ final class ScrapingSearchProvider implements SearchProviderInterface
 
         // All engines exhausted (including Google CSE if enabled)
         $elapsed = microtime(true) - $startTime;
-        $this->logger->error('ScrapingSearchProvider: all engines failed', [
+        $this->logger->warning('ScrapingSearchProvider: all engines exhausted — returning empty', [
             'query' => mb_substr($query, 0, 80),
             'lastError' => $lastError?->getMessage(),
             'elapsed' => round($elapsed, 3),
             'google_fallback_enabled' => $this->enableGoogleApiFallback,
+            'engines_tried' => $attemptCount ?? 0,
         ]);
 
         return new SearchResultSet(
