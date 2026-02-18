@@ -2819,7 +2819,13 @@
       "total_cost": "Total Cost",
       "unit_price": "Unit Price",
       "units_to_produce": "Units to produce",
-      "upload_bom": "Upload BOM"
+      "upload_bom": "Upload BOM",
+      "board_count": "Number of Boards",
+      "board_count_hint": "BOM quantities will be multiplied by this number (e.g., qty 2 × 10 boards = 20 components)",
+      "order_multiple": "Order Multiple",
+      "order_multiple_hint": "Round each line quantity up to the nearest multiple (e.g., qty 3 → 10 if multiple is 10)",
+      "pricing_providers": "Pricing Providers",
+      "pricing_providers_hint": "Select distributors to query for pricing. Uncheck all to use every available source."
     },
     "created_at": "Created At",
     "currency": "Currency",

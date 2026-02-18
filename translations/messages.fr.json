@@ -2669,7 +2669,13 @@
       "customer_documents": "Documents Client",
       "internal_documents": "Documents Internes",
       "download_customer_excel": "Excel Client",
-      "download_full_excel": "Excel Sourcing Complet"
+      "download_full_excel": "Excel Sourcing Complet",
+      "board_count": "Nombre de cartes",
+      "board_count_hint": "Les quantités de la BOM seront multipliées par ce nombre (ex. : qté 2 × 10 cartes = 20 composants)",
+      "order_multiple": "Multiple de commande",
+      "order_multiple_hint": "Arrondir chaque ligne au multiple supérieur (ex. : qté 3 → 10 si multiple = 10)",
+      "pricing_providers": "Fournisseurs de prix",
+      "pricing_providers_hint": "Sélectionnez les distributeurs à interroger. Décochez tout pour utiliser toutes les sources."
     },
     "created_at": "Créé le",
     "currency": "Devise",

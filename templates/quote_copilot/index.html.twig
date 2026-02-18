@@ -81,13 +81,13 @@
                                 </div>
 
                                 <div class="rams-form__group">
-                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.board_count'|trans|default('Number of Boards') }}</label>
+                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.board_count'|trans }}</label>
                                     <input type="number" name="board_count" value="1" min="1" required class="rams-form__input">
-                                    <p class="rams-form__hint">{{ 'quote.copilot.board_count_hint'|trans|default('BOM quantities will be multiplied by this number (e.g., BOM qty 2 × 10 boards = 20 pieces)') }}</p>
+                                    <p class="rams-form__hint">{{ 'quote.copilot.board_count_hint'|trans }}</p>
                                 </div>
 
                                 <div class="rams-form__group">
-                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.order_multiple'|trans|default('Order Multiple') }}</label>
+                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.order_multiple'|trans }}</label>
                                     <select name="order_multiple" class="rams-form__select">
                                         <option value="1">1 (no rounding)</option>
                                         <option value="10" selected>10</option>
@@ -97,11 +97,11 @@
                                         <option value="500">500</option>
                                         <option value="1000">1000</option>
                                     </select>
-                                    <p class="rams-form__hint">{{ 'quote.copilot.order_multiple_hint'|trans|default('Round each part quantity up to this multiple (e.g. qty 3 → 10 with multiple of 10)') }}</p>
+                                    <p class="rams-form__hint">{{ 'quote.copilot.order_multiple_hint'|trans }}</p>
                                 </div>
 
                                 <div class="rams-form__group">
-                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.pricing_providers'|trans|default('Pricing Providers') }}</label>
+                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.pricing_providers'|trans }}</label>
                                     <div class="rams-checkbox-group" style="display: flex; gap: 1rem; flex-wrap: wrap;">
                                         <label class="rams-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                                             <input type="checkbox" name="providers[]" value="alibaba" checked class="rams-form__checkbox">
@@ -120,7 +120,7 @@
                                             <span>Nexar</span>
                                         </label>
                                     </div>
-                                    <p class="rams-form__hint">{{ 'quote.copilot.pricing_providers_hint'|trans|default('Select which distributors to query for pricing. Uncheck all to query all providers.') }}</p>
+                                    <p class="rams-form__hint">{{ 'quote.copilot.pricing_providers_hint'|trans }}</p>
                                 </div>
 
                                 <div class="rams-form__group">

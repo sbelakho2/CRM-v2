@@ -2669,7 +2669,13 @@
       "customer_documents": "مستندات العميل",
       "internal_documents": "المستندات الداخلية",
       "download_customer_excel": "إكسل العميل",
-      "download_full_excel": "إكسل المصادر الكامل"
+      "download_full_excel": "إكسل المصادر الكامل",
+      "board_count": "عدد اللوحات",
+      "board_count_hint": "سيتم ضرب الكميات في قائمة المواد بهذا العدد (مثال: كمية ٢ × ١٠ لوحات = ٢٠ مكوّنًا)",
+      "order_multiple": "مضاعف الطلب",
+      "order_multiple_hint": "تقريب كل كمية لأقرب مضاعف (مثال: كمية ٣ ← ١٠ إذا المضاعف ١٠)",
+      "pricing_providers": "موردو الأسعار",
+      "pricing_providers_hint": "اختر الموزعين للاستعلام عن الأسعار. ألغِ تحديد الكل لاستخدام جميع المصادر."
     },
     "created_at": "تاريخ الإنشاء",
     "currency": "العملة",
