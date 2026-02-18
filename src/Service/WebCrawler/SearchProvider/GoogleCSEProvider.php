@@ -73,7 +73,17 @@ final class GoogleCSEProvider implements SearchProviderInterface
 
     public function isAvailable(): bool
     {
-        // GoogleSearchService already validates API key + engine ID in constructor
-        return true;
+        // Verify that the underlying GoogleSearchService has valid API credentials
+        try {
+            $ref = new \ReflectionProperty($this->googleSearchService, 'apiKey');
+            $key = $ref->getValue($this->googleSearchService);
+            $ref2 = new \ReflectionProperty($this->googleSearchService, 'searchEngineId');
+            $engineId = $ref2->getValue($this->googleSearchService);
+            return !empty($key) && !empty($engineId)
+                && $key !== 'your_google_api_key_here'
+                && $engineId !== 'your_search_engine_id_here';
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

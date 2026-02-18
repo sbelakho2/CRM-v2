@@ -401,8 +401,15 @@ final class ScrapingSearchProvider implements SearchProviderInterface
         $startTime = microtime(true);
         $allResults = [];
         $seenDomains = [];
+        $engineCount = 0;
 
         foreach ($this->getAvailableEngines() as $engine) {
+            // Politeness delay between engines to avoid mass rate-limit triggers
+            if ($engineCount > 0) {
+                usleep(random_int(800_000, 1_500_000)); // 0.8–1.5s jittered delay
+            }
+            $engineCount++;
+
             try {
                 $results = $engine->scrapeResults($query, $region, $maxResults);
                 foreach ($results as $result) {

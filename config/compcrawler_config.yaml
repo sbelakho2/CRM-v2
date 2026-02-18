@@ -34,7 +34,7 @@ compcrawler:
   # ── Evidence Gate ──
   competitor_evidence_gate:
     min_families: 2
-    min_anti_families_reject: 2
+    # Rejection is handled by per-type veto_rules in the verification section below
 
   # ── Languages ──
   languages: [en, fr, de, es, it, nl, pl, cs, ar]
@@ -243,7 +243,7 @@ compcrawler:
         - { pattern: "training|education|course|tutorial", label: "education" }
         - { pattern: "research paper|academic|laboratory|university", label: "academic" }
         - { pattern: "add to cart|shop now|buy now|price:.\\$|shopping cart", label: "ecommerce" }
-        - { pattern: "cosmetic|beauty|skin care|décolletage|neck cream", label: "cosmetics" }
+        - { pattern: "cosmetic|beauty|skin care|neck cream|anti.aging|moisturis", label: "cosmetics" }
         - { pattern: "trade show|exhibition|expo|conference", require_absence: "we manufacture|our machines|our shop", label: "events" }
         - { pattern: "music festival|concert|entertainment|DJ|headlining", label: "entertainment" }
 

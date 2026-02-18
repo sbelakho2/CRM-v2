@@ -53,6 +53,38 @@ class CompetitorChangeEvent
     public const TYPE_NEW_5AXIS_CAPABILITY  = self::TYPE_NEW_5AXIS;
     public const TYPE_NEW_EDLC_CELL_SERIES  = self::TYPE_NEW_EDLC_SERIES;
 
+    // ── Valid change types (canonical set) ──
+    public const VALID_CHANGE_TYPES = [
+        self::TYPE_NEW_CERTIFICATION,
+        self::TYPE_EXPIRED_CERTIFICATION,
+        self::TYPE_NEW_FACILITY,
+        self::TYPE_FACILITY_EXPANSION,
+        self::TYPE_NEW_CAPABILITY,
+        self::TYPE_REMOVED_CAPABILITY,
+        self::TYPE_NEW_INDUSTRY_FOCUS,
+        self::TYPE_REMOVED_INDUSTRY,
+        self::TYPE_POSITIONING_SHIFT,
+        self::TYPE_HIRING_SURGE,
+        self::TYPE_NEW_EQUIPMENT,
+        self::TYPE_NEW_CUSTOMER_CLAIM,
+        self::TYPE_DOMAIN_CHANGE,
+        self::TYPE_NEW_5AXIS,
+        self::TYPE_NEW_AS9100,
+        self::TYPE_NEW_AERO_FOCUS,
+        self::TYPE_ADDED_OVERMOLDING,
+        self::TYPE_NEW_IPC_WHMA,
+        self::TYPE_NEW_IATF_CLAIM,
+        self::TYPE_NEW_EDLC_SERIES,
+        self::TYPE_NEW_LIC_LINE,
+        self::TYPE_DATASHEET_CHANGE,
+        self::TYPE_FACTORY_EXPANSION,
+        self::TYPE_WEBSITE_RESTRUCTURE,
+        self::TYPE_CAPACITY_CHANGE,
+        self::TYPE_SCORE_CHANGE,
+        self::TYPE_NEW_MATERIAL_FAMILY,
+        self::TYPE_NEW_CONNECTOR_PARTNER,
+    ];
+
     // ── Severity constants ──
     public const SEVERITY_LOW    = 'low';
     public const SEVERITY_MEDIUM = 'medium';
@@ -107,7 +139,14 @@ class CompetitorChangeEvent
     public function setCompetitor(?Competitor $competitor): self { $this->competitor = $competitor; return $this; }
 
     public function getChangeType(): ?string { return $this->changeType; }
-    public function setChangeType(string $type): self { $this->changeType = $type; return $this; }
+    public function setChangeType(string $type): self
+    {
+        if (!in_array($type, self::VALID_CHANGE_TYPES, true)) {
+            throw new \InvalidArgumentException("Invalid change type: $type");
+        }
+        $this->changeType = $type;
+        return $this;
+    }
 
     public function getSeverity(): string { return $this->severity; }
     public function setSeverity(string $severity): self

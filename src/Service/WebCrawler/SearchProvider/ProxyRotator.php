@@ -59,15 +59,15 @@ final class ProxyRotator
     }
 
     /**
-     * Load configuration from environment.
+     * Load configuration from environment via getenv() with safe defaults.
      */
     private function loadConfig(): void
     {
         // Check for paid proxy service (e.g., Bright Data, Oxylabs, etc.)
-        $this->paidProxyUrl = $_ENV['PROXY_SERVICE_URL'] ?? null;
+        $this->paidProxyUrl = getenv('PROXY_SERVICE_URL') ?: null;
 
         // Enable proxy rotation if configured or if free proxies should be used
-        $this->proxyEnabled = (bool)($_ENV['ENABLE_PROXY_ROTATION'] ?? false);
+        $this->proxyEnabled = filter_var(getenv('ENABLE_PROXY_ROTATION'), FILTER_VALIDATE_BOOLEAN);
     }
 
     /**

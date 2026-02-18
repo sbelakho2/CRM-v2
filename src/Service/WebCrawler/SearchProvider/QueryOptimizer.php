@@ -300,8 +300,9 @@ final class QueryOptimizer
         // Education
         '/\.edu(\.[a-z]{2,3})?$/i',
         '/\.ac\.[a-z]{2,3}$/i',
-        // Non-profit / charity
-        '/\.org(\.[a-z]{2,3})?$/i',
+        // Non-profit / charity – only block known non-manufacturer .org domains
+        // (blanket .org block would filter legitimate IPC.org, SMTA.org, etc.)
+        '/^(wikipedia|wikimedia|wiktionary|archive|creativecommons|mozilla|fsf|eff|aclu|redcross|unesco|amnesty|oxfam|greenpeace|peta)\./i',
         // Military
         '/\.mil(\.[a-z]{2,3})?$/i',
         // Shopping subdomains
