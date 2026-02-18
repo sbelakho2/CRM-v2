@@ -307,6 +307,17 @@ class QuoteCoPilotService
     }
 
     /**
+     * Multiply BOM quantities by board count.
+     *
+     * Used when the BOM lists per-board quantities and the user wants to order
+     * multiple boards (e.g., BOM qty=2, board_count=10 → final qty=20).
+     */
+    public function applyBoardCount(array $bomData, int $boardCount): array
+    {
+        return $this->bomParser->applyBoardCount($bomData, $boardCount);
+    }
+
+    /**
      * Process BOM through REAL PricingEngine API waterfall
      * 
      * Uses the same PricingEngine::processBOM() as the CLI command — full

@@ -91,7 +91,7 @@ class WebCrawlerController extends AbstractController
     #[Route('/discover', name: 'app_webcrawler_discover', methods: ['POST'])]
     public function discover(Request $request): JsonResponse
     {
-        set_time_limit(300);
+        set_time_limit(600);
 
         $sector = $request->request->get('sector');
         $location = $request->request->get('location');

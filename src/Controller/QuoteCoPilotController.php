@@ -121,7 +121,7 @@ class QuoteCoPilotController extends AbstractController
         // Get form parameters
         $companyId = $request->request->get('company_id');
         $shipToCountry = $request->request->get('ship_to_country');
-        $quantity = (int)$request->request->get('quantity', 100);
+        $boardCount = max(1, (int)$request->request->get('board_count', 1));
         $orderMultiple = max(1, (int)$request->request->get('order_multiple', 1));
         $incoterms = $request->request->get('incoterms', 'FCA');
         $notes = $request->request->get('notes', '');
@@ -137,7 +137,13 @@ class QuoteCoPilotController extends AbstractController
             $originalExtension = $bomFile->getClientOriginalExtension();
             $bomData = $this->copilotService->parseBom($bomFile->getPathname(), $originalExtension);
 
-            // Apply order multiple rounding (e.g., round all qtys to nearest 10)
+            // Step 1: Multiply BOM quantities by board count
+            // (e.g., BOM has qty=2 per board, user wants 10 boards → qty=20)
+            if ($boardCount > 1) {
+                $bomData = $this->copilotService->applyBoardCount($bomData, $boardCount);
+            }
+
+            // Step 2: Apply order multiple rounding (e.g., round all qtys to nearest 10)
             if ($orderMultiple > 1) {
                 $bomData = $this->copilotService->applyOrderMultiple($bomData, $orderMultiple);
             }
@@ -154,7 +160,7 @@ class QuoteCoPilotController extends AbstractController
             $quote = new Quote();
             $quote->setCompany($company);
             $quote->setShipToCountry($shipToCountry);
-            $quote->setQuantity($quantity);
+            $quote->setQuantity($boardCount);
             $quote->setIncoterms($incoterms);
             $quote->setNotes($notes);
             $quote->setStatus('draft');

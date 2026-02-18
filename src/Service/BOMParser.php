@@ -302,6 +302,36 @@ class BOMParser
     }
 
     /**
+     * Multiply BOM quantities by board count.
+     *
+     * Used when the BOM lists per-board quantities and the user wants to order
+     * multiple boards (e.g., BOM qty=2, board_count=10 → final qty=20).
+     *
+     * @param array $lines       Parsed BOM lines
+     * @param int   $boardCount  Number of boards/units to order
+     * @return array  Lines with quantities multiplied
+     */
+    public function applyBoardCount(array $lines, int $boardCount): array
+    {
+        if ($boardCount <= 1) {
+            return $lines;
+        }
+
+        foreach ($lines as &$line) {
+            $qty = $line['quantity'] ?? 1;
+            $line['quantity'] = $qty * $boardCount;
+        }
+        unset($line);
+
+        $this->logger->info('Applied board count multiplier to BOM', [
+            'board_count' => $boardCount,
+            'lines_count' => count($lines),
+        ]);
+
+        return $lines;
+    }
+
+    /**
      * Validate BOM structure and return human-readable warnings.
      */
     public function validate(array $lines): array

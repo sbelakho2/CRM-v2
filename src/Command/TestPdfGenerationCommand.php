@@ -40,6 +40,7 @@ class TestPdfGenerationCommand extends Command
             ->addOption('margin', 'm', InputOption::VALUE_OPTIONAL, 'Margin percentage', '25')
             ->addOption('company', null, InputOption::VALUE_OPTIONAL, 'Company name for quote', 'Acme Electronics Ltd')
             ->addOption('issuer', null, InputOption::VALUE_OPTIONAL, 'Issuing company: starz_morocco, starz_electronics, starz_energies', 'starz_morocco')
+            ->addOption('board-count', 'b', InputOption::VALUE_OPTIONAL, 'Number of boards - multiplies BOM quantities (e.g. BOM qty 2 × 10 boards = 20)', '1')
             ->addOption('order-multiple', null, InputOption::VALUE_OPTIONAL, 'Round quantities to this multiple (e.g. 10)', '1')
             ->setHelp('Full pipeline test: parse BOM → price via waterfall → generate PDF document');
     }
@@ -52,6 +53,7 @@ class TestPdfGenerationCommand extends Command
         $marginPercent = (float) $input->getOption('margin');
         $companyName = $input->getOption('company');
         $issuerKey = $input->getOption('issuer');
+        $boardCount = max(1, (int) $input->getOption('board-count'));
         $orderMultiple = max(1, (int) $input->getOption('order-multiple'));
 
         if (!file_exists($filePath)) {
@@ -66,6 +68,10 @@ class TestPdfGenerationCommand extends Command
         try {
             $bomLines = $this->bomParser->parse($filePath);
             $bomLines = $this->bomParser->consolidate($bomLines);
+            if ($boardCount > 1) {
+                $bomLines = $this->bomParser->applyBoardCount($bomLines, $boardCount);
+                $io->text(sprintf('Board count: %d (BOM quantities multiplied)', $boardCount));
+            }
             if ($orderMultiple > 1) {
                 $bomLines = $this->bomParser->applyOrderMultiple($bomLines, $orderMultiple);
                 $io->text(sprintf('Order multiple: %d (all quantities rounded up)', $orderMultiple));

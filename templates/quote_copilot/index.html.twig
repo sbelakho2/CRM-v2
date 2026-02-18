@@ -81,9 +81,9 @@
                                 </div>
 
                                 <div class="rams-form__group">
-                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.assembly_quantity'|trans }}</label>
-                                    <input type="number" name="quantity" value="100" min="1" required class="rams-form__input">
-                                    <p class="rams-form__hint">{{ 'quote.copilot.assembly_quantity_hint'|trans }}</p>
+                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.board_count'|trans|default('Number of Boards') }}</label>
+                                    <input type="number" name="board_count" value="1" min="1" required class="rams-form__input">
+                                    <p class="rams-form__hint">{{ 'quote.copilot.board_count_hint'|trans|default('BOM quantities will be multiplied by this number (e.g., BOM qty 2 × 10 boards = 20 pieces)') }}</p>
                                 </div>
 
                                 <div class="rams-form__group">
