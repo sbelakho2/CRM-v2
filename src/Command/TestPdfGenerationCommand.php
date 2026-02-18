@@ -42,6 +42,7 @@ class TestPdfGenerationCommand extends Command
             ->addOption('issuer', null, InputOption::VALUE_OPTIONAL, 'Issuing company: starz_morocco, starz_electronics, starz_energies', 'starz_morocco')
             ->addOption('board-count', 'b', InputOption::VALUE_OPTIONAL, 'Number of boards - multiplies BOM quantities (e.g. BOM qty 2 × 10 boards = 20)', '1')
             ->addOption('order-multiple', null, InputOption::VALUE_OPTIONAL, 'Round quantities to this multiple (e.g. 10)', '1')
+            ->addOption('providers', 'p', InputOption::VALUE_OPTIONAL, 'Comma-separated list of providers to use (alibaba,mouser,digikey,nexar)', '')
             ->setHelp('Full pipeline test: parse BOM → price via waterfall → generate PDF document');
     }
 
@@ -55,6 +56,15 @@ class TestPdfGenerationCommand extends Command
         $issuerKey = $input->getOption('issuer');
         $boardCount = max(1, (int) $input->getOption('board-count'));
         $orderMultiple = max(1, (int) $input->getOption('order-multiple'));
+        
+        // Parse providers option
+        $providersStr = $input->getOption('providers');
+        $providers = [];
+        if (!empty($providersStr)) {
+            $validProviders = ['alibaba', 'mouser', 'digikey', 'nexar'];
+            $providers = array_filter(array_map('trim', explode(',', strtolower($providersStr))));
+            $providers = array_intersect($providers, $validProviders);
+        }
 
         if (!file_exists($filePath)) {
             $io->error("File not found: {$filePath}");
@@ -83,9 +93,10 @@ class TestPdfGenerationCommand extends Command
         }
 
         // ── Step 2: Price via Waterfall ────────────────────────────────────
-        $io->section('2. Pricing Waterfall (Alibaba → Mouser → DigiKey → Nexar → AI)');
+        $providerLabel = empty($providers) ? 'All' : implode(', ', array_map('ucfirst', $providers));
+        $io->section(sprintf('2. Pricing Waterfall (%s)', $providerLabel));
         try {
-            $result = $this->pricingEngine->processBOM($bomLines);
+            $result = $this->pricingEngine->processBOM($bomLines, ['providers' => $providers]);
             $stats = $result['stats'];
             $io->success(sprintf(
                 'Sourced %d/%d parts (%.0f%% coverage) — Total: $%.2f',

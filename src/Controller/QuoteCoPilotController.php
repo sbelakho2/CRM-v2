@@ -126,6 +126,15 @@ class QuoteCoPilotController extends AbstractController
         $incoterms = $request->request->get('incoterms', 'FCA');
         $notes = $request->request->get('notes', '');
         $issuingCompany = $request->request->get('issuing_company', IssuingCompanyService::DEFAULT_COMPANY);
+        
+        // Parse providers checkboxes (array of selected providers)
+        $providers = $request->request->all('providers');
+        if (!is_array($providers)) {
+            $providers = [];
+        }
+        // Filter to only valid provider names
+        $validProviders = ['alibaba', 'mouser', 'digikey', 'nexar'];
+        $providers = array_intersect($providers, $validProviders);
 
         if (!$companyId || !$shipToCountry) {
             $this->addFlash('error', 'Please select a company and destination country');
@@ -172,7 +181,9 @@ class QuoteCoPilotController extends AbstractController
             $this->entityManager->flush(); // Get quote ID
 
             // Process BOM through pricing service
-            $result = $this->copilotService->processBom($bomData, $quote->getId());
+            $result = $this->copilotService->processBom($bomData, $quote->getId(), [
+                'providers' => $providers,
+            ]);
 
             // Add success flash message
             $this->addFlash('success', sprintf(

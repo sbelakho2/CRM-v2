@@ -101,6 +101,29 @@
                                 </div>
 
                                 <div class="rams-form__group">
+                                    <label class="rams-form__label rams-dymo">{{ 'quote.copilot.pricing_providers'|trans|default('Pricing Providers') }}</label>
+                                    <div class="rams-checkbox-group" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                                        <label class="rams-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                            <input type="checkbox" name="providers[]" value="alibaba" checked class="rams-form__checkbox">
+                                            <span>Alibaba</span>
+                                        </label>
+                                        <label class="rams-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                            <input type="checkbox" name="providers[]" value="mouser" checked class="rams-form__checkbox">
+                                            <span>Mouser</span>
+                                        </label>
+                                        <label class="rams-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                            <input type="checkbox" name="providers[]" value="digikey" checked class="rams-form__checkbox">
+                                            <span>DigiKey</span>
+                                        </label>
+                                        <label class="rams-checkbox-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                            <input type="checkbox" name="providers[]" value="nexar" checked class="rams-form__checkbox">
+                                            <span>Nexar</span>
+                                        </label>
+                                    </div>
+                                    <p class="rams-form__hint">{{ 'quote.copilot.pricing_providers_hint'|trans|default('Select which distributors to query for pricing. Uncheck all to query all providers.') }}</p>
+                                </div>
+
+                                <div class="rams-form__group">
                                     <label class="rams-form__label rams-dymo">{{ 'quote.copilot.incoterms_label'|trans }}</label>
                                     <select name="incoterms" class="rams-form__select">
                                         <option value="FCA">{{ 'quote.copilot.incoterms.fca'|trans }}</option>

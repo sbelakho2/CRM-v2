@@ -56,15 +56,21 @@ class PricingEngine
      * @param string $mpn The manufacturer part number
      * @param string|null $manufacturer The manufacturer name (optional but improves matching)
      * @param string|null $description The part description (optional but improves confidence)
+     * @param array $options Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
      * 
      * @return array|null ['mpn', 'manufacturer', 'description', 'pricing', 'stock', 'source', 
      *                     'confidence', 'alternatives', 'lifecycle_warning', 'search_url', 
      *                     'waterfall_info']
      */
-    public function getPricing(string $mpn, ?string $manufacturer = null, ?string $description = null): ?array
+    public function getPricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
     {
+        $allowedProviders = $options['providers'] ?? [];
+        $useNexar = empty($allowedProviders) || in_array('nexar', $allowedProviders, true);
+        
         // Use multi-distributor service for intelligent waterfall
-        $multiResult = $this->multiDistributor->searchPart($mpn, $manufacturer, $description);
+        $multiResult = $this->multiDistributor->searchPart($mpn, $manufacturer, $description, [
+            'providers' => $allowedProviders,
+        ]);
         
         if ($multiResult && $multiResult['selected']) {
             $result = $multiResult['selected'];
@@ -97,22 +103,24 @@ class PricingEngine
         }
         
         // If multi-distributor service didn't find anything, try Nexar as last resort
-        $result = $this->nexarClient->searchByPartNumber($mpn);
-        
-        if ($result) {
-            $result['source'] = 'nexar';
-            $result['alternatives'] = [];
-            $result['waterfall_info'] = [
-                'triggered' => true,
-                'reason' => 'Fallback to Nexar aggregator after Alibaba, Mouser and DigiKey failed',
-                'sources_checked' => ['alibaba', 'mouser', 'digikey', 'nexar'],
-            ];
+        if ($useNexar) {
+            $result = $this->nexarClient->searchByPartNumber($mpn);
             
-            $this->logger->info('Nexar fallback pricing found', [
-                'mpn' => $mpn,
-                'confidence' => $result['confidence']['level'] ?? 'N/A'
-            ]);
-            return $result;
+            if ($result) {
+                $result['source'] = 'nexar';
+                $result['alternatives'] = [];
+                $result['waterfall_info'] = [
+                    'triggered' => true,
+                    'reason' => 'Fallback to Nexar aggregator after Alibaba, Mouser and DigiKey failed',
+                    'sources_checked' => ['alibaba', 'mouser', 'digikey', 'nexar'],
+                ];
+                
+                $this->logger->info('Nexar fallback pricing found', [
+                    'mpn' => $mpn,
+                    'confidence' => $result['confidence']['level'] ?? 'N/A'
+                ]);
+                return $result;
+            }
         }
         
         // Last resort: AI-powered price imputation
@@ -213,10 +221,12 @@ class PricingEngine
      * - Direct search URLs for verification
      * 
      * @param array $bomLines Array from BOMParser
+     * @param array $options Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
      * @return array ['lines' => processed lines, 'stats' => statistics, 'reviewRequired' => bool]
      */
-    public function processBOM(array $bomLines): array
+    public function processBOM(array $bomLines, array $options = []): array
     {
+        $allowedProviders = $options['providers'] ?? [];
         $processedLines = [];
         $stats = [
             'total_lines' => count($bomLines),
@@ -276,7 +286,8 @@ class PricingEngine
             $pricing = $this->getPricing(
                 $line['mpn'], 
                 $line['manufacturer'] ?? null,
-                $line['description'] ?? null
+                $line['description'] ?? null,
+                ['providers' => $allowedProviders]
             );
             
             // ── Alt-MPN primary fallback ──
@@ -291,10 +302,11 @@ class PricingEngine
                         'alt_mpn' => $fallbackAltMpn,
                     ]);
                     
-                    $pricing = $this->getPricing($fallbackAltMpn, null, $line['description'] ?? null);
+                    $pricing = $this->getPricing($fallbackAltMpn, null, $line['description'] ?? null, ['providers' => $allowedProviders]);
                     
-                    // Also try DigiKey directly for the alt MPN
-                    if (!$pricing) {
+                    // Also try DigiKey directly for the alt MPN (if digikey allowed)
+                    $useDigikey = empty($allowedProviders) || in_array('digikey', $allowedProviders, true);
+                    if (!$pricing && $useDigikey) {
                         try {
                             $dkFallback = $this->digikeyClient->searchByPartNumber($fallbackAltMpn);
                             if ($dkFallback) {
@@ -421,12 +433,14 @@ class PricingEngine
                     ]);
                     
                     // Strategy A: Full waterfall search for alt MPN
-                    $altPricing = $this->getPricing($altMpn, null, $line['description'] ?? null);
+                    $altPricing = $this->getPricing($altMpn, null, $line['description'] ?? null, ['providers' => $allowedProviders]);
                     $altUnitPrice = $altPricing ? $this->calculateUnitPrice($altPricing['pricing'], $effectiveQty) : 0;
                     
-                    // Strategy B: Direct DigiKey search for alt MPN
+                    // Strategy B: Direct DigiKey search for alt MPN (if digikey allowed)
                     // (waterfall may miss DigiKey if Alibaba scores well)
-                    try {
+                    $useDigikeyForAlt = empty($allowedProviders) || in_array('digikey', $allowedProviders, true);
+                    if ($useDigikeyForAlt) {
+                        try {
                         $digiKeyAlt = $this->digikeyClient->searchByPartNumber($altMpn);
                         if ($digiKeyAlt) {
                             $dkAltPrice = $this->calculateUnitPrice($digiKeyAlt['pricing'] ?? [], $effectiveQty);
@@ -443,9 +457,10 @@ class PricingEngine
                     } catch (\Exception $e) {
                         // DigiKey direct search failed, continue with waterfall result
                     }
+                    } // end if ($useDigikeyForAlt)
                     
                     // Also try DigiKey directly for the PRIMARY MPN if currently using Alibaba
-                    if (($processedLine['source'] ?? '') === 'alibaba' && $unitPrice > 0.01) {
+                    if ($useDigikeyForAlt && ($processedLine['source'] ?? '') === 'alibaba' && $unitPrice > 0.01) {
                         try {
                             $dkPrimary = $this->digikeyClient->searchByPartNumber($line['mpn']);
                             if ($dkPrimary) {

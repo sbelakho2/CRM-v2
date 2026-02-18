@@ -326,6 +326,7 @@ class QuoteCoPilotService
      * 
      * @param array $bomData - Parsed BOM data (from BOMParser::parse())
      * @param int $quoteId - Quote ID
+     * @param array $options - Options: ['providers' => ['alibaba','mouser','digikey','nexar']]
      * 
      * @return array{
      *   coverage: float,
@@ -335,7 +336,7 @@ class QuoteCoPilotService
      *   stats: array
      * }
      */
-    public function processBom(array $bomData, int $quoteId): array
+    public function processBom(array $bomData, int $quoteId, array $options = []): array
     {
         $quote = $this->quoteRepository->find($quoteId);
         if (!$quote) {
@@ -346,7 +347,7 @@ class QuoteCoPilotService
         $bomLines = $this->bomParser->consolidate($bomData);
 
         // ── Run the REAL PricingEngine waterfall ──
-        $result = $this->pricingEngine->processBOM($bomLines);
+        $result = $this->pricingEngine->processBOM($bomLines, $options);
         $processedLines = $result['lines'];
         $stats = $result['stats'];
 

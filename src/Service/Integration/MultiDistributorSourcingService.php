@@ -41,7 +41,7 @@ class MultiDistributorSourcingService
      * @param string $partNumber The MPN to search for
      * @param string|null $manufacturer Optional manufacturer name
      * @param string|null $description Optional description
-     * @param array $options Options: ['skip_waterfall' => false, 'force_all' => false]
+     * @param array $options Options: ['skip_waterfall' => false, 'force_all' => false, 'providers' => ['alibaba','mouser','digikey','nexar']]
      * 
      * @return array{
      *   selected: array|null,
@@ -60,6 +60,11 @@ class MultiDistributorSourcingService
     ): array {
         $skipWaterfall = $options['skip_waterfall'] ?? false;
         $forceAll = $options['force_all'] ?? false;
+        // Allowed providers - empty/null means all
+        $allowedProviders = $options['providers'] ?? [];
+        $useAlibaba = empty($allowedProviders) || in_array('alibaba', $allowedProviders, true);
+        $useMouser = empty($allowedProviders) || in_array('mouser', $allowedProviders, true);
+        $useDigikey = empty($allowedProviders) || in_array('digikey', $allowedProviders, true);
         
         $result = [
             'selected' => null,
@@ -71,14 +76,20 @@ class MultiDistributorSourcingService
         ];
         
         // Step 1: Try Alibaba first (factory-direct pricing)
-        $alibabaResult = $this->tryAlibaba($partNumber, $manufacturer, $description);
-        
-        if ($alibabaResult) {
-            $result['all_sources'][self::SOURCE_ALIBABA] = $alibabaResult;
+        $alibabaResult = null;
+        if ($useAlibaba) {
+            $alibabaResult = $this->tryAlibaba($partNumber, $manufacturer, $description);
+            
+            if ($alibabaResult) {
+                $result['all_sources'][self::SOURCE_ALIBABA] = $alibabaResult;
+            }
         }
         
         // Step 2: Try Mouser (authorized distributor)
-        $mouserResult = $this->tryMouser($partNumber, $manufacturer, $description);
+        $mouserResult = null;
+        if ($useMouser) {
+            $mouserResult = $this->tryMouser($partNumber, $manufacturer, $description);
+        }
         
         if ($mouserResult) {
             $result['all_sources'][self::SOURCE_MOUSER] = $mouserResult;
@@ -114,8 +125,8 @@ class MultiDistributorSourcingService
             $result['waterfall_reason'] = 'No result from Mouser - continuing waterfall';
         }
         
-        // Step 3: Try DigiKey if waterfall triggered
-        if ($result['waterfall_triggered']) {
+        // Step 3: Try DigiKey if waterfall triggered AND digikey is allowed
+        if ($result['waterfall_triggered'] && $useDigikey) {
             $digiKeyResult = $this->tryDigiKey($partNumber, $manufacturer, $description);
             
             if ($digiKeyResult) {
