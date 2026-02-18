@@ -318,6 +318,9 @@ class CompProfileCrawlerService
             if ($proxyUrl !== null) {
                 $curlOpts[CURLOPT_PROXY] = $proxyUrl;
                 $curlOpts[CURLOPT_TIMEOUT] = 45; // Extra time for proxy hop
+                // Proxy tunnel handles SSL — relax verification for sites with bad certs
+                $curlOpts[CURLOPT_SSL_VERIFYPEER] = false;
+                $curlOpts[CURLOPT_SSL_VERIFYHOST] = 0;
             }
 
             curl_setopt_array($ch, $curlOpts);
@@ -414,6 +417,9 @@ class CompProfileCrawlerService
             if ($retryProxyUrl !== null) {
                 $curlOpts[CURLOPT_PROXY] = $retryProxyUrl;
                 $curlOpts[CURLOPT_TIMEOUT] = 45;
+                // Proxy tunnel handles SSL — relax verification for sites with bad certs
+                $curlOpts[CURLOPT_SSL_VERIFYPEER] = false;
+                $curlOpts[CURLOPT_SSL_VERIFYHOST] = 0;
             }
 
             curl_setopt_array($ch, $curlOpts);

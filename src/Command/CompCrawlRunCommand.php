@@ -324,13 +324,7 @@ HELP
             $meta = $this->crawler->getCachedMeta($competitor);
             $pagesChanged = $meta['pages_changed'] ?? 0;
 
-            // Only re-crawl if no cache exists
-            if (empty($content)) {
-                $crawlResult = $this->crawler->shallowCrawl($competitor);
-                $content = $crawlResult['content'] ?? [];
-                $pagesChanged = $crawlResult['pages_changed'] ?? 0;
-            }
-
+            // Skip competitors without cache — run crawl phase first
             if (empty($content)) {
                 $io->progressAdvance();
                 continue;
