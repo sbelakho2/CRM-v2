@@ -654,4 +654,12 @@ class BomLine
 
         return (int) $stock;
     }
+
+    /**
+     * Alias for getStock() - compatibility with QuoteWinPredictorService
+     */
+    public function getStockQuantity(): ?int
+    {
+        return $this->getStock();
+    }
 }

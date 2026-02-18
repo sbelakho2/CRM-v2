@@ -566,4 +566,31 @@ class Company
         $this->googleDriveLink = $googleDriveLink;
         return $this;
     }
+
+    /**
+     * Get annual revenue (stub for QuoteWinPredictorService compatibility)
+     * Returns null to use default scoring - revenue tracking not yet implemented
+     */
+    public function getAnnualRevenue(): ?float
+    {
+        return null;
+    }
+
+    /**
+     * Get employee count (stub for QuoteWinPredictorService compatibility)
+     * Returns null to use default scoring - employee tracking not yet implemented
+     */
+    public function getEmployeeCount(): ?int
+    {
+        return null;
+    }
+
+    /**
+     * Get industry (stub for QuoteWinPredictorService compatibility)
+     * Returns null to use default scoring - industry tracking not yet implemented
+     */
+    public function getIndustry(): ?string
+    {
+        return null;
+    }
 }
