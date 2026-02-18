@@ -23,8 +23,10 @@ use Symfony\Contracts\Cache\ItemInterface;
 class MouserApiClient
 {
     private const BASE_URL = 'https://api.mouser.com/api/v1';
-    private const RATE_LIMIT_DELAY = 100000; // 100ms between requests (10 req/sec)
+    private const RATE_LIMIT_DELAY = 1000000; // 1s between requests (1 req/sec) — prevents 403 throttling
     private const MAX_ALTERNATIVES = 3; // Store top 3 alternatives
+    private const MAX_VARIANT_ATTEMPTS = 5; // Max MPN variants to try before giving up
+    private const RATE_LIMIT_BACKOFF = 5.0; // Seconds to wait after a 403 rate limit
     
     // Lifecycle statuses that require warnings
     public const LIFECYCLE_WARNING = ['nrnd', 'not recommended for new design', 'end of life', 'eol', 'last time buy', 'ltb'];
@@ -32,6 +34,8 @@ class MouserApiClient
     
     private float $lastRequestTime = 0;
     private bool $apiKeyInvalid = false; // Fail-fast: stop trying after first invalid key error
+    private float $rateLimitedUntil = 0; // Timestamp: pause all requests until this time
+    private int $consecutiveRateLimits = 0; // Escalating backoff counter
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -53,6 +57,14 @@ class MouserApiClient
      * 
      * @return array|null Returns part data with 'confidence' array and 'alternatives' included
      */
+    /**
+     * Check whether the API is currently rate-limited (after a 403).
+     */
+    public function isRateLimited(): bool
+    {
+        return microtime(true) < $this->rateLimitedUntil;
+    }
+
     public function searchByPartNumber(
         string $partNumber,
         ?string $manufacturer = null,
@@ -72,13 +84,17 @@ class MouserApiClient
             // Try exact search first
             $searchResult = $this->executePartSearchWithAlternatives($partNumber);
             
-            // If no results and variants enabled, try variants
-            if ($searchResult === null && $tryVariants) {
+            // If no results, rate-limit check, and variants enabled, try variants
+            if ($searchResult === null && $tryVariants && !$this->isRateLimited()) {
                 $variants = $this->confidenceCalculator->generateMpnVariants($partNumber);
+                $attemptCount = 0;
                 foreach ($variants as $variant) {
                     if ($variant === $partNumber) continue;
+                    if ($attemptCount >= self::MAX_VARIANT_ATTEMPTS) break;
+                    if ($this->isRateLimited()) break; // Stop if we hit rate limit
                     
                     $searchResult = $this->executePartSearchWithAlternatives($variant);
+                    $attemptCount++;
                     if ($searchResult !== null) {
                         $this->logger->info('Found part using MPN variant', [
                             'original' => $partNumber,
@@ -92,7 +108,7 @@ class MouserApiClient
             // ── Keyword search fallback ──
             // Part number search uses mouserPartNumber field which is very strict.
             // Keyword search is broader and can find parts by description fragments.
-            if ($searchResult === null) {
+            if ($searchResult === null && !$this->isRateLimited()) {
                 $searchResult = $this->keywordFallbackSearch($partNumber, $manufacturer, $description);
                 if ($searchResult !== null) {
                     $this->logger->info('Found part using keyword fallback search', [
@@ -102,7 +118,13 @@ class MouserApiClient
             }
             
             if ($searchResult === null) {
-                $item->expiresAfter(300); // Cache misses only 5 minutes
+                if ($this->isRateLimited()) {
+                    // Don't cache rate-limited nulls — retry immediately on next call
+                    $item->expiresAfter(1);
+                    $this->logger->info('Not caching rate-limited miss', ['mpn' => $partNumber]);
+                } else {
+                    $item->expiresAfter(300); // Cache genuine misses only 5 minutes
+                }
                 return null;
             }
             
@@ -161,7 +183,7 @@ class MouserApiClient
      */
     private function keywordFallbackSearch(string $partNumber, ?string $manufacturer, ?string $description): ?array
     {
-        if ($this->apiKeyInvalid) {
+        if ($this->apiKeyInvalid || $this->isRateLimited()) {
             return null;
         }
         
@@ -206,7 +228,7 @@ class MouserApiClient
         // Try the top 3 candidates via full part search
         $tried = 0;
         foreach ($scored as $candidate) {
-            if ($tried >= 3) break;
+            if ($tried >= 3 || $this->isRateLimited()) break;
             $candidateMpn = $candidate['kw']['mpn'] ?? '';
             if (empty($candidateMpn)) continue;
             
@@ -279,6 +301,9 @@ class MouserApiClient
 
             $data = $response->toArray();
             
+            // Successful response — reset rate-limit counter
+            $this->consecutiveRateLimits = 0;
+            
             if (isset($data['Errors']) && !empty($data['Errors'])) {
                 // Detect invalid API key — fail-fast for all subsequent calls
                 foreach ($data['Errors'] as $err) {
@@ -323,10 +348,22 @@ class MouserApiClient
             ];
             
         } catch (\Exception $e) {
-            $this->logger->error('Mouser API request failed', [
-                'part_number' => $partNumber,
-                'error' => $e->getMessage()
-            ]);
+            // Detect HTTP 403 — Mouser rate limit
+            if (str_contains($e->getMessage(), '403')) {
+                $this->consecutiveRateLimits++;
+                $backoff = self::RATE_LIMIT_BACKOFF * $this->consecutiveRateLimits;
+                $this->rateLimitedUntil = microtime(true) + $backoff;
+                $this->logger->warning('Mouser API rate-limited (403) — backing off', [
+                    'part_number' => $partNumber,
+                    'backoff_seconds' => $backoff,
+                    'consecutive_403s' => $this->consecutiveRateLimits,
+                ]);
+            } else {
+                $this->logger->error('Mouser API request failed', [
+                    'part_number' => $partNumber,
+                    'error' => $e->getMessage()
+                ]);
+            }
             return null;
         }
     }
@@ -469,6 +506,10 @@ class MouserApiClient
      */
     public function searchByKeyword(string $keyword, int $records = 10): array
     {
+        if ($this->apiKeyInvalid) {
+            return [];
+        }
+        
         $this->respectRateLimit();
         
         try {
@@ -490,6 +531,10 @@ class MouserApiClient
             ]);
 
             $data = $response->toArray();
+            
+            // Successful response — reset rate-limit counter
+            $this->consecutiveRateLimits = 0;
+            
             $parts = $data['SearchResults']['Parts'] ?? [];
             
             return array_map(function($part) {
@@ -502,10 +547,21 @@ class MouserApiClient
             }, $parts);
             
         } catch (\Exception $e) {
-            $this->logger->error('Mouser keyword search failed', [
-                'keyword' => $keyword,
-                'error' => $e->getMessage()
-            ]);
+            // Detect HTTP 403 — rate limit
+            if (str_contains($e->getMessage(), '403')) {
+                $this->consecutiveRateLimits++;
+                $backoff = self::RATE_LIMIT_BACKOFF * $this->consecutiveRateLimits;
+                $this->rateLimitedUntil = microtime(true) + $backoff;
+                $this->logger->warning('Mouser keyword search rate-limited (403) — backing off', [
+                    'keyword' => $keyword,
+                    'backoff_seconds' => $backoff,
+                ]);
+            } else {
+                $this->logger->error('Mouser keyword search failed', [
+                    'keyword' => $keyword,
+                    'error' => $e->getMessage()
+                ]);
+            }
             return [];
         }
     }
@@ -612,6 +668,18 @@ class MouserApiClient
 
     private function respectRateLimit(): void
     {
+        $now = microtime(true);
+        
+        // If rate-limited from a 403, wait until backoff expires
+        if ($now < $this->rateLimitedUntil) {
+            $waitSeconds = $this->rateLimitedUntil - $now;
+            $this->logger->info('Waiting for Mouser rate-limit backoff', [
+                'wait_seconds' => round($waitSeconds, 1),
+            ]);
+            usleep((int)($waitSeconds * 1000000));
+        }
+        
+        // Normal rate limiting between requests
         $now = microtime(true);
         $timeSinceLastRequest = ($now - $this->lastRequestTime) * 1000000;
         

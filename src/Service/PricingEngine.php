@@ -65,7 +65,8 @@ class PricingEngine
     public function getPricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
     {
         $allowedProviders = $options['providers'] ?? [];
-        $useNexar = empty($allowedProviders) || in_array('nexar', $allowedProviders, true);
+        // Nexar disabled by default — Mouser-only mode
+        $useNexar = in_array('nexar', $allowedProviders, true);
         
         // Use multi-distributor service for intelligent waterfall
         $multiResult = $this->multiDistributor->searchPart($mpn, $manufacturer, $description, [
@@ -322,8 +323,8 @@ class PricingEngine
                     
                     $pricing = $this->getPricing($fallbackAltMpn, null, $line['description'] ?? null, ['providers' => $allowedProviders]);
                     
-                    // Also try DigiKey directly for the alt MPN (if digikey allowed)
-                    $useDigikey = empty($allowedProviders) || in_array('digikey', $allowedProviders, true);
+                    // Also try DigiKey directly for the alt MPN (if digikey explicitly allowed)
+                    $useDigikey = in_array('digikey', $allowedProviders, true);
                     if (!$pricing && $useDigikey) {
                         try {
                             $dkFallback = $this->digikeyClient->searchByPartNumber($fallbackAltMpn);

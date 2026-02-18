@@ -8,13 +8,13 @@ use Psr\Log\LoggerInterface;
 /**
  * Multi-Distributor Sourcing Service
  * 
- * Implements a "waterfall" approach to part sourcing:
- * 1. Try Alibaba first (factory-direct, best bulk pricing)
- * 2. Try Mouser (authorized distributor, reliable stock)
- * 3. If confidence < threshold OR stock = 0, try DigiKey
- * 4. Aggregate results and select best overall match
+ * Mouser-only sourcing with smart fallback strategies:
+ * 1. Try Mouser part-number search (authorized distributor, reliable stock)
+ * 2. If not found → Smart fallback (cleaned MPN, base MPN, keyword search)
+ * 3. Aggregate results and select best overall match
  * 
- * This prevents single-distributor dependency and improves sourcing success rate.
+ * Alibaba and DigiKey are available but disabled by default.
+ * Pass ['providers' => ['alibaba','mouser','digikey']] to enable them.
  */
 class MultiDistributorSourcingService
 {
@@ -62,9 +62,10 @@ class MultiDistributorSourcingService
         $forceAll = $options['force_all'] ?? false;
         // Allowed providers - empty/null means all
         $allowedProviders = $options['providers'] ?? [];
-        $useAlibaba = empty($allowedProviders) || in_array('alibaba', $allowedProviders, true);
+        // Mouser-only by default — Alibaba/DigiKey require explicit opt-in
+        $useAlibaba = in_array('alibaba', $allowedProviders, true);
         $useMouser = empty($allowedProviders) || in_array('mouser', $allowedProviders, true);
-        $useDigikey = empty($allowedProviders) || in_array('digikey', $allowedProviders, true);
+        $useDigikey = in_array('digikey', $allowedProviders, true);
         
         $result = [
             'selected' => null,
@@ -268,7 +269,7 @@ class MultiDistributorSourcingService
     ): ?array {
         // ── Strategy 1: Cleaned MPN ──
         $cleaned = $this->cleanMpnForSearch($partNumber);
-        if ($cleaned !== $partNumber) {
+        if ($cleaned !== $partNumber && !$this->mouserClient->isRateLimited()) {
             $result = $this->tryFallbackMpn($cleaned, $manufacturer, $description, $useMouser, $useDigikey);
             if ($result) {
                 $result['_fallback_method'] = 'cleaned_mpn';
@@ -280,7 +281,7 @@ class MultiDistributorSourcingService
 
         // ── Strategy 2: Base MPN (strip packaging suffixes) ──
         $baseMpn = $this->extractBaseMpn($partNumber);
-        if ($baseMpn && $baseMpn !== $partNumber && $baseMpn !== $cleaned) {
+        if ($baseMpn && $baseMpn !== $partNumber && $baseMpn !== $cleaned && !$this->mouserClient->isRateLimited()) {
             $result = $this->tryFallbackMpn($baseMpn, $manufacturer, $description, $useMouser, $useDigikey);
             if ($result) {
                 $result['_fallback_method'] = 'base_mpn';
@@ -291,7 +292,7 @@ class MultiDistributorSourcingService
         }
 
         // ── Strategy 3: Mouser keyword search with raw MPN ──
-        if ($useMouser) {
+        if ($useMouser && !$this->mouserClient->isRateLimited()) {
             $result = $this->tryMouserKeywordFallback($partNumber, $manufacturer, $description);
             if ($result) {
                 $result['_fallback_method'] = 'keyword_search';
@@ -301,7 +302,7 @@ class MultiDistributorSourcingService
         }
 
         // ── Strategy 4: Description-based keyword search ──
-        if ($useMouser && $description && strlen($description) > 5) {
+        if ($useMouser && $description && strlen($description) > 5 && !$this->mouserClient->isRateLimited()) {
             // Build a targeted keyword from description: e.g. "100nF 0603 X7R" → "100nF 0603 X7R capacitor"
             $descKeyword = $this->buildDescriptionKeyword($description, $manufacturer);
             if ($descKeyword) {
@@ -316,7 +317,7 @@ class MultiDistributorSourcingService
         }
 
         // ── Strategy 5: Manufacturer + base MPN keyword search ──
-        if ($useMouser && $manufacturer && $baseMpn) {
+        if ($useMouser && $manufacturer && $baseMpn && !$this->mouserClient->isRateLimited()) {
             $result = $this->tryMouserKeywordFallback($manufacturer . ' ' . $baseMpn, $manufacturer, $description);
             if ($result) {
                 $result['_fallback_method'] = 'mfr_keyword_search';

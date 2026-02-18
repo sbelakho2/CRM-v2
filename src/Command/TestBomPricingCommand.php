@@ -82,7 +82,7 @@ class TestBomPricingCommand extends Command
 
         // Process through pricing APIs
         $io->section('2. Processing through API Waterfall');
-        $io->text('Testing Alibaba → Mouser → DigiKey → Nexar → AI Imputation...');
+        $io->text('Testing Mouser → Smart Fallback (keyword, cleaned MPN, base MPN)...');
         
         try {
             $result = $this->pricingEngine->processBOM($bomLines);

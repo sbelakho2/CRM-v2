@@ -481,17 +481,8 @@ class PartMatchConfidenceCalculator
             $variants[] = $normalized;
         }
         
-        // Try with common separators
-        $separators = ['-', ' ', '/', '.'];
-        foreach ($separators as $sep) {
-            // Insert separator at likely positions (before numbers after letters, etc.)
-            $variant = preg_replace('/([a-zA-Z])(\d)/', '$1' . $sep . '$2', $mpn);
-            if ($variant !== $mpn) {
-                $variants[] = $variant;
-            }
-        }
-        
-        // Remove common ordering/packaging suffixes
+        // ── HIGH-VALUE: Remove common ordering/packaging suffixes first ──
+        // These are the most likely to find the correct part
         $suffixes = [
             '-TR', '-ND', '-CT', '-PBF', 'PBF', '-1', '-2', '-3', 'TR', 'ND', 'CT',
             '-DKR', '-1-ND', '-2-ND', '-3-ND', '-6-ND', '#PBF', '/TR', '-TRAY',
@@ -590,6 +581,8 @@ class PartMatchConfidenceCalculator
             $variants[] = $noSpace;
         }
         
-        return array_unique($variants);
+        // Cap total variants to avoid API rate-limit issues (each variant = 1 API call)
+        $unique = array_unique($variants);
+        return array_slice($unique, 0, 8);
     }
 }
