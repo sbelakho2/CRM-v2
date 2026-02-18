@@ -66,7 +66,7 @@ class CompIntelSyncService
     private function syncSingleCompetitor(Competitor $competitor): string
     {
         // Check for existing intel record
-        $existing = $this->blockIntelRepo->findOneBy(['competitor' => $competitor]);
+        $existing = $this->blockIntelRepo->findOneBy(['sourceCompetitor' => $competitor]);
 
         $blockedDomains = $this->buildBlockedDomains($competitor);
         $competitorPhrases = $this->buildCompetitorPhrases($competitor);

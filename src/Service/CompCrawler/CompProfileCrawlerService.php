@@ -9,6 +9,7 @@ use App\Service\FastWebScraperService;
 use App\Service\WebCrawler\SearchProvider\HeaderRandomizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * CompProfileCrawlerService — Sitemap-first, bounded-depth profiling crawl.
@@ -36,6 +37,14 @@ class CompProfileCrawlerService
     /** Cache directory for content between pipeline phases */
     private const CACHE_DIR = 'var/comp_crawl_cache';
 
+    /** European exit countries for proxy session rotation (same as LeadBot) */
+    private const EXIT_COUNTRIES = [
+        'ee', 'de', 'nl', 'fr', 'pl', 'cz', 'fi', 'se',
+        'at', 'be', 'dk', 'no', 'es', 'it', 'pt', 'ro',
+    ];
+
+    private ?string $proxyUrl;
+
     public function __construct(
         private readonly CompCrawlerConfig $config,
         private readonly FastWebScraperService $scraper,
@@ -44,7 +53,40 @@ class CompProfileCrawlerService
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
         private readonly string $projectDir,
-    ) {}
+        #[Autowire('%env(default::SCRAPER_PROXY_URL)%')]
+        ?string $scraperProxyUrl = null,
+    ) {
+        $this->proxyUrl = $scraperProxyUrl;
+    }
+
+    /**
+     * Build a per-request proxy URL with unique session ID and random EU exit country.
+     * Mirrors RotatingProxyHttpClient's approach for consistent IP rotation.
+     */
+    private function getRotatingProxyUrl(): ?string
+    {
+        if ($this->proxyUrl === null || $this->proxyUrl === '') {
+            return null;
+        }
+
+        $parsed = parse_url($this->proxyUrl);
+        $user = $parsed['user'] ?? '';
+        $pass = $parsed['pass'] ?? '';
+        $host = $parsed['host'] ?? '';
+        $port = $parsed['port'] ?? 12321;
+
+        // Strip existing session/country suffixes
+        $pass = preg_replace('/_session-[a-zA-Z0-9]+/', '', $pass);
+        $pass = preg_replace('/_country-[a-z]{2}/', '', $pass);
+
+        $sessionId = bin2hex(random_bytes(4));
+        $country = self::EXIT_COUNTRIES[array_rand(self::EXIT_COUNTRIES)];
+
+        return sprintf(
+            'http://%s:%s_country-%s_session-%s@%s:%d',
+            $user, $pass, $country, $sessionId, $host, $port
+        );
+    }
 
     /**
      * Perform a shallow crawl — homepage + high-signal URLs.
@@ -258,7 +300,7 @@ class CompProfileCrawlerService
                 $httpHeaders[] = "{$key}: {$value}";
             }
 
-            curl_setopt_array($ch, [
+            $curlOpts = [
                 CURLOPT_URL => $url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
@@ -269,7 +311,16 @@ class CompProfileCrawlerService
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_ENCODING => '',  // Accept gzip/deflate/br
                 CURLOPT_HTTPHEADER => $httpHeaders,
-            ]);
+            ];
+
+            // Route through residential proxy (same as LeadBot scrapers)
+            $proxyUrl = $this->getRotatingProxyUrl();
+            if ($proxyUrl !== null) {
+                $curlOpts[CURLOPT_PROXY] = $proxyUrl;
+                $curlOpts[CURLOPT_TIMEOUT] = 45; // Extra time for proxy hop
+            }
+
+            curl_setopt_array($ch, $curlOpts);
 
             curl_multi_add_handle($mh, $ch);
             $handles[(int) $ch] = ['ch' => $ch, 'url' => $url];
@@ -345,7 +396,7 @@ class CompProfileCrawlerService
             }
 
             $ch = curl_init();
-            curl_setopt_array($ch, [
+            $curlOpts = [
                 CURLOPT_URL => $url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
@@ -356,7 +407,16 @@ class CompProfileCrawlerService
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_ENCODING => '',
                 CURLOPT_HTTPHEADER => $httpHeaders,
-            ]);
+            ];
+
+            // Route through residential proxy (same as LeadBot scrapers)
+            $retryProxyUrl = $this->getRotatingProxyUrl();
+            if ($retryProxyUrl !== null) {
+                $curlOpts[CURLOPT_PROXY] = $retryProxyUrl;
+                $curlOpts[CURLOPT_TIMEOUT] = 45;
+            }
+
+            curl_setopt_array($ch, $curlOpts);
 
             // On last attempt, relax SSL for sites with bad certs
             if ($attempt === self::MAX_RETRIES - 1) {
