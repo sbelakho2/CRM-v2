@@ -539,4 +539,22 @@ class Quote
         $this->lastViewedAt = $lastViewedAt;
         return $this;
     }
+
+    /**
+     * Get margin percent (stub for QuoteWinPredictorService compatibility)
+     * Returns null to use default value - margin tracking not yet implemented
+     */
+    public function getMarginPercent(): ?float
+    {
+        return null;
+    }
+
+    /**
+     * Get RFQ received date (stub for QuoteWinPredictorService compatibility)
+     * Returns null when no RFQ is attached
+     */
+    public function getRfqReceivedAt(): ?\DateTimeInterface
+    {
+        return $this->rfq?->getCreatedAt();
+    }
 }
