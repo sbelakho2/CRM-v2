@@ -271,6 +271,37 @@ class BOMParser
     }
 
     /**
+     * Round all BOM line quantities UP to the nearest multiple of $orderMultiple.
+     *
+     * For example, with $orderMultiple = 10:
+     *   qty=1 → 10, qty=3 → 10, qty=12 → 20, qty=20 → 20
+     *
+     * @param array $lines       Parsed/consolidated BOM lines
+     * @param int   $orderMultiple  The quantity multiple (e.g. 10, 50, 100). Must be ≥ 1.
+     * @return array  Lines with quantities rounded up
+     */
+    public function applyOrderMultiple(array $lines, int $orderMultiple): array
+    {
+        if ($orderMultiple <= 1) {
+            return $lines;
+        }
+
+        foreach ($lines as &$line) {
+            $qty = $line['quantity'] ?? 1;
+            $line['quantity'] = (int) ceil($qty / $orderMultiple) * $orderMultiple;
+            $line['firm_quantity'] = true; // Signal PricingEngine not to inflate with vendor MOQ
+        }
+        unset($line);
+
+        $this->logger->info('Applied order multiple to BOM', [
+            'order_multiple' => $orderMultiple,
+            'lines_count' => count($lines),
+        ]);
+
+        return $lines;
+    }
+
+    /**
      * Validate BOM structure and return human-readable warnings.
      */
     public function validate(array $lines): array
@@ -697,19 +728,41 @@ class BOMParser
         $bestCol   = -1;
         $bestScore = 0;
 
+        // Patterns that indicate internal library references, NOT real MPNs
+        $internalRefPatterns = [
+            '/^CMP-\d{2,6}-\d{3,8}-\d{1,3}$/',   // Altium-style library ref
+            '/^LIB[-_]\d+/',                        // Generic library prefix
+            '/^COMP[-_]\d{4,}/',                    // Component library ID
+        ];
+
         for ($col = 0; $col < $colCount; $col++) {
             if (in_array($col, array_values($map), true)) continue;
 
             $mpnScore = 0;
+            $internalRefCount = 0;
             foreach ($sampleRows as $row) {
                 $val = trim((string)($row[$col] ?? ''));
                 if ($val === '') continue;
+
+                // Check if value looks like an internal library reference
+                foreach ($internalRefPatterns as $pattern) {
+                    if (preg_match($pattern, $val)) {
+                        $internalRefCount++;
+                        continue 2; // Skip this value entirely
+                    }
+                }
+
                 // MPN heuristic: has both letters and digits, ≥6 chars or has dash
                 if (preg_match('/[a-zA-Z]/', $val) && preg_match('/\d/', $val)) {
                     if (strlen($val) >= 6 || str_contains($val, '-')) {
                         $mpnScore++;
                     }
                 }
+            }
+
+            // Heavily penalize columns dominated by internal references
+            if ($internalRefCount > count($sampleRows) / 3) {
+                $mpnScore = max(0, $mpnScore - $internalRefCount);
             }
 
             if ($mpnScore > $bestScore) {
@@ -742,6 +795,43 @@ class BOMParser
         // Use value as description if description column is empty/missing
         if ($description === '' && $value !== '') {
             $description = $value;
+        }
+
+        // ── MPN / Description swap for Altium-style BOMs ──
+        // When the MPN looks like a generic description word (e.g., "Diode",
+        // "Capacitor") but the description column contains an MPN-like value,
+        // swap them. This handles Altium BOMs where the "Description" column
+        // sometimes has generic part types instead of real MPNs.
+        if ($mpn !== '' && $description !== '') {
+            $mpnLooksGeneric = preg_match(
+                '/^(diode|capacitor|resistor|inductor|connector|transistor|IC|LED|fuse|crystal|relay|sensor|ferrite|filter|transformer|schottky\s*diode|zener\s*diode|tvs\s*diode|power\s*diode)s?$/i',
+                trim($mpn)
+            );
+            $descLooksMPN = preg_match('/[a-zA-Z]/', $description)
+                         && preg_match('/\d/', $description)
+                         && (strlen($description) >= 6 || str_contains($description, '-'))
+                         && !preg_match('/\s{2,}/', $description);
+
+            if ($mpnLooksGeneric && $descLooksMPN) {
+                // Description has the real MPN, swap them
+                [$mpn, $description] = [$this->cleanMPN($description), $mpn];
+            }
+
+            // Also swap when the MPN is a long natural-language description
+            // (contains spaces and common description words) but description is a compact MPN
+            if (!$mpnLooksGeneric) {
+                $mpnWordCount = str_word_count($mpn);
+                $mpnHasDescWords = preg_match(
+                    '/\b(voltage|precision|adjustable|low|high|dual|single|channel|output|input|regulator|amplifier|converter|controller|driver|receiver|transmitter|isolator|optocoupler|shunt|hard|rad|NPN|PNP|MOSFET|op.?amp)\b/i',
+                    $mpn
+                );
+                $descIsCompact = !str_contains($description, ' ')
+                              || (strlen($description) <= 20 && preg_match('/[A-Z0-9]{3,}/', $description));
+
+                if ($mpnWordCount >= 3 && $mpnHasDescWords && $descIsCompact && $descLooksMPN) {
+                    [$mpn, $description] = [$this->cleanMPN($description), $mpn];
+                }
+            }
         }
 
         // Must have at least MPN or description

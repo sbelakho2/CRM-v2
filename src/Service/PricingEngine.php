@@ -332,10 +332,11 @@ class PricingEngine
                 $packQty = $pricing['pack_quantity'] ?? null;
                 $multipleQty = $pricing['multiple_quantity'] ?? null;
                 
-                // When stock_quantity is specified, it's the customer's FIRM order qty.
-                // Don't inflate it with MOQ/pack — only warn if there's a mismatch.
+                // When stock_quantity or firm_quantity (order-multiple) is specified,
+                // don't inflate with vendor MOQ/pack — only warn if there's a mismatch.
                 $hasStockQty = !empty($line['stock_quantity']) && $line['stock_quantity'] > $line['quantity'];
-                if ($hasStockQty) {
+                $hasFirmQty = !empty($line['firm_quantity']);
+                if ($hasStockQty || $hasFirmQty) {
                     // Customer's order qty is firm — use it directly for extended price
                     $effectiveQty = $requestedQty;
                     $adjusted = false;
@@ -343,7 +344,7 @@ class PricingEngine
                     
                     // Still generate warnings for MOQ/pack issues
                     if ($requestedQty < $moq) {
-                        $reason = "Note: Requested qty {$requestedQty} is below MOQ {$moq}";
+                        $reason = "Note: Requested qty {$requestedQty} is below vendor MOQ {$moq}. Quote uses requested qty.";
                     }
                     
                     $quantityResult = [

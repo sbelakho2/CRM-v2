@@ -122,6 +122,7 @@ class QuoteCoPilotController extends AbstractController
         $companyId = $request->request->get('company_id');
         $shipToCountry = $request->request->get('ship_to_country');
         $quantity = (int)$request->request->get('quantity', 100);
+        $orderMultiple = max(1, (int)$request->request->get('order_multiple', 1));
         $incoterms = $request->request->get('incoterms', 'FCA');
         $notes = $request->request->get('notes', '');
         $issuingCompany = $request->request->get('issuing_company', IssuingCompanyService::DEFAULT_COMPANY);
@@ -135,6 +136,11 @@ class QuoteCoPilotController extends AbstractController
             // Parse BOM file (pass original extension since temp file has no extension)
             $originalExtension = $bomFile->getClientOriginalExtension();
             $bomData = $this->copilotService->parseBom($bomFile->getPathname(), $originalExtension);
+
+            // Apply order multiple rounding (e.g., round all qtys to nearest 10)
+            if ($orderMultiple > 1) {
+                $bomData = $this->copilotService->applyOrderMultiple($bomData, $orderMultiple);
+            }
 
             // Create Quote entity
             $companyRepository = $this->entityManager->getRepository(\App\Entity\Company::class);

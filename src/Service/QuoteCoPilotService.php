@@ -295,6 +295,18 @@ class QuoteCoPilotService
     }
 
     /**
+     * Round all BOM line quantities up to the nearest multiple.
+     *
+     * @param array $bomData    Parsed BOM data (from parseBom())
+     * @param int   $orderMultiple  Round quantities to this multiple (e.g. 10)
+     * @return array  BOM data with quantities rounded up
+     */
+    public function applyOrderMultiple(array $bomData, int $orderMultiple): array
+    {
+        return $this->bomParser->applyOrderMultiple($bomData, $orderMultiple);
+    }
+
+    /**
      * Process BOM through REAL PricingEngine API waterfall
      * 
      * Uses the same PricingEngine::processBOM() as the CLI command — full

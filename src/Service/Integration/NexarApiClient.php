@@ -144,7 +144,7 @@ GRAPHQL;
                 // Find best pricing from all sellers
                 $allPricing = [];
                 $maxStock = 0;
-                $minMoq = 1;
+                $minMoq = PHP_INT_MAX;
                 
                 foreach ($sellers as $seller) {
                     foreach ($seller['offers'] ?? [] as $offer) {
@@ -155,7 +155,7 @@ GRAPHQL;
                         
                         $offerMoq = $offer['moq'] ?? 1;
                         if (is_numeric($offerMoq) && $offerMoq > 0) {
-                            $minMoq = max($minMoq, (int) $offerMoq);
+                            $minMoq = min($minMoq, (int) $offerMoq);
                         }
                         
                         foreach ($offer['prices'] ?? [] as $price) {
@@ -178,7 +178,7 @@ GRAPHQL;
                     'datasheet' => $part['bestDatasheet']['url'] ?? null,
                     'pricing' => array_slice($allPricing, 0, 5), // Top 5 price breaks
                     'stock' => $maxStock,
-                    'moq' => $minMoq,
+                    'moq' => ($minMoq === PHP_INT_MAX) ? 1 : $minMoq,
                     'leadtime_days' => 0, // Nexar doesn't provide lead time
                     'specs' => $this->parseSpecs($part['specs'] ?? []),
                     'confidence' => [
