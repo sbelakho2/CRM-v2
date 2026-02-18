@@ -389,9 +389,22 @@ class PricingEngine
                             'qty' => $effectiveQty,
                             'savings_pct' => $savings . '%',
                         ]);
+                        // Preserve the full alternatives list from original pricing
+                        $fullAlternatives = $pricing['alternatives'] ?? [];
                         $pricing = $alt;
+                        $pricing['alternatives'] = $fullAlternatives;
                         $unitPrice = $altPrice;
                         $processedLine['source'] = $altSource;
+                        // Only update manufacturer/description when switching to a distributor
+                        // (DigiKey/Mouser have clean data; Alibaba alts may have worse SEO spam)
+                        if (in_array($altSource, ['digikey', 'mouser', 'nexar'])) {
+                            if (isset($alt['manufacturer'])) {
+                                $processedLine['manufacturer'] = $alt['manufacturer'];
+                            }
+                            if (isset($alt['description'])) {
+                                $processedLine['description'] = $alt['description'];
+                            }
+                        }
                         if (isset($alt['confidence'])) {
                             $processedLine['confidence'] = $alt['confidence'];
                         }
@@ -513,6 +526,44 @@ class PricingEngine
                 $processedLine['extended_price'] = $unitPrice * $effectiveQty;
                 $processedLine['currency'] = $this->resolveCurrencyFromPriceBreaks($pricing['pricing'] ?? []);
                 
+                // ── Passive component price sanity check ──
+                // Standard passives (CRCW, RC, CL, GRM, C08, C16 etc.) cost $0.001-$0.50.
+                // If Alibaba returns >$1/ea for a passive, check alternatives for saner price.
+                $passivePriceCap = $this->getPassivePriceCap($line['mpn'], $processedLine['description'] ?? '');
+                if ($passivePriceCap !== null && $unitPrice > $passivePriceCap && ($processedLine['source'] ?? '') === 'alibaba') {
+                    // Try each alternative for a cheaper, saner result
+                    foreach ($processedLine['alternatives'] ?? [] as $alt) {
+                        $altBreaks = $alt['pricing'] ?? [];
+                        if (empty($altBreaks)) continue;
+                        $altPrice = $this->calculateUnitPrice($altBreaks, $effectiveQty);
+                        if ($altPrice > 0 && $altPrice <= $passivePriceCap) {
+                            $altSource = $alt['_source'] ?? $alt['source'] ?? 'unknown';
+                            $this->logger->info('Passive price sanity: switching to cheaper alternative', [
+                                'mpn' => $line['mpn'],
+                                'alibaba_price' => $unitPrice,
+                                'alt_price' => $altPrice,
+                                'alt_source' => $altSource,
+                                'cap' => $passivePriceCap,
+                            ]);
+                            $unitPrice = $altPrice;
+                            $processedLine['unit_price'] = $unitPrice;
+                            $processedLine['extended_price'] = $unitPrice * $effectiveQty;
+                            $processedLine['source'] = $altSource;
+                            if (isset($alt['manufacturer'])) {
+                                $processedLine['manufacturer'] = $alt['manufacturer'];
+                            }
+                            if (isset($alt['description'])) {
+                                $processedLine['description'] = $alt['description'];
+                            }
+                            $processedLine['confidence']['warnings'][] = sprintf(
+                                'Alibaba price $%.2f exceeded passive cap $%.2f; used %s at $%.4f',
+                                $processedLine['unit_price'], $passivePriceCap, $altSource, $altPrice
+                            );
+                            break;
+                        }
+                    }
+                }
+                
                 // Add warning if quantity was adjusted
                 if ($quantityResult['adjusted']) {
                     $processedLine['confidence']['warnings'] = array_merge(
@@ -577,6 +628,12 @@ class PricingEngine
                     ?? $this->buildGenericSearchUrl($line['mpn']);
                 $processedLine['product_url'] = $pricing['product_url'] ?? null;
                 
+                // ── Alibaba presentation cleanup ──
+                // When source is Alibaba, the 'manufacturer' field contains supplier
+                // credibility info and 'description' contains SEO-stuffed listing titles.
+                // Enrich from alternatives (DigiKey/Mouser) or clean up for presentation.
+                $processedLine = $this->enrichAlibabaPresentation($processedLine, $line);
+                
             } else {
                 // Could not source - mark for manual pricing
                 $processedLine = $line;
@@ -631,6 +688,398 @@ class PricingEngine
     {
         $encoded = urlencode($mpn);
         return "https://www.findchips.com/search/{$encoded}";
+    }
+
+    /**
+     * Return a reasonable unit price cap for passive components, or null if not a passive.
+     *
+     * Standard passives (resistors, ceramic caps, inductors) are commodity parts
+     * that cost $0.001-$0.50 at qty 1. Alibaba sometimes returns $1-$10/ea due to
+     * SEO-spam listings targeting IC searches, not the actual passive part.
+     */
+    private function getPassivePriceCap(string $mpn, string $description): ?float
+    {
+        $upper = strtoupper($mpn);
+        $descUpper = strtoupper($description);
+
+        // Resistor MPN prefixes: CRCW, RC, ERJ, MCR, CRSN, RK73, TNPW, WSL, etc.
+        $resistorPrefixes = ['CRCW', 'RC0', 'RC1', 'ERJ', 'MCR', 'CSRN', 'RK73', 'TNPW', 'WSL', 'HCJ', 'RES '];
+        foreach ($resistorPrefixes as $pfx) {
+            if (str_starts_with($upper, $pfx)) {
+                return 0.50; // Standard resistor should never exceed $0.50/ea
+            }
+        }
+
+        // Capacitor MPN prefixes: GRM, CL, C06, C08, C16, C20, C57, VJ, 06035A, etc.
+        $capPrefixes = ['GRM', 'CL2', 'CL1', 'C060', 'C080', 'C161', 'C201', 'C575', 'VJ1', '0603'];
+        foreach ($capPrefixes as $pfx) {
+            if (str_starts_with($upper, $pfx)) {
+                return 1.00; // Standard cap should rarely exceed $1.00/ea
+            }
+        }
+
+        // Description-based detection
+        if (preg_match('/\bRES\s+SMD\b|\bRES\s+\d/i', $descUpper)) {
+            return 0.50;
+        }
+        if (preg_match('/\bCAP\s+CER\b|\bMLCC\b/i', $descUpper)) {
+            return 1.00;
+        }
+
+        return null; // Not a passive — no cap
+    }
+
+    /**
+     * Enrich Alibaba-sourced lines for better presentation quality.
+     *
+     * When Alibaba is the selected source the raw data has two problems:
+     *   - 'manufacturer' = supplier credibility string (not actual manufacturer)
+     *   - 'description'  = SEO-stuffed listing title (keyword spam)
+     *
+     * We fix both by:
+     *   1. Pulling real manufacturer + description from alternative DigiKey/Mouser results
+     *   2. If no alternative data exists, attempt to clean the Alibaba description
+     */
+    private function enrichAlibabaPresentation(array $processedLine, array $originalBomLine): array
+    {
+        $source = $processedLine['source'] ?? '';
+        $manufacturer = $processedLine['manufacturer'] ?? '';
+
+        // Detect whether this line needs Alibaba cleanup:
+        // 1. Source is alibaba, OR
+        // 2. Manufacturer field contains Alibaba supplier credibility info
+        //    (happens when qty-re-eval switches source but keeps old metadata)
+        $needsCleanup = ($source === 'alibaba')
+            || $this->looksLikeAlibabaSupplierInfo($manufacturer);
+
+        if (!$needsCleanup) {
+            return $processedLine;
+        }
+
+        $mpn = $processedLine['mpn'] ?? '';
+
+        // ── Step 1: Pull manufacturer/description from DigiKey/Mouser alternatives ──
+        $realManufacturer = null;
+        $cleanDescription = null;
+        foreach ($processedLine['alternatives'] ?? [] as $alt) {
+            $altSource = $alt['_source'] ?? $alt['source'] ?? '';
+            if (in_array($altSource, ['digikey', 'mouser', 'nexar'])) {
+                if (!empty($alt['manufacturer']) && !$realManufacturer) {
+                    $realManufacturer = $alt['manufacturer'];
+                }
+                if (!empty($alt['description']) && !$cleanDescription) {
+                    $cleanDescription = $alt['description'];
+                }
+                if ($realManufacturer && $cleanDescription) {
+                    break;
+                }
+            }
+        }
+
+        // ── Step 2: Manufacturer resolution ──
+        // Priority: DigiKey/Mouser > MPN prefix lookup > BOM data > sanitized Alibaba
+        $processedLine['alibaba_supplier'] = $processedLine['manufacturer'] ?? '';
+
+        if ($realManufacturer) {
+            $processedLine['manufacturer'] = $realManufacturer;
+        } else {
+            // Try MPN prefix lookup
+            $prefixMfr = $this->lookupManufacturerByMpn($mpn);
+            if ($prefixMfr) {
+                $processedLine['manufacturer'] = $prefixMfr;
+            } elseif (!empty($originalBomLine['manufacturer'])) {
+                $processedLine['manufacturer'] = $originalBomLine['manufacturer'];
+            } else {
+                // Last resort: show "—" instead of "Verified Supplier, CN, 4 yrs..."
+                $processedLine['manufacturer'] = '—';
+            }
+        }
+
+        // ── Step 3: Description resolution ──
+        // Priority: DigiKey/Mouser > sanitized Alibaba > BOM description > MPN
+        if ($cleanDescription) {
+            $processedLine['alibaba_raw_description'] = $processedLine['description'] ?? '';
+            $processedLine['description'] = $cleanDescription;
+        } else {
+            $sanitized = $this->sanitizeAlibabaDescription(
+                $processedLine['description'] ?? '',
+                $mpn
+            );
+            $bomDesc = $originalBomLine['description'] ?? '';
+
+            // If sanitized is still poor quality, prefer BOM description
+            if ($this->isDescriptionLowQuality($sanitized, $mpn) && !empty($bomDesc) && strlen($bomDesc) > 3) {
+                // Combine BOM description with package info from Alibaba if available
+                $processedLine['alibaba_raw_description'] = $processedLine['description'] ?? '';
+                $processedLine['description'] = $this->buildBomFallbackDescription($bomDesc, $mpn);
+            } else {
+                $processedLine['alibaba_raw_description'] = $processedLine['description'] ?? '';
+                $processedLine['description'] = $sanitized;
+            }
+        }
+
+        // ── Step 4: Final cleanup — remove MPN from description (already in MPN column) ──
+        $desc = $processedLine['description'];
+        if (!empty($mpn) && strlen($mpn) >= 6) {
+            $desc = str_ireplace($mpn, '', $desc);
+            $desc = preg_replace('/\s{2,}/', ' ', $desc);
+            $desc = trim($desc, " \t\n\r\0\x0B,.-;:");
+        }
+        $processedLine['description'] = $desc;
+
+        return $processedLine;
+    }
+
+    /**
+     * Look up manufacturer from MPN prefix.
+     *
+     * Covers major passive/active component naming conventions.
+     * Returns null if no match found.
+     */
+    private function lookupManufacturerByMpn(string $mpn): ?string
+    {
+        $upper = strtoupper($mpn);
+
+        // Map of (prefix → manufacturer) — most specific first
+        $prefixMap = [
+            // TDK MLCCs: C + 4-digit metric size
+            'C5750' => 'TDK Corporation', 'C4532' => 'TDK Corporation',
+            'C3225' => 'TDK Corporation', 'C3216' => 'TDK Corporation',
+            'C2012' => 'TDK Corporation', 'C1608' => 'TDK Corporation',
+            'C1005' => 'TDK Corporation', 'C0603' => 'TDK Corporation',
+            // KEMET MLCCs: C + imperial size + C/X/Y
+            'C0805C' => 'KEMET', 'C0402C' => 'KEMET', 'C0603C' => 'KEMET',
+            'C1206C' => 'KEMET', 'C1210C' => 'KEMET',
+            // Murata
+            'GRM' => 'Murata Electronics', 'GCM' => 'Murata Electronics',
+            // Samsung
+            'CL21' => 'Samsung Electro-Mechanics', 'CL10' => 'Samsung Electro-Mechanics',
+            'CL31' => 'Samsung Electro-Mechanics', 'CL05' => 'Samsung Electro-Mechanics',
+            // KYOCERA AVX
+            '06035A' => 'KYOCERA AVX', '0402YD' => 'KYOCERA AVX',
+            '08055A' => 'KYOCERA AVX', '12065A' => 'KYOCERA AVX',
+            // Vishay
+            'CRCW' => 'Vishay Dale', 'CRMA' => 'Vishay Dale',
+            'VJ18' => 'Vishay Vitramon', 'VJ08' => 'Vishay Vitramon',
+            'VJ06' => 'Vishay Vitramon', 'VJ12' => 'Vishay Vitramon',
+            'IRF' => 'Vishay Siliconix', 'IRFP' => 'Vishay Siliconix',
+            'TCMT' => 'Vishay Semiconductor',
+            // YAGEO
+            'RC0603' => 'YAGEO', 'RC0805' => 'YAGEO', 'RC0402' => 'YAGEO',
+            'RC1206' => 'YAGEO', 'RC1210' => 'YAGEO', 'RC2512' => 'YAGEO',
+            // Stackpole
+            'CSRN' => 'Stackpole Electronics', 'HCJ' => 'Stackpole Electronics',
+            'RMCF' => 'Stackpole Electronics',
+            // Nippon Chemi-Con (aluminum polymer/electrolytic)
+            'EMVY' => 'Nippon Chemi-Con', 'EMVH' => 'Nippon Chemi-Con',
+            'EMVE' => 'Nippon Chemi-Con', 'EKZE' => 'Nippon Chemi-Con',
+            // Panasonic
+            'DB2S' => 'Panasonic', 'EEE' => 'Panasonic',
+            // STMicroelectronics
+            'SBRD' => 'STMicroelectronics', 'STPS' => 'STMicroelectronics',
+            'ST13' => 'STMicroelectronics', 'STM32' => 'STMicroelectronics',
+            // Texas Instruments
+            'TL28' => 'Texas Instruments', 'LMV' => 'Texas Instruments',
+            'LM3' => 'Texas Instruments', 'TPS' => 'Texas Instruments',
+            // Würth Elektronik (transformers)
+            '7503' => 'Würth Elektronik', '7447' => 'Würth Elektronik',
+            // TE Connectivity
+            '3521' => 'TE Connectivity',
+            // ON Semiconductor
+            'MMBT' => 'onsemi', 'NCP' => 'onsemi',
+            // Microchip
+            'MCP' => 'Microchip Technology', 'PIC' => 'Microchip Technology',
+        ];
+
+        foreach ($prefixMap as $prefix => $mfr) {
+            if (str_starts_with($upper, strtoupper($prefix))) {
+                return $mfr;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check whether a sanitized description is still low quality.
+     *
+     * Returns true if the description looks like garbage:
+     *   - Just the MPN repeated
+     *   - Contains other IC part numbers (ASI4UE, STM32F4xx mixed in)
+     *   - Very short / generic
+     *   - Still contains supplier / spam phrases
+     */
+    private function isDescriptionLowQuality(string $desc, string $mpn): bool
+    {
+        // Too short to be useful
+        if (strlen($desc) < 10) {
+            return true;
+        }
+        // Just the MPN (nothing else useful)
+        if (strcasecmp(trim($desc), trim($mpn)) === 0) {
+            return true;
+        }
+        // Check for variant MPNs that share our prefix but aren't our exact part
+        // E.g., "IC TCMT1107 TCMT1109" when part is TCMT1103 → garbage
+        $mpnPrefix = strtoupper(substr($mpn, 0, min(4, strlen($mpn))));
+        if ($mpnPrefix && preg_match_all('/\b(' . preg_quote($mpnPrefix) . '\w{2,})\b/i', $desc, $variantMatches)) {
+            foreach ($variantMatches[1] as $variant) {
+                if (strcasecmp($variant, $mpn) !== 0 && strlen($variant) > 5) {
+                    // Found a variant MPN that isn't our part → Alibaba mashup
+                    return true;
+                }
+            }
+        }
+        // Contains other IC part numbers that aren't this MPN
+        $otherParts = preg_match_all('/\b[A-Z]{2,5}\d{3,}[A-Z0-9\-]+\b/', $desc, $matches);
+        if ($otherParts > 0) {
+            $foreignParts = 0;
+            foreach ($matches[0] as $found) {
+                if (stripos($mpn, substr($found, 0, 6)) === false) {
+                    $foreignParts++;
+                }
+            }
+            if ($foreignParts >= 2) {
+                return true; // Multiple unrelated part numbers = Alibaba SEO mashup
+            }
+        }
+        // Known bad patterns that survived sanitization
+        if (preg_match('/(?:BOM\s+Service|Spare\s+Parts|Electronic\s+Spare)/i', $desc)) {
+            return true;
+        }
+        // Alibaba-style verbose padding
+        if (preg_match('/(?:7\s*inch\s+Reel|Thick\s+Film\s+Chip|Smd\s+Smt)/i', $desc)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Build a decent description from BOM data when Alibaba text is garbage.
+     *
+     * Enhances short BOM descriptions (like "68 uF") with package info from MPN.
+     */
+    private function buildBomFallbackDescription(string $bomDesc, string $mpn): string
+    {
+        // Try to extract package size from MPN (e.g., 0603, 0805, 1206, 2512, 2220)
+        $package = null;
+        if (preg_match('/(0402|0603|0805|1206|1210|1812|2010|2512|2220)/', $mpn, $m)) {
+            $package = $m[1];
+        }
+
+        $desc = ucfirst(trim($bomDesc));
+
+        // Add package if not already in description
+        if ($package && stripos($desc, $package) === false) {
+            $desc .= ' ' . $package;
+        }
+
+        // Add SMD if it's a surface-mount package and not already mentioned
+        if ($package && !preg_match('/\b(?:SMD|SMT|Surface\s+Mount)\b/i', $desc)) {
+            $desc .= ' SMD';
+        }
+
+        return $desc;
+    }
+
+    /**
+     * Detect whether a "manufacturer" string looks like Alibaba supplier credibility info
+     * rather than a real manufacturer name.
+     *
+     * Examples that return true:
+     *   "Verified Supplier, CN, 4 yrs, 4.9/5.0 (36 reviews)"
+     *   "CN, 7 yrs, 4.9/5.0 (51 reviews)"
+     *   "United Kingdom, 4 yrs, 4.7/5.0 (8 reviews)"
+     */
+    private function looksLikeAlibabaSupplierInfo(string $manufacturer): bool
+    {
+        if (empty($manufacturer)) {
+            return false;
+        }
+        // Alibaba supplier strings contain "yrs," or "reviews)" or "Verified Supplier"
+        if (preg_match('/\byrs\b|\breviews?\)|\bVerified\s+Supplier\b/i', $manufacturer)) {
+            return true;
+        }
+        // Country code pattern: "CN, N yrs" or "FR, N yrs"
+        if (preg_match('/^[A-Z]{2},\s*\d+\s*yrs/i', $manufacturer)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Sanitize Alibaba product listing titles for customer-facing output.
+     *
+     * Removes common SEO spam patterns while preserving useful technical info:
+     *   Input:  "Hainayu IC electronic component integrated circuit in stock BOM list
+     *            ASI4UE-E-G1-SR STM32F401RCT6 EMVY350ADA221MHA0G"
+     *   Output: "EMVY350ADA221MHA0G"
+     */
+    private function sanitizeAlibabaDescription(string $description, string $mpn): string
+    {
+        if (empty($description)) {
+            return $description;
+        }
+
+        // ── Remove the MPN itself from description (it's in its own column) ──
+        if (!empty($mpn) && strlen($mpn) >= 5) {
+            $description = str_ireplace($mpn, '', $description);
+        }
+
+        // ── Remove SEO spam patterns ──
+        $spamPatterns = [
+            '/\b(?:hot\s+sell(?:ing)?|in\s+stock|original|new\s*&?\s*original|one\s+stop\s+service|premium)\b/i',
+            '/\b(?:electronic\s+component(?:s)?|integrated\s+circuit(?:s)?|ic\s+chips?)\b/i',
+            '/\b(?:BOM\s+(?:list|Service)|authorized\s+distribut(?:or|ion))\b/i',
+            '/\b(?:Electronic\s+Spare\s+Parts?|Spare\s+Parts?)\b/i',
+            // Alibaba supplier brand names (not real manufacturers)
+            '/\b(?:hainayu|jeking|chinook|CZSKU|FYX|Kecheng|YingXinYuan)\b/i',
+            '/CZSKU:\w+/i',
+            // Generic filler
+            '/\b(?:high\s+quality|brand\s+new|factory\s+direct|wholesale|best\s+price)\b/i',
+            '/\b(?:100%\s*original|genuine|authentic|professional)\b/i',
+            // Alibaba SEO padding phrases
+            '/\b(?:Surface\s+Mount|SMD\s+Ceramic)\s+High\s+Voltage\b/i',
+            '/\b\d+\s*inch\s+Reel\b/i', // "7 inch Reel"
+            '/\bThick\s+Film\s+Chip\s+Resistors?\b/i',
+            '/\bThin\s+Film\s+Chip\s+Resistors?\b/i',
+            '/\bPassive\s+Components?\b/i',
+            '/\bMultilayer\s+Ceramic\s+Capacitors?\b/i',
+            '/\bMlcc\s+Smd\s+Smt\b/i',
+        ];
+
+        $cleaned = $description;
+        foreach ($spamPatterns as $pattern) {
+            $cleaned = preg_replace($pattern, '', $cleaned);
+        }
+
+        // Remove stray other IC part numbers (Alibaba often mashes multiple MPNs together)
+        // Keep words that contain the MPN's first 4 chars as they might be related variants
+        $mpnPrefix = strtoupper(substr($mpn, 0, 4));
+        $cleaned = preg_replace_callback(
+            '/\b[A-Z]{2,5}\d{3,}[A-Z0-9\-]{3,}\b/',
+            function ($match) use ($mpnPrefix) {
+                $found = strtoupper($match[0]);
+                // Keep if it shares prefix with our MPN (related variant)
+                if (str_starts_with($found, $mpnPrefix)) {
+                    return $match[0];
+                }
+                return ''; // Remove unrelated part numbers
+            },
+            $cleaned
+        );
+
+        // Clean up whitespace and punctuation
+        $cleaned = preg_replace('/\s{2,}/', ' ', $cleaned);
+        $cleaned = trim($cleaned, " \t\n\r\0\x0B,.-;:/()");
+
+        // If almost nothing left, fall back to MPN
+        if (strlen($cleaned) < 8 && !empty($mpn)) {
+            return $mpn;
+        }
+
+        return $cleaned;
     }
 
     /**

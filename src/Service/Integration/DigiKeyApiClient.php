@@ -72,6 +72,48 @@ class DigiKeyApiClient
                 $data = $response->toArray();
                 $parts = $data['Products'] ?? $data['ExactManufacturerProducts'] ?? [];
                 
+                // If no products found, retry with packaging suffix variants
+                // e.g. CRCW06031K00FKED → CRCW06031K00FKEA (same part, different packaging)
+                if (empty($parts)) {
+                    $variants = $this->generatePackagingVariants($partNumber);
+                    foreach ($variants as $variant) {
+                        $this->respectRateLimit();
+                        try {
+                            $varResponse = $this->httpClient->request('POST', self::BASE_URL . '/products/v4/search/keyword', [
+                                'json' => [
+                                    'Keywords' => $variant,
+                                    'Limit' => 5,
+                                    'Offset' => 0,
+                                    'FilterParametersRequest' => new \stdClass(),
+                                    'SortOptions' => [
+                                        'Field' => 'None',
+                                        'SortOrder' => 'Ascending',
+                                    ],
+                                ],
+                                'headers' => [
+                                    'Authorization' => 'Bearer ' . $token,
+                                    'X-DIGIKEY-Client-Id' => $this->clientId,
+                                    'Accept' => 'application/json',
+                                    'Content-Type' => 'application/json',
+                                ]
+                            ]);
+                            $varData = $varResponse->toArray();
+                            $varParts = $varData['Products'] ?? $varData['ExactManufacturerProducts'] ?? [];
+                            if (!empty($varParts)) {
+                                $this->logger->info('DigiKey found part via packaging variant', [
+                                    'original' => $partNumber,
+                                    'variant' => $variant,
+                                    'products' => count($varParts),
+                                ]);
+                                $parts = $varParts;
+                                break;
+                            }
+                        } catch (\Exception $e) {
+                            // continue to next variant
+                        }
+                    }
+                }
+                
                 if (empty($parts)) {
                     return null;
                 }
@@ -305,5 +347,48 @@ class DigiKeyApiClient
         }
         
         $this->lastRequestTime = microtime(true);
+    }
+
+    /**
+     * Generate packaging suffix variants for an MPN.
+     * Same electrical part is often cataloged under different packaging codes:
+     *   FKED (7" reel) → FKEA (cut tape) → FKEAHP (punched tape)
+     *   -D (reel) → -A (bulk)
+     *
+     * @return string[] Variant MPNs to try (excludes original)
+     */
+    private function generatePackagingVariants(string $mpn): array
+    {
+        $variants = [];
+        $upper = strtoupper($mpn);
+
+        // Vishay CRCW / CRMA style: FKED→FKEA, JKED→JKEA, etc.
+        $suffixMap = [
+            'FKED' => ['FKEA', 'FKEAHP'],
+            'JKED' => ['JKEA', 'JKEAHP'],
+            'FKEC' => ['FKEA', 'FKEAHP'],
+            'FKEAHP' => ['FKEA'],
+            'FKEAC' => ['FKEA'],
+        ];
+        foreach ($suffixMap as $from => $toList) {
+            if (str_ends_with($upper, $from)) {
+                $base = substr($mpn, 0, -strlen($from));
+                foreach ($toList as $to) {
+                    $variants[] = $base . $to;
+                }
+                return $variants;
+            }
+        }
+
+        // Generic trailing packaging letter: D→A (common convention)
+        if (preg_match('/^(.+[0-9])([DABC])$/i', $mpn, $m)) {
+            $swaps = ['D' => 'A', 'A' => 'D'];
+            $ch = strtoupper($m[2]);
+            if (isset($swaps[$ch])) {
+                $variants[] = $m[1] . $swaps[$ch];
+            }
+        }
+
+        return $variants;
     }
 }

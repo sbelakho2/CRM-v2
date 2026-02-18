@@ -499,6 +499,35 @@ class PartMatchConfidenceCalculator
             }
         }
         
+        // Vishay-style packaging suffix variants: last char(s) indicate packaging
+        // D/ED = 7" reel, A/EA = Cut tape, HP = Punched, C/EC = 13" reel
+        // Strip to base and try common packaging variants
+        $vishayPackagingSuffixes = [
+            'FKED' => ['FKEA', 'FKEAHP', 'FKEC'],
+            'JKED' => ['JKEA', 'JKEAHP', 'JKEC'],
+            'FKEC' => ['FKEA', 'FKEAHP', 'FKED'],
+            'FKEAHP' => ['FKEA', 'FKED'],
+        ];
+        $upperMpn = strtoupper($mpn);
+        foreach ($vishayPackagingSuffixes as $from => $toList) {
+            if (str_ends_with($upperMpn, $from)) {
+                $base = substr($mpn, 0, -strlen($from));
+                foreach ($toList as $to) {
+                    $variants[] = $base . $to;
+                }
+                break;
+            }
+        }
+        
+        // Generic trailing packaging letter swap: D↔A for MPNs ending in common patterns
+        if (preg_match('/^(.+[0-9])([DABC])$/i', $mpn, $m)) {
+            $swaps = ['D' => 'A', 'A' => 'D', 'B' => 'A', 'C' => 'A'];
+            $lastChar = strtoupper($m[2]);
+            if (isset($swaps[$lastChar])) {
+                $variants[] = $m[1] . $swaps[$lastChar];
+            }
+        }
+        
         return array_unique($variants);
     }
 }

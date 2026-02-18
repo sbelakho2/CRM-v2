@@ -849,6 +849,24 @@ class BOMParser
             return null;
         }
 
+        // ── Value-description to search term conversion ──
+        // Detect when MPN is actually a value description like "2K74 0.1W 1% 0603"
+        // and convert it to a parametric search term that DigiKey can resolve.
+        if ($mpn !== '' && $this->looksLikeValueDescription($mpn)) {
+            $searchTerm = $this->convertValueToSearchTerm($mpn);
+            if ($searchTerm) {
+                $this->logger->info('Converted value description to search term', [
+                    'original' => $mpn,
+                    'search_term' => $searchTerm,
+                ]);
+                // Keep original as description, use search term as MPN
+                if ($description === '' || $this->looksLikeValueDescription($description)) {
+                    $description = $mpn;
+                }
+                $mpn = $searchTerm;
+            }
+        }
+
         $designator = $this->getField($row, $headerMap, 'designator');
         $qtyRaw     = $this->getField($row, $headerMap, 'qty');
         $qty        = $this->parseQuantity($qtyRaw);
@@ -1022,5 +1040,110 @@ class BOMParser
             }
         }
         return true;
+    }
+
+    /**
+     * Check if a string looks like a component value description rather than a real MPN.
+     *
+     * Examples that match: "2K74 0.1W 1% 0603 (1608 Metric) SMD",
+     *   "100nF 50V 0805", "4.7uF 25V", "10K 1% 0402"
+     * Examples that don't match: "RC0603FR-072K74L", "CRCW06031K00FKEA"
+     */
+    private function looksLikeValueDescription(string $value): bool
+    {
+        $v = trim($value);
+        // Must contain a resistance/capacitance value pattern AND a package/tolerance
+        // Resistance: digits + optional decimal + K/M/R/Ω (e.g. 2K74, 10K, 100R, 4R7)
+        // Capacitance: digits + nF/uF/pF (e.g. 100nF, 4.7uF)
+        $hasValue = (bool) preg_match('/\b\d+[KkMmRrΩ]\d*\b|\b\d+\.?\d*\s*[nupμ]?[Ff]\b/i', $v);
+        // Must also contain package size (0402/0603/0805/1206...) or tolerance (1%/5%)
+        $hasPackageOrTol = (bool) preg_match('/\b(0402|0603|0805|1206|1210|2010|2512|SOT|SMA|SMD)\b|\b\d+\s*%/i', $v);
+        // Should NOT look like a structured MPN (has alpha-digit patterns with dashes)
+        $looksLikeMPN = (bool) preg_match('/^[A-Z]{2,}\d{3,}[A-Z0-9\-]+$/i', preg_replace('/\s/', '', $v));
+
+        return $hasValue && $hasPackageOrTol && !$looksLikeMPN;
+    }
+
+    /**
+     * Attempt to convert a resistor/capacitor value description to a parametric search term.
+     *
+     * Input:  "2K74 0.1W 1% 0603 (1608 Metric) SMD"
+     * Output: "2.74K 0603 1%" — a parametric search DigiKey/distributor APIs can resolve
+     *
+     * Returns null if the value can't be meaningfully converted.
+     */
+    private function convertValueToSearchTerm(string $value): ?string
+    {
+        // Extract package size (0402/0603/0805/1206...)
+        $package = null;
+        if (preg_match('/\b(0201|0402|0603|0805|1206|1210|1812|2010|2512)\b/', $value, $pm)) {
+            $package = $pm[1];
+        }
+
+        // Extract tolerance
+        $tolerance = null;
+        if (preg_match('/\b(\d+)\s*%/', $value, $tm)) {
+            $tolerance = $tm[1] . '%';
+        }
+
+        // Extract resistance value: formats like 2K74, 10K, 100R, 4R7, 287R, 1K00
+        if (preg_match('/\b(\d+)([KkMmRr])(\d+)?\b/', $value, $rm)) {
+            $whole = $rm[1];
+            $multiplier = strtoupper($rm[2]);
+            $decimal = $rm[3] ?? '';
+
+            // Convert to standard notation: 2K74 → 2.74K, 4R7 → 4.7R, 100R → 100
+            if ($multiplier === 'R') {
+                $ohms = $decimal !== '' ? "{$whole}.{$decimal}" : $whole;
+                $displayValue = "{$ohms} ohm";
+            } elseif ($multiplier === 'K') {
+                $kOhms = $decimal !== '' ? "{$whole}.{$decimal}" : $whole;
+                $displayValue = "{$kOhms}K";
+            } elseif ($multiplier === 'M') {
+                $mOhms = $decimal !== '' ? "{$whole}.{$decimal}" : $whole;
+                $displayValue = "{$mOhms}M";
+            } else {
+                return null;
+            }
+
+            // Build search: try common MPN formats first, fall back to parametric
+            // YAGEO format: RC0603FR-072K74L (most common, DigiKey finds these reliably)
+            if ($package && $tolerance === '1%') {
+                // Convert value to YAGEO format: 2.74K → 2K74, 10 → 10R0
+                $yageoValue = $displayValue; // already in correct form
+                if ($multiplier === 'R') {
+                    // For pure ohms: ensure format like 10R0
+                    $yageoValue = str_replace('.', 'R', $ohms);
+                    if (!str_contains($yageoValue, 'R')) {
+                        $yageoValue .= 'R0';
+                    }
+                } elseif ($multiplier === 'K') {
+                    $yageoValue = $decimal !== '' ? "{$whole}K{$decimal}" : "{$whole}K0";
+                } elseif ($multiplier === 'M') {
+                    $yageoValue = $decimal !== '' ? "{$whole}M{$decimal}" : "{$whole}M0";
+                }
+                return "RC{$package}FR-07{$yageoValue}L";
+            }
+
+            // Fallback to parametric search
+            $parts = ['resistor', $displayValue];
+            if ($package) $parts[] = $package;
+            if ($tolerance) $parts[] = $tolerance;
+            return implode(' ', $parts);
+        }
+
+        // Extract capacitance: 100nF, 4.7uF, 22pF
+        if (preg_match('/\b(\d+\.?\d*)\s*([nupμ]?)([Ff])\b/i', $value, $cm)) {
+            $capValue = $cm[1];
+            $prefix = strtolower($cm[2] ?? '');
+            $displayValue = $capValue . ($prefix ?: '') . 'F';
+
+            $parts = ['capacitor', $displayValue];
+            if ($package) $parts[] = $package;
+            if ($tolerance) $parts[] = $tolerance;
+            return implode(' ', $parts);
+        }
+
+        return null;
     }
 }
