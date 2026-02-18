@@ -134,12 +134,27 @@ class MultiDistributorSourcingService
             }
         }
         
-        // Step 3: Select best overall result
+        // ── Step 3b: Smart fallback searches when all distributors failed ──
+        if (empty($result['all_sources'])) {
+            $fallbackResult = $this->smartFallbackSearch($partNumber, $manufacturer, $description, $useMouser, $useDigikey);
+            if ($fallbackResult) {
+                $result['all_sources'][$fallbackResult['_source']] = $fallbackResult;
+                $result['waterfall_triggered'] = true;
+                $result['waterfall_reason'] = 'Smart fallback search found part via ' . ($fallbackResult['_fallback_method'] ?? 'variant');
+                $this->logger->info('Smart fallback search succeeded', [
+                    'mpn' => $partNumber,
+                    'method' => $fallbackResult['_fallback_method'] ?? 'unknown',
+                    'source' => $fallbackResult['_source'],
+                ]);
+            }
+        }
+        
+        // Step 4: Select best overall result
         $selection = $this->selectBestOverall($result['all_sources'], $partNumber);
         $result['selected'] = $selection['part'];
         $result['source'] = $selection['source'];
         
-        // Step 4: Build alternatives list (from all sources)
+        // Step 5: Build alternatives list (from all sources)
         $result['alternatives'] = $this->buildAlternativesList($result['all_sources'], $result['selected'], $result['source']);
         
         $this->logger->info('Multi-distributor search completed', [
@@ -230,6 +245,302 @@ class MultiDistributorSourcingService
         }
     }
     
+    /**
+     * Smart fallback search — tries harder to find a part when the normal waterfall fails.
+     *
+     * Strategies:
+     * 1. Clean the MPN (remove noise chars, whitespace, and common catalogue artefacts)
+     * 2. Try the cleaned MPN through Mouser keyword search (broader matching)
+     * 3. Try simplified / base MPN (strip packaging suffixes, trailing revision letters)
+     * 4. Try description-based keyword search on Mouser when description is available
+     * 5. If manufacturer is known, try "manufacturer + base MPN" keyword search
+     *
+     * Every hit is validated through confidence scoring.  Only results above the
+     * MIN_CONFIDENCE_FLOOR (40) are returned.  The result is annotated with
+     * `_fallback_method` so downstream code can label it as a suggested equivalent.
+     */
+    private function smartFallbackSearch(
+        string $partNumber,
+        ?string $manufacturer,
+        ?string $description,
+        bool $useMouser,
+        bool $useDigikey
+    ): ?array {
+        // ── Strategy 1: Cleaned MPN ──
+        $cleaned = $this->cleanMpnForSearch($partNumber);
+        if ($cleaned !== $partNumber) {
+            $result = $this->tryFallbackMpn($cleaned, $manufacturer, $description, $useMouser, $useDigikey);
+            if ($result) {
+                $result['_fallback_method'] = 'cleaned_mpn';
+                $result['_original_mpn'] = $partNumber;
+                $result['_fallback_mpn'] = $cleaned;
+                return $result;
+            }
+        }
+
+        // ── Strategy 2: Base MPN (strip packaging suffixes) ──
+        $baseMpn = $this->extractBaseMpn($partNumber);
+        if ($baseMpn && $baseMpn !== $partNumber && $baseMpn !== $cleaned) {
+            $result = $this->tryFallbackMpn($baseMpn, $manufacturer, $description, $useMouser, $useDigikey);
+            if ($result) {
+                $result['_fallback_method'] = 'base_mpn';
+                $result['_original_mpn'] = $partNumber;
+                $result['_fallback_mpn'] = $baseMpn;
+                return $result;
+            }
+        }
+
+        // ── Strategy 3: Mouser keyword search with raw MPN ──
+        if ($useMouser) {
+            $result = $this->tryMouserKeywordFallback($partNumber, $manufacturer, $description);
+            if ($result) {
+                $result['_fallback_method'] = 'keyword_search';
+                $result['_original_mpn'] = $partNumber;
+                return $result;
+            }
+        }
+
+        // ── Strategy 4: Description-based keyword search ──
+        if ($useMouser && $description && strlen($description) > 5) {
+            // Build a targeted keyword from description: e.g. "100nF 0603 X7R" → "100nF 0603 X7R capacitor"
+            $descKeyword = $this->buildDescriptionKeyword($description, $manufacturer);
+            if ($descKeyword) {
+                $result = $this->tryMouserKeywordFallback($descKeyword, $manufacturer, $description);
+                if ($result) {
+                    $result['_fallback_method'] = 'description_search';
+                    $result['_original_mpn'] = $partNumber;
+                    $result['_fallback_keyword'] = $descKeyword;
+                    return $result;
+                }
+            }
+        }
+
+        // ── Strategy 5: Manufacturer + base MPN keyword search ──
+        if ($useMouser && $manufacturer && $baseMpn) {
+            $result = $this->tryMouserKeywordFallback($manufacturer . ' ' . $baseMpn, $manufacturer, $description);
+            if ($result) {
+                $result['_fallback_method'] = 'mfr_keyword_search';
+                $result['_original_mpn'] = $partNumber;
+                return $result;
+            }
+        }
+
+        $this->logger->info('Smart fallback search exhausted all strategies', [
+            'mpn' => $partNumber,
+            'manufacturer' => $manufacturer,
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Try a fallback MPN through the normal distributor search path.
+     * Only returns results above confidence floor.
+     */
+    private function tryFallbackMpn(
+        string $mpn,
+        ?string $manufacturer,
+        ?string $description,
+        bool $useMouser,
+        bool $useDigikey
+    ): ?array {
+        // Try Mouser first
+        if ($useMouser) {
+            $result = $this->tryMouser($mpn, $manufacturer, $description);
+            if ($result && ($result['confidence']['score'] ?? 0) >= self::MIN_CONFIDENCE_FLOOR) {
+                return $result;
+            }
+        }
+
+        // Try DigiKey
+        if ($useDigikey) {
+            $result = $this->tryDigiKey($mpn, $manufacturer, $description);
+            if ($result && ($result['confidence']['score'] ?? 0) >= self::MIN_CONFIDENCE_FLOOR) {
+                return $result;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Try Mouser keyword search and validate the best result through confidence scoring.
+     */
+    private function tryMouserKeywordFallback(
+        string $keyword,
+        ?string $manufacturer,
+        ?string $description
+    ): ?array {
+        try {
+            $keywords = $this->mouserClient->searchByKeyword($keyword, 15);
+            if (empty($keywords)) {
+                return null;
+            }
+
+            // Score all keyword results by relevance
+            $scored = [];
+            foreach ($keywords as $kw) {
+                $candidateMpn = $kw['mpn'] ?? '';
+                if (empty($candidateMpn)) continue;
+
+                // Quick relevance score
+                $relevance = 0.0;
+                $normalizedKw = $this->confidenceCalculator->normalizeMpn($candidateMpn);
+                $normalizedTarget = $this->confidenceCalculator->normalizeMpn($keyword);
+                similar_text($normalizedTarget, $normalizedKw, $relevance);
+
+                // Bonus: manufacturer match
+                if ($manufacturer && isset($kw['manufacturer'])) {
+                    $mfrMatch = str_contains(
+                        strtolower($kw['manufacturer']),
+                        strtolower($manufacturer)
+                    ) || str_contains(
+                        strtolower($manufacturer),
+                        strtolower($kw['manufacturer'])
+                    );
+                    if ($mfrMatch) {
+                        $relevance += 25;
+                    }
+                }
+
+                // Bonus: description terms overlap
+                if ($description && isset($kw['description'])) {
+                    $descTerms = array_filter(preg_split('/[\s,;]+/', strtolower($description)), fn($t) => strlen($t) > 2);
+                    $kwDesc = strtolower($kw['description']);
+                    $hits = 0;
+                    foreach ($descTerms as $term) {
+                        if (str_contains($kwDesc, $term)) $hits++;
+                    }
+                    if (count($descTerms) > 0) {
+                        $relevance += ($hits / count($descTerms)) * 20;
+                    }
+                }
+
+                $scored[] = ['kw' => $kw, 'relevance' => $relevance];
+            }
+
+            usort($scored, fn($a, $b) => $b['relevance'] <=> $a['relevance']);
+
+            // Try top 3 candidates through a full part search + confidence scoring
+            $tried = 0;
+            foreach ($scored as $candidate) {
+                if ($tried >= 3) break;
+                $candidateMpn = $candidate['kw']['mpn'];
+
+                $result = $this->mouserClient->searchByPartNumber($candidateMpn, $manufacturer, $description);
+                if ($result && ($result['confidence']['score'] ?? 0) >= self::MIN_CONFIDENCE_FLOOR) {
+                    $result['_source'] = self::SOURCE_MOUSER;
+                    $result['_source_url'] = $this->mouserClient->buildSearchUrl($candidateMpn);
+                    return $result;
+                }
+                $tried++;
+            }
+        } catch (\Exception $e) {
+            $this->logger->warning('Mouser keyword fallback failed', [
+                'keyword' => $keyword,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Clean an MPN for search by removing noise characters and common artefacts.
+     */
+    private function cleanMpnForSearch(string $mpn): string
+    {
+        // Remove leading/trailing whitespace and quotes
+        $cleaned = trim($mpn, " \t\n\r\0\x0B\"'");
+
+        // Remove catalogue artefacts: parenthesised suffixes like "(PB-Free)"
+        $cleaned = preg_replace('/\s*\(.*?\)\s*/', '', $cleaned);
+
+        // Remove leading hash/asterisk markers
+        $cleaned = ltrim($cleaned, '#*');
+
+        // Collapse multiple spaces/dashes
+        $cleaned = preg_replace('/[\s]+/', ' ', $cleaned);
+        $cleaned = trim($cleaned);
+
+        return $cleaned ?: $mpn;
+    }
+
+    /**
+     * Extract the base MPN by stripping packaging/ordering suffixes.
+     *
+     * E.g. "GRM155R71C104KA88D" → "GRM155R71C104KA88" (strip trailing packaging letter)
+     * E.g. "RC0603FR-0710KL"    → "RC0603FR-0710K"    (strip trailing packaging letter)
+     */
+    private function extractBaseMpn(string $mpn): ?string
+    {
+        // Common packaging/ordering suffixes to strip
+        $suffixes = [
+            '-TR', '-ND', '-CT', '-DKR', '-PBF', '-1-ND',
+            'TR', 'ND', 'CT', 'PBF',
+            '#PBF', '/TR',
+        ];
+        foreach ($suffixes as $suffix) {
+            if (str_ends_with(strtoupper($mpn), strtoupper($suffix)) && strlen($mpn) > strlen($suffix) + 3) {
+                return substr($mpn, 0, -strlen($suffix));
+            }
+        }
+
+        // Strip single trailing packaging letter (D=reel, J=bulk, K=tape) on long MPNs
+        if (strlen($mpn) > 8 && preg_match('/^(.{6,})([DJKAB])$/i', $mpn, $m)) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Build a keyword string from a BOM description suitable for distributor search.
+     *
+     * Extracts: component type, value, package size, dielectric, voltage.
+     */
+    private function buildDescriptionKeyword(string $description, ?string $manufacturer): ?string
+    {
+        $parts = [];
+
+        // Extract package size (0402, 0603, 0805, 1206, 1210, 2512, etc.)
+        if (preg_match('/\b(0[12345][01][0-9]|1[02][01][026]|2[05][12][02]|SOT[\-]?\d+|SOP[\-]?\d+|QFN[\-]?\d+|SOIC[\-]?\d+|TQFP[\-]?\d+)\b/i', $description, $m)) {
+            $parts[] = $m[1];
+        }
+
+        // Extract value with units (100nF, 10uF, 4.7K, 10R, 1M, etc.)
+        if (preg_match('/\b(\d+[\.\d]*\s*(?:pF|nF|uF|µF|mF|F|R|Ω|ohm|K|M|kΩ|MΩ|mH|uH|nH|H))\b/i', $description, $m)) {
+            $parts[] = $m[1];
+        }
+
+        // Extract voltage rating (16V, 25V, 50V, etc.)
+        if (preg_match('/\b(\d+V)\b/i', $description, $m)) {
+            $parts[] = $m[1];
+        }
+
+        // Extract dielectric type (X7R, X5R, C0G, NP0, Y5V)
+        if (preg_match('/\b(X[57]R|C0G|NP0|Y5V|X7S)\b/i', $description, $m)) {
+            $parts[] = strtoupper($m[1]);
+        }
+
+        // Extract component type keywords
+        $types = ['capacitor', 'resistor', 'inductor', 'diode', 'transistor', 'connector',
+                  'IC', 'LED', 'fuse', 'relay', 'crystal', 'oscillator', 'regulator',
+                  'mosfet', 'opamp', 'sensor', 'switch', 'transformer', 'ferrite'];
+        foreach ($types as $type) {
+            if (stripos($description, $type) !== false) {
+                $parts[] = $type;
+                break;
+            }
+        }
+
+        if ($manufacturer) {
+            $parts[] = $manufacturer;
+        }
+
+        return count($parts) >= 2 ? implode(' ', $parts) : null;
+    }
+
     /**
      * Build DigiKey search URL
      */

@@ -662,4 +662,48 @@ class BomLine
     {
         return $this->getStock();
     }
+
+    /**
+     * Check if this part was found via smart fallback (not an exact MPN match).
+     */
+    public function isFallback(): bool
+    {
+        $data = $this->sourcingData ?? [];
+        return !empty($data['fallback_method']) || !empty($data['alt_mpn_used']);
+    }
+
+    /**
+     * Get a human-readable label for the fallback method used.
+     */
+    public function getFallbackLabel(): ?string
+    {
+        $data = $this->sourcingData ?? [];
+        $method = $data['fallback_method'] ?? null;
+
+        if ($method) {
+            return match ($method) {
+                'cleaned_mpn' => 'Cleaned MPN',
+                'base_mpn' => 'Base MPN',
+                'keyword_search' => 'Keyword Search',
+                'description_search' => 'Description Search',
+                'mfr_keyword_search' => 'Mfr Keyword Search',
+                default => 'Smart Fallback',
+            };
+        }
+
+        if (!empty($data['alt_mpn_used'])) {
+            return 'Alt MPN';
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the original MPN that this fallback replaced (if applicable).
+     */
+    public function getFallbackOriginalMpn(): ?string
+    {
+        $data = $this->sourcingData ?? [];
+        return $data['fallback_original_mpn'] ?? null;
+    }
 }

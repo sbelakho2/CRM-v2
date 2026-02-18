@@ -64,7 +64,7 @@ class MouserApiClient
             return null;
         }
         
-        $cacheKey = 'mouser_part_v2_' . md5($partNumber . ($manufacturer ?? ''));
+        $cacheKey = 'mouser_part_v3_' . md5($partNumber . ($manufacturer ?? '') . ($description ?? ''));
         
         return $this->cache->get($cacheKey, function (ItemInterface $item) use ($partNumber, $manufacturer, $description, $tryVariants) {
             $item->expiresAfter(86400); // Cache for 24 hours
@@ -89,7 +89,20 @@ class MouserApiClient
                 }
             }
             
+            // ── Keyword search fallback ──
+            // Part number search uses mouserPartNumber field which is very strict.
+            // Keyword search is broader and can find parts by description fragments.
             if ($searchResult === null) {
+                $searchResult = $this->keywordFallbackSearch($partNumber, $manufacturer, $description);
+                if ($searchResult !== null) {
+                    $this->logger->info('Found part using keyword fallback search', [
+                        'mpn' => $partNumber,
+                    ]);
+                }
+            }
+            
+            if ($searchResult === null) {
+                $item->expiresAfter(300); // Cache misses only 5 minutes
                 return null;
             }
             
@@ -134,6 +147,77 @@ class MouserApiClient
             
             return $result;
         });
+    }
+    
+    /**
+     * Keyword fallback search — used when Part Number Search returns nothing.
+     * 
+     * Strategy:
+     * 1. Search the MPN as a keyword (broader match)
+     * 2. If manufacturer known, search "manufacturer MPN" 
+     * 3. Score all results and pick the best match
+     * 
+     * @return array|null ['selected' => array, 'alternatives' => array[]]
+     */
+    private function keywordFallbackSearch(string $partNumber, ?string $manufacturer, ?string $description): ?array
+    {
+        if ($this->apiKeyInvalid) {
+            return null;
+        }
+        
+        // Strategy 1: Search MPN as keyword
+        $keywords = $this->searchByKeyword($partNumber, 20);
+        
+        // Strategy 2: If manufacturer known and few/no results, add manufacturer
+        if (count($keywords) < 3 && $manufacturer) {
+            $mfrKeywords = $this->searchByKeyword($manufacturer . ' ' . $partNumber, 20);
+            // Merge without duplicates by MPN
+            $existingMpns = array_column($keywords, 'mpn');
+            foreach ($mfrKeywords as $k) {
+                if (!in_array($k['mpn'], $existingMpns, true)) {
+                    $keywords[] = $k;
+                }
+            }
+        }
+        
+        if (empty($keywords)) {
+            return null;
+        }
+        
+        // Now do a proper part search for the best-looking keyword result
+        // Score keyword results by MPN similarity to our target
+        $normalizedTarget = $this->confidenceCalculator->normalizeMpn($partNumber);
+        $scored = [];
+        foreach ($keywords as $kw) {
+            $normalizedResult = $this->confidenceCalculator->normalizeMpn($kw['mpn'] ?? '');
+            $similarity = 0.0;
+            similar_text($normalizedTarget, $normalizedResult, $similarity);
+            
+            // Bonus for exact containment
+            if (str_contains($normalizedResult, $normalizedTarget) || str_contains($normalizedTarget, $normalizedResult)) {
+                $similarity += 30;
+            }
+            
+            $scored[] = ['kw' => $kw, 'similarity' => $similarity];
+        }
+        
+        usort($scored, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
+        
+        // Try the top 3 candidates via full part search
+        $tried = 0;
+        foreach ($scored as $candidate) {
+            if ($tried >= 3) break;
+            $candidateMpn = $candidate['kw']['mpn'] ?? '';
+            if (empty($candidateMpn)) continue;
+            
+            $result = $this->executePartSearchWithAlternatives($candidateMpn);
+            if ($result !== null) {
+                return $result;
+            }
+            $tried++;
+        }
+        
+        return null;
     }
     
     /**

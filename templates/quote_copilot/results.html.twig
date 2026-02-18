@@ -137,6 +137,9 @@
                                     <span class="rams-badge rams-badge--red">{{ line.exceptionReason }}</span>
                                 {% else %}
                                     <span class="rams-badge rams-badge--green">{{ line.procurementSource }}</span>
+                                    {% if line.isFallback %}
+                                        <br><span class="rams-badge rams-badge--yellow" title="Found via {{ line.fallbackLabel }}{% if line.matchedMpn and line.matchedMpn != line.mpn %} — matched: {{ line.matchedMpn }}{% endif %}" style="font-size:0.65rem;margin-top:2px;display:inline-block;">⚡ {{ line.fallbackLabel }}</span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                             <td class="rams-table__cell" style="text-align:center;">

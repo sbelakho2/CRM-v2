@@ -99,6 +99,24 @@ class PricingEngine
                 'alternatives_count' => count($result['alternatives']),
             ]);
             
+            // Annotate confidence warnings when found via smart fallback
+            if (!empty($result['_fallback_method'])) {
+                $fbMethod = $result['_fallback_method'];
+                $fbLabel = match ($fbMethod) {
+                    'cleaned_mpn' => 'Cleaned MPN variant',
+                    'base_mpn' => 'Base MPN (packaging suffix stripped)',
+                    'keyword_search' => 'Keyword search match',
+                    'description_search' => 'Description-based search match',
+                    'mfr_keyword_search' => 'Manufacturer + MPN keyword match',
+                    default => 'Smart fallback (' . $fbMethod . ')',
+                };
+                $result['confidence']['warnings'] = array_merge(
+                    $result['confidence']['warnings'] ?? [],
+                    ['SUGGESTED EQUIVALENT: Found via ' . $fbLabel . '. Verify compatibility.']
+                );
+                $result['confidence']['requiresReview'] = true;
+            }
+            
             return $result;
         }
         

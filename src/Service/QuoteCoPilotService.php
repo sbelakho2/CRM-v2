@@ -220,6 +220,11 @@ class QuoteCoPilotService
                 'supplier_type' => $lineData['supplier_type'] ?? null,
                 'trade_assurance' => $lineData['trade_assurance'] ?? null,
                 'shipping_from' => $lineData['shipping_from'] ?? null,
+                // Smart fallback metadata
+                'fallback_method' => $lineData['_fallback_method'] ?? null,
+                'fallback_original_mpn' => $lineData['_original_mpn'] ?? null,
+                'fallback_mpn' => $lineData['_fallback_mpn'] ?? null,
+                'fallback_keyword' => $lineData['_fallback_keyword'] ?? null,
             ]);
             
             $this->entityManager->persist($bomLine);
@@ -451,6 +456,11 @@ class QuoteCoPilotService
                     'supplier_type' => $lineData['supplier_type'] ?? null,
                     'trade_assurance' => $lineData['trade_assurance'] ?? null,
                     'shipping_from' => $lineData['shipping_from'] ?? null,
+                    // Smart fallback metadata
+                    'fallback_method' => $lineData['_fallback_method'] ?? null,
+                    'fallback_original_mpn' => $lineData['_original_mpn'] ?? null,
+                    'fallback_mpn' => $lineData['_fallback_mpn'] ?? null,
+                    'fallback_keyword' => $lineData['_fallback_keyword'] ?? null,
                 ]);
 
             } else {

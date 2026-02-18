@@ -197,7 +197,7 @@
             {% for line in quote.bomLines %}
             <tr>
                 <td class="rams-text--center">{{ line.lineNumber ?? loop.index }}</td>
-                <td>{{ line.mpn ?? ('common.n_a'|trans) }}</td>
+                <td>{{ line.mpn ?? ('common.n_a'|trans) }}{% if line.isFallback %} <span style="color:#b45309;font-size:7pt;">[{{ line.fallbackLabel }}]</span>{% endif %}{% if line.matchedMpn and line.matchedMpn != line.mpn %}<br><span style="color:#6b7280;font-size:6pt;">↳ {{ line.matchedMpn }}</span>{% endif %}</td>
                 <td>{{ line.manufacturer ?? ('common.n_a'|trans) }}</td>
                 <td>{{ line.description ?? '' }}</td>
                 <td class="rams-text--right">{{ line.quantity ?? '' }}</td>
@@ -220,7 +220,17 @@
             </tr>
         </tbody>
     </table>
-    
+
+    {% set has_fallbacks = false %}
+    {% for line in quote.bomLines %}
+        {% if line.isFallback %}{% set has_fallbacks = true %}{% endif %}
+    {% endfor %}
+    {% if has_fallbacks %}
+    <p style="font-size:7pt; color:#6b7280; margin-top:4pt;">
+        <strong style="color:#b45309;">[Keyword Search]</strong>, <strong style="color:#b45309;">[Base MPN]</strong>, etc. = Suggested equivalent found via smart fallback. Please verify compatibility.
+    </p>
+    {% endif %}
+
     {% if quote.notes %}
     <h3>{{ 'common.notes'|trans }}</h3>
     <p style="background: #f5f5f5; padding: 10pt; border-left: 3px solid #3a3a3a;">{{ quote.notes }}</p>

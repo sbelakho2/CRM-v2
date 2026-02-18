@@ -439,17 +439,26 @@ class QuoteCoPilotController extends AbstractController
         $csv[] = [];
 
         // BOM Lines — customer-safe columns only
-        $csv[] = ['Line', 'MPN', 'Manufacturer', 'Description', 'Qty', 'Unit Price', 'Extended Price'];
+        $csv[] = ['Line', 'MPN', 'Manufacturer', 'Description', 'Qty', 'Unit Price', 'Extended Price', 'Notes'];
 
         foreach ($quote->getBomLines() as $line) {
+            $mpnDisplay = $line->getMpn() ?? '';
+            $notes = '';
+            if ($line->isFallback()) {
+                $notes = 'Suggested equivalent (' . ($line->getFallbackLabel() ?? 'fallback') . ')';
+                if ($line->getMatchedMpn() && $line->getMatchedMpn() !== $line->getMpn()) {
+                    $notes .= ' — matched: ' . $line->getMatchedMpn();
+                }
+            }
             $csv[] = [
                 $line->getLineNumber() ?? '',
-                $line->getMpn() ?? '',
+                $mpnDisplay,
                 $line->getManufacturer() ?? '',
                 $line->getDescription() ?? '',
                 $line->getQuantity() ?? '',
                 $line->getUnitPrice() !== null ? number_format($line->getUnitPrice(), 4) : '',
                 $line->getExtendedPrice() !== null ? number_format($line->getExtendedPrice(), 2) : '',
+                $notes,
             ];
         }
 
@@ -516,7 +525,7 @@ class QuoteCoPilotController extends AbstractController
         // ── Column headers (row 6) ──
         $headers = [
             '#', 'MPN', 'Matched MPN', 'Source', 'Qty', 'Unit Price', 'Extended Price',
-            'Confidence', 'Score', 'Supplier', 'Lifecycle', 'Listing Link',
+            'Confidence', 'Score', 'Supplier', 'Lifecycle', 'Fallback?', 'Listing Link',
         ];
         $headerRow = 6;
         foreach ($headers as $col => $header) {
@@ -548,10 +557,20 @@ class QuoteCoPilotController extends AbstractController
             $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getSupplierName() ?? '');
             $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getLifecycleStatus() ?? 'Active');
 
-            // Clickable listing link (column L)
+            // Fallback indicator column
+            $fallbackColIdx = $col++;
+            if ($line->isFallback()) {
+                $fbLabel = $line->getFallbackLabel() ?? 'Yes';
+                $sheet->setCellValueByColumnAndRow($fallbackColIdx, $dataRow, $fbLabel);
+                $fbCell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($fallbackColIdx) . $dataRow;
+                $sheet->getStyle($fbCell)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFB45309'));
+                $sheet->getStyle($fbCell)->getFont()->setBold(true);
+            }
+
+            // Clickable listing link (column M now)
             $linkUrl = $line->getSupplierProductUrl() ?? $line->getDistributorSearchUrl() ?? null;
             if ($linkUrl) {
-                $linkCell = 'L' . $dataRow;
+                $linkCell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $dataRow;
                 $sheet->setCellValue($linkCell, 'View Listing ↗');
                 $sheet->getCell($linkCell)->getHyperlink()->setUrl($linkUrl);
                 $sheet->getStyle($linkCell)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF4472C4'))->setUnderline(true);

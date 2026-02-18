@@ -491,11 +491,21 @@ class PartMatchConfidenceCalculator
             }
         }
         
-        // Remove common suffixes
-        $suffixes = ['-TR', '-ND', '-CT', '-PBF', 'PBF', '-1', '-2', '-3', 'TR', 'ND', 'CT'];
+        // Remove common ordering/packaging suffixes
+        $suffixes = [
+            '-TR', '-ND', '-CT', '-PBF', 'PBF', '-1', '-2', '-3', 'TR', 'ND', 'CT',
+            '-DKR', '-1-ND', '-2-ND', '-3-ND', '-6-ND', '#PBF', '/TR', '-TRAY',
+            '-REEL', '-BULK', '-CUT', '-TAPE', '-TUBE', 'TRAY',
+        ];
         foreach ($suffixes as $suffix) {
-            if (str_ends_with(strtoupper($mpn), strtoupper($suffix))) {
-                $variants[] = substr($mpn, 0, -strlen($suffix));
+            if (str_ends_with(strtoupper($mpn), strtoupper($suffix)) && strlen($mpn) > strlen($suffix) + 3) {
+                $stripped = substr($mpn, 0, -strlen($suffix));
+                $variants[] = $stripped;
+                // Also try re-appending common alternatives
+                if (str_ends_with(strtoupper($mpn), '-TR')) {
+                    $variants[] = $stripped . '-ND';
+                    $variants[] = $stripped . '-CT';
+                }
             }
         }
         
@@ -526,6 +536,58 @@ class PartMatchConfidenceCalculator
             if (isset($swaps[$lastChar])) {
                 $variants[] = $m[1] . $swaps[$lastChar];
             }
+        }
+        
+        // ── Samsung ↔ KEMET ↔ Murata MLCC cross-reference patterns ──
+        // Samsung CL series → try Murata GRM series and vice-versa
+        // e.g. CL10B104KB8NNNC → GRM155R71H104KE14D (same 100nF 0402 X7R)
+        // We don't do exact cross-ref but strip to try keyword search with specs
+        
+        // ── Manufacturer prefix variants ──
+        // Some MPNs have manufacturer-specific prefixes that can be swapped:
+        // RC0603 (Yageo) ↔ ERJ-3 (Panasonic) ↔ CRCW0603 (Vishay)
+        // These are too different for suffix-swap; handled by keyword fallback instead.
+        
+        // ── Tolerance suffix variants ──
+        // Many passives use tolerance codes: F(1%), J(5%), K(10%), G(2%), D(0.5%)
+        // Try swapping common tolerances (e.g. K↔J for 10%↔5%)
+        if (preg_match('/^(.{8,})([FJKGDB])(\d{2,3}[A-Z]*)$/i', $mpn, $m)) {
+            $toleranceSwaps = [
+                'F' => ['J', 'K'],  // 1% → try 5%, 10%
+                'J' => ['F', 'K'],  // 5% → try 1%, 10%
+                'K' => ['J', 'F'],  // 10% → try 5%, 1%
+                'G' => ['F', 'J'],  // 2% → try 1%, 5%
+            ];
+            $tolChar = strtoupper($m[2]);
+            if (isset($toleranceSwaps[$tolChar])) {
+                foreach ($toleranceSwaps[$tolChar] as $swap) {
+                    $variants[] = $m[1] . $swap . $m[3];
+                }
+            }
+        }
+        
+        // ── Temperature range suffix variants ──
+        // C = commercial (0°C to 70°C), I = industrial (-40°C to 85°C), A/E = extended
+        if (preg_match('/^(.{6,})([CIAE])$/i', $mpn, $m) && strlen($mpn) > 10) {
+            $tempSwaps = ['C' => ['I'], 'I' => ['C'], 'A' => ['I', 'C'], 'E' => ['I', 'C']];
+            $tempChar = strtoupper($m[2]);
+            if (isset($tempSwaps[$tempChar])) {
+                foreach ($tempSwaps[$tempChar] as $swap) {
+                    $variants[] = $m[1] . $swap;
+                }
+            }
+        }
+        
+        // ── Try without hyphens entirely ──
+        $noHyphen = str_replace('-', '', $mpn);
+        if ($noHyphen !== $mpn && strlen($noHyphen) > 5) {
+            $variants[] = $noHyphen;
+        }
+        
+        // ── Try without spaces ──
+        $noSpace = str_replace(' ', '', $mpn);
+        if ($noSpace !== $mpn && strlen($noSpace) > 5) {
+            $variants[] = $noSpace;
         }
         
         return array_unique($variants);
