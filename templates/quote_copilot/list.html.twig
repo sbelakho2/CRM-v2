@@ -99,6 +99,14 @@
                                             <path d="M3 6H13M3 9H13M6 3V13M10 3V13"/>
                                         </svg>
                                     </a>
+                                    <form action="{{ path('quote_copilot_delete', {'id': q.id}) }}" method="POST" style="display: inline;" onsubmit="return confirm('{{ 'quote.copilot.confirm_delete'|trans|e('js') }}');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-quote-' ~ q.id) }}">
+                                        <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger" title="{{ 'common.delete'|trans }}">
+                                            <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M3 5H13M5 5V13H11V5M7 7V11M9 7V11M6 5V3H10V5"/>
+                                            </svg>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

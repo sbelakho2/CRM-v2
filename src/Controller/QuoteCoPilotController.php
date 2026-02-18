@@ -98,6 +98,48 @@ class QuoteCoPilotController extends AbstractController
     }
 
     /**
+     * Delete a quote and its BOM lines
+     */
+    #[Route('/{id}/delete', name: 'quote_copilot_delete', methods: ['POST'])]
+    public function delete(int $id, Request $request): Response
+    {
+        $quote = $this->entityManager->getRepository(Quote::class)->find($id);
+        
+        if (!$quote) {
+            $this->addFlash('error', $this->translator->trans('quote.copilot.not_found'));
+            return $this->redirectToRoute('quote_copilot_list');
+        }
+
+        // CSRF protection
+        $token = $request->request->get('_token');
+        if (!$this->isCsrfTokenValid('delete-quote-' . $id, $token)) {
+            $this->addFlash('error', 'Invalid security token. Please try again.');
+            return $this->redirectToRoute('quote_copilot_list');
+        }
+
+        try {
+            // Delete associated BOM lines first
+            $bomLines = $this->entityManager->getRepository(BomLine::class)
+                ->findBy(['quote' => $quote]);
+            
+            foreach ($bomLines as $bomLine) {
+                $this->entityManager->remove($bomLine);
+            }
+            
+            // Delete the quote
+            $this->entityManager->remove($quote);
+            $this->entityManager->flush();
+            
+            $this->addFlash('success', $this->translator->trans('quote.copilot.deleted_successfully'));
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to delete quote', ['id' => $id, 'error' => $e->getMessage()]);
+            $this->addFlash('error', $this->translator->trans('quote.copilot.delete_failed'));
+        }
+
+        return $this->redirectToRoute('quote_copilot_list');
+    }
+
+    /**
      * Process uploaded BOM file
      */
     #[Route('/process', name: 'quote_copilot_process', methods: ['POST'])]

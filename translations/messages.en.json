@@ -2825,7 +2825,11 @@
       "order_multiple": "Order Multiple",
       "order_multiple_hint": "Round each line quantity up to the nearest multiple (e.g., qty 3 → 10 if multiple is 10)",
       "pricing_providers": "Pricing Providers",
-      "pricing_providers_hint": "Select distributors to query for pricing. Uncheck all to use every available source."
+      "pricing_providers_hint": "Select distributors to query for pricing. Uncheck all to use every available source.",
+      "confirm_delete": "Are you sure you want to delete this quote? This action cannot be undone.",
+      "deleted_successfully": "Quote deleted successfully.",
+      "delete_failed": "Failed to delete quote.",
+      "not_found": "Quote not found."
     },
     "created_at": "Created At",
     "currency": "Currency",
