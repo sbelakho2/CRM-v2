@@ -34,6 +34,7 @@ class TestBomPricingCommand extends Command
     {
         $this
             ->addArgument('file', InputArgument::REQUIRED, 'Path to BOM file (CSV or XLSX)')
+            ->addOption('boards', 'b', \Symfony\Component\Console\Input\InputOption::VALUE_REQUIRED, 'Number of boards (multiplies all BOM quantities)', 1)
             ->setHelp('Test BOM parsing and pricing APIs without saving to database');
     }
 
@@ -47,6 +48,8 @@ class TestBomPricingCommand extends Command
             return Command::FAILURE;
         }
 
+        $boards = max(1, (int) $input->getOption('boards'));
+        
         $io->title('BOM Pricing Test');
 
         // Parse BOM
@@ -55,18 +58,30 @@ class TestBomPricingCommand extends Command
             $bomLines = $this->bomParser->parse($filePath);
             $bomLines = $this->bomParser->consolidate($bomLines);
             
+            // Apply board count multiplier
+            if ($boards > 1) {
+                $io->note(sprintf('Board count: %d — multiplying all quantities by %d', $boards, $boards));
+                foreach ($bomLines as &$bl) {
+                    $perBoard = (int) ($bl['quantity'] ?? 1);
+                    $bl['stock_quantity'] = $perBoard * $boards;   // total order qty
+                    $bl['firm_quantity']  = true;                   // don't inflate to vendor MOQ
+                }
+                unset($bl);
+            }
+            
             $io->success(sprintf('Parsed %d unique part numbers', count($bomLines)));
             
             // Show first few lines
             if (count($bomLines) > 0) {
                 $sample = array_slice($bomLines, 0, 3);
                 $io->table(
-                    ['Designator', 'MPN', 'Manufacturer', 'Qty'],
+                    ['Designator', 'MPN', 'Manufacturer', 'Qty/Board', 'Total Qty'],
                     array_map(fn($line) => [
                         $line['designator'],
                         $line['mpn'],
                         $line['manufacturer'],
-                        $line['quantity']
+                        $line['quantity'],
+                        $line['stock_quantity'] ?? $line['quantity'],
                     ], $sample)
                 );
                 
