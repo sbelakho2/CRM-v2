@@ -99,7 +99,7 @@ class CompIntelSyncService
 
         // Create new
         $intel = new CompetitorBlockIntel();
-        $intel->setCompetitor($competitor);
+        $intel->setSourceCompetitor($competitor);
         $intel->setBlockedDomainsAdd($blockedDomains);
         $intel->setCompetitorPhrasesAdd($competitorPhrases);
         $intel->setEmbeddingExamplesAdd($embeddingExamples);
