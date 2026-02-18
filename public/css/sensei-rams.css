@@ -4969,3 +4969,98 @@ a.rams-module:hover {
 .mobile-only {
     display: none !important;
 }
+
+/* ============================================================
+   LOADING OVERLAY
+   Full-screen loading indicator with spinner and message
+   ============================================================ */
+
+.rams-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rams-loading-overlay__content {
+    background: var(--rams-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 2px solid var(--rams-steel);
+}
+
+.rams-loading-spinner {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-4);
+}
+
+.rams-loading-spinner__svg {
+    width: 60px;
+    height: 60px;
+    animation: rams-spin 1.2s linear infinite;
+}
+
+.rams-loading-spinner__circle {
+    stroke: var(--rams-steel);
+    stroke-linecap: round;
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: 0;
+    animation: rams-dash 1.2s ease-in-out infinite;
+}
+
+@keyframes rams-spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes rams-dash {
+    0% {
+        stroke-dasharray: 1, 150;
+        stroke-dashoffset: 0;
+    }
+    50% {
+        stroke-dasharray: 90, 150;
+        stroke-dashoffset: -35;
+    }
+    100% {
+        stroke-dasharray: 90, 150;
+        stroke-dashoffset: -124;
+    }
+}
+
+.rams-loading-overlay__title {
+    font-family: var(--font-mono);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--rams-text);
+    margin: 0 0 var(--space-2) 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.rams-loading-overlay__message {
+    font-size: var(--text-base);
+    color: var(--rams-muted);
+    margin: 0 0 var(--space-3) 0;
+    line-height: 1.5;
+}
+
+.rams-loading-overlay__hint {
+    font-size: var(--text-sm);
+    color: var(--rams-steel);
+    margin: 0;
+    font-style: italic;
+}

@@ -3,6 +3,20 @@
 {% block title %}{{ 'quote.copilot.title'|trans }}{% endblock %}
 
 {% block body %}
+{# Loading Overlay #}
+<div id="loading-overlay" class="rams-loading-overlay" style="display: none;">
+    <div class="rams-loading-overlay__content">
+        <div class="rams-loading-spinner">
+            <svg class="rams-loading-spinner__svg" viewBox="0 0 50 50">
+                <circle class="rams-loading-spinner__circle" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+            </svg>
+        </div>
+        <h2 class="rams-loading-overlay__title">{{ 'quote.copilot.processing_title'|trans }}</h2>
+        <p class="rams-loading-overlay__message">{{ 'quote.copilot.processing_message'|trans }}</p>
+        <p class="rams-loading-overlay__hint">{{ 'quote.copilot.processing_hint'|trans }}</p>
+    </div>
+</div>
+
 <div class="rams-stack rams-stack--lg">
     {# Flash Messages #}
     {% for label, messages in app.flashes %}
@@ -243,5 +257,15 @@ function displayFileName(input) {
         display.classList.remove('rams-upload-zone__filename--success');
     }
 }
+
+// Show loading overlay on form submit
+document.getElementById('bom-upload-form').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('bom-file-input');
+    if (fileInput.files && fileInput.files[0]) {
+        document.getElementById('loading-overlay').style.display = 'flex';
+        // Disable submit button to prevent double-submit
+        this.querySelector('button[type="submit"]').disabled = true;
+    }
+});
 </script>
 {% endblock %}

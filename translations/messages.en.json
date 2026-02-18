@@ -2773,6 +2773,9 @@
       "ext_price": "Extended Price",
       "generate_quote": "Generate quote",
       "how_it_works": "How it works",
+      "processing_title": "Processing Your BOM",
+      "processing_message": "We're fetching real-time pricing from distributors. This may take 1-2 minutes for large BOMs.",
+      "processing_hint": "Please don't close this page or navigate away.",
       "incoterms": {
         "cif": "CIF (Cost, Insurance & Freight)",
         "ddp": "DDP (Delivered Duty Paid)",

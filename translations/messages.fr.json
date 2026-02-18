@@ -2620,6 +2620,9 @@
       "ext_price": "Prix étendu",
       "generate_quote": "Générer le devis",
       "how_it_works": "Comment ça marche",
+      "processing_title": "Traitement de votre BOM",
+      "processing_message": "Nous récupérons les prix en temps réel auprès des distributeurs. Cela peut prendre 1-2 minutes pour les BOM volumineux.",
+      "processing_hint": "Merci de ne pas fermer cette page ni naviguer ailleurs.",
       "incoterms": {
         "cif": "CIF (Coût, assurance et fret)",
         "ddp": "DDP (Rendu droits acquittés)",
