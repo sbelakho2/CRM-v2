@@ -3,6 +3,7 @@
 namespace App\Service\WebCrawler\SearchProvider;
 
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -53,21 +54,14 @@ final class ProxyRotator
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger,
+        #[Autowire('%env(bool:ENABLE_PROXY_ROTATION)%')]
+        bool $enableProxyRotation = false,
+        #[Autowire('%env(default::SCRAPER_PROXY_URL)%')]
+        ?string $scraperProxyUrl = null,
     ) {
+        $this->proxyEnabled = $enableProxyRotation;
+        $this->paidProxyUrl = ($scraperProxyUrl !== null && $scraperProxyUrl !== '') ? $scraperProxyUrl : null;
         $this->loadState();
-        $this->loadConfig();
-    }
-
-    /**
-     * Load configuration from environment via getenv() with safe defaults.
-     */
-    private function loadConfig(): void
-    {
-        // Check for paid proxy service (e.g., Bright Data, Oxylabs, etc.)
-        $this->paidProxyUrl = getenv('PROXY_SERVICE_URL') ?: null;
-
-        // Enable proxy rotation if configured or if free proxies should be used
-        $this->proxyEnabled = filter_var(getenv('ENABLE_PROXY_ROTATION'), FILTER_VALIDATE_BOOLEAN);
     }
 
     /**

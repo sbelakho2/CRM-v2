@@ -108,6 +108,9 @@ final class ScrapingSearchProvider implements SearchProviderInterface
     /** Failures before engine cooldown triggers */
     private const ENGINE_FAILURE_THRESHOLD = 3;
 
+    /** Max free engines to try before falling to Google CSE (prevents 28-engine delay) */
+    private const MAX_FREE_ENGINE_ATTEMPTS = 8;
+
     public function __construct(
         private readonly BraveSearchScraper $braveSearchScraper,
         private readonly SearxngSearchEngineScraper $searxngScraper,
@@ -143,6 +146,8 @@ final class ScrapingSearchProvider implements SearchProviderInterface
         private readonly LoggerInterface $logger,
         #[Autowire('%env(bool:ENABLE_GOOGLE_API_FALLBACK)%')]
         private readonly bool $enableGoogleApiFallback = true,
+        #[Autowire('%env(bool:FORCE_GOOGLE_CSE)%')]
+        private readonly bool $forceGoogleCse = false,
     ) {
         // 27 free engines ordered by tier (quality + reliability + independence)
         // SearXNG alone provides 100+ unique IPs via instance rotation
@@ -211,6 +216,14 @@ final class ScrapingSearchProvider implements SearchProviderInterface
             ]);
         }
 
+        // FORCE_GOOGLE_CSE mode: skip all free engines, go straight to Google CSE
+        if ($this->forceGoogleCse) {
+            $this->logger->info('ScrapingSearchProvider: FORCE_GOOGLE_CSE=true, skipping free engines');
+            $lastError = null;
+            $attemptCount = 0;
+            goto googleCseFallback;
+        }
+
         $availableEngines = $this->getAvailableEngines();
 
         $this->logger->debug('ScrapingSearchProvider: search', [
@@ -237,6 +250,15 @@ final class ScrapingSearchProvider implements SearchProviderInterface
         $attemptCount = 0;
 
         foreach ($availableEngines as $engine) {
+            // Cap free engine attempts to avoid excessive delays
+            if ($attemptCount >= self::MAX_FREE_ENGINE_ATTEMPTS) {
+                $this->logger->notice('ScrapingSearchProvider: max free engine attempts reached, falling to Google CSE', [
+                    'attempts' => $attemptCount,
+                    'query' => mb_substr($originalQuery, 0, 80),
+                ]);
+                break;
+            }
+
             $engineName = $engine->getEngineName();
             $attemptCount++;
 
@@ -257,9 +279,6 @@ final class ScrapingSearchProvider implements SearchProviderInterface
                         $this->rateLimitManager->recordSuccess($engineName);
                         $elapsed = microtime(true) - $startTime;
 
-                        // Google CSE is reserved as absolute last resort only.
-                        // Free engines provide sufficient coverage when not rate-limited.
-
                         $this->logger->info('ScrapingSearchProvider: success', [
                             'engine' => $engineName,
                             'results_raw' => count($results),
@@ -269,7 +288,41 @@ final class ScrapingSearchProvider implements SearchProviderInterface
                             'attempt' => $attemptCount,
                         ]);
 
-                        return $this->buildResultSet($filteredResults, $originalQuery, $engineName, $elapsed);
+                        // ── Multi-engine aggregation ─────────────────────
+                        // Instead of returning on first success, collect results
+                        // from up to 2 successful engines to diversify results.
+                        // Different search engines index different websites.
+                        if (!isset($aggregatedResults)) {
+                            $aggregatedResults = $filteredResults;
+                            $aggregatedSeenDomains = [];
+                            foreach ($aggregatedResults as $r) {
+                                $d = $this->extractRootDomain($r['link'] ?? '');
+                                if ($d) { $aggregatedSeenDomains[$d] = true; }
+                            }
+                            $firstEngine = $engineName;
+                            // Continue to try one more engine for diversity
+                            $this->rateLimitManager->sleepInterEngine(1.0, 2.0);
+                            continue;
+                        }
+
+                        // Second successful engine — merge unique results
+                        $newCount = 0;
+                        foreach ($filteredResults as $r) {
+                            $d = $this->extractRootDomain($r['link'] ?? '');
+                            if ($d && !isset($aggregatedSeenDomains[$d])) {
+                                $aggregatedSeenDomains[$d] = true;
+                                $aggregatedResults[] = $r;
+                                $newCount++;
+                            }
+                        }
+                        $this->logger->info('ScrapingSearchProvider: merged second engine results', [
+                            'engine' => $engineName,
+                            'new_unique_results' => $newCount,
+                            'total_aggregated' => count($aggregatedResults),
+                        ]);
+
+                        // Return merged results from both engines
+                        return $this->buildResultSet($aggregatedResults, $originalQuery, $firstEngine . '+' . $engineName, $elapsed);
                     }
                 }
 
@@ -311,6 +364,17 @@ final class ScrapingSearchProvider implements SearchProviderInterface
                     : 2.0;
                 usleep((int)($delay * 1_000_000));
             }
+        }
+
+        // If we got results from one engine but the loop ended before finding a 2nd,
+        // return what we have rather than falling through to Google CSE.
+        if (isset($aggregatedResults) && !empty($aggregatedResults)) {
+            $elapsed = microtime(true) - $startTime;
+            $this->logger->info('ScrapingSearchProvider: returning single-engine results (no 2nd engine succeeded)', [
+                'engine' => $firstEngine,
+                'results' => count($aggregatedResults),
+            ]);
+            return $this->buildResultSet($aggregatedResults, $originalQuery, $firstEngine, $elapsed);
         }
 
         // All free scraping engines exhausted — try Google CSE API as paid fallback

@@ -76,31 +76,48 @@
                 </div>
 
                 <div class="rams-form__actions">
-                    <button type="submit" class="rams-btn rams-btn--primary">
+                    <button type="submit" id="btn-start" class="rams-btn rams-btn--primary">
                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                         {{ 'webcrawler.start_discovery'|trans }}
+                    </button>
+                    <button type="button" id="btn-stop" class="rams-btn rams-btn--danger rams-hidden" onclick="stopDiscovery()">
+                        Stop Discovery
                     </button>
                     <a href="{{ path('app_webcrawler_keyword_expansion') }}" class="rams-btn">{{ 'webcrawler.keyword_expansion'|trans }}</a>
                     <a href="{{ path('app_webcrawler_dork_generator') }}" class="rams-btn">{{ 'webcrawler.dork_generator'|trans }}</a>
                 </div>
             </form>
 
+            {# Live Status Panel #}
+            <div id="discovery-status" class="rams-hidden rams-mt-6">
+                <div style="background: var(--rams-bg-alt, #f8fafc); border: 1px solid var(--rams-border, #e2e8f0); border-radius: 0.5rem; padding: 1rem;">
+                    <div class="rams-flex" style="justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <div class="rams-flex" style="align-items: center; gap: 0.5rem;">
+                            <span id="status-indicator" class="rams-andon__light rams-andon__light--yellow rams-pulse" style="width: 12px; height: 12px;"></span>
+                            <strong id="status-label">Discovery Running</strong>
+                        </div>
+                        <span id="status-time" style="font-size: 0.8rem; color: var(--rams-text-muted, #64748b);"></span>
+                    </div>
+                    <div class="rams-grid rams-grid--3" style="gap: 0.75rem; font-size: 0.85rem;">
+                        <div><span style="color: var(--rams-text-muted);">Searches:</span> <strong id="stat-searches">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">BEG Pass:</span> <strong id="stat-beg-pass">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">BEG Fail:</span> <strong id="stat-beg-fail">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">BEG Rescue:</span> <strong id="stat-beg-rescue">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">Loc Reject:</span> <strong id="stat-loc-reject">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">Loc Rescue:</span> <strong id="stat-loc-rescue">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">Saved:</span> <strong id="stat-saved">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">Log Lines:</span> <strong id="stat-lines">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">Total Discovered:</span> <strong id="stat-total">{{ stats.discovered }}</strong></div>
+                    </div>
+                </div>
+            </div>
+
             {# Results #}
             <div id="discovery-results" class="rams-hidden rams-mt-6">
                 <h3 class="rams-dymo rams-mb-3">{{ 'webcrawler.results'|trans }}</h3>
                 <div id="results-content"></div>
-            </div>
-
-            {# Loading #}
-            <div id="discovery-loading" class="rams-hidden rams-mt-6">
-                <div class="rams-flex rams-flex-col rams-items-center rams-p-8">
-                    <div class="rams-andon">
-                        <span class="rams-andon__light rams-andon__light--yellow rams-pulse"></span>
-                    </div>
-                    <p class="rams-mt-2 rams-text--muted">{{ 'webcrawler.discovering'|trans }}</p>
-                </div>
             </div>
         </div>
     </div>
@@ -182,89 +199,160 @@
     </div>
 </div>
 <script>
+let pollTimer = null;
+
+// On page load, check if a discovery is already running
+checkStatus();
+
 document.getElementById('discovery-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const formData = new FormData(this);
+    const btnStart = document.getElementById('btn-start');
+    const btnStop = document.getElementById('btn-stop');
+    const statusDiv = document.getElementById('discovery-status');
     const resultsDiv = document.getElementById('discovery-results');
-    const loadingDiv = document.getElementById('discovery-loading');
-    const resultsContent = document.getElementById('results-content');
-    
-    // Show loading
+
+    btnStart.disabled = true;
+    btnStart.textContent = 'Starting...';
     resultsDiv.classList.add('rams-hidden');
-    loadingDiv.classList.remove('rams-hidden');
-    
+
     try {
         const response = await fetch('{{ path('app_webcrawler_discover') }}', {
             method: 'POST',
             body: formData
         });
 
-        const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-            throw new Error(response.status === 504 || response.status === 408
-                ? '{{ 'webcrawler.timeout_error'|trans|default('Discovery timed out. Try a more specific sector or location.') }}'
-                : `{{ 'webcrawler.server_error'|trans|default('Server returned an unexpected response') }} (HTTP ${response.status})`);
-        }
-
         const data = await response.json();
         
-        // Hide loading
-        loadingDiv.classList.add('rams-hidden');
-        
-        if (data.success) {
-            // Show results
-            resultsDiv.classList.remove('rams-hidden');
-            resultsContent.innerHTML = `
-                <div class="rams-alert rams-alert--success">
-                    <p class="rams-alert__title">${data.message}</p>
-                    <p class="rams-alert__message">{{ 'webcrawler.found_companies'|trans }} ${data.discovered} {{ 'company.title'|trans|lower }}</p>
-                    <p class="rams-alert__message"><a class="rams-link" href="{{ path('app_company_discovered') }}">{{ 'company.discovered.review_link'|trans }}</a></p>
-                </div>
-                ${data.companies.length > 0 ? `
-                    <div class="rams-discovery-list">
-                        ${data.companies.map(c => `
-                            <div class="rams-discovery-item" style="padding: 0.75rem; border-bottom: 1px solid var(--rams-border, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div class="rams-discovery-item__name" style="font-weight: 600;">
-                                        <a href="/companies/${c.id}" style="color: var(--rams-primary, #2563eb); text-decoration: none;">${c.name}</a>
-                                        <span style="font-size: 0.7rem; background: #fde68a; padding: 0.125rem 0.5rem; border-radius: 9999px; margin-left: 0.5rem;">{{ 'webcrawler.status.discovered'|trans }}</span>
-                                        ${c.sector ? `<span style="font-size: 0.75rem; background: var(--rams-bg-alt, #f1f5f9); padding: 0.125rem 0.5rem; border-radius: 9999px; margin-left: 0.5rem;">${c.sector}</span>` : ''}
-                                    </div>
-                                    ${c.website ? `<div class="rams-discovery-item__website" style="font-size: 0.85rem; color: var(--rams-text-muted, #64748b);"><a href="${c.website}" target="_blank" rel="noopener">${c.website}</a></div>` : ''}
-                                    <div style="font-size: 0.8rem; color: var(--rams-text-muted, #64748b); margin-top: 0.25rem;">
-                                        ${c.country ? `📍 ${c.city ? c.city + ', ' : ''}${c.country}` : ''}
-                                        ${c.linkedin_url ? ` · <a href="${c.linkedin_url}" target="_blank" rel="noopener" style="color: #0077b5;">🔗 LinkedIn</a>` : ''}
-                                        ${c.physical_site ? ` · 🏭 ${c.physical_site}` : ''}
-                                    </div>
-                                </div>
-                                <div style="text-align: right; font-size: 0.8rem; color: var(--rams-text-muted, #64748b);">
-                                    ${c.account_tier ? `Tier ${c.account_tier}` : ''}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-            `;
-        } else {
-            resultsDiv.classList.remove('rams-hidden');
-            resultsContent.innerHTML = `
-                <div class="rams-alert rams-alert--danger">
-                    <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
-                    <p class="rams-alert__message">${data.error}</p>
-                </div>
-            `;
+        if (data.success && data.async) {
+            // Show live status panel
+            statusDiv.classList.remove('rams-hidden');
+            btnStop.classList.remove('rams-hidden');
+            btnStart.classList.add('rams-hidden');
+            
+            document.getElementById('status-label').textContent = 
+                data.status === 'already_running' ? 'Discovery Already Running' : 'Discovery Started';
+            
+            // Start polling
+            startPolling();
+        } else if (!data.success) {
+            showError(data.error || 'Failed to start discovery');
+            btnStart.disabled = false;
+            btnStart.textContent = '{{ 'webcrawler.start_discovery'|trans }}';
         }
     } catch (error) {
-        loadingDiv.classList.add('rams-hidden');
-        resultsDiv.classList.remove('rams-hidden');
-        resultsContent.innerHTML = `
-            <div class="rams-alert rams-alert--danger">
-                <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
-                <p class="rams-alert__message">{{ 'webcrawler.discovery_failed'|trans }} ${error.message}</p>
-            </div>
-        `;
+        showError('Failed to start discovery: ' + error.message);
+        btnStart.disabled = false;
+        btnStart.textContent = '{{ 'webcrawler.start_discovery'|trans }}';
     }
 });
+
+function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(checkStatus, 5000);
+}
+
+async function checkStatus() {
+    try {
+        const response = await fetch('{{ path('app_webcrawler_discover_status') }}');
+        const data = await response.json();
+
+        const statusDiv = document.getElementById('discovery-status');
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+
+        if (data.running) {
+            statusDiv.classList.remove('rams-hidden');
+            btnStop.classList.remove('rams-hidden');
+            btnStart.classList.add('rams-hidden');
+            
+            document.getElementById('status-label').textContent = 'Discovery Running' + 
+                (data.sector ? ` — ${data.sector}` : '') +
+                (data.location ? ` (${data.location})` : '');
+            document.getElementById('status-indicator').className = 'rams-andon__light rams-andon__light--yellow rams-pulse';
+            
+            if (data.started_at) {
+                const started = new Date(data.started_at);
+                const elapsed = Math.round((Date.now() - started.getTime()) / 60000);
+                document.getElementById('status-time').textContent = `Running ${elapsed} min`;
+            }
+
+            // Update stats
+            const s = data.stats || {};
+            document.getElementById('stat-searches').textContent = s.searches || 0;
+            document.getElementById('stat-beg-pass').textContent = s.beg_pass || 0;
+            document.getElementById('stat-beg-fail').textContent = s.beg_fail || 0;
+            document.getElementById('stat-beg-rescue').textContent = s.beg_rescue || 0;
+            document.getElementById('stat-loc-reject').textContent = s.location_reject || 0;
+            document.getElementById('stat-loc-rescue').textContent = s.location_rescue || 0;
+            document.getElementById('stat-saved').textContent = s.saved || 0;
+            document.getElementById('stat-lines').textContent = s.log_lines || 0;
+            document.getElementById('stat-total').textContent = data.discovered_total || 0;
+
+            if (!pollTimer) startPolling();
+        } else if (statusDiv && !statusDiv.classList.contains('rams-hidden')) {
+            // Was running, now finished
+            document.getElementById('status-label').textContent = 'Discovery Completed';
+            document.getElementById('status-indicator').className = 'rams-andon__light rams-andon__light--green';
+            document.getElementById('status-time').textContent = 'Finished';
+            
+            btnStop.classList.add('rams-hidden');
+            btnStart.classList.remove('rams-hidden');
+            btnStart.disabled = false;
+            btnStart.textContent = '{{ 'webcrawler.start_discovery'|trans }}';
+
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+            // Show completion message
+            const resultsDiv = document.getElementById('discovery-results');
+            const resultsContent = document.getElementById('results-content');
+            resultsDiv.classList.remove('rams-hidden');
+            const saved = (data.stats || {}).saved || 0;
+            resultsContent.innerHTML = `
+                <div class="rams-alert rams-alert--success">
+                    <p class="rams-alert__title">Discovery Complete</p>
+                    <p class="rams-alert__message">${saved} companies saved. Total discovered: ${data.discovered_total || 0}.</p>
+                    <p class="rams-alert__message"><a class="rams-link" href="{{ path('app_company_discovered') }}">Review discovered companies</a></p>
+                </div>`;
+        } else {
+            // Nothing running, reset UI
+            btnStop.classList.add('rams-hidden');
+            btnStart.classList.remove('rams-hidden');
+            btnStart.disabled = false;
+            btnStart.textContent = '{{ 'webcrawler.start_discovery'|trans }}';
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        }
+    } catch (e) {
+        // Silently ignore polling errors
+    }
+}
+
+async function stopDiscovery() {
+    if (!confirm('Stop the running discovery?')) return;
+    try {
+        await fetch('{{ path('app_webcrawler_discover_stop') }}', { method: 'POST' });
+        document.getElementById('status-label').textContent = 'Discovery Stopped';
+        document.getElementById('status-indicator').className = 'rams-andon__light rams-andon__light--red';
+        document.getElementById('btn-stop').classList.add('rams-hidden');
+        document.getElementById('btn-start').classList.remove('rams-hidden');
+        document.getElementById('btn-start').disabled = false;
+        document.getElementById('btn-start').textContent = '{{ 'webcrawler.start_discovery'|trans }}';
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    } catch (e) {
+        alert('Failed to stop: ' + e.message);
+    }
+}
+
+function showError(message) {
+    const resultsDiv = document.getElementById('discovery-results');
+    const resultsContent = document.getElementById('results-content');
+    resultsDiv.classList.remove('rams-hidden');
+    resultsContent.innerHTML = `
+        <div class="rams-alert rams-alert--danger">
+            <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
+            <p class="rams-alert__message">${message}</p>
+        </div>`;
+}
 </script>
 {% endblock %}

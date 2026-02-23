@@ -32,8 +32,11 @@ final class ScraperHttpClientFactory
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly ProxyRotator $proxyRotator,
         #[Autowire('%env(default::SCRAPER_PROXY_URL)%')]
         private readonly ?string $proxyUrl = null,
+        #[Autowire('%env(bool:ENABLE_PROXY_ROTATION)%')]
+        private readonly bool $enableProxyRotation = false,
     ) {}
 
     /**
@@ -71,6 +74,9 @@ final class ScraperHttpClientFactory
             // because Symfony's CurlHttpClient ignores per-request proxy options
             // due to curl_multi connection pooling.
             $this->client = new RotatingProxyHttpClient($options, $this->proxyUrl, $this->logger);
+        } elseif ($this->enableProxyRotation) {
+            $this->logger->info('ScraperHttpClientFactory: free proxy rotation enabled via ProxyRotator');
+            $this->client = new FreeProxyHttpClient($options, $this->proxyRotator, $this->logger);
         } else {
             $this->logger->debug('ScraperHttpClientFactory: no proxy configured — direct connection');
             $this->client = HttpClient::create($options);

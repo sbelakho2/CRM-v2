@@ -519,11 +519,12 @@ class CompanyDiscoveryService
             $this->em->persist($company);
             $savedCompanies[] = $company;
 
-            // ── Auto-create Contact entities from enrichment ─────
-            // The verify pipeline extracts named contacts (person name,
-            // email, phone, LinkedIn URL) from Schema.org data, vCards,
-            // and LinkedIn profile links on the company's homepage.
+            // ── Collect contacts to persist AFTER the company is saved ──
+            $pendingContacts = [];
+            // - Single-word names → reject
+            // - Numeric names → reject
             if (!empty($data['contacts'])) {
+                $seenContactNames = [];
                 foreach ($data['contacts'] as $contactData) {
                     if (empty($contactData['first_name']) || empty($contactData['last_name'])) {
                         continue;
@@ -532,15 +533,76 @@ class CompanyDiscoveryService
                     // ── Validate this looks like a REAL PERSON name ──
                     // The Schema.org extraction sometimes pulls company names,
                     // department names, or job titles instead of person names.
-                    // Use the classifier's isLikelyPersonName() to reject garbage.
                     $firstName = trim($contactData['first_name']);
                     $lastName = trim($contactData['last_name']);
 
-                    // Reject fake "General Contact" fallback entries
+                    // ── ENHANCED JUNK CONTACT FILTERING (v2) ──────────
+
+                    // 1. Reject fake "General Contact" fallback entries
                     if ($firstName === 'General' && $lastName === 'Contact') {
                         continue;
                     }
 
+                    // 2. Reject single-character or numeric-only names
+                    if (mb_strlen($firstName) < 2 || mb_strlen($lastName) < 2) {
+                        continue;
+                    }
+                    if (preg_match('/^\d+$/', $firstName) || preg_match('/^\d+$/', $lastName)) {
+                        continue;
+                    }
+
+                    // 3. Reject names that are just initials (e.g. "A" "B")
+                    if (mb_strlen($firstName) === 1 && mb_strlen($lastName) === 1) {
+                        continue;
+                    }
+
+                    // 4. Deduplicate within same company batch
+                    $contactKey = strtolower($firstName . '|' . $lastName);
+                    if (isset($seenContactNames[$contactKey])) {
+                        continue;
+                    }
+                    $seenContactNames[$contactKey] = true;
+
+                    // 5. Expanded non-person word list (EN/FR/DE/ES/IT/NL)
+                    $badWords = [
+                        // Company suffixes
+                        'technologies', 'technology', 'systems', 'electronics', 'corporation',
+                        'group', 'llc', 'inc', 'ltd', 'gmbh', 'sarl', 'sas', 'sa', 'bv',
+                        'holding', 'international', 'global', 'worldwide',
+                        // Departments / roles as names
+                        'editorial', 'staff', 'manager', 'director', 'support', 'sales',
+                        'marketing', 'administration', 'management', 'department', 'division',
+                        'service', 'services', 'team', 'office', 'bureau', 'reception',
+                        // Events / organizations
+                        'expo', 'exhibition', 'conference', 'association', 'federation',
+                        'chamber', 'council', 'committee', 'commission',
+                        // French
+                        'direction', 'ressources', 'humaines', 'comptabilite', 'juridique',
+                        'secretariat', 'accueil', 'standard', 'communication',
+                        // German
+                        'verwaltung', 'buchhaltung', 'geschäftsführung', 'geschaeftsfuehrung',
+                        'empfang', 'zentrale', 'abteilung', 'leitung',
+                        // Misc junk
+                        'undefined', 'null', 'unknown', 'anonymous', 'test', 'admin',
+                        'webmaster', 'postmaster', 'noreply', 'newsletter',
+                    ];
+                    $skipContact = false;
+                    $firstLower = strtolower($firstName);
+                    $lastLower = strtolower($lastName);
+                    foreach ($badWords as $bw) {
+                        if ($firstLower === $bw || $lastLower === $bw) {
+                            $skipContact = true;
+                            break;
+                        }
+                    }
+                    if ($skipContact) {
+                        $this->logger->debug('Rejected contact name (non-person word)', [
+                            'name' => $firstName . ' ' . $lastName,
+                        ]);
+                        continue;
+                    }
+
+                    // 6. Use classifier for deep person-name validation
                     if ($this->classifier !== null) {
                         if (!$this->classifier->isLikelyPersonName($firstName, $lastName, $name)) {
                             $this->logger->debug('Rejected non-person contact name', [
@@ -551,47 +613,50 @@ class CompanyDiscoveryService
                             continue;
                         }
                     } else {
-                        // Fallback: basic rejection without classifier
+                        // Fallback: similarity check
                         $fullContactName = strtolower($firstName . ' ' . $lastName);
                         $companyLower = strtolower($name);
-                        // Reject if contact name looks like the company name
                         $similarity = 0;
                         similar_text($fullContactName, $companyLower, $similarity);
                         if ($similarity > 60) {
-                            $this->logger->debug('Rejected contact name (too similar to company name)', [
-                                'name' => $firstName . ' ' . $lastName,
-                                'company' => $name,
-                            ]);
-                            continue;
-                        }
-                        // Reject obvious non-person words
-                        $badWords = ['technologies', 'technology', 'systems', 'electronics',
-                                     'corporation', 'group', 'editorial', 'staff', 'manager',
-                                     'director', 'support', 'sales', 'expo', 'llc', 'inc', 'ltd'];
-                        $skipContact = false;
-                        foreach ($badWords as $bw) {
-                            if (strtolower($firstName) === $bw || strtolower($lastName) === $bw) {
-                                $skipContact = true;
-                                break;
-                            }
-                        }
-                        if ($skipContact) {
-                            $this->logger->debug('Rejected contact name (non-person word)', [
-                                'name' => $firstName . ' ' . $lastName,
-                            ]);
                             continue;
                         }
                     }
+
+                    // ── GENERIC EMAIL PREFIX FILTERING ────────────────
+                    // Strip generic emails (info@, sales@, etc.) but keep
+                    // the contact if they have a valid person name.
+                    $genericEmailPrefixes = [
+                        'info', 'sales', 'contact', 'support', 'admin', 'hr',
+                        'marketing', 'webmaster', 'noreply', 'no-reply', 'office',
+                        'careers', 'jobs', 'press', 'media', 'general', 'enquiries',
+                        'hello', 'service', 'help', 'billing', 'accounts', 'orders',
+                        'team', 'news', 'feedback', 'privacy', 'legal', 'compliance',
+                        'reception', 'secretary', 'direction', 'accueil', 'standard',
+                        'recrutement', 'comptabilite', 'achats', 'logistique',
+                        'vertrieb', 'verwaltung', 'buchhaltung', 'einkauf',
+                        'technik', 'personal', 'empfang', 'zentrale',
+                        'newsletter', 'subscribe', 'unsubscribe', 'bounce',
+                        'postmaster', 'mailer-daemon', 'daemon', 'root',
+                    ];
 
                     $contact = new Contact();
                     $contact->setCompany($company);
                     $contact->setFirstName($firstName);
                     $contact->setLastName($lastName);
                     if (!empty($contactData['email'])) {
-                        // ── Last-resort: reject banking/consulting email domains ──
+                        $emailLocal = strtolower(explode('@', $contactData['email'])[0] ?? '');
                         $emailDomain = strtolower(explode('@', $contactData['email'])[1] ?? '');
+
+                        // ── Reject generic email prefixes ──
+                        $isGenericPrefix = in_array($emailLocal, $genericEmailPrefixes, true);
+
+                        // ── Reject banking/consulting/free email domains ──
                         $rejectDomains = [
                             'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com',
+                            'yahoo.fr', 'hotmail.fr', 'outlook.fr', 'live.com', 'live.fr',
+                            'protonmail.com', 'zoho.com', 'icloud.com', 'me.com', 'mail.com',
+                            'gmx.com', 'gmx.de', 'gmx.fr', 'web.de', 'yandex.com', 'yandex.ru',
                             'socgen.com', 'bnpparibas.com', 'credit-agricole.com', 'cic.fr',
                             'hsbc.com', 'barclays.com', 'jpmorgan.com', 'goldmansachs.com',
                             'morganstanley.com', 'ubs.com', 'db.com', 'citi.com', 'rbc.com',
@@ -599,58 +664,96 @@ class CompanyDiscoveryService
                             'pwc.com', 'deloitte.com', 'ey.com', 'kpmg.com', 'mckinsey.com',
                             'bcg.com', 'bain.com', 'accenture.com', 'capgemini.com',
                         ];
-                        if (in_array($emailDomain, $rejectDomains, true)) {
-                            $this->logger->debug('Rejected contact with banking/consulting email', [
+                        $isRejectDomain = in_array($emailDomain, $rejectDomains, true);
+
+                        if ($isRejectDomain) {
+                            $this->logger->debug('Rejected contact with non-company email', [
                                 'name' => $firstName . ' ' . $lastName,
                                 'email' => $contactData['email'],
                                 'company' => $name,
                             ]);
-                            continue;
+                            continue; // Reject entire contact — email from wrong org
                         }
-                        // Strip mismatched email but KEEP the contact (name+title still valuable)
-                        $emailOk = true;
-                        if (!empty($website)) {
-                            $companyHost = parse_url($website, PHP_URL_HOST);
-                            if ($companyHost) {
-                                $companyDom = strtolower(preg_replace('/^www\./', '', $companyHost));
-                                $companyRoot = implode('.', array_slice(explode('.', $companyDom), -2));
-                                $emailRoot = implode('.', array_slice(explode('.', $emailDomain), -2));
-                                if ($companyRoot !== $emailRoot) {
-                                    $cw = explode('.', $companyRoot)[0];
-                                    $ew = explode('.', $emailRoot)[0];
-                                    if (strlen($cw) >= 3 && strlen($ew) >= 3
-                                        && !str_contains($ew, $cw)
-                                        && !str_contains($cw, $ew)) {
-                                        $this->logger->debug('Stripped mismatched email from contact (keeping contact)', [
-                                            'name' => $firstName . ' ' . $lastName,
-                                            'email' => $contactData['email'],
-                                            'company_domain' => $companyDom,
-                                        ]);
-                                        $emailOk = false;
+
+                        if ($isGenericPrefix) {
+                            // Strip generic email but keep the contact (name is still valuable)
+                            $this->logger->debug('Stripped generic email prefix from contact', [
+                                'name' => $firstName . ' ' . $lastName,
+                                'email' => $contactData['email'],
+                            ]);
+                            // Don't set email — fall through
+                        } else {
+                            // Domain mismatch check
+                            $emailOk = true;
+                            if (!empty($website)) {
+                                $companyHost = parse_url($website, PHP_URL_HOST);
+                                if ($companyHost) {
+                                    $companyDom = strtolower(preg_replace('/^www\./', '', $companyHost));
+                                    $companyRoot = implode('.', array_slice(explode('.', $companyDom), -2));
+                                    $emailRoot = implode('.', array_slice(explode('.', $emailDomain), -2));
+                                    if ($companyRoot !== $emailRoot) {
+                                        $cw = explode('.', $companyRoot)[0];
+                                        $ew = explode('.', $emailRoot)[0];
+                                        if (strlen($cw) >= 3 && strlen($ew) >= 3
+                                            && !str_contains($ew, $cw)
+                                            && !str_contains($cw, $ew)) {
+                                            $emailOk = false;
+                                        }
                                     }
                                 }
                             }
-                        }
-                        if ($emailOk) {
-                            $contact->setEmail($contactData['email']);
+                            if ($emailOk) {
+                                $contact->setEmail($contactData['email']);
+                            }
                         }
                     }
+
+                    // ── Phone number validation ──────────────────────
                     if (!empty($contactData['phone'])) {
-                        $contact->setPhone($contactData['phone']);
+                        $phone = trim($contactData['phone']);
+                        // Reject obviously invalid phone numbers
+                        $cleanPhone = preg_replace('/[\s\-\.\(\)]+/', '', $phone);
+                        if (strlen($cleanPhone) >= 7 && strlen($cleanPhone) <= 20
+                            && preg_match('/^\+?\d{7,}$/', $cleanPhone)) {
+                            $contact->setPhone($phone);
+                        }
                     }
                     if (!empty($contactData['job_title'])) {
                         $contact->setJobTitle($contactData['job_title']);
                     }
                     if (!empty($contactData['linkedin_url'])) {
-                        $contact->setLinkedInUrl($contactData['linkedin_url']);
+                        // Validate LinkedIn URL format
+                        $liUrl = $contactData['linkedin_url'];
+                        if (str_contains($liUrl, 'linkedin.com/in/') || str_contains($liUrl, 'linkedin.com/pub/')) {
+                            $contact->setLinkedInUrl($liUrl);
+                        }
                     }
+
+                    // ── FINAL QUALITY GATE: reject contacts with NO useful data ──
+                    // A contact with just a name and nothing else is not actionable.
+                    $hasEmail = !empty($contact->getEmail());
+                    $hasPhone = !empty($contact->getPhone());
+                    $hasLinkedIn = !empty($contact->getLinkedInUrl());
+                    $hasTitle = !empty($contact->getJobTitle());
+
+                    if (!$hasEmail && !$hasPhone && !$hasLinkedIn && !$hasTitle) {
+                        $this->logger->debug('Rejected contact with no actionable data (no email/phone/linkedin/title)', [
+                            'name' => $firstName . ' ' . $lastName,
+                            'company' => $name,
+                        ]);
+                        continue;
+                    }
+
                     $contact->setSource('Webcrawler');
                     $contact->setCreatedAt(new \DateTime());
-                    $this->em->persist($contact);
+                    $pendingContacts[] = $contact;
 
                     $this->logger->info('Auto-created contact', [
                         'name' => $contactData['first_name'] . ' ' . $contactData['last_name'],
                         'company' => $name,
+                        'has_email' => $hasEmail,
+                        'has_phone' => $hasPhone,
+                        'has_title' => $hasTitle,
                     ]);
                 }
             }
@@ -667,19 +770,26 @@ class CompanyDiscoveryService
                 'country' => $geo['country'],
             ]);
 
-            // ── Flush PER company to avoid cascading EM failures ─
+            // ── Persist contacts via Doctrine ──────────────────────
+            foreach ($pendingContacts as $contact) {
+                $this->em->persist($contact);
+            }
+
+            // ── Flush company + contacts together ─────────────────
             try {
                 $this->em->flush();
-            } catch (\Throwable $flushErr) {
-                $this->logger->warning('Flush failed for {company}: {msg}', [
+                $this->logger->info('Saved company to DB', [
                     'company' => $name,
-                    'msg' => $flushErr->getMessage(),
+                    'id' => $company->getId(),
+                    'contacts' => count($pendingContacts),
                 ]);
-                // Detach the failed entity and remove from saved list
-                try {
-                    $this->em->detach($company);
-                } catch (\Throwable $ignore) {}
+            } catch (\Throwable $flushErr) {
+                $this->logger->error('Flush failed for company', [
+                    'company' => $name,
+                    'error' => $flushErr->getMessage(),
+                ]);
                 array_pop($savedCompanies);
+                continue;
             }
         }
 

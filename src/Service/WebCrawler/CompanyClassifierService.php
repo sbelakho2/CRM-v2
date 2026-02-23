@@ -813,6 +813,48 @@ class CompanyClassifierService
             }
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        // SMART PATTERN-BASED JUNK DETECTION (iter16b)
+        // Structural pattern detection to catch junk that doesn't need
+        // to be explicitly listed in blacklists
+        // ══════════════════════════════════════════════════════════════════
+
+        // ─── 11. Gerund as first name (>5 chars ending in -ing) → likely junk ──
+        // "Strengthening Communities", "Expanding Broadband", "Ensuring Long"
+        $gerundExceptions = ['sterling', 'starling', 'king', 'ming', 'ling', 'ning', 'ping', 'ying'];
+        if (preg_match('/ing$/i', $firstName) && strlen($firstName) > 5 && !in_array($firstLower, $gerundExceptions, true)) {
+            return false;
+        }
+
+        // ─── 12. Past participle as first name (>4 chars ending in -ed) → likely junk ──
+        // "Earned Revenue", "Reduced Cost", "Integrated Solutions"
+        if (preg_match('/ed$/i', $firstName) && strlen($firstName) > 4) {
+            return false;
+        }
+
+        // ─── 13. Plural noun as last name (>5 chars ending in -s) requiring care ──
+        // Many real surnames end in -s (Jones, Williams), but "Systems", "Solutions", etc. don't
+        // We specifically target -ies, -ors, -ers, -ons, -ics, -als  patterns more aggressively
+        $pluralPatterns = [
+            '/ies$/i',   // Communities, Industries, Technologies
+            '/ors$/i',   // Attenuators, Connectors, Sensors  
+            '/ems$/i',   // Systems, Items, Problems
+            '/als$/i',   // Terminals, Materials, Signals
+            '/ics$/i',   // Electronics, Logistics, Analytics
+            '/ons$/i',   // Solutions, Operations, Connections
+        ];
+        foreach ($pluralPatterns as $pattern) {
+            if (preg_match($pattern, $lastName) && strlen($lastName) > 6) {
+                return false;
+            }
+        }
+
+        // ─── 14. Abstract noun suffixes in last name ──
+        // Words ending in -ment, -tion, -ness, -ity, -ance, -ence are almost never surnames
+        if (preg_match('/(?:ment|tion|sion|ness|ity|ance|ence)$/i', $lastName) && strlen($lastName) > 6) {
+            return false;
+        }
+
         // If nothing triggered a rejection, it's likely a person name
         return true;
     }

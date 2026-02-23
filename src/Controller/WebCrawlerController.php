@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 #[Route('/webcrawler')]
 #[IsGranted('ROLE_USER')]
@@ -35,10 +36,15 @@ class WebCrawlerController extends AbstractController
         'Energy Storage',
     ];
 
+    /** Directory where discovery status files are written */
+    private const DISCOVERY_STATUS_DIR = 'var/discovery';
+
     public function __construct(
         private CompanyDiscoveryService $discoveryService,
         private GoogleDorkService $googleDorkService,
         private CountryService $countryService,
+        #[Autowire('%kernel.project_dir%')]
+        private string $projectDir,
         private ?ContactEnrichmentService $contactEnrichmentService = null,
         private ?CompanyRepository $companyRepository = null
     ) {}
@@ -91,51 +97,176 @@ class WebCrawlerController extends AbstractController
     #[Route('/discover', name: 'app_webcrawler_discover', methods: ['POST'])]
     public function discover(Request $request): JsonResponse
     {
-        set_time_limit(600);
-
         $sector = $request->request->get('sector');
         $location = $request->request->get('location');
-        $keywords = $request->request->get('keywords', '');
         $locationLabel = $this->resolveLocationLabel($location);
         $sector = is_string($sector) && trim($sector) !== '' ? trim($sector) : null;
 
-        try {
-            // Run discovery
-            $companies = $this->discoveryService->discoverCompanies($sector, $locationLabel);
+        // Resolve region code from the location parameter for the CLI command
+        $regionCode = is_string($location) && trim($location) !== '' ? trim($location) : null;
 
-            $message = $sector
-                ? sprintf('Discovered %d companies in %s', count($companies), $sector)
-                : sprintf('Discovered %d companies', count($companies));
-
-            return new JsonResponse([
-                'success' => true,
-                'discovered' => count($companies),
-                'message' => $message,
-                'companies' => array_map(fn($c) => [
-                    'id' => $c->getId(),
-                    'name' => $c->getName(),
-                    'website' => $c->getWebsite(),
-                    'sector' => $c->getSector(),
-                    'region' => $c->getRegion(),
-                    'country' => $c->getCountry(),
-                    'city' => $c->getCity(),
-                    'linkedin_url' => $c->getLinkedinCompanyUrl(),
-                    'address' => $c->getAddress(),
-                    'notes' => $c->getNotes(),
-                    'pipeline_stage' => $c->getPipelineStage(),
-                    'account_tier' => $c->getAccountTier(),
-                    'source_notes' => $c->getSourceNotes(),
-                    'legal_name' => $c->getLegalName(),
-                    'physical_site' => $c->getPhysicalSite(),
-                ], $companies)
-            ]);
-
-        } catch (\Exception $e) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
+        $statusDir = $this->projectDir . '/' . self::DISCOVERY_STATUS_DIR;
+        if (!is_dir($statusDir)) {
+            mkdir($statusDir, 0775, true);
         }
+
+        // Check if a discovery is already running
+        $pidFile = $statusDir . '/discovery.pid';
+        if (file_exists($pidFile)) {
+            $existingPid = (int) file_get_contents($pidFile);
+            if ($existingPid > 0 && file_exists("/proc/{$existingPid}")) {
+                return new JsonResponse([
+                    'success' => true,
+                    'async' => true,
+                    'status' => 'already_running',
+                    'message' => 'A discovery run is already in progress.',
+                ]);
+            }
+            // Stale PID file — remove it
+            @unlink($pidFile);
+        }
+
+        // Build the CLI command
+        $consolePath = $this->projectDir . '/bin/console';
+        $logFile = $statusDir . '/discovery.log';
+        $statusFile = $statusDir . '/discovery.json';
+
+        // Write initial status
+        file_put_contents($statusFile, json_encode([
+            'status' => 'starting',
+            'sector' => $sector,
+            'location' => $locationLabel,
+            'region' => $regionCode,
+            'started_at' => date('c'),
+            'pid' => null,
+        ]));
+
+        // Build command arguments
+        // Use setsid to create a new session so the process is fully detached
+        // from the PHP-FPM process group. Without this, `systemctl restart php-fpm`
+        // sends SIGTERM to FPM workers which propagates to child processes.
+        // nohup only protects against SIGHUP, not SIGTERM.
+        $cmd = sprintf(
+            'ulimit -n 65536; setsid nohup php %s app:discover-companies',
+            escapeshellarg($consolePath)
+        );
+
+        if ($sector) {
+            $cmd .= ' --sector=' . escapeshellarg($sector);
+        }
+
+        if ($locationLabel && !$sector) {
+            // When no sector is specified, use --all with --region
+            $cmd .= ' --all';
+            if ($regionCode) {
+                $cmd .= ' --region=' . escapeshellarg($regionCode);
+            }
+        } elseif ($locationLabel) {
+            $cmd .= ' --location=' . escapeshellarg($locationLabel);
+        }
+
+        $cmd .= ' --no-interaction -vvv --env=prod';
+        $cmd .= ' > ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+
+        // Execute in background
+        $pid = (int) trim(shell_exec($cmd) ?? '0');
+
+        if ($pid > 0) {
+            file_put_contents($pidFile, (string) $pid);
+            // Update status with PID
+            file_put_contents($statusFile, json_encode([
+                'status' => 'running',
+                'sector' => $sector,
+                'location' => $locationLabel,
+                'region' => $regionCode,
+                'started_at' => date('c'),
+                'pid' => $pid,
+            ]));
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'async' => true,
+            'status' => $pid > 0 ? 'started' : 'failed',
+            'pid' => $pid,
+            'message' => $pid > 0
+                ? sprintf('Discovery started (PID %d). %s', $pid,
+                    $sector ? "Sector: {$sector}" : 'All sectors')
+                : 'Failed to start background discovery process.',
+        ]);
+    }
+
+    #[Route('/discover-status', name: 'app_webcrawler_discover_status', methods: ['GET'])]
+    public function discoverStatus(): JsonResponse
+    {
+        $statusDir = $this->projectDir . '/' . self::DISCOVERY_STATUS_DIR;
+        $pidFile = $statusDir . '/discovery.pid';
+        $logFile = $statusDir . '/discovery.log';
+        $statusFile = $statusDir . '/discovery.json';
+
+        $status = file_exists($statusFile)
+            ? json_decode(file_get_contents($statusFile), true) ?? []
+            : [];
+
+        // Check if process is still running
+        $running = false;
+        $pid = null;
+        if (file_exists($pidFile)) {
+            $pid = (int) file_get_contents($pidFile);
+            $running = $pid > 0 && file_exists("/proc/{$pid}");
+            if (!$running) {
+                // Process finished — clean up PID file
+                @unlink($pidFile);
+            }
+        }
+
+        // Parse log file for stats
+        $stats = $this->parseDiscoveryLogStats($logFile);
+
+        // Count currently discovered companies
+        $discoveredCount = 0;
+        if ($this->companyRepository) {
+            $discoveredCount = $this->companyRepository->count([
+                'companyStatus' => \App\Entity\Company::STATUS_DISCOVERED,
+            ]);
+        }
+
+        return new JsonResponse([
+            'running' => $running,
+            'pid' => $pid,
+            'started_at' => $status['started_at'] ?? null,
+            'sector' => $status['sector'] ?? null,
+            'location' => $status['location'] ?? null,
+            'region' => $status['region'] ?? null,
+            'stats' => $stats,
+            'discovered_total' => $discoveredCount,
+        ]);
+    }
+
+    #[Route('/discover-stop', name: 'app_webcrawler_discover_stop', methods: ['POST'])]
+    public function discoverStop(): JsonResponse
+    {
+        $statusDir = $this->projectDir . '/' . self::DISCOVERY_STATUS_DIR;
+        $pidFile = $statusDir . '/discovery.pid';
+
+        if (!file_exists($pidFile)) {
+            return new JsonResponse(['success' => false, 'message' => 'No discovery running.']);
+        }
+
+        $pid = (int) file_get_contents($pidFile);
+        if ($pid > 0 && file_exists("/proc/{$pid}")) {
+            // Send SIGTERM
+            posix_kill($pid, 15);
+            usleep(500000); // wait 500ms
+            // Force kill if still alive
+            if (file_exists("/proc/{$pid}")) {
+                posix_kill($pid, 9);
+            }
+        }
+
+        @unlink($pidFile);
+
+        return new JsonResponse(['success' => true, 'message' => 'Discovery stopped.']);
     }
 
     #[Route('/search-google', name: 'app_webcrawler_search_google', methods: ['POST'])]
@@ -336,6 +467,64 @@ class WebCrawlerController extends AbstractController
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Parse the discovery log file for pipeline statistics.
+     */
+    private function parseDiscoveryLogStats(string $logFile): array
+    {
+        $stats = [
+            'log_lines' => 0,
+            'beg_pass' => 0,
+            'beg_fail' => 0,
+            'beg_rescue' => 0,
+            'location_reject' => 0,
+            'location_rescue' => 0,
+            'searches' => 0,
+            'saved' => 0,
+            'last_activity' => null,
+        ];
+
+        if (!file_exists($logFile)) {
+            return $stats;
+        }
+
+        // Use grep for efficiency (avoid reading entire log into PHP)
+        // NOTE: grep -c always outputs a count (even 0) when the file exists,
+        // so || echo 0 would produce DOUBLE output for non-matches. Removed.
+        $grepCmd = sprintf(
+            'wc -l < %1$s; ' .
+            'grep -c "Evidence Gate PASS" %1$s 2>/dev/null; ' .
+            'grep -c "Evidence Gate FAIL" %1$s 2>/dev/null; ' .
+            'grep -c "Evidence Gate rescued" %1$s 2>/dev/null; ' .
+            'grep -c "No location presence" %1$s 2>/dev/null; ' .
+            'grep -c "Location presence rescued" %1$s 2>/dev/null; ' .
+            'grep -c "ScrapingSearchProvider: success" %1$s 2>/dev/null; ' .
+            'grep -c "Saved company to DB" %1$s 2>/dev/null; ' .
+            'tail -1 %1$s 2>/dev/null',
+            escapeshellarg($logFile)
+        );
+
+        $output = shell_exec($grepCmd);
+        if ($output) {
+            $lines = explode("\n", trim($output));
+            $stats['log_lines'] = (int) ($lines[0] ?? 0);
+            $stats['beg_pass'] = (int) ($lines[1] ?? 0);
+            $stats['beg_fail'] = (int) ($lines[2] ?? 0);
+            $stats['beg_rescue'] = (int) ($lines[3] ?? 0);
+            $stats['location_reject'] = (int) ($lines[4] ?? 0);
+            $stats['location_rescue'] = (int) ($lines[5] ?? 0);
+            $stats['searches'] = (int) ($lines[6] ?? 0);
+            $stats['saved'] = (int) ($lines[7] ?? 0);
+            // Last line of log for timestamp
+            $lastLine = $lines[8] ?? '';
+            if (preg_match('/^(\d{2}:\d{2}:\d{2})\s/', $lastLine, $m)) {
+                $stats['last_activity'] = $m[1];
+            }
+        }
+
+        return $stats;
     }
 
     private function resolveLocationLabel(?string $location): ?string

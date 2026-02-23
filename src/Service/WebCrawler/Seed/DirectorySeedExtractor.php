@@ -46,6 +46,14 @@ final class DirectorySeedExtractor
         'kerix.net'          => ['name' => 'Kerix',        'nameSelector' => '.company-name, h3, h2', 'linkSelector' => 'a[href*="fiche"]'],
         'directindustry.com' => ['name' => 'DirectIndustry','nameSelector'=> '.product-company, .company-name', 'linkSelector' => 'a[href*="company"]'],
         'make-it.uk'         => ['name' => 'Make It UK',   'nameSelector' => '.member-name, h2', 'linkSelector' => 'a[href*="member"]'],
+        // African / MENA directories
+        'pagesjaunes.ma'     => ['name' => 'Pages Jaunes Maroc', 'nameSelector' => '.company-name, .companyName, h2.name, .result-title, .bloc-info h2', 'linkSelector' => 'a[href*="entreprise"], a[href*="company"]'],
+        'charika.ma'         => ['name' => 'Charika',      'nameSelector' => '.company-name, h1.company, h2, .raison-sociale', 'linkSelector' => 'a[href*="societe"], a[href*="company"]'],
+        'telecontact.ma'     => ['name' => 'Telecontact',  'nameSelector' => '.company-name, .nom-entreprise, h2', 'linkSelector' => 'a[href*="entreprise"]'],
+        'yellowpages.com.eg' => ['name' => 'Yellow Pages Egypt', 'nameSelector' => '.company-name, .companyName, h2', 'linkSelector' => 'a[href*="company"]'],
+        'daleel.com.eg'      => ['name' => 'Daleel Egypt', 'nameSelector' => '.company-name, h2, .business-name', 'linkSelector' => 'a[href*="company"], a[href*="business"]'],
+        'pagesjaunes.com.tn' => ['name' => 'Pages Jaunes Tunisie', 'nameSelector' => '.company-name, h2, .result-name', 'linkSelector' => 'a[href*="entreprise"]'],
+        'tunisieindustrie.nat.tn' => ['name' => 'Tunisie Industrie', 'nameSelector' => '.company-name, h2, td.company', 'linkSelector' => 'a[href*="entreprise"], a[href*="company"]'],
     ];
 
     /**
@@ -59,6 +67,14 @@ final class DirectorySeedExtractor
         'industrynet.com', 'tradewheel.com', 'tradeindia.com',
         'yellowpages.', 'dnb.com', 'hoovers.com', 'manta.com',
         'f6s.com', 'crunchbase.com', 'zoominfo.com',
+        // African / MENA directories
+        'pagesjaunes.ma', 'charika.ma', 'telecontact.ma',
+        'pagesjaunes.com.tn', 'tunisieindustrie.nat.tn',
+        'yellowpages.com.eg', 'egyindustry.com', 'daleel.com.eg',
+        'go4worldbusiness.com', 'amica.org.ma',
+        // Additional global directories
+        'dnb.com', 'opencorporates.com', 'importgenius.com',
+        'panjiva.com', 'companiesmarketcap.com',
     ];
 
     private TextNormalizer $normalizer;

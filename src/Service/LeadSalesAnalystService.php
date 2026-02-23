@@ -114,7 +114,8 @@ class LeadSalesAnalystService
         private LoggerInterface $logger,
         array $ourCapabilities = [],
         array $ourCertifications = [],
-        array $targetSectors = []
+        array $targetSectors = [],
+        private ?LlmService $llmService = null,
     ) {
         $this->ourCapabilities = !empty($ourCapabilities) ? $ourCapabilities : self::DEFAULT_CAPABILITIES;
         $this->ourCertifications = !empty($ourCertifications) ? $ourCertifications : self::DEFAULT_CERTIFICATIONS;
@@ -191,6 +192,31 @@ class LeadSalesAnalystService
             'next_steps' => $this->generateNextSteps($lead, $overallFit, $painPoints),
             'analyzed_at' => (new \DateTime())->format('c'),
         ];
+
+        // ── LLM-GENERATED INSIGHTS (optional, non-blocking) ────────
+        if ($this->llmService !== null) {
+            try {
+                $llmInsights = $this->llmService->generateSalesInsights(
+                    $lead->getCompanyName() ?? 'Unknown',
+                    implode(', ', $sectorTags ?: ['Manufacturing']),
+                    $lead->getCountry() ?? $lead->getRegionTag() ?? 'Unknown',
+                    $capabilityFit['matched'] ?? [],
+                    $certificationFit['matched'] ?? [],
+                );
+                if ($llmInsights !== null) {
+                    $analysis['llm_insights'] = [
+                        'conversation_starters' => $llmInsights['conversation_starters'] ?? [],
+                        'pain_points' => $llmInsights['pain_points'] ?? [],
+                        'value_proposition' => $llmInsights['value_proposition'] ?? '',
+                    ];
+                }
+            } catch (\Throwable $e) {
+                $this->logger->debug('LLM sales insights failed', [
+                    'error' => $e->getMessage(),
+                    'lead_id' => $lead->getId(),
+                ]);
+            }
+        }
         
         $this->logger->info('Lead analyzed for sales intelligence', [
             'lead_id' => $lead->getId(),

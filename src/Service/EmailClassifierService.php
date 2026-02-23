@@ -127,7 +127,8 @@ class EmailClassifierService
         private ContactRepository $contactRepository,
         private ThompsonSamplerService $thompsonSampler,
         private ?BayesTrainingRepository $bayesTrainingRepository,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ?LlmService $llmService = null,
     ) {}
 
     /**
@@ -159,7 +160,61 @@ class EmailClassifierService
         $bayesResult = $this->classifyByNaiveBayes($combinedText);
         
         $requiresReview = $bayesResult['confidence'] < self::CONFIDENCE_THRESHOLD;
-        
+
+        // ── LLM TIEBREAKER ─────────────────────────────────────────
+        // When Bayes is uncertain, ask the local LLM for a second opinion.
+        // If the LLM agrees with Bayes, boost confidence; if it disagrees
+        // but is itself confident, prefer the LLM verdict.
+        $method = InboxMessage::METHOD_NAIVE_BAYES;
+        if ($requiresReview && $this->llmService !== null) {
+            try {
+                $llmResult = $this->llmService->classifyEmail($subject, $body, $fromEmail ?? null);
+                if ($llmResult !== null) {
+                    $llmCategory = strtoupper($llmResult['category'] ?? '');
+                    $llmConfidence = (float) ($llmResult['confidence'] ?? 0.5);
+                    $this->logger->info('LLM email classification', [
+                        'fromEmail' => $fromEmail,
+                        'llm_category' => $llmCategory,
+                        'llm_confidence' => $llmConfidence,
+                        'bayes_classification' => $bayesResult['classification'],
+                        'bayes_confidence' => $bayesResult['confidence'],
+                    ]);
+
+                    // Map LLM category to system categories
+                    $categoryMap = [
+                        'INTERESTED' => InboxMessage::CLASSIFICATION_INTERESTED,
+                        'NOT_INTERESTED' => InboxMessage::CLASSIFICATION_NOT_INTERESTED,
+                        'UNSUBSCRIBE' => InboxMessage::CLASSIFICATION_UNSUBSCRIBE,
+                        'OUT_OF_OFFICE' => InboxMessage::CLASSIFICATION_OUT_OF_OFFICE,
+                        'BOUNCE' => InboxMessage::CLASSIFICATION_BOUNCE,
+                        'FORWARD' => InboxMessage::CLASSIFICATION_INTERESTED, // forwards mean someone is engaging
+                    ];
+                    $mappedCategory = $categoryMap[$llmCategory] ?? null;
+
+                    if ($mappedCategory !== null && $llmConfidence >= 0.7) {
+                        if ($mappedCategory === $bayesResult['classification']) {
+                            // Both agree — boost confidence, no review needed
+                            $bayesResult['confidence'] = min(0.95, $bayesResult['confidence'] + 0.2);
+                            $requiresReview = false;
+                            $method = 'llm_confirmed';
+                        } else {
+                            // LLM disagrees — if LLM is highly confident, override
+                            if ($llmConfidence >= 0.85) {
+                                $bayesResult['classification'] = $mappedCategory;
+                                $bayesResult['confidence'] = $llmConfidence;
+                                $requiresReview = false;
+                                $method = 'llm_override';
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->logger->debug('LLM email classification failed, falling back to Bayes', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         $this->logger->debug('Email classified by Naive Bayes', [
             'fromEmail' => $fromEmail,
             'classification' => $bayesResult['classification'],
@@ -170,7 +225,7 @@ class EmailClassifierService
         return [
             'classification' => $bayesResult['classification'],
             'confidence' => $bayesResult['confidence'],
-            'method' => InboxMessage::METHOD_NAIVE_BAYES,
+            'method' => $method,
             'requiresReview' => $requiresReview,
             'probabilities' => $bayesResult['probabilities'],
         ];
