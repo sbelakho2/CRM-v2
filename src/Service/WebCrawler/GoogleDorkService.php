@@ -106,14 +106,64 @@ class GoogleDorkService
      */
     private function executeProviderSearch(string $query, int $num = 10, int $startIndex = 1, ?string $gl = null): array
     {
+        $query = $this->prepareSearchQueryForProvider($query);
+
+        // Defensive bounds for Google CSE compatibility:
+        // - max num=10
+        // - start+num must not exceed 100
+        $startIndex = max(1, min(100, $startIndex));
+        $num = max(1, $num);
+
         // Prefer the new abstraction if wired
         if ($this->searchProvider !== null) {
             $resultSet = $this->searchProvider->search($query, $gl, null, $num, $startIndex);
             return $resultSet->toLegacyArray();
         }
 
-        // Fall back to legacy concrete class
+        // Fall back to legacy concrete class (Google CSE)
         if ($this->googleSearchService !== null) {
+            // Transparently chunk >10 requests for CSE
+            if ($num > 10) {
+                $remaining = min($num, 100 - $startIndex + 1);
+                $cursor = $startIndex;
+                $merged = ['results' => [], 'totalResults' => 0, 'searchTime' => 0.0];
+
+                while ($remaining > 0 && $cursor <= 100) {
+                    $chunk = min(10, $remaining);
+                    if (($cursor + $chunk - 1) > 100) {
+                        $chunk = 100 - $cursor + 1;
+                    }
+                    if ($chunk <= 0) {
+                        break;
+                    }
+
+                    $part = $this->googleSearchService->searchCompanies($query, $chunk, $cursor, $gl);
+                    $items = $part['results'] ?? [];
+                    if (!empty($items)) {
+                        $merged['results'] = array_merge($merged['results'], $items);
+                    }
+                    $merged['searchTime'] += (float) ($part['searchTime'] ?? 0);
+                    $merged['totalResults'] = max((int) $merged['totalResults'], (int) ($part['totalResults'] ?? 0));
+
+                    if (count($items) < $chunk) {
+                        break;
+                    }
+
+                    $remaining -= $chunk;
+                    $cursor += $chunk;
+                }
+
+                return $merged;
+            }
+
+            $num = min(10, $num);
+            if (($startIndex + $num - 1) > 100) {
+                $num = 100 - $startIndex + 1;
+            }
+            if ($num <= 0) {
+                return ['results' => [], 'totalResults' => 0, 'searchTime' => 0];
+            }
+
             return $this->googleSearchService->searchCompanies($query, $num, $startIndex, $gl);
         }
 
@@ -187,7 +237,7 @@ class GoogleDorkService
             'execute_search' => $executeSearch
         ]);
 
-        $searchQueries = $this->buildGoogleDorkQueries($sector, $location);
+        $searchQueries = $this->optimizeAndDiversifySearchQueries($this->buildGoogleDorkQueries($sector, $location), $sector, $location);
         $discovered = [];
         $allResults = [];
         $directorySeeds = []; // Improvement 2D: seeds from directory pages
@@ -208,8 +258,8 @@ class GoogleDorkService
                 $regularQueries[] = $q;
             }
         }
-        shuffle($priorityQueries);
-        shuffle($regularQueries);
+        $priorityQueries = $this->stableDiversifyQueryOrder($priorityQueries);
+        $regularQueries = $this->stableDiversifyQueryOrder($regularQueries);
         $searchQueries = array_merge($priorityQueries, $regularQueries);
         $this->logger->info('Query priority split', [
             'priority' => count($priorityQueries),
@@ -264,6 +314,9 @@ class GoogleDorkService
             }
         }
 
+        // Re-run query optimization after exclusions + dynamic expansion
+        $searchQueries = $this->optimizeAndDiversifySearchQueries($searchQueries, $sector, $location);
+
         // If we have a search provider and should execute, use it
         if ($executeSearch && $this->hasSearchProvider()) {
             $this->logger->info("Executing searches via Search Provider");
@@ -280,6 +333,8 @@ class GoogleDorkService
             $searchTimeBudgetSeconds = 1500; // 25 minutes
             
             foreach ($searchQueries as $queryIndex => $query) {
+                $query = $this->prepareSearchQueryForProvider($query);
+
                 // Check time budget before each query
                 if ((time() - $searchStartTime) > $searchTimeBudgetSeconds) {
                     $this->logger->notice('Search time budget exhausted, proceeding with candidates found so far', [
@@ -312,7 +367,7 @@ class GoogleDorkService
                         $this->metricsCollector->recordCandidates(count($paginatedResults));
                         foreach ($paginatedResults as $result) {
                             // Deduplicate by domain
-                            $domain = $result['displayLink'] ?? '';
+                            $domain = $this->canonicalizeResultDomain((string) ($result['displayLink'] ?? ''), (string) ($result['link'] ?? ''));
 
                             // ── Directory seed extraction (Improvement 2D) ──
                             // If the result is from a known B2B directory,
@@ -354,7 +409,8 @@ class GoogleDorkService
                                 continue;
                             }
 
-                            if (!isset($allResults[$domain])) {
+                            $domainKey = $this->domainDedupeKey($domain);
+                            if (!isset($allResults[$domainKey])) {
                                 $companyName = $this->extractCompanyName($result['title'] ?? '', $domain);
                                 
                                 // Post-filter: reject names that still look like page titles
@@ -597,7 +653,7 @@ class GoogleDorkService
                                     $this->metricsCollector->recordAccept('rule_engine');
                                 }
                                 
-                                $allResults[$domain] = [
+                                $allResults[$domainKey] = [
                                     'name' => $companyName,
                                     'website' => $this->extractWebsiteFromResult($result),
                                     'title' => $title,
@@ -3518,6 +3574,29 @@ class GoogleDorkService
         }
 
         // Extract the TLD
+        $domain = $this->canonicalizeDomain($domain);
+
+        // Fast-path rejects (cheap checks before heavier blocklists)
+        if ($domain === '' || preg_match('/\s/', $domain)) {
+            return true;
+        }
+        if (preg_match('/^\d{1,3}(?:\.\d{1,3}){3}$/', $domain)) {
+            return true;
+        }
+        if (str_contains($domain, '/')) {
+            return true;
+        }
+
+        // Common non-prospect platforms / content hosts
+        if (preg_match('/(^|\.)(facebook|instagram|x|twitter|youtube|youtu|tiktok|pinterest|reddit|quora|medium|substack|wixsite|wordpress|blogspot|tumblr|weebly|notion(?:\.site)?|canva|slideshare|issuu|scribd|wikipedia|wiktionary|wikimedia|maps|openstreetmap|crunchbase|zoominfo|apollo|rocketreach|signalhire|hunter\.io|amazon|ebay|etsy|alibaba|aliexpress|booking|tripadvisor|expedia|agoda|glassdoor|indeed|monster|stepstone|bayt|wuzzuf|tanqeeb)\./i', $domain)) {
+            return true;
+        }
+
+        // Static/document/help subdomains are almost never root company sites
+        if (preg_match('/^(?:cdn|static|assets?|img|images?|files?|downloads?|docs?|help|support|status|api)\./i', $domain)) {
+            return true;
+        }
+
         $domain = strtolower(preg_replace('/^www\./', '', $domain));
         if (!preg_match('/\.([a-z]{2,3})$/', $domain, $m)) {
             return false;
@@ -4312,9 +4391,36 @@ class GoogleDorkService
      */
     private function isJunkCompanyName(string $name): bool
     {
+        $name = trim(html_entity_decode($name, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
         $lower = strtolower(trim($name));
         $words = preg_split('/\s+/', trim($name));
         $wordCount = count($words);
+
+        // Fast rejects for UI fragments / snippets
+        if ($name === '' || preg_match('/^[\-–—|•,:;\/\\]+$/u', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(cookie|privacy|terms|sign\s*in|log\s*in|register|subscribe|newsletter|menu|search|home|contact\s+us|about\s+us|read\s+more|learn\s+more|apply\s+now|book\s+now)\b/iu', $name)) {
+            return true;
+        }
+        if (preg_match('/\b(202[0-9]|19\d{2})\b/u', $name) && preg_match('/\b(news|report|insights?|forecast|market|update|press)\b/iu', $name)) {
+            return true;
+        }
+        if (substr_count($name, '|') >= 2 || substr_count($name, '»') >= 1 || substr_count($name, '›') >= 1) {
+            return true;
+        }
+        if ($wordCount >= 10 && !$this->hasCompanySuffix($name)) {
+            return true;
+        }
+        if ($this->looksLikeDirectoryOrCategoryLabel($name)) {
+            return true;
+        }
+
+        // Strong company-name rescue reduces false negatives
+        if ($this->looksLikeStrongCompanyName($name)) {
+            return false;
+        }
         
         // Empty or very short (< 3 chars, unless ALL-CAPS acronym like "ZF", "ABB")
         if (mb_strlen($name) < 2) {
@@ -15537,29 +15643,8 @@ class GoogleDorkService
         if (!$location) {
             return '';
         }
-        $stopWords = ['free', 'zone', 'industrial', 'city', 'area', 'region',
-            'port', 'special', 'economic', 'park', 'estate', 'hub', 'corridor',
-            'district', 'valley', 'greater', 'metro', 'the', 'of', 'and'];
-        $parts = preg_split('/[\s,]+/', $location);
-        $keyParts = array_filter($parts, function ($p) use ($stopWords) {
-            return strlen($p) > 2 && !in_array(strtolower($p), $stopWords);
-        });
-        $locationTerm = ' ' . implode(' ', array_values($keyParts));
-        
-        $region = $this->detectRegionFromLocation($location);
-        $countryContextMap = [
-            'EG' => ' Egypt',
-            'MA' => ' Morocco',
-            'TN' => ' Tunisia',
-            'GCC' => '',
-            'US' => '',
-            'GB' => '',
-        ];
-        $needsCountry = $countryContextMap[$region] ?? '';
-        if ($needsCountry && !stripos($locationTerm, trim($needsCountry))) {
-            $locationTerm .= $needsCountry;
-        }
-        return $locationTerm;
+
+        return $this->buildLocationTermAdvanced($location);
     }
 
     private function buildGoogleDorkQueries(?string $sector, ?string $location = null): array
@@ -16224,24 +16309,25 @@ class GoogleDorkService
         $allResults = [];
 
         try {
-            $results = $this->executeProviderSearch($query, 20);
+            $results = $this->executeProviderSearch($this->prepareSearchQueryForProvider($query), 20);
 
             if (!empty($results['results'])) {
                 foreach ($results['results'] as $result) {
-                    $domain = $result['displayLink'] ?? '';
+                    $domain = $this->canonicalizeResultDomain((string) ($result['displayLink'] ?? ''), (string) ($result['link'] ?? ''));
 
                     if ($this->isBlockedDomain($domain)) {
                         continue;
                     }
 
-                    if (!isset($allResults[$domain])) {
+                    $domainKey = $this->domainDedupeKey($domain);
+                    if (!isset($allResults[$domainKey])) {
                         $companyName = $this->extractCompanyName($result['title'] ?? '', $domain);
 
                         if ($this->isJunkCompanyName($companyName) || $this->isGiantOem($companyName)) {
                             continue;
                         }
 
-                        $allResults[$domain] = [
+                        $allResults[$domainKey] = [
                             'name' => $companyName,
                             'website' => $this->extractWebsiteFromResult($result),
                             'title' => $result['title'] ?? '',
@@ -16271,6 +16357,503 @@ class GoogleDorkService
      *
      * Returns empty string if the address is unsalvageable.
      */
+    /**
+     * Canonicalize a host/domain string.
+     */
+    private function canonicalizeDomain(string $domain): string
+    {
+        $domain = trim($domain);
+        if ($domain === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $domain)) {
+            $host = parse_url($domain, PHP_URL_HOST);
+            if (is_string($host) && $host !== '') {
+                $domain = $host;
+            }
+        }
+
+        $domain = strtolower($domain);
+        $domain = preg_replace('/:\d+$/', '', $domain) ?? $domain;
+        $domain = preg_replace('/^www\d*\./i', '', $domain) ?? $domain;
+        $domain = preg_replace('/\.$/', '', $domain) ?? $domain;
+
+        if (str_contains($domain, '/')) {
+            $domain = explode('/', $domain, 2)[0];
+        }
+
+        $domain = preg_replace('/^(?:en|fr|de|es|it|pt|pl|nl|cz|cs|ar)\./i', '', $domain) ?? $domain;
+
+        if (function_exists('idn_to_ascii') && preg_match('/[^\x20-\x7E]/u', $domain)) {
+            $ascii = idn_to_ascii($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+            if (is_string($ascii) && $ascii !== '') {
+                $domain = strtolower($ascii);
+            }
+        }
+
+        return trim($domain);
+    }
+
+    private function canonicalizeResultDomain(string $displayLink, string $link = ''): string
+    {
+        $domain = $this->canonicalizeDomain($displayLink);
+
+        if ($domain === '' && $link !== '') {
+            $host = parse_url($link, PHP_URL_HOST);
+            if (is_string($host) && $host !== '') {
+                $domain = $this->canonicalizeDomain($host);
+            }
+        }
+
+        return $domain;
+    }
+
+    private function domainDedupeKey(string $domain): string
+    {
+        $domain = $this->canonicalizeDomain($domain);
+        if ($domain === '') {
+            return '';
+        }
+
+        $parts = array_values(array_filter(explode('.', $domain)));
+        if (count($parts) <= 2) {
+            return $domain;
+        }
+
+        $twoLevelPublicSuffixes = [
+            'co.uk','org.uk','gov.uk','ac.uk','com.au','net.au','org.au',
+            'co.nz','com.br','com.mx','com.tr','com.sa','com.eg','com.tn','com.ma',
+            'co.za','co.ke','co.in','co.jp'
+        ];
+
+        $tail2 = implode('.', array_slice($parts, -2));
+        $tail3 = implode('.', array_slice($parts, -3));
+
+        if (in_array($tail2, $twoLevelPublicSuffixes, true) && count($parts) >= 3) {
+            return $tail3;
+        }
+
+        if (count($parts) >= 3 && in_array($parts[0], ['en','fr','de','es','it','pt','pl','nl','ar','global','corp','corporate','www2','www3'], true)) {
+            return implode('.', array_slice($parts, -2));
+        }
+
+        return implode('.', array_slice($parts, -2));
+    }
+
+    private function prepareSearchQueryForProvider(string $query): string
+    {
+        $query = preg_replace('/\s+/u', ' ', trim($query)) ?? trim($query);
+
+        preg_match_all('/-site:[^\s]+/u', $query, $m);
+        if (!empty($m[0])) {
+            $sites = array_values(array_unique($m[0]));
+            sort($sites);
+            $query = preg_replace('/(?:\s+-site:[^\s]+)+/u', '', $query) ?? $query;
+            $query = trim($query) . ' ' . implode(' ', $sites);
+        }
+
+        if (mb_strlen($query) > 380) {
+            $pieces = preg_split('/\s+/', $query) ?: [];
+            $out = [];
+            $len = 0;
+            foreach ($pieces as $piece) {
+                $next = $len + ($len > 0 ? 1 : 0) + mb_strlen($piece);
+                if ($next > 380) {
+                    break;
+                }
+                $out[] = $piece;
+                $len = $next;
+            }
+            $query = implode(' ', $out);
+        }
+
+        $query = preg_replace('/\s+(OR|AND)\s*$/iu', '', $query) ?? $query;
+
+        return trim($query);
+    }
+
+    private function optimizeAndDiversifySearchQueries(array $queries, ?string $sector, ?string $location): array
+    {
+        $region = $this->detectRegionFromLocation($location);
+        $queries = array_merge($queries, $this->buildAdaptiveDiscoveryQueries($sector, $location, $region));
+
+        $seen = [];
+        $scored = [];
+
+        foreach ($queries as $raw) {
+            if (!is_string($raw)) {
+                continue;
+            }
+
+            $isPriority = str_starts_with($raw, '<<P>>');
+            $q = $isPriority ? substr($raw, 5) : $raw;
+            $q = trim($q);
+            if ($q === '') {
+                continue;
+            }
+
+            $q = $this->appendSearchNoiseExclusions($q, $region);
+            $q = $this->prepareSearchQueryForProvider($q);
+            if ($q === '' || mb_strlen($q) < 8) {
+                continue;
+            }
+
+            $key = $this->normalizeSearchQueryForDedup($q);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+
+            $score = $this->scoreSearchQueryIntent($q, $sector, $location) + ($isPriority ? 35 : 0);
+            $scored[] = ['q' => $q, 'score' => $score, 'priority' => $isPriority];
+        }
+
+        usort($scored, function (array $a, array $b): int {
+            if ($a['score'] === $b['score']) {
+                return strlen($a['q']) <=> strlen($b['q']);
+            }
+            return $b['score'] <=> $a['score'];
+        });
+
+        $div = [];
+        $bucketCounts = [];
+        foreach ($scored as $row) {
+            $bucket = $this->queryDiversityBucket($row['q']);
+            $bucketCounts[$bucket] = ($bucketCounts[$bucket] ?? 0) + 1;
+            if ($bucketCounts[$bucket] > 18) {
+                continue;
+            }
+
+            $div[] = ($row['priority'] ? '<<P>>' : '') . $row['q'];
+            if (count($div) >= 260) {
+                break;
+            }
+        }
+
+        return $div;
+    }
+
+    private function stableDiversifyQueryOrder(array $queries): array
+    {
+        $buckets = [];
+        foreach ($queries as $q) {
+            $k = $this->queryDiversityBucket((string) $q);
+            $buckets[$k] = $buckets[$k] ?? [];
+            $buckets[$k][] = $q;
+        }
+
+        uasort($buckets, fn(array $a, array $b) => count($a) <=> count($b));
+
+        $out = [];
+        $max = 0;
+        foreach ($buckets as $items) {
+            $max = max($max, count($items));
+        }
+        for ($i = 0; $i < $max; $i++) {
+            foreach ($buckets as $items) {
+                if (isset($items[$i])) {
+                    $out[] = $items[$i];
+                }
+            }
+        }
+        return $out;
+    }
+
+    private function normalizeSearchQueryForDedup(string $q): string
+    {
+        $q = mb_strtolower($q);
+        $q = str_replace(['“','”','’'], ['"','"',"'" ], $q);
+        $q = preg_replace('/\s+/u', ' ', trim($q)) ?? trim($q);
+
+        preg_match_all('/-site:[^\s]+/u', $q, $m);
+        if (!empty($m[0])) {
+            $sites = array_values(array_unique($m[0]));
+            sort($sites);
+            $q = preg_replace('/(?:\s+-site:[^\s]+)+/u', '', $q) ?? $q;
+            $q = trim($q) . ' ' . implode(' ', $sites);
+        }
+
+        return trim($q);
+    }
+
+    private function scoreSearchQueryIntent(string $q, ?string $sector, ?string $location): int
+    {
+        $lq = mb_strtolower($q);
+        $score = 0;
+
+        $positive = [
+            'manufacturer'=>30,'manufacturing'=>24,'oem'=>30,'factory'=>18,'plant'=>18,'production'=>14,
+            'assembly'=>18,'wire harness'=>28,'cable harness'=>28,'pcba'=>28,'pcb assembly'=>28,
+            'contract manufacturing'=>22,'electronics'=>14,'electronic'=>12,'procurement'=>20,'purchasing'=>20,
+            'sourcing'=>16,'rfq'=>20,'supplier'=>14,'tier 1'=>20,'tier 2'=>20,'iatf 16949'=>22,'as9100'=>22,'iso 13485'=>18
+        ];
+        foreach ($positive as $term => $w) {
+            if (str_contains($lq, $term)) {
+                $score += $w;
+            }
+        }
+
+        $negative = [
+            'jobs'=>40,'careers'=>40,'news'=>35,'magazine'=>35,'wikipedia'=>35,'reddit'=>25,'forum'=>25,
+            'hotel'=>25,'booking'=>25,'expo'=>20,'conference'=>20,'market report'=>35
+        ];
+        foreach ($negative as $term => $w) {
+            if (str_contains($lq, $term)) {
+                $score -= $w;
+            }
+        }
+
+        if (preg_match('/\bsite:linkedin\.com\b/i', $q)) {
+            $score += 8;
+        }
+        if (preg_match('/\bsite:(europages|kompass|industrystock|yellowpages)\./i', $q)) {
+            $score -= 8;
+        }
+        if ($sector && stripos($q, $sector) !== false) {
+            $score += 12;
+        }
+        if ($location) {
+            $locTerm = trim($this->buildLocationTerm($location));
+            if ($locTerm !== '' && stripos($q, $locTerm) !== false) {
+                $score += 8;
+            }
+        }
+
+        $score -= max(0, substr_count($q, ' OR ') - 6) * 3;
+        $score -= max(0, intdiv(max(0, mb_strlen($q) - 220), 20));
+
+        return $score;
+    }
+
+    private function queryDiversityBucket(string $query): string
+    {
+        $q = mb_strtolower($query);
+
+        foreach ([
+            'site:linkedin.com' => 'linkedin',
+            'site:europages' => 'europages',
+            'site:kompass' => 'kompass',
+            'site:industrystock' => 'industrystock',
+            'wire harness' => 'wire_harness',
+            'cable harness' => 'cable_harness',
+            'pcba' => 'pcba',
+            'pcb assembly' => 'pcb_assembly',
+            'contract manufacturing' => 'cm',
+            'oem' => 'oem',
+            'rfq' => 'rfq',
+            'procurement' => 'procurement',
+            'automotive' => 'automotive',
+            'aerospace' => 'aerospace',
+            'medical' => 'medical',
+            'energy' => 'energy',
+            'industrial' => 'industrial',
+        ] as $needle => $bucket) {
+            if (str_contains($q, $needle)) {
+                return $bucket;
+            }
+        }
+
+        if (str_contains($q, 'intitle:')) return 'intitle';
+        if (str_contains($q, 'inurl:')) return 'inurl';
+        if (str_contains($q, 'site:')) return 'site';
+        return 'broad';
+    }
+
+    private function appendSearchNoiseExclusions(string $query, string $region): string
+    {
+        $lq = mb_strtolower($query);
+        $siteRestricted = preg_match('/(^|\s)site:/i', $query) === 1;
+        $isLinkedIn = preg_match('/site:linkedin\.com/i', $query) === 1;
+
+        $add = ['-jobs','-careers','-vacancies','-news','-magazine','-wikipedia','-youtube','-facebook','-instagram','-reddit','-forum','-blog'];
+        if (!$siteRestricted && !$isLinkedIn) {
+            $add = array_merge($add, ['-alibaba','-aliexpress','-amazon','-ebay','-conference','-expo']);
+        }
+        if (in_array($region, ['MA','TN','EG','GCC'], true)) {
+            $add = array_merge($add, ['-emploi','-recrutement','-وظائف']);
+        }
+
+        foreach ($add as $x) {
+            if (str_contains($lq, mb_strtolower($x))) {
+                continue;
+            }
+            if (mb_strlen($query . ' ' . $x) > 380) {
+                break;
+            }
+            $query .= ' ' . $x;
+        }
+
+        return $query;
+    }
+
+    private function buildAdaptiveDiscoveryQueries(?string $sector, ?string $location, string $region): array
+    {
+        $queries = [];
+        $locationTerm = trim($this->buildLocationTerm($location));
+        $sectorTerm = trim((string) ($sector ?? ''));
+
+        $seedSectorTerms = $sectorTerm !== '' ? [$sectorTerm] : [];
+        $sk = mb_strtolower($sectorTerm);
+        if (str_contains($sk, 'autom')) {
+            $seedSectorTerms = array_merge($seedSectorTerms, ['automotive', 'vehicle electronics', 'tier 1 supplier']);
+        } elseif (str_contains($sk, 'aero')) {
+            $seedSectorTerms = array_merge($seedSectorTerms, ['aerospace', 'avionics', 'aircraft systems']);
+        } elseif (str_contains($sk, 'med')) {
+            $seedSectorTerms = array_merge($seedSectorTerms, ['medical device', 'medtech', 'diagnostic equipment']);
+        } elseif (str_contains($sk, 'energ')) {
+            $seedSectorTerms = array_merge($seedSectorTerms, ['energy storage', 'battery systems', 'power electronics']);
+        } elseif (str_contains($sk, 'indust')) {
+            $seedSectorTerms = array_merge($seedSectorTerms, ['industrial automation', 'control systems', 'machine builder']);
+        } elseif ($sectorTerm === '') {
+            $seedSectorTerms = ['industrial electronics', 'equipment manufacturer'];
+        }
+        $seedSectorTerms = array_values(array_unique($seedSectorTerms));
+
+        foreach (array_slice($seedSectorTerms, 0, 5) as $st) {
+            $queries[] = "\"{$st}\" (manufacturer OR OEM)".($locationTerm !== '' ? " {$locationTerm}" : '');
+            $queries[] = "\"{$st}\" (factory OR plant OR production)".($locationTerm !== '' ? " {$locationTerm}" : '');
+            $queries[] = "\"{$st}\" (procurement OR purchasing OR sourcing OR RFQ)".($locationTerm !== '' ? " {$locationTerm}" : '');
+            $queries[] = "\"{$st}\" (electronics OR PCB assembly OR wire harness OR cable assembly)".($locationTerm !== '' ? " {$locationTerm}" : '');
+            $queries[] = 'intitle:"'.$st.'" (manufacturer OR OEM)'.($locationTerm !== '' ? " {$locationTerm}" : '');
+        }
+
+        if (in_array($region, ['MA','TN','EG','GCC'], true)) {
+            $queries[] = '(مصنع OR مُصنّع OR شركة صناعية) (إلكترونيات OR ضفائر أسلاك OR كابلات)'.($locationTerm !== '' ? " {$locationTerm}" : '');
+            $queries[] = '(fabricant OR usine OR OEM) (électronique OR faisceau OR câbles)'.($locationTerm !== '' ? " {$locationTerm}" : '');
+        }
+        if (in_array($region, ['DE','AT','CH','EU'], true)) {
+            $queries[] = '(Hersteller OR OEM) (Elektronik OR Kabelbaum OR Leiterplattenbestückung)'.($locationTerm !== '' ? " {$locationTerm}" : '');
+        }
+        if (in_array($region, ['FR','BE','MA','TN'], true)) {
+            $queries[] = '(fabricant OR équipementier OR OEM) (électronique OR carte électronique)'.($locationTerm !== '' ? " {$locationTerm}" : '');
+        }
+
+        return array_values(array_filter(array_map('trim', $queries)));
+    }
+
+    private function buildLocationTermAdvanced(string $location): string
+    {
+        $raw = trim($location);
+        if ($raw === '') {
+            return '';
+        }
+
+        $norm = html_entity_decode($raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $norm = preg_replace('/[(){}\[\]]+/u', ' ', $norm) ?? $norm;
+        $norm = preg_replace('/\s+/u', ' ', $norm) ?? $norm;
+        $lower = mb_strtolower($norm);
+
+        $terms = [];
+
+        $phraseMap = [
+            'tangier automotive city' => ['Tangier', 'Tanger', '"Tangier Automotive City"', '"Tanger Automotive City"', 'TAC Morocco'],
+            'tanger automotive city' => ['Tangier', 'Tanger', '"Tangier Automotive City"', '"Tanger Automotive City"', 'TAC Morocco'],
+            'tanger free zone' => ['Tangier', 'Tanger', '"Tangier Free Zone"', 'TFZ Morocco'],
+            'tangier free zone' => ['Tangier', 'Tanger', '"Tangier Free Zone"', 'TFZ Morocco'],
+            'kenitra' => ['Kenitra', 'Kénitra', 'Morocco'],
+            'kénitra' => ['Kenitra', 'Kénitra', 'Morocco'],
+            '10th of ramadan' => ['"10th of Ramadan"', 'Egypt'],
+            '6th of october' => ['"6th of October"', 'Egypt'],
+            'sixth of october' => ['"Sixth of October"', 'Egypt'],
+            'bizerte' => ['Bizerte', 'Tunisia'],
+            'sfax' => ['Sfax', 'Tunisia'],
+            'tunis' => ['Tunis', 'Tunisia'],
+        ];
+
+        foreach ($phraseMap as $needle => $alts) {
+            if (str_contains($lower, $needle)) {
+                $terms = array_merge($terms, $alts);
+            }
+        }
+
+        $stop = ['free','zone','industrial','city','area','region','port','special','economic','park','estate','hub','corridor','district','valley','greater','metro','the','of','and'];
+        $parts = preg_split('/[\s,\/\-]+/u', $norm) ?: [];
+        foreach ($parts as $part) {
+            $token = trim($part);
+            if ($token === '') {
+                continue;
+            }
+            $asciiToken = function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $token) : $token;
+            $cmp = mb_strtolower((string) $asciiToken);
+            if (mb_strlen($cmp) <= 2 || in_array($cmp, $stop, true)) {
+                continue;
+            }
+            $terms[] = preg_match('/\p{Arabic}/u', $token) ? $token : ucfirst($token);
+        }
+
+        $countryCtx = [
+            'EG' => ['Egypt','مصر'],
+            'MA' => ['Morocco','Maroc','المغرب'],
+            'TN' => ['Tunisia','Tunisie','تونس'],
+            'GCC' => ['UAE','Saudi','Qatar'],
+        ];
+        $region = $this->detectRegionFromLocation($location);
+        if (isset($countryCtx[$region])) {
+            $terms = array_merge($terms, $countryCtx[$region]);
+        }
+
+        $seen = [];
+        $out = [];
+        foreach ($terms as $t) {
+            $k = mb_strtolower(str_replace('"', '', trim($t)));
+            if ($k === '' || isset($seen[$k])) {
+                continue;
+            }
+            $seen[$k] = true;
+            $out[] = trim($t);
+        }
+
+        if (empty($out)) {
+            return '';
+        }
+
+        return ' ' . implode(' ', array_slice($out, 0, 6));
+    }
+
+    private function hasCompanySuffix(string $name): bool
+    {
+        return preg_match('/\b(ltd|llc|inc|corp|corporation|company|co\.?|gmbh|ag|sa|sas|spa|srl|sro|bv|nv|plc|pte|pty|fzc|fze|sarl|group|holding|industr(?:y|ies)|systems?|technologies?|electronics?|automation|robotics|motors?|drives?)\b/iu', $name) === 1;
+    }
+
+    private function looksLikeDirectoryOrCategoryLabel(string $name): bool
+    {
+        $n = mb_strtolower(trim($name));
+        if (preg_match('/\b(suppliers?|manufacturers?|exporters?|distributors?|wholesalers?|companies?)\b/iu', $n)
+            && preg_match('/\b(list|directory|top|best|in|near|for|of|from)\b/iu', $n)) {
+            return true;
+        }
+
+        return preg_match('/^(home|about|contact|products?|services?|solutions?|industries|news|careers|downloads|support)$/iu', $n) === 1;
+    }
+
+    private function looksLikeStrongCompanyName(string $name): bool
+    {
+        $trim = trim($name);
+        $wordCount = count(preg_split('/\s+/u', $trim) ?: []);
+
+        if (preg_match('/[.!?]/u', $trim) && mb_strlen($trim) > 45) {
+            return false;
+        }
+        if (preg_match('/\b(consulting|law|attorney|hotel|travel|tour|news|media|magazine|university|college|hospital|clinic|bank|insurance|real\s+estate|properties|construction|recruitment|staffing|academy|training)\b/iu', $trim)) {
+            return false;
+        }
+
+        if ($wordCount >= 1 && $wordCount <= 6 && $this->hasCompanySuffix($trim)) {
+            return true;
+        }
+
+        if ($wordCount >= 1 && $wordCount <= 4
+            && preg_match('/^(?:[\p{L}0-9&.\-]+(?:\s+[\p{L}0-9&.\-]+){0,3})$/u', $trim)
+            && preg_match('/[A-Z\p{Lu}]/u', $trim)
+            && !preg_match('/\b(home|contact|products?|services?|news|careers)\b/iu', $trim)
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
     private function sanitizeAddress(string $address): string
     {
         // Strip any HTML tags
