@@ -34,8 +34,8 @@ class BuyerEvidenceGate
     public const MIN_FAMILIES = 1;
 
     // Minimum summed positive score required to pass
-    // Raised from 8→10: require slightly stronger evidence to reduce marginal FPs.
-    public const MIN_TOTAL_POSITIVE_SCORE = 10;
+    // Lowered back to 8: 10 was rejecting valid manufacturers with sparse snippets.
+    public const MIN_TOTAL_POSITIVE_SCORE = 8;
 
     // Maximum number of distinct anti-evidence families before hard-reject
     public const MAX_ANTI_FAMILIES = 1;
@@ -48,6 +48,8 @@ class BuyerEvidenceGate
     ];
 
     // Single-hit hard veto anti-families.
+    // NOTE: DISTRIBUTOR_RESELLER removed — manufacturers often mention distribution
+    // and should not be hard-rejected. It's still soft anti-evidence.
     public const HARD_VETO_ANTI_FAMILIES = [
         'NEWS_CONTENT',
         'STANDARDS_BODY',
@@ -58,16 +60,21 @@ class BuyerEvidenceGate
         'CERTIFICATION_TESTING',
         'MEDIA',
         'EVENT',
-        'LOGISTICS',
         'CONSULTING',
         'AUTOMOTIVE_RETAIL',
-        'DISTRIBUTOR_RESELLER',
         'INFRASTRUCTURE',
         'E_COMMERCE',
-        'RECYCLING',
         'RECRUITMENT',
         'TRAVEL_TOURISM',
         'TRAINING',
+    ];
+
+    // Soft anti-families: count against score but don't hard-veto.
+    // Allows manufacturers with distribution arms to pass.
+    public const SOFT_ANTI_FAMILIES = [
+        'DISTRIBUTOR_RESELLER',
+        'LOGISTICS',
+        'RECYCLING',
     ];
 
     private TextNormalizer $normalizer;
@@ -503,7 +510,11 @@ class BuyerEvidenceGate
             'MARKET_REPORT' => '/\b(market\s+(report|research|insight|intelligence|forecast)|industry\s+report|CAGR|sample\s+pdf|buy\s+(this\s+)?report|marktbericht|marktforschung|étude\s+de\s+marché|etude\s+de\s+marche|ricerca\s+di\s+mercato|informe\s+de\s+mercado)\b/i',
             // ─── NEW anti-evidence families ────────────────────────────
             'AUTOMOTIVE_RETAIL' => '/\b(car\s+dealer(ship)?|auto(mobile)?\s+dealer(ship)?|vehicle\s+(import|trading|distribution)|authorized\s+(dealer|distributor|importer)|showroom|book\s+now|book\s+an\s+appointment|our\s+brands?|aftersales?|after\s+sales|service\s+cent(er|re)s?|housse(s)?\s+de?\s+(voiture|siège|siege)|bache(s)?\s+(de\s+)?voiture|couvre[\s-]?volant|car\s+(seat\s+)?covers?|car\s+accessories|accessoires?\s+(de\s+)?voiture|autohaus|concession(n)?aire\s+auto|concessionari[ao]|concesionario|autobazar|auto\s+parts\s+shop|autoteile|pièces\s+auto|pieces\s+auto|ricambi|auto(motive)?\s+spare\s+parts?|car\s+spare\s+parts?|car\s+rental|autovermietung|autonoleggio|fahrschule|auto[\s-]?école|auto[\s-]?ecole|autoescuela|tire\s+shop|reifenhandel|pneumatici|driving\s+school|gebrauchtwagen|used\s+cars)\b/i',
-            'DISTRIBUTOR_RESELLER' => '/\b(authorized\s+distributor|official\s+distributor|regional\s+distributor|sole\s+distributor|exclusive\s+distributor|authorized\s+dealer|official\s+dealer|dealer(ship)?|distribut(or|ion)|reseller|wholesal(e|er)|agent\s+for|value[\s-]?added\s+reseller|channel\s+partner|we\s+distribute|we\s+supply|we\s+stock|trading\s+company|general\s+trading|parts\s+catalog|aftermarket\s+parts?|genuine\s+parts?|replacement\s+parts?|spare\s+parts?\s+(supplier|distributor|dealer|wholesale|trading)|importer\s+of\s+spare\s+parts?|وكيل|موزع|تاجر|قطع\s+غيار|معرض\s+سيارات)\b/iu',
+            // DISTRIBUTOR_RESELLER: Made more specific to catch pure distributors only.
+            // Removed "distribut(or|ion)" which catches "distribution network" said by manufacturers.
+            // Removed "dealer(ship)?" which catches "we deal with".
+            // Now requires explicit distributor/reseller context.
+            'DISTRIBUTOR_RESELLER' => '/\b(authorized\s+distributor|official\s+distributor|regional\s+distributor|sole\s+distributor|exclusive\s+distributor|we\s+are\s+(a\s+)?(distributor|reseller|wholesaler)|authorized\s+dealer|official\s+dealer|value[\s-]?added\s+reseller|channel\s+partner|we\s+distribute\s+products?\s+(from|of)|we\s+supply\s+products?\s+(from|of)|we\s+stock\s+products?\s+(from|of)|trading\s+company|general\s+trading|parts\s+catalog|aftermarket\s+parts?\s+(supplier|dealer|wholesale)|genuine\s+parts?\s+(supplier|dealer)|replacement\s+parts?\s+(supplier|dealer|wholesale)|spare\s+parts?\s+(supplier|distributor|dealer|wholesale|trading)|importer\s+of\s+(spare\s+)?parts?|وكيل|موزع\s+معتمد|تاجر\s+جملة|قطع\s+غيار\s+(تاجر|موزع)|معرض\s+سيارات)\b/iu',
             'TELECOM'       => '/\b(telecom\s+operator|telekommunikation|opérateur\s+télécom|operateur\s+telecom|operatore\s+telecomunicazion|mobile\s+network|mobilfunk|réseau\s+mobile|reseau\s+mobile|rete\s+mobile|internet\s+provider|fournisseur\s+d.accès|aanbieder)\b/i',
             'LOGISTICS'     => '/\b(freight\s+forward|spediteur|spedition|transitaire|spedizioniere|transportista|courier\s+service|kurierdienst|livraison|corriere|mensajería|mensajeria|bezorgdienst|kurierski)\b/i',
             'GAMBLING'      => '/\b(casino|poker|bet365|betting|gambling|spielhalle|spielothek|slot\s+machine|sportwetten|bookmaker|pari[\s-]?sportif|scommesse)\b/i',

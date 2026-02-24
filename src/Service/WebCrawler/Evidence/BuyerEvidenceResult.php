@@ -64,6 +64,22 @@ final class BuyerEvidenceResult
             BuyerEvidenceGate::HARD_VETO_ANTI_FAMILIES,
         ));
 
+        // Check if we have strong manufacturing signals that should override soft anti-evidence
+        // Manufacturers often have distributor language ("we distribute our products globally")
+        $hasMfgEvidence = isset($posFamilies['MANUFACTURING_OEM']) || isset($posFamilies['PRODUCT_PORTFOLIO']);
+        $softAntiFamilies = array_values(array_intersect(
+            array_keys($antFamilies),
+            BuyerEvidenceGate::SOFT_ANTI_FAMILIES,
+        ));
+
+        // Calculate "real" anti-families: hard veto + soft (unless overridden by mfg evidence)
+        $effectiveAntiFamilies = $hardVetoAntiFamilies;
+        if (!$hasMfgEvidence) {
+            // Only count soft anti-families if we DON'T have strong manufacturing evidence
+            $effectiveAntiFamilies = array_merge($effectiveAntiFamilies, $softAntiFamilies);
+        }
+        $distinctEffectiveAnti = count(array_unique($effectiveAntiFamilies));
+
         // Decision logic
         if (!empty($hardVetoAntiFamilies)) {
             $this->passed = false;
@@ -71,12 +87,12 @@ final class BuyerEvidenceResult
                 'Hard-veto anti-evidence detected (%s)',
                 implode(', ', $hardVetoAntiFamilies),
             );
-        } elseif ($distinctAntiFamilies > BuyerEvidenceGate::MAX_ANTI_FAMILIES) {
+        } elseif ($distinctEffectiveAnti > BuyerEvidenceGate::MAX_ANTI_FAMILIES) {
             $this->passed = false;
             $this->reason = sprintf(
                 'Anti-evidence in %d families (%s) exceeds max %d',
-                $distinctAntiFamilies,
-                implode(', ', array_keys($antFamilies)),
+                $distinctEffectiveAnti,
+                implode(', ', $effectiveAntiFamilies),
                 BuyerEvidenceGate::MAX_ANTI_FAMILIES,
             );
         } elseif (count($coreFamilies) === 0 && !$hasStructuredSectorSignals) {
