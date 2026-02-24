@@ -20,7 +20,7 @@
             display: flex;
             align-items: center;
             padding: 8px 16px;
-            color: #555;
+            color: var(--rams-muted);
             cursor: pointer;
             font-size: 0.7rem;
             text-transform: uppercase;
@@ -29,7 +29,7 @@
             user-select: none;
             transition: color 0.15s ease;
         }
-        .rams-sidebar__group-header:hover { color: var(--rams-foreground, #1A1A1A); }
+        .rams-sidebar__group-header:hover { color: var(--rams-foreground); }
         .rams-sidebar__group-chevron {
             width: 12px;
             height: 12px;
@@ -49,30 +49,30 @@
         .rams-sidebar__nav-list--nested .rams-sidebar__nav-link {
             padding-left: 32px;
             font-size: 0.85rem;
-            color: #444;
+            color: var(--rams-muted);
         }
         .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover {
-            color: var(--rams-foreground, #1A1A1A);
+            color: var(--rams-foreground);
         }
         /* Dark mode overrides for nav groups */
         .dark .rams-sidebar__group-header,
-        [data-theme="dark"] .rams-sidebar__group-header { color: var(--rams-muted, #B3B3B3); }
+        [data-theme="dark"] .rams-sidebar__group-header { color: var(--rams-muted); }
         .dark .rams-sidebar__group-header:hover,
-        [data-theme="dark"] .rams-sidebar__group-header:hover { color: var(--rams-foreground, #F5F5F5); }
+        [data-theme="dark"] .rams-sidebar__group-header:hover { color: var(--rams-foreground); }
         .dark .rams-sidebar__nav-list--nested,
         [data-theme="dark"] .rams-sidebar__nav-list--nested { background: rgba(0,0,0,0.15); }
         .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link,
-        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link { color: var(--rams-muted, #B3B3B3); }
+        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link { color: var(--rams-muted); }
         .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover,
-        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover { color: var(--rams-foreground, #F5F5F5); }
+        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover { color: var(--rams-foreground); }
 
         /* Fix top-level sidebar nav-link contrast in light mode */
-        .rams-sidebar__nav-link { color: #555; }
-        .rams-sidebar__nav-link:hover { color: var(--rams-foreground, #1A1A1A); }
+        .rams-sidebar__nav-link { color: var(--rams-muted); }
+        .rams-sidebar__nav-link:hover { color: var(--rams-foreground); }
         .dark .rams-sidebar__nav-link,
-        [data-theme="dark"] .rams-sidebar__nav-link { color: var(--rams-muted, #B3B3B3); }
+        [data-theme="dark"] .rams-sidebar__nav-link { color: var(--rams-muted); }
         .dark .rams-sidebar__nav-link:hover,
-        [data-theme="dark"] .rams-sidebar__nav-link:hover { color: var(--rams-foreground, #F5F5F5); }
+        [data-theme="dark"] .rams-sidebar__nav-link:hover { color: var(--rams-foreground); }
 
         /* Utility for Page Layout */
         .rams-page {

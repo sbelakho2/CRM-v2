@@ -310,6 +310,7 @@
         </div>
         <div class="rams-module__content rams-module__content--flush">
             {% if completed_rfqs|length > 0 %}
+            <div class="rams-table-container">
             <table class="rams-table">
                 <thead>
                     <tr>
@@ -366,6 +367,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% else %}
             <div class="rams-empty-state rams-p-6">
                 <p class="rams-text--muted">{{ 'rfq.no_decisions'|trans|default('No completed RFQs in this period') }}</p>

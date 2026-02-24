@@ -469,7 +469,7 @@ class GoogleDorkService
                                                 $sector,
                                             );
                                             if ($rescuedResult->passed()) {
-                                                $this->logger->info('Buyer Evidence Gate rescued by homepage text', [
+                                                $this->logger->info('Evidence Gate rescued', [
                                                     'name' => $companyName,
                                                     'domain' => $domain,
                                                     'initial_reason' => $evidenceResult->getReason(),
@@ -507,7 +507,7 @@ class GoogleDorkService
                                         }
                                         if (!$llmRescued) {
                                             $this->metricsCollector->recordReject('buyer_evidence', $evidenceResult->getReason());
-                                            $this->logger->debug('Buyer Evidence Gate FAIL', [
+                                            $this->logger->info('Evidence Gate FAIL', [
                                                 'name'   => $companyName,
                                                 'domain' => $domain,
                                                 'reason' => $evidenceResult->getReason(),
@@ -516,6 +516,10 @@ class GoogleDorkService
                                         }
                                     }
                                     $this->metricsCollector->recordAccept('buyer_evidence');
+                                    $this->logger->info('Evidence Gate PASS', [
+                                        'name'   => $companyName,
+                                        'domain' => $domain,
+                                    ]);
                                 }
 
                                 // ── Location Presence Validation ────────────────
@@ -524,7 +528,7 @@ class GoogleDorkService
                                 // searches etc. (e.g. Hope Global → no Egypt presence)
                                 if ($location !== null && !$this->hasLocationPresence($snippet, $title, $domain, $location)) {
                                     $this->metricsCollector->recordReject('location_presence', $companyName);
-                                    $this->logger->debug('No location presence evidence', [
+                                    $this->logger->info('No location presence', [
                                         'name'     => $companyName,
                                         'domain'   => $domain,
                                         'location' => $location,
@@ -1867,6 +1871,58 @@ class GoogleDorkService
         'aurrigo.com',  // autonomous vehicles
         'saft.com',  // batteries (own manufacturing)
         'delta-emea.com',  // Delta - power electronics OEM
+        
+        // ─── Power Electronics OEMs / Inverter Manufacturers (competitors) ────
+        'abbpowerelectronics.com', 'new.abb.com',  // ABB power electronics
+        'danfoss.com',  // Danfoss — drives, inverters
+        'siemens-energy.com', 'siemens.com',  // Siemens — everything including power electronics
+        'cgglobal.com',  // CG Power — transformers, switchgear
+        'mitsubishielectric.com', 'mitsubishielectric-europe.com',  // Mitsubishi Electric
+        'fujielectric.com',  // Fuji Electric — inverters, drives
+        'hitachi-powergrids.com',  // Hitachi Energy
+        'parker.com',  // Parker Hannifin — includes power electronics
+        'eaton.com',  // Eaton — power management
+        'schneider-electric.com',  // Schneider Electric
+        'se.com',  // Schneider Electric alt domain
+        'victronenergy.com',  // Victron Energy — inverters, chargers
+        'solax-power.com', 'solaxpower.com',  // SolaX — solar inverters
+        'huawei.com', 'solar.huawei.com',  // Huawei — solar inverters
+        'sungrowpower.com', 'en.sungrowpower.com',  // Sungrow — solar inverters
+        'goodwe.com',  // GoodWe — solar inverters
+        'growatt.com',  // Growatt — solar inverters
+        'sma.de', 'sma-solar.com',  // SMA Solar — inverters
+        'ingeteam.com',  // Ingeteam — power electronics
+        'nidec.com', 'nidec-industrial.com',  // Nidec — motors, drives
+        'yaskawa.com', 'yaskawa-europe.com',  // Yaskawa — drives, servos
+        'lenze.com',  // Lenze — drives, automation
+        'bonfiglioli.com',  // Bonfiglioli — drives, gearboxes
+        'ziehl-abegg.com',  // Ziehl-Abegg — motors, drives
+        'sevcon.com',  // Sevcon — EV controllers (now BorgWarner)
+        'semikron.com', 'semikron-danfoss.com',  // SEMIKRON — power modules
+        'infineon.com',  // Infineon — IGBT, SiC, power semiconductors
+        'onsemi.com',  // onsemi — power semiconductors
+        'wolfspeed.com',  // Wolfspeed — SiC power semiconductors
+        'rohm.com',  // ROHM — SiC power semiconductors
+        'stmicroelectronics.com',  // STMicroelectronics
+        'power.com',  // Power Integrations
+        'microchip.com',  // Microchip Technology
+        'vishay.com',  // Vishay Intertechnology
+        'tdk.com', 'tdk-electronics.tdk.com',  // TDK — magnetics, power electronics
+        'coilcraft.com',  // Coilcraft — inductors, magnetics
+        'magnetics.com',  // Magnetics Inc — cores, inductors
+        'vacuumschmelze.com',  // VAC — magnetic materials
+        'meanwell.com', 'meanwellusa.com',  // Mean Well — power supplies
+        'xppower.com',  // XP Power — power supplies
+        'recom-power.com',  // RECOM Power — DC-DC converters
+        'tracopower.com',  // TRACO Power — power supplies
+        'murata.com',  // Murata — DC-DC modules
+        'cosel.co.jp', 'coselusa.com',  // COSEL — power supplies
+        'tdk-lambda.com',  // TDK Lambda — power supplies
+        'puls.com',  // PULS — DIN-rail power supplies
+        'phoenixcontact.com',  // Phoenix Contact — power supplies, connectors
+        'weidmuller.com',  // Weidmüller — power supplies, connectors
+        'mornsun-power.com',  // Mornsun — power supplies
+        
         'wittenstein-us.com',  // gear systems
         'oneequity.com',  // private equity
         'apagcosyst.com',  // auto parts (own manufacturing)
@@ -3371,6 +3427,54 @@ class GoogleDorkService
         'leanwerks.com',  // Leanwerks — precision machine shop competitor
         'industrialautomation.us',  // Industrial Automation — system integrator (NOT iagse.com which is a Boeing OEM)
         'us.metoree.com', 'metoree.com',  // Metoree — B2B product directory / marketplace
+        
+        // ─── Expanded CNC / Machining Job Shop Competitors (Feb 2026 sweep) ────
+        'protolabs.com', 'protolabs.co.uk', 'protolabs.de',  // Protolabs — CNC/3DP service
+        'hubs.com',  // Hubs (ex-3D Hubs) — manufacturing marketplace
+        'xometry.com', 'xometry.de', 'xometry.eu',  // Xometry — CNC/injection marketplace
+        'fictiv.com',  // Fictiv — CNC/injection service
+        'rapidmade.com',  // RapidMade — CNC/3DP service
+        'plethora.com',  // Plethora — CNC service
+        'emachineshop.com',  // eMachineShop — CNC service
+        'quickparts.com',  // Quickparts — CNC/3DP service
+        'fastradius.com',  // Fast Radius — CNC/3DP/injection
+        'pcbway.com',  // PCBWay — also offers CNC machining
+        'jlcpcb.com',  // JLCPCB — also offers CNC machining
+        'makeronline.com',  // Maker Online — CNC marketplace
+        'fractory.com',  // Fractory — sheet metal/CNC service
+        'weerg.com',  // Weerg — CNC/3DP service
+        'craftcloud3d.com',  // Craftcloud — 3DP/CNC service
+        'materialise.com',  // Materialise — 3DP/CNC giant
+        'shapeways.com',  // Shapeways — 3DP/CNC giant
+        'sculpteo.com',  // Sculpteo — 3DP/CNC giant
+        'i.materialise.com',  // iMaterialise — 3DP/CNC
+        'jawstec.com',  // JawsTec — CNC/3DP service
+        'kreatize.com',  // Kreatize — CNC service
+        'klaritymedical.com',  // medical machining
+        'doylemanufacturing.com',  // Doyle Manufacturing — machine shop
+        'jabilengineeredmaterials.com',  // Jabil — competition
+        'richmondcnc.com',  // Richmond CNC — machine shop
+        'manncnc.com',  // Mann CNC — machine shop
+        'starrapid.com',  // Star Rapid — rapid prototyping/CNC
+        'wenzelamerica.com',  // Wenzel — CNC measurement
+        'mastercam.com',  // Mastercam — CAM software (equipment)
+        'solidcam.com',  // SolidCAM — CAM software (equipment)
+        'hsmworks.com',  // HSMWorks — CAM software (equipment)
+        'espritcam.com',  // ESPRIT CAM — software (equipment)
+        'autodesk.com',  // Autodesk — includes CAM software
+        'haascnc.com', 'haasautomation.com',  // Haas — CNC machine tool OEM
+        'hurco.com',  // Hurco — CNC machine tool OEM
+        'makiinc.com',  // Makino — CNC machine tool OEM
+        'doosanmachintools.com',  // Doosan — CNC machine tool OEM
+        'hyundai-wia.com',  // Hyundai Wia — CNC machine tool OEM
+        'starrag.com',  // Starrag — CNC machine tool OEM
+        'grobgroup.com',  // GROB — CNC machine tool OEM
+        'chiron-group.com',  // CHIRON — CNC machine tool OEM
+        'hardinge.com',  // Hardinge — CNC machine tools
+        'citizen.co.jp', 'citizenmachinery.co.uk',  // Citizen Machinery
+        'tornos.com',  // Tornos — Swiss-type CNC machines
+        'petersenmachine.com',  // Petersen Machine — machine shop
+        'swisstek.com',  // SwissTek — Swiss machining
 
         // ─── TX v6 audit: telecom contractors, automation suppliers, junk ──
         'trovit.tn',  // Trovit — Tunisian web utility portal, not a company
@@ -6615,7 +6719,7 @@ class GoogleDorkService
         $industrialParkSignals = 0;
         if (preg_match('/\b(industrial\s+park|industrial\s+zone|free\s+(trade\s+)?zone|business\s+park|technology\s+park|logistics\s+park)/i', $text)) $industrialParkSignals += 3;
         if (preg_match('/\b(build[\s-]to[\s-]suit|available\s+space|leasable\s+area|rental\s+rate|sq\s*(ft|m)|hectare|square\s+(feet|meter))/i', $text)) $industrialParkSignals += 3;
-        if (preg_match('/\b(we\s+develop|property\s+develop|real\s+estate\s+develop/i', $text)) $industrialParkSignals += 3;
+        if (preg_match('/\b(we\s+develop|property\s+develop|real\s+estate\s+develop)/i', $text)) $industrialParkSignals += 3;
         if ($industrialParkSignals >= 3) {
             $score -= 35;
         }
@@ -9930,6 +10034,194 @@ class GoogleDorkService
         foreach ($broadcastSignals as $pattern) {
             if (preg_match('/' . $pattern . '/i', $text)) {
                 $this->logger->debug('Broadcasting/radio/TV company detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 45. POWER ELECTRONICS OEMs / INVERTER MANUFACTURERS (Feb 2026 sweep) ──
+        // These companies MAKE power electronics products — they don't buy EMS
+        // AGGRESSIVE detection: catch standalone product terms in context
+        $powerElecOemSignals = [
+            // Standalone product presence (aggressive)
+            '\b(solar|string|hybrid|grid[\s-]?tie|off[\s-]?grid)\s+inverter\b',
+            '\bphotovoltaic\s+inverter\b',
+            '\b(micro[\s-]?)?inverter\s+(for|with|range|series|product|model|line)',
+            '\b(frequency\s+)?converter\s+(for|with|range|series|product|model)',
+            '\bpower\s+(supply|supplies|module|modules|converter|inverter|electronics)\b.*\b(product|range|series|portfolio|solution|our)',
+            '\bour\s+(inverter|converter|drive|power\s+supply|power\s+module|UPS)',
+            '\b(leading|global|world)\s+(inverter|converter|power\s+electronics)\b',
+            // "We make X" patterns
+            '\bwe\s+(manufactur|design|develop|produce|make|build|offer|supply)\s+.{0,30}(inverter|converter|drive|power\s+supply|power\s+module|UPS|VFD)',
+            '\bwe\s+are\s+.{0,20}(inverter|converter|power\s+electronics|power\s+supply)\s+(manufactur|maker|company|leader)',
+            // Product line indicators
+            '\b(inverter|converter|VFD|drive)\s+(range|lineup|portfolio|family|series)\b',
+            '\b(residential|commercial|industrial|utility[\s-]?scale)\s+inverter',
+            '\bhybrid\s+inverter\b',
+            '\bstring\s+inverter\b',
+            '\bcentral\s+inverter\b',
+            '\bmicro[\s-]?inverter\b',
+            '\bmotor\s+drive\b.*\b(range|series|product|portfolio)',
+            '\bvariable[\s-]?(frequency|speed)\s+drive\b',
+            '\b(VFD|VSD)\s+(product|range|series|system)',
+            // Power module/semiconductor manufacturer
+            '\b(SiC|GaN|IGBT|MOSFET)\s+(power\s+)?(module|device|product)',
+            '\bpower\s+semiconductor\b',
+            '\bpower\s+module\b.*\b(product|range|series|portfolio)',
+            '\btraction\s+(inverter|converter)\b',
+            // Charger/UPS manufacturer
+            '\b(battery|EV|vehicle)\s+charger\b.*\b(product|range|series|our)',
+            '\bon[\s-]?board\s+charger\b',
+            '\bOBC\b.*\b(product|develop|design)',
+            '\bUPS\s+(system|product|range|series)\b',
+            '\buninterruptible\s+power\s+(supply|system)\b.*\b(product|our|range)',
+            // Industrial equipment
+            '\bwelding\s+(power\s+)?(source|equipment|machine|system)\b',
+            '\brectifier\s+(product|range|system)\b',
+            '\binduction\s+(heating|furnace|equipment)\b',
+            '\bplasma\s+(cutter|cutting|equipment)\b',
+            '\bswitchgear\b.*\b(product|range|our|manufactur)',
+            '\btransformer\b.*\b(product|range|our|manufactur)',
+            '\bpower\s+distribution\s+(unit|panel|system)\b',
+            // German patterns (standalone)
+            '\bUmrichter\b',
+            '\bFrequenzumrichter\b',
+            '\bWechselrichter\b',
+            '\bLeistungselektronik\b',
+            '\bNetzger[aä]t\b',
+            '\bStromversorgung\b',
+            '\bSchaltschrank\b',
+            // French patterns (standalone)
+            '\bonduleur\b',
+            '\bconvertisseur\s+(de\s+)?(puissance|fréquence)\b',
+            '\bvariateur\s+de\s+(vitesse|fréquence)\b',
+            '\bélectronique\s+de\s+puissance\b',
+            '\balimentation\s+(électrique|stabilisée)\b',
+        ];
+
+        foreach ($powerElecOemSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Power electronics OEM/manufacturer detected', [
+                    'domain' => $domain,
+                    'matched' => $pattern,
+                ]);
+                return true;
+            }
+        }
+
+        // ─── 46. EXTENDED MACHINING / CNC JOB SHOP DETECTION (Feb 2026 sweep) ──
+        // AGGRESSIVE patterns to catch machining service providers
+        $extendedMachiningSignals = [
+            // Core machining terms (standalone - very aggressive)
+            '\bmachine\s+shop\b',
+            '\bjob\s+shop\b',
+            '\bCNC\s+machining\b',
+            '\bprecision\s+machining\b',
+            '\bcontract\s+machining\b',
+            '\bcustom\s+machining\b',
+            // Multi-axis machining
+            '\b(5[\s-]?axis|4[\s-]?axis|3[\s-]?axis)\s+(machining|milling|CNC|center|centre)',
+            '\bmulti[\s-]?axis\s+(machining|milling|CNC)',
+            // Swiss/screw machine
+            '\bSwiss[\s-]?(type|turn|turning|screw|style)\b',
+            '\bscrew\s+machine\b',
+            '\bautomatic\s+screw\s+machine\b',
+            // Material-specific machining
+            '\b(aluminum|aluminium|steel|titanium|brass|copper|plastic|polymer)\s+machining',
+            '\b(metal|alloy)\s+(cutting|machining|working)\b',
+            // Capabilities pages
+            '\bmachining\s+capabilit',
+            '\bCNC\s+capabilit',
+            '\bour\s+(machining|CNC|manufacturing)\s+(service|capabilit|facilit)',
+            '\bprecision\s+capabilit',
+            '\b(milling|turning|grinding|drilling|boring)\s+capabilit',
+            // "We machine/manufacture" patterns
+            '\bwe\s+(machine|mill|turn|grind|manufacture|produce|fabricate)\b',
+            '\bwe\s+speciali[sz]e\s+in\s+(machining|CNC|precision|milling|turning)',
+            '\bwe\s+(offer|provide)\s+.{0,20}(machining|CNC|milling|turning)',
+            // Prototype and production
+            '\bprototype\s+(machining|CNC|parts?|manufacturing)\b',
+            '\brapid\s+(machining|prototyp|manufacturing)\b',
+            '\blow[\s-]?volume\s+(machining|manufacturing|production)\b',
+            '\bhigh[\s-]?mix\b.*\b(machining|manufacturing)',
+            '\bshort[\s-]?run\s+(machining|manufacturing|production)\b',
+            '\bquick[\s-]?turn\s+(machining|manufacturing)\b',
+            // Tolerances and quality
+            '\bclose[\s-]?tolerance\b',
+            '\btight\s+tolerance\b',
+            '\bprecision\s+(parts?|components?|manufacturing|engineering)\b',
+            '\bAS[\s-]?9100\b.*\b(certified|machining|aerospace)',
+            '\bIATF[\s-]?16949\b',
+            '\bNADCAP\b',
+            '\bITAR\b.*\b(compliant|registered|certified)',
+            // EDM/waterjet/laser
+            '\bEDM\b',
+            '\bwire[\s-]?EDM\b',
+            '\bsinker[\s-]?EDM\b',
+            '\belectrical\s+discharge\s+machining\b',
+            '\bwaterjet\s+(cutting|machining)\b',
+            '\blaser\s+cutting\b',
+            '\bplasma\s+cutting\b',
+            // Sheet metal/stamping/fabrication
+            '\bsheet\s+metal\s+(fabricat|shop|work)\b',
+            '\bmetal\s+(stamping|forming|fabricat)\b',
+            '\bprecision\s+sheet\s+metal\b',
+            '\bstamping\s+(die|press|shop|capabilit)\b',
+            // Casting/forging
+            '\bdie\s+casting\b',
+            '\binvestment\s+casting\b',
+            '\bsand\s+casting\b',
+            '\blost[\s-]?wax\s+casting\b',
+            '\bprecision\s+casting\b',
+            '\bmetal\s+casting\b',
+            '\bforging\b.*\b(capabilit|service|company)',
+            '\bpowder\s+metal(lurgy)?\b',
+            // Surface treatments
+            '\bheat\s+treat(ing|ment)\b',
+            '\bsurface\s+treat(ing|ment)\b',
+            '\banodizing\b',
+            '\bhard[\s-]?coat\s+anodizing\b',
+            '\bplating\b.*\b(service|capabilit)',
+            '\bpassivation\b',
+            '\bpowder\s+coat(ing)?\b',
+            // CAD/CAM
+            '\bCAD[\s\\/]CAM\b',
+            '\bSolidWorks\b.*\b(design|programming)',
+            '\bMasterCAM\b',
+            // French (standalone)
+            '\businage\b',
+            '\bfraisage\b',
+            '\btournage\b',
+            '\bdécolletage\b',
+            '\brectification\b',
+            '\btôlerie\b',
+            '\bchaudronnerie\b',
+            '\bmécanique\s+(de\s+)?précision\b',
+            '\bmécanique\s+générale\b',
+            '\batelier\s+(d.)?usinage\b',
+            '\bsous[\s-]?traitant\b.*\b(usinage|mécanique)',
+            // German (standalone)
+            '\bZerspanung\b',
+            '\bCNC[\s-]?Bearbeitung\b',
+            '\bDrehen\b.*\b(Fräsen|CNC)',
+            '\bFräsen\b.*\b(Drehen|CNC)',
+            '\bPräzisionsteile\b',
+            '\bDrehteile\b',
+            '\bFrästeile\b',
+            '\bLohnfertigung\b',
+            '\bLohnbearbeitung\b',
+            '\bBlechbearbeitung\b',
+            '\bStanzteile\b',
+            '\bLaserschneiden\b',
+            '\bWasserstrahlschneiden\b',
+            '\bOberfl[aä]chenbehandlung\b',
+        ];
+
+        foreach ($extendedMachiningSignals as $pattern) {
+            if (preg_match('/' . $pattern . '/i', $text)) {
+                $this->logger->debug('Extended machining/CNC job shop detected', [
                     'domain' => $domain,
                     'matched' => $pattern,
                 ]);

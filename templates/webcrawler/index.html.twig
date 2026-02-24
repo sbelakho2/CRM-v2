@@ -223,6 +223,19 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
             body: formData
         });
 
+        // Check if response is JSON (session might have expired)
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            if (response.redirected || response.url.includes('/login')) {
+                showError('Session expired. Please <a href="/login" class="rams-link">log in again</a>.');
+            } else {
+                showError('Server returned an invalid response. Please refresh the page.');
+            }
+            btnStart.disabled = false;
+            btnStart.textContent = '{{ 'webcrawler.start_discovery'|trans }}';
+            return;
+        }
+
         const data = await response.json();
         
         if (data.success && data.async) {
@@ -256,6 +269,15 @@ function startPolling() {
 async function checkStatus() {
     try {
         const response = await fetch('{{ path('app_webcrawler_discover_status') }}');
+        
+        // Check if response is JSON (session might have expired)
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            // Session expired - stop polling silently
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            return;
+        }
+        
         const data = await response.json();
 
         const statusDiv = document.getElementById('discovery-status');

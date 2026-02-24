@@ -130,6 +130,7 @@
             <h2 class="rams-module__title">🔴 {{ 'competitor.dashboard.top_threats'|trans }}</h2>
         </div>
         <div class="rams-module__content">
+            <div class="rams-table-container">
             <table class="rams-table">
                 <thead>
                     <tr>
@@ -178,6 +179,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
     {% endif %}
@@ -190,6 +192,7 @@
             <a href="{{ path('comp_crawler_changes') }}" class="rams-link rams-text--xs">{{ 'competitor.dashboard.view_all'|trans }} →</a>
         </div>
         <div class="rams-module__content">
+            <div class="rams-table-container">
             <table class="rams-table">
                 <thead>
                     <tr>
@@ -220,6 +223,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
     {% endif %}

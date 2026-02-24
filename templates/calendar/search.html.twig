@@ -39,6 +39,7 @@
         </div>
         <div class="rams-module__content">
             {% if events is not empty %}
+                <div class="rams-table-container">
                 <table class="rams-table">
                     <thead class="rams-table__header">
                         <tr>
@@ -71,6 +72,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             {% else %}
                 <div class="rams-empty-state">
                     {{ query ? ('calendar.no_results'|trans|default('No events match your search.')) : ('calendar.search_hint'|trans|default('Search for events to see results.')) }}

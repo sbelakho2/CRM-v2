@@ -69,7 +69,7 @@
                         <h3>{{ 'calendar.timing_and_location'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
-                         <div class="rams-stat-card rams-mb-4" style="border-left: 4px solid {{ event.backgroundColor|default('#3b82f6') }}">
+                         <div class="rams-stat-card rams-mb-4" style="border-left: 4px solid {{ event.backgroundColor|default('var(--rams-steel)') }}">
                             <div class="rams-stat-card__value" style="font-size: 1.25rem;">
                                 {{ event.start ? event.start|date('M j, Y') : '' }}
                             </div>

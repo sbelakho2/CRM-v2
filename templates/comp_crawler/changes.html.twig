@@ -45,6 +45,7 @@
         </div>
         <div class="rams-module__content">
             {% if events | length > 0 %}
+            <div class="rams-table-container">
             <table class="rams-table">
                 <thead>
                     <tr>
@@ -76,6 +77,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% else %}
             <div style="text-align: center; padding: 48px;">
                 <p class="rams-text--muted">{{ 'common.no_results'|trans|default('No results found.') }}</p>

@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (bookedBy) {
                 // Add a dot or indicator if booked
                 let dot = document.createElement('div');
-                dot.style.cssText = 'width: 8px; height: 8px; background: #fff; border-radius: 50%; display: inline-block; margin-right: 4px;';
+                dot.style.cssText = 'width: 8px; height: 8px; background: var(--rams-foreground); border-radius: 50%; display: inline-block; margin-right: 4px;';
                 info.el.querySelector('.fc-event-title').prepend(dot);
                 info.el.title = `${info.event.title}\nBooked by: ${bookedBy}`;
             }

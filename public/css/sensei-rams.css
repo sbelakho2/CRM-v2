@@ -42,6 +42,20 @@
     
     /* User-customizable accent (defaults to orange) */
     --rams-accent: var(--rams-orange);
+
+    /* Cross-module aliases used by legacy/embedded templates */
+    --rams-primary: var(--rams-accent);
+    --rams-primary-dark: #E6AB00;
+    --rams-orange-dark: var(--rams-primary-dark);
+    --rams-primary-bg: var(--rams-warning-bg);
+    --rams-surface: var(--rams-module);
+    --rams-surface-alt: var(--rams-panel);
+    --rams-surface-hover: var(--rams-panel);
+    --rams-bg-tertiary: var(--rams-panel);
+    --rams-border: var(--rams-line);
+    --rams-text-muted: var(--rams-muted);
+    --rams-bg-alt: var(--rams-panel);
+    --rams-bg-panel: var(--rams-panel);
     
     /* Chart/Data Visualization Colors (non-semantic, for differentiation) */
     --rams-chart-purple: #8B5CF6;      /* Violet for charts */
@@ -178,6 +192,7 @@
     --rams-warning-bg: rgba(255, 190, 0, 0.18);
     --rams-warning-text: #FFBE00;
     --rams-danger-bg: rgba(214, 45, 45, 0.2);
+    --rams-primary-dark: #D49F00;
 }
 
 /* ============================================
@@ -795,10 +810,42 @@ body {
     background: var(--rams-green);
 }
 
+.rams-btn--indigo {
+    background: var(--rams-chart-indigo);
+    border-color: color-mix(in srgb, var(--rams-chart-indigo) 85%, #000);
+    color: var(--rams-chassis);
+}
+
+.rams-btn--indigo:hover {
+    filter: brightness(1.05);
+    background: var(--rams-chart-indigo);
+}
+
 .rams-btn--ghost {
     background: transparent;
     border-color: transparent;
     box-shadow: none;
+}
+
+.rams-btn--ghost.rams-btn--accent {
+    color: var(--rams-orange);
+}
+
+.rams-btn--ghost.rams-btn--accent:hover {
+    color: var(--rams-orange);
+    border-color: var(--rams-orange);
+    background: var(--rams-warning-bg);
+}
+
+.rams-btn--accent-outline {
+    border-color: var(--rams-orange);
+    color: var(--rams-orange);
+}
+
+.rams-btn--accent-outline:hover {
+    border-color: var(--rams-orange);
+    color: var(--rams-orange);
+    background: var(--rams-warning-bg);
 }
 
 .rams-btn--ghost.rams-btn--danger {
@@ -1105,6 +1152,12 @@ body {
    ============================================ */
 
 .rams-table-container {
+    border: 1px solid var(--rams-line);
+    border-radius: var(--radius-sm);
+    overflow: auto;
+}
+
+.rams-table-wrapper {
     border: 1px solid var(--rams-line);
     border-radius: var(--radius-sm);
     overflow: auto;
@@ -1444,6 +1497,30 @@ body {
     background: var(--rams-info-bg);
     border-color: var(--rams-steel);
     color: var(--rams-steel);
+}
+
+.rams-badge--green {
+    background: var(--rams-success-bg);
+    border-color: var(--rams-green);
+    color: var(--rams-green);
+}
+
+.rams-badge--yellow {
+    background: var(--rams-warning-bg);
+    border-color: var(--rams-orange);
+    color: var(--rams-warning-text, var(--rams-orange));
+}
+
+.rams-badge--red {
+    background: var(--rams-danger-bg);
+    border-color: var(--rams-red);
+    color: var(--rams-red);
+}
+
+.rams-badge--very-low {
+    background: color-mix(in srgb, var(--rams-red) 22%, transparent);
+    border-color: var(--rams-red);
+    color: var(--rams-red);
 }
 
 .rams-badge--primary {
@@ -2453,7 +2530,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: var(--space-6);
-    background: var(--rams-grey-900);
+    background: var(--rams-chassis);
 }
 
 .rams-auth-module {
@@ -2469,8 +2546,8 @@ body {
 .rams-auth-logo__symbol {
     width: 48px;
     height: 48px;
-    background: var(--rams-grey-800);
-    border: 2px solid var(--rams-grey-600);
+    background: var(--rams-panel);
+    border: 2px solid var(--rams-line);
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
@@ -2484,40 +2561,40 @@ body {
     font-family: var(--font-mono);
     font-size: var(--text-xl);
     font-weight: 600;
-    color: var(--rams-grey-100);
+    color: var(--rams-foreground);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
 .rams-auth-logo__subtitle {
     font-size: var(--text-sm);
-    color: var(--rams-grey-400);
+    color: var(--rams-muted);
     margin-top: var(--space-1);
 }
 
 /* Auth module overrides for dark background */
 .rams-auth-container .rams-module {
-    background: var(--rams-grey-800);
-    border-color: var(--rams-grey-600);
+    background: var(--rams-module);
+    border-color: var(--rams-line);
 }
 
 .rams-auth-container .rams-module__header {
-    border-bottom-color: var(--rams-grey-600);
+    border-bottom-color: var(--rams-line);
 }
 
 .rams-auth-container .rams-module__footer {
-    background: var(--rams-grey-700);
-    border-top-color: var(--rams-grey-600);
+    background: var(--rams-panel);
+    border-top-color: var(--rams-line);
 }
 
 .rams-auth-container .rams-form__input {
-    background: var(--rams-grey-700);
-    border-color: var(--rams-grey-600);
-    color: var(--rams-grey-100);
+    background: var(--rams-panel);
+    border-color: var(--rams-line);
+    color: var(--rams-foreground);
 }
 
 .rams-auth-container .rams-form__input::placeholder {
-    color: var(--rams-grey-400);
+    color: var(--rams-muted);
 }
 
 .rams-auth-container .rams-form__input:focus {
@@ -2525,19 +2602,19 @@ body {
 }
 
 .rams-auth-container .rams-form__label {
-    color: var(--rams-grey-400);
+    color: var(--rams-muted);
 }
 
 .rams-auth-container .rams-form__hint {
-    color: var(--rams-grey-500);
+    color: var(--rams-muted);
 }
 
 .rams-auth-container .rams-form__checkbox-label {
-    color: var(--rams-grey-300);
+    color: var(--rams-foreground);
 }
 
 .rams-auth-container .rams-text-muted {
-    color: var(--rams-grey-400);
+    color: var(--rams-muted);
 }
 
 .rams-auth-container .rams-link {
@@ -4156,7 +4233,17 @@ a.rams-module:hover {
 }
 
 .rams-icon-link--linkedin:hover {
-    color: #0077b5;
+    color: var(--rams-steel);
+}
+
+.rams-link--linkedin,
+.rams-linkedin {
+    color: var(--rams-steel) !important;
+}
+
+.rams-link--linkedin:hover,
+.rams-linkedin:hover {
+    color: var(--rams-orange) !important;
 }
 
 /* ============================================
@@ -4320,8 +4407,8 @@ a.rams-module:hover {
     bottom: calc(100% + 10px);
     left: 50%;
     transform: translateX(-50%);
-    background: var(--rams-grey-900);
-    color: white;
+    background: var(--rams-module);
+    color: var(--rams-foreground);
     padding: 12px 14px;
     border-radius: var(--radius-sm);
     min-width: 200px;
@@ -4341,7 +4428,7 @@ a.rams-module:hover {
     left: 50%;
     transform: translateX(-50%);
     border: 6px solid transparent;
-    border-top-color: var(--rams-grey-900);
+    border-top-color: var(--rams-module);
 }
 
 .rams-heat-map__cell:hover .rams-heat-map__tooltip {
@@ -4352,7 +4439,7 @@ a.rams-module:hover {
     font-weight: 600;
     font-size: var(--text-sm);
     margin-bottom: var(--space-1);
-    color: white;
+    color: var(--rams-foreground);
 }
 
 .rams-heat-map__tooltip-score {
@@ -4367,12 +4454,12 @@ a.rams-module:hover {
     flex-direction: column;
     gap: var(--space-1);
     padding-top: var(--space-1);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-top: 1px solid var(--rams-line);
 }
 
 .rams-heat-map__tooltip-details div {
     font-size: var(--text-2xs);
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--rams-muted);
 }
 
 .rams-legend {
@@ -4407,7 +4494,8 @@ a.rams-module:hover {
     bottom: 80px;
     width: 400px;
     max-width: calc(100vw - var(--sidebar-width) - 30px);
-    background: white;
+    background: var(--rams-module);
+    color: var(--rams-foreground);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-inset);
     border: 1px solid var(--rams-line);
@@ -4475,7 +4563,7 @@ a.rams-module:hover {
 
 .rams-notification__timestamp {
     font-size: 12px;
-    color: var(--rams-grey-600);
+    color: var(--rams-muted);
 }
 
 .rams-notification__unread {
@@ -4528,7 +4616,8 @@ a.rams-module:hover {
     position: fixed;
     top: 20px;
     right: 20px;
-    background-color: white;
+    background-color: var(--rams-module);
+    color: var(--rams-foreground);
     border: 1px solid var(--rams-line);
     border-radius: var(--radius-lg);
     padding: 16px;
@@ -4564,27 +4653,20 @@ a.rams-module:hover {
     }
 }
 
-.rams-toast__header {
+.rams-toast__content {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 8px;
 }
 
 .rams-toast__icon {
-    font-size: 24px;
     flex-shrink: 0;
 }
 
-.rams-toast__title {
+.rams-toast__message {
+    flex-shrink: 0;
     font-weight: 600;
     font-size: 14px;
-}
-
-.rams-toast__message {
-    font-size: 13px;
-    color: var(--rams-grey-600);
-    margin-left: 36px;
 }
 
 /* Mobile Responsive */
@@ -4794,18 +4876,83 @@ a.rams-module:hover {
 
     /* 6. Table Mobile Adjustments */
     .rams-table-container {
-        border-right: 0;
-        border-left: 0;
-        border-radius: 0;
-        margin: 0 calc(var(--space-4) * -1); /* Bleed to edges */
-        width: calc(100% + var(--space-8));
+        border-right: 1px solid var(--rams-line);
+        border-left: 1px solid var(--rams-line);
+        border-radius: var(--radius-sm);
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
         -webkit-overflow-scrolling: touch;
     }
+
+    .rams-table-wrapper {
+        border-right: 1px solid var(--rams-line);
+        border-left: 1px solid var(--rams-line);
+        border-radius: var(--radius-sm);
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .rams-table {
+        width: 100%;
+        max-width: 100%;
+        table-layout: fixed;
+    }
     
-    .rams-table th,
-    .rams-table td {
+    .rams-table th {
         padding: var(--space-3) var(--space-2); /* Tighter horizontal padding */
-        white-space: nowrap; /* Force scroll instead of weird wrapping */
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .rams-table td {
+        padding: var(--space-3) var(--space-2);
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .rams-table td a {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .rams-table__cell--truncate {
+        max-width: none;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .rams-table__cell--actions {
+        white-space: normal;
+        min-width: 120px;
+    }
+
+    .rams-table__cell--actions form {
+        display: block !important;
+        margin-bottom: var(--space-2);
+    }
+
+    .rams-table__cell--actions form:last-child {
+        margin-bottom: 0;
+    }
+
+    .rams-table__cell--actions .rams-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .rams-table td form[style*="display:inline"] {
+        display: block !important;
+        margin-bottom: var(--space-2);
+    }
+
+    .rams-table td form[style*="display:inline"]:last-child {
+        margin-bottom: 0;
     }
 
     .rams-alert {

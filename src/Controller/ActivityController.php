@@ -33,7 +33,7 @@ class ActivityController extends AbstractController
     #[Route('/api/contacts/search', name: 'app_activity_contacts_search', methods: ['GET'])]
     public function searchContacts(Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED');
         
         $query = trim($request->query->get('q', ''));
         $companyId = $request->query->get('company');
@@ -196,7 +196,7 @@ class ActivityController extends AbstractController
     #[Route('/new', name: 'app_activity_new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED');
 
         $activity = new Activity();
         

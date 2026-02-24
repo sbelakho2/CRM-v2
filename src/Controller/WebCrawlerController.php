@@ -493,15 +493,17 @@ class WebCrawlerController extends AbstractController
         // Use grep for efficiency (avoid reading entire log into PHP)
         // NOTE: grep -c always outputs a count (even 0) when the file exists,
         // so || echo 0 would produce DOUBLE output for non-matches. Removed.
+        // Use grep -E for broader pattern matching
+        // Patterns match what GoogleDorkService and CompanyDiscoveryService actually log
         $grepCmd = sprintf(
             'wc -l < %1$s; ' .
-            'grep -c "Evidence Gate PASS" %1$s 2>/dev/null; ' .
-            'grep -c "Evidence Gate FAIL" %1$s 2>/dev/null; ' .
-            'grep -c "Evidence Gate rescued" %1$s 2>/dev/null; ' .
-            'grep -c "No location presence" %1$s 2>/dev/null; ' .
-            'grep -c "Location presence rescued" %1$s 2>/dev/null; ' .
-            'grep -c "ScrapingSearchProvider: success" %1$s 2>/dev/null; ' .
-            'grep -c "Saved company to DB" %1$s 2>/dev/null; ' .
+            'grep -c "Evidence Gate PASS" %1$s 2>/dev/null || echo 0; ' .
+            'grep -c "Evidence Gate FAIL" %1$s 2>/dev/null || echo 0; ' .
+            'grep -c "Evidence Gate rescued" %1$s 2>/dev/null || echo 0; ' .
+            'grep -c "No location presence" %1$s 2>/dev/null || echo 0; ' .
+            'grep -c "Location presence rescued" %1$s 2>/dev/null || echo 0; ' .
+            'grep -c "ScrapingSearchProvider: success" %1$s 2>/dev/null || echo 0; ' .
+            'grep -c "Saved company to DB" %1$s 2>/dev/null || echo 0; ' .
             'tail -1 %1$s 2>/dev/null',
             escapeshellarg($logFile)
         );

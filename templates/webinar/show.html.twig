@@ -128,6 +128,7 @@
                         <p class="rams-empty-state__message">{{ 'webinar.no_attendees'|trans }}</p>
                     </div>
                 {% else %}
+                    <div class="rams-table-container">
                     <table class="rams-table">
                         <thead class="rams-table__header">
                             <tr>
@@ -172,6 +173,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    </div>
                 {% endif %}
             </div>
         </div>
