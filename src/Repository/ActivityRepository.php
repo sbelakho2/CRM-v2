@@ -16,13 +16,49 @@ class ActivityRepository extends ServiceEntityRepository
         parent::__construct($registry, Activity::class);
     }
 
+    /**
+     * Find recent activities with eager loading to prevent N+1 queries.
+     * Loads company, contact, and user in a single query.
+     */
     public function findRecent(int $limit = 10): array
     {
         return $this->createQueryBuilder('a')
+            ->leftJoin('a.company', 'c')->addSelect('c')
+            ->leftJoin('a.contact', 'ct')->addSelect('ct')
+            ->leftJoin('a.user', 'u')->addSelect('u')
             ->orderBy('a.activityDate', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Get counts for multiple activity types in a single query.
+     * Optimized for dashboard weekly metrics - eliminates 4 separate queries.
+     * 
+     * @return array<string, int> Map of type => count
+     */
+    public function countByTypesBetween(array $types, \DateTime $start, \DateTime $end): array
+    {
+        $results = $this->createQueryBuilder('a')
+            ->select('a.type, COUNT(a.id) as cnt')
+            ->where('a.type IN (:types)')
+            ->andWhere('a.activityDate >= :start')
+            ->andWhere('a.activityDate <= :end')
+            ->setParameter('types', $types)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->groupBy('a.type')
+            ->getQuery()
+            ->getResult();
+        
+        // Initialize all types with 0
+        $counts = array_fill_keys($types, 0);
+        foreach ($results as $row) {
+            $counts[$row['type']] = (int) $row['cnt'];
+        }
+        
+        return $counts;
     }
 
     public function countMeetingsBetween(\DateTimeInterface $start, \DateTimeInterface $end): int

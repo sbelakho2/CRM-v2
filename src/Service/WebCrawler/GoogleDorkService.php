@@ -249,23 +249,6 @@ class GoogleDorkService
         // 2. Inject -site: exclusions for already-found domains
         // 3. Add dynamic expansion queries based on existing companies
         // ══════════════════════════════════════════════════════════════
-        $priorityQueries = [];
-        $regularQueries = [];
-        foreach ($searchQueries as $q) {
-            if (str_starts_with($q, '<<P>>')) {
-                $priorityQueries[] = substr($q, 5);
-            } else {
-                $regularQueries[] = $q;
-            }
-        }
-        $priorityQueries = $this->stableDiversifyQueryOrder($priorityQueries);
-        $regularQueries = $this->stableDiversifyQueryOrder($regularQueries);
-        $searchQueries = array_merge($priorityQueries, $regularQueries);
-        $this->logger->info('Query priority split', [
-            'priority' => count($priorityQueries),
-            'regular' => count($regularQueries),
-            'total' => count($searchQueries),
-        ]);
 
         // Load existing company domains to exclude from search results
         $existingDomains = [];
@@ -285,22 +268,28 @@ class GoogleDorkService
 
         // Append domain exclusions to each query
         $searchQueries = array_map(function (string $q) use ($domainExclusions) {
+            $prefix = '';
+            if (str_starts_with($q, '<<P>>')) {
+                $prefix = '<<P>>';
+                $q = substr($q, 5);
+            }
             // Don't add -site: exclusions to directory queries (site:europages.com etc.)
             if (preg_match('/^site:/', $q)) {
-                return $q;
+                return $prefix . $q;
             }
-            return $q . $domainExclusions;
+            return $prefix . $q . $domainExclusions;
         }, $searchQueries);
 
         // ── Dynamic expansion: queries derived from existing companies ──
+        // Only useful when we have ≥ 3 diverse seeds; with 1–2 seeds the
+        // "competitors of X" queries just find variants of the same company.
         if ($this->companyRepository !== null && $sector) {
-            $existingNames = $this->companyRepository->findNamesBySector($sector);
-            if (!empty($existingNames)) {
-                // "Competitors of X" queries — discover similar companies
+            $region = $this->detectRegionFromLocation($location);
+            $existingNames = $this->companyRepository->findNamesBySectorAndRegion($sector, $region);
+            if (count($existingNames) >= 3) {
                 $shuffledNames = $existingNames;
                 shuffle($shuffledNames);
                 $namesToExpand = array_slice($shuffledNames, 0, 3);
-                $region = $this->detectRegionFromLocation($location);
                 $locationTerm = $this->buildLocationTerm($location);
                 $baseSiteExclude = ' -site:linkedin.com -site:wikipedia.org -site:youtube.com'
                     . ' -site:facebook.com -site:twitter.com -site:instagram.com';
@@ -310,12 +299,38 @@ class GoogleDorkService
                 }
                 $this->logger->info('Dynamic expansion: added competitor queries', [
                     'based_on' => $namesToExpand,
+                    'region' => $region,
+                ]);
+            } else {
+                $this->logger->info('Dynamic expansion: skipped (too few same-region seeds)', [
+                    'seed_count' => count($existingNames),
+                    'region' => $region,
                 ]);
             }
         }
 
         // Re-run query optimization after exclusions + dynamic expansion
+        // This preserves <<P>> prefixes for priority ordering.
         $searchQueries = $this->optimizeAndDiversifySearchQueries($searchQueries, $sector, $location);
+
+        // Now split by priority — AFTER all optimization/dedup is done
+        $priorityQueries = [];
+        $regularQueries = [];
+        foreach ($searchQueries as $q) {
+            if (str_starts_with($q, '<<P>>')) {
+                $priorityQueries[] = substr($q, 5);
+            } else {
+                $regularQueries[] = $q;
+            }
+        }
+        $priorityQueries = $this->stableDiversifyQueryOrder($priorityQueries);
+        $regularQueries = $this->stableDiversifyQueryOrder($regularQueries);
+        $searchQueries = array_merge($priorityQueries, $regularQueries);
+        $this->logger->info('Query priority split', [
+            'priority' => count($priorityQueries),
+            'regular' => count($regularQueries),
+            'total' => count($searchQueries),
+        ]);
 
         // If we have a search provider and should execute, use it
         if ($executeSearch && $this->hasSearchProvider()) {
@@ -459,7 +474,9 @@ class GoogleDorkService
 
                                 // Semantic filter: reject EMS competitors, distributors,
                                 // equipment suppliers, component suppliers, integrators,
-                                // MRO companies based on snippet analysis
+                                // MRO companies based on snippet analysis.
+                                // KEPT as cheap pre-filter — catches obvious cases before
+                                // the slower LLM call (~3s each on CPU).
                                 $snippet = $result['snippet'] ?? '';
                                 $title = $result['title'] ?? '';
                                 if ($this->isCompetitorOrWrongType($snippet, $title, $domain)) {
@@ -470,29 +487,10 @@ class GoogleDorkService
                                     continue;
                                 }
                                 
-                                // NOTE: isLikelyEMSBuyer() removed — redundant with
-                                // BuyerEvidenceGate which provides the same positive/negative
-                                // signal scoring but with homepage rescue and family-based
-                                // evidence evaluation. Running both was double-jeopardy.
-                                
-                                // Knowledge-base classifier: uses Gemini-trained local
-                                // knowledge base for a second layer of scoring. Zero API calls.
-                                if ($this->classifier !== null) {
-                                    $classification = $this->classifier->classifyCompany($companyName, $snippet, $title, $domain);
-                                    if ($classification['verdict'] === 'REJECT') {
-                                        $this->logger->debug('Classifier REJECT', [
-                                            'name' => $companyName,
-                                            'score' => $classification['score'],
-                                            'reasons' => $classification['reasons'],
-                                        ]);
-                                        continue;
-                                    }
-                                }
-                                
                                 // ── Entity-Type Pre-Filter (v19) ──────────────────
                                 // Fast regex check: catches government bodies, NGOs,
                                 // student orgs, job portals, investment agencies before
-                                // expensive BEG/homepage/LLM. No rescue possible.
+                                // expensive LLM call. No rescue possible.
                                 if ($this->isObviousNonTarget($companyName, $snippet . ' ' . $title, $domain)) {
                                     $this->metricsCollector->recordReject('entity_type_prefilter', $companyName);
                                     $this->logger->info('Entity-type pre-filter REJECT (obvious non-target)', [
@@ -502,86 +500,58 @@ class GoogleDorkService
                                     continue;
                                 }
                                 
-                                // ── Buyer Evidence Gate (Improvement 2A) ──────────
-                                // Hard requirement: candidate must have evidence from
-                                // ≥2 of 4 families. Full trace persisted on lead.
-                                $evidenceResult = null;
-                                if ($this->buyerEvidenceGate !== null) {
-                                    $evidenceResult = $this->buyerEvidenceGate->evaluate(
-                                        $companyName, $snippet, $title, $domain, '', $sector,
-                                    );
-                                    if (
-                                        !$evidenceResult->passed()
-                                        && $this->shouldAttemptEvidenceHomepageRescue($evidenceResult, $result, $domain)
-                                    ) {
-                                        $homepageEvidenceText = $this->fetchEvidenceHomepageText($domain);
-                                        if ($homepageEvidenceText !== '') {
-                                            $rescuedResult = $this->buyerEvidenceGate->evaluate(
-                                                $companyName,
-                                                $snippet,
-                                                $title,
-                                                $domain,
-                                                $homepageEvidenceText,
-                                                $sector,
-                                            );
-                                            if ($rescuedResult->passed()) {
-                                                $this->logger->info('Evidence Gate rescued', [
-                                                    'name' => $companyName,
-                                                    'domain' => $domain,
-                                                    'initial_reason' => $evidenceResult->getReason(),
-                                                    'rescued_reason' => $rescuedResult->getReason(),
-                                                ]);
-                                                $evidenceResult = $rescuedResult;
-                                            }
-                                        }
-                                    }
-                                    if (!$evidenceResult->passed()) {
-                                        // ── LLM RESCUE for BEG rejections ─────────
-                                        // The BEG uses regex patterns that miss multinational
-                                        // manufacturers whose snippets don't contain buyer
-                                        // evidence keywords. Ask the LLM if it recognizes
-                                        // this as a real manufacturer before hard-rejecting.
-                                        $llmRescued = false;
-                                        if ($this->llmService !== null) {
-                                            $begSnippet = mb_substr($snippet . ' ' . ($title ?? ''), 0, 500);
-                                            $llmResult = $this->llmService->classifyCompany($companyName, $domain, $begSnippet, $location);
-                                            if ($llmResult !== null) {
-                                                $llmVerdict = strtoupper($llmResult['verdict'] ?? 'REJECT');
-                                                $llmConfidence = (float) ($llmResult['confidence'] ?? 0.0);
-                                                $llmIsManufacturer = (bool) ($llmResult['is_manufacturer'] ?? false);
-                                                if ($llmVerdict === 'ACCEPT' && $llmConfidence >= 0.75 && $llmIsManufacturer) {
-                                                    $llmRescued = true;
-                                                    $this->logger->info('LLM rescued BEG rejection — manufacturer confirmed', [
-                                                        'name' => $companyName,
-                                                        'domain' => $domain,
-                                                        'llm_confidence' => $llmConfidence,
-                                                        'llm_reason' => $llmResult['reason'] ?? '',
-                                                        'beg_reason' => $evidenceResult->getReason(),
-                                                    ]);
-                                                }
-                                            }
-                                        }
-                                        if (!$llmRescued) {
-                                            $this->metricsCollector->recordReject('buyer_evidence', $evidenceResult->getReason());
-                                            $this->logger->info('Evidence Gate FAIL', [
-                                                'name'   => $companyName,
+                                // ── LLM Primary Gate (v21 — Qwen2.5-7B) ──────────
+                                // With 100% accuracy on 225-entry golden dataset v2
+                                // (26 reject categories, 9 languages), the 7B model
+                                // is now THE primary classification gate. It REPLACES:
+                                //   - Knowledge-base classifier (regex)
+                                //   - BuyerEvidenceGate (regex scoring)
+                                //   - ServiceProductClassifier (regex)
+                                //   - CompetitorProximityVeto (regex)
+                                //   - RuleEngine (YAML rules)
+                                //
+                                // The cheap regex pre-filters above (isCompetitorOrWrongType,
+                                // isObviousNonTarget) are KEPT to avoid wasting ~3s LLM
+                                // inference on obviously-wrong candidates.
+                                $llmClassification = null;
+                                if ($this->llmService !== null) {
+                                    $llmSnippet = mb_substr($snippet . ' ' . ($title ?? ''), 0, 500);
+                                    $llmClassification = $this->llmService->classifyCompany($companyName, $domain, $llmSnippet, $location, $sector);
+                                    if ($llmClassification !== null) {
+                                        $llmVerdict = strtoupper($llmClassification['verdict'] ?? 'REJECT');
+                                        $llmConfidence = (float) ($llmClassification['confidence'] ?? 0.0);
+                                        
+                                        if ($llmVerdict === 'REJECT' && $llmConfidence >= 0.7) {
+                                            $this->metricsCollector->recordReject('llm_primary_gate', $llmClassification['reason'] ?? '');
+                                            $this->logger->info('LLM Primary Gate REJECT', [
+                                                'name' => $companyName,
                                                 'domain' => $domain,
-                                                'reason' => $evidenceResult->getReason(),
+                                                'reason' => $llmClassification['reason'] ?? '',
+                                                'confidence' => $llmConfidence,
                                             ]);
                                             continue;
                                         }
+                                        
+                                        $this->logger->info('LLM Primary Gate ACCEPT', [
+                                            'name' => $companyName,
+                                            'domain' => $domain,
+                                            'verdict' => $llmVerdict,
+                                            'confidence' => $llmConfidence,
+                                            'reason' => $llmClassification['reason'] ?? '',
+                                        ]);
+                                    } else {
+                                        $this->logger->warning('LLM returned null — falling through to location check', [
+                                            'name' => $companyName,
+                                            'domain' => $domain,
+                                        ]);
                                     }
-                                    $this->metricsCollector->recordAccept('buyer_evidence');
-                                    $this->logger->info('Evidence Gate PASS', [
-                                        'name'   => $companyName,
-                                        'domain' => $domain,
-                                    ]);
                                 }
 
                                 // ── Location Presence Validation ────────────────
                                 // Verify candidate has actual presence in the target
                                 // location. Prevents US companies appearing in Egypt
                                 // searches etc. (e.g. Hope Global → no Egypt presence)
+                                $locationValidated = false;
                                 if ($location !== null && !$this->hasLocationPresence($snippet, $title, $domain, $location)) {
                                     $this->metricsCollector->recordReject('location_presence', $companyName);
                                     $this->logger->info('No location presence', [
@@ -591,67 +561,7 @@ class GoogleDorkService
                                     ]);
                                     continue;
                                 }
-                                
-                                // ── Service-vs-Product Classifier (Improvement 2B) ──
-                                // Binary veto: SERVICE_PROVIDER → hard reject.
-                                // PRODUCT_COMPANY or INDETERMINATE → pass.
-                                $serviceProductVerdict = null;
-                                if ($this->serviceProductClassifier !== null) {
-                                    $serviceProductVerdict = $this->serviceProductClassifier->classify(
-                                        $companyName, $snippet, $title, $domain,
-                                    );
-                                    if ($serviceProductVerdict->isRejected()) {
-                                        $this->metricsCollector->recordReject('service_product', $serviceProductVerdict->reason);
-                                        $this->logger->debug('Service-vs-Product REJECT', [
-                                            'name'   => $companyName,
-                                            'domain' => $domain,
-                                            'reason' => $serviceProductVerdict->reason,
-                                            'svcScore' => $serviceProductVerdict->serviceScore,
-                                            'prdScore' => $serviceProductVerdict->productScore,
-                                        ]);
-                                        continue;
-                                    }
-                                    $this->metricsCollector->recordAccept('service_product');
-                                }
-                                
-                                // ── RuleEngine evaluation (Improvement 4A) ────────
-                                // Runs YAML-based rules in parallel to inline checks.
-                                // Stores the trace for observability.
-                                $ruleVerdict = null;
-
-                                // ── Competitor Proximity Veto (Improvement 2C) ──
-                                // Rejects candidates that mention known EMS competitors
-                                // alongside service-offering language.
-                                $competitorVeto = null;
-                                if ($this->competitorProximityVeto !== null) {
-                                    $competitorVeto = $this->competitorProximityVeto->evaluate(
-                                        $companyName, $snippet, $title, $domain,
-                                    );
-                                    if ($competitorVeto['vetoed']) {
-                                        $this->logger->debug('Competitor Proximity VETO', [
-                                            'name'   => $companyName,
-                                            'domain' => $domain,
-                                            'reason' => $competitorVeto['reason'],
-                                        ]);
-                                        continue;
-                                    }
-                                }
-                                if ($this->ruleEngine !== null) {
-                                    $ruleVerdict = $this->ruleEngine->evaluate(
-                                        $domain, $companyName, $snippet, $title,
-                                    );
-                                    if ($ruleVerdict->isRejected()) {
-                                        $this->metricsCollector->recordReject('rule_engine', $ruleVerdict->reason);
-                                        $this->logger->debug('RuleEngine REJECT', [
-                                            'name'   => $companyName,
-                                            'domain' => $domain,
-                                            'reason' => $ruleVerdict->reason,
-                                            'score'  => $ruleVerdict->totalScore,
-                                        ]);
-                                        continue;
-                                    }
-                                    $this->metricsCollector->recordAccept('rule_engine');
-                                }
+                                $locationValidated = true;
                                 
                                 $allResults[$domainKey] = [
                                     'name' => $companyName,
@@ -663,10 +573,8 @@ class GoogleDorkService
                                     'source_query' => $query,
                                     'sector' => $sector,
                                     'location' => $location,
-                                    'buyer_evidence' => $evidenceResult?->toArray(),
-                                    'service_product' => $serviceProductVerdict?->toArray(),
-                                    'competitor_veto' => $competitorVeto,
-                                    'rule_verdict' => $ruleVerdict?->toArray(),
+                                    'location_validated' => $locationValidated,
+                                    'llm_classification' => $llmClassification,
                                     'language' => $this->languageDetector !== null
                                         ? $this->languageDetector->detectWithRegionRelevance($snippet . ' ' . $title, $region)
                                         : null,
@@ -1523,6 +1431,12 @@ class GoogleDorkService
         'india-briefing.com',  // news/analysis
         'egypt-business.com',  // Egyptian business directory
         'egypttoday.com', 'www.egypttoday.com',  // Egyptian news site
+        // French directories / portals (source sites, not prospects)
+        'annuaire-entreprises.data.gouv.fr', 'societe.com', 'verif.com',
+        'manageo.fr', 'infogreffe.fr', 'pappers.fr', 'bodacc.fr',
+        'usinenouvelle.com', 'industrie-techno.com',
+        'batiproduits.com', 'batiactu.com', 'lemoniteur.fr',
+        'pagesjaunes.fr', 'annuaire.com', 'infobel.com',
         // Trade platforms / data aggregators (waste BEG budget)
         'tradeaegea.com', 'tendata.com', 'importexportplatform.com',
         'chinatradeholding.com', 'themouldinfo.com', 'exporthub.com',
@@ -4398,7 +4312,7 @@ class GoogleDorkService
         $wordCount = count($words);
 
         // Fast rejects for UI fragments / snippets
-        if ($name === '' || preg_match('/^[\-–—|•,:;\/\\]+$/u', $name)) {
+        if ($name === '' || preg_match('/^[\-–—|•,:;\/\\\\]+$/u', $name)) {
             return true;
         }
         if (preg_match('/\b(cookie|privacy|terms|sign\s*in|log\s*in|register|subscribe|newsletter|menu|search|home|contact\s+us|about\s+us|read\s+more|learn\s+more|apply\s+now|book\s+now)\b/iu', $name)) {
@@ -8782,6 +8696,18 @@ class GoogleDorkService
                 'terms' => ['france', 'french', 'français', 'française', 'paris', 'lyon', 'toulouse',
                     'marseille', 'bordeaux', 'grenoble', 'strasbourg', 'nantes',
                     'lille', 'montpellier', 'île-de-france', 'ile-de-france',
+                    'rennes', 'rouen', 'reims', 'dijon', 'clermont-ferrand',
+                    'saint-étienne', 'saint-etienne', 'le mans', 'amiens', 'metz',
+                    'mulhouse', 'orléans', 'orleans', 'angers', 'caen', 'tours',
+                    'douai', 'valenciennes', 'poissy', 'flins', 'sochaux',
+                    'cluses', 'scionzier', 'annecy', 'chambéry', 'chambery',
+                    // Regions and departments
+                    'hauts-de-france', 'normandie', 'normandy', 'bretagne', 'brittany',
+                    'auvergne', 'rhône-alpes', 'rhone-alpes', 'grand est', 'alsace',
+                    'provence', 'occitanie', 'nouvelle-aquitaine', 'pays de la loire',
+                    'bourgogne', 'franche-comté', 'franche-comte', 'picardie',
+                    // French industry terms that indicate France presence
+                    'siège social', 'cedex', 'siret', 'siren',
                     // Arabic/German
                     'فرنسا', 'باريس', 'frankreich', 'französisch'],
             ],
@@ -10468,12 +10394,13 @@ class GoogleDorkService
 
                 if ($enrichment !== null) {
                     // ── HOMEPAGE LOCATION RE-VERIFICATION ──────────
-                    // Snippet-based location presence is unreliable for
-                    // broad queries that include the country name — global
-                    // companies surface because their snippets echo the
-                    // query's country term. Re-check using HOMEPAGE HTML.
+                    // Skip if candidate already passed the thorough
+                    // hasLocationPresence() check (which includes subpage
+                    // crawling, phone codes, structured data — more thorough
+                    // than this homepage-only check).
                     $candidateLocation = $data['location'] ?? null;
-                    if ($candidateLocation !== null && $candidateLocation !== '') {
+                    $alreadyLocationValidated = !empty($data['location_validated']);
+                    if (!$alreadyLocationValidated && $candidateLocation !== null && $candidateLocation !== '') {
                         $locationVocab = $this->getLocationVocabulary(strtolower(trim($candidateLocation)));
                         if ($locationVocab !== null) {
                             $homepageText = strtolower(strip_tags($html));
@@ -10517,12 +10444,15 @@ class GoogleDorkService
 
                     $data = $this->mergeEnrichment($data, $enrichment);
 
-                    // ── LLM SECOND OPINION ────────────────────────────
-                    // Use homepage text (actual content) instead of search snippet
+                    // ── LLM CLASSIFICATION ─────────────────────────────
+                    // Use homepage text (actual content) for deep classification.
+                    // The 7B model's analyzeHomepage() uses the full page content
+                    // for far better accuracy than a search snippet.
                     $snippetForLlm = !empty($data['_homepage_text'])
                         ? $data['_homepage_text']
                         : mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                    if (!$this->llmSecondOpinion($data['name'], $domain, $snippetForLlm, $data['location'] ?? null, 'homepage')) {
+                    $homepageForLlm = !empty($data['_homepage_text']) ? $data['_homepage_text'] : null;
+                    if (!$this->llmSecondOpinion($data['name'], $domain, $snippetForLlm, $data['location'] ?? null, 'homepage', $homepageForLlm, $data['sector'] ?? null)) {
                         $needsLinkedIn[$domain] = $data;
                         continue;
                     }
@@ -10747,7 +10677,7 @@ class GoogleDorkService
                     if ($ec) { $data['contacts'] = $ec; }
                 }
 
-                // ── LLM SECOND OPINION ────────────────────────────
+                // ── LLM CLASSIFICATION ─────────────────────────────
                 // Use homepage text if available (fetched during Phase 1 or botd
                 // location check). Falls back to search snippet.
                 $botdSnippet = !empty($data['_homepage_text'])
@@ -10763,7 +10693,8 @@ class GoogleDorkService
                         }
                     } catch (\Throwable $e) {}
                 }
-                if (!$this->llmSecondOpinion($data['name'], $domain, $botdSnippet, $data['location'] ?? null, 'botd')) {
+                $botdHomepage = !empty($data['_homepage_text']) ? $data['_homepage_text'] : null;
+                if (!$this->llmSecondOpinion($data['name'], $domain, $botdSnippet, $data['location'] ?? null, 'botd', $botdHomepage, $data['sector'] ?? null)) {
                     continue; // LLM rejected — skip silently
                 }
 
@@ -10785,7 +10716,8 @@ class GoogleDorkService
                 $rescueSnippet = !empty($data['_homepage_text'])
                     ? $data['_homepage_text']
                     : mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                if ($this->llmService !== null && $this->llmSecondOpinion($name, $domain, $rescueSnippet, $data['location'] ?? null, 'homepage_rescue')) {
+                $rescueHomepage = !empty($data['_homepage_text']) ? $data['_homepage_text'] : null;
+                if ($this->llmService !== null && $this->llmSecondOpinion($name, $domain, $rescueSnippet, $data['location'] ?? null, 'homepage_rescue', $rescueHomepage, $data['sector'] ?? null)) {
                     // ── LOCATION RE-CHECK for homepage rescue ──────────
                     // The LLM can hallucinate location presence. Verify with
                     // actual evidence: ccTLD, domain name, or homepage text.
@@ -10911,7 +10843,7 @@ class GoogleDorkService
 
                 // ── LLM SECOND OPINION ────────────────────────────
                 $liSnippet = mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                if (!$this->llmSecondOpinion($data['name'], $domain, $liSnippet, $data['location'] ?? null, 'linkedin_2a')) {
+                if (!$this->llmSecondOpinion($data['name'], $domain, $liSnippet, $data['location'] ?? null, 'linkedin_2a', null, $data['sector'] ?? null)) {
                     usleep(250000);
                     continue;
                 }
@@ -10974,7 +10906,7 @@ class GoogleDorkService
 
                     // ── LLM SECOND OPINION ────────────────────────────
                     $li2Snippet = mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                    if (!$this->llmSecondOpinion($data['name'], $domain, $li2Snippet, $data['location'] ?? null, 'linkedin_2b')) {
+                    if (!$this->llmSecondOpinion($data['name'], $domain, $li2Snippet, $data['location'] ?? null, 'linkedin_2b', null, $data['sector'] ?? null)) {
                         usleep(250000);
                         continue;
                     }
@@ -11027,13 +10959,31 @@ class GoogleDorkService
      * @param string|null $location Target location (e.g. "Egypt")
      * @param string      $path     Which verification path called this (for logging)
      */
-    private function llmSecondOpinion(string $name, string $domain, string $snippet, ?string $location, string $path): bool
+    /**
+     * LLM classification gate — ask the Qwen2.5-7B model whether a
+     * candidate is a genuine manufacturer (not a trader/distributor/media site).
+     *
+     * When homepage text is available (verification phase), uses
+     * analyzeHomepage() which gives the LLM actual page content for
+     * much better classification than just a search snippet.
+     *
+     * Returns true if the LLM confirms the candidate, false if rejected.
+     * Defaults to REJECT when LLM is unavailable (never let unverified through).
+     *
+     * @param string      $name         Company name
+     * @param string      $domain       Company domain
+     * @param string      $snippet      Search snippet or homepage text (1500 chars)
+     * @param string|null $location     Target location (e.g. "Egypt")
+     * @param string      $path         Which verification path called this (for logging)
+     * @param string|null $homepageText Cleaned homepage text (if available, triggers analyzeHomepage)
+     */
+    private function llmSecondOpinion(string $name, string $domain, string $snippet, ?string $location, string $path, ?string $homepageText = null, ?string $sector = null): bool
     {
         if ($this->llmService === null) {
-            $this->logger->warning('LLM not wired — REJECTING by default (no LLM = no verification)', [
+            $this->logger->warning('LLM not wired — REJECTING by default', [
                 'name' => $name, 'domain' => $domain,
             ]);
-            return false; // LLM not wired — reject; can't verify without it
+            return false;
         }
 
         try {
@@ -11041,15 +10991,31 @@ class GoogleDorkService
                 $this->logger->warning('LLM unavailable — REJECTING by default', [
                     'name' => $name, 'domain' => $domain,
                 ]);
-                return false; // LLM down — reject; don't let unverified companies through
+                return false;
             }
 
-            $result = $this->llmService->classifyCompany($name, $domain, $snippet, $location);
+            // Use analyzeHomepage() when we have actual homepage content —
+            // gives the LLM full page context instead of a 200-char snippet.
+            $result = null;
+            if ($homepageText !== null && mb_strlen($homepageText) > 100) {
+                $result = $this->llmService->analyzeHomepage($homepageText, $name, $domain, $location, $sector);
+                $this->logger->debug('LLM using homepage text for classification', [
+                    'name' => $name, 'domain' => $domain,
+                    'text_length' => mb_strlen($homepageText),
+                    'path' => $path,
+                ]);
+            }
+
+            // Fallback to snippet-based classification if no homepage or analyzeHomepage failed
+            if ($result === null) {
+                $result = $this->llmService->classifyCompany($name, $domain, $snippet, $location, $sector);
+            }
+
             if ($result === null) {
                 $this->logger->warning('LLM returned null — REJECTING by default', [
                     'name' => $name, 'domain' => $domain,
                 ]);
-                return false; // parse failure — reject; don't let unverified companies through
+                return false;
             }
 
             $verdict = strtoupper($result['verdict'] ?? 'REJECT');
@@ -11057,7 +11023,7 @@ class GoogleDorkService
             $reason = $result['reason'] ?? 'no reason';
             $isManufacturer = (bool) ($result['is_manufacturer'] ?? false);
 
-            $this->logger->info('LLM second opinion', [
+            $this->logger->info('LLM classification', [
                 'name' => $name,
                 'domain' => $domain,
                 'verdict' => $verdict,
@@ -11065,142 +11031,35 @@ class GoogleDorkService
                 'is_manufacturer' => $isManufacturer,
                 'reason' => $reason,
                 'path' => $path,
+                'used_homepage' => ($homepageText !== null && mb_strlen($homepageText) > 100),
             ]);
 
             // For homepage_rescue: the homepage classifier already rejected
             // this company. The LLM must POSITIVELY confirm it to override.
-            // Note: is_manufacturer dropped from gate — Qwen2.5-3B (3B params)
-            // reliably confuses "is_manufacturer" with "provides Starz-like
-            // services" and sets it false even for actual product manufacturers
-            // like toy/appliance makers. The ACCEPT verdict already factors in
-            // manufacturer status, so we rely on verdict + confidence.
             if ($path === 'homepage_rescue') {
                 if ($verdict === 'ACCEPT' && $confidence >= 0.7) {
-                    return true; // LLM positively confirms — rescue
+                    return true;
                 }
-                $this->logger->info('LLM REJECTED candidate (homepage rescue requires positive confirmation)', [
-                    'name' => $name, 'domain' => $domain,
-                    'reason' => $reason, 'confidence' => $confidence,
-                    'is_manufacturer' => $isManufacturer,
-                    'path' => $path,
-                ]);
-                return false; // not confident enough to override homepage rejection
-            }
-
-            // ── ACCEPT-GATED LOGIC (v20) ──────────────────────────
-            // The Qwen2.5-3B model is too unreliable for hard gating:
-            //   - Always says REJECT with confidence 1.0
-            //   - Calls actual manufacturers "trading companies" or "suppliers"
-            //   - Sets is_manufacturer=false even for filter/auto parts factories
-            //
-            // Strategy: Use LLM only to VETO clear non-targets (government,
-            // media, association, etc.) — categories the model reliably detects.
-            // Do NOT trust it for manufacturer/trader/supplier distinctions
-            // since the model gets these wrong ~50% of the time.
-            //
-            // Companies on homepage/botd path already passed: search filters,
-            // BEG (buyer evidence gate), homepage classifier, location check.
-            // That's enough evidence — the LLM should only catch obvious misses.
-
-            // ACCEPT verdict at any confidence? Trust it — let through.
-            if ($verdict === 'ACCEPT') {
-                $this->logger->info('LLM ACCEPTED candidate', [
-                    'name' => $name, 'domain' => $domain,
-                    'reason' => $reason, 'confidence' => $confidence,
-                    'path' => $path,
-                ]);
-                return true;
-            }
-
-            // REJECT — but only trust it for clearly non-target categories.
-            // The 3B model reliably identifies these:
-            $reasonLower = mb_strtolower($reason);
-            $clearNonTarget = (
-                str_contains($reasonLower, 'government') ||
-                str_contains($reasonLower, 'ministry') ||
-                str_contains($reasonLower, 'news site') ||
-                str_contains($reasonLower, 'newspaper') ||
-                str_contains($reasonLower, 'magazine') ||
-                str_contains($reasonLower, 'media') ||
-                str_contains($reasonLower, 'event organiz') ||
-                str_contains($reasonLower, 'job board') ||
-                str_contains($reasonLower, 'job portal') ||
-                str_contains($reasonLower, 'recruitment') ||
-                str_contains($reasonLower, 'association') ||
-                str_contains($reasonLower, 'ieee') ||
-                str_contains($reasonLower, 'student') ||
-                str_contains($reasonLower, 'directory') ||
-                str_contains($reasonLower, 'software') ||
-                str_contains($reasonLower, 'saas') ||
-                str_contains($reasonLower, 'consulting') ||
-                str_contains($reasonLower, 'investment promotion') ||
-                str_contains($reasonLower, 'portfolio') ||
-                str_contains($reasonLower, 'national agency') ||
-                str_contains($reasonLower, 'agence nationale') ||
-                // ── Competitor / service-provider categories ──
-                // The 3B model reliably detects these when it says REJECT
-                str_contains($reasonLower, 'competitor') ||
-                str_contains($reasonLower, 'contract manufactur') ||
-                str_contains($reasonLower, 'wire harness') ||
-                str_contains($reasonLower, 'cable assembly') ||
-                str_contains($reasonLower, 'cable harness') ||
-                str_contains($reasonLower, 'pcb assembly') ||
-                str_contains($reasonLower, 'ems provider') ||
-                str_contains($reasonLower, 'ems company') ||
-                str_contains($reasonLower, 'cnc machining') ||
-                str_contains($reasonLower, 'injection molding') ||
-                str_contains($reasonLower, 'injection moulding') ||
-                str_contains($reasonLower, 'die casting') ||
-                str_contains($reasonLower, 'provides the same') ||
-                str_contains($reasonLower, 'same services') ||
-                // ── Telecom operators / energy providers ──
-                str_contains($reasonLower, 'telecom operator') ||
-                str_contains($reasonLower, 'telecommunications operator') ||
-                str_contains($reasonLower, 'mobile operator') ||
-                str_contains($reasonLower, 'energy provider') ||
-                str_contains($reasonLower, 'energy company') ||
-                str_contains($reasonLower, 'utility') ||
-                // ── Diagnostics / healthcare services ──
-                str_contains($reasonLower, 'diagnostic') ||
-                str_contains($reasonLower, 'healthcare service') ||
-                str_contains($reasonLower, 'medical lab') ||
-                str_contains($reasonLower, 'laboratory service') ||
-                // ── Other clear non-target categories ──
-                str_contains($reasonLower, 'real estate') ||
-                str_contains($reasonLower, 'industrial park') ||
-                str_contains($reasonLower, 'tour') ||
-                str_contains($reasonLower, 'certification') ||
-                str_contains($reasonLower, 'surveying') ||
-                str_contains($reasonLower, 'supply chain') ||
-                str_contains($reasonLower, 'logistics')
-            );
-
-            if ($verdict === 'REJECT' && $confidence >= 0.7 && $clearNonTarget) {
-                $this->logger->info('LLM VETOED candidate (clear non-target category)', [
-                    'name' => $name, 'domain' => $domain,
-                    'reason' => $reason, 'confidence' => $confidence,
-                    'path' => $path,
-                ]);
                 return false;
             }
 
-            // Everything else: for homepage/botd path, the company already passed
-            // multiple filters. The LLM "REJECT" for manufacturer/supplier/trader
-            // distinction is unreliable from a 3B model — let it through.
-            $this->logger->info('LLM verdict overridden — company already passed earlier checks', [
-                'name' => $name, 'domain' => $domain,
-                'reason' => $reason, 'confidence' => $confidence,
-                'verdict' => $verdict,
-                'clear_non_target' => $clearNonTarget,
-                'path' => $path,
-            ]);
+            // Trust the 7B model's verdict directly at confidence >= 0.7
+            if ($verdict === 'ACCEPT' && $confidence >= 0.7) {
+                return true;
+            }
+
+            if ($verdict === 'REJECT' && $confidence >= 0.7) {
+                return false;
+            }
+
+            // Low confidence — let through (defer to other checks)
             return true;
         } catch (\Throwable $e) {
             $this->logger->warning('LLM exception — REJECTING by default', [
                 'error' => $e->getMessage(),
                 'name' => $name, 'domain' => $domain,
             ]);
-            return false; // exception — reject; don't let unverified companies through
+            return false;
         }
     }
 
@@ -11665,11 +11524,17 @@ class GoogleDorkService
         }
 
         $enrichment = ['contacts' => []];
+        $bestDiscoveredHtml = null; // Store first page HTML for LLM extraction
         foreach ($responses as $url => $response) {
             try {
                 if ($response->getStatusCode() >= 400) continue;
                 $subHtml = $this->smartTruncateHtml($response->getContent(false), 200000);
                 if (empty($subHtml)) continue;
+
+                // Track first successful page HTML for LLM
+                if ($bestDiscoveredHtml === null) {
+                    $bestDiscoveredHtml = $subHtml;
+                }
 
                 // Extract contacts
                 $contactInfo = $this->extractContactInfoFromHtml($subHtml);
@@ -11696,6 +11561,15 @@ class GoogleDorkService
             }
         }
 
+        // ── LLM-based contact extraction (local Qwen 7B) ────────
+        // Run on the best discovered page if regex found few contacts.
+        if ($bestDiscoveredHtml !== null && count($enrichment['contacts']) < 3) {
+            $llmContacts = $this->extractContactsViaLlm($bestDiscoveredHtml, $companyName);
+            if (!empty($llmContacts)) {
+                $enrichment['contacts'] = array_merge($enrichment['contacts'], $llmContacts);
+            }
+        }
+
         // Deduplicate
         if (!empty($enrichment['contacts'])) {
             $seen = [];
@@ -11710,6 +11584,46 @@ class GoogleDorkService
         }
 
         return empty($enrichment['contacts']) && empty($enrichment['phone'] ?? null) ? null : $enrichment;
+    }
+
+    /**
+     * Extract contacts from HTML using the local LLM (Qwen2.5-7B).
+     *
+     * Complements regex extraction by catching contacts in non-standard
+     * layouts, multilingual content, and complex DOM structures.
+     * Runs entirely on the local server — zero external API cost.
+     *
+     * @param string      $html        Raw HTML content
+     * @param string      $companyName Company name for context
+     * @param string|null $domain      Company domain for email context
+     *
+     * @return array<array{first_name: string, last_name: string, job_title: ?string, email: ?string, phone: ?string, linkedin_url: ?string, source: string}>
+     */
+    private function extractContactsViaLlm(string $html, string $companyName, ?string $domain = null): array
+    {
+        if ($this->llmService === null) {
+            return [];
+        }
+
+        // Clean HTML → plain text (strip scripts, styles, SVG, collapse whitespace)
+        $text = preg_replace('/<(script|style|noscript|svg)\b[^>]*>.*?<\/\1>/is', ' ', $html) ?? $html;
+        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text);
+        $text = trim($text);
+
+        if (mb_strlen($text) < 100) {
+            return [];
+        }
+
+        try {
+            return $this->llmService->extractContactsFromText($text, $companyName, $domain);
+        } catch (\Throwable $e) {
+            $this->logger->debug('LLM contact extraction failed', [
+                'company' => $companyName,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 
     /**
@@ -11822,6 +11736,18 @@ class GoogleDorkService
             $enrichment['contacts'] = array_merge(
                 $enrichment['contacts'] ?? [],
                 $teamContacts
+            );
+        }
+
+        // ── LLM-based contact extraction (local Qwen 7B) ────
+        // Catches contacts that regex patterns miss — multilingual names,
+        // non-standard HTML layouts, CSS-grid team cards, etc.
+        // Runs on local server: zero cost, no external API calls.
+        $llmContacts = $this->extractContactsViaLlm($html, $confirmedName);
+        if (!empty($llmContacts)) {
+            $enrichment['contacts'] = array_merge(
+                $enrichment['contacts'] ?? [],
+                $llmContacts
             );
         }
 
@@ -13900,6 +13826,7 @@ class GoogleDorkService
         }
 
         // Process responses
+        $bestTeamPageHtml = null; // Store first team/about page HTML for LLM extraction
         foreach ($responses as $path => $response) {
             try {
                 $code = $response->getStatusCode();
@@ -13958,8 +13885,27 @@ class GoogleDorkService
                     );
                 }
 
+                // Track first team/about page HTML for LLM extraction
+                if ($bestTeamPageHtml === null
+                    && preg_match('#/(team|about|leadership|management|equipe|direction|our-people|ansprechpartner|who-we-are|a-propos)#i', $path)) {
+                    $bestTeamPageHtml = $html;
+                }
+
             } catch (\Exception $e) {
                 // skip failed pages
+            }
+        }
+
+        // ── LLM-based contact extraction (local Qwen 7B) ────────
+        // Run on the best team/about page to catch contacts regex missed.
+        // Single LLM call per company — zero external API cost.
+        if ($bestTeamPageHtml !== null && count($enrichment['contacts']) < 3) {
+            $llmContacts = $this->extractContactsViaLlm($bestTeamPageHtml, $companyName);
+            if (!empty($llmContacts)) {
+                $enrichment['contacts'] = array_merge(
+                    $enrichment['contacts'],
+                    $llmContacts
+                );
             }
         }
 
@@ -16203,6 +16149,240 @@ class GoogleDorkService
             foreach ($directMfrs as $dm) {
                 $queries[] = '<<P>>' . $dm . ' ' . $exclude;
             }
+        }
+
+        // ── 20c. FRANCE-SPECIFIC AUTOMOTIVE / INDUSTRIAL QUERIES ──────
+        // France is a major automotive manufacturing hub with large OEMs
+        // (Renault, Stellantis/PSA) and hundreds of Tier 1/2 suppliers.
+        // French companies often have French-language-only websites.
+        // ALL France queries are PRIORITY — they produce the best results for FR searches.
+        if ($sector && $region === 'FR') {
+            // ── French-language sector queries (many FR companies are FR-only sites) ──
+            if ($sector === 'Automotive') {
+                $queries[] = '<<P>>' . "\"équipementier automobile\" France OR français fabricant" . $exclude;
+                $queries[] = '<<P>>' . "\"sous-traitant automobile\" France usine OR fabricant" . $exclude;
+                $queries[] = '<<P>>' . "\"industrie automobile\" France \"nos produits\" OR \"notre usine\"" . $exclude;
+                $queries[] = '<<P>>' . "\"constructeur\" OR \"fabricant\" \"pièces automobiles\" France" . $exclude;
+                $queries[] = '<<P>>' . "\"câblage automobile\" OR \"faisceau\" France fabricant OR usine" . $exclude;
+                $queries[] = '<<P>>' . "\"injection plastique\" automobile France fabricant" . $exclude;
+                $queries[] = '<<P>>' . "\"découpage\" OR \"emboutissage\" automobile France fabricant" . $exclude;
+                $queries[] = '<<P>>' . "\"fonderie\" OR \"forge\" automobile France" . $exclude;
+
+                // ── Hardcoded well-known French automotive companies as seed queries ──
+                // When DB has few same-region entries, these ensure we find real companies
+                // and their lesser-known competitors/suppliers via search results.
+                $frKnownSeeds = [
+                    // Tier 1 French-origin suppliers
+                    ['Valeo', 'Faurecia', 'Forvia', 'Plastic Omnium'],
+                    ['Actia Group', 'Akwel', 'ARaymond', 'Lisi Automotive'],
+                    ['Hutchinson', 'Mersen', 'Le Bélier', 'Novares'],
+                    ['NTN-SNR', 'SKF France', 'Schaeffler France', 'GMD'],
+                    // Wiring / connectors in France
+                    ['Nexans autoelectric', 'Coficab France', 'Leoni France', 'Aptiv France'],
+                    ['Radiall', 'Souriau', 'Amphenol France', 'TE Connectivity France'],
+                    // Stamping / machining / plastics
+                    ['Lisi Aerospace', 'Figeac Aero', 'Mecachrome', 'SMP France'],
+                    ['Novares', 'Bourbon Automotive Plastics', 'ERCE', 'MGI Coutier'],
+                ];
+                // Use 2 groups per run (rotating) to avoid too many queries
+                $seedGroup1 = $frKnownSeeds[$daySeed % count($frKnownSeeds)];
+                $seedGroup2 = $frKnownSeeds[($daySeed + 1) % count($frKnownSeeds)];
+                $seedCompanies = array_merge($seedGroup1, $seedGroup2);
+                // Build "competitors of X" queries for each seed company
+                foreach ($seedCompanies as $seedName) {
+                    $queries[] = '<<P>>' . "\"{$seedName}\" competitors OR fournisseur OR supplier automobile France" . $exclude;
+                }
+            } else {
+                $queries[] = '<<P>>' . "\"fabricant\" \"{$sector}\" France \"nos produits\" OR \"notre usine\"" . $exclude;
+                $queries[] = '<<P>>' . "\"sous-traitant\" \"{$sector}\" France usine OR fabricant" . $exclude;
+            }
+
+            // ── French business directories ──
+            $directorySector = $sector ?? 'electronics';
+            $queries[] = "site:societe.com \"{$directorySector}\" fabricant OR manufacturer";
+            $queries[] = "site:annuaire-entreprises.data.gouv.fr \"{$directorySector}\"";
+            $queries[] = "site:usinenouvelle.com \"{$directorySector}\" usine OR fabricant France";
+            $queries[] = "site:industrie-techno.com \"{$directorySector}\" fabricant France";
+            $queries[] = "site:kompass.com \"{$directorySector}\" fabricant France";
+
+            // ── French automotive associations & clusters ──
+            if ($sector === 'Automotive') {
+                $queries[] = '<<P>>' . "\"PFA\" OR \"Plateforme Filière Automobile\" adhérent OR membre fabricant" . $exclude;
+                $queries[] = '<<P>>' . "\"FIEV\" OR \"fiev.fr\" équipementier OR membre automobile France" . $exclude;
+                $queries[] = '<<P>>' . "\"SIA\" OR \"sia.fr\" membre OR partenaire automobile France" . $exclude;
+                $queries[] = '<<P>>' . "\"Pôle Véhicule du Futur\" OR \"vehiculedufutur\" membre OR adhérent" . $exclude;
+                $queries[] = '<<P>>' . "\"Mov'eo\" OR \"moveo.fr\" membre OR partenaire automotive" . $exclude;
+                $queries[] = '<<P>>' . "\"NextMove\" OR \"nextmove.fr\" membre équipementier automobile" . $exclude;
+            }
+
+            // ── French industrial zones / automotive regions ──
+            // Run ALL zone groups every run — France has many spread-out industrial regions.
+            if ($sector === 'Automotive') {
+                $frAutoZones = [
+                    '"Hauts-de-France" OR "Nord-Pas-de-Calais" automobile usine OR fabricant',
+                    '"Douai" OR "Valenciennes" OR "Onnaing" automobile manufacturer OR usine OR factory',
+                    '"Normandie" OR "Normandy" automobile usine OR fabricant OR factory',
+                    '"Sandouville" OR "Cléon" OR "Dieppe" Renault OR automobile manufacturer',
+                    '"Vallée de l\'Arve" OR "Arve Valley" OR "décolletage" manufacturer OR fabricant',
+                    '"Haute-Savoie" OR "Cluses" OR "Scionzier" automobile usine OR manufacturer',
+                    '"Auvergne-Rhône-Alpes" automobile équipementier OR fabricant',
+                    '"Lyon" OR "Grenoble" OR "Saint-Étienne" automobile manufacturer OR usine',
+                    '"Île-de-France" OR "Centre-Val de Loire" automobile équipementier OR usine',
+                    '"Poissy" OR "Flins" OR "Sochaux" OR "Mulhouse" automobile usine OR manufacturer',
+                    '"Grand Est" OR "Alsace" automobile fabricant OR équipementier',
+                    '"Strasbourg" OR "Mulhouse" OR "Metz" automobile manufacturer OR usine',
+                    '"Bretagne" OR "Pays de la Loire" automobile fabricant OR manufacturer',
+                    '"Rennes" OR "Nantes" OR "Le Mans" automobile usine OR factory',
+                ];
+                foreach ($frAutoZones as $fzq) {
+                    $queries[] = '<<P>>' . $fzq . ' ' . $exclude;
+                }
+            }
+
+            // ── MULTINATIONAL FACTORY PRESENCE in France ──
+            // Run ALL groups every run — each targets different supplier families.
+            if ($sector === 'Automotive') {
+                $frFactoryQueries = [
+                    // Major Tier 1 with France plants
+                    '"Valeo" France usine OR factory OR plant manufacturing',
+                    '"Faurecia" OR "Forvia" France usine OR factory OR manufacturing',
+                    '"Plastic Omnium" France usine OR factory OR manufacturing',
+                    // German suppliers in France
+                    '"Continental" OR "Schaeffler" France usine OR factory OR plant',
+                    '"Bosch" OR "ZF" France usine OR manufacturing OR facility',
+                    '"Hella" OR "MAHLE" OR "Brose" France usine OR factory',
+                    // Japanese / global suppliers
+                    '"Yazaki" OR "Sumitomo" OR "Denso" France usine OR factory',
+                    '"NTN" OR "NSK" OR "Aisin" France usine OR plant manufacturing',
+                    '"Toyota" OR "Michelin" France usine OR factory OR supplier',
+                    // French-origin suppliers
+                    '"Hutchinson" OR "Mersen" France fabricant OR manufacturer',
+                    '"Actia" OR "Aptiv" OR "Akwel" France usine OR factory',
+                    '"Le Bélier" OR "Lisi" OR "ARaymond" France fabricant automotive',
+                    // Wire harness / cable / connectors
+                    '"Nexans" OR "Leoni" OR "Coficab" France câblage OR wiring factory',
+                    '"Amphenol" OR "TE Connectivity" OR "Molex" France usine OR factory',
+                    '"Radiall" OR "Souriau" France connecteur OR connector manufacturer',
+                    // OEM supplier queries
+                    '"Renault" OR "Stellantis" fournisseur OR supplier France usine OR factory',
+                    '"PSA" OR "Peugeot" OR "Citroën" fournisseur OR supplier fabricant France',
+                    '"Renault" OR "Dacia" supplier tier France automotive manufacturer',
+                ];
+                foreach ($frFactoryQueries as $ffq) {
+                    $queries[] = '<<P>>' . $ffq . ' ' . $exclude;
+                }
+            }
+
+            // ── French certification-based queries ──
+            if ($sector === 'Automotive') {
+                $queries[] = '<<P>>' . "\"IATF 16949\" France OR français certifié OR certified list" . $exclude;
+                $queries[] = '<<P>>' . "\"ISO 9001\" équipementier automobile France certifié" . $exclude;
+            } else {
+                $queries[] = '<<P>>' . "\"ISO 9001\" fabricant \"{$sector}\" France certifié" . $exclude;
+            }
+
+            // ── French ccTLD site queries ──
+            $queries[] = '<<P>>' . "site:.fr \"{$sector}\" fabricant OR manufacturer \"nos produits\" OR \"about us\"" . $exclude;
+            $queries[] = '<<P>>' . "site:.fr automobile OR automotive \"usine\" OR \"factory\" OR \"production\"" . $exclude;
+
+            // ── French investment / expansion ──
+            $queries[] = '<<P>>' . "\"{$sector}\" \"nouvelle usine\" OR \"extension\" OR \"investissement\" France 2024 OR 2025" . $exclude;
+            $queries[] = '<<P>>' . "\"{$sector}\" France fabricant \"notre usine\" OR \"our factory\" OR \"our plant\"" . $exclude;
+
+            // ── SIMPLE ENGLISH-LANGUAGE QUERIES (high success rate on scraped engines) ──
+            // Scraped engines handle simple queries much better than complex
+            // French-language queries with diacritics and multiple OR operators.
+            if ($sector === 'Automotive') {
+                $queries[] = '<<P>>automotive parts manufacturer France' . $exclude;
+                $queries[] = '<<P>>automotive supplier France tier 1' . $exclude;
+                $queries[] = '<<P>>French automotive parts supplier list' . $exclude;
+                $queries[] = '<<P>>automotive component manufacturer France factory' . $exclude;
+                $queries[] = '<<P>>France automotive tier 2 supplier manufacturer' . $exclude;
+                $queries[] = '<<P>>car parts manufacturer France factory production' . $exclude;
+                $queries[] = '<<P>>automotive wiring harness manufacturer France' . $exclude;
+                $queries[] = '<<P>>automotive injection molding France manufacturer' . $exclude;
+                $queries[] = '<<P>>automotive stamping forging manufacturer France' . $exclude;
+                $queries[] = '<<P>>automotive electronics manufacturer France' . $exclude;
+                $queries[] = '<<P>>auto parts supplier France company' . $exclude;
+                $queries[] = '<<P>>automobile equipment manufacturer France' . $exclude;
+
+                // ── Direct company searches (highest value — name + context) ──
+                // These are SIMPLE searches for specific known companies that
+                // any search engine can handle. Each returns the company's own site.
+                $directFrCompanies = [
+                    'Valeo automotive supplier',
+                    'Faurecia automotive manufacturer',
+                    'Plastic Omnium automotive systems',
+                    'Actia Group electronics automotive',
+                    'Akwel automotive supplier France',
+                    'ARaymond fastener automotive',
+                    'Hutchinson automotive parts',
+                    'Mersen electrical components manufacturer',
+                    'MGI Coutier automotive manufacturer',
+                    'Novares automotive plastics',
+                    'LISI Automotive fasteners',
+                    'Le Belier foundry automotive',
+                    'Mecaplast automotive components',
+                    'Delfingen automotive protection',
+                    'Gruau vehicle manufacturer France',
+                    'Burelle automotive group',
+                    'SMP automotive supplier France',
+                    'Streit automotive bodywork France',
+                    'SNOP automotive stamping France',
+                    'Poclain Hydraulics manufacturer France',
+                    'Radiall connector manufacturer France',
+                    'Souriau connector automotive aerospace',
+                ];
+                // Cycle through 8 companies per run to avoid too many queries
+                $companiesPerRun = 8;
+                $offset = ($daySeed * $companiesPerRun) % count($directFrCompanies);
+                for ($i = 0; $i < $companiesPerRun; $i++) {
+                    $idx = ($offset + $i) % count($directFrCompanies);
+                    $queries[] = '<<P>>' . $directFrCompanies[$idx] . $exclude;
+                }
+            } else {
+                $queries[] = '<<P>>' . "{$sector} manufacturer France company" . $exclude;
+                $queries[] = '<<P>>' . "{$sector} supplier France factory" . $exclude;
+                $queries[] = '<<P>>' . "French {$sector} manufacturer list" . $exclude;
+            }
+
+            // ── SIMPLE FRENCH-LANGUAGE QUERIES (no diacritics for better scraping) ──
+            if ($sector === 'Automotive') {
+                $queries[] = '<<P>>equipementier automobile France' . $exclude;
+                $queries[] = '<<P>>sous-traitant automobile France usine' . $exclude;
+                $queries[] = '<<P>>fabricant pieces automobile France' . $exclude;
+                $queries[] = '<<P>>fournisseur automobile France fabricant' . $exclude;
+                $queries[] = '<<P>>industrie automobile France usine production' . $exclude;
+            }
+        }
+
+        // ── 20d. GERMANY-SPECIFIC AUTOMOTIVE / INDUSTRIAL QUERIES ────
+        // Germany is the world's largest automotive supplier hub.
+        if ($sector && $region === 'DE') {
+            // ── German-language sector queries ──
+            if ($sector === 'Automotive') {
+                $queries[] = "\"Automobilzulieferer\" OR \"Kfz-Zulieferer\" Deutschland Hersteller" . $exclude;
+                $queries[] = "\"Fahrzeugtechnik\" OR \"Automobiltechnik\" Hersteller Deutschland" . $exclude;
+                $queries[] = "\"Kabelbaumhersteller\" OR \"Kabelbaum\" Deutschland Hersteller" . $exclude;
+                $queries[] = "\"Spritzguss\" OR \"Kunststofftechnik\" Automobil Deutschland" . $exclude;
+                $queries[] = "\"Stanztechnik\" OR \"Umformtechnik\" Automobil Deutschland Hersteller" . $exclude;
+            } else {
+                $queries[] = "\"Hersteller\" \"{$sector}\" Deutschland \"unsere Produkte\" OR \"unser Werk\"" . $exclude;
+                $queries[] = "\"Zulieferer\" \"{$sector}\" Deutschland Hersteller OR Fabrik" . $exclude;
+            }
+
+            // ── German directories ──
+            $queries[] = "site:wlw.de \"{$sector}\" Hersteller Deutschland";
+            $queries[] = "site:industrystock.de \"{$sector}\" Hersteller Deutschland";
+
+            // ── German automotive associations ──
+            if ($sector === 'Automotive') {
+                $queries[] = "\"VDA\" OR \"vda.de\" Mitglied OR member Automobilzulieferer" . $exclude;
+                $queries[] = "\"IATF 16949\" Deutschland OR Germany zertifiziert OR certified list" . $exclude;
+            }
+
+            // ── German ccTLD site queries ──
+            $queries[] = "site:.de \"{$sector}\" Hersteller \"unsere Produkte\" OR \"about us\"" . $exclude;
         }
 
         return $queries;

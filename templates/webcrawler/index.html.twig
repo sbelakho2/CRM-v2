@@ -102,11 +102,9 @@
                     </div>
                     <div class="rams-grid rams-grid--3" style="gap: 0.75rem; font-size: 0.85rem;">
                         <div><span style="color: var(--rams-text-muted);">Searches:</span> <strong id="stat-searches">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">BEG Pass:</span> <strong id="stat-beg-pass">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">BEG Fail:</span> <strong id="stat-beg-fail">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">BEG Rescue:</span> <strong id="stat-beg-rescue">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">LLM Accept:</span> <strong id="stat-llm-accept">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">LLM Reject:</span> <strong id="stat-llm-reject">0</strong></div>
                         <div><span style="color: var(--rams-text-muted);">Loc Reject:</span> <strong id="stat-loc-reject">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">Loc Rescue:</span> <strong id="stat-loc-rescue">0</strong></div>
                         <div><span style="color: var(--rams-text-muted);">Saved:</span> <strong id="stat-saved">0</strong></div>
                         <div><span style="color: var(--rams-text-muted);">Log Lines:</span> <strong id="stat-lines">0</strong></div>
                         <div><span style="color: var(--rams-text-muted);">Total Discovered:</span> <strong id="stat-total">{{ stats.discovered }}</strong></div>
@@ -303,11 +301,9 @@ async function checkStatus() {
             // Update stats
             const s = data.stats || {};
             document.getElementById('stat-searches').textContent = s.searches || 0;
-            document.getElementById('stat-beg-pass').textContent = s.beg_pass || 0;
-            document.getElementById('stat-beg-fail').textContent = s.beg_fail || 0;
-            document.getElementById('stat-beg-rescue').textContent = s.beg_rescue || 0;
+            document.getElementById('stat-llm-accept').textContent = s.llm_accept || 0;
+            document.getElementById('stat-llm-reject').textContent = s.llm_reject || 0;
             document.getElementById('stat-loc-reject').textContent = s.location_reject || 0;
-            document.getElementById('stat-loc-rescue').textContent = s.location_rescue || 0;
             document.getElementById('stat-saved').textContent = s.saved || 0;
             document.getElementById('stat-lines').textContent = s.log_lines || 0;
             document.getElementById('stat-total').textContent = data.discovered_total || 0;

@@ -1,0 +1,2122 @@
+# Golden Dataset v2 — Comprehensive Evaluation Set
+# 197 entries for statistically stronger model testing
+#
+# Distribution: 104 PASS (real manufacturers/OEMs) + 121 REJECT (non-targets)
+# Coverage: 26 reject categories, 9 languages (EN/FR/DE/AR/ES/IT/NL/PL/CZ), edge cases
+#
+# Statistical target: ≥95% accuracy, ≥93% precision, ≥93% recall
+# With 225 entries, 95% CI width ≈ ±2.8% (stronger for production gating)
+
+entries:
+
+  # ═══════════════════════════════════════════════════════════════
+  # PASS — Real manufacturers / OEMs that should be accepted
+  # ═══════════════════════════════════════════════════════════════
+
+  # --- Automotive OEMs & Tier 1/2 ---
+  - expected: PASS
+    name: "Bosch Rexroth"
+    domain: "boschrexroth.com"
+    snippet: "Bosch Rexroth designs and manufactures hydraulic, electric drives and controls. Our products include servo drives, controllers, and motion systems for industrial automation."
+    title: "Bosch Rexroth - Drive & Control Technology"
+    country: DE
+    sector: "Industrial Automation"
+    category: "Large OEM - drives & controls"
+
+  - expected: PASS
+    name: "Valeo"
+    domain: "valeo.com"
+    snippet: "Valeo is a global automotive supplier designing innovative products for smart mobility. Our product portfolio includes powertrain systems, thermal systems, and ADAS."
+    title: "Valeo - Automotive Supplier"
+    country: FR
+    sector: "Automotive"
+    category: "Large automotive OEM supplier"
+
+  - expected: PASS
+    name: "Marelli"
+    domain: "marelli.com"
+    snippet: "Marelli designs and manufactures automotive lighting systems, powertrain electronics, and suspension modules. Headquarters in Saitama, Japan with R&D centers worldwide."
+    title: "Marelli - Automotive Systems"
+    country: IT
+    sector: "Automotive"
+    category: "Automotive electronics OEM"
+
+  - expected: PASS
+    name: "Continental AG"
+    domain: "continental.com"
+    snippet: "Continental develops pioneering technologies and services for sustainable and connected mobility. We manufacture brake systems, sensors, interior electronics, and tire products."
+    title: "Continental - Technology Company"
+    country: DE
+    sector: "Automotive"
+    category: "Large Tier-1 automotive supplier"
+
+  - expected: PASS
+    name: "ZF Friedrichshafen"
+    domain: "zf.com"
+    snippet: "ZF is a global technology company supplying systems for passenger cars, commercial vehicles and industrial technology. We produce transmissions, steering systems, and chassis components in 230 plants worldwide."
+    title: "ZF - Next Generation Mobility"
+    country: DE
+    sector: "Automotive"
+    category: "Tier-1 driveline manufacturer"
+
+  - expected: PASS
+    name: "Hella"
+    domain: "hella.com"
+    snippet: "HELLA develops and manufactures lighting technology and electronics for the automotive industry. Our products include headlamps, rear lamps, electronic components, and sensor systems."
+    title: "HELLA - Automotive Lighting & Electronics"
+    country: DE
+    sector: "Automotive"
+    category: "Automotive lighting & electronics OEM"
+
+  # --- Sensor / Industrial Automation ---
+  - expected: PASS
+    name: "Sick AG"
+    domain: "sick.com"
+    snippet: "SICK develops sensor solutions for factory automation, logistics automation, and process automation. Our product range includes photoelectric sensors, encoders, and vision systems."
+    title: "SICK AG - Sensor Intelligence"
+    country: DE
+    sector: "Industrial Sensors"
+    category: "Sensor manufacturer - classic EMS buyer"
+
+  - expected: PASS
+    name: "Sensata Technologies"
+    domain: "sensata.com"
+    snippet: "Sensata Technologies designs and manufactures sensors and controls for automotive, HVAC, and industrial applications. We develop pressure sensors, temperature sensors, and motor protectors."
+    title: "Sensata Technologies - Sensing Solutions"
+    country: GB
+    sector: "Sensors"
+    category: "Sensor OEM - classic buyer"
+
+  - expected: PASS
+    name: "Schneider Electric"
+    domain: "se.com"
+    snippet: "Schneider Electric provides energy management and automation solutions. Our products include circuit breakers, switchgear, PLCs, and building management systems."
+    title: "Schneider Electric - Energy & Automation"
+    country: FR
+    sector: "Energy"
+    category: "Large OEM - electrical products"
+
+  - expected: PASS
+    name: "Advantech"
+    domain: "advantech.com"
+    snippet: "Advantech designs industrial computers, embedded systems, and IoT devices. Our product line includes industrial motherboards, panel PCs, and edge computing platforms."
+    title: "Advantech - Industrial Computing"
+    country: DE
+    sector: "Industrial Computing"
+    category: "Embedded systems OEM"
+
+  - expected: PASS
+    name: "Omron"
+    domain: "omron.com"
+    snippet: "OMRON Corporation develops and manufactures automation components, industrial robots, and healthcare devices. Our factory automation products include PLCs, sensors, and vision systems."
+    title: "OMRON - Industrial Automation"
+    country: JP
+    sector: "Automation"
+    category: "Large automation OEM"
+
+  - expected: PASS
+    name: "Beckhoff Automation"
+    domain: "beckhoff.com"
+    snippet: "Beckhoff implements open automation systems based on PC Control technology. Our product range includes industrial PCs, I/O and fieldbus components, drive technology, and automation software."
+    title: "Beckhoff - New Automation Technology"
+    country: DE
+    sector: "Automation"
+    category: "PC-based automation manufacturer"
+
+  # --- IoT / Telecom Equipment ---
+  - expected: PASS
+    name: "Teltonika"
+    domain: "teltonika.lt"
+    snippet: "Teltonika designs and manufactures IoT devices, GPS trackers, and networking equipment. Our products include industrial routers, modems, and telematics devices. Founded 1998."
+    title: "Teltonika - IoT Solutions"
+    country: LT
+    sector: "IoT / Telematics"
+    category: "IoT device manufacturer"
+
+  - expected: PASS
+    name: "Pepperl+Fuchs"
+    domain: "pepperl-fuchs.com"
+    snippet: "Pepperl+Fuchs develops and manufactures electronic sensors and components for the global automation market. Products include inductive, capacitive, and ultrasonic sensors."
+    title: "Pepperl+Fuchs - Industrial Sensors"
+    country: DE
+    sector: "Sensors"
+    category: "Industrial sensor manufacturer"
+
+  - expected: PASS
+    name: "Moxa"
+    domain: "moxa.com"
+    snippet: "Moxa designs and manufactures industrial networking, computing, and automation solutions. Our products include industrial Ethernet switches, protocol converters, and embedded computers."
+    title: "Moxa - Reliable Networks for Industrial Automation"
+    country: TW
+    sector: "Industrial Networking"
+    category: "Industrial networking equipment OEM"
+
+  # --- Defence / Aerospace ---
+  - expected: PASS
+    name: "Indra Sistemas"
+    domain: "indracompany.com"
+    snippet: "Indra develops defense electronics, air traffic management systems, and transport solutions. Our products include radar systems, simulation platforms, and ticketing systems."
+    title: "Indra - Technology & Defence"
+    country: ES
+    sector: "Defence"
+    category: "Defence electronics OEM"
+
+  - expected: PASS
+    name: "Elettronica"
+    domain: "elettronica.de"
+    snippet: "Elettronica designs and manufactures electronic warfare systems, radar warning receivers, and countermeasure systems. ISO 9001 and AQAP certified."
+    title: "Elettronica - Electronic Warfare"
+    country: IT
+    sector: "Defence"
+    category: "Defence electronics manufacturer"
+
+  - expected: PASS
+    name: "Thales"
+    domain: "thalesgroup.com"
+    snippet: "Thales is a global technology leader in defence, aeronautics, and digital security. We design and manufacture radars, avionics, communication systems, and combat systems."
+    title: "Thales - Aerospace, Defence, Security"
+    country: FR
+    sector: "Defence"
+    category: "Large defence electronics OEM"
+
+  - expected: PASS
+    name: "Leonardo"
+    domain: "leonardo.com"
+    snippet: "Leonardo is a global high-technology company. We design and manufacture helicopters, aircraft, aerostructures, electronics, and defense & security systems."
+    title: "Leonardo - Aerospace, Defence & Security"
+    country: IT
+    sector: "Defence"
+    category: "Aerospace & defence OEM"
+
+  # --- Medical Devices ---
+  - expected: PASS
+    name: "Drägerwerk"
+    domain: "draeger.com"
+    snippet: "Dräger manufactures medical and safety technology products. Our medical product range includes ventilators, anaesthesia workstations, patient monitoring systems, and neonatal care devices."
+    title: "Dräger - Technology for Life"
+    country: DE
+    sector: "Medical Devices"
+    category: "Medical device manufacturer"
+
+  - expected: PASS
+    name: "Getinge"
+    domain: "getinge.com"
+    snippet: "Getinge develops and manufactures products and solutions for operating rooms, intensive care units, and sterilization departments. Our products include surgical tables, ventilators, and sterilizers."
+    title: "Getinge - Medical Technology"
+    country: SE
+    sector: "Medical Devices"
+    category: "Medical equipment manufacturer"
+
+  # --- Small/Medium Manufacturers (harder to detect) ---
+  - expected: PASS
+    name: "ETAS GmbH"
+    domain: "etas.com"
+    snippet: "ETAS develops measurement, calibration, and diagnostic tools for automotive ECU development. Our hardware products include ES600 measurement modules and INCA calibration tools."
+    title: "ETAS - Engineering Tools"
+    country: DE
+    sector: "Automotive Tools"
+    category: "Niche automotive tool manufacturer"
+
+  - expected: PASS
+    name: "IFM Electronic"
+    domain: "ifm.com"
+    snippet: "ifm electronic manufactures sensors, controllers, and systems for industrial automation. We produce position sensors, flow sensors, and IO-Link infrastructure components."
+    title: "ifm electronic - Automation Technology"
+    country: DE
+    sector: "Industrial Sensors"
+    category: "Mid-size sensor manufacturer"
+
+  - expected: PASS
+    name: "Turck"
+    domain: "turck.com"
+    snippet: "Turck develops and produces factory automation sensors, fieldbus technology, and interface products. Our RFID solutions, connectivity products, and I/O modules serve demanding industrial applications."
+    title: "Turck - Industrial Automation"
+    country: DE
+    sector: "Factory Automation"
+    category: "Mid-size industrial automation OEM"
+
+  - expected: PASS
+    name: "Weidmüller"
+    domain: "weidmueller.com"
+    snippet: "Weidmüller develops and produces electrical connectivity, electronics, and automation products. Our product range covers terminal blocks, PCB connectors, signal conditioners, and industrial analytics."
+    title: "Weidmüller - Industrial Connectivity"
+    country: DE
+    sector: "Electrical Connectivity"
+    category: "Connectivity and electronics manufacturer"
+
+  - expected: PASS
+    name: "Leuze Electronic"
+    domain: "leuze.com"
+    snippet: "Leuze is a leading manufacturer of optical sensors and safety components for industrial automation. Our product portfolio includes light curtains, bar code readers, and safety laser scanners."
+    title: "Leuze - The Sensor People"
+    country: DE
+    sector: "Optical Sensors"
+    category: "Optical sensor manufacturer"
+
+  # --- French manufacturers ---
+  - expected: PASS
+    name: "Safran Electronics"
+    domain: "safran-group.com"
+    snippet: "Safran conçoit et produit des systèmes de navigation, des calculateurs de vol, et des équipements optroniques pour l'aéronautique et la défense. Safran Electronics & Defense emploie 12 000 personnes."
+    title: "Safran Electronics & Defense"
+    country: FR
+    sector: "Defence"
+    category: "French defence electronics (FR language)"
+
+  - expected: PASS
+    name: "Lacroix Defense"
+    domain: "lacroix-defense.com"
+    snippet: "LACROIX conçoit et fabrique des systèmes de leurres infrarouges, des munitions d'entraînement et des systèmes pyrotechniques pour la défense aérienne et navale."
+    title: "LACROIX Defense - Systèmes Pyrotechniques"
+    country: FR
+    sector: "Defence"
+    category: "French defence manufacturer (FR language)"
+
+  - expected: PASS
+    name: "Crouzet"
+    domain: "crouzet.com"
+    snippet: "Crouzet conçoit et fabrique des moteurs, des micro-interrupteurs, des pneumatiques et des contrôleurs pour l'aéronautique, le ferroviaire et l'industrie. Usine à Valence."
+    title: "Crouzet - Custom Sensing & Control"
+    country: FR
+    sector: "Electromechanical"
+    category: "French electromechanical manufacturer (FR language)"
+
+  # --- German manufacturers ---
+  - expected: PASS
+    name: "Pilz GmbH"
+    domain: "pilz.com"
+    snippet: "Pilz entwickelt und fertigt Automatisierungslösungen für die Maschinensicherheit. Unser Produktportfolio umfasst Sicherheitsschaltgeräte, Steuerungssysteme und Sensortechnik."
+    title: "Pilz - Safe Automation"
+    country: DE
+    sector: "Safety Automation"
+    category: "German safety automation (DE language)"
+
+  - expected: PASS
+    name: "Balluff"
+    domain: "balluff.com"
+    snippet: "Balluff entwickelt und produziert Sensor- und Automatisierungslösungen. Unsere Produkte umfassen induktive Sensoren, Lichtschranken, RFID-Systeme und IO-Link Lösungen."
+    title: "Balluff - Sensor and Automation Solutions"
+    country: DE
+    sector: "Industrial Sensors"
+    category: "German sensor manufacturer (DE language)"
+
+  - expected: PASS
+    name: "Wieland Electric"
+    domain: "wieland-electric.com"
+    snippet: "Wieland Electric entwickelt und fertigt elektrische Verbindungstechnik, Sicherheitstechnik und Gebäudeautomation. Unsere Produkte umfassen steckbare Installationssysteme und Schaltnetzteile."
+    title: "Wieland Electric - Electrical Connection"
+    country: DE
+    sector: "Electrical Connectivity"
+    category: "German electrical manufacturer (DE language)"
+
+  # --- Arabic-region manufacturers ---
+  - expected: PASS
+    name: "Elsewedy Electric"
+    domain: "elsewedyelectric.com"
+    snippet: "Elsewedy Electric manufactures cables, electrical products, and energy solutions. Our factories produce transformers, meters, and power cables across Egypt and the Middle East."
+    title: "Elsewedy Electric - Energy Solutions"
+    country: EG
+    sector: "Electrical"
+    category: "Egyptian electrical manufacturer"
+
+  - expected: PASS
+    name: "Arabian Industries"
+    domain: "arabianind.com"
+    snippet: "Arabian Industries manufactures electrical switchgear, transformers, and power distribution equipment. ISO 9001 certified factory in Abu Dhabi producing LV and MV switchgear panels."
+    title: "Arabian Industries - Electrical Manufacturing"
+    country: AE
+    sector: "Electrical"
+    category: "UAE electrical manufacturer"
+
+  - expected: PASS
+    name: "Coficab Tunisia"
+    domain: "coficab.com"
+    snippet: "Coficab est le leader mondial de la fabrication de câbles automobiles. Notre usine en Tunisie produit des faisceaux de câbles et des fils pour l'industrie automobile. 5 000 employés."
+    title: "Coficab - Automotive Cables"
+    country: TN
+    sector: "Automotive Cables"
+    category: "Tunisian auto cable manufacturer (FR language)"
+
+  - expected: PASS
+    name: "MISFAT"
+    domain: "misfat.com.tn"
+    snippet: "MISFAT fabrique des filtres automobiles, des systèmes de filtration industrielle et des équipements hydrauliques. Nos produits sont exportés dans plus de 30 pays depuis nos usines en Tunisie."
+    title: "MISFAT - Filtration Solutions"
+    country: TN
+    sector: "Automotive Filters"
+    category: "Tunisian manufacturer - filters (FR)"
+
+  # --- Edge cases: manufacturers that could be confused with services ---
+  - expected: PASS
+    name: "Harting"
+    domain: "harting.com"
+    snippet: "HARTING develops and manufactures industrial connectivity solutions. Our products include heavy-duty connectors, PCB connectors, cable assemblies, and network components for industrial applications."
+    title: "HARTING - Industrial Connectivity"
+    country: DE
+    sector: "Connectors"
+    category: "Connector manufacturer (mentions 'cable assemblies' - NOT a competitor)"
+
+  - expected: PASS
+    name: "TE Connectivity"
+    domain: "te.com"
+    snippet: "TE Connectivity designs and manufactures connectors, sensors, and electronic components. We produce automotive connectors, fiber optics, relays, and wire & cable products in 100+ plants."
+    title: "TE Connectivity - Sensors & Connectors"
+    country: CH
+    sector: "Connectors"
+    category: "Giant connector OEM (mentions 'wire & cable' - NOT a competitor)"
+
+  - expected: PASS
+    name: "Amphenol"
+    domain: "amphenol.com"
+    snippet: "Amphenol designs and manufactures electronic and fiber optic connectors, cable assemblies, and interconnect systems for military, aerospace, automotive, and industrial applications."
+    title: "Amphenol - Interconnect Solutions"
+    country: US
+    sector: "Connectors"
+    category: "Connector OEM (mentions 'cable assemblies' - product, not service)"
+
+  - expected: PASS
+    name: "Wago"
+    domain: "wago.com"
+    snippet: "WAGO produces terminal blocks, connectors, and automation components. Our spring clamp technology is used in electrical installation, building automation, and process industries worldwide."
+    title: "WAGO - Connection and Automation Technology"
+    country: DE
+    sector: "Connectors"
+    category: "Terminal block / connector manufacturer"
+
+  # --- Appliance / Consumer Electronics manufacturers ---
+  - expected: PASS
+    name: "Miele"
+    domain: "miele.com"
+    snippet: "Miele designs and manufactures premium domestic appliances including washing machines, dishwashers, ovens, and vacuum cleaners. All products are made in our own factories in Germany."
+    title: "Miele - Immer Besser"
+    country: DE
+    sector: "Appliances"
+    category: "Appliance manufacturer"
+
+  - expected: PASS
+    name: "Groupe SEB"
+    domain: "groupeseb.com"
+    snippet: "Groupe SEB conçoit, fabrique et commercialise des petits appareils électroménagers. Nos marques Tefal, Moulinex, Rowenta et Krups couvrent la cuisson, le soin du linge et les boissons."
+    title: "Groupe SEB - Small Domestic Equipment"
+    country: FR
+    sector: "Appliances"
+    category: "French appliance manufacturer (FR language)"
+
+  - expected: PASS
+    name: "Arçelik"
+    domain: "arcelik.com"
+    snippet: "Arçelik is a leading home appliances manufacturer with 12 production facilities. We design and produce refrigerators, washing machines, ovens, and air conditioners under Beko and Grundig brands."
+    title: "Arçelik - Home Appliances"
+    country: TR
+    sector: "Appliances"
+    category: "Turkish appliance manufacturer"
+
+  # --- Miscellaneous manufacturers ---
+  - expected: PASS
+    name: "Kuka"
+    domain: "kuka.com"
+    snippet: "KUKA develops and produces industrial robots, automated production systems, and manufacturing solutions. Our robots are used in automotive, electronics, and general industry applications."
+    title: "KUKA - Robotics & Automation"
+    country: DE
+    sector: "Robotics"
+    category: "Industrial robot manufacturer"
+
+  - expected: PASS
+    name: "Endress+Hauser"
+    domain: "endress.com"
+    snippet: "Endress+Hauser manufactures process measurement instruments and automation solutions. Our products include flow meters, level sensors, pressure transmitters, and process analyzers."
+    title: "Endress+Hauser - Process Measurement"
+    country: CH
+    sector: "Process Instrumentation"
+    category: "Process instrument manufacturer"
+
+  - expected: PASS
+    name: "Phoenix Contact"
+    domain: "phoenixcontact.com"
+    snippet: "Phoenix Contact develops and manufactures industrial electrical and electronic technology. Products include terminal blocks, connectors, automation controllers, surge protection, and power supplies."
+    title: "Phoenix Contact - Industrial Technology"
+    country: DE
+    sector: "Industrial Electronics"
+    category: "Industrial electronics manufacturer"
+
+  - expected: PASS
+    name: "Rittal"
+    domain: "rittal.com"
+    snippet: "Rittal manufactures enclosures, power distribution, climate control, and IT infrastructure systems. Our production facilities in Germany and worldwide produce over 10,000 products."
+    title: "Rittal - The System"
+    country: DE
+    sector: "Enclosures"
+    category: "Industrial enclosure manufacturer"
+
+  - expected: PASS
+    name: "Festo"
+    domain: "festo.com"
+    snippet: "Festo is a leading manufacturer of pneumatic and electrical automation technology. We produce valves, actuators, grippers, and motion systems for factory and process automation."
+    title: "Festo - Automation Technology"
+    country: DE
+    sector: "Pneumatics & Automation"
+    category: "Pneumatic/automation manufacturer"
+
+  - expected: PASS
+    name: "Danfoss"
+    domain: "danfoss.com"
+    snippet: "Danfoss engineers and manufactures solutions for refrigeration, air conditioning, heating, and drives. Our products include compressors, frequency converters, and heat exchangers."
+    title: "Danfoss - Engineering Tomorrow"
+    country: DK
+    sector: "Climate & Energy"
+    category: "Climate and drives manufacturer"
+
+  # ═══════════════════════════════════════════════════════════════
+  # REJECT — Non-targets that should be filtered out
+  # ═══════════════════════════════════════════════════════════════
+
+  # --- EMS Competitors (our direct competitors) ---
+  - expected: REJECT
+    name: "Jabil Inc"
+    domain: "jabil.com"
+    snippet: "Jabil is a global manufacturing services company providing comprehensive electronics design, production, and product management services."
+    title: "Jabil - Manufacturing Services"
+    country: US
+    sector: "EMS"
+    category: "EMS competitor"
+
+  - expected: REJECT
+    name: "Celestica"
+    domain: "celestica.com"
+    snippet: "Celestica delivers innovative supply chain solutions globally. Our electronics manufacturing services include PCB assembly, box-build, and design services."
+    title: "Celestica - EMS & Supply Chain"
+    country: CA
+    sector: "EMS"
+    category: "EMS competitor"
+
+  - expected: REJECT
+    name: "Lacroix Electronics"
+    domain: "lacroix-electronics.com"
+    snippet: "Lacroix Electronics provides contract electronics manufacturing services including PCB assembly, box-build, and cable harness manufacturing."
+    title: "Lacroix Electronics - EMS Provider"
+    country: FR
+    sector: "EMS"
+    category: "EMS competitor (European)"
+
+  - expected: REJECT
+    name: "Flex Ltd"
+    domain: "flex.com"
+    snippet: "Flex is a diversified manufacturing partner providing design, engineering, manufacturing, and supply chain services. We offer PCB assembly, systems integration, and logistics."
+    title: "Flex - Manufacturing Partner"
+    country: US
+    sector: "EMS"
+    category: "EMS competitor (large)"
+
+  - expected: REJECT
+    name: "Premo Group"
+    domain: "premo-ems.com"
+    snippet: "PREMO propose des services de sous-traitance électronique : assemblage CMS, câblage filaire, intégration de systèmes et test fonctionnel. Nos usines en Tunisie et au Maroc."
+    title: "PREMO - Sous-Traitance Électronique"
+    country: TN
+    sector: "EMS"
+    category: "North African EMS competitor (FR language)"
+
+  # --- Consulting / Professional Services ---
+  - expected: REJECT
+    name: "Deloitte"
+    domain: "deloitte.com"
+    snippet: "Deloitte provides audit and assurance, consulting, financial advisory, risk advisory, and tax and legal services to selected industries worldwide."
+    title: "Deloitte - Audit, Consulting, Advisory"
+    country: GB
+    sector: "Consulting"
+    category: "Consulting firm"
+
+  - expected: REJECT
+    name: "McKinsey & Company"
+    domain: "mckinsey.com"
+    snippet: "McKinsey & Company is a global management consulting firm. We serve clients across sectors with strategy consulting, operations, and technology advisory."
+    title: "McKinsey & Company - Management Consulting"
+    country: US
+    sector: "Consulting"
+    category: "Consulting firm"
+
+  - expected: REJECT
+    name: "Roland Berger"
+    domain: "rolandberger.com"
+    snippet: "Roland Berger ist eine der weltweit führenden Strategieberatungen. Wir beraten Unternehmen in den Bereichen Strategie, Operations und Transformation."
+    title: "Roland Berger - Strategieberatung"
+    country: DE
+    sector: "Consulting"
+    category: "German consulting firm (DE language)"
+
+  # --- Recruitment / Staffing ---
+  - expected: REJECT
+    name: "TechTalent Solutions"
+    domain: "techtalent-solutions.com"
+    snippet: "TechTalent is a leading staffing agency providing talent acquisition and workforce solutions for engineering and manufacturing companies."
+    title: "TechTalent - Engineering Recruitment"
+    country: GB
+    sector: "Recruitment"
+    category: "Staffing agency"
+
+  - expected: REJECT
+    name: "Hays Engineering"
+    domain: "hays.com"
+    snippet: "Hays recruits qualified professionals in engineering, manufacturing, and technology. Browse our latest job openings for electrical engineers, production managers, and quality inspectors."
+    title: "Hays - Engineering Jobs & Recruitment"
+    country: GB
+    sector: "Recruitment"
+    category: "Engineering recruitment firm"
+
+  # --- Market Research / News ---
+  - expected: REJECT
+    name: "MarketScope Research"
+    domain: "marketscope-research.com"
+    snippet: "The global EMS market featuring players like Foxconn, Jabil, Celestica is expected to grow at 6.2% CAGR. Market size will reach $650B by 2028."
+    title: "EMS Market Report 2024"
+    country: US
+    sector: "Market Research"
+    category: "Market research report"
+
+  - expected: REJECT
+    name: "Usine Nouvelle"
+    domain: "usinenouvelle.com"
+    snippet: "L'Usine Nouvelle - le média de référence de l'industrie. Actualités, analyses et enquêtes sur l'industrie automobile, aéronautique, énergie et technologies."
+    title: "L'Usine Nouvelle - Le média de l'industrie"
+    country: FR
+    sector: "News"
+    category: "French industrial news site (FR language)"
+
+  - expected: REJECT
+    name: "Elektronik Praxis"
+    domain: "elektronikpraxis.de"
+    snippet: "Elektronik Praxis ist das Fachmagazin für Entwickler und Entscheider in der Elektronikindustrie. Nachrichten, Fachartikel und Marktberichte zu Leiterplatten, Halbleitern und Embedded Systems."
+    title: "Elektronik Praxis - Fachmagazin Elektronik"
+    country: DE
+    sector: "News"
+    category: "German electronics magazine (DE language)"
+
+  # --- Universities / Academic ---
+  - expected: REJECT
+    name: "TU München"
+    domain: "tum.de"
+    snippet: "Technical University of Munich offers world-class education and research in engineering, natural sciences, and life sciences. Faculty of Electrical Engineering."
+    title: "TUM - Technical University of Munich"
+    country: DE
+    sector: "Education"
+    category: "University"
+
+  - expected: REJECT
+    name: "INSA Lyon"
+    domain: "insa-lyon.fr"
+    snippet: "L'INSA Lyon forme des ingénieurs dans les domaines du génie électrique, mécanique, informatique et télécommunications. Laboratoire de recherche en électronique et microélectronique."
+    title: "INSA Lyon - École d'Ingénieurs"
+    country: FR
+    sector: "Education"
+    category: "French engineering school (FR language)"
+
+  # --- Logistics / Freight ---
+  - expected: REJECT
+    name: "Kuehne+Nagel"
+    domain: "kuehne-nagel.com"
+    snippet: "Kuehne+Nagel is a global logistics provider offering sea freight, air freight, contract logistics, and supply chain management services."
+    title: "Kuehne+Nagel - Global Logistics"
+    country: CH
+    sector: "Logistics"
+    category: "Logistics provider"
+
+  - expected: REJECT
+    name: "DB Schenker"
+    domain: "dbschenker.com"
+    snippet: "DB Schenker bietet Logistikdienstleistungen: Luft- und Seefracht, Landtransport, Kontraktlogistik und Supply Chain Management für Industrie und Handel."
+    title: "DB Schenker - Globale Logistik"
+    country: DE
+    sector: "Logistics"
+    category: "German logistics provider (DE language)"
+
+  # --- IT Services / Software ---
+  - expected: REJECT
+    name: "DXC Technology"
+    domain: "dxc.technology"
+    snippet: "DXC Technology is a global IT services company providing managed IT services, cloud solutions, and digital transformation consulting to enterprises."
+    title: "DXC Technology - IT Services"
+    country: US
+    sector: "IT Services"
+    category: "IT services company"
+
+  - expected: REJECT
+    name: "Capgemini"
+    domain: "capgemini.com"
+    snippet: "Capgemini provides consulting, technology, and outsourcing services. Our digital transformation capabilities span AI, cloud, cybersecurity, and enterprise applications."
+    title: "Capgemini - Consulting & Technology Services"
+    country: FR
+    sector: "IT Services"
+    category: "IT services / consulting"
+
+  - expected: REJECT
+    name: "SAP"
+    domain: "sap.com"
+    snippet: "SAP develops enterprise software for managing business operations. Our solutions include ERP, supply chain management, CRM, and industry cloud platforms."
+    title: "SAP - Enterprise Software"
+    country: DE
+    sector: "Software"
+    category: "Enterprise software company"
+
+  # --- Distributors / Traders ---
+  - expected: REJECT
+    name: "RS Components"
+    domain: "rs-online.com"
+    snippet: "RS Components distributes electronic components, electrical supplies, and industrial products. Browse our catalogue of 700,000+ products from 2,500 leading suppliers."
+    title: "RS Components - Electronic & Industrial Distributor"
+    country: GB
+    sector: "Distribution"
+    category: "Electronics distributor"
+
+  - expected: REJECT
+    name: "Farnell"
+    domain: "farnell.com"
+    snippet: "Farnell is a global distributor of electronic components and industrial products. We stock semiconductors, passives, connectors, and test equipment from leading manufacturers."
+    title: "Farnell - Electronic Component Distributor"
+    country: GB
+    sector: "Distribution"
+    category: "Electronics distributor"
+
+  - expected: REJECT
+    name: "Société Générale d'Importation"
+    domain: "sgi-trading.com"
+    snippet: "SGI est une société de négoce et d'importation de matériel électrique et industriel. Nous distribuons des produits Schneider, Legrand et ABB en Tunisie et en Afrique du Nord."
+    title: "SGI - Négoce & Importation"
+    country: TN
+    sector: "Trading"
+    category: "Tunisian trading company (FR language)"
+
+  - expected: REJECT
+    name: "Al-Futtaim Trading"
+    domain: "alfuttaim.com"
+    snippet: "Al-Futtaim is a diversified trading conglomerate distributing automotive brands, electronics, and retail products across the Middle East. We represent Toyota, Lexus, and Honda."
+    title: "Al-Futtaim Group - Trading & Distribution"
+    country: AE
+    sector: "Trading"
+    category: "Middle East trading conglomerate"
+
+  # --- Government / Investment Agencies ---
+  - expected: REJECT
+    name: "FIPA Tunisia"
+    domain: "investintunisia.tn"
+    snippet: "L'Agence de Promotion de l'Investissement Extérieur (FIPA) accompagne les investisseurs étrangers en Tunisie. Secteurs prioritaires : automobile, aéronautique, électronique, textile."
+    title: "FIPA - Invest in Tunisia"
+    country: TN
+    sector: "Government"
+    category: "Investment promotion agency (FR language)"
+
+  - expected: REJECT
+    name: "GAFI Egypt"
+    domain: "gafi.gov.eg"
+    snippet: "The General Authority for Investment and Free Zones promotes foreign investment in Egypt. Priority sectors include electronics manufacturing, automotive, and renewable energy."
+    title: "GAFI - Invest in Egypt"
+    country: EG
+    sector: "Government"
+    category: "Government investment agency"
+
+  - expected: REJECT
+    name: "Ministère de l'Industrie"
+    domain: "industrie.gov.tn"
+    snippet: "Le Ministère de l'Industrie, des Mines et de l'Énergie de la République Tunisienne. Stratégie industrielle, zones industrielles, et promotion de l'industrie manufacturière."
+    title: "Ministère de l'Industrie - Tunisie"
+    country: TN
+    sector: "Government"
+    category: "Government ministry (FR language)"
+
+  # --- Associations / Trade Bodies ---
+  - expected: REJECT
+    name: "ZVEI"
+    domain: "zvei.org"
+    snippet: "ZVEI ist der Verband der Elektro- und Digitalindustrie. Wir vertreten die Interessen von 1.600 Unternehmen der Elektrotechnik- und Elektronikindustrie in Deutschland."
+    title: "ZVEI - Verband der Elektro- und Digitalindustrie"
+    country: DE
+    sector: "Association"
+    category: "German electronics industry association (DE language)"
+
+  - expected: REJECT
+    name: "SNITEM"
+    domain: "snitem.fr"
+    snippet: "Le SNITEM est le Syndicat National de l'Industrie des Technologies Médicales. Nous représentons 450 entreprises du secteur des dispositifs médicaux en France."
+    title: "SNITEM - Technologies Médicales"
+    country: FR
+    sector: "Association"
+    category: "French med-tech industry association (FR)"
+
+  - expected: REJECT
+    name: "IEEE Tunisia Section"
+    domain: "ieee.tn"
+    snippet: "IEEE Tunisia Section organises workshops, conferences, and student activities in electrical engineering, electronics, and computer science. Join our next event."
+    title: "IEEE Tunisia - Engineering Community"
+    country: TN
+    sector: "Association"
+    category: "IEEE chapter / student org"
+
+  # --- Trade Shows / Events ---
+  - expected: REJECT
+    name: "Electronica Munich"
+    domain: "electronica.de"
+    snippet: "electronica is the world's leading trade fair for electronic components, systems, applications and solutions. November 2026, Messe München."
+    title: "electronica 2026 - Electronics Trade Fair"
+    country: DE
+    sector: "Events"
+    category: "Trade fair / exhibition"
+
+  - expected: REJECT
+    name: "Salon de l'Industrie"
+    domain: "salonindustrie.com"
+    snippet: "Le Salon International de l'Industrie réunit 500 exposants dans les domaines de la sous-traitance, l'usinage, le câblage, l'automatisation et la robotique. Casablanca, Mars 2026."
+    title: "Salon de l'Industrie - Casablanca 2026"
+    country: MA
+    sector: "Events"
+    category: "Industrial trade show (FR language)"
+
+  # --- Car Dealerships / Automotive Retail ---
+  - expected: REJECT
+    name: "Auto Hall"
+    domain: "autohall.ma"
+    snippet: "Auto Hall est le concessionnaire exclusif des marques Ford, Mitsubishi et DFSK au Maroc. Découvrez nos véhicules neufs, occasions, et services après-vente dans nos showrooms."
+    title: "Auto Hall - Concessionnaire Automobile"
+    country: MA
+    sector: "Automotive Retail"
+    category: "Car dealership (FR language)"
+
+  - expected: REJECT
+    name: "Autohaus Schmidt"
+    domain: "autohaus-schmidt.de"
+    snippet: "Autohaus Schmidt ist Ihr BMW und MINI Vertragshändler in Stuttgart. Neuwagen, Gebrauchtwagen, Werkstatt, Ersatzteile und Zubehör."
+    title: "Autohaus Schmidt - BMW Vertragshändler"
+    country: DE
+    sector: "Automotive Retail"
+    category: "German car dealership (DE language)"
+
+  # --- Chemical / Mining / Raw materials ---
+  - expected: REJECT
+    name: "OCP Group"
+    domain: "ocpgroup.ma"
+    snippet: "OCP is a world leader in phosphate mining and fertilizer production. We produce and export phosphate rock, phosphoric acid, and fertilizers from our operations in Morocco."
+    title: "OCP - Phosphate & Fertilizers"
+    country: MA
+    sector: "Mining"
+    category: "Government-owned mining company"
+
+  - expected: REJECT
+    name: "Groupe Chimique Tunisien"
+    domain: "gct.com.tn"
+    snippet: "Le Groupe Chimique Tunisien produit de l'acide phosphorique, des engrais et des produits chimiques. Nos usines de Gabès et Sfax transforment le phosphate brut."
+    title: "GCT - Groupe Chimique Tunisien"
+    country: TN
+    sector: "Chemicals"
+    category: "State-owned chemicals (FR language)"
+
+  # --- Banking / Insurance / Finance ---
+  - expected: REJECT
+    name: "Allianz"
+    domain: "allianz.com"
+    snippet: "Allianz is a leading global financial services company providing insurance, asset management, and banking products. We serve 100 million customers worldwide."
+    title: "Allianz - Insurance & Financial Services"
+    country: DE
+    sector: "Finance"
+    category: "Insurance / financial company"
+
+  # --- Real Estate ---
+  - expected: REJECT
+    name: "Addoha Group"
+    domain: "groupeaddoha.com"
+    snippet: "Groupe Addoha est un promoteur immobilier marocain développant des logements économiques, moyen standing et haut standing. Projets résidentiels dans 20 villes au Maroc."
+    title: "Groupe Addoha - Immobilier"
+    country: MA
+    sector: "Real Estate"
+    category: "Real estate developer (FR language)"
+
+  # --- Food / Agriculture ---
+  - expected: REJECT
+    name: "Poulina Group"
+    domain: "poulinagroup.com"
+    snippet: "Poulina Group est un conglomérat tunisien actif dans l'agroalimentaire, l'aviculture, l'emballage et la distribution. Nos marques : El Mazraa, Délice, et Medina."
+    title: "Poulina Group Holding"
+    country: TN
+    sector: "Food / Agriculture"
+    category: "Food conglomerate (NOT manufacturing buyer)"
+
+  # --- Telecom Operators ---
+  - expected: REJECT
+    name: "Deutsche Telekom"
+    domain: "telekom.com"
+    snippet: "Deutsche Telekom is a leading European telecommunications company providing mobile, fixed-line, internet, and IPTV services to 250 million customers."
+    title: "Deutsche Telekom - Connecting Your World"
+    country: DE
+    sector: "Telecom"
+    category: "Telecom operator (NOT equipment maker)"
+
+  # --- Energy Providers ---
+  - expected: REJECT
+    name: "STEG"
+    domain: "steg.com.tn"
+    snippet: "La Société Tunisienne de l'Électricité et du Gaz assure la production, le transport et la distribution de l'électricité et du gaz naturel en Tunisie."
+    title: "STEG - Électricité & Gaz"
+    country: TN
+    sector: "Utilities"
+    category: "State energy utility (FR language)"
+
+  # --- System Integrators ---
+  - expected: REJECT
+    name: "Actemium"
+    domain: "actemium.com"
+    snippet: "Actemium offers industrial automation, electrical engineering, and process automation services. We design and integrate control systems, SCADA, and MES solutions for manufacturing."
+    title: "Actemium - Industrial Automation Services"
+    country: FR
+    sector: "System Integration"
+    category: "System integrator (services, not products)"
+
+  # --- Directories / Portals ---
+  - expected: REJECT
+    name: "Kompass"
+    domain: "kompass.com"
+    snippet: "Kompass is a B2B business directory listing manufacturers, suppliers, and distributors worldwide. Search 43 million companies across 70 countries."
+    title: "Kompass - B2B Company Directory"
+    country: FR
+    sector: "Directory"
+    category: "Business directory"
+
+  - expected: REJECT
+    name: "Europages"
+    domain: "europages.com"
+    snippet: "Europages is a European B2B sourcing platform connecting buyers and suppliers. Find manufacturers, wholesalers, distributors, and service providers."
+    title: "Europages - B2B Sourcing Platform"
+    country: FR
+    sector: "Directory"
+    category: "Business directory / sourcing portal"
+
+  # --- Solar Installers (NOT manufacturers) ---
+  - expected: REJECT
+    name: "Solarwatt"
+    domain: "solarwatt.com"
+    snippet: "SOLARWATT installs residential solar panel systems for homeowners. We design, install, and maintain rooftop photovoltaic systems and battery storage solutions across Germany."
+    title: "Solarwatt - Solar Energy Systems"
+    country: DE
+    sector: "Solar"
+    category: "Solar installer (NOT manufacturer)"
+
+  # --- Tricky edge cases: companies that mention manufacturing keywords but are NOT targets ---
+  - expected: REJECT
+    name: "Siemens Advanta"
+    domain: "siemens-advanta.com"
+    snippet: "Siemens Advanta provides IoT consulting, digital twin solutions, and smart factory consulting services. We help manufacturers digitalize their production lines and supply chains."
+    title: "Siemens Advanta - IoT & Digital Consulting"
+    country: DE
+    sector: "Consulting"
+    category: "IoT consulting (mentions 'manufacturers' but is a service)"
+
+  - expected: REJECT
+    name: "Expertise France"
+    domain: "expertisefrance.fr"
+    snippet: "Expertise France est l'agence publique de coopération technique internationale. Nous accompagnons les pays en développement dans l'industrialisation et le développement des capacités manufacturières."
+    title: "Expertise France - Coopération Technique"
+    country: FR
+    sector: "Government"
+    category: "Government development agency (mentions manufacturing)"
+
+  - expected: REJECT
+    name: "Manufacturing Technology Centre"
+    domain: "the-mtc.org"
+    snippet: "The Manufacturing Technology Centre develops and proves innovative manufacturing processes and technologies. Our research covers additive manufacturing, assembly automation, and metrology."
+    title: "MTC - Manufacturing Technology Centre"
+    country: GB
+    sector: "Research"
+    category: "Research centre (name says 'Manufacturing' but it's research)"
+
+  # ═══════════════════════════════════════════════════════════════
+  # PASS — Additional high-diversity OEM/manufacturer positives
+  # ═══════════════════════════════════════════════════════════════
+
+  # --- Industrial automation / electrical OEMs ---
+  - expected: PASS
+    name: "ABB"
+    domain: "abb.com"
+    snippet: "ABB designs and manufactures electrification and automation products including drives, motors, circuit breakers, robotics, and control systems for industrial operations."
+    title: "ABB - Electrification and Automation"
+    country: CH
+    sector: "Automation"
+    category: "Global electrification and automation manufacturer"
+
+  - expected: PASS
+    name: "Siemens Digital Industries"
+    domain: "siemens.com"
+    snippet: "Siemens Digital Industries develops and produces industrial automation systems, PLCs, motion control equipment, and digital factory hardware used by OEMs worldwide."
+    title: "Siemens Digital Industries"
+    country: DE
+    sector: "Automation"
+    category: "Industrial automation OEM"
+
+  - expected: PASS
+    name: "Legrand"
+    domain: "legrand.com"
+    snippet: "Legrand conceives and manufactures electrical and digital building infrastructure products including switchgear, power distribution units, and connected control devices."
+    title: "Legrand - Electrical and Digital Building Infrastructures"
+    country: FR
+    sector: "Electrical"
+    category: "Electrical infrastructure manufacturer"
+
+  - expected: PASS
+    name: "Eaton"
+    domain: "eaton.com"
+    snippet: "Eaton designs and manufactures power management products including circuit protection, industrial controls, aerospace components, and vehicle electrification systems."
+    title: "Eaton - Power Management"
+    country: IE
+    sector: "Power Electronics"
+    category: "Power management OEM"
+
+  - expected: PASS
+    name: "Emerson"
+    domain: "emerson.com"
+    snippet: "Emerson develops and manufactures automation technologies, measurement instruments, valves, and control hardware for process, energy, and industrial applications."
+    title: "Emerson - Automation Solutions"
+    country: US
+    sector: "Industrial Automation"
+    category: "Process automation manufacturer"
+
+  - expected: PASS
+    name: "Yaskawa Electric"
+    domain: "yaskawa-global.com"
+    snippet: "Yaskawa develops and produces servo drives, industrial robots, inverters, and motion controllers for factories and advanced manufacturing lines."
+    title: "Yaskawa - Motion Control and Robotics"
+    country: JP
+    sector: "Robotics"
+    category: "Robotics and drive systems OEM"
+
+  - expected: PASS
+    name: "Keyence"
+    domain: "keyence.com"
+    snippet: "KEYENCE develops and manufactures sensors, machine vision systems, measurement instruments, barcode readers, and industrial marking devices."
+    title: "KEYENCE - Sensors and Measurement"
+    country: JP
+    sector: "Sensors"
+    category: "Factory sensor manufacturer"
+
+  - expected: PASS
+    name: "Parker Hannifin"
+    domain: "parker.com"
+    snippet: "Parker designs and manufactures motion and control technologies including filtration systems, fluid connectors, electromechanical drives, and industrial controls."
+    title: "Parker Hannifin - Motion and Control"
+    country: US
+    sector: "Motion Control"
+    category: "Industrial motion-control manufacturer"
+
+  - expected: PASS
+    name: "Renishaw"
+    domain: "renishaw.com"
+    snippet: "Renishaw develops and manufactures precision metrology systems, industrial encoders, additive manufacturing equipment, and measurement probes."
+    title: "Renishaw - Precision Measurement"
+    country: GB
+    sector: "Metrology"
+    category: "Precision metrology equipment manufacturer"
+
+  - expected: PASS
+    name: "Rohde & Schwarz"
+    domain: "rohde-schwarz.com"
+    snippet: "Rohde & Schwarz designs and produces test and measurement instruments, secure communications systems, and broadcast technology hardware."
+    title: "Rohde & Schwarz - Test and Measurement"
+    country: DE
+    sector: "Test & Measurement"
+    category: "Electronics instrumentation OEM"
+
+  # --- Aerospace / defence / transportation OEMs ---
+  - expected: PASS
+    name: "HENSOLDT"
+    domain: "hensoldt.net"
+    snippet: "HENSOLDT develops and manufactures radar sensors, optronics, and avionics electronics for defence and security applications."
+    title: "HENSOLDT - Sensors for Protection"
+    country: DE
+    sector: "Defence"
+    category: "Defence sensor manufacturer"
+
+  - expected: PASS
+    name: "Airbus Defence and Space"
+    domain: "airbus.com"
+    snippet: "Airbus Defence and Space designs and manufactures satellite systems, secure communications equipment, and mission electronics for aerospace and defence programs."
+    title: "Airbus Defence and Space"
+    country: FR
+    sector: "Aerospace"
+    category: "Aerospace and defence OEM"
+
+  - expected: PASS
+    name: "Curtiss-Wright"
+    domain: "curtisswrightds.com"
+    snippet: "Curtiss-Wright develops and manufactures rugged electronics, embedded systems, and actuation technologies for aerospace, defense, and industrial markets."
+    title: "Curtiss-Wright Defense Solutions"
+    country: US
+    sector: "Defence Electronics"
+    category: "Rugged embedded electronics manufacturer"
+
+  - expected: PASS
+    name: "Kongsberg Defence & Aerospace"
+    domain: "kongsberg.com"
+    snippet: "Kongsberg develops and manufactures defence systems, command-and-control hardware, maritime electronics, and aerospace subsystems."
+    title: "Kongsberg Defence & Aerospace"
+    country: NO
+    sector: "Defence"
+    category: "Nordic defence electronics OEM"
+
+  - expected: PASS
+    name: "Alstom"
+    domain: "alstom.com"
+    snippet: "Alstom designs and manufactures rail signaling equipment, onboard train control systems, traction components, and digital mobility platforms."
+    title: "Alstom - Rail Solutions"
+    country: FR
+    sector: "Rail"
+    category: "Rail systems manufacturer"
+
+  - expected: PASS
+    name: "Knorr-Bremse"
+    domain: "knorr-bremse.com"
+    snippet: "Knorr-Bremse develops and produces braking systems, onboard electronics, and safety subsystems for rail and commercial vehicles."
+    title: "Knorr-Bremse - Braking Systems"
+    country: DE
+    sector: "Transportation Systems"
+    category: "Rail and truck systems OEM"
+
+  # --- Semiconductor and electronic component manufacturers ---
+  - expected: PASS
+    name: "NXP Semiconductors"
+    domain: "nxp.com"
+    snippet: "NXP designs and manufactures microcontrollers, automotive processors, secure connectivity chips, and power management semiconductors."
+    title: "NXP Semiconductors"
+    country: NL
+    sector: "Semiconductors"
+    category: "Semiconductor product company"
+
+  - expected: PASS
+    name: "Infineon Technologies"
+    domain: "infineon.com"
+    snippet: "Infineon develops and manufactures power semiconductors, microcontrollers, security chips, and sensor solutions for automotive and industrial electronics."
+    title: "Infineon Technologies"
+    country: DE
+    sector: "Semiconductors"
+    category: "Power and automotive semiconductor manufacturer"
+
+  - expected: PASS
+    name: "STMicroelectronics"
+    domain: "st.com"
+    snippet: "STMicroelectronics designs and produces analog, power, MEMS, and microcontroller devices for industrial, automotive, and consumer applications."
+    title: "STMicroelectronics"
+    country: FR
+    sector: "Semiconductors"
+    category: "Semiconductor manufacturer"
+
+  - expected: PASS
+    name: "Analog Devices"
+    domain: "analog.com"
+    snippet: "Analog Devices develops and manufactures signal processing, power management, and sensing products used in automation, healthcare, and communications equipment."
+    title: "Analog Devices"
+    country: US
+    sector: "Semiconductors"
+    category: "Analog and mixed-signal semiconductor OEM"
+
+  - expected: PASS
+    name: "Microchip Technology"
+    domain: "microchip.com"
+    snippet: "Microchip designs and manufactures microcontrollers, timing products, analog interfaces, and embedded control devices for industrial and automotive systems."
+    title: "Microchip Technology"
+    country: US
+    sector: "Semiconductors"
+    category: "Embedded semiconductor manufacturer"
+
+  - expected: PASS
+    name: "Littelfuse"
+    domain: "littelfuse.com"
+    snippet: "Littelfuse develops and manufactures circuit protection, power control semiconductors, relays, and sensor products for electronics and vehicles."
+    title: "Littelfuse - Circuit Protection"
+    country: US
+    sector: "Electronic Components"
+    category: "Circuit protection and power control manufacturer"
+
+  - expected: PASS
+    name: "Bel Fuse"
+    domain: "belfuse.com"
+    snippet: "Bel designs and manufactures magnetics, power supplies, connectors, and circuit protection components for networking, transportation, and industrial systems."
+    title: "Bel - Power and Connectivity"
+    country: US
+    sector: "Electronic Components"
+    category: "Power and connectivity component manufacturer"
+
+  - expected: PASS
+    name: "LEM"
+    domain: "lem.com"
+    snippet: "LEM develops and manufactures current and voltage transducers for energy, industrial automation, rail traction, and automotive electrification."
+    title: "LEM - Electrical Measurement"
+    country: CH
+    sector: "Sensors"
+    category: "Electrical transducer manufacturer"
+
+  # --- Medical / process / instrumentation ---
+  - expected: PASS
+    name: "Mindray"
+    domain: "mindray.com"
+    snippet: "Mindray designs and manufactures patient monitoring systems, ultrasound equipment, anesthesia devices, and in-vitro diagnostics instruments."
+    title: "Mindray - Medical Devices"
+    country: CN
+    sector: "Medical Devices"
+    category: "Medical device manufacturer"
+
+  - expected: PASS
+    name: "B. Braun"
+    domain: "bbraun.com"
+    snippet: "B. Braun develops and manufactures infusion systems, medical pumps, surgical devices, and healthcare technology equipment in certified production sites."
+    title: "B. Braun - Sharing Expertise"
+    country: DE
+    sector: "Medical Devices"
+    category: "Healthcare equipment manufacturer"
+
+  - expected: PASS
+    name: "Yokogawa Electric"
+    domain: "yokogawa.com"
+    snippet: "Yokogawa develops and manufactures process analyzers, distributed control systems, field instrumentation, and industrial automation equipment."
+    title: "Yokogawa - Measurement and Control"
+    country: JP
+    sector: "Process Automation"
+    category: "Instrumentation and process control OEM"
+
+  - expected: PASS
+    name: "Fuji Electric"
+    domain: "fujielectric.com"
+    snippet: "Fuji Electric designs and manufactures power semiconductors, drives, industrial control products, and energy management equipment."
+    title: "Fuji Electric - Energy and Environment"
+    country: JP
+    sector: "Power Electronics"
+    category: "Industrial power electronics manufacturer"
+
+  - expected: PASS
+    name: "Hitachi Energy"
+    domain: "hitachienergy.com"
+    snippet: "Hitachi Energy develops and manufactures transformers, grid automation systems, HVDC technology, and substation control equipment."
+    title: "Hitachi Energy"
+    country: CH
+    sector: "Energy Systems"
+    category: "Grid equipment manufacturer"
+
+  # --- EU regional multilingual positives ---
+  - expected: PASS
+    name: "Schaltbau"
+    domain: "schaltbau.com"
+    snippet: "Schaltbau entwickelt und fertigt Gleichstromschütze, Steckverbinder und Bahnelektronik für Schienenfahrzeuge und industrielle Anwendungen."
+    title: "Schaltbau - Direct Current Experts"
+    country: DE
+    sector: "Rail Electronics"
+    category: "German rail-electronics manufacturer (DE language)"
+
+  - expected: PASS
+    name: "Jenoptik"
+    domain: "jenoptik.com"
+    snippet: "Jenoptik entwickelt und produziert photonische Systeme, Messtechnik, Lasermodule und industrielle Bildverarbeitung für Automotive und Medizintechnik."
+    title: "Jenoptik - Photonic Technologies"
+    country: DE
+    sector: "Photonics"
+    category: "German photonics manufacturer (DE language)"
+
+  - expected: PASS
+    name: "Nexans"
+    domain: "nexans.com"
+    snippet: "Nexans conçoit et fabrique des systèmes de câblage électrique, des solutions haute tension, et des infrastructures d'énergie pour l'industrie et les réseaux."
+    title: "Nexans - Electrify the Future"
+    country: FR
+    sector: "Electrical Infrastructure"
+    category: "French electrical systems manufacturer (FR language)"
+
+  - expected: PASS
+    name: "Mersen"
+    domain: "mersen.com"
+    snippet: "Mersen conçoit et produit des composants pour la gestion de l'énergie électrique, la protection des équipements et les matériaux avancés pour l'électronique de puissance."
+    title: "Mersen - Electrical Power and Advanced Materials"
+    country: FR
+    sector: "Power Electronics"
+    category: "French power-electronics component manufacturer (FR language)"
+
+  - expected: PASS
+    name: "Fagor Automation"
+    domain: "fagorautomation.com"
+    snippet: "Fagor Automation diseña y fabrica controles CNC, reglas ópticas, encoders y sistemas de automatización para máquina-herramienta y fabricación avanzada."
+    title: "Fagor Automation"
+    country: ES
+    sector: "Automation"
+    category: "Spanish automation equipment manufacturer (ES language)"
+
+  - expected: PASS
+    name: "Ormazabal"
+    domain: "ormazabal.com"
+    snippet: "Ormazabal diseña y fabrica celdas de media tensión, interruptores y soluciones de digitalización de red para distribución eléctrica."
+    title: "Ormazabal - Smart Grids"
+    country: ES
+    sector: "Electrical Equipment"
+    category: "Spanish MV switchgear manufacturer (ES language)"
+
+  - expected: PASS
+    name: "Marechal Electric"
+    domain: "marechal.com"
+    snippet: "MARECHAL ELECTRIC conçoit et fabrique des connecteurs industriels, prises de courant de sécurité et boîtiers de distribution pour environnements exigeants."
+    title: "MARECHAL ELECTRIC"
+    country: FR
+    sector: "Industrial Connectivity"
+    category: "Industrial connector manufacturer (FR language)"
+
+  - expected: PASS
+    name: "Gefran"
+    domain: "gefran.com"
+    snippet: "Gefran progetta e produce sensori, regolatori di potenza, azionamenti e soluzioni di automazione per processi industriali."
+    title: "Gefran - Automation Components"
+    country: IT
+    sector: "Automation"
+    category: "Italian sensor and drive manufacturer (IT language)"
+
+  - expected: PASS
+    name: "Datalogic"
+    domain: "datalogic.com"
+    snippet: "Datalogic progetta e produce lettori barcode, scanner industriali, visione artificiale e sensori per l'automazione logistica e manifatturiera."
+    title: "Datalogic - Automatic Data Capture"
+    country: IT
+    sector: "Industrial Vision"
+    category: "Italian industrial scanner manufacturer (IT language)"
+
+  - expected: PASS
+    name: "NKT"
+    domain: "nkt.com"
+    snippet: "NKT develops and manufactures high-voltage cable systems and accessories for renewable energy integration and power transmission grids."
+    title: "NKT - Power Cable Solutions"
+    country: DK
+    sector: "Energy Infrastructure"
+    category: "High-voltage cable systems manufacturer"
+
+  - expected: PASS
+    name: "Huber+Suhner"
+    domain: "hubersuhner.com"
+    snippet: "HUBER+SUHNER develops and manufactures radio-frequency components, fiber-optic connectivity, and high-voltage cable systems for rail, industry, and communications."
+    title: "HUBER+SUHNER - Connectivity Solutions"
+    country: CH
+    sector: "Connectivity"
+    category: "Swiss connectivity product manufacturer"
+
+  - expected: PASS
+    name: "Delta Electronics"
+    domain: "deltaww.com"
+    snippet: "Delta designs and manufactures power supplies, industrial automation equipment, EV charging systems, and thermal management products."
+    title: "Delta Electronics"
+    country: TW
+    sector: "Power and Automation"
+    category: "Power and automation product OEM"
+
+  - expected: PASS
+    name: "Kontron"
+    domain: "kontron.com"
+    snippet: "Kontron develops and manufactures embedded computing modules, industrial motherboards, and rugged communication platforms for critical industries."
+    title: "Kontron - IoT and Embedded Computing"
+    country: DE
+    sector: "Embedded Systems"
+    category: "Embedded computing manufacturer"
+
+  - expected: PASS
+    name: "TTTech Auto"
+    domain: "tttech-auto.com"
+    snippet: "TTTech Auto manufactures safety controllers, ECUs, and deterministic networking hardware for autonomous driving and advanced vehicle electronics."
+    title: "TTTech Auto"
+    country: AT
+    sector: "Automotive Electronics"
+    category: "Automotive control platform producer"
+
+  - expected: PASS
+    name: "Sensirion"
+    domain: "sensirion.com"
+    snippet: "Sensirion develops and manufactures environmental and flow sensors for medical technology, automotive systems, and industrial automation."
+    title: "Sensirion - Sensor Solutions"
+    country: CH
+    sector: "Sensors"
+    category: "Sensor OEM"
+
+  - expected: PASS
+    name: "Cebi Group"
+    domain: "cebigroup.com"
+    snippet: "Cebi designs and manufactures mechatronic products, sensing devices, and control modules for automotive and household applications."
+    title: "Cebi Group - Mechatronic Solutions"
+    country: LU
+    sector: "Mechatronics"
+    category: "Mechatronics product manufacturer"
+
+  # --- MENA and regional manufacturer positives ---
+  - expected: PASS
+    name: "SICAME Group"
+    domain: "sicame.com"
+    snippet: "SICAME designs and manufactures products for electrical power transmission and distribution, including connectors, protection systems, and network accessories."
+    title: "SICAME Group"
+    country: FR
+    sector: "Electrical Distribution"
+    category: "Grid accessory manufacturer"
+
+  - expected: PASS
+    name: "COELMO Tunisia"
+    domain: "coelmo.tn"
+    snippet: "COELMO Tunisie fabrique des tableaux électriques, des armoires de distribution et des équipements de contrôle pour l'industrie et l'énergie."
+    title: "COELMO Tunisie - Équipements Électriques"
+    country: TN
+    sector: "Electrical Equipment"
+    category: "Tunisian electrical equipment manufacturer (FR language)"
+
+  - expected: PASS
+    name: "Ingelec"
+    domain: "ingelec.ma"
+    snippet: "Ingelec conçoit et fabrique des appareillages électriques, des disjoncteurs et des solutions de distribution pour les bâtiments et l'industrie."
+    title: "Ingelec - Appareillage Électrique"
+    country: MA
+    sector: "Electrical"
+    category: "Moroccan electrical product manufacturer (FR language)"
+
+  - expected: PASS
+    name: "Mecachrome Maroc"
+    domain: "mecachrome.com"
+    snippet: "Mecachrome manufactures aerospace and automotive mechanical assemblies, precision components, and integrated industrial systems in certified production sites."
+    title: "Mecachrome - Manufacturing Excellence"
+    country: MA
+    sector: "Aerospace"
+    category: "Morocco-based aerospace manufacturer"
+
+  # ═══════════════════════════════════════════════════════════════
+  # REJECT — Additional high-diversity hard negatives
+  # ═══════════════════════════════════════════════════════════════
+
+  # --- EMS / contract-manufacturing competitors ---
+  - expected: REJECT
+    name: "Sanmina"
+    domain: "sanmina.com"
+    snippet: "Sanmina provides integrated electronics manufacturing services including design, PCB assembly, mechanical integration, and end-to-end supply chain execution."
+    title: "Sanmina - Integrated Manufacturing Solutions"
+    country: US
+    sector: "EMS"
+    category: "Global EMS competitor"
+
+  - expected: REJECT
+    name: "Plexus"
+    domain: "plexus.com"
+    snippet: "Plexus offers product realization services from design and engineering to manufacturing transfer, final assembly, and aftermarket support."
+    title: "Plexus - Product Realization"
+    country: US
+    sector: "EMS"
+    category: "EMS competitor"
+
+  - expected: REJECT
+    name: "Benchmark Electronics"
+    domain: "bench.com"
+    snippet: "Benchmark provides engineering, test development, and electronics manufacturing services for regulated and highly complex industries."
+    title: "Benchmark Electronics"
+    country: US
+    sector: "EMS"
+    category: "EMS competitor"
+
+  - expected: REJECT
+    name: "GPV Group"
+    domain: "gpv-group.com"
+    snippet: "GPV is a contract electronics manufacturer providing EMS, mechanics integration, cable assembly, and box-build production for OEM customers."
+    title: "GPV - Electronics Manufacturing Services"
+    country: DK
+    sector: "EMS"
+    category: "European EMS competitor"
+
+  - expected: REJECT
+    name: "Zollner Elektronik"
+    domain: "zollner-electronics.com"
+    snippet: "Zollner offers electronic manufacturing services from PCB assembly and device assembly to after-sales lifecycle services for global customers."
+    title: "Zollner Elektronik - EMS"
+    country: DE
+    sector: "EMS"
+    category: "DACH EMS competitor"
+
+  - expected: REJECT
+    name: "Scanfil"
+    domain: "scanfil.com"
+    snippet: "Scanfil is a system supplier and contract manufacturer for demanding electronics with prototype-to-volume manufacturing and sourcing support."
+    title: "Scanfil - Contract Manufacturing"
+    country: FI
+    sector: "EMS"
+    category: "Nordic EMS competitor"
+
+  - expected: REJECT
+    name: "Kitron"
+    domain: "kitron.com"
+    snippet: "Kitron provides electronics manufacturing services, industrialization, and supply chain management for connectivity, medical, and defence customers."
+    title: "Kitron - EMS Partner"
+    country: NO
+    sector: "EMS"
+    category: "EMS competitor"
+
+  - expected: REJECT
+    name: "All Circuits"
+    domain: "allcircuits.com"
+    snippet: "All Circuits provides EMS activities including electronic board assembly, test, industrialization, and logistics for OEM programs."
+    title: "All Circuits - Electronics Manufacturing"
+    country: FR
+    sector: "EMS"
+    category: "French EMS competitor"
+
+  # --- Consulting / advisory / digital services ---
+  - expected: REJECT
+    name: "Oliver Wyman"
+    domain: "oliverwyman.com"
+    snippet: "Oliver Wyman is a management consulting firm helping clients transform operations, strategy, and risk management across sectors."
+    title: "Oliver Wyman - Management Consulting"
+    country: US
+    sector: "Consulting"
+    category: "Consulting firm"
+
+  - expected: REJECT
+    name: "BearingPoint"
+    domain: "bearingpoint.com"
+    snippet: "BearingPoint provides business consulting, digital transformation services, and technology advisory for enterprise clients."
+    title: "BearingPoint - Consulting"
+    country: DE
+    sector: "Consulting"
+    category: "Consulting firm"
+
+  - expected: REJECT
+    name: "Ayming"
+    domain: "ayming.com"
+    snippet: "Ayming accompagne les entreprises sur la performance opérationnelle, le conseil en financement de l'innovation, et l'optimisation RH."
+    title: "Ayming - Cabinet de Conseil"
+    country: FR
+    sector: "Consulting"
+    category: "French consulting company (FR language)"
+
+  - expected: REJECT
+    name: "Sopra Steria"
+    domain: "soprasteria.com"
+    snippet: "Sopra Steria provides digital consulting, cloud transformation, cybersecurity, and application services for public and private organizations."
+    title: "Sopra Steria - Digital Transformation"
+    country: FR
+    sector: "IT Services"
+    category: "IT and consulting services company"
+
+  - expected: REJECT
+    name: "Reply"
+    domain: "reply.com"
+    snippet: "Reply is a network of companies specialized in consulting, system integration, and digital services focused on AI, cloud, and data platforms."
+    title: "Reply - Consulting and System Integration"
+    country: IT
+    sector: "IT Services"
+    category: "Digital consultancy"
+
+  # --- Recruitment / HR ---
+  - expected: REJECT
+    name: "ManpowerGroup"
+    domain: "manpowergroup.com"
+    snippet: "ManpowerGroup provides workforce solutions, staffing, and recruitment services across engineering, manufacturing, and technology sectors."
+    title: "ManpowerGroup - Workforce Solutions"
+    country: US
+    sector: "Recruitment"
+    category: "Global staffing group"
+
+  - expected: REJECT
+    name: "Adecco"
+    domain: "adecco.com"
+    snippet: "Adecco offers temporary staffing, recruitment, and HR consulting services for industrial and office profiles worldwide."
+    title: "Adecco - Staffing and Recruitment"
+    country: CH
+    sector: "Recruitment"
+    category: "Recruitment and temporary staffing"
+
+  - expected: REJECT
+    name: "Randstad"
+    domain: "randstad.com"
+    snippet: "Randstad is an HR services company delivering talent acquisition, staffing, and workforce management services globally."
+    title: "Randstad - Human Forward"
+    country: NL
+    sector: "Recruitment"
+    category: "Staffing and HR services"
+
+  - expected: REJECT
+    name: "Michael Page"
+    domain: "michaelpage.com"
+    snippet: "Michael Page recruits professionals and managers across engineering, operations, and procurement with specialist recruitment consultants."
+    title: "Michael Page - Recruitment"
+    country: GB
+    sector: "Recruitment"
+    category: "Recruitment firm"
+
+  # --- Logistics / transport / freight ---
+  - expected: REJECT
+    name: "DSV"
+    domain: "dsv.com"
+    snippet: "DSV is a global transport and logistics company delivering air freight, sea freight, road transport, and warehousing services."
+    title: "DSV - Global Transport and Logistics"
+    country: DK
+    sector: "Logistics"
+    category: "Global logistics provider"
+
+  - expected: REJECT
+    name: "DHL Supply Chain"
+    domain: "dhl.com"
+    snippet: "DHL Supply Chain provides warehousing, transportation management, e-commerce fulfillment, and contract logistics for manufacturers and retailers."
+    title: "DHL Supply Chain"
+    country: DE
+    sector: "Logistics"
+    category: "Logistics service provider"
+
+  - expected: REJECT
+    name: "Bolloré Logistics"
+    domain: "bollore-logistics.com"
+    snippet: "Bolloré Logistics offre des services de transit international, transport maritime et aérien, ainsi que des solutions supply chain."
+    title: "Bolloré Logistics"
+    country: FR
+    sector: "Logistics"
+    category: "French logistics provider (FR language)"
+
+  - expected: REJECT
+    name: "CMA CGM"
+    domain: "cma-cgm.com"
+    snippet: "CMA CGM is a global shipping and logistics group operating container lines, terminals, and multimodal transport services."
+    title: "CMA CGM - Shipping Group"
+    country: FR
+    sector: "Shipping"
+    category: "Global shipping operator"
+
+  # --- Distribution / reseller / marketplace ---
+  - expected: REJECT
+    name: "Arrow Electronics"
+    domain: "arrow.com"
+    snippet: "Arrow distributes electronic components and enterprise computing products, offering supply chain services and design support to customers."
+    title: "Arrow Electronics - Distribution"
+    country: US
+    sector: "Distribution"
+    category: "Electronics distributor"
+
+  - expected: REJECT
+    name: "Avnet"
+    domain: "avnet.com"
+    snippet: "Avnet is a global technology distributor providing semiconductors, interconnect products, and supply chain services for OEMs."
+    title: "Avnet - Technology Distribution"
+    country: US
+    sector: "Distribution"
+    category: "Global component distributor"
+
+  - expected: REJECT
+    name: "Mouser Electronics"
+    domain: "mouser.com"
+    snippet: "Mouser is an authorized distributor of semiconductors and electronic components with online catalog ordering and fast delivery."
+    title: "Mouser Electronics - Authorized Distributor"
+    country: US
+    sector: "Distribution"
+    category: "Authorized electronic distributor"
+
+  - expected: REJECT
+    name: "DigiKey"
+    domain: "digikey.com"
+    snippet: "DigiKey is an electronic component distributor with millions of SKUs, online sourcing tools, and engineering reference resources."
+    title: "DigiKey Electronics"
+    country: US
+    sector: "Distribution"
+    category: "Component distributor"
+
+  - expected: REJECT
+    name: "Alibaba B2B"
+    domain: "alibaba.com"
+    snippet: "Alibaba.com is a global B2B marketplace connecting buyers with manufacturers, wholesalers, and sourcing agents worldwide."
+    title: "Alibaba.com - B2B Marketplace"
+    country: CN
+    sector: "Marketplace"
+    category: "B2B sourcing marketplace"
+
+  # --- Media / reports / portals ---
+  - expected: REJECT
+    name: "EE Times"
+    domain: "eetimes.com"
+    snippet: "EE Times covers the latest electronics industry news, semiconductor trends, engineering analysis, and market reports."
+    title: "EE Times - Electronics News"
+    country: US
+    sector: "Media"
+    category: "Electronics media outlet"
+
+  - expected: REJECT
+    name: "Electronics Weekly"
+    domain: "electronicsweekly.com"
+    snippet: "Electronics Weekly delivers breaking news, product announcements, and market intelligence for the electronics and semiconductor sectors."
+    title: "Electronics Weekly"
+    country: GB
+    sector: "Media"
+    category: "Trade news publication"
+
+  - expected: REJECT
+    name: "MarketsandMarkets"
+    domain: "marketsandmarkets.com"
+    snippet: "Buy this market research report to access revenue forecast, CAGR analysis, key players, and segmentation for the global EMS market."
+    title: "EMS Market Research Report"
+    country: US
+    sector: "Market Research"
+    category: "Market report seller"
+
+  - expected: REJECT
+    name: "Mordor Intelligence"
+    domain: "mordorintelligence.com"
+    snippet: "Mordor Intelligence provides industry reports, market size forecast data, and competitive landscape analysis for electronics manufacturing."
+    title: "Market Intelligence Reports"
+    country: IN
+    sector: "Market Research"
+    category: "Market intelligence site"
+
+  - expected: REJECT
+    name: "TechCrunch"
+    domain: "techcrunch.com"
+    snippet: "TechCrunch publishes startup and technology news, funding rounds, product launches, and interviews with founders and investors."
+    title: "TechCrunch - Startup and Technology News"
+    country: US
+    sector: "Media"
+    category: "News publisher"
+
+  # --- Education / public institutions / NGOs ---
+  - expected: REJECT
+    name: "MIT"
+    domain: "mit.edu"
+    snippet: "MIT is a leading research university offering programs in engineering, science, and technology with advanced research laboratories."
+    title: "Massachusetts Institute of Technology"
+    country: US
+    sector: "Education"
+    category: "University"
+
+  - expected: REJECT
+    name: "RWTH Aachen University"
+    domain: "rwth-aachen.de"
+    snippet: "RWTH Aachen University conducts research and education in mechanical engineering, electrical engineering, and materials science."
+    title: "RWTH Aachen University"
+    country: DE
+    sector: "Education"
+    category: "University"
+
+  - expected: REJECT
+    name: "GIZ"
+    domain: "giz.de"
+    snippet: "GIZ implements international development cooperation projects supporting economic growth, sustainability, and public policy initiatives."
+    title: "GIZ - Deutsche Gesellschaft für Internationale Zusammenarbeit"
+    country: DE
+    sector: "Development"
+    category: "Development agency"
+
+  - expected: REJECT
+    name: "UNIDO"
+    domain: "unido.org"
+    snippet: "UNIDO promotes inclusive and sustainable industrial development through policy support, technical cooperation, and capacity building programs."
+    title: "UNIDO - Industrial Development"
+    country: AT
+    sector: "International Organization"
+    category: "Intergovernmental organization"
+
+  # --- Events / conferences / trade shows ---
+  - expected: REJECT
+    name: "Hannover Messe"
+    domain: "hannovermesse.de"
+    snippet: "HANNOVER MESSE is the leading international industrial trade fair featuring automation, energy, digitalization, and manufacturing innovations."
+    title: "HANNOVER MESSE"
+    country: DE
+    sector: "Events"
+    category: "Industrial trade show"
+
+  - expected: REJECT
+    name: "Global Industrie"
+    domain: "global-industrie.com"
+    snippet: "Global Industrie rassemble les acteurs de l'industrie autour des innovations en production, automatisation, usinage et maintenance."
+    title: "Global Industrie"
+    country: FR
+    sector: "Events"
+    category: "French industrial exhibition (FR language)"
+
+  - expected: REJECT
+    name: "Embedded World"
+    domain: "embedded-world.de"
+    snippet: "embedded world Exhibition & Conference presents embedded systems trends, keynotes, and exhibitor showcases in Nürnberg."
+    title: "embedded world Exhibition & Conference"
+    country: DE
+    sector: "Events"
+    category: "Conference and exhibition"
+
+  # --- Utilities / telecom operators / finance ---
+  - expected: REJECT
+    name: "Orange"
+    domain: "orange.com"
+    snippet: "Orange is a multinational telecom operator providing mobile, internet, enterprise connectivity, and digital communication services."
+    title: "Orange - Telecommunications Operator"
+    country: FR
+    sector: "Telecom"
+    category: "Telecom operator"
+
+  - expected: REJECT
+    name: "Vodafone"
+    domain: "vodafone.com"
+    snippet: "Vodafone provides mobile and fixed telecom services, IoT connectivity, and enterprise communications to customers worldwide."
+    title: "Vodafone - Mobile and Fixed Networks"
+    country: GB
+    sector: "Telecom"
+    category: "Telecommunications operator"
+
+  - expected: REJECT
+    name: "Engie"
+    domain: "engie.com"
+    snippet: "ENGIE supplies energy and utility services including electricity, gas, district heating, and decarbonization support."
+    title: "ENGIE - Energy and Services"
+    country: FR
+    sector: "Utilities"
+    category: "Energy utility provider"
+
+  - expected: REJECT
+    name: "BNP Paribas"
+    domain: "bnpparibas.com"
+    snippet: "BNP Paribas is an international banking group providing retail banking, corporate finance, and investment services."
+    title: "BNP Paribas - The Bank for a Changing World"
+    country: FR
+    sector: "Finance"
+    category: "Banking institution"
+
+  - expected: REJECT
+    name: "AXA"
+    domain: "axa.com"
+    snippet: "AXA provides insurance and asset management services for individuals, businesses, and institutional investors."
+    title: "AXA - Insurance and Asset Management"
+    country: FR
+    sector: "Finance"
+    category: "Insurance company"
+
+  # --- Integrators / training / certification / mixed hard negatives ---
+  - expected: REJECT
+    name: "SII Group"
+    domain: "sii-group.com"
+    snippet: "SII provides engineering consulting, digital transformation, and IT services for aerospace, automotive, and industrial clients."
+    title: "SII Group - Engineering and IT Services"
+    country: FR
+    sector: "Engineering Services"
+    category: "Engineering services firm"
+
+  - expected: REJECT
+    name: "Altran Maroc"
+    domain: "altran.ma"
+    snippet: "Altran Maroc accompagne les industriels avec des prestations de conseil en ingénierie, transformation digitale et assistance technique."
+    title: "Altran Maroc - Conseil en Ingénierie"
+    country: MA
+    sector: "Consulting"
+    category: "Engineering consulting services (FR language)"
+
+  - expected: REJECT
+    name: "SGS"
+    domain: "sgs.com"
+    snippet: "SGS provides testing, inspection, and certification services for quality, safety, and compliance across multiple industries."
+    title: "SGS - Testing Inspection Certification"
+    country: CH
+    sector: "Certification"
+    category: "Testing and certification body"
+
+  - expected: REJECT
+    name: "Bureau Veritas"
+    domain: "bureauveritas.com"
+    snippet: "Bureau Veritas offers testing, inspection, certification, and audit services for industrial assets and supply chains."
+    title: "Bureau Veritas"
+    country: FR
+    sector: "Certification"
+    category: "Certification and audit organization"
+
+  - expected: REJECT
+    name: "Udemy Business"
+    domain: "business.udemy.com"
+    snippet: "Udemy Business provides online courses and workforce training paths for engineering, software, leadership, and compliance topics."
+    title: "Udemy Business - Online Training"
+    country: US
+    sector: "Training"
+    category: "Training platform"
+
+  - expected: REJECT
+    name: "Coursera"
+    domain: "coursera.org"
+    snippet: "Coursera offers online courses, specializations, and professional certificates from universities and companies worldwide."
+    title: "Coursera - Online Learning"
+    country: US
+    sector: "Education"
+    category: "Online education platform"
+
+  - expected: REJECT
+    name: "Eurofoundry Portal"
+    domain: "eurofoundry-portal.eu"
+    snippet: "European sourcing portal listing foundries, contract manufacturers, machine shops, and industrial service providers by category."
+    title: "Eurofoundry Portal - Industrial Supplier Directory"
+    country: BE
+    sector: "Directory"
+    category: "Industrial supplier directory"
+
+  - expected: REJECT
+    name: "Industry Grants Hub"
+    domain: "industrygrantshub.org"
+    snippet: "Find government incentives, tax credits, and grant funding for manufacturing modernization, digitalization, and sustainability projects."
+    title: "Industry Grants Hub"
+    country: GB
+    sector: "Government Programs"
+    category: "Grant and subsidy information portal"
+
+  # ═══════════════════════════════════════════════════════════════
+  # Additional entries — fill coverage gaps from production algo
+  # ═══════════════════════════════════════════════════════════════
+
+  # --- System integrator / panel builder ---
+  - expected: REJECT
+    name: "Rittmeyer AG"
+    domain: "rittmeyer.com"
+    snippet: "Rittmeyer is a system integrator specializing in automation solutions for water and energy. We design and build PLC-based control panels and SCADA systems for municipal utilities."
+    title: "Rittmeyer - Automation Solutions"
+    country: CH
+    sector: "System Integration"
+    category: "Control panel builder / system integrator"
+
+  - expected: REJECT
+    name: "EISAC Egypt"
+    domain: "eisac-eg.com"
+    snippet: "EISAC is an authorized Siemens solution partner in Egypt. We sell Siemens PLCs, HMIs, drives, and automation products. We design and build electrical control panels."
+    title: "EISAC - Siemens Automation Egypt"
+    country: EG
+    sector: "Automation Reseller"
+    category: "Automation reseller / panel builder"
+
+  # --- MRO / aircraft services ---
+  - expected: REJECT
+    name: "Sabena Technics"
+    domain: "sabenatechnics.com"
+    snippet: "Sabena Technics provides aircraft maintenance, repair and overhaul (MRO) services. We are EASA Part 145 approved for heavy checks, painting, and avionics upgrades."
+    title: "Sabena Technics - Aircraft Maintenance"
+    country: FR
+    sector: "Aviation MRO"
+    category: "MRO / aircraft maintenance services"
+
+  - expected: REJECT
+    name: "SR Technics"
+    domain: "srtechnics.com"
+    snippet: "SR Technics is an independent MRO provider offering engine overhaul, component repair, and aircraft modification services for commercial airlines worldwide."
+    title: "SR Technics - MRO Services"
+    country: CH
+    sector: "Aviation MRO"
+    category: "MRO / aircraft maintenance services"
+
+  # --- Law firm / legal services ---
+  - expected: REJECT
+    name: "CMS Francis Lefebvre"
+    domain: "cms-fl.com"
+    snippet: "CMS Francis Lefebvre Avocats is a law firm providing legal services in corporate law, tax law, intellectual property, and dispute resolution. 1,000 lawyers in 45 countries."
+    title: "CMS Francis Lefebvre - Avocats"
+    country: FR
+    sector: "Legal"
+    category: "Law firm / legal services"
+
+  # --- Chemical / petrochemical / raw material ---
+  - expected: REJECT
+    name: "Arkema"
+    domain: "arkema.com"
+    snippet: "Arkema est un leader mondial des matériaux de spécialité. Nous produisons des adhésifs, revêtements avancés, résines et monomères pour l'industrie. 20 900 collaborateurs."
+    title: "Arkema - Specialty Chemicals"
+    country: FR
+    sector: "Chemicals"
+    category: "Specialty chemical manufacturer (not our buyer)"
+
+  - expected: REJECT
+    name: "BASF Tunisia"
+    domain: "basf.com"
+    snippet: "BASF produces chemicals, plastics, coatings, and crop protection products. Our chemical operations in Tunisia include polyurethane solutions and performance chemicals."
+    title: "BASF - We create chemistry"
+    country: TN
+    sector: "Chemicals"
+    category: "Chemical producer (not electronics manufacturer)"
+
+  # --- Oil & gas / mining ---
+  - expected: REJECT
+    name: "TotalEnergies Tunisia"
+    domain: "totalenergies.tn"
+    snippet: "TotalEnergies est un acteur majeur de l'énergie en Tunisie. Nos activités incluent l'exploration et la production de pétrole et de gaz, la distribution de carburants et de lubrifiants."
+    title: "TotalEnergies - Énergie Tunisie"
+    country: TN
+    sector: "Oil & Gas"
+    category: "Oil and gas company"
+
+  - expected: REJECT
+    name: "AMMC Mining"
+    domain: "ammc-mining.com"
+    snippet: "Arab Company for Mining and Mineral Resources. We extract and process calcium carbonate, limestone, and industrial minerals from our quarries in Egypt."
+    title: "AMMC Mining - Mineral Processing"
+    country: EG
+    sector: "Mining"
+    category: "Mining / mineral extraction company"
+
+  # --- Investment / private equity / insurance ---
+  - expected: REJECT
+    name: "Amundi Tunisia"
+    domain: "amundi.tn"
+    snippet: "Amundi gère des portefeuilles de fonds d'investissement pour les institutions et les particuliers. 2 000 milliards d'euros d'actifs sous gestion."
+    title: "Amundi - Asset Management"
+    country: TN
+    sector: "Finance"
+    category: "Investment / asset management"
+
+  # --- Airline / tourism / travel ---
+  - expected: REJECT
+    name: "Tunisair"
+    domain: "tunisair.com"
+    snippet: "Tunisair est la compagnie aérienne nationale tunisienne. Nous opérons des vols domestiques et internationaux vers l'Europe, l'Afrique et le Moyen-Orient."
+    title: "Tunisair - National Airline"
+    country: TN
+    sector: "Airline"
+    category: "Airline / transport operator"
+
+  - expected: REJECT
+    name: "TUI Group"
+    domain: "tuigroup.com"
+    snippet: "TUI is the world's leading tourism group. We operate airlines, hotels, cruise ships, and tour operators across Europe and North Africa."
+    title: "TUI Group - Tourism"
+    country: DE
+    sector: "Tourism"
+    category: "Tourism / travel group"
+
+  # --- Construction / real estate ---
+  - expected: REJECT
+    name: "Bouygues Construction"
+    domain: "bouygues-construction.com"
+    snippet: "Bouygues Construction est un leader mondial du bâtiment et des travaux publics. Nous construisons des bâtiments, des infrastructures de transport et des ouvrages d'art."
+    title: "Bouygues Construction"
+    country: FR
+    sector: "Construction"
+    category: "Construction company"
+
+  - expected: REJECT
+    name: "Emaar Properties"
+    domain: "emaar.com"
+    snippet: "Emaar Properties is a real estate development company in Dubai. We develop luxury residential, commercial, retail, and hospitality projects including Burj Khalifa."
+    title: "Emaar - Real Estate Development"
+    country: AE
+    sector: "Real Estate"
+    category: "Real estate developer"
+
+  # --- Recycling / waste management ---
+  - expected: REJECT
+    name: "Veolia Environnement"
+    domain: "veolia.com"
+    snippet: "Veolia conçoit et fournit des solutions de gestion de l'eau, des déchets et de l'énergie. Nous opérons des usines de traitement des eaux et des centres de recyclage."
+    title: "Veolia - Ecological Transformation"
+    country: FR
+    sector: "Waste Management"
+    category: "Recycling / waste management services"
+
+  # --- E-commerce / marketplace ---
+  - expected: REJECT
+    name: "Made-in-China.com"
+    domain: "made-in-china.com"
+    snippet: "Made-in-China.com is a B2B e-commerce platform connecting international buyers with Chinese manufacturers. Browse millions of product listings from verified suppliers."
+    title: "Made-in-China.com - B2B Sourcing"
+    country: CN
+    sector: "E-commerce"
+    category: "B2B sourcing marketplace"
+
+  # --- Cleaning / facilities management ---
+  - expected: REJECT
+    name: "ISS Group"
+    domain: "issworld.com"
+    snippet: "ISS provides facility management services including cleaning, catering, security, property management, and workplace experience solutions for corporate clients."
+    title: "ISS - People Make Places"
+    country: DK
+    sector: "Facilities Management"
+    category: "Cleaning / facilities management"
+
+  # --- Training / certification body ---
+  - expected: REJECT
+    name: "Bureau Veritas"
+    domain: "bureauveritas.com"
+    snippet: "Bureau Veritas provides testing, inspection, and certification services. We certify companies for ISO 9001, IATF 16949, AS9100, and other management system standards worldwide."
+    title: "Bureau Veritas - TIC Services"
+    country: FR
+    sector: "Certification"
+    category: "Testing / inspection / certification body"
+
+  # --- Retail / consumer ---
+  - expected: REJECT
+    name: "Carrefour Tunisia"
+    domain: "carrefour.tn"
+    snippet: "Carrefour Tunisie propose une large gamme de produits alimentaires, électroménagers et articles de maison dans ses hypermarchés et supermarchés à travers la Tunisie."
+    title: "Carrefour Tunisie"
+    country: TN
+    sector: "Retail"
+    category: "Retail store / supermarket"
+
+  # --- Security service ---
+  - expected: REJECT
+    name: "Securitas"
+    domain: "securitas.com"
+    snippet: "Securitas provides security services and solutions including on-site guarding, mobile patrols, remote monitoring, and electronic security for businesses and critical infrastructure."
+    title: "Securitas - Security Services"
+    country: SE
+    sector: "Security"
+    category: "Security service provider"
+
+  # --- Equipment / tooling supplier ---
+  - expected: REJECT
+    name: "Komax Group"
+    domain: "komaxgroup.com"
+    snippet: "Komax is a leading manufacturer of wire processing machines. We produce automated cutting, stripping, and crimping machines for the wire harness industry."
+    title: "Komax - Wire Processing Solutions"
+    country: CH
+    sector: "Equipment Supplier"
+    category: "Wire processing equipment manufacturer (sells TO us, not a buyer)"
+
+  # --- Food / beverage / FMCG ---
+  - expected: REJECT
+    name: "Danone Tunisie"
+    domain: "danone.tn"
+    snippet: "Danone Tunisie est une filiale du groupe Danone spécialisée dans la production de produits laitiers, eaux et nutrition infantile. Usine de Bou Salem."
+    title: "Danone Tunisie"
+    country: TN
+    sector: "Food & Beverage"
+    category: "Food / beverage / dairy manufacturer"
+
+  # --- Additional PASS entries to strengthen semiconductor / sensor coverage ---
+  - expected: PASS
+    name: "Texas Instruments"
+    domain: "ti.com"
+    snippet: "Texas Instruments designs and manufactures semiconductors and integrated circuits. Our products include analog chips, embedded processors, and digital light processing technology. 15 wafer fabs worldwide."
+    title: "Texas Instruments - Analog, Embedded Processing, Semiconductor"
+    country: US
+    sector: "Semiconductors"
+    category: "Semiconductor manufacturer (has own fabs)"
+
+  - expected: PASS
+    name: "Renesas Electronics"
+    domain: "renesas.com"
+    snippet: "Renesas Electronics is a premier supplier of advanced semiconductor solutions including microcontrollers, analog products, and SoC devices for automotive, industrial, and IoT applications."
+    title: "Renesas Electronics"
+    country: JP
+    sector: "Semiconductors"
+    category: "Semiconductor OEM"
+
+  - expected: PASS
+    name: "Jumo GmbH"
+    domain: "jumo.net"
+    snippet: "JUMO develops and manufactures industrial sensor and automation technology. Our products include temperature sensors, pressure transmitters, controllers, and process analyzers."
+    title: "JUMO - Sensor Technology"
+    country: DE
+    sector: "Industrial Sensors"
+    category: "Sensor manufacturer (not a competitor)"
+
+  - expected: PASS
+    name: "Baumer"
+    domain: "baumer.com"
+    snippet: "Baumer manufactures innovative sensors, encoders, measuring instruments, and vision systems for factory and process automation worldwide."
+    title: "Baumer - Passion for Sensors"
+    country: CH
+    sector: "Industrial Sensors"
+    category: "Sensor manufacturer (not a competitor)"
+
+  - expected: PASS
+    name: "Kistler"
+    domain: "kistler.com"
+    snippet: "Kistler is a global manufacturer of sensors, measuring systems, and test equipment for pressure, force, torque, and acceleration measurement. Manufacturing in Winterthur."
+    title: "Kistler - Measuring Systems"
+    country: CH
+    sector: "Test & Measurement"
+    category: "Test/measurement equipment manufacturer"
+
+  - expected: PASS
+    name: "Tektronix"
+    domain: "tek.com"
+    snippet: "Tektronix manufactures test and measurement instruments including oscilloscopes, signal generators, spectrum analyzers, and power analyzers for electronic design."
+    title: "Tektronix - Test & Measurement"
+    country: US
+    sector: "Test & Measurement"
+    category: "Test/measurement instrument manufacturer"

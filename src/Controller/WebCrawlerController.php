@@ -476,11 +476,9 @@ class WebCrawlerController extends AbstractController
     {
         $stats = [
             'log_lines' => 0,
-            'beg_pass' => 0,
-            'beg_fail' => 0,
-            'beg_rescue' => 0,
+            'llm_accept' => 0,
+            'llm_reject' => 0,
             'location_reject' => 0,
-            'location_rescue' => 0,
             'searches' => 0,
             'saved' => 0,
             'last_activity' => null,
@@ -491,19 +489,19 @@ class WebCrawlerController extends AbstractController
         }
 
         // Use grep for efficiency (avoid reading entire log into PHP)
-        // NOTE: grep -c always outputs a count (even 0) when the file exists,
-        // so || echo 0 would produce DOUBLE output for non-matches. Removed.
-        // Use grep -E for broader pattern matching
-        // Patterns match what GoogleDorkService and CompanyDiscoveryService actually log
+        // IMPORTANT: Do NOT use `|| echo 0` with `grep -c`!
+        // `grep -c` always outputs a count (even 0) when the file exists,
+        // but returns exit code 1 for zero matches. `|| echo 0` would then
+        // print an EXTRA "0" line, shifting all subsequent array indices.
+        // This was the root cause of the UI showing location-reject count
+        // as "saved" count.
         $grepCmd = sprintf(
             'wc -l < %1$s; ' .
-            'grep -c "Evidence Gate PASS" %1$s 2>/dev/null || echo 0; ' .
-            'grep -c "Evidence Gate FAIL" %1$s 2>/dev/null || echo 0; ' .
-            'grep -c "Evidence Gate rescued" %1$s 2>/dev/null || echo 0; ' .
-            'grep -c "No location presence" %1$s 2>/dev/null || echo 0; ' .
-            'grep -c "Location presence rescued" %1$s 2>/dev/null || echo 0; ' .
-            'grep -c "ScrapingSearchProvider: success" %1$s 2>/dev/null || echo 0; ' .
-            'grep -c "Saved company to DB" %1$s 2>/dev/null || echo 0; ' .
+            'grep -c "LLM Primary Gate ACCEPT" %1$s 2>/dev/null; true; ' .
+            'grep -c "LLM Primary Gate REJECT" %1$s 2>/dev/null; true; ' .
+            'grep -c "No location presence" %1$s 2>/dev/null; true; ' .
+            'grep -c "ScrapingSearchProvider: success" %1$s 2>/dev/null; true; ' .
+            'grep -c "Saved company to DB" %1$s 2>/dev/null; true; ' .
             'tail -1 %1$s 2>/dev/null',
             escapeshellarg($logFile)
         );
@@ -512,15 +510,13 @@ class WebCrawlerController extends AbstractController
         if ($output) {
             $lines = explode("\n", trim($output));
             $stats['log_lines'] = (int) ($lines[0] ?? 0);
-            $stats['beg_pass'] = (int) ($lines[1] ?? 0);
-            $stats['beg_fail'] = (int) ($lines[2] ?? 0);
-            $stats['beg_rescue'] = (int) ($lines[3] ?? 0);
-            $stats['location_reject'] = (int) ($lines[4] ?? 0);
-            $stats['location_rescue'] = (int) ($lines[5] ?? 0);
-            $stats['searches'] = (int) ($lines[6] ?? 0);
-            $stats['saved'] = (int) ($lines[7] ?? 0);
+            $stats['llm_accept'] = (int) ($lines[1] ?? 0);
+            $stats['llm_reject'] = (int) ($lines[2] ?? 0);
+            $stats['location_reject'] = (int) ($lines[3] ?? 0);
+            $stats['searches'] = (int) ($lines[4] ?? 0);
+            $stats['saved'] = (int) ($lines[5] ?? 0);
             // Last line of log for timestamp
-            $lastLine = $lines[8] ?? '';
+            $lastLine = $lines[6] ?? '';
             if (preg_match('/^(\d{2}:\d{2}:\d{2})\s/', $lastLine, $m)) {
                 $stats['last_activity'] = $m[1];
             }

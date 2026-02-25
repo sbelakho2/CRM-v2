@@ -70,10 +70,13 @@ services:
       Symfony\Contracts\HttpClient\HttpClientInterface: '@scraper.http_client'
 
   # Search Provider Abstraction — bind interface to active search implementation
-  # Option A: Free multi-engine scraping via residential proxy ($0/query + proxy cost)
+  # Option A (ACTIVE): Self-hosted SearXNG — FREE, unlimited, aggregates Google+Bing+DDG+Brave+Mojeek
   App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
-    alias: App\Service\WebCrawler\SearchProvider\ScrapingSearchProvider
-  # Option B: Google CSE (paid, $0.005/query) — works from datacenter IPs
+    alias: App\Service\WebCrawler\SearchProvider\LocalSearxngProvider
+  # Option B: Free multi-engine scraping via residential proxy ($0/query + proxy cost)
+  # App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
+  #   alias: App\Service\WebCrawler\SearchProvider\ScrapingSearchProvider
+  # Option C: Google CSE (paid, $0.005/query) — works from datacenter IPs
   # App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
   #   alias: App\Service\WebCrawler\SearchProvider\GoogleCSEProvider
 

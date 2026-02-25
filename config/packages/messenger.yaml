@@ -12,12 +12,21 @@ framework:
           queue_name: mailer
 
     routing:
-      'Symfony\Component\Mailer\Messenger\SendEmailMessage': sync
+      # Send emails asynchronously to avoid blocking page loads
+      # Requires running: bin/console messenger:consume async --time-limit=3600
+      'Symfony\Component\Mailer\Messenger\SendEmailMessage': async
       'App\Message\EmailCampaignMessage': mailer
-# when@test:
-#    framework:
-#        messenger:
-#            transports:
-#                # replace with your transport name here (e.g., my_transport: 'in-memory://')
-#                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
-#                async: 'in-memory://'
+
+when@dev:
+  framework:
+    messenger:
+      routing:
+        # In dev, send emails synchronously for easier debugging
+        'Symfony\Component\Mailer\Messenger\SendEmailMessage': sync
+
+when@test:
+  framework:
+    messenger:
+      routing:
+        # In test, send emails synchronously
+        'Symfony\Component\Mailer\Messenger\SendEmailMessage': sync

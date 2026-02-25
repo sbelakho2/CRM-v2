@@ -243,8 +243,8 @@ class EmailCampaignController extends AbstractController
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
         }
 
-        // Get all contacts
-        $contacts = $this->contactRepository->findAll();
+        // Get all contacts with company eager loaded (optimized)
+        $contacts = $this->contactRepository->findAllWithCompany();
 
         return $this->render('email_campaign/send.html.twig', [
             'campaign' => $campaign,

@@ -26,6 +26,7 @@ final class ContactQualityScorer
         'schema_org'        => 30,  // Structured data from website
         'vcard'             => 28,  // Microformat data
         'team_page'         => 25,  // Dedicated team/leadership page
+        'llm_extraction'    => 23,  // Local LLM extraction from page text
         'mailto_link'       => 22,  // mailto: link near person name
         'linkedin_title'    => 20,  // LinkedIn profile title parse
         'linkedin_slug'     => 12,  // LinkedIn URL slug parse

@@ -39,22 +39,19 @@ class KPITrackingService
 
     /**
      * Calculate total pipeline value for active opportunities
+     * Optimized: fetches only values/currencies, not full entities
      */
     private function calculatePipelineValue(\DateTime $start, \DateTime $end, string $displayCurrency): float
     {
-        $rfqs = $this->rfqRepository->createQueryBuilder('r')
-            ->where('r.status IN (:statuses)')
-            ->setParameter('statuses', ['Submitted', 'In Review'])
-            ->getQuery()
-            ->getResult();
+        $pipelineValues = $this->rfqRepository->getActivePipelineValues();
 
         $total = 0.0;
-        foreach ($rfqs as $rfq) {
-            $amount = (float) $rfq->getEstimatedValue();
+        foreach ($pipelineValues as $row) {
+            $amount = (float) $row['value'];
             if ($amount <= 0) {
                 continue;
             }
-            $sourceCurrency = $rfq->getCurrency() ?: $displayCurrency;
+            $sourceCurrency = $row['currency'] ?: $displayCurrency;
             $total += $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
         }
 
@@ -104,16 +101,23 @@ class KPITrackingService
 
     /**
      * Get sector breakdown statistics
+     * Optimized: uses 2 aggregate queries instead of N queries per sector
      */
     public function getSectorBreakdown(): array
     {
         $sectors = ['Automotive', 'Industrial', 'Aerospace', 'Rail', 'Renewables', 'Power Electronics'];
+        
+        // Single query for all company counts by sector
+        $companyCounts = $this->companyRepository->getCompanyCountsBySector();
+        
+        // Single query for all active RFQ counts by sector
+        $rfqCounts = $this->rfqRepository->getActiveRfqCountsBySector();
+        
         $breakdown = [];
-
         foreach ($sectors as $sector) {
             $breakdown[$sector] = [
-                'company_count' => $this->companyRepository->countBySector($sector),
-                'active_rfqs' => $this->rfqRepository->countActiveBySector($sector),
+                'company_count' => $companyCounts[$sector] ?? 0,
+                'active_rfqs' => $rfqCounts[$sector] ?? 0,
                 'pipeline_value' => 0, // To be calculated
             ];
         }
@@ -123,14 +127,18 @@ class KPITrackingService
 
     /**
      * Get pipeline stage distribution
+     * Optimized: uses 1 aggregate query instead of 6 separate queries
      */
     public function getPipelineStageDistribution(): array
     {
         $stages = ['Prospect', 'MQL', 'SQL', 'SQO', 'Proposal', 'Award'];
+        
+        // Single query for all stage counts
+        $stageCounts = $this->companyRepository->getCompanyCountsByPipelineStage();
+        
         $distribution = [];
-
         foreach ($stages as $stage) {
-            $distribution[$stage] = $this->companyRepository->countByPipelineStage($stage);
+            $distribution[$stage] = $stageCounts[$stage] ?? 0;
         }
 
         return $distribution;
@@ -138,17 +146,21 @@ class KPITrackingService
 
     /**
      * Get weekly activity metrics
+     * Optimized: uses 1 aggregate query instead of 4 separate queries
      */
     public function getWeeklyMetrics(): array
     {
         $weekStart = new \DateTime('monday this week');
         $weekEnd = new \DateTime('sunday this week');
 
+        $types = ['Call', 'Email', 'Meeting', 'Portal Signup'];
+        $counts = $this->activityRepository->countByTypesBetween($types, $weekStart, $weekEnd);
+
         return [
-            'calls_made' => $this->activityRepository->countByTypeBetween('Call', $weekStart, $weekEnd),
-            'emails_sent' => $this->activityRepository->countByTypeBetween('Email', $weekStart, $weekEnd),
-            'meetings_held' => $this->activityRepository->countByTypeBetween('Meeting', $weekStart, $weekEnd),
-            'portal_signups' => $this->activityRepository->countByTypeBetween('Portal Signup', $weekStart, $weekEnd),
+            'calls_made' => $counts['Call'] ?? 0,
+            'emails_sent' => $counts['Email'] ?? 0,
+            'meetings_held' => $counts['Meeting'] ?? 0,
+            'portal_signups' => $counts['Portal Signup'] ?? 0,
         ];
     }
 

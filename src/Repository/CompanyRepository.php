@@ -109,4 +109,76 @@ class CompanyRepository extends ServiceEntityRepository
 
         return array_column($rows, 'name');
     }
+
+    /**
+     * Return company names for a given sector AND region.
+     * Returns whatever same-region names exist (even if just 1).
+     * Returns empty array if no same-region companies exist — caller
+     * should skip dynamic expansion rather than pollute with wrong-region seeds.
+     *
+     * @return string[]
+     */
+    public function findNamesBySectorAndRegion(string $sector, string $region): array
+    {
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.name')
+            ->where('c.sector = :sector')
+            ->andWhere('c.region = :region')
+            ->setParameter('sector', $sector)
+            ->setParameter('region', strtoupper($region))
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_column($rows, 'name');
+    }
+
+    /**
+     * Get sector breakdown in a single query instead of N queries per sector.
+     * Optimized for dashboard - eliminates 6+ separate queries.
+     * 
+     * @return array<string, int> Map of sector => company count
+     */
+    public function getCompanyCountsBySector(): array
+    {
+        $results = $this->createQueryBuilder('c')
+            ->select('c.sector, COUNT(c.id) as cnt')
+            ->where('c.sector IS NOT NULL')
+            ->groupBy('c.sector')
+            ->getQuery()
+            ->getResult();
+        
+        $counts = [];
+        foreach ($results as $row) {
+            if ($row['sector']) {
+                $counts[$row['sector']] = (int) $row['cnt'];
+            }
+        }
+        
+        return $counts;
+    }
+
+    /**
+     * Get pipeline stage distribution in a single query instead of N queries per stage.
+     * Optimized for dashboard - eliminates 6 separate queries.
+     * 
+     * @return array<string, int> Map of stage => company count
+     */
+    public function getCompanyCountsByPipelineStage(): array
+    {
+        $results = $this->createQueryBuilder('c')
+            ->select('c.pipelineStage, COUNT(c.id) as cnt')
+            ->where('c.pipelineStage IS NOT NULL')
+            ->groupBy('c.pipelineStage')
+            ->getQuery()
+            ->getResult();
+        
+        $counts = [];
+        foreach ($results as $row) {
+            if ($row['pipelineStage']) {
+                $counts[$row['pipelineStage']] = (int) $row['cnt'];
+            }
+        }
+        
+        return $counts;
+    }
 }

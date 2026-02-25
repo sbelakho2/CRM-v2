@@ -89,4 +89,49 @@ class RFQRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /**
+     * Get active RFQ counts grouped by company sector in a single query.
+     * Optimized for dashboard - eliminates multiple queries per sector.
+     * 
+     * @return array<string, int> Map of sector => active RFQ count
+     */
+    public function getActiveRfqCountsBySector(): array
+    {
+        $results = $this->createQueryBuilder('r')
+            ->select('c.sector, COUNT(r.id) as cnt')
+            ->join('r.company', 'c')
+            ->where('r.status NOT IN (:closedStatuses)')
+            ->andWhere('c.sector IS NOT NULL')
+            ->setParameter('closedStatuses', ['Award', 'Lost', 'Cancelled'])
+            ->groupBy('c.sector')
+            ->getQuery()
+            ->getResult();
+        
+        $counts = [];
+        foreach ($results as $row) {
+            if ($row['sector']) {
+                $counts[$row['sector']] = (int) $row['cnt'];
+            }
+        }
+        
+        return $counts;
+    }
+
+    /**
+     * Get pipeline value with currency info in optimized way.
+     * Returns estimated values grouped for minimal iteration.
+     * 
+     * @return array{value: float, currency: string|null}[]
+     */
+    public function getActivePipelineValues(): array
+    {
+        return $this->createQueryBuilder('r')
+            ->select('r.estimatedValue as value, r.currency')
+            ->where('r.status IN (:statuses)')
+            ->andWhere('r.estimatedValue > 0')
+            ->setParameter('statuses', ['Submitted', 'In Review'])
+            ->getQuery()
+            ->getResult();
+    }
 }

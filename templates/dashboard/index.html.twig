@@ -4,7 +4,8 @@
 
 {% block stylesheets %}
     {{ parent() }}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    {# Chart.js loaded with defer to not block initial page render #}
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block body %}
