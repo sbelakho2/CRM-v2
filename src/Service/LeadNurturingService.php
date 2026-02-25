@@ -129,7 +129,7 @@ class LeadNurturingService
     /**
      * Process nurturing rules for a single lead
      */
-    public function processLead(Lead $lead, array &$summary = null): array
+    public function processLead(Lead $lead, ?array &$summary = null): array
     {
         if ($summary === null) {
             $summary = [

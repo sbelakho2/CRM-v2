@@ -306,7 +306,7 @@ class CompetitorDetectionService
     /**
      * Get competitor leads by tier (for Sniper targeting)
      */
-    public function getCompetitorLeads(int $tier = null, int $minScore = 0, int $limit = 100): array
+    public function getCompetitorLeads(?int $tier = null, int $minScore = 0, int $limit = 100): array
     {
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select('d', 'l')

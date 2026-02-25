@@ -1,5 +1,0 @@
-# Grafana
-GRAFANA_PASSWORD=//Pw20354491
-
-# Email alerts
-RESEND_API_KEY=re_H6AG39ZL_QDMKaYenwbefX3kYsHCopsML

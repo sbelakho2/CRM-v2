@@ -4,8 +4,6 @@
 
 {% block stylesheets %}
     {{ parent() }}
-    {# Chart.js loaded with defer to not block initial page render #}
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
 {% block body %}
@@ -259,6 +257,8 @@
     {% endif %}
 </div>
 
+{# Chart.js must load before inline script - no defer needed since it's at end of body #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 {# Industrial-inspired chart styling using CSS custom properties for consistency #}
 const computedStyle = getComputedStyle(document.documentElement);

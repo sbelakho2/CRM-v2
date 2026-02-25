@@ -239,7 +239,7 @@ class PipelineForecastingService
     /**
      * Calculate historical conversion rates by stage
      */
-    public function calculateConversionRates(\DateTime $since = null): array
+    public function calculateConversionRates(?\DateTime $since = null): array
     {
         if (!$since) {
             $since = (new \DateTime())->modify('-12 months');

@@ -36,44 +36,50 @@ class LlmService
     private const COMPANY_SYSTEM_PROMPT = <<<'PROMPT'
 You classify companies for a B2B sales team at Starz Electronics — a contract manufacturer (wire harness, EMS/PCB assembly, injection molding, CNC machining, automation assembly) based in Morocco.
 
-We seek companies that MANUFACTURE physical products and could BUY our services. Content may be in English, French, Arabic, or German.
+We seek companies that MANUFACTURE physical products and could BUY our services.
 
-═══ ACCEPT (manufacturer) ═══
-Companies that DESIGN/PRODUCE physical products in their own factories:
+CRITICAL RULE: Base your classification ONLY on what the snippet ACTUALLY SAYS. Never assume or infer facts not stated in the text. If the snippet does not explicitly confirm the company manufactures products, you MUST REJECT.
+
+═══ ACCEPT (manufacturer — ONLY with evidence in snippet) ═══
+Companies the snippet confirms DESIGN/PRODUCE physical products in own factories:
 - Automotive OEMs & tier suppliers (Bosch, Valeo, Continental)
-- Industrial sensor/automation makers (Schneider, Sick, Omron, Pepperl+Fuchs)
-- Semiconductor fabs (NXP, Infineon, STMicro, TI)
-- Test instruments (Rohde & Schwarz, Keysight)
+- Industrial sensor/automation makers (Schneider, Sick, Omron)
+- Semiconductor fabs (NXP, Infineon, STMicro)
 - Aerospace/defence electronics (Thales, Safran, Airbus)
-- Medical devices (Dräger, B.Braun)
-- Connector OEMs (TE, Amphenol, Harting) — "cable assembly" = their PRODUCT → ACCEPT
-- Any company with own factory producing tangible goods
-Keywords: "designs and manufactures", "our factory/plant", "produces", "production facility" → ACCEPT
+- Medical devices, test instruments, connector OEMs
+- Any company with CONFIRMED own factory producing tangible goods
+Evidence needed: "manufactures", "our factory", "production facility", "designs and produces"
 
-═══ REJECT (26 categories — NOT our buyers) ═══
-SERVICES: distributors/traders, EMS competitors (Jabil, Flex, Celestica), system integrators, IT/management consulting, logistics/freight, recruitment/staffing, MRO/overhaul, facilities management
-MEDIA/INFO: news sites, trade publications, market research firms, directories/portals, events/trade shows
-ORGANIZATIONS: government agencies, trade associations/NGOs, certification bodies (TÜV, SGS), universities
-WRONG INDUSTRY: food/beverage, chemicals/fertilizers, oil/gas/mining/cement, construction/real estate, banking/insurance, telecom operators, airlines/tourism, recycling/waste
-OTHER: dealerships/auto repair shops, equipment suppliers to our industry (Komax), law firms, pure SaaS, e-commerce/marketplaces
-
-═══ RULES ═══
-- Semiconductor/sensor/instrument company = manufacturer → ACCEPT
-- "Contract manufacturing" or "manufacturing services" = COMPETITOR → REJECT
-- Connector OEM mentioning cable assembly → it's their PRODUCT → ACCEPT
-- Wire processing machine makers (Komax) → supply our industry but NOT buyers → REJECT
-- Food/chemical/mining "manufacturers" → wrong industry, never buy EMS → REJECT
-- Associations REPRESENT manufacturers but aren't manufacturers → REJECT
+═══ REJECT (NOT our buyers) ═══
+ALWAYS REJECT these — even if they mention manufacturing in their name:
+- Trade associations / industry bodies (ACEA, CLEPA, FIEV, ZVEI, VDA) — they REPRESENT manufacturers but are NOT manufacturers
+- Distributors, traders, wholesalers, retailers
+- EMS competitors (Jabil, Flex, Celestica)
+- News sites, blogs, YouTube channels, media, trade publications
+- Market research firms, directories, portals, events/trade shows
+- Government agencies, universities, certification bodies (TÜV, SGS)
+- Auto dealerships, repair shops, car rental
+- RC model / hobby / toy companies (NOT real automotive)
+- Equipment suppliers to our industry (Komax wire machines)
+- Food, chemicals, oil/gas, mining, construction, banking, telecom
+- Websites ABOUT an industry (industry reports, trend analysis) — NOT manufacturers
+- Any company where the snippet does NOT confirm they make products
 
 ═══ EXAMPLES ═══
+Valeo → ACCEPT (Tier 1 automotive supplier, manufactures sensors, lighting)
 Schneider Electric → ACCEPT (makes PLCs, switchgear in own factories)
 NXP Semiconductors → ACCEPT (semiconductor fab producing chips)
-Jabil → REJECT (EMS competitor — same services we sell)
-Arrow Electronics → REJECT (distributor, doesn't manufacture)
-Komax → REJECT (wire machine maker, our industry supplier, not buyer)
+ACEA → REJECT (European Automobile Manufacturers' ASSOCIATION — not a manufacturer)
+FIEV → REJECT (French automotive suppliers federation — association, not manufacturer)
+Jabil → REJECT (EMS competitor)
+Arrow Electronics → REJECT (distributor)
+HOBBYTECH → REJECT (RC model cars — toy/hobby, not real automotive)
+Komax → REJECT (wire machine maker — our industry supplier)
 Bureau Veritas → REJECT (certification body)
-ZVEI → REJECT (trade association)
-Danone → REJECT (food manufacturer — wrong industry)
+Motor1 → REJECT (automotive news website)
+Danone → REJECT (food — wrong industry)
+
+DEFAULT: When in doubt → REJECT. Only ACCEPT when the snippet gives CLEAR evidence of manufacturing.
 
 Respond with ONLY a valid JSON object, no other text.
 PROMPT;
@@ -92,7 +98,7 @@ PROMPT;
     public function classifyCompany(string $name, string $domain, string $snippet, ?string $location = null, ?string $sector = null): ?array
     {
         $locationClause = $location
-            ? "\nDoes this company have confirmed manufacturing/operational presence in {$location}?"
+            ? "\nLOCATION RULE: This search targets {$location}. REJECT if the company is NOT in {$location}. If the snippet mentions another country but NOT {$location}, REJECT."
             : '';
 
         $sectorClause = '';
@@ -105,12 +111,13 @@ Name: {$name}
 Domain: {$domain}
 Snippet: {$snippet}
 
-Classify this company. Consider:
-1. Does it MAKE physical products of ANY kind in its own factory?
-2. Is it a COMPETITOR (provides wire harness, EMS, CNC machining, injection molding, or automation assembly services)? Competitors = REJECT.
-3. Is it a news site, trade show, government portal, association, trader/distributor, system integrator, research centre?
+Classify based ONLY on what the snippet says:
+1. Does the snippet confirm this company MANUFACTURES physical products in its own factory?
+2. Is it a competitor (EMS, wire harness services, CNC machining services)? → REJECT
+3. Is it a news site, blog, trade association, directory, trade show, government portal? → REJECT
+4. If the snippet doesn't explicitly confirm manufacturing → REJECT
 {$sectorClause}{$locationClause}
-Respond: {"verdict": "ACCEPT" or "REJECT", "is_manufacturer": true/false, "has_local_presence": true/false, "reason": "one sentence", "confidence": 0.0-1.0}
+Respond: {"verdict": "ACCEPT" or "REJECT", "is_manufacturer": true/false, "has_local_presence": true/false, "reason": "one sentence citing snippet evidence", "confidence": 0.0-1.0}
 PROMPT;
 
         $result = $this->chat(self::COMPANY_SYSTEM_PROMPT, $userPrompt, 0.1, 80);
@@ -385,7 +392,7 @@ PROMPT;
     {
         $textTruncated = mb_substr(trim($homepageText), 0, 1500);
         $locationClause = $location
-            ? "\nDoes this company have confirmed manufacturing/operational presence in {$location}?"
+            ? "\nLOCATION RULE: This search targets {$location}. REJECT if the company is NOT in {$location}. If the text mentions another country but NOT {$location}, REJECT."
             : '';
 
         $sectorClause = '';
@@ -399,12 +406,13 @@ Domain: {$domain}
 Homepage text (truncated):
 {$textTruncated}
 
-Classify this company based on its homepage content. Consider:
-1. Does it MAKE physical products of ANY kind in its own factory?
-2. Is it a COMPETITOR (provides wire harness, EMS, CNC machining, injection molding, or automation assembly services)? Competitors = REJECT.
-3. Is it a news site, trade show, government portal, association, trader/distributor, system integrator, research centre?
+Classify based ONLY on what the homepage text says:
+1. Does the text confirm this company MANUFACTURES physical products in its own factory?
+2. Is it a competitor (EMS, wire harness services, CNC machining services)? → REJECT
+3. Is it a news site, blog, trade association, directory, trade show, government portal? → REJECT
+4. If the text doesn't explicitly confirm manufacturing → REJECT
 {$sectorClause}{$locationClause}
-Respond: {"verdict": "ACCEPT" or "REJECT", "is_manufacturer": true/false, "has_local_presence": true/false, "reason": "one sentence", "confidence": 0.0-1.0}
+Respond: {"verdict": "ACCEPT" or "REJECT", "is_manufacturer": true/false, "has_local_presence": true/false, "reason": "one sentence citing text evidence", "confidence": 0.0-1.0}
 PROMPT;
 
         // Reuse the same trained COMPANY_SYSTEM_PROMPT — same classification logic,
@@ -433,43 +441,20 @@ PROMPT;
         }
 
         $sectorMap = [
-            'Automotive' => "We are searching specifically for companies in the AUTOMOTIVE sector.\n"
-                . "ACCEPT only companies that MANUFACTURE automotive parts, components, vehicles, or assemblies in their OWN FACTORIES.\n"
-                . "This means they must DESIGN, ENGINEER, or PRODUCE physical automotive products — not just sell/distribute/resell them.\n"
-                . "\n"
-                . "ACCEPT examples (they manufacture in own factories): Valeo (lighting, wipers, sensors), Faurecia/Forvia (seats, exhaust, interiors), "
-                . "Plastic Omnium (bumpers, fuel systems), Michelin (tyres), Continental (brake systems, electronics), "
-                . "Hella (automotive lighting, electronics), any company with phrases like 'our plant', 'we produce', 'we manufacture', "
-                . "'our production line', 'our R&D and manufacturing'.\n"
-                . "\n"
-                . "REJECT these categories — they are NOT manufacturers even if they deal in automotive parts:\n"
-                . "- DISTRIBUTORS / WHOLESALERS: Companies that buy parts from manufacturers and resell them (Alliance Automotive Group, Autodistribution, LKQ, Mobivia)\n"
-                . "- AUTO PARTS SHOPS / RETAILERS: Online or physical stores selling spare parts to consumers (Oscaro, Car Parts France, Auto Parts Online, Pièces Auto 24)\n"
-                . "- CAR DEALERSHIPS / RENTAL: Companies that sell or rent cars (not parts manufacturers)\n"
-                . "- REPAIR / GARAGE / SERVICE: Car repair shops, MOT centers, garage chains (Midas, Norauto, Feu Vert)\n"
-                . "- LOGO / BRAND / DESIGN SITES: e.g. 1000logos.net — websites about brand logos, NOT manufacturers\n"
-                . "- INVESTMENT / FINANCIAL: Investment firms or funds that invest in automotive companies (Nordfranceinvest, BpiFrance)\n"
-                . "- TRADE ASSOCIATIONS / DIRECTORIES: CCFA, PFA, FIEV — they represent the industry but don't manufacture\n"
-                . "- NEWS / MEDIA / BLOGS: Automotive news sites, review sites, information portals\n"
-                . "\n"
-                . "Products that qualify as automotive manufacturing: brake systems, wiring harnesses, car seats, dashboard components, "
-                . "engine parts, transmission components, automotive sensors, automotive lighting, automotive plastics/composites, "
-                . "exhaust systems, fuel systems, steering components, suspension, body panels, powertrain, electronics/ECUs, tyres.\n"
-                . "\n"
-                . "REJECT companies that manufacture products for OTHER industries (solar inverters, home appliances, building materials, agricultural equipment) EVEN IF they are manufacturers.\n"
-                . "A solar panel/inverter company is NOT automotive. A wind turbine company is NOT automotive. A home electronics company is NOT automotive.\n"
-                . "\n"
-                . "KEY RULE: If you cannot confirm from the snippet/text that the company MANUFACTURES automotive products in its own factory, REJECT it. "
-                . "When in doubt, REJECT. The company name alone is not enough — look for evidence of manufacturing.",
-            'Aerospace' => "We are searching specifically for companies in the AEROSPACE sector.\n"
-                . "ACCEPT only companies that manufacture aerospace/defence parts, aircraft components, avionics, satellites, or provide Tier 1/2/3 aerospace supply.\n"
-                . "REJECT companies that manufacture products for OTHER industries EVEN IF they are manufacturers.",
-            'Medical' => "We are searching specifically for companies in the MEDICAL DEVICE sector.\n"
+            'Automotive' => "SECTOR FILTER: AUTOMOTIVE.\n"
+                . "ACCEPT only companies that MANUFACTURE automotive parts/components/vehicles in their OWN FACTORIES (e.g. brake systems, wiring harnesses, seats, sensors, lighting, plastics, exhaust, transmission).\n"
+                . "REJECT: distributors/wholesalers, auto parts shops/retailers, car dealerships/rental, repair/garage chains, "
+                . "logo/brand websites, investment firms, trade associations, news/media, non-automotive manufacturers.\n"
+                . "KEY: If the snippet doesn't confirm the company MANUFACTURES automotive products, REJECT. Name alone is not enough.",
+            'Aerospace' => "SECTOR FILTER: AEROSPACE.\n"
+                . "ACCEPT only companies that manufacture aerospace/defence parts, aircraft components, avionics, satellites, or Tier 1/2/3 aerospace supply.\n"
+                . "REJECT non-aerospace manufacturers.",
+            'Medical' => "SECTOR FILTER: MEDICAL DEVICES.\n"
                 . "ACCEPT only companies that manufacture medical devices, diagnostic equipment, surgical instruments, implants, or hospital equipment.\n"
-                . "REJECT companies that manufacture products for OTHER industries EVEN IF they are manufacturers.",
-            'Industrial' => "We are searching specifically for companies in the INDUSTRIAL/AUTOMATION sector.\n"
+                . "REJECT non-medical manufacturers.",
+            'Industrial' => "SECTOR FILTER: INDUSTRIAL/AUTOMATION.\n"
                 . "ACCEPT companies that manufacture industrial automation equipment, sensors, control systems, motors, or factory equipment.\n"
-                . "REJECT companies that manufacture products for unrelated industries.",
+                . "REJECT unrelated industries.",
         ];
 
         return "\n" . ($sectorMap[$sector] ?? "We are searching for companies in the {$sector} sector. ACCEPT only companies relevant to this sector.");

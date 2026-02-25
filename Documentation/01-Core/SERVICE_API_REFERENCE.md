@@ -1,104 +1,214 @@
 # Service API Reference
 
-**Version**: 1.0
-**Last Updated**: October 29, 2025
+**Version**: 2.0  
+**Last Updated**: February 25, 2026
 
-This document catalogs the major application services exposed within the Starz Morocco CRM codebase. Each entry summarizes responsibility, key public methods, and important dependencies. Use this guide when integrating new features or troubleshooting service interactions.
+This document catalogs the major application services within the Starz Morocco CRM codebase. Each entry summarizes responsibility and location.
 
 ---
 
 ## Table of Contents
 
 1. [Email Platform](#email-platform)
-2. [Lead & ABM](#lead--abm)
-3. [RFQ & Quote Management](#rfq--quote-management)
-4. [Webcrawler & Data Acquisition](#webcrawler--data-acquisition)
-5. [Document & Compliance](#document--compliance)
-6. [Shared Utilities](#shared-utilities)
+2. [Autonomous Sales & Personalization](#autonomous-sales--personalization)
+3. [Quote & Pricing](#quote--pricing)
+4. [Lead Discovery & Web Crawler](#lead-discovery--web-crawler)
+5. [Competitor Intelligence](#competitor-intelligence)
+6. [Document & Compliance](#document--compliance)
+7. [Core Utilities](#core-utilities)
 
 ---
 
 ## Email Platform
 
-| Service | Purpose | Notable Methods | Dependencies |
-|---------|---------|-----------------|--------------|
-| `EmailCampaignService` | Campaign lifecycle orchestration | `createCampaign`, `updateCampaign`, `launchCampaign`, `pauseCampaign`, `archiveCampaign` | `EntityManagerInterface`, `EmailSchedulerService`, `EmailAnalyticsService` |
-| `EmailTemplateService` | Template CRUD and rendering | `createTemplate`, `updateTemplate`, `renderTemplate`, `validatePersonalizationTokens`, `sanitizeHtml`, `getTemplateStats` | `EntityManagerInterface`, `HtmlSanitizer`, `Security` |
-| `EmailSegmentService` | Audience segmentation engine | `createSegment`, `updateSegment`, `getSegmentContacts`, `evaluateFilters`, `validateFilterRules`, `getAvailableFields` | `EntityManagerInterface`, `ContactRepository`, `CompanyRepository` |
-| `EmailSchedulerService` | Queue creation & send time optimization | `scheduleCampaign`, `processCampaign`, `calculateOptimalSendTime`, `processQueue`, `cancelCampaign`, `getCampaignProgress` | `EntityManagerInterface`, `ClockInterface`, `EmailDeliverabilityService` |
-| `EmailDeliverabilityService` | Bounce handling & DNS validation | `processBounce`, `processComplaint`, `isSuppressed`, `getSuppressionList`, `validateSpf`, `validateDkim`, `validateDmarc`, `getCampaignDeliverabilityScore`, `getBounceStatistics` | `EntityManagerInterface`, `DnsResolver`, `EmailConsentService` |
-| `EmailAnalyticsService` | Engagement reporting | `getCampaignMetrics`, `getEngagementTimeline`, `analyzeAbTest`, `compareCampaigns`, `getBestTimeToSend`, `getFunnelAnalysis` | `EmailSendRepository`, `ClockInterface` |
-| `EmailAbTestService` | Variant management & stats | `createTest`, `assignVariant`, `recordEvent`, `evaluate`, `declareWinner` | `EmailSendRepository`, `EmailAnalyticsService` |
-| `EmailDripCampaignService` | Multi-step sequence management | `createDrip`, `addStep`, `updateStep`, `removeStep`, `enrollContact`, `advanceSequence`, `getSchedulePreview` | `EntityManagerInterface`, `ClockInterface`, `EmailSchedulerService` |
-| `EmailCampaignTriggerService` | Event-driven automation | `handlePipelineStageChange`, `handleRfqSubmission`, `handleQuoteSent`, `handleLeadScoreChange`, `handleAbmHit`, `createTriggeredCampaign`, `getAvailableTriggerTypes` | `EntityManagerInterface`, `EmailSchedulerService`, `EmailDripCampaignService`, `LoggerInterface` |
-| `EmailActivityLogger` | Unified activity timeline integration | `logEmailSend`, `updateEmailEngagement`, `logCampaignEvent`, `getEmailActivities`, `getCompanyEmailStats`, `getContactEmailActivities` | `EntityManagerInterface`, `Security` |
-| `EmailConsentService` | Consent lifecycle management | `requestDoubleOptIn`, `confirmOptIn`, `hasConsent`, `unsubscribe`, `resubscribe`, `generateUnsubscribeLink`, `processUnsubscribeToken`, `exportContactData`, `deleteContactData` | `EntityManagerInterface`, `LoggerInterface`, `Uuid` |
-| `EmailComplianceService` | Regulatory enforcement | `validateEmailCompliance`, `addComplianceFooter`, `hasPhysicalAddress`, `hasUnsubscribeLink`, `hasDeceptiveSubject`, `isCommercialEmail`, `preFlightCheck`, `getComplianceReport`, `setCompanyInfo` | `EntityManagerInterface`, `EmailConsentService` |
+All email services exist at `src/Service/Email*.php`:
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `EmailCampaignService` | `src/Service/EmailCampaignService.php` | Campaign lifecycle orchestration |
+| `EmailTemplateService` | `src/Service/EmailTemplateService.php` | Template CRUD and rendering |
+| `EmailSegmentService` | `src/Service/EmailSegmentService.php` | Audience segmentation engine |
+| `EmailSchedulerService` | `src/Service/EmailSchedulerService.php` | Queue and send time optimization |
+| `EmailDeliverabilityService` | `src/Service/EmailDeliverabilityService.php` | Bounce handling & DNS validation |
+| `EmailAnalyticsService` | `src/Service/EmailAnalyticsService.php` | Engagement reporting |
+| `EmailAbTestService` | `src/Service/EmailAbTestService.php` | A/B testing variant management |
+| `EmailDripCampaignService` | `src/Service/EmailDripCampaignService.php` | Multi-step sequence management |
+| `EmailCampaignTriggerService` | `src/Service/EmailCampaignTriggerService.php` | Event-driven automation |
+| `EmailActivityLogger` | `src/Service/EmailActivityLogger.php` | Activity timeline integration |
+| `EmailConsentService` | `src/Service/EmailConsentService.php` | GDPR consent management |
+| `EmailComplianceService` | `src/Service/EmailComplianceService.php` | CAN-SPAM/regulatory enforcement |
+| `EmailPersonalizationService` | `src/Service/EmailPersonalizationService.php` | ML-style personalization with embeddings |
+| `EmailClassifierService` | `src/Service/EmailClassifierService.php` | Naive Bayes email classification |
+| `SpintaxEngineService` | `src/Service/SpintaxEngineService.php` | Dynamic content with {option1|option2} syntax |
 
 ---
 
-## Lead & ABM
+## Autonomous Sales & Personalization
 
-| Service | Purpose | Notable Methods | Dependencies |
-|---------|---------|-----------------|--------------|
-| `LeadScoringService` | Dynamic lead scoring (0-100) | `calculateScore`, `evaluateSignals`, `getScoreBreakdown`, `updateLeadScore` | `LeadRepository`, `SignalWeightProvider` |
-| `LeadAssignmentService` | Lead-to-owner routing | `assignLead`, `reassignLead`, `getAssignmentRules`, `applyManualOverride` | `LeadRepository`, `CompanyRepository`, `UserRepository` |
-| `LeadConversionService` | Lead → Company conversion | `convertToCompany`, `prepareCompanyData`, `linkContacts`, `logConversionActivity` | `EntityManagerInterface`, `CompanyFactory`, `ActivityLogger` |
-| `AbmPlaybookService` | Account-based marketing automation | `activatePlaybook`, `evaluateTriggers`, `scheduleActions`, `logOutcome` | `EntityManagerInterface`, `EmailCampaignTriggerService`, `TaskScheduler` |
-| `PortalCrawlerService` | Supplier portal discovery | `scanIndustrySites`, `parsePortal`, `queueVerification`, `recordResult` | `HttpClientInterface`, `DomCrawler`, `EntityManagerInterface` |
-
----
-
-## RFQ & Quote Management
-
-| Service | Purpose | Notable Methods | Dependencies |
-|---------|---------|-----------------|--------------|
-| `RfqWorkflowService` | RFQ lifecycle automation | `createRfq`, `advanceStage`, `assignOwner`, `recordSubmission`, `attachDocument` | `EntityManagerInterface`, `NotificationService` |
-| `QuoteEstimatorService` | Automated BOM estimation | `estimateCosts`, `breakdownByComponent`, `applyDiscounts`, `generateQuotePdf` | `PricingEngine`, `PdfGenerator`, `ExchangeRateService` |
-| `QuoteCopilotService` | AI-assisted quote recommendations | `suggestQuantities`, `recommendVendors`, `simulateScenario`, `generateSummary` | `MachineLearningClient`, `HistoricalQuoteRepository` |
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `AutonomousSalesOrchestratorService` | `src/Service/AutonomousSalesOrchestratorService.php` | Coordinates outbound email automation |
+| `AutonomousSalesSettingsService` | `src/Service/AutonomousSalesSettingsService.php` | System settings and configuration |
+| `SalesPipelineOrchestratorService` | `src/Service/SalesPipelineOrchestratorService.php` | Pipeline stage automation |
+| `ThompsonSamplerService` | `src/Service/ThompsonSamplerService.php` | Multi-armed bandit A/B testing |
+| `CadenceGovernorService` | `src/Service/CadenceGovernorService.php` | Email send rate limiting |
+| `HourlyOptimizationService` | `src/Service/HourlyOptimizationService.php` | Time-based optimization |
+| `PlaybookEngine` | `src/Service/PlaybookEngine.php` | ABM playbook execution |
+| `AbmResolverService` | `src/Service/AbmResolverService.php` | Account-based marketing resolution |
+| `LeadNurturingService` | `src/Service/LeadNurturingService.php` | Lead nurture sequences |
 
 ---
 
-## Webcrawler & Data Acquisition
+## Quote & Pricing
 
-| Service | Purpose | Notable Methods | Dependencies |
-|---------|---------|-----------------|--------------|
-| `CompanyDiscoveryService` | Lead discovery crawl orchestration | `buildFrontier`, `enqueueJobs`, `persistDiscoveries`, `updateStatistics` | `EntityManagerInterface`, `HttpClientInterface`, `MessageBusInterface` |
-| `LinkedInScraperService` | LinkedIn search support | `generateSearchUrls`, `parsePublicProfile`, `extractContactDetails` | `HttpClientInterface`, `DomCrawler` |
-| `GoogleDorkService` | Advanced Google queries | `buildQuery`, `rotateKeywords`, `recordResult`, `detectDuplicates` | `HttpClientInterface`, `SearchPatternProvider` |
-| `CrmSyncService` | Import crawler results into CRM | `prepareLead`, `preventDuplicates`, `syncToCompany`, `syncToContact`, `logSyncResult` | `EntityManagerInterface`, `LeadRepository`, `CompanyRepository` |
-| `TrackerImportService` | Excel/CSV ingest | `parseTracker`, `validateRow`, `upsertCompany`, `upsertContact`, `reportResults` | `SpreadsheetReader`, `EntityManagerInterface` |
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `QuoteCoPilotService` | `src/Service/QuoteCoPilotService.php` | BOM → Quote automation with supplier API |
+| `CostingEngineService` | `src/Service/CostingEngineService.php` | Component cost calculation |
+| `PricingEngine` | `src/Service/PricingEngine.php` | Quote pricing logic |
+| `InteractiveLiveQuoteService` | `src/Service/InteractiveLiveQuoteService.php` | Real-time quote builder |
+| `BOMParser` | `src/Service/BOMParser.php` | Bill of Materials parsing |
+| `FreightPricingService` | `src/Service/FreightPricingService.php` | Shipping cost calculation |
+| `DutyCalculationService` | `src/Service/DutyCalculationService.php` | Import duty estimation |
+| `HtsClassificationService` | `src/Service/HtsClassificationService.php` | HTS code classification |
+| `FtaEligibilityService` | `src/Service/FtaEligibilityService.php` | Free Trade Agreement eligibility |
+| `RiskAdjustedPricingService` | `src/Service/RiskAdjustedPricingService.php` | Risk-based pricing adjustments |
+| `QuoteWinPredictorService` | `src/Service/QuoteWinPredictorService.php` | ML-based win probability |
+| `CurrencyConversionService` | `src/Service/CurrencyConversionService.php` | Multi-currency support |
+| `LiveFxRateFetcher` | `src/Service/LiveFxRateFetcher.php` | Real-time exchange rates |
+| `UnifiedPdfGeneratorService` | `src/Service/UnifiedPdfGeneratorService.php` | PDF generation for quotes |
+| `RfqVersioningService` | `src/Service/RfqVersioningService.php` | RFQ version control |
+
+---
+
+## Lead Discovery & Web Crawler
+
+### Core Services
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `GoogleSearchService` | `src/Service/GoogleSearchService.php` | Google Custom Search + SearXNG integration |
+| `FastWebScraperService` | `src/Service/FastWebScraperService.php` | Parallel web scraping |
+| `DeepScrapingService` | `src/Service/DeepScrapingService.php` | Deep page content extraction |
+| `HeadlessBrowserService` | `src/Service/HeadlessBrowserService.php` | JavaScript-rendered pages |
+| `PortalCrawlerService` | `src/Service/PortalCrawlerService.php` | Supplier portal discovery |
+| `ProxyRotationService` | `src/Service/ProxyRotationService.php` | Proxy management |
+| `ScrapingFailSafeService` | `src/Service/ScrapingFailSafeService.php` | Fallback mechanisms |
+
+### WebCrawler Subdirectory (`src/Service/WebCrawler/`)
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `CompanyDiscoveryService` | `WebCrawler/CompanyDiscoveryService.php` | Lead discovery orchestration |
+| `GoogleDorkService` | `WebCrawler/GoogleDorkService.php` | Advanced search queries |
+| `LeadScoringService` | `WebCrawler/LeadScoringService.php` | Lead scoring (0-100) |
+| `CompanyClassifierService` | `WebCrawler/CompanyClassifierService.php` | Company classification |
+
+### Contact Discovery (`src/Service/WebCrawler/Contact/`)
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `ContactQualityScorer` | `WebCrawler/Contact/ContactQualityScorer.php` | Contact data quality scoring |
+| `LinkedInProfileParser` | `WebCrawler/Contact/LinkedInProfileParser.php` | LinkedIn profile parsing |
+
+### Search Providers (`src/Service/WebCrawler/SearchProvider/`)
+
+| Service | Purpose |
+|---------|---------|
+| `GoogleCSEProvider` | Google Custom Search Engine |
+| `LocalSearxngProvider` | Self-hosted SearXNG |
+| `BraveSearchProvider` | Brave Search API |
+| `DuckDuckGoProvider` | DuckDuckGo scraping |
+
+### Other WebCrawler Modules
+
+| Directory | Purpose |
+|-----------|---------|
+| `WebCrawler/Classifier/` | Company/competitor classification |
+| `WebCrawler/Crawl/` | Crawl governance and sitemap discovery |
+| `WebCrawler/Evidence/` | Buyer evidence scoring |
+| `WebCrawler/QualityGate/` | Golden dataset validation |
+| `WebCrawler/Rules/` | Rule engine for lead scoring |
+| `WebCrawler/Text/` | Language detection, text normalization |
+
+---
+
+## Competitor Intelligence
+
+### CompCrawler Module (`src/Service/CompCrawler/`)
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `CompChangeDetectorService` | `CompCrawler/CompChangeDetectorService.php` | Detect website changes |
+| `CompDiscoveryService` | `CompCrawler/CompDiscoveryService.php` | Competitor discovery |
+| `CompExtractionService` | `CompCrawler/CompExtractionService.php` | Data extraction |
+| `CompIntelSyncService` | `CompCrawler/CompIntelSyncService.php` | Intelligence synchronization |
+| `CompProfileCrawlerService` | `CompCrawler/CompProfileCrawlerService.php` | Profile crawling |
+| `CompScoringService` | `CompCrawler/CompScoringService.php` | Competitor scoring |
+| `CompVerificationService` | `CompCrawler/CompVerificationService.php` | Data verification |
+
+### Core Competitor Services
+
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `CompetitorDetectionService` | `src/Service/CompetitorDetectionService.php` | Detect competitors in content |
+| `CompetitorLearnerService` | `src/Service/CompetitorLearnerService.php` | ML competitor learning |
 
 ---
 
 ## Document & Compliance
 
-| Service | Purpose | Notable Methods | Dependencies |
-|---------|---------|-----------------|--------------|
-| `ComplianceDocumentService` | Manage 21-document compliance pack | `uploadDocument`, `replaceDocument`, `markVerified`, `generateChecklist`, `getMissingDocuments` | `EntityManagerInterface`, `VichUploader`, `AuditLogger` |
-| `DocumentViewerService` | Unified document viewer | `listDocuments`, `getPreview`, `streamDownload`, `deleteDocument` | `StorageManager`, `Security`, `EntityManagerInterface` |
-| `PdfGenerationService` | Centralized PDF rendering | `renderQuote`, `renderEstimate`, `renderCompliancePack`, `storePdf`, `hashContent` | `Mpdf`, `Twig`, `Filesystem` |
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `CompliancePackService` | `src/Service/CompliancePackService.php` | Compliance document pack |
+| `ComplianceDocumentVersioningService` | `src/Service/ComplianceDocumentVersioningService.php` | Document versioning |
+| `ComplianceExpiryReminderService` | `src/Service/ComplianceExpiryReminderService.php` | Expiry notifications |
+| `DocumentManagerService` | `src/Service/DocumentManagerService.php` | Document management |
+| `OnboardingPackService` | `src/Service/OnboardingPackService.php` | Customer onboarding packs |
+| `DatasetImportService` | `src/Service/DatasetImportService.php` | Dataset import |
 
 ---
 
-## Shared Utilities
+## Core Utilities
 
-| Service | Purpose | Notable Methods | Dependencies |
-|---------|---------|-----------------|--------------|
-| `ActivityLogger` | Generic activity logging | `logActivity`, `attachMetadata`, `getCompanyTimeline`, `getContactTimeline` | `EntityManagerInterface`, `Security` |
-| `NotificationService` | Email & in-app notifications | `notifyUsers`, `queueEmail`, `markRead`, `getUnread` | `MailerInterface`, `EntityManagerInterface`, `TemplateRenderer` |
-| `TaskScheduler` | Background job coordination | `enqueue`, `scheduleDelayed`, `cancel`, `listScheduledJobs` | `MessageBusInterface`, `ClockInterface` |
-| `AuditLogger` | Unified audit trail | `record`, `getEntriesForEntity`, `search`, `purge` | `EntityManagerInterface`, `Security` |
-| `SettingsService` | System configuration | `get`, `set`, `delete`, `list`, `export` | `EntityManagerInterface`, `CacheInterface` |
+| Service | Location | Purpose |
+|---------|----------|---------|
+| `NotificationService` | `src/Service/NotificationService.php` | In-app notifications |
+| `GuidanceNotificationService` | `src/Service/GuidanceNotificationService.php` | Contextual guidance |
+| `KPITrackingService` | `src/Service/KPITrackingService.php` | Dashboard KPIs |
+| `EngagementHeatMapService` | `src/Service/EngagementHeatMapService.php` | Engagement visualization |
+| `ReportBuilderService` | `src/Service/ReportBuilderService.php` | Report generation |
+| `CsvExportService` | `src/Service/CsvExportService.php` | CSV exports |
+| `ExportService` | `src/Service/ExportService.php` | General exports |
+| `CountryService` | `src/Service/CountryService.php` | Country/region data |
+| `RegionStandardizationService` | `src/Service/RegionStandardizationService.php` | Region normalization |
+| `CustomFieldService` | `src/Service/CustomFieldService.php` | Custom field management |
+| `ActivityTemplateService` | `src/Service/ActivityTemplateService.php` | Activity templates |
+| `LlmService` | `src/Service/LlmService.php` | Local LLM integration |
+| `LlmEnrichmentService` | `src/Service/LlmEnrichmentService.php` | AI enrichment |
+| `GeminiContactExtractorService` | `src/Service/GeminiContactExtractorService.php` | Gemini API contact extraction |
+| `ContactEnrichmentService` | `src/Service/ContactEnrichmentService.php` | Contact data enrichment |
+| `AggressiveContactDiscoveryService` | `src/Service/AggressiveContactDiscoveryService.php` | Fast contact discovery |
+| `CompanyDeduplicationService` | `src/Service/CompanyDeduplicationService.php` | Duplicate detection |
+| `FollowUpReminderService` | `src/Service/FollowUpReminderService.php` | Follow-up scheduling |
+| `WebinarService` | `src/Service/WebinarService.php` | Webinar management |
+| `IssuingCompanyService` | `src/Service/IssuingCompanyService.php` | Issuing company data |
+| `TrackerDataService` | `src/Service/TrackerDataService.php` | Tracker data management |
+
+### Import Services (`src/Service/Import/`)
+
+| Service | Purpose |
+|---------|---------|
+| `TrackerImportService` | Excel/CSV tracker import |
+| `ExcelImportService` | Excel file import |
 
 ---
 
 ## Usage Conventions
 
-- All services are registered through Symfony's autowiring; prefer constructor injection.
-- Public methods return DTOs or arrays; avoid exposing entities unless read-only.
-- Long-running operations should dispatch Messenger jobs instead of blocking requests.
-- Services interacting with external systems must emit structured logs and handle retries.
-- Add PHPDoc blocks documenting parameters, return types, and side effects.
+- All services use Symfony autowiring; prefer constructor injection.
+- Long-running operations dispatch Messenger jobs.
+- Services interacting with external APIs emit structured logs.
+- Add PHPDoc blocks documenting parameters and return types.
 
-For complete class signatures and implementation details, inspect the source files under `src/Service/`. This reference will be updated as services evolve.
+For implementation details, see source files in `src/Service/`.

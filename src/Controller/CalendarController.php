@@ -328,7 +328,7 @@ class CalendarController extends AbstractController
     }
 
     #[Route('/week/{date}', name: 'calendar_week', methods: ['GET'])]
-    public function weekView(string $date = null): Response
+    public function weekView(?string $date = null): Response
     {
         try {
             $currentDate = $date ? new \DateTime($date) : new \DateTime();

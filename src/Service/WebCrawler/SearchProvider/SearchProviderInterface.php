@@ -3,15 +3,11 @@
 namespace App\Service\WebCrawler\SearchProvider;
 
 /**
- * Search Provider Abstraction (Improvement 1A)
+ * Search Provider Abstraction
  *
  * Decouples the discovery pipeline from any specific search engine.
- * Google CSE must transition by Jan 1, 2027 — this interface ensures
- * the intelligence core remains stable when search providers change.
  *
- * Implementations:
- *   - GoogleCSEProvider  (current, wraps GoogleSearchService)
- *   - Future: VertexAISearchProvider, BingProvider, SerpAPIProvider
+ * Implementation: LocalSearxngProvider (self-hosted SearXNG, aggregates 9 engines)
  */
 interface SearchProviderInterface
 {

@@ -6,7 +6,6 @@ use App\Entity\Competitor;
 use App\Entity\CompetitorPageFingerprint;
 use App\Repository\CompetitorPageFingerprintRepository;
 use App\Service\FastWebScraperService;
-use App\Service\WebCrawler\SearchProvider\HeaderRandomizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -20,7 +19,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *
  * Features:
  *  - curl_multi concurrent fetching for speed
- *  - HeaderRandomizer for anti-detection (reused from LeadBot)
+ *  - Randomized browser headers for anti-detection
  *  - Retry with exponential backoff on transient errors
  *  - Sitemap gzip support + sitemap index recursion
  *  - Proper SSL verification (with selective fallback)
@@ -37,10 +36,34 @@ class CompProfileCrawlerService
     /** Cache directory for content between pipeline phases */
     private const CACHE_DIR = 'var/comp_crawl_cache';
 
-    /** European exit countries for proxy session rotation (same as LeadBot) */
+    /** European exit countries for proxy session rotation */
     private const EXIT_COUNTRIES = [
         'ee', 'de', 'nl', 'fr', 'pl', 'cz', 'fi', 'se',
         'at', 'be', 'dk', 'no', 'es', 'it', 'pt', 'ro',
+    ];
+
+    /** Pool of real browser User-Agent strings for anti-detection */
+    private const USER_AGENTS = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0',
+        'Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+    ];
+
+    /** Accept-Language headers by region */
+    private const ACCEPT_LANGUAGES = [
+        'de' => 'de-DE,de;q=0.9,en;q=0.5',
+        'fr' => 'fr-FR,fr;q=0.9,en;q=0.5',
+        'it' => 'it-IT,it;q=0.9,en;q=0.5',
+        'es' => 'es-ES,es;q=0.9,en;q=0.5',
+        'nl' => 'nl-NL,nl;q=0.9,en;q=0.5',
+        'ar' => 'ar;q=0.9,en;q=0.5',
     ];
 
     private ?string $proxyUrl;
@@ -48,7 +71,6 @@ class CompProfileCrawlerService
     public function __construct(
         private readonly CompCrawlerConfig $config,
         private readonly FastWebScraperService $scraper,
-        private readonly HeaderRandomizer $headerRandomizer,
         private readonly CompetitorPageFingerprintRepository $fingerprintRepo,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
@@ -61,7 +83,7 @@ class CompProfileCrawlerService
 
     /**
      * Build a per-request proxy URL with unique session ID and random EU exit country.
-     * Mirrors RotatingProxyHttpClient's approach for consistent IP rotation.
+     * Mirrors IPRoyal's approach for consistent IP rotation.
      */
     private function getRotatingProxyUrl(): ?string
     {
@@ -291,8 +313,8 @@ class CompProfileCrawlerService
         foreach ($urls as $url) {
             $ch = curl_init();
 
-            // Get randomized headers from HeaderRandomizer
-            $headers = $this->headerRandomizer->getRandomHeaders($regionHint, $url);
+            // Get randomized browser headers
+            $headers = $this->getRandomHeaders($regionHint, $url);
 
             $httpHeaders = [];
             foreach ($headers as $key => $value) {
@@ -306,7 +328,7 @@ class CompProfileCrawlerService
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS => 5,
                 CURLOPT_TIMEOUT => (int) $this->config->get('crawl.timeout_seconds', 30),
-                CURLOPT_USERAGENT => $headers['User-Agent'] ?? $this->headerRandomizer->getRandomUserAgent(),
+                CURLOPT_USERAGENT => $headers['User-Agent'] ?? self::USER_AGENTS[array_rand(self::USER_AGENTS)],
                 CURLOPT_SSL_VERIFYPEER => true,  // Secure by default
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_ENCODING => '',  // Accept gzip/deflate/br
@@ -391,7 +413,7 @@ class CompProfileCrawlerService
                 usleep($delays[$attempt - 1] * 1000);
             }
 
-            $headers = $this->headerRandomizer->getRandomHeaders($regionHint, $url);
+            $headers = $this->getRandomHeaders($regionHint, $url);
             $httpHeaders = [];
             foreach ($headers as $key => $value) {
                 if ($key === 'User-Agent') continue;
@@ -405,7 +427,7 @@ class CompProfileCrawlerService
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS => 5,
                 CURLOPT_TIMEOUT => (int) $this->config->get('crawl.timeout_seconds', 30),
-                CURLOPT_USERAGENT => $headers['User-Agent'] ?? $this->headerRandomizer->getRandomUserAgent(),
+                CURLOPT_USERAGENT => $headers['User-Agent'] ?? self::USER_AGENTS[array_rand(self::USER_AGENTS)],
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_ENCODING => '',
@@ -453,11 +475,45 @@ class CompProfileCrawlerService
 
     /**
      * Fetch a single page (used for sitemaps, verification, and single-page needs).
-     * Uses HeaderRandomizer and SSL verification with fallback.
+     * Uses randomized headers and SSL verification with fallback.
      */
     public function fetchPage(string $url): ?string
     {
         return $this->fetchWithRetry($url);
+    }
+
+    /**
+     * Generate randomized browser headers for anti-detection.
+     *
+     * @param string|null $regionHint  ISO language/region code (e.g. 'fr', 'de')
+     * @param string      $url         Target URL (used for Referer)
+     * @return array<string, string>   Associative array of HTTP headers
+     */
+    private function getRandomHeaders(?string $regionHint, string $url): array
+    {
+        $ua = self::USER_AGENTS[array_rand(self::USER_AGENTS)];
+
+        $acceptLang = self::ACCEPT_LANGUAGES[$regionHint] ?? 'en-US,en;q=0.9';
+
+        $parsed = parse_url($url);
+        $referer = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '') . '/';
+
+        $headers = [
+            'User-Agent' => $ua,
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language' => $acceptLang,
+            'Accept-Encoding' => 'gzip, deflate, br',
+            'Referer' => $referer,
+            'DNT' => '1',
+            'Connection' => 'keep-alive',
+            'Upgrade-Insecure-Requests' => '1',
+            'Sec-Fetch-Dest' => 'document',
+            'Sec-Fetch-Mode' => 'navigate',
+            'Sec-Fetch-Site' => 'same-origin',
+            'Sec-Fetch-User' => '?1',
+        ];
+
+        return $headers;
     }
 
     /**

@@ -500,7 +500,7 @@ class WebCrawlerController extends AbstractController
             'grep -c "LLM Primary Gate ACCEPT" %1$s 2>/dev/null; true; ' .
             'grep -c "LLM Primary Gate REJECT" %1$s 2>/dev/null; true; ' .
             'grep -c "No location presence" %1$s 2>/dev/null; true; ' .
-            'grep -c "ScrapingSearchProvider: success" %1$s 2>/dev/null; true; ' .
+            'grep -c "LocalSearxngProvider: success" %1$s 2>/dev/null; true; ' .
             'grep -c "Saved company to DB" %1$s 2>/dev/null; true; ' .
             'tail -1 %1$s 2>/dev/null',
             escapeshellarg($logFile)

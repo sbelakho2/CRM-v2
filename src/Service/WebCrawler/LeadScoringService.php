@@ -31,7 +31,7 @@ class LeadScoringService
 
     public function __construct(
         private LoggerInterface $logger,
-        string $configPath = null
+        ?string $configPath = null
     ) {
         $configPath = $configPath ?? __DIR__ . '/../../../config/crawler_config.yaml';
         $this->loadConfig($configPath);

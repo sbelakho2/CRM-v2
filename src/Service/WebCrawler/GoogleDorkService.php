@@ -247,38 +247,17 @@ class GoogleDorkService
         // 1. Priority-aware shuffle: region-specific queries run FIRST
         //    (tagged with <<P>> prefix by buildGoogleDorkQueries)
         // 2. Inject -site: exclusions for already-found domains
-        // 3. Add dynamic expansion queries based on existing companies
+        // 3. Post-search filtering of already-known domains (more reliable than -site: in queries)
         // ══════════════════════════════════════════════════════════════
 
-        // Load existing company domains to exclude from search results
+        // Load existing company domains to exclude from search results (post-search filter)
         $existingDomains = [];
         if ($this->companyRepository !== null) {
-            $existingDomains = $this->companyRepository->findAllWebsiteDomains();
-            $this->logger->info('Query diversity: excluding known domains', [
+            $existingDomains = array_flip($this->companyRepository->findAllWebsiteDomains());
+            $this->logger->info('Query diversity: loaded known domains for post-search filtering', [
                 'count' => count($existingDomains),
             ]);
         }
-
-        // Build -site: exclusion string (max 15 domains to avoid bloating queries)
-        $domainExclusions = '';
-        if (!empty($existingDomains)) {
-            $topExclusions = array_slice($existingDomains, 0, 15);
-            $domainExclusions = ' ' . implode(' ', array_map(fn($d) => "-site:{$d}", $topExclusions));
-        }
-
-        // Append domain exclusions to each query
-        $searchQueries = array_map(function (string $q) use ($domainExclusions) {
-            $prefix = '';
-            if (str_starts_with($q, '<<P>>')) {
-                $prefix = '<<P>>';
-                $q = substr($q, 5);
-            }
-            // Don't add -site: exclusions to directory queries (site:europages.com etc.)
-            if (preg_match('/^site:/', $q)) {
-                return $prefix . $q;
-            }
-            return $prefix . $q . $domainExclusions;
-        }, $searchQueries);
 
         // ── Dynamic expansion: queries derived from existing companies ──
         // Only useful when we have ≥ 3 diverse seeds; with 1–2 seeds the
@@ -294,8 +273,8 @@ class GoogleDorkService
                 $baseSiteExclude = ' -site:linkedin.com -site:wikipedia.org -site:youtube.com'
                     . ' -site:facebook.com -site:twitter.com -site:instagram.com';
                 foreach ($namesToExpand as $existingName) {
-                    $searchQueries[] = "\"{$existingName}\" competitors OR \"similar to\" manufacturer{$locationTerm}" . $baseSiteExclude . $domainExclusions;
-                    $searchQueries[] = "\"{$existingName}\" OR \"alternative to\" \"{$sector}\" manufacturer{$locationTerm}" . $baseSiteExclude . $domainExclusions;
+                    $searchQueries[] = "\"{$existingName}\" competitors OR \"similar to\" manufacturer{$locationTerm}" . $baseSiteExclude;
+                    $searchQueries[] = "\"{$existingName}\" OR \"alternative to\" \"{$sector}\" manufacturer{$locationTerm}" . $baseSiteExclude;
                 }
                 $this->logger->info('Dynamic expansion: added competitor queries', [
                     'based_on' => $namesToExpand,
@@ -411,6 +390,13 @@ class GoogleDorkService
                                 continue;
                             }
 
+                            // ── Already-known domain filter ──
+                            // Skip domains already in our DB (faster & more reliable than -site: in queries)
+                            if (isset($existingDomains[$domain])) {
+                                $this->logger->debug('Skipping already-known domain', ['domain' => $domain]);
+                                continue;
+                            }
+
                             // ── ccTLD region mismatch filter ──
                             // Reject domains whose country-code TLD clearly
                             // belongs to a different region (e.g. .it domain
@@ -521,11 +507,13 @@ class GoogleDorkService
                                         $llmVerdict = strtoupper($llmClassification['verdict'] ?? 'REJECT');
                                         $llmConfidence = (float) ($llmClassification['confidence'] ?? 0.0);
                                         
-                                        if ($llmVerdict === 'REJECT' && $llmConfidence >= 0.7) {
+                                        // REJECT if: verdict is REJECT (any confidence), OR verdict is ACCEPT but low confidence
+                                        if ($llmVerdict !== 'ACCEPT' || $llmConfidence < 0.6) {
                                             $this->metricsCollector->recordReject('llm_primary_gate', $llmClassification['reason'] ?? '');
                                             $this->logger->info('LLM Primary Gate REJECT', [
                                                 'name' => $companyName,
                                                 'domain' => $domain,
+                                                'verdict' => $llmVerdict,
                                                 'reason' => $llmClassification['reason'] ?? '',
                                                 'confidence' => $llmConfidence,
                                             ]);
@@ -11043,17 +11031,13 @@ class GoogleDorkService
                 return false;
             }
 
-            // Trust the 7B model's verdict directly at confidence >= 0.7
-            if ($verdict === 'ACCEPT' && $confidence >= 0.7) {
+            // Trust the 7B model's verdict directly at confidence >= 0.6
+            if ($verdict === 'ACCEPT' && $confidence >= 0.6) {
                 return true;
             }
 
-            if ($verdict === 'REJECT' && $confidence >= 0.7) {
-                return false;
-            }
-
-            // Low confidence — let through (defer to other checks)
-            return true;
+            // Everything else: REJECT (low confidence, unclear verdict, explicit REJECT)
+            return false;
         } catch (\Throwable $e) {
             $this->logger->warning('LLM exception — REJECTING by default', [
                 'error' => $e->getMessage(),
