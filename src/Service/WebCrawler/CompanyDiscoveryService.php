@@ -8,7 +8,10 @@ use App\Repository\CompanyRepository;
 use App\Service\CompetitorLearnerService;
 use App\Service\ContactEnrichmentService;
 use App\Service\CountryService;
+use App\Service\WebCrawler\Pipeline\DeterministicDiscoveryPipeline;
+use App\Service\WebCrawler\Pipeline\DiscoveryResult;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -110,6 +113,8 @@ class CompanyDiscoveryService
         private ?CompetitorLearnerService $competitorLearner = null,
         private ?CompanyClassifierService $classifier = null,
         private ?ContactEnrichmentService $contactEnrichment = null,
+        private ?DeterministicDiscoveryPipeline $discoveryPipeline = null,
+        private ?ManagerRegistry $doctrine = null,
     ) {}
 
     /**
@@ -124,9 +129,14 @@ class CompanyDiscoveryService
 
         $discovered = [];
 
-        // Use Google Dorks to find companies
-        $googleResults = $this->googleDork->searchCompanies($sector, $location);
-        $discovered = array_merge($discovered, $googleResults);
+        // Use deterministic pipeline when available, fall back to GoogleDorkService
+        if ($this->discoveryPipeline !== null) {
+            $pipelineResults = $this->discoveryPipeline->discover($sector, $location);
+            $discovered = $this->convertPipelineResults($pipelineResults, $sector);
+        } else {
+            $googleResults = $this->googleDork->searchCompanies($sector, $location);
+            $discovered = array_merge($discovered, $googleResults);
+        }
 
         // Deduplicate and save
         $savedCompanies = $this->saveDiscoveredCompanies($discovered, $sector, $location);
@@ -365,6 +375,7 @@ class CompanyDiscoveryService
     private function saveDiscoveredCompanies(array $discoveredData, ?string $sector, ?string $location): array
     {
         $savedCompanies = [];
+        $this->ensureEntityManagerOpen();
         $geo = $this->resolveGeo($location);
 
         // Pre-fetch existing website domains for fast dedup
@@ -377,6 +388,8 @@ class CompanyDiscoveryService
         }
 
         foreach ($discoveredData as $data) {
+            $this->ensureEntityManagerOpen();
+
             // Skip if not a proper company data array
             if (!is_array($data) || !isset($data['name'])) {
                 continue;
@@ -517,7 +530,6 @@ class CompanyDiscoveryService
             }
 
             $this->em->persist($company);
-            $savedCompanies[] = $company;
 
             // ── Collect contacts to persist AFTER the company is saved ──
             $pendingContacts = [];
@@ -758,11 +770,6 @@ class CompanyDiscoveryService
                 }
             }
 
-            // Track domain so subsequent results in the same batch are deduped
-            if ($rootDomain) {
-                $existingDomains[$rootDomain] = true;
-            }
-
             $this->logger->info('New company discovered', [
                 'name' => $name,
                 'website' => $website,
@@ -778,6 +785,12 @@ class CompanyDiscoveryService
             // ── Flush company + contacts together ─────────────────
             try {
                 $this->em->flush();
+
+                $savedCompanies[] = $company;
+                if ($rootDomain) {
+                    $existingDomains[$rootDomain] = true;
+                }
+
                 $this->logger->info('Saved company to DB', [
                     'company' => $name,
                     'id' => $company->getId(),
@@ -788,7 +801,7 @@ class CompanyDiscoveryService
                     'company' => $name,
                     'error' => $flushErr->getMessage(),
                 ]);
-                array_pop($savedCompanies);
+                $this->resetEntityManagerAfterFailure();
                 continue;
             }
         }
@@ -955,5 +968,105 @@ class CompanyDiscoveryService
                       'morocco', 'casablanca', 'tunisia', 'egypt', 'cairo'],
             default => [],
         };
+    }
+
+    /**
+     * Convert DiscoveryResult[] from the deterministic pipeline
+     * into the array format expected by saveDiscoveredCompanies().
+     *
+     * Only includes results that pass the composite gate (target type + evidence + location).
+     *
+     * @param DiscoveryResult[] $results
+     * @return array<int, array<string, mixed>>
+     */
+    private function convertPipelineResults(array $results, ?string $sector): array
+    {
+        $converted = [];
+
+        foreach ($results as $result) {
+            if (!$result->isPassed()) {
+                continue;
+            }
+
+            $contacts = [];
+            foreach ($result->getContacts() as $contact) {
+                $contacts[] = [
+                    'first_name'   => $contact->getFirstName(),
+                    'last_name'    => $contact->getLastName(),
+                    'job_title'    => $contact->getJobTitle(),
+                    'email'        => $contact->getEmail(),
+                    'phone'        => $contact->getPhone(),
+                    'linkedin_url' => $contact->getLinkedinUrl(),
+                ];
+            }
+
+            // Derive primary email and phone from highest-quality contact
+            $primaryEmail = null;
+            $primaryPhone = null;
+            foreach ($result->getContacts() as $contact) {
+                if ($primaryEmail === null && $contact->getEmail()) {
+                    $primaryEmail = $contact->getEmail();
+                }
+                if ($primaryPhone === null && $contact->getPhone()) {
+                    $primaryPhone = $contact->getPhone();
+                }
+            }
+
+            $evidence = $result->getEvidenceScore();
+            $classification = $result->getClassification();
+            $positiveFamilies = array_filter(
+                $evidence->getFamilyScores(),
+                static fn (int $score): bool => $score > 0,
+            );
+
+            $converted[] = [
+                'name'           => $result->getCompanyName(),
+                'website'        => $result->getWebsiteUrl(),
+                'sector'         => $sector,
+                'buyer_evidence' => [
+                    'verdict'           => 'PASS',
+                    'reason'            => sprintf(
+                        '%s (score %d, confidence %.1f%%)',
+                        $classification->getCategory(),
+                        $evidence->getTotalScore(),
+                        $classification->getConfidence() * 100,
+                    ),
+                    'positive_families' => $positiveFamilies,
+                ],
+                'contacts'       => $contacts,
+                'email'          => $primaryEmail,
+                'phone'          => $primaryPhone,
+            ];
+        }
+
+        return $converted;
+    }
+
+    private function ensureEntityManagerOpen(): void
+    {
+        if (!method_exists($this->em, 'isOpen') || $this->em->isOpen()) {
+            return;
+        }
+
+        if ($this->doctrine === null) {
+            throw new \RuntimeException('Entity manager is closed and no ManagerRegistry is available to reset it.');
+        }
+
+        $this->em = $this->doctrine->resetManager();
+    }
+
+    private function resetEntityManagerAfterFailure(): void
+    {
+        if ($this->doctrine !== null) {
+            $this->em = $this->doctrine->resetManager();
+            return;
+        }
+
+        if (method_exists($this->em, 'clear')) {
+            $this->em->clear();
+            return;
+        }
+
+        throw new \RuntimeException('Unable to recover the entity manager after a flush failure.');
     }
 }

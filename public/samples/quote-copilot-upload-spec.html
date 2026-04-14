@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote Co-Pilot BOM Upload Specification</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f1e8;
+            --panel: #fffdf7;
+            --panel-strong: #f1ead6;
+            --text: #1f2a1e;
+            --muted: #53604f;
+            --accent: #0e5a44;
+            --accent-2: #9f6a2a;
+            --border: #d9cfb8;
+            --shadow: 0 18px 40px rgba(31, 42, 30, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(circle at top right, rgba(14, 90, 68, 0.12), transparent 28%),
+                linear-gradient(180deg, #f7f4eb 0%, var(--bg) 100%);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .page {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 48px 20px 64px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, rgba(14, 90, 68, 0.96), rgba(22, 41, 34, 0.96));
+            color: #f6f2e8;
+            border-radius: 28px;
+            padding: 36px;
+            box-shadow: var(--shadow);
+            margin-bottom: 28px;
+        }
+
+        .hero p {
+            max-width: 760px;
+            margin: 12px 0 0;
+            color: rgba(246, 242, 232, 0.88);
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            letter-spacing: -0.04em;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            margin-bottom: 14px;
+        }
+
+        .eyebrow {
+            display: inline-block;
+            margin-bottom: 14px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(246, 242, 232, 0.12);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .button.primary {
+            background: #f6f2e8;
+            color: var(--accent);
+        }
+
+        .button.secondary {
+            background: transparent;
+            color: #f6f2e8;
+            border: 1px solid rgba(246, 242, 232, 0.28);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            grid-column: span 6;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .card.full {
+            grid-column: 1 / -1;
+        }
+
+        .card strong {
+            color: var(--accent);
+        }
+
+        ul,
+        ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        li + li {
+            margin-top: 8px;
+        }
+
+        .columns {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .mini-card {
+            background: var(--panel-strong);
+            border-radius: 18px;
+            padding: 16px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 680px;
+            background: var(--panel);
+        }
+
+        th,
+        td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        th {
+            background: #efe5cf;
+            color: var(--accent);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        code {
+            display: block;
+            font-family: "SFMono-Regular", Consolas, monospace;
+            background: #211d17;
+            color: #efe8d7;
+            border-radius: 18px;
+            padding: 18px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .note {
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-left: 4px solid var(--accent-2);
+            background: rgba(159, 106, 42, 0.08);
+            border-radius: 12px;
+        }
+
+        @media (max-width: 860px) {
+            .card {
+                grid-column: 1 / -1;
+            }
+
+            .columns {
+                grid-template-columns: 1fr;
+            }
+
+            .hero {
+                padding: 28px 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="hero">
+            <span class="eyebrow">Quote Co-Pilot</span>
+            <h1>BOM Upload Specification</h1>
+            <p>
+                Use this page when you prepare a BOM for the Quote Co-Pilot uploader.
+                It describes the exact web-upload contract, the recommended column layout,
+                and the parser behaviors that make messy BOM exports still acceptable.
+            </p>
+            <div class="actions">
+                <a class="button primary" href="/samples/quote-copilot-upload-template.csv" download>Download fill-in CSV template</a>
+                <a class="button secondary" href="/samples/sample-bom.csv" download>Download populated sample CSV</a>
+            </div>
+        </section>
+
+        <section class="grid">
+            <article class="card">
+                <h2>Web Uploader Requirements</h2>
+                <ul>
+                    <li><strong>Required form fields:</strong> company, destination country, BOM file, board count, and issuing company.</li>
+                    <li><strong>Optional form fields:</strong> order multiple, pricing providers, incoterms, and notes.</li>
+                    <li><strong>Accepted file types in the web form:</strong> CSV, XLSX, and XLS.</li>
+                    <li><strong>Backend parser support:</strong> TSV, TXT, and ODS are supported by the parser service, but they are not exposed in the current web upload control.</li>
+                </ul>
+            </article>
+
+            <article class="card">
+                <h2>Minimum BOM Data Needed</h2>
+                <ul>
+                    <li>Each accepted row must contain at least <strong>Part Number</strong> or <strong>Description</strong>.</li>
+                    <li><strong>Quantity</strong> is expected and is normalized to at least 1.</li>
+                    <li>The recommended canonical header set is: Part Number, Description, Quantity, Manufacturer, Reference Designators.</li>
+                    <li>The fill-in template uses this canonical header set plus optional sourcing columns.</li>
+                </ul>
+            </article>
+
+            <article class="card full">
+                <h2>Recommended Upload Columns</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Column</th>
+                                <th>Required</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Part Number</td>
+                                <td>Recommended</td>
+                                <td>Primary manufacturer part number. Best column to provide if you want distributor matching to be reliable.</td>
+                            </tr>
+                            <tr>
+                                <td>Description</td>
+                                <td>Fallback</td>
+                                <td>Used when Part Number is missing and also helps smart fallback searches.</td>
+                            </tr>
+                            <tr>
+                                <td>Quantity</td>
+                                <td>Yes</td>
+                                <td>Per-board quantity before board-count multiplication unless Stock Quantity is supplied.</td>
+                            </tr>
+                            <tr>
+                                <td>Manufacturer</td>
+                                <td>No</td>
+                                <td>Improves confidence scoring and reduces false matches.</td>
+                            </tr>
+                            <tr>
+                                <td>Reference Designators</td>
+                                <td>No</td>
+                                <td>Used for traceability and as a quantity fallback when ranges such as C1-C10 are present.</td>
+                            </tr>
+                            <tr>
+                                <td>Package</td>
+                                <td>No</td>
+                                <td>Useful for passives and footprint-sensitive matching.</td>
+                            </tr>
+                            <tr>
+                                <td>Supplier / Supplier Part Number</td>
+                                <td>No</td>
+                                <td>Preserved for sourcing context and manual review.</td>
+                            </tr>
+                            <tr>
+                                <td>Stock Quantity</td>
+                                <td>No</td>
+                                <td>Overrides per-board quantity when you want pricing based on the actual purchase quantity.</td>
+                            </tr>
+                            <tr>
+                                <td>Unit Price</td>
+                                <td>No</td>
+                                <td>Optional embedded BOM price. Preserved for comparison against live API pricing.</td>
+                            </tr>
+                            <tr>
+                                <td>Remark</td>
+                                <td>No</td>
+                                <td>Can carry substitute or alternative part numbers. The pricing engine can fall back to this when the primary MPN fails.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="card">
+                <h2>Parser Tolerance Rules</h2>
+                <ul>
+                    <li>Header row is auto-detected by scanning the first 25 rows.</li>
+                    <li>CSV delimiters are auto-detected across comma, semicolon, tab, and pipe.</li>
+                    <li>Alias headers such as MPN, Manufacturer Part Number, RefDes, Qty, Count, Brand, and Footprint are recognized.</li>
+                    <li>Quantities like x3, 2 pcs, 5 ea, and 2,000 are normalized automatically.</li>
+                    <li>DNP, Do Not Populate, Do Not Place, and No Load rows are skipped.</li>
+                </ul>
+            </article>
+
+            <article class="card">
+                <h2>Normalization Before Pricing</h2>
+                <ul>
+                    <li>Duplicate rows are consolidated by normalized part number or description.</li>
+                    <li>Reference-designator ranges such as R1-R10 are counted automatically.</li>
+                    <li>Board count multiplies BOM quantities before pricing.</li>
+                    <li>Order multiple can round quantities up before pricing.</li>
+                    <li>MOQ, pack size, and distributor order multiples can increase the effective quantity during pricing.</li>
+                </ul>
+            </article>
+
+            <article class="card full">
+                <h2>Canonical CSV Header</h2>
+                <code>Part Number,Description,Quantity,Manufacturer,Reference Designators,Package,Supplier,Supplier Part Number,Stock Quantity,Unit Price,Remark</code>
+                <div class="note">
+                    If you need a ready-to-fill file, download the CSV template above and add one BOM line per row underneath the header.
+                </div>
+            </article>
+
+            <article class="card full">
+                <h2>Preparation Checklist</h2>
+                <div class="columns">
+                    <div class="mini-card">
+                        <h3>Before Upload</h3>
+                        <ol>
+                            <li>Keep one BOM line per row.</li>
+                            <li>Prefer real manufacturer part numbers over internal library IDs.</li>
+                            <li>Include manufacturer and package when passives or alternates are ambiguous.</li>
+                            <li>Use Stock Quantity when you want supplier pricing based on total order quantity.</li>
+                        </ol>
+                    </div>
+                    <div class="mini-card">
+                        <h3>After Upload</h3>
+                        <ol>
+                            <li>Review coverage and confidence warnings.</li>
+                            <li>Check lines where quantity was adjusted because of MOQ or pack size.</li>
+                            <li>Review alternates if a fallback part was used.</li>
+                            <li>Publish only after coverage and lead-time risk look correct.</li>
+                        </ol>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

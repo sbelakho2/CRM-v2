@@ -1,7 +1,7 @@
 # Starz Morocco CRM – Production Deployment Guide
 
 **Audience**: DevOps, SecOps, Release Manager  
-**Revision**: February 25, 2026  
+**Revision**: April 14, 2026  
 **Status**: ✅ LIVE in Production
 
 ---
@@ -10,7 +10,7 @@
 
 > **Status:** ✅ LIVE  
 > **Domain:** https://www.starzcrm.com  
-> **Last verified:** February 25, 2026
+> **Last verified:** April 14, 2026
 
 ---
 
@@ -25,7 +25,7 @@
 | **OS** | Ubuntu 24.04.3 LTS (Noble Numbat), kernel 6.8.0-90 |
 | **Hostname** | `StarzMain` |
 | **Resources** | 16 vCPU · 30 GB RAM · 150 GB SSD |
-| **SSH User** | `ubuntu` (has sudo) |
+| **SSH User** | `root` (verified from local machine); `ubuntu` may still work when the key is authorized for that account |
 
 ### 0.2 SSH Key Setup
 
@@ -36,22 +36,27 @@ The VPS authenticates with an **Ed25519 SSH key** stored on the local developmen
 | **Private key** | `~/.ssh/hetzner-db-mac` (local machine) |
 | **Public key** | `~/.ssh/hetzner-db-mac.pub` |
 
-**Connect to server:**
+**Preferred connect command (verified April 14, 2026):**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
 ```
 
-**Connect as root (if needed):**
+**SSH config shortcut (if present locally):**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac root@77.42.65.89
+ssh hetzner-apexintel
 ```
 
-> **Note:** Both `ubuntu` and `root` users are accessible via this key.
+**Alternate sudo-user path (legacy):**
+```bash
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes ubuntu@77.42.65.89
+```
+
+> **Note:** Root access is the currently verified path from the main development machine. If the `ubuntu` login returns `Permission denied (publickey,password)`, use `root` or the `hetzner-apexintel` alias.
 
 **To add this key to a new machine:**
 1. Copy `~/.ssh/hetzner-db-mac` and `~/.ssh/hetzner-db-mac.pub` to the new machine's `~/.ssh/` directory.
 2. Set permissions: `chmod 600 ~/.ssh/hetzner-db-mac && chmod 644 ~/.ssh/hetzner-db-mac.pub`
-3. Connect: `ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89`
+3. Connect: `ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89`
 
 ---
 
@@ -89,7 +94,7 @@ mysql          → active
 
 **Access MySQL on server:**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
 sudo mysql starz_crm
 # or with credentials:
 mysql -u crm_user -pStarzCRM2026Secure starz_crm
@@ -259,7 +264,7 @@ server {
 
 **Manual renewal (if needed):**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
 sudo certbot renew --dry-run    # test
 sudo certbot renew              # force renew
 ```
@@ -276,7 +281,7 @@ sudo certbot renew              # force renew
 
 **To create additional users:**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
 cd /var/www/starzcrm
 sudo -u www-data php bin/console app:create-admin \
   --email=newuser@example.com \
@@ -291,8 +296,8 @@ sudo -u www-data php bin/console app:create-admin \
 
 ```bash
 # ─── SSH Access ─────────────────────────────────────────────
-ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89
-ssh -i ~/.ssh/hetzner-db-mac root@77.42.65.89   # as root
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+ssh hetzner-apexintel                           # if local SSH config is present
 
 # ─── Service Management ────────────────────────────────────
 sudo systemctl restart php8.4-fpm         # Restart PHP
@@ -378,13 +383,13 @@ ls -lh /tmp/crm-deploy.tar.gz
 #### Step 2: Upload to VPS
 
 ```bash
-scp -i ~/.ssh/hetzner-db-mac /tmp/crm-deploy.tar.gz ubuntu@77.42.65.89:/tmp/
+scp -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes /tmp/crm-deploy.tar.gz root@77.42.65.89:/tmp/
 ```
 
 #### Step 3: Deploy on server
 
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
 ```
 
 Then on the server:
@@ -437,6 +442,71 @@ curl -sI https://www.starzcrm.com/login | head -3
 # Should return: HTTP/1.1 200 OK
 ```
 
+### 0.11A Targeted Hotfix Procedure (Twig, translations, public files)
+
+Use this instead of the full deploy only when all of the following are true:
+- only files under `templates/`, `translations/`, or `public/` changed
+- no Doctrine migrations changed
+- no `composer.lock`, `package-lock.json`, `webpack.config.js`, or environment files changed
+- no `vendor/` reinstall or frontend rebuild is required
+
+#### Local machine
+
+Example hotfix bundle. Replace the file list with the actual changed files for your patch:
+
+```bash
+cd ~/IdeaProjects/CRM-v2
+
+tar czf /tmp/crm-hotfix.tar.gz \
+    templates/quote_copilot/index.html.twig \
+    translations/messages.en.json \
+    translations/messages.fr.json \
+    translations/messages.ar.json \
+    public/samples/quote-copilot-upload-template.csv \
+    public/samples/quote-copilot-upload-spec.html
+
+scp -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes /tmp/crm-hotfix.tar.gz root@77.42.65.89:/tmp/
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+```
+
+#### Server
+
+```bash
+set -e
+
+backup_dir=/tmp/crm-hotfix-backup-$(date +%Y%m%d-%H%M%S)
+mkdir -p "$backup_dir/templates/quote_copilot" "$backup_dir/translations" "$backup_dir/public/samples"
+
+cp /var/www/starzcrm/templates/quote_copilot/index.html.twig "$backup_dir/templates/quote_copilot/"
+cp /var/www/starzcrm/translations/messages.en.json "$backup_dir/translations/"
+cp /var/www/starzcrm/translations/messages.fr.json "$backup_dir/translations/"
+cp /var/www/starzcrm/translations/messages.ar.json "$backup_dir/translations/"
+cp /var/www/starzcrm/public/samples/quote-copilot-upload-template.csv "$backup_dir/public/samples/" 2>/dev/null || true
+cp /var/www/starzcrm/public/samples/quote-copilot-upload-spec.html "$backup_dir/public/samples/" 2>/dev/null || true
+
+cd /var/www/starzcrm
+tar xzf /tmp/crm-hotfix.tar.gz -C /var/www/starzcrm
+
+chown www-data:www-data \
+    /var/www/starzcrm/templates/quote_copilot/index.html.twig \
+    /var/www/starzcrm/translations/messages.en.json \
+    /var/www/starzcrm/translations/messages.fr.json \
+    /var/www/starzcrm/translations/messages.ar.json \
+    /var/www/starzcrm/public/samples/quote-copilot-upload-template.csv \
+    /var/www/starzcrm/public/samples/quote-copilot-upload-spec.html
+
+sudo -u www-data php bin/console cache:clear --env=prod --no-debug
+sudo -u www-data php bin/console cache:warmup --env=prod --no-debug
+```
+
+Verify the affected URLs immediately after the patch:
+
+```bash
+curl -sI https://www.starzcrm.com/login | head -3
+curl -sI https://www.starzcrm.com/samples/quote-copilot-upload-template.csv | head -3
+curl -sI https://www.starzcrm.com/samples/quote-copilot-upload-spec.html | head -3
+```
+
 ---
 
 ### 0.12 Troubleshooting
@@ -449,6 +519,7 @@ curl -sI https://www.starzcrm.com/login | head -3
 | `bin/console` not executable | `sudo chmod +x /var/www/starzcrm/bin/console` |
 | Class not found errors | `cd /var/www/starzcrm && sudo -u www-data composer dump-autoload --optimize` |
 | Missing assets (broken CSS/JS) | `cd /var/www/starzcrm && npm run build` |
+| `tar: Ignoring unknown extended header keyword 'LIBARCHIVE.xattr.com.apple.provenance'` | Safe when the archive was created on macOS; Ubuntu still extracts the payload correctly |
 | SSL certificate expired | `sudo certbot renew` |
 | MySQL won't start | `sudo journalctl -u mysql -n 50` to check logs |
 | Cache issues after deploy | `sudo -u www-data php bin/console cache:clear --env=prod` |
@@ -722,8 +793,8 @@ sudo systemctl restart php8.4-fpm
 
 ```bash
 # SSH Access
-ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89
-ssh -i ~/.ssh/hetzner-db-mac root@77.42.65.89
+ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+ssh hetzner-apexintel
 
 # Restart services
 sudo systemctl restart php8.4-fpm nginx mysql
@@ -738,7 +809,7 @@ tail -f /var/www/starzcrm/var/log/prod.log
 sudo mysqldump starz_crm > /tmp/backup_$(date +%Y%m%d).sql
 
 # Deploy code
-scp -i ~/.ssh/hetzner-db-mac /tmp/crm-deploy.tar.gz ubuntu@77.42.65.89:/tmp/
+scp -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes /tmp/crm-deploy.tar.gz root@77.42.65.89:/tmp/
 
 # Check SSL expiry
 openssl x509 -in /etc/letsencrypt/live/www.starzcrm.com/fullchain.pem -noout -dates
