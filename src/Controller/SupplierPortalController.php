@@ -16,7 +16,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * SupplierPortalController
@@ -39,7 +38,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * - POST /supplier-portal/{id}/submit  - Submit onboarding pack
  */
 #[Route('/supplier-portal')]
-#[IsGranted('ROLE_USER')]
 class SupplierPortalController extends AbstractController
 {
     public function __construct(

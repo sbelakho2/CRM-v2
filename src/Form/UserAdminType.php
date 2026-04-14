@@ -37,6 +37,7 @@ class UserAdminType extends AbstractType
             ->add('roles', ChoiceType::class, [
                 'choices' => [
                     'administration.users.roles.admin' => 'ROLE_ADMIN',
+                    'administration.users.roles.engineering' => 'ROLE_ENGINEERING',
                     'administration.users.roles.sales_ops' => 'ROLE_SALES_OPS',
                     'administration.users.roles.digital_rep' => 'ROLE_DIGITAL_REP',
                     'administration.users.roles.field_rep' => 'ROLE_FIELD_REP',

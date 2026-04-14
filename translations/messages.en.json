@@ -328,6 +328,7 @@
       "roles": {
         "admin": "Administrator",
         "digital_rep": "Digital Rep",
+        "engineering": "Engineering",
         "field_rep": "Field Rep",
         "manager": "Manager",
         "sales": "Sales",

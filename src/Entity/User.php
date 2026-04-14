@@ -34,7 +34,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $lastName = null;
 
     #[ORM\Column(length: 50, nullable: true)]
-    private ?string $role = null; // Field Rep, Digital Rep, Sales Ops, Admin
+    private ?string $role = null; // Field Rep, Digital Rep, Sales Ops, Engineering, Admin
 
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $territory = null; // Morocco, EU, Global

@@ -39,6 +39,7 @@
                     <select id="role" name="role" class="rams-form__select">
                         <option value="">{{ 'administration.users.all_roles'|trans }}</option>
                         <option value="ROLE_ADMIN" {% if app.request.query.get('role') == 'ROLE_ADMIN' %}selected{% endif %}>{{ 'administration.users.roles.admin'|trans }}</option>
+                        <option value="ROLE_ENGINEERING" {% if app.request.query.get('role') == 'ROLE_ENGINEERING' %}selected{% endif %}>{{ 'administration.users.roles.engineering'|trans }}</option>
                         <option value="ROLE_USER" {% if app.request.query.get('role') == 'ROLE_USER' %}selected{% endif %}>{{ 'administration.users.roles.user'|trans }}</option>
                         <option value="ROLE_SALES" {% if app.request.query.get('role') == 'ROLE_SALES' %}selected{% endif %}>{{ 'administration.users.roles.sales'|trans }}</option>
                     </select>

@@ -19,10 +19,6 @@ security:
       logout:
         path: app_logout
         target: app_login
-      remember_me:
-        secret: "%kernel.secret%"
-        lifetime: 2592000 # 30 days in seconds
-        always_remember_me: true
 
   access_control:
     # Public access for login and register
@@ -37,6 +33,13 @@ security:
     - { path: ^/webhook/email, roles: PUBLIC_ACCESS }
     # Admin area
     - { path: ^/admin, roles: ROLE_ADMIN }
+    # Engineering-only workspace: quotation engine + operations module
+    - { path: ^/quote-copilot, roles: [ROLE_USER, ROLE_ENGINEERING] }
+    - { path: ^/quote-review, roles: [ROLE_USER, ROLE_ENGINEERING] }
+    - { path: ^/reports, roles: [ROLE_USER, ROLE_ENGINEERING] }
+    - { path: ^/compliance, roles: [ROLE_USER, ROLE_ENGINEERING] }
+    - { path: ^/supplier-portal, roles: [ROLE_USER, ROLE_ENGINEERING] }
+    - { path: ^/currency-converter, roles: [ROLE_USER, ROLE_ENGINEERING] }
     # All other routes require at least ROLE_USER
     - { path: ^/, roles: ROLE_USER }
 

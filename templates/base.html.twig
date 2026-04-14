@@ -204,6 +204,8 @@
                     </li>
                         </ul>
                     </li>
+                    {% set engineering_only = is_granted('ROLE_ENGINEERING') and not is_granted('ROLE_USER') %}
+                    {% if not engineering_only %}
                     <li class="rams-sidebar__nav-group">
                         <div class="rams-sidebar__group-header" onclick="this.parentElement.classList.toggle('is-open')">
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
@@ -367,6 +369,7 @@
                     </li>
                         </ul>
                     </li>
+                    {% endif %}
                     <li class="rams-sidebar__nav-group">
                         <div class="rams-sidebar__group-header" onclick="this.parentElement.classList.toggle('is-open')">
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
@@ -393,6 +396,7 @@
                     </li>
                         </ul>
                     </li>
+                    {% if not engineering_only %}
                     <li class="rams-sidebar__nav-group">
                         <div class="rams-sidebar__group-header" onclick="this.parentElement.classList.toggle('is-open')">
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
@@ -470,6 +474,7 @@
                             <span>{{ 'nav.custom_fields'|trans|default('Custom Fields') }}</span>
                         </a>
                     </li>
+                    {% endif %}
                         </ul>
                     </li>
                 </ul>
