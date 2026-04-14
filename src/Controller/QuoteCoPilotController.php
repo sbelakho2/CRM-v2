@@ -43,7 +43,6 @@ use Psr\Log\LoggerInterface;
  * - POST /quote-copilot/{id}/publish - Publish quote to customer
  */
 #[Route('/quote-copilot')]
-#[IsGranted('ROLE_USER')]
 class QuoteCoPilotController extends AbstractController
 {
     public function __construct(

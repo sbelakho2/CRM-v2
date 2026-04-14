@@ -307,6 +307,7 @@
       "roles": {
         "admin": "Administrateur",
         "digital_rep": "Représentant digital",
+        "engineering": "Ingénierie",
         "field_rep": "Représentant terrain",
         "manager": "Gestionnaire",
         "sales": "Ventes",

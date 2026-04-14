@@ -307,6 +307,7 @@
       "roles": {
         "admin": "مشرف",
         "digital_rep": "مندوب رقمي",
+        "engineering": "الهندسة",
         "field_rep": "مندوب ميداني",
         "manager": "مدير",
         "sales": "مبيعات",

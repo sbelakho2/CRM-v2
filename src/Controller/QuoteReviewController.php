@@ -13,7 +13,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Psr\Log\LoggerInterface;
 
@@ -30,7 +29,6 @@ use Psr\Log\LoggerInterface;
  * Workflow: BOM Upload → Draft Quote → REVIEW → Approved Quote → Published
  */
 #[Route('/quote-review')]
-#[IsGranted('ROLE_USER')]
 class QuoteReviewController extends AbstractController
 {
     public function __construct(

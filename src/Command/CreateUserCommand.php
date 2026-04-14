@@ -35,7 +35,7 @@ class CreateUserCommand extends Command
             ->addArgument('firstName', InputArgument::OPTIONAL, 'First name')
             ->addArgument('lastName', InputArgument::OPTIONAL, 'Last name')
             ->addArgument('password', InputArgument::OPTIONAL, 'Password')
-            ->addOption('role', null, InputOption::VALUE_OPTIONAL, 'Role (Field Rep, Digital Rep, Sales Ops, Admin)', 'Field Rep')
+            ->addOption('role', null, InputOption::VALUE_OPTIONAL, 'Role (Field Rep, Digital Rep, Sales Ops, Engineering, Admin)', 'Field Rep')
             ->addOption('territory', null, InputOption::VALUE_OPTIONAL, 'Territory (Morocco, EU, Global)', 'Morocco')
             ->addOption('admin', null, InputOption::VALUE_NONE, 'Create user with Admin role');
     }
@@ -74,6 +74,7 @@ class CreateUserCommand extends Command
             'Sales Ops' => ['ROLE_SALES_OPS', 'ROLE_USER'],
             'Digital Rep' => ['ROLE_DIGITAL_REP', 'ROLE_USER'],
             'Field Rep' => ['ROLE_FIELD_REP', 'ROLE_USER'],
+            'Engineering' => ['ROLE_ENGINEERING'],
             default => ['ROLE_USER'],
         };
         $user->setRoles($roles);
