@@ -44,7 +44,7 @@ class PriceHistoryRepository extends ServiceEntityRepository
 
     /**
      * Get price trend for an MPN (average price over time)
-     * 
+     *
      * @param string $mpn
      * @param string $source Optional source filter
      * @param int $days Number of days to analyze
@@ -53,27 +53,31 @@ class PriceHistoryRepository extends ServiceEntityRepository
     public function getPriceTrend(string $mpn, ?string $source = null, int $days = 90): array
     {
         $since = new \DateTime("-{$days} days");
+        $conn = $this->getEntityManager()->getConnection();
         
-        $qb = $this->createQueryBuilder('ph')
-            ->select("DATE(ph.recordedAt) as date")
-            ->addSelect("AVG(CAST(ph.unitPriceUsd AS DECIMAL(10,4))) as avg_price")
-            ->addSelect("MIN(CAST(ph.unitPriceUsd AS DECIMAL(10,4))) as min_price")
-            ->addSelect("MAX(CAST(ph.unitPriceUsd AS DECIMAL(10,4))) as max_price")
-            ->addSelect("COUNT(ph.id) as samples")
-            ->where('ph.mpn = :mpn')
-            ->andWhere('ph.recordedAt >= :since')
-            ->andWhere('ph.unitPriceUsd IS NOT NULL')
-            ->setParameter('mpn', $mpn)
-            ->setParameter('since', $since)
-            ->groupBy('date')
-            ->orderBy('date', 'ASC');
+        $sql = 'SELECT DATE(ph.recorded_at) AS date,
+                       AVG(CAST(ph.unit_price_usd AS DECIMAL(10,4))) AS avg_price,
+                       MIN(CAST(ph.unit_price_usd AS DECIMAL(10,4))) AS min_price,
+                       MAX(CAST(ph.unit_price_usd AS DECIMAL(10,4))) AS max_price,
+                       COUNT(ph.id) AS samples
+                FROM price_history ph
+                WHERE ph.mpn = :mpn
+                AND ph.recorded_at >= :since
+                AND ph.unit_price_usd IS NOT NULL';
+        
+        $params = [
+            'mpn' => $mpn,
+            'since' => $since->format('Y-m-d H:i:s'),
+        ];
         
         if ($source) {
-            $qb->andWhere('ph.source = :source')
-               ->setParameter('source', $source);
+            $sql .= ' AND ph.source = :source';
+            $params['source'] = $source;
         }
         
-        return $qb->getQuery()->getResult();
+        $sql .= ' GROUP BY DATE(ph.recorded_at) ORDER BY date ASC';
+        
+        return $conn->fetchAllAssociative($sql, $params);
     }
 
     /**

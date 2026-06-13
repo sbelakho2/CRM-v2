@@ -125,120 +125,11 @@ class QuoteCoPilotService
         $processedLines = $result['lines'];
         $stats = $result['stats'];
         
-        // 4. Save BOM lines to database
+        // 4. Save BOM lines to database via shared method (H1)
         $lineNum = 0;
         foreach ($processedLines as $lineData) {
             $lineNum++;
-            $bomLine = new BomLine();
-            $bomLine->setQuote($quote);
-            $bomLine->setLineNumber($lineData['lineNumber'] ?? $lineNum);
-            $bomLine->setMpn($lineData['mpn']);
-            $bomLine->setOriginalMpn($lineData['mpn']);
-            $bomLine->setManufacturer($lineData['manufacturer'] ?? null);
-            $bomLine->setDescription($lineData['description'] ?? null);
-            $bomLine->setBomDescription($lineData['description'] ?? $lineData['value'] ?? null);
-            $bomLine->setQuantity($lineData['effective_quantity'] ?? $lineData['qty'] ?? $lineData['quantity'] ?? 1);
-
-            $status = $lineData['status'] ?? 'unsourced';
-            $source = $lineData['source'] ?? null;
-
-            if ($status === 'sourced' && ($lineData['unit_price'] ?? 0) > 0) {
-                $bomLine->setUnitPrice((string) ($lineData['unit_price'] ?? '0'));
-                $bomLine->setExtendedPrice((string) ($lineData['extended_price'] ?? '0'));
-                $bomLine->setProcurementSource($source);
-                $bomLine->setHasException(false);
-
-                // Confidence scoring
-                $confidence = $lineData['confidence'] ?? null;
-                if ($confidence) {
-                    $bomLine->setConfidenceScore((int) ($confidence['score'] ?? 0));
-                    $bomLine->setConfidenceLevel($confidence['level'] ?? 'MEDIUM');
-                    $bomLine->setConfidenceReasons($confidence['reasons'] ?? []);
-                    $bomLine->setConfidenceWarnings($confidence['warnings'] ?? []);
-                    $bomLine->setRequiresReview($confidence['requiresReview'] ?? false);
-                }
-
-                // Matched MPN
-                if (!empty($lineData['matched_mpn'])) {
-                    $bomLine->setMatchedMpn($lineData['matched_mpn']);
-                }
-                if (!empty($lineData['alt_mpn_used'])) {
-                    $bomLine->setMatchedMpn($lineData['alt_mpn_used']);
-                }
-            } else {
-                // Unsourced
-                $bomLine->setUnitPrice(null);
-                $bomLine->setExtendedPrice(null);
-                $bomLine->setProcurementSource('Not Found');
-                $bomLine->setHasException(true);
-                $bomLine->setExceptionReason('Part not found in supplier APIs');
-                $bomLine->setRequiresReview(true);
-            }
-
-            // Store supplier tracking data (not shown on customer-facing PDF)
-            if (isset($lineData['product_url'])) {
-                $bomLine->setSupplierProductUrl($lineData['product_url']);
-            }
-            if (isset($lineData['search_url']) || isset($lineData['_source_url'])) {
-                $bomLine->setDistributorSearchUrl($lineData['search_url'] ?? $lineData['_source_url']);
-            }
-            if (isset($lineData['alternatives'])) {
-                $bomLine->setAlternativeParts($lineData['alternatives']);
-            }
-            
-            // Resolve supplier name from source
-            $srcLower = strtolower($source ?? '');
-            if ($srcLower === 'alibaba') {
-                $bomLine->setSupplierName($lineData['manufacturer'] ?? 'Alibaba Supplier');
-            } elseif ($srcLower === 'mouser') {
-                $bomLine->setSupplierName('Mouser Electronics');
-            } elseif ($srcLower === 'digikey') {
-                $bomLine->setSupplierName('DigiKey Electronics');
-            } elseif ($srcLower === 'nexar') {
-                $bomLine->setSupplierName('Nexar (Aggregated)');
-            }
-            
-            // Lifecycle
-            $lifecycleWarning = $lineData['lifecycle_warning'] ?? null;
-            if ($lifecycleWarning === 'critical') {
-                $bomLine->setLifecycleStatus('Obsolete');
-                $bomLine->setLifecycleWarning('critical');
-            } elseif ($lifecycleWarning === 'warning') {
-                $bomLine->setLifecycleStatus('NRND');
-                $bomLine->setLifecycleWarning('warning');
-            }
-            
-            // Build rich sourcing metadata JSON
-            $bomLine->setSourcingData([
-                'source' => strtoupper($srcLower),
-                'waterfall_info' => $lineData['waterfall_info'] ?? null,
-                'moq' => $lineData['moq'] ?? null,
-                'pack_quantity' => $lineData['pack_quantity'] ?? null,
-                'stock' => $lineData['stock'] ?? 0,
-                'confidence' => $lineData['confidence'] ?? null,
-                'alt_mpn_used' => $lineData['alt_mpn_used'] ?? null,
-                'supplier_type' => $lineData['supplier_type'] ?? null,
-                'trade_assurance' => $lineData['trade_assurance'] ?? null,
-                'shipping_from' => $lineData['shipping_from'] ?? null,
-                // Smart fallback metadata
-                'fallback_method' => $lineData['_fallback_method'] ?? null,
-                'fallback_original_mpn' => $lineData['_original_mpn'] ?? null,
-                'fallback_mpn' => $lineData['_fallback_mpn'] ?? null,
-                'fallback_keyword' => $lineData['_fallback_keyword'] ?? null,
-            ]);
-            
-            $this->entityManager->persist($bomLine);
-            
-            // Create procurement exception for unsourced parts
-            if ($status !== 'sourced') {
-                $exception = new ProcurementException();
-                $exception->setBomLine($bomLine);
-                $exception->setExceptionType('NOT_FOUND');
-                $exception->setSeverity('HIGH');
-                $exception->setMessage('Part not found in supplier APIs: ' . ($lineData['mpn'] ?? 'unknown'));
-                
-                $this->entityManager->persist($exception);
-            }
+            $this->createAndPersistBomLine($quote, $lineData, $lineNum);
         }
         
         // 5. Calculate quote totals
@@ -266,8 +157,18 @@ class QuoteCoPilotService
             $quote->setUpdatedAt(new \DateTime());
         }
         
-        // 8. Flush all changes
+        // 8. Flush all changes to DB so checkAutoPublishCriteria() can query persisted data
         $this->entityManager->flush();
+
+        // C6: Database-level auto-publish validation — queries persisted BomLines and exceptions
+        // to double-check coverage, lead times, and critical exceptions.
+        $coveragePct = $stats['coverage_percent'] ?? 0;
+        if ($this->checkAutoPublishCriteria($quote->getId(), $coveragePct)) {
+            $quote->setStatus('PUBLISHED');
+            $quote->setAutoPublished(true);
+            $quote->setUpdatedAt(new \DateTime());
+            $this->entityManager->flush();
+        }
         
         return [
             'quoteId' => $quote->getId(),
@@ -363,135 +264,15 @@ class QuoteCoPilotService
 
         foreach ($processedLines as $lineData) {
             $lineNum++;
-            $bomLine = new BomLine();
-            $bomLine->setQuote($quote);
-            $bomLine->setLineNumber($lineData['lineNumber'] ?? $lineNum);
-            $bomLine->setMpn($lineData['mpn']);
-            $bomLine->setOriginalMpn($lineData['mpn']); // Preserve original before any alt-MPN swap
-            $bomLine->setManufacturer($lineData['manufacturer'] ?? null);
-            $bomLine->setDescription($lineData['description'] ?? $lineData['value'] ?? null);
-            $bomLine->setBomDescription($lineData['description'] ?? $lineData['value'] ?? null);
-            $bomLine->setQuantity($lineData['effective_quantity'] ?? $lineData['qty'] ?? $lineData['quantity'] ?? 1);
+            $bomLine = $this->createAndPersistBomLine($quote, $lineData, $lineNum);
 
-            $status = $lineData['status'] ?? 'unsourced';
-            $source = $lineData['source'] ?? null;
-
-            if ($status === 'sourced' && ($lineData['unit_price'] ?? 0) > 0) {
-                $unitPrice = (string) $lineData['unit_price'];
-                $extPrice  = (string) $lineData['extended_price'];
-
-                $bomLine->setUnitPrice($unitPrice);
-                $bomLine->setExtendedPrice($extPrice);
-                $bomLine->setProcurementSource($source);
-                $bomLine->setHasException(false);
-
-                $totalCost = $this->addMoney($totalCost, $extPrice, 2);
+            // Update tracking counters based on the persisted BomLine
+            if ($bomLine->getUnitPrice() !== null && $bomLine->getExtendedPrice() !== null) {
+                $totalCost = $this->addMoney($totalCost, (string) $bomLine->getExtendedPrice(), 2);
                 $sourcedCount++;
-
-                // ── Confidence scoring (from PricingEngine) ──
-                $confidence = $lineData['confidence'] ?? null;
-                if ($confidence) {
-                    $bomLine->setConfidenceScore((int) ($confidence['score'] ?? 0));
-                    $bomLine->setConfidenceLevel($confidence['level'] ?? 'MEDIUM');
-                    $bomLine->setConfidenceReasons($confidence['reasons'] ?? []);
-                    $bomLine->setConfidenceWarnings($confidence['warnings'] ?? []);
-                    $bomLine->setRequiresReview($confidence['requiresReview'] ?? false);
-                }
-
-                // ── Matched MPN (may differ from BOM MPN) ──
-                if (!empty($lineData['matched_mpn'])) {
-                    $bomLine->setMatchedMpn($lineData['matched_mpn']);
-                }
-                if (!empty($lineData['alt_mpn_used'])) {
-                    // Alt MPN was used as primary — record it
-                    $bomLine->setMatchedMpn($lineData['alt_mpn_used']);
-                }
-
-                // ── Listing URLs ──
-                $productUrl = $lineData['product_url'] ?? null;
-                $searchUrl  = $lineData['search_url'] ?? $lineData['_source_url'] ?? $productUrl ?? null;
-                if ($productUrl) {
-                    $bomLine->setSupplierProductUrl($productUrl);
-                }
-                if ($searchUrl) {
-                    $bomLine->setDistributorSearchUrl($searchUrl);
-                }
-
-                // ── Supplier name ──
-                $srcLower = strtolower($source ?? '');
-                if ($srcLower === 'alibaba') {
-                    $bomLine->setSupplierName($lineData['manufacturer'] ?? 'Alibaba Supplier');
-                } elseif ($srcLower === 'mouser') {
-                    $bomLine->setSupplierName('Mouser Electronics');
-                } elseif ($srcLower === 'digikey') {
-                    $bomLine->setSupplierName('DigiKey Electronics');
-                } elseif ($srcLower === 'nexar') {
-                    $bomLine->setSupplierName('Nexar (Aggregated)');
-                }
-
-                // ── Lifecycle ──
-                $lifecycleWarning = $lineData['lifecycle_warning'] ?? null;
-                if ($lifecycleWarning === 'critical') {
-                    $bomLine->setLifecycleStatus('Obsolete');
-                    $bomLine->setLifecycleWarning('critical');
-                } elseif ($lifecycleWarning === 'warning') {
-                    $bomLine->setLifecycleStatus('NRND');
-                    $bomLine->setLifecycleWarning('warning');
-                }
-
-                // ── Alternatives ──
-                if (!empty($lineData['alternatives'])) {
-                    $bomLine->setAlternativeParts($lineData['alternatives']);
-                }
-
-                // ── Rich sourcing metadata JSON ──
-                $bomLine->setSourcingData([
-                    'source' => strtoupper($srcLower),
-                    'waterfall_info' => $lineData['waterfall_info'] ?? null,
-                    'moq' => $lineData['moq'] ?? null,
-                    'pack_quantity' => $lineData['pack_quantity'] ?? null,
-                    'stock' => $lineData['stock'] ?? 0,
-                    'confidence' => $confidence,
-                    'alt_mpn_used' => $lineData['alt_mpn_used'] ?? null,
-                    'supplier_type' => $lineData['supplier_type'] ?? null,
-                    'trade_assurance' => $lineData['trade_assurance'] ?? null,
-                    'shipping_from' => $lineData['shipping_from'] ?? null,
-                    // Smart fallback metadata
-                    'fallback_method' => $lineData['_fallback_method'] ?? null,
-                    'fallback_original_mpn' => $lineData['_original_mpn'] ?? null,
-                    'fallback_mpn' => $lineData['_fallback_mpn'] ?? null,
-                    'fallback_keyword' => $lineData['_fallback_keyword'] ?? null,
-                ]);
-
             } else {
-                // Unsourced part
-                $bomLine->setUnitPrice(null);
-                $bomLine->setExtendedPrice(null);
-                $bomLine->setProcurementSource('Not Found');
-                $bomLine->setHasException(true);
-                $bomLine->setExceptionReason('Part not found in supplier APIs');
-                $bomLine->setRequiresReview(true);
-
-                $confidence = $lineData['confidence'] ?? null;
-                if ($confidence) {
-                    $bomLine->setConfidenceScore((int) ($confidence['score'] ?? 0));
-                    $bomLine->setConfidenceLevel($confidence['level'] ?? 'VERY_LOW');
-                    $bomLine->setConfidenceReasons($confidence['reasons'] ?? []);
-                    $bomLine->setConfidenceWarnings($confidence['warnings'] ?? []);
-                }
-
                 $exceptionsCount++;
-
-                // Create procurement exception
-                $exception = new ProcurementException();
-                $exception->setBomLine($bomLine);
-                $exception->setExceptionType('NOT_FOUND');
-                $exception->setSeverity('HIGH');
-                $exception->setMessage('Part not found in supplier APIs: ' . ($lineData['mpn'] ?? 'unknown'));
-                $this->entityManager->persist($exception);
             }
-
-            $this->entityManager->persist($bomLine);
         }
 
         // ── Update quote totals ──
@@ -518,6 +299,13 @@ class QuoteCoPilotService
         }
 
         $this->entityManager->flush();
+
+        // C6: Database-level auto-publish validation — check persisted BomLines/exceptions
+        if ($this->checkAutoPublishCriteria($quoteId, round($coverage, 2))) {
+            $quote->setStatus('PUBLISHED');
+            $quote->setAutoPublished(true);
+            $this->entityManager->flush();
+        }
 
         return [
             'coverage' => round($coverage, 2),
@@ -555,10 +343,10 @@ class QuoteCoPilotService
 
     /**
      * Check if quote meets auto-publish criteria
-     * 
+     *
      * @param int $quoteId - Quote ID
      * @param float $coverage - Coverage percentage
-     * 
+     *
      * @return bool - True if quote should be auto-published
      */
     public function checkAutoPublishCriteria(int $quoteId, float $coverage): bool
@@ -622,9 +410,12 @@ class QuoteCoPilotService
 
     /**
      * Regenerate quote (re-run API waterfall for all unmapped parts)
-     * 
+     *
+     * Fix H2: Now delegates to the same pipeline as processBom() — reads existing BOM data,
+     * re-runs pricing via PricingEngine::processBOM(), updates lines.
+     *
      * @param int $quoteId - Quote ID
-     * 
+     *
      * @return array - Updated coverage and exceptions
      */
     public function regenerateQuote(int $quoteId): array
@@ -634,74 +425,185 @@ class QuoteCoPilotService
             throw new \RuntimeException("Quote not found: {$quoteId}");
         }
         
-        // Get all BOM lines for this quote
-        $bomLines = $this->entityManager->getRepository(BomLine::class)
+        // Fix H2: Read existing BOM lines and convert to array format for processBom()
+        $existingBomLines = $this->entityManager->getRepository(BomLine::class)
             ->findBy(['quote' => $quote]);
         
-        $reprocessed = 0;
-        $newlySourced = 0;
-        
-        foreach ($bomLines as $bomLine) {
-            // Only reprocess if not sourced or imputed
-            if ($bomLine->getProcurementSource() === 'Not Found' || !$bomLine->getUnitPrice()) {
-                $mpn = $bomLine->getMpn();
-                $manufacturer = $bomLine->getManufacturer();
-                $quantity = $bomLine->getQuantity();
-                
-                // Re-run pricing via PricingEngine
-                try {
-                    $pricing = $this->pricingEngine->getPricing($mpn, $manufacturer);
-                    
-                    if ($pricing) {
-                        // Use the first price break for unit pricing
-                        $priceBreaks = $pricing['pricing'] ?? [];
-                        $unitPrice = 0.0;
-                        if (!empty($priceBreaks)) {
-                            // Find best price break for quantity
-                            foreach ($priceBreaks as $pb) {
-                                if (($pb['quantity'] ?? 0) <= $quantity) {
-                                    $unitPrice = (float) ($pb['price'] ?? 0);
-                                }
-                            }
-                            if ($unitPrice === 0.0) {
-                                $unitPrice = (float) ($priceBreaks[0]['price'] ?? 0);
-                            }
-                        }
-                        $extPrice = $unitPrice * $quantity;
-                        
-                        $bomLine->setUnitPrice((string) $unitPrice);
-                        $bomLine->setExtendedPrice((string) $extPrice);
-                        $bomLine->setProcurementSource($pricing['source']);
-                        $bomLine->setAvailability(($pricing['stock'] ?? 0) > 0 ? 'In Stock' : 'Factory');
-                        $bomLine->setLeadTimeDays($pricing['leadtime_days'] ?? null);
-                        $bomLine->setHasException(false);
-                        
-                        $newlySourced++;
-                    }
-                } catch (\Exception $e) {
-                    // Failed to get pricing, leave as-is
-                }
-                
-                $reprocessed++;
-            }
+        if (empty($existingBomLines)) {
+            return [
+                'reprocessed' => 0,
+                'newly_sourced' => 0,
+                'coverage' => 0,
+                'total_lines' => 0,
+                'sourced_lines' => 0,
+            ];
         }
         
+        // Convert BomLine entities back to array format for the pipeline
+        $bomData = [];
+        foreach ($existingBomLines as $bomLine) {
+            $bomData[] = [
+                'lineNumber' => $bomLine->getLineNumber(),
+                'mpn' => $bomLine->getMpn() ?? '',
+                'original_mpn' => $bomLine->getOriginalMpn() ?? $bomLine->getMpn(),
+                'manufacturer' => $bomLine->getManufacturer(),
+                'description' => $bomLine->getDescription() ?? $bomLine->getBomDescription(),
+                'quantity' => $bomLine->getQuantity() ?? 1,
+                'stock_quantity' => $bomLine->getQuantity(), // preserve as order qty
+            ];
+        }
+        
+        // Delete existing BomLines and ProcurementExceptions so processBom() can recreate them
+        $exceptionRepo = $this->entityManager->getRepository(ProcurementException::class);
+        foreach ($existingBomLines as $bomLine) {
+            // Remove exceptions first
+            $exceptions = $exceptionRepo->findBy(['bomLine' => $bomLine]);
+            foreach ($exceptions as $exc) {
+                $this->entityManager->remove($exc);
+            }
+            $this->entityManager->remove($bomLine);
+        }
         $this->entityManager->flush();
         
-        // Recalculate coverage
-        $totalLines = count($bomLines);
-        $sourcedLines = count(array_filter($bomLines, fn($line) => $line->getProcurementSource() !== 'Not Found' && $line->getUnitPrice() > 0));
-        $coverage = $totalLines > 0 ? ($sourcedLines / $totalLines) * 100 : 0;
-        
-        $quote->setCoveragePercent((string)round($coverage, 2));
-        $this->entityManager->flush();
-        
-        return [
-            'reprocessed' => $reprocessed,
-            'newly_sourced' => $newlySourced,
-            'coverage' => round($coverage, 2),
-            'total_lines' => $totalLines,
-            'sourced_lines' => $sourcedLines
-        ];
+        // Re-run the full pipeline
+        return $this->processBom($bomData, $quoteId);
+    }
+
+    /**
+     * Create and persist a BomLine entity from processed line data.
+     *
+     * Fix H1: Shared method extracted from autogenerateQuote() and processBom()
+     * to eliminate ~150 lines of duplicated BomLine creation/persistence logic.
+     *
+     * @param Quote $quote   The quote entity to associate
+     * @param array $lineData  Processed line data from PricingEngine
+     * @param int   $lineNum   Sequential line number
+     *
+     * @return BomLine The persisted BomLine entity
+     */
+    private function createAndPersistBomLine(Quote $quote, array $lineData, int $lineNum): BomLine
+    {
+        $bomLine = new BomLine();
+        $bomLine->setQuote($quote);
+        $bomLine->setLineNumber($lineData['lineNumber'] ?? $lineNum);
+        $bomLine->setMpn($lineData['mpn']);
+        $bomLine->setOriginalMpn($lineData['mpn']); // Preserve original before any alt-MPN swap
+        $bomLine->setManufacturer($lineData['manufacturer'] ?? null);
+        $bomLine->setDescription($lineData['description'] ?? $lineData['value'] ?? null);
+        $bomLine->setBomDescription($lineData['description'] ?? $lineData['value'] ?? null);
+        $bomLine->setQuantity($lineData['effective_quantity'] ?? $lineData['qty'] ?? $lineData['quantity'] ?? 1);
+
+        $status = $lineData['status'] ?? 'unsourced';
+        $source = $lineData['source'] ?? null;
+
+        if ($status === 'sourced' && ($lineData['unit_price'] ?? 0) > 0) {
+            $bomLine->setUnitPrice((string) ($lineData['unit_price']));
+            $bomLine->setExtendedPrice((string) ($lineData['extended_price']));
+            $bomLine->setProcurementSource($source);
+            $bomLine->setHasException(false);
+
+            // ── Confidence scoring ──
+            $confidence = $lineData['confidence'] ?? null;
+            if ($confidence) {
+                $bomLine->setConfidenceScore((int) ($confidence['score'] ?? 0));
+                $bomLine->setConfidenceLevel($confidence['level'] ?? 'MEDIUM');
+                $bomLine->setConfidenceReasons($confidence['reasons'] ?? []);
+                $bomLine->setConfidenceWarnings($confidence['warnings'] ?? []);
+                $bomLine->setRequiresReview($confidence['requiresReview'] ?? false);
+            }
+
+            // ── Matched MPN ──
+            if (!empty($lineData['matched_mpn'])) {
+                $bomLine->setMatchedMpn($lineData['matched_mpn']);
+            }
+            if (!empty($lineData['alt_mpn_used'])) {
+                $bomLine->setMatchedMpn($lineData['alt_mpn_used']);
+            }
+
+            // ── Listing URLs ──
+            $productUrl = $lineData['product_url'] ?? null;
+            $searchUrl  = $lineData['search_url'] ?? $lineData['_source_url'] ?? $productUrl ?? null;
+            if ($productUrl) {
+                $bomLine->setSupplierProductUrl($productUrl);
+            }
+            if ($searchUrl) {
+                $bomLine->setDistributorSearchUrl($searchUrl);
+            }
+
+            // ── Supplier name ──
+            $srcLower = strtolower($source ?? '');
+            if ($srcLower === 'alibaba') {
+                $bomLine->setSupplierName($lineData['manufacturer'] ?? 'Alibaba Supplier');
+            } elseif ($srcLower === 'mouser') {
+                $bomLine->setSupplierName('Mouser Electronics');
+            } elseif ($srcLower === 'digikey') {
+                $bomLine->setSupplierName('DigiKey Electronics');
+            } elseif ($srcLower === 'nexar') {
+                $bomLine->setSupplierName('Nexar (Aggregated)');
+            }
+
+            // ── Lifecycle ──
+            $lifecycleWarning = $lineData['lifecycle_warning'] ?? null;
+            if ($lifecycleWarning === 'critical') {
+                $bomLine->setLifecycleStatus('Obsolete');
+                $bomLine->setLifecycleWarning('critical');
+            } elseif ($lifecycleWarning === 'warning') {
+                $bomLine->setLifecycleStatus('NRND');
+                $bomLine->setLifecycleWarning('warning');
+            }
+
+            // ── Alternatives ──
+            if (!empty($lineData['alternatives'])) {
+                $bomLine->setAlternativeParts($lineData['alternatives']);
+            }
+
+            // ── Rich sourcing metadata JSON ──
+            $bomLine->setSourcingData([
+                'source' => strtoupper($srcLower),
+                'waterfall_info' => $lineData['waterfall_info'] ?? null,
+                'moq' => $lineData['moq'] ?? null,
+                'pack_quantity' => $lineData['pack_quantity'] ?? null,
+                'stock' => $lineData['stock'] ?? 0,
+                'confidence' => $confidence,
+                'alt_mpn_used' => $lineData['alt_mpn_used'] ?? null,
+                'supplier_type' => $lineData['supplier_type'] ?? null,
+                'trade_assurance' => $lineData['trade_assurance'] ?? null,
+                'shipping_from' => $lineData['shipping_from'] ?? null,
+                // Smart fallback metadata
+                'fallback_method' => $lineData['_fallback_method'] ?? null,
+                'fallback_original_mpn' => $lineData['_original_mpn'] ?? null,
+                'fallback_mpn' => $lineData['_fallback_mpn'] ?? null,
+                'fallback_keyword' => $lineData['_fallback_keyword'] ?? null,
+            ]);
+
+        } else {
+            // Unsourced part
+            $bomLine->setUnitPrice(null);
+            $bomLine->setExtendedPrice(null);
+            $bomLine->setProcurementSource('Not Found');
+            $bomLine->setHasException(true);
+            $bomLine->setExceptionReason('Part not found in supplier APIs');
+            $bomLine->setRequiresReview(true);
+
+            $confidence = $lineData['confidence'] ?? null;
+            if ($confidence) {
+                $bomLine->setConfidenceScore((int) ($confidence['score'] ?? 0));
+                $bomLine->setConfidenceLevel($confidence['level'] ?? 'VERY_LOW');
+                $bomLine->setConfidenceReasons($confidence['reasons'] ?? []);
+                $bomLine->setConfidenceWarnings($confidence['warnings'] ?? []);
+            }
+
+            // Create procurement exception for unsourced parts
+            $exception = new ProcurementException();
+            $exception->setBomLine($bomLine);
+            $exception->setExceptionType('NOT_FOUND');
+            $exception->setSeverity('HIGH');
+            $exception->setMessage('Part not found in supplier APIs: ' . ($lineData['mpn'] ?? 'unknown'));
+            $this->entityManager->persist($exception);
+        }
+
+        $this->entityManager->persist($bomLine);
+
+        return $bomLine;
     }
 }

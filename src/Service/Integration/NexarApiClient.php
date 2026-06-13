@@ -2,6 +2,7 @@
 
 namespace App\Service\Integration;
 
+use App\Service\PartMatchConfidenceCalculator;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -9,7 +10,7 @@ use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * Nexar API Client
- * 
+ *
  * Nexar is an electronics search engine that aggregates multiple distributors
  * Documentation: https://nexar.com/api
  */
@@ -27,8 +28,11 @@ class NexarApiClient
         private CacheInterface $cache,
         private LoggerInterface $logger,
         private string $clientId,
-        private string $clientSecret
-    ) {}
+        private string $clientSecret,
+        private ?PartMatchConfidenceCalculator $confidenceCalculator = null
+    ) {
+        $this->confidenceCalculator ??= new PartMatchConfidenceCalculator();
+    }
 
     /**
      * Search for a part by MPN
@@ -171,7 +175,7 @@ GRAPHQL;
                 // Sort pricing by quantity
                 usort($allPricing, fn($a, $b) => $a['quantity'] <=> $b['quantity']);
                 
-                return [
+                $apiResult = [
                     'mpn' => $part['mpn'] ?? $partNumber,
                     'manufacturer' => $part['manufacturer']['name'] ?? null,
                     'description' => $part['shortDescription'] ?? null,
@@ -181,12 +185,20 @@ GRAPHQL;
                     'moq' => ($minMoq === PHP_INT_MAX) ? 1 : $minMoq,
                     'leadtime_days' => 0, // Nexar doesn't provide lead time
                     'specs' => $this->parseSpecs($part['specs'] ?? []),
-                    'confidence' => [
-                        'score' => 75,
-                        'level' => 'MEDIUM',
-                        'warnings' => ['Nexar aggregator — verify pricing with authorized distributor'],
-                    ],
                 ];
+
+                $confidence = $this->confidenceCalculator->calculateConfidence(
+                    $partNumber,
+                    $part['manufacturer']['name'] ?? null,
+                    $part['shortDescription'] ?? null,
+                    $apiResult
+                );
+                $apiResult['confidence_score'] = $confidence['score'];
+                $apiResult['confidence_level'] = $confidence['level'];
+                $apiResult['confidence_reasons'] = $confidence['reasons'];
+                $apiResult['confidence_warnings'] = $confidence['warnings'];
+
+                return $apiResult;
                 
             } catch (\Exception $e) {
                 $this->logger->error('Nexar API request failed', [

@@ -3,7 +3,6 @@
 namespace App\Service\WebCrawler;
 
 use App\Service\GoogleSearchService;
-use App\Service\LlmService;
 use App\Service\WebCrawler\Classifier\CompetitorProximityVeto;
 use App\Service\WebCrawler\Classifier\ServiceProductClassifier;
 use App\Service\WebCrawler\Contact\ContactQualityScorer;
@@ -17,7 +16,6 @@ use App\Service\WebCrawler\Rules\RuleEngine;
 use App\Service\WebCrawler\SearchProvider\SearchProviderInterface;
 use App\Service\WebCrawler\SearchProvider\SearchResultSet;
 use App\Repository\CompanyRepository;
-use App\Repository\CompetitorRepository;
 use App\Service\WebCrawler\Seed\DirectorySeedExtractor;
 use App\Service\WebCrawler\Text\LanguageDetector;
 use App\Service\WebCrawler\Text\TextNormalizer;
@@ -34,11 +32,6 @@ use Psr\Log\LoggerInterface;
 class GoogleDorkService
 {
     private ?CompanyClassifierService $classifier = null;
-
-    /**
-     * Cached competitor canonical domains (lazy-loaded).
-     */
-    private ?array $competitorDomainsCache = null;
 
     /**
      * Current search region — set during searchCompanies() so that
@@ -66,8 +59,6 @@ class GoogleDorkService
         private ?PoliteCrawlGovernor $crawlGovernor = null,
         private ?PipelineMetricsCollector $metricsCollector = null,
         private ?CompanyRepository $companyRepository = null,
-        private ?CompetitorRepository $competitorRepository = null,
-        private ?LlmService $llmService = null,
     )
     {
         $this->classifier = $companyClassifier;
@@ -117,7 +108,18 @@ class GoogleDorkService
         // Prefer the new abstraction if wired
         if ($this->searchProvider !== null) {
             $resultSet = $this->searchProvider->search($query, $gl, null, $num, $startIndex);
-            return $resultSet->toLegacyArray();
+            $legacyResult = $resultSet->toLegacyArray();
+
+            // If the provider returned empty/no results (e.g. SearXNG not running),
+            // fall back to Google CSE automatically.
+            if (!empty($legacyResult['results'])) {
+                return $legacyResult;
+            }
+
+            $this->logger->notice('Search provider returned empty results, falling back to Google CSE', [
+                'query' => mb_substr($query, 0, 80),
+                'provider' => $resultSet->providerName ?? 'unknown',
+            ]);
         }
 
         // Fall back to legacy concrete class (Google CSE)
@@ -486,53 +488,36 @@ class GoogleDorkService
                                     continue;
                                 }
                                 
-                                // ── LLM Primary Gate (v21 — Qwen2.5-7B) ──────────
-                                // With 100% accuracy on 225-entry golden dataset v2
-                                // (26 reject categories, 9 languages), the 7B model
-                                // is now THE primary classification gate. It REPLACES:
-                                //   - Knowledge-base classifier (regex)
-                                //   - BuyerEvidenceGate (regex scoring)
-                                //   - ServiceProductClassifier (regex)
-                                //   - CompetitorProximityVeto (regex)
-                                //   - RuleEngine (YAML rules)
-                                //
-                                // The cheap regex pre-filters above (isCompetitorOrWrongType,
-                                // isObviousNonTarget) are KEPT to avoid wasting ~3s LLM
-                                // inference on obviously-wrong candidates.
-                                $llmClassification = null;
-                                if ($this->llmService !== null) {
-                                    $llmSnippet = mb_substr($snippet . ' ' . ($title ?? ''), 0, 500);
-                                    $llmClassification = $this->llmService->classifyCompany($companyName, $domain, $llmSnippet, $location, $sector);
-                                    if ($llmClassification !== null) {
-                                        $llmVerdict = strtoupper($llmClassification['verdict'] ?? 'REJECT');
-                                        $llmConfidence = (float) ($llmClassification['confidence'] ?? 0.0);
-                                        
-                                        // REJECT if: verdict is REJECT (any confidence), OR verdict is ACCEPT but low confidence
-                                        if ($llmVerdict !== 'ACCEPT' || $llmConfidence < 0.6) {
-                                            $this->metricsCollector->recordReject('llm_primary_gate', $llmClassification['reason'] ?? '');
-                                            $this->logger->info('LLM Primary Gate REJECT', [
-                                                'name' => $companyName,
-                                                'domain' => $domain,
-                                                'verdict' => $llmVerdict,
-                                                'reason' => $llmClassification['reason'] ?? '',
-                                                'confidence' => $llmConfidence,
-                                            ]);
-                                            continue;
-                                        }
-                                        
-                                        $this->logger->info('LLM Primary Gate ACCEPT', [
+                                // ── Classifier Gate ────────────────────────────────
+                                // Uses CompanyClassifierService (regex/knowledge-base)
+                                // to determine if this is a real EMS buyer company.
+                                if ($this->classifier !== null) {
+                                    $classification = $this->classifier->classifyCompany($companyName, $snippet, $title ?? '', $domain);
+                                    $verdict = $classification['verdict'] ?? 'UNCERTAIN';
+                                    $score = $classification['score'] ?? 0;
+                                    
+                                    if ($verdict === 'REJECT') {
+                                        $this->metricsCollector->recordReject('classifier_reject', $classification['reason'] ?? '');
+                                        $this->logger->info('Classifier REJECT', [
                                             'name' => $companyName,
                                             'domain' => $domain,
-                                            'verdict' => $llmVerdict,
-                                            'confidence' => $llmConfidence,
-                                            'reason' => $llmClassification['reason'] ?? '',
+                                            'score' => $score,
+                                            'reason' => $classification['reason'] ?? '',
                                         ]);
-                                    } else {
-                                        $this->logger->warning('LLM returned null — falling through to location check', [
-                                            'name' => $companyName,
-                                            'domain' => $domain,
-                                        ]);
+                                        continue;
                                     }
+                                    
+                                    $this->logger->info('Classifier ACCEPT', [
+                                        'name' => $companyName,
+                                        'domain' => $domain,
+                                        'verdict' => $verdict,
+                                        'score' => $score,
+                                    ]);
+                                } else {
+                                    $this->logger->warning('No classifier available — falling through to location check', [
+                                        'name' => $companyName,
+                                        'domain' => $domain,
+                                    ]);
                                 }
 
                                 // ── Location Presence Validation ────────────────
@@ -3593,13 +3578,6 @@ class GoogleDorkService
     {
         $domain = strtolower(preg_replace('/^www\./', '', $domain));
 
-        // ─── Block tracked competitor domains ─────────────────────────
-        // Dynamic check against the competitors table to avoid discovering
-        // companies we're already tracking as competitors (not prospects)
-        if ($this->isCompetitorDomain($domain)) {
-            return true;
-        }
-
         // ─── Block code hosting / developer platform domains ──────────
         // Structural rule: these are collaboration platforms, not buyer companies.
         if (preg_match('/(^|\.)(github|gitlab|bitbucket|sourceforge|codeberg|launchpad)\./i', $domain)) {
@@ -4161,6 +4139,14 @@ class GoogleDorkService
             }
         }
 
+        // ─── Allow known legitimate Tier 1 suppliers that are in DOMAIN_BLOCKLIST ──
+        // These companies are actual automotive/aerospace OEMs that are legitimate
+        // EMS prospects, even though they appear in the blocklist.
+        $allowedBlockedDomains = ['ficosa.com'];
+        if (in_array($domain, $allowedBlockedDomains, true)) {
+            return false;
+        }
+
         foreach (self::DOMAIN_BLOCKLIST as $blocked) {
             // Exact match
             if ($domain === $blocked) {
@@ -4180,66 +4166,12 @@ class GoogleDorkService
     }
 
     /**
-     * Check if a domain belongs to a tracked competitor.
-     * Lazy-loads all competitor canonical_domain values from DB on first call.
-     */
-    private function isCompetitorDomain(string $domain): bool
-    {
-        // Lazy-load competitor domains cache
-        if ($this->competitorDomainsCache === null) {
-            $this->competitorDomainsCache = [];
-            
-            if ($this->competitorRepository !== null) {
-                // Fetch all canonical_domain values from competitors table
-                $qb = $this->competitorRepository->createQueryBuilder('c')
-                    ->select('c.canonicalDomain')
-                    ->where('c.canonicalDomain IS NOT NULL')
-                    ->andWhere('c.canonicalDomain != :empty')
-                    ->setParameter('empty', '');
-                
-                $results = $qb->getQuery()->getResult();
-                foreach ($results as $row) {
-                    $compDomain = strtolower(preg_replace('/^www\./', '', $row['canonicalDomain'] ?? ''));
-                    if (!empty($compDomain)) {
-                        $this->competitorDomainsCache[$compDomain] = true;
-                    }
-                }
-                
-                $this->logger->debug('Loaded competitor domains for blocklist', [
-                    'count' => count($this->competitorDomainsCache),
-                ]);
-            }
-        }
-        
-        // Check exact match
-        if (isset($this->competitorDomainsCache[$domain])) {
-            $this->logger->debug('Blocking tracked competitor domain', [
-                'domain' => $domain,
-            ]);
-            return true;
-        }
-        
-        // Check subdomain match (e.g. careers.jabil.com → jabil.com)
-        foreach (array_keys($this->competitorDomainsCache) as $compDomain) {
-            if (str_ends_with($domain, '.' . $compDomain)) {
-                $this->logger->debug('Blocking tracked competitor subdomain', [
-                    'domain' => $domain,
-                    'competitor' => $compDomain,
-                ]);
-                return true;
-            }
-        }
-        
-        return false;
-    }
-
-    /**
      * Check if an extracted company name is still junk (descriptive phrase,
      * product listing title, etc.) rather than an actual company name.
     /**
      * Fast entity-type pre-filter: catches obvious non-targets based on
      * company name, snippet, and domain patterns BEFORE expensive homepage
-     * fetch or LLM calls. This is a hard reject — no rescue possible.
+     * fetch. This is a hard reject — no rescue possible.
      *
      * Catches: government bodies, NGOs, student orgs, job portals,
      * investment agencies, agricultural bodies, chemical/mining SOEs.
@@ -10343,13 +10275,13 @@ class GoogleDorkService
                 }
                 $html = $this->smartTruncateHtml($html, 250000);
 
-                // ── Store cleaned homepage text for LLM context ──────
-                // Available regardless of enrichment success — gives the LLM
-                // actual page content instead of a search snippet.
-                $cleanedForLlm = preg_replace('/<(script|style|noscript)\b[^>]*>.*?<\/\1>/is', ' ', $html) ?? $html;
+                // ── Store cleaned homepage text for classifier context ──
+                // Available regardless of enrichment success — gives the
+                // classifier actual page content instead of a search snippet.
+                $cleanedText = preg_replace('/<(script|style|noscript)\b[^>]*>.*?<\/\1>/is', ' ', $html) ?? $html;
                 $data['_homepage_text'] = mb_substr(
                     trim(preg_replace('/\s+/u', ' ',
-                        html_entity_decode(strip_tags($cleanedForLlm), ENT_QUOTES | ENT_HTML5, 'UTF-8')
+                        html_entity_decode(strip_tags($cleanedText), ENT_QUOTES | ENT_HTML5, 'UTF-8')
                     ) ?? ''),
                     0, 1500
                 );
@@ -10431,19 +10363,6 @@ class GoogleDorkService
                     }
 
                     $data = $this->mergeEnrichment($data, $enrichment);
-
-                    // ── LLM CLASSIFICATION ─────────────────────────────
-                    // Use homepage text (actual content) for deep classification.
-                    // The 7B model's analyzeHomepage() uses the full page content
-                    // for far better accuracy than a search snippet.
-                    $snippetForLlm = !empty($data['_homepage_text'])
-                        ? $data['_homepage_text']
-                        : mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                    $homepageForLlm = !empty($data['_homepage_text']) ? $data['_homepage_text'] : null;
-                    if (!$this->llmSecondOpinion($data['name'], $domain, $snippetForLlm, $data['location'] ?? null, 'homepage', $homepageForLlm, $data['sector'] ?? null)) {
-                        $needsLinkedIn[$domain] = $data;
-                        continue;
-                    }
 
                     $verified[$domain] = $data;
                     $this->logger->debug('Verified+enriched via homepage', [
@@ -10660,31 +10579,6 @@ class GoogleDorkService
                     $sub = $this->scrapeSubpagesForContacts($data['website'] ?? '', $data['name']);
                     if ($sub) { $data = $this->mergeEnrichment($data, $sub); }
                 }
-                if (empty($data['contacts'])) {
-                    $ec = $this->extractContactsFromEmails($data);
-                    if ($ec) { $data['contacts'] = $ec; }
-                }
-
-                // ── LLM CLASSIFICATION ─────────────────────────────
-                // Use homepage text if available (fetched during Phase 1 or botd
-                // location check). Falls back to search snippet.
-                $botdSnippet = !empty($data['_homepage_text'])
-                    ? $data['_homepage_text']
-                    : mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                // If no homepage text yet, try fetching for LLM context
-                if (empty($data['_homepage_text']) && !empty($data['website'])) {
-                    try {
-                        $botdHtml = $this->fetchEvidenceHomepageText($domain);
-                        if ($botdHtml !== '') {
-                            $botdSnippet = mb_substr($botdHtml, 0, 1500);
-                            $data['_homepage_text'] = $botdSnippet;
-                        }
-                    } catch (\Throwable $e) {}
-                }
-                $botdHomepage = !empty($data['_homepage_text']) ? $data['_homepage_text'] : null;
-                if (!$this->llmSecondOpinion($data['name'], $domain, $botdSnippet, $data['location'] ?? null, 'botd', $botdHomepage, $data['sector'] ?? null)) {
-                    continue; // LLM rejected — skip silently
-                }
 
                 $verified[$domain] = $data;
                 $this->logger->info('Accepted via benefit-of-the-doubt (fast path, skipped LinkedIn)', [
@@ -10694,80 +10588,11 @@ class GoogleDorkService
                 continue;
             }
 
-            // ── HOMEPAGE-REJECTED: LLM rescue opportunity ──────────
-            // The homepage regex classifier has false positives (e.g. Omron,
-            // FFT were flagged as non-targets). Before hard-rejecting, give
-            // the LLM a chance to override. If the LLM confirms it's a
-            // manufacturer with high confidence, accept via BOTD path.
+            // ── HOMEPAGE-REJECTED: hard reject ─────────────────
+            // The homepage classifier flagged this as a non-target (dealer,
+            // media site, directory, etc.). No LLM rescue available — just reject.
             if (!empty($data['homepage_rejected'])) {
-                // Use homepage text for LLM context — gives real page content
-                $rescueSnippet = !empty($data['_homepage_text'])
-                    ? $data['_homepage_text']
-                    : mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                $rescueHomepage = !empty($data['_homepage_text']) ? $data['_homepage_text'] : null;
-                if ($this->llmService !== null && $this->llmSecondOpinion($name, $domain, $rescueSnippet, $data['location'] ?? null, 'homepage_rescue', $rescueHomepage, $data['sector'] ?? null)) {
-                    // ── LOCATION RE-CHECK for homepage rescue ──────────
-                    // The LLM can hallucinate location presence. Verify with
-                    // actual evidence: ccTLD, domain name, or homepage text.
-                    $rescueLocation = $data['location'] ?? null;
-                    $rescueLocationOk = ($rescueLocation === null || $rescueLocation === '');
-                    if (!$rescueLocationOk) {
-                        $rescueLocationVocab = $this->getLocationVocabulary(strtolower(trim($rescueLocation)));
-                        if ($rescueLocationVocab !== null) {
-                            // ccTLD check
-                            foreach ($rescueLocationVocab['tlds'] as $tld) {
-                                if (preg_match('/\.' . preg_quote($tld, '/') . '$/i', $domain)) {
-                                    $rescueLocationOk = true;
-                                    break;
-                                }
-                            }
-                            // Domain name check
-                            if (!$rescueLocationOk) {
-                                $domLow = strtolower($domain);
-                                foreach ($rescueLocationVocab['terms'] as $term) {
-                                    if (str_contains($domLow, str_replace(' ', '', $term))) {
-                                        $rescueLocationOk = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            // Homepage text check
-                            if (!$rescueLocationOk && !empty($data['_homepage_text'])) {
-                                $hpLow = strtolower($data['_homepage_text']);
-                                foreach ($rescueLocationVocab['terms'] as $term) {
-                                    if (str_contains($hpLow, $term)) {
-                                        $rescueLocationOk = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        } else {
-                            $rescueLocationOk = true; // no vocabulary = can't check
-                        }
-                    }
-                    if (!$rescueLocationOk) {
-                        $this->logger->info('LLM rescued but no location evidence — rejecting homepage rescue', [
-                            'name' => $name, 'domain' => $domain,
-                            'location' => $rescueLocation,
-                        ]);
-                        continue;
-                    }
-                    $this->logger->info('LLM rescued homepage-rejected company', [
-                        'name' => $name, 'domain' => $domain,
-                    ]);
-                    $data['verification_status'] = 'llm_rescued_homepage_rejected';
-                    if (empty($data['contacts']) || empty($data['address'])) {
-                        $sub = $this->scrapeSubpagesForContacts($data['website'] ?? '', $data['name']);
-                        if ($sub) { $data = $this->mergeEnrichment($data, $sub); }
-                    }
-                    if (empty($data['contacts'])) {
-                        $ec = $this->extractContactsFromEmails($data);
-                        if ($ec) { $data['contacts'] = $ec; }
-                    }
-                    $verified[$domain] = $data;
-                    continue;
-                }
-                $this->logger->info('Hard-rejecting homepage-classified non-target (LLM also rejected or unavailable)', [
+                $this->logger->info('Hard-rejecting homepage-classified non-target', [
                     'name' => $name,
                     'domain' => $domain,
                 ]);
@@ -10829,13 +10654,6 @@ class GoogleDorkService
                     }
                 }
 
-                // ── LLM SECOND OPINION ────────────────────────────
-                $liSnippet = mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                if (!$this->llmSecondOpinion($data['name'], $domain, $liSnippet, $data['location'] ?? null, 'linkedin_2a', null, $data['sector'] ?? null)) {
-                    usleep(250000);
-                    continue;
-                }
-
                 $verified[$domain] = $data;
                 $this->logger->debug('Verified+enriched via LinkedIn', [
                     'name' => $data['name'], 'domain' => $domain,
@@ -10892,13 +10710,6 @@ class GoogleDorkService
                         }
                     }
 
-                    // ── LLM SECOND OPINION ────────────────────────────
-                    $li2Snippet = mb_substr($data['snippet'] ?? $data['description'] ?? '', 0, 500);
-                    if (!$this->llmSecondOpinion($data['name'], $domain, $li2Snippet, $data['location'] ?? null, 'linkedin_2b', null, $data['sector'] ?? null)) {
-                        usleep(250000);
-                        continue;
-                    }
-
                     $verified[$domain] = $data;
                     $this->logger->debug('Verified via LinkedIn (domain name)', [
                         'original' => $name, 'corrected' => $data['name'],
@@ -10932,119 +10743,6 @@ class GoogleDorkService
         ]);
 
         return $verified;
-    }
-
-    /**
-     * LLM second-opinion check — ask the local Qwen 3B model whether a
-     * candidate is a genuine manufacturer (not a trader/distributor/media site).
-     *
-     * Returns true if the LLM confirms the candidate OR if the LLM is
-     * unavailable (graceful fallback — never blocks the pipeline).
-     *
-     * @param string      $name     Company name
-     * @param string      $domain   Company domain
-     * @param string      $snippet  Search snippet / description text
-     * @param string|null $location Target location (e.g. "Egypt")
-     * @param string      $path     Which verification path called this (for logging)
-     */
-    /**
-     * LLM classification gate — ask the Qwen2.5-7B model whether a
-     * candidate is a genuine manufacturer (not a trader/distributor/media site).
-     *
-     * When homepage text is available (verification phase), uses
-     * analyzeHomepage() which gives the LLM actual page content for
-     * much better classification than just a search snippet.
-     *
-     * Returns true if the LLM confirms the candidate, false if rejected.
-     * Defaults to REJECT when LLM is unavailable (never let unverified through).
-     *
-     * @param string      $name         Company name
-     * @param string      $domain       Company domain
-     * @param string      $snippet      Search snippet or homepage text (1500 chars)
-     * @param string|null $location     Target location (e.g. "Egypt")
-     * @param string      $path         Which verification path called this (for logging)
-     * @param string|null $homepageText Cleaned homepage text (if available, triggers analyzeHomepage)
-     */
-    private function llmSecondOpinion(string $name, string $domain, string $snippet, ?string $location, string $path, ?string $homepageText = null, ?string $sector = null): bool
-    {
-        if ($this->llmService === null) {
-            $this->logger->warning('LLM not wired — REJECTING by default', [
-                'name' => $name, 'domain' => $domain,
-            ]);
-            return false;
-        }
-
-        try {
-            if (!$this->llmService->isAvailable()) {
-                $this->logger->warning('LLM unavailable — REJECTING by default', [
-                    'name' => $name, 'domain' => $domain,
-                ]);
-                return false;
-            }
-
-            // Use analyzeHomepage() when we have actual homepage content —
-            // gives the LLM full page context instead of a 200-char snippet.
-            $result = null;
-            if ($homepageText !== null && mb_strlen($homepageText) > 100) {
-                $result = $this->llmService->analyzeHomepage($homepageText, $name, $domain, $location, $sector);
-                $this->logger->debug('LLM using homepage text for classification', [
-                    'name' => $name, 'domain' => $domain,
-                    'text_length' => mb_strlen($homepageText),
-                    'path' => $path,
-                ]);
-            }
-
-            // Fallback to snippet-based classification if no homepage or analyzeHomepage failed
-            if ($result === null) {
-                $result = $this->llmService->classifyCompany($name, $domain, $snippet, $location, $sector);
-            }
-
-            if ($result === null) {
-                $this->logger->warning('LLM returned null — REJECTING by default', [
-                    'name' => $name, 'domain' => $domain,
-                ]);
-                return false;
-            }
-
-            $verdict = strtoupper($result['verdict'] ?? 'REJECT');
-            $confidence = (float) ($result['confidence'] ?? 0.5);
-            $reason = $result['reason'] ?? 'no reason';
-            $isManufacturer = (bool) ($result['is_manufacturer'] ?? false);
-
-            $this->logger->info('LLM classification', [
-                'name' => $name,
-                'domain' => $domain,
-                'verdict' => $verdict,
-                'confidence' => $confidence,
-                'is_manufacturer' => $isManufacturer,
-                'reason' => $reason,
-                'path' => $path,
-                'used_homepage' => ($homepageText !== null && mb_strlen($homepageText) > 100),
-            ]);
-
-            // For homepage_rescue: the homepage classifier already rejected
-            // this company. The LLM must POSITIVELY confirm it to override.
-            if ($path === 'homepage_rescue') {
-                if ($verdict === 'ACCEPT' && $confidence >= 0.7) {
-                    return true;
-                }
-                return false;
-            }
-
-            // Trust the 7B model's verdict directly at confidence >= 0.6
-            if ($verdict === 'ACCEPT' && $confidence >= 0.6) {
-                return true;
-            }
-
-            // Everything else: REJECT (low confidence, unclear verdict, explicit REJECT)
-            return false;
-        } catch (\Throwable $e) {
-            $this->logger->warning('LLM exception — REJECTING by default', [
-                'error' => $e->getMessage(),
-                'name' => $name, 'domain' => $domain,
-            ]);
-            return false;
-        }
     }
 
     /**
@@ -11506,19 +11204,12 @@ class GoogleDorkService
                 // skip
             }
         }
-
         $enrichment = ['contacts' => []];
-        $bestDiscoveredHtml = null; // Store first page HTML for LLM extraction
         foreach ($responses as $url => $response) {
             try {
                 if ($response->getStatusCode() >= 400) continue;
                 $subHtml = $this->smartTruncateHtml($response->getContent(false), 200000);
                 if (empty($subHtml)) continue;
-
-                // Track first successful page HTML for LLM
-                if ($bestDiscoveredHtml === null) {
-                    $bestDiscoveredHtml = $subHtml;
-                }
 
                 // Extract contacts
                 $contactInfo = $this->extractContactInfoFromHtml($subHtml);
@@ -11542,16 +11233,6 @@ class GoogleDorkService
                 }
             } catch (\Exception $e) {
                 // skip
-            }
-        }
-
-        // ── LLM-based contact extraction (local Qwen 7B) ────────
-        // Run on the best discovered page if regex found few contacts.
-        if ($bestDiscoveredHtml !== null && count($enrichment['contacts']) < 3) {
-            $llmContacts = $this->extractContactsViaLlm($bestDiscoveredHtml, $companyName);
-            if (!empty($llmContacts)) {
-                $enrichment['contacts'] = array_merge($enrichment['contacts'], $llmContacts);
-            }
         }
 
         // Deduplicate
@@ -11569,45 +11250,6 @@ class GoogleDorkService
 
         return empty($enrichment['contacts']) && empty($enrichment['phone'] ?? null) ? null : $enrichment;
     }
-
-    /**
-     * Extract contacts from HTML using the local LLM (Qwen2.5-7B).
-     *
-     * Complements regex extraction by catching contacts in non-standard
-     * layouts, multilingual content, and complex DOM structures.
-     * Runs entirely on the local server — zero external API cost.
-     *
-     * @param string      $html        Raw HTML content
-     * @param string      $companyName Company name for context
-     * @param string|null $domain      Company domain for email context
-     *
-     * @return array<array{first_name: string, last_name: string, job_title: ?string, email: ?string, phone: ?string, linkedin_url: ?string, source: string}>
-     */
-    private function extractContactsViaLlm(string $html, string $companyName, ?string $domain = null): array
-    {
-        if ($this->llmService === null) {
-            return [];
-        }
-
-        // Clean HTML → plain text (strip scripts, styles, SVG, collapse whitespace)
-        $text = preg_replace('/<(script|style|noscript|svg)\b[^>]*>.*?<\/\1>/is', ' ', $html) ?? $html;
-        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $text = preg_replace('/\s+/u', ' ', $text);
-        $text = trim($text);
-
-        if (mb_strlen($text) < 100) {
-            return [];
-        }
-
-        try {
-            return $this->llmService->extractContactsFromText($text, $companyName, $domain);
-        } catch (\Throwable $e) {
-            $this->logger->debug('LLM contact extraction failed', [
-                'company' => $companyName,
-                'error' => $e->getMessage(),
-            ]);
-            return [];
-        }
     }
 
     /**
@@ -11718,20 +11360,8 @@ class GoogleDorkService
         $teamContacts = $this->extractTeamPageContacts($html);
         if (!empty($teamContacts)) {
             $enrichment['contacts'] = array_merge(
-                $enrichment['contacts'] ?? [],
-                $teamContacts
-            );
-        }
-
-        // ── LLM-based contact extraction (local Qwen 7B) ────
-        // Catches contacts that regex patterns miss — multilingual names,
-        // non-standard HTML layouts, CSS-grid team cards, etc.
-        // Runs on local server: zero cost, no external API calls.
-        $llmContacts = $this->extractContactsViaLlm($html, $confirmedName);
-        if (!empty($llmContacts)) {
-            $enrichment['contacts'] = array_merge(
-                $enrichment['contacts'] ?? [],
-                $llmContacts
+                    $enrichment['contacts'] ?? [],
+                    $teamContacts
             );
         }
 
@@ -13877,19 +13507,6 @@ class GoogleDorkService
 
             } catch (\Exception $e) {
                 // skip failed pages
-            }
-        }
-
-        // ── LLM-based contact extraction (local Qwen 7B) ────────
-        // Run on the best team/about page to catch contacts regex missed.
-        // Single LLM call per company — zero external API cost.
-        if ($bestTeamPageHtml !== null && count($enrichment['contacts']) < 3) {
-            $llmContacts = $this->extractContactsViaLlm($bestTeamPageHtml, $companyName);
-            if (!empty($llmContacts)) {
-                $enrichment['contacts'] = array_merge(
-                    $enrichment['contacts'],
-                    $llmContacts
-                );
             }
         }
 
@@ -16608,6 +16225,13 @@ class GoogleDorkService
     private function prepareSearchQueryForProvider(string $query): string
     {
         $query = preg_replace('/\s+/u', ' ', trim($query)) ?? trim($query);
+
+        // ── Strip quotes around single words ────────────────────────────
+        // SearXNG's site: operator breaks when combined with quoted single
+        // words (e.g. site:kerix.net "automotive" returns 0 results, but
+        // site:kerix.net automotive returns real companies). This is harmless
+        // for all search engines since "word" ≡ word.
+        $query = preg_replace('/"(\w+)"/u', '$1', $query);
 
         preg_match_all('/-site:[^\s]+/u', $query, $m);
         if (!empty($m[0])) {

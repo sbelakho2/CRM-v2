@@ -19,63 +19,37 @@
         </a>
     </div>
 
-    {# Filters Module #}
-    <div class="rams-module rams-module--filters">
-        <div class="rams-module__content">
-            <form method="get" action="{{ path('app_contact_index') }}">
-                
-                {# Search Bar #}
-                <div class="rams-form__group">
-                    <label for="search" class="rams-dymo">{{ 'common.search'|trans }}</label>
-                    <input 
-                        type="text" 
-                        name="search" 
-                        id="search" 
-                        value="{{ current_search }}" 
-                        placeholder="{{ 'contact.filters.search_placeholder'|trans }}" 
-                        class="rams-form__input"
-                    />
-                </div>
-
-                {# Filter Grid #}
-                <div class="rams-grid rams-grid--2">
-                    {# Role Filter #}
-                    <div class="rams-form__group">
-                        <label for="role" class="rams-dymo">{{ 'contact.fields.role'|trans }}</label>
-                        <select name="role" id="role" class="rams-form__select">
+    {# Filters - Compact horizontal layout #}
+    <div class="rams-card mb-6">
+        <div class="rams-card-body">
+            <form method="get" action="{{ path('app_contact_index') }}" class="space-y-3">
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'common.search'|trans }}</label>
+                        <input type="text" name="search" placeholder="{{ 'contact.filters.search_placeholder'|trans }}" value="{{ current_search }}" class="rams-input text-sm py-1.5 w-full">
+                    </div>
+                    <div class="w-44">
+                        <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'contact.fields.role'|trans }}</label>
+                        <select name="role" class="rams-input text-sm py-1.5 w-full">
                             <option value="">{{ 'contact.filters.all_roles'|trans }}</option>
                             {% for role in roles %}
-                                <option value="{{ role }}" {% if current_role == role %}selected{% endif %}>{{ role }}</option>
+                                <option value="{{ role }}" {{ current_role == role ? 'selected' : '' }}>{{ role }}</option>
                             {% endfor %}
                         </select>
                     </div>
-
-                    {# Company Filter #}
-                    <div class="rams-form__group">
-                        <label for="company" class="rams-dymo">{{ 'contact.fields.company'|trans }}</label>
-                        <select name="company" id="company" class="rams-form__select">
+                    <div class="w-48">
+                        <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'contact.fields.company'|trans }}</label>
+                        <select name="company" class="rams-input text-sm py-1.5 w-full">
                             <option value="">{{ 'contact.filters.all_companies'|trans }}</option>
                             {% for company in companies %}
-                                <option value="{{ company.id }}" {% if current_company == company.id %}selected{% endif %}>{{ company.name }}</option>
+                                <option value="{{ company.id }}" {{ current_company == company.id ? 'selected' : '' }}>{{ company.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                </div>
-
-                {# Filter Actions #}
-                <div class="rams-btn-group mobile-stack">
-                    <button type="submit" class="rams-btn rams-btn--primary">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                        {{ 'common.apply_filters'|trans }}
-                    </button>
-                    <a href="{{ path('app_contact_index') }}" class="rams-btn">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                        {{ 'common.clear'|trans }}
-                    </a>
+                    <div class="flex items-end gap-2">
+                        <button type="submit" class="rams-btn rams-btn--primary text-sm py-1.5 px-3">{{ 'common.apply_filters'|trans }}</button>
+                        <a href="{{ path('app_contact_index') }}" class="rams-btn text-sm py-1.5 px-3">{{ 'common.clear'|trans }}</a>
+                    </div>
                 </div>
             </form>
         </div>
@@ -99,7 +73,7 @@
     <div class="rams-module">
         <div class="rams-module__content rams-module__content--flush">
             <div class="rams-table-container">
-            <table class="rams-table">
+            <table class="rams-table data-table">
                 <thead class="rams-table__header">
                     <tr>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'contact.table.contact'|trans }}</th>

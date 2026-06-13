@@ -4,11 +4,15 @@ namespace App\Controller;
 
 use App\Entity\Lead;
 use App\Message\LeadDeepScrapeMessage;
+use App\Repository\LeadRepository;
 use App\Service\GoogleSearchService;
+use App\Service\LeadAnalysisService;
 use App\Service\WebCrawler\GoogleDorkService;
 use App\Service\WebCrawler\CompanyDiscoveryService;
+use App\Service\WebCrawler\LeadScoringService;
 use App\Service\CountryService;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query\ResultSetMapping;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,7 +43,10 @@ class DiscoveryPipelineController extends AbstractController
         private GoogleDorkService $googleDorkService,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
-        private CountryService $countryService
+        private CountryService $countryService,
+        private LeadAnalysisService $leadAnalysisService,
+        private LeadRepository $leadRepository,
+        private LeadScoringService $leadScoringService
     ) {
         // Inject GoogleSearchService into GoogleDorkService for automated searches
         $this->googleDorkService->setGoogleSearchService($googleSearchService);
@@ -54,10 +61,69 @@ class DiscoveryPipelineController extends AbstractController
         // Get recent pipeline runs stats
         $stats = $this->getPipelineStats();
         
+        // Pipeline status (running if scraped in last 5 minutes)
+        $fiveMinAgo = new \DateTime('-5 minutes');
+        $recentlyScraped = $this->entityManager->getRepository(Lead::class)
+            ->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.lastScrapedAt >= :time')
+            ->setParameter('time', $fiveMinAgo)
+            ->getQuery()
+            ->getSingleScalarResult();
+        
+        $pipelineStatus = ((int)$recentlyScraped) > 0 ? 'running' : 'idle';
+        
+        // Get pipeline run history (grouped by creation date)
+        // Using native SQL because DATE() is a MySQL-specific function not registered in Doctrine DQL
+        $emptyJson = '[]';
+        $rsm = new ResultSetMapping();
+        $rsm->addScalarResult('run_date', 'run_date');
+        $rsm->addScalarResult('leads_found', 'leads_found');
+        $rsm->addScalarResult('contacts_enriched', 'contacts_enriched');
+
+        $sql = "SELECT DATE(l.created_at) AS run_date, COUNT(l.id) AS leads_found,
+                       SUM(CASE WHEN l.contact_emails_public IS NOT NULL AND l.contact_emails_public != :empty THEN 1 ELSE 0 END) AS contacts_enriched
+                FROM leads l
+                GROUP BY run_date
+                ORDER BY run_date DESC
+                LIMIT 5";
+
+        $pipelineHistory = $this->entityManager
+            ->createNativeQuery($sql, $rsm)
+            ->setParameter('empty', $emptyJson)
+            ->getResult();
+        
+        // Compute time taken for each run (estimate based on lead count)
+        foreach ($pipelineHistory as &$run) {
+            $run['time_taken'] = max(30, min(300, (int)$run['leads_found'] * 3)); // 3s per lead, capped 30-300s
+            $run['status'] = 'completed';
+        }
+        unset($run);
+        
+        // Total contacts found (leads with emails)
+        $contactsFound = $this->entityManager->getRepository(Lead::class)
+            ->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.contactEmailsPublic IS NOT NULL')
+            ->andWhere('l.contactEmailsPublic != :empty')
+            ->setParameter('empty', $emptyJson)
+            ->getQuery()
+            ->getSingleScalarResult();
+        
+        $funnelAnalytics = $this->leadAnalysisService->getFunnelAnalytics();
+        $qualityTrend = $this->leadAnalysisService->getLeadQualityTrend();
+        $actionableInsights = $this->leadAnalysisService->getActionableInsights();
+
         return $this->render('discovery_pipeline/index.html.twig', [
             'sectors' => $this->getSectors(),
             'locations' => $this->getLocations(),
             'stats' => $stats,
+            'pipeline_status' => $pipelineStatus,
+            'pipeline_history' => $pipelineHistory,
+            'contacts_found' => (int)$contactsFound,
+            'funnel_analytics' => $funnelAnalytics,
+            'quality_trend' => $qualityTrend,
+            'actionable_insights' => $actionableInsights,
         ]);
     }
 
@@ -73,7 +139,6 @@ class DiscoveryPipelineController extends AbstractController
         $location = $data['location'] ?? null;
         $locationLabel = $this->resolveLocationLabel($location);
         $enableDeepScrape = $data['enable_deep_scrape'] ?? true;
-        $enableLlm = $data['enable_llm'] ?? false;
         $autoImport = $data['auto_import'] ?? true;
         
         if (!$sector) {
@@ -92,7 +157,6 @@ class DiscoveryPipelineController extends AbstractController
             'sector' => $sector,
             'location' => $location,
             'deep_scrape' => $enableDeepScrape,
-            'llm' => $enableLlm
         ]);
         
         try {
@@ -142,7 +206,7 @@ class DiscoveryPipelineController extends AbstractController
                             $this->messageBus->dispatch(new LeadDeepScrapeMessage(
                                 $importResult['lead']->getId(),
                                 $importResult['lead']->getWebsiteRoot(),
-                                ['use_llm' => $enableLlm, 'max_pages' => 5]
+                                ['use_llm' => false, 'max_pages' => 5]
                             ));
                             $importStats['queued_for_scrape']++;
                         }
@@ -252,7 +316,6 @@ class DiscoveryPipelineController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
         $limit = min($data['limit'] ?? 50, 100);
-        $enableLlm = $data['enable_llm'] ?? false;
         
         // Find leads with websites but no emails
         $leads = $this->entityManager->getRepository(Lead::class)
@@ -270,7 +333,7 @@ class DiscoveryPipelineController extends AbstractController
             $this->messageBus->dispatch(new LeadDeepScrapeMessage(
                 $lead->getId(),
                 $lead->getWebsiteRoot(),
-                ['use_llm' => $enableLlm, 'max_pages' => 5]
+                ['use_llm' => false, 'max_pages' => 5]
             ));
             $queued++;
         }
@@ -298,6 +361,7 @@ class DiscoveryPipelineController extends AbstractController
         }
         
         // Check for duplicate by website
+        $existing = null;
         if ($website) {
             $existing = $this->entityManager->getRepository(Lead::class)
                 ->findOneBy(['websiteRoot' => $website]);
@@ -307,7 +371,28 @@ class DiscoveryPipelineController extends AbstractController
             }
         }
         
-        // Check for duplicate by name (fuzzy)
+        // Fuzzy name match — catch variants like "Acme Corp" vs "Acme Corporation"
+        // Only run if website-based check found nothing
+        $fuzzyMatch = null;
+        $allLeads = $this->leadRepository->findAll();
+        foreach ($allLeads as $existingLead) {
+            $existingName = strtolower(trim($existingLead->getCompanyName()));
+            $newName = strtolower(trim($name));
+            if ($existingName && $newName) {
+                $similarity = similar_text($existingName, $newName);
+                $maxLen = max(strlen($existingName), strlen($newName));
+                if ($maxLen > 0 && ($similarity / $maxLen) >= 0.85) {
+                    $fuzzyMatch = $existingLead;
+                    break;
+                }
+            }
+        }
+        
+        if ($fuzzyMatch) {
+            return ['status' => 'duplicate', 'lead' => $fuzzyMatch];
+        }
+        
+        // Check for duplicate by name (exact)
         $existingByName = $this->entityManager->getRepository(Lead::class)
             ->createQueryBuilder('l')
             ->where('LOWER(l.companyName) = :name')
@@ -325,17 +410,57 @@ class DiscoveryPipelineController extends AbstractController
         $lead->setCompanyName($name);
         $lead->setWebsiteRoot($website);
         $lead->setLeadUrl($result['link'] ?? null);
-        $lead->setSectorTags([$sector]);
+        
+        // Multi-sector analysis
+        $sectors = [$sector]; // Start with primary sector
+        $snippet = $result['snippet'] ?? '';
+        $sectorKeywords = [
+            'automotive' => 'Automotive',
+            'aerospace' => 'Aerospace', 'aviation' => 'Aerospace',
+            'medical' => 'Medical', 'healthcare' => 'Medical',
+            'defense' => 'Defense', 'military' => 'Defense',
+            'telecom' => 'Telecom', 'telecommunication' => 'Telecom',
+            'industrial' => 'Industrial',
+            'renewable' => 'Renewables', 'solar' => 'Renewables', 'wind' => 'Renewables',
+            'rail' => 'Rail', 'railway' => 'Rail',
+            'hvac' => 'HVAC',
+            'marine' => 'Marine', 'maritime' => 'Marine',
+            'consumer' => 'Consumer Electronics',
+            'data center' => 'Data Center',
+            'energy storage' => 'Energy Storage', 'battery' => 'Energy Storage',
+        ];
+        $lowerSnippet = mb_strtolower($snippet);
+        foreach ($sectorKeywords as $keyword => $sectorName) {
+            if (str_contains($lowerSnippet, $keyword) && !in_array($sectorName, $sectors)) {
+                $sectors[] = $sectorName;
+            }
+        }
+        $lead->setSectorTags($sectors);
+        
         $lead->setSiteLocation($this->resolveLocationLabel($location));
         $lead->setRegionTag($this->determineRegion($location));
-        $lead->setNotesAuto(sprintf(
+        $notes = sprintf(
             "[%s] Auto-discovered via pipeline\nSource query: %s\nSnippet: %s",
             date('Y-m-d H:i'),
             $result['source_query'] ?? 'N/A',
             $result['snippet'] ?? ''
-        ));
+        );
+        $lead->setNotesAuto(mb_substr($notes, 0, 500));
         $lead->setReviewStatus('pending');
-        $lead->setLeadScore(30); // Base score for discovered leads
+        
+        // Use the scoring engine for actual lead quality assessment
+        $scoreData = $this->leadScoringService->scoreLead([
+            'company_name' => $name,
+            'website_root' => $website,
+            'lead_url' => $result['link'] ?? null,
+            'region_tag' => $this->determineRegion($location),
+            'site_location' => $this->resolveLocationLabel($location),
+            'sector_tags' => $sectors,
+            'page_content' => $snippet,
+            'address' => $snippet,
+        ]);
+        $lead->setLeadScore($scoreData['score'] ?? 30);
+        
         $lead->setCreatedAt(new \DateTimeImmutable());
         
         // Generate dupe key for future deduplication

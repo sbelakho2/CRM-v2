@@ -257,16 +257,16 @@ class EmailCampaignController extends AbstractController
     {
         $metrics = $this->campaignService->getCampaignMetrics($campaign);
         
-        // Get timeline data (sends over time)
-        $qb = $this->entityManager->createQueryBuilder();
-        $sendsByDate = $qb->select('DATE(s.sentAt) as date, COUNT(s.id) as count')
-            ->from(EmailSend::class, 's')
-            ->where('s.campaign = :campaign')
-            ->setParameter('campaign', $campaign)
-            ->groupBy('date')
-            ->orderBy('date', 'ASC')
-            ->getQuery()
-            ->getResult();
+        // Get timeline data (sends over time) — using native SQL for DATE()
+        $conn = $this->entityManager->getConnection();
+        $sql = 'SELECT DATE(s.sent_at) AS date, COUNT(s.id) AS count
+                FROM email_sends s
+                WHERE s.campaign_id = :campaignId
+                GROUP BY date
+                ORDER BY date ASC';
+        $sendsByDate = $conn->fetchAllAssociative($sql, [
+            'campaignId' => $campaign->getId(),
+        ]);
 
         // Get top performing contacts (by opens, clicks, replies)
         $qb = $this->entityManager->createQueryBuilder();

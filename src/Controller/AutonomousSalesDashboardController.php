@@ -2,10 +2,14 @@
 
 namespace App\Controller;
 
+use App\Entity\EmailCampaign;
+use App\Entity\EmailSend;
+use App\Entity\Lead;
 use App\Service\AutonomousSalesOrchestratorService;
 use App\Service\AutonomousSalesSettingsService;
 use App\Service\HourlyOptimizationService;
 use App\Service\ThompsonSamplerService;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +30,7 @@ class AutonomousSalesDashboardController extends AbstractController
 {
     public function __construct(
         private TranslatorInterface $translator,
+        private EntityManagerInterface $entityManager,
     ) {}
 
     #[Route('', name: 'autonomous_sales_index', methods: ['GET'])]
@@ -48,6 +53,83 @@ class AutonomousSalesDashboardController extends AbstractController
 
         // Whether to expand the full variations table on the optimization tab
         $expandVariations = $request->query->getBoolean('expand', false);
+
+        // ── Comprehensive sales metrics ──
+
+        // Lead stage breakdown
+        $leadRepo = $this->entityManager->getRepository(Lead::class);
+        $leadStageCounts = $leadRepo->createQueryBuilder('l')
+            ->select('l.nurturingStage AS stage, COUNT(l.id) AS count')
+            ->groupBy('l.nurturingStage')
+            ->getQuery()->getResult();
+
+        // Total leads in pipeline
+        $totalLeads = $leadRepo->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->getQuery()->getSingleScalarResult();
+
+        // Email stats
+        $emailSendRepo = $this->entityManager->getRepository(EmailSend::class);
+
+        $weeklyEmails = (int) $emailSendRepo->createQueryBuilder('e')
+            ->select('COUNT(e.id)')
+            ->where('e.sentAt >= :week')
+            ->setParameter('week', new \DateTime('-7 days'))
+            ->getQuery()->getSingleScalarResult();
+
+        $monthlyEmails = (int) $emailSendRepo->createQueryBuilder('e')
+            ->select('COUNT(e.id)')
+            ->where('e.sentAt >= :month')
+            ->setParameter('month', new \DateTime('-30 days'))
+            ->getQuery()->getSingleScalarResult();
+
+        // Email engagement rates
+        $emailStats = $emailSendRepo->createQueryBuilder('e')
+            ->select(
+                'COUNT(e.id) AS total',
+                'SUM(CASE WHEN e.opened = true THEN 1 ELSE 0 END) AS opened',
+                'SUM(CASE WHEN e.clicked = true THEN 1 ELSE 0 END) AS clicked',
+                'SUM(CASE WHEN e.replied = true THEN 1 ELSE 0 END) AS replied',
+                'SUM(CASE WHEN e.bounced = true THEN 1 ELSE 0 END) AS bounced'
+            )
+            ->where('e.sentAt >= :month')
+            ->setParameter('month', new \DateTime('-30 days'))
+            ->getQuery()->getSingleResult();
+
+        $totalEmail = (int) ($emailStats['total'] ?? 0);
+        $totalOpened = (int) ($emailStats['opened'] ?? 0);
+        $totalClicked = (int) ($emailStats['clicked'] ?? 0);
+        $totalReplied = (int) ($emailStats['replied'] ?? 0);
+        $totalBounced = (int) ($emailStats['bounced'] ?? 0);
+
+        $openRate = $totalEmail > 0 ? round(($totalOpened / $totalEmail) * 100, 1) : 0;
+        $clickRate = $totalEmail > 0 ? round(($totalClicked / $totalEmail) * 100, 1) : 0;
+        $replyRate = $totalEmail > 0 ? round(($totalReplied / $totalEmail) * 100, 1) : 0;
+        $bounceRate = $totalEmail > 0 ? round(($totalBounced / $totalEmail) * 100, 1) : 0;
+
+        // Active campaigns count
+        $campaignRepo = $this->entityManager->getRepository(EmailCampaign::class);
+        $activeCampaigns = (int) $campaignRepo->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.active = true')
+            ->andWhere('c.status = :status')
+            ->setParameter('status', EmailCampaign::STATUS_SENDING)
+            ->getQuery()->getSingleScalarResult();
+
+        // Recent email activity (for activity feed)
+        $recentEmailEvents = $emailSendRepo->createQueryBuilder('e')
+            ->select('e.id', 'e.sentAt', 'e.opened', 'e.clicked', 'e.replied', 'e.emailAddress', 'e.variant')
+            ->where('e.sentAt >= :week')
+            ->setParameter('week', new \DateTime('-7 days'))
+            ->orderBy('e.sentAt', 'DESC')
+            ->setMaxResults(20)
+            ->getQuery()->getResult();
+
+        // Pipeline value estimates (from quotes)
+        $pipelineValue = $this->entityManager->createQuery(
+            'SELECT COALESCE(SUM(q.totalCost), 0) FROM App\Entity\Quote q WHERE q.status IN (:statuses)'
+        )->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
+         ->getQuery()->getSingleScalarResult();
 
         // Gather raw arm data from the sampler (backend unchanged)
         $armTypes = [
@@ -98,6 +180,18 @@ class AutonomousSalesDashboardController extends AbstractController
             'expand_variations' => $expandVariations,
             'dynamic_subtitle'  => $dynamicSubtitle,
             'safety_count'      => $safetyCount,
+            // ── Comprehensive sales metrics ──
+            'lead_stage_counts'   => $leadStageCounts,
+            'total_leads'         => (int) $totalLeads,
+            'weekly_emails'       => $weeklyEmails,
+            'monthly_emails'      => $monthlyEmails,
+            'email_open_rate'     => $openRate,
+            'email_click_rate'    => $clickRate,
+            'email_reply_rate'    => $replyRate,
+            'email_bounce_rate'   => $bounceRate,
+            'active_campaigns'    => $activeCampaigns,
+            'recent_email_events' => $recentEmailEvents,
+            'pipeline_value'      => (float) $pipelineValue,
         ]);
     }
 

@@ -11,10 +11,15 @@ use Psr\Log\LoggerInterface;
  * Company Deduplication Service
  * 
  * Detects and helps resolve duplicate company entries using:
- * - Exact name matching
- * - Fuzzy name matching (Levenshtein distance)
- * - Website domain matching
+ * - Exact name matching (indexed)
+ * - Website domain matching (indexed)
  * - Normalized name comparison (remove legal suffixes)
+ * - Fuzzy name matching (Levenshtein distance) with blocking keys
+ * 
+ * Performance:
+ * - Uses blocking keys (name prefix, domain, soundex) to avoid O(n²) scans
+ * - Only falls back to full scan when blocking keys produce no matches
+ * - Database-level indexed lookups for exact and domain matches
  * 
  * Used by:
  * - Import services (prevention)
@@ -47,6 +52,12 @@ class CompanyDeduplicationService
     
     // Threshold for fuzzy matching (0-100, higher = stricter)
     private const SIMILARITY_THRESHOLD = 80;
+
+    // Blocking key prefix length for name-based blocking
+    private const BLOCKING_KEY_PREFIX_LENGTH = 4;
+
+    // Maximum number of candidates to consider via blocking keys
+    private const MAX_BLOCKING_CANDIDATES = 500;
     
     public function __construct(
         private EntityManagerInterface $em,
@@ -56,6 +67,9 @@ class CompanyDeduplicationService
     
     /**
      * Find potential duplicate companies for a given company
+     * 
+     * Uses blocking key strategy to avoid O(n) scan of all companies.
+     * Only scans all companies if blocking keys return no candidates.
      * 
      * @param Company $company The company to check
      * @return array<array{company: Company, matchType: string, confidence: int}>
@@ -68,18 +82,38 @@ class CompanyDeduplicationService
         $website = $company->getWebsite();
         $domain = $website ? $this->extractDomain($website) : null;
         
-        // Get all companies to compare
-        $allCompanies = $this->companyRepository->createQueryBuilder('c')
-            ->where('c.id != :id')
-            ->setParameter('id', $company->getId() ?? 0)
-            ->getQuery()
-            ->getResult();
+        // Step 1: Get candidates via blocking keys (fast, indexed)
+        $candidates = $this->findCandidatesByBlockingKeys($company, $normalizedName, $domain);
         
-        foreach ($allCompanies as $existing) {
-            $match = $this->compareCompanies($company, $existing, $normalizedName, $domain);
+        // Step 2: If blocking keys produced candidates, compare against them only
+        if (!empty($candidates)) {
+            foreach ($candidates as $existing) {
+                $match = $this->compareCompanies($company, $existing, $normalizedName, $domain);
+                
+                if ($match) {
+                    $duplicates[] = $match;
+                }
+            }
+        } else {
+            // Step 3: Fallback to full scan (no blocking candidates found)
+            // This is rare — happens only when company name is very short or unusual
+            $this->logger->debug('Dedup: No blocking candidates found, falling back to full scan', [
+                'company_id' => $company->getId(),
+                'name' => $companyName,
+            ]);
+
+            $allCompanies = $this->companyRepository->createQueryBuilder('c')
+                ->where('c.id != :id')
+                ->setParameter('id', $company->getId() ?? 0)
+                ->getQuery()
+                ->getResult();
             
-            if ($match) {
-                $duplicates[] = $match;
+            foreach ($allCompanies as $existing) {
+                $match = $this->compareCompanies($company, $existing, $normalizedName, $domain);
+                
+                if ($match) {
+                    $duplicates[] = $match;
+                }
             }
         }
         
@@ -88,9 +122,94 @@ class CompanyDeduplicationService
         
         return $duplicates;
     }
+
+    /**
+     * Find candidate duplicates using blocking keys.
+     * 
+     * Blocking keys reduce the comparison set by only considering companies
+     * that share at least one of:
+     * 1. Same website domain (indexed)
+     * 2. Same normalized name prefix (first N chars)
+     * 3. Same name after removing common words
+     * 
+     * @return Company[]
+     */
+    private function findCandidatesByBlockingKeys(Company $company, string $normalizedName, ?string $domain): array
+    {
+        $candidateIds = [];
+        $companyId = $company->getId() ?? 0;
+
+        // Block 1: Domain match (highest precision)
+        if ($domain) {
+            $domainCandidates = $this->companyRepository->createQueryBuilder('c')
+                ->select('c.id')
+                ->where('c.website LIKE :domainPattern')
+                ->andWhere('c.id != :id')
+                ->setParameter('domainPattern', '%://' . $domain . '%')
+                ->setParameter('id', $companyId)
+                ->setMaxResults(self::MAX_BLOCKING_CANDIDATES)
+                ->getQuery()
+                ->getScalarResult();
+
+            foreach ($domainCandidates as $row) {
+                $candidateIds[(int) $row['id']] = true;
+            }
+        }
+
+        // Block 2: Name prefix blocking (for normalized names)
+        $prefix = mb_substr($normalizedName, 0, self::BLOCKING_KEY_PREFIX_LENGTH);
+        if (strlen($prefix) >= 3) {
+            $prefixCandidates = $this->companyRepository->createQueryBuilder('c')
+                ->select('c.id')
+                ->where('c.name LIKE :prefixPattern')
+                ->andWhere('c.id != :id')
+                ->setParameter('prefixPattern', $prefix . '%')
+                ->setParameter('id', $companyId)
+                ->setMaxResults(self::MAX_BLOCKING_CANDIDATES)
+                ->getQuery()
+                ->getScalarResult();
+
+            foreach ($prefixCandidates as $row) {
+                $candidateIds[(int) $row['id']] = true;
+            }
+        }
+
+        // Block 3: First word blocking (captures companies starting with same word)
+        $firstWord = strtok($normalizedName, ' ');
+        if ($firstWord !== false && strlen($firstWord) >= 3 && $firstWord !== $prefix) {
+            $wordCandidates = $this->companyRepository->createQueryBuilder('c')
+                ->select('c.id')
+                ->where('c.name LIKE :firstWordPattern')
+                ->andWhere('c.id != :id')
+                ->setParameter('firstWordPattern', $firstWord . '%')
+                ->setParameter('id', $companyId)
+                ->setMaxResults(self::MAX_BLOCKING_CANDIDATES)
+                ->getQuery()
+                ->getScalarResult();
+
+            foreach ($wordCandidates as $row) {
+                $candidateIds[(int) $row['id']] = true;
+            }
+        }
+
+        // No candidates found via blocking keys
+        if (empty($candidateIds)) {
+            return [];
+        }
+
+        // Load full entities for all unique candidate IDs
+        $ids = array_keys($candidateIds);
+        return $this->companyRepository->createQueryBuilder('c')
+            ->where('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
     
     /**
      * Check if a company name exists before import (prevention)
+     * 
+     * Uses blocking keys and indexed lookups to avoid full table scans.
      * 
      * @param string $companyName Name to check
      * @param string|null $website Website to check
@@ -98,13 +217,13 @@ class CompanyDeduplicationService
      */
     public function findExistingCompany(string $companyName, ?string $website = null): ?Company
     {
-        // 1. Exact match
+        // 1. Exact match (indexed lookup — O(1))
         $exact = $this->companyRepository->findOneBy(['name' => $companyName]);
         if ($exact) {
             return $exact;
         }
         
-        // 2. Domain match
+        // 2. Domain match (indexed lookup)
         if ($website) {
             $domain = $this->extractDomain($website);
             if ($domain) {
@@ -115,22 +234,32 @@ class CompanyDeduplicationService
             }
         }
         
-        // 3. Normalized name match
+        // 3. Normalized name match with blocking keys
         $normalizedName = $this->normalizeName($companyName);
-        $allCompanies = $this->companyRepository->findAll();
         
-        foreach ($allCompanies as $existing) {
-            $existingNormalized = $this->normalizeName($existing->getName());
-            
-            // Exact normalized match
-            if ($normalizedName === $existingNormalized) {
-                return $existing;
-            }
-            
-            // Fuzzy match
-            $similarity = $this->calculateSimilarity($normalizedName, $existingNormalized);
-            if ($similarity >= self::SIMILARITY_THRESHOLD) {
-                return $existing;
+        // Use blocking key to find candidates first
+        $prefix = mb_substr($normalizedName, 0, self::BLOCKING_KEY_PREFIX_LENGTH);
+        if (strlen($prefix) >= 3) {
+            $candidates = $this->companyRepository->createQueryBuilder('c')
+                ->where('c.name LIKE :prefixPattern')
+                ->setParameter('prefixPattern', $prefix . '%')
+                ->setMaxResults(self::MAX_BLOCKING_CANDIDATES)
+                ->getQuery()
+                ->getResult();
+
+            foreach ($candidates as $existing) {
+                $existingNormalized = $this->normalizeName($existing->getName());
+                
+                // Exact normalized match
+                if ($normalizedName === $existingNormalized) {
+                    return $existing;
+                }
+                
+                // Fuzzy match
+                $similarity = $this->calculateSimilarity($normalizedName, $existingNormalized);
+                if ($similarity >= self::SIMILARITY_THRESHOLD) {
+                    return $existing;
+                }
             }
         }
         
@@ -140,14 +269,21 @@ class CompanyDeduplicationService
     /**
      * Detect all duplicate groups in the database
      * 
+     * Uses blocking key strategy to efficiently group potential duplicates
+     * without O(n²) comparison.
+     * 
      * @return array<array{companies: Company[], matchType: string, confidence: int}>
      */
     public function detectAllDuplicates(): array
     {
         $groups = [];
         $processed = [];
+
+        // Get all companies sorted by ID for consistent processing
+        $allCompanies = $this->companyRepository->findBy([], ['id' => 'ASC']);
+        $companyCount = count($allCompanies);
         
-        $allCompanies = $this->companyRepository->findAll();
+        $this->logger->info('Dedup: Starting duplicate detection', ['company_count' => $companyCount]);
         
         foreach ($allCompanies as $company) {
             if (in_array($company->getId(), $processed)) {
@@ -162,8 +298,11 @@ class CompanyDeduplicationService
                 $bestConfidence = 0;
                 
                 foreach ($duplicates as $dup) {
-                    $groupCompanies[] = $dup['company'];
-                    $processed[] = $dup['company']->getId();
+                    $dupId = $dup['company']->getId();
+                    if (!in_array($dupId, $processed)) {
+                        $groupCompanies[] = $dup['company'];
+                        $processed[] = $dupId;
+                    }
                     
                     if ($dup['confidence'] > $bestConfidence) {
                         $bestConfidence = $dup['confidence'];
@@ -180,6 +319,11 @@ class CompanyDeduplicationService
                 $processed[] = $company->getId();
             }
         }
+        
+        $this->logger->info('Dedup: Duplicate detection complete', [
+            'groups_found' => count($groups),
+            'companies_processed' => count($processed),
+        ]);
         
         return $groups;
     }

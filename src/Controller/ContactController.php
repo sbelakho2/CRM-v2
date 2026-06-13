@@ -55,7 +55,7 @@ class ContactController extends AbstractController
                ->setParameter('search', '%' . $search . '%');
         }
 
-        $qb->orderBy('c.lastName', 'ASC');
+        $qb->orderBy('c.createdAt', 'DESC');
 
         $contacts = $qb->getQuery()->getResult();
 
@@ -193,7 +193,7 @@ class ContactController extends AbstractController
                ->setParameter('search', '%' . $search . '%');
         }
 
-        $qb->orderBy('c.lastName', 'ASC');
+        $qb->orderBy('c.createdAt', 'DESC');
 
         $contacts = $qb->getQuery()->getResult();
 

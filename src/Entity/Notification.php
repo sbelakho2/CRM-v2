@@ -11,6 +11,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_notification_created', columns: ['created_at'])]
 class Notification
 {
+    // ── Notification type constants ──
+    public const TYPE_RFQ_DUE        = 'rfq_due';
+    public const TYPE_EMAIL_REPLY    = 'email_reply';
+    public const TYPE_EMAIL_OPENED   = 'email_opened';
+    public const TYPE_LEAD_APPROVAL  = 'lead_approval';
+    public const TYPE_ENGAGEMENT_DROP = 'engagement_drop';
+    public const TYPE_QUOTE_VIEWED   = 'quote_viewed';
+    public const TYPE_COMP_CERT_ADDED   = 'comp_cert_added';
+    public const TYPE_COMP_CERT_REMOVED = 'comp_cert_removed';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -21,7 +31,7 @@ class Notification
     private ?User $user = null;
 
     /**
-     * Notification type: rfq_due, email_reply, lead_approval, engagement_drop, quote_viewed
+     * Notification type: rfq_due, email_reply, lead_approval, engagement_drop, quote_viewed, comp_cert_added, comp_cert_removed
      */
     #[ORM\Column(type: 'string', length: 50)]
     private string $type = '';
@@ -181,7 +191,9 @@ class Notification
             'email_opened' => '📧 Email Opened',
             'lead_approval' => '✅ Lead Approved',
             'engagement_drop' => '📉 Engagement Drop',
-            'quote_viewed' => '� Quote Viewed',
+            'quote_viewed' => '📋 Quote Viewed',
+            'comp_cert_added' => '🏭 Competitor Cert Added',
+            'comp_cert_removed' => '🏭 Competitor Cert Removed',
             default => '🔔 Notification'
         };
     }
@@ -200,6 +212,8 @@ class Notification
             'lead_approval' => '✅',
             'engagement_drop' => '📉',
             'quote_viewed' => '📋',
+            'comp_cert_added' => '🏭',
+            'comp_cert_removed' => '🏭',
             default => '🔔'
         };
     }

@@ -6,6 +6,7 @@
 parameters:
   mailer_from_address: "%env(MAILER_FROM_ADDRESS)%"
   mailer_from_name: "%env(MAILER_FROM_NAME)%"
+  admin_email: "%env(default::ADMIN_EMAIL)%"
 
 services:
   # default configuration for services in *this* file
@@ -15,6 +16,7 @@ services:
     bind:
       $mailerFromAddress: "%mailer_from_address%"
       $mailerFromName: "%mailer_from_name%"
+      $adminEmail: "%admin_email%"
 
   # makes classes in src/ available to be used as services
   # this creates a service per class whose id is the fully-qualified class name
@@ -60,15 +62,19 @@ services:
   App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
     alias: App\Service\WebCrawler\SearchProvider\LocalSearxngProvider
 
-  App\Service\LlmEnrichmentService:
-    arguments:
-      $apiKey: '%env(default::OPENAI_API_KEY)%'
+  # ── Local dev overrides ──────────────────────────────────────────────────────
+  # SearXNG is not running locally. These configs force fallback to Google CSE.
+  # Remove these blocks when SearXNG (port 8888) is running again.
 
-  App\Service\GeminiContactExtractorService:
+  # GoogleDorkService: force null searchProvider → falls back to Google CSE
+  App\Service\WebCrawler\GoogleDorkService:
     arguments:
-      $geminiApiKey: '%env(GOOGLE_API_KEY)%'
+      $searchProvider: null
 
-  App\Service\AggressiveContactDiscoveryService: ~
+  # CompanyDiscoveryService: force null discoveryPipeline → falls back to GoogleDorkService
+  App\Service\WebCrawler\CompanyDiscoveryService:
+    arguments:
+      $discoveryPipeline: null
 
   App\Service\WebCrawler\CompanyClassifierService:
     arguments:
@@ -89,19 +95,6 @@ services:
   App\Service\EmailTrackingSigner:
     arguments:
       $secret: '%kernel.secret%'
-
-  # ── CompCrawler Services ──
-  App\Service\CompCrawler\CompCrawlerConfig:
-    arguments:
-      $projectDir: '%kernel.project_dir%'
-
-  App\Service\CompCrawler\CompProfileCrawlerService:
-    arguments:
-      $projectDir: '%kernel.project_dir%'
-
-  App\Service\CompCrawler\CompExtractionService:
-    arguments:
-      $geminiApiKey: '%env(default::GOOGLE_API_KEY)%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

@@ -14,11 +14,36 @@ namespace App\Service\WebCrawler\Pipeline;
  */
 final class UnifiedContactExtractor
 {
-    /** Team card CSS class keywords. */
+    /** Team card CSS class keywords — comprehensive set for modern web frameworks. */
     private const TEAM_CLASS_KEYWORDS = [
+        // Original patterns
         'team-member', 'team-card', 'staff-member', 'member-card',
         'leadership', 'person-card', 'profile-card', 'executive',
         'bio-card', 'team_member', 'team_card', 'staff_card',
+        // Grid / list layouts
+        'team-grid', 'staff-grid', 'people-grid', 'team-list', 'staff-list',
+        'people-list', 'member-grid', 'member-list', 'employee-grid',
+        // Management & board
+        'management-team', 'executive-team', 'board-members', 'board-of-directors',
+        'directors', 'management', 'executives', 'leadership-team',
+        // Item / card patterns (Bootstrap, Tailwind, custom)
+        'team-item', 'person-item', 'member-item', 'employee-card',
+        'people-item', 'staff-item', 'profile-item',
+        'col-team', 'card-team', 'team-col', 'staff-col',
+        // Section wrappers
+        'team-wrapper', 'our-team', 'meet-team', 'team-section',
+        'staff-section', 'people-section', 'team-content',
+        // Individual detail
+        'single-team', 'single-staff', 'team-detail', 'staff-detail',
+        'team-member-single', 'staff-member-single',
+        // Generic common patterns
+        'member', 'team__member', 'staff__member', 'profile', 'employee',
+        'team-member-info', 'staff-member-info', 'person-info',
+        // Job-specific containers
+        'job-title', 'position-title', 'person-role', 'person-position',
+        'person-name', 'person-job', 'employee-name', 'employee-title',
+        // data- attribute based team cards
+        'team', 'staff', 'people', 'person', 'member', 'employee',
     ];
 
     private const GENERIC_EMAIL_PREFIXES = [
@@ -27,9 +52,11 @@ final class UnifiedContactExtractor
         'press', 'media', 'general', 'enquiries', 'hello', 'service',
         'help', 'billing', 'accounts', 'orders', 'team', 'news',
         'feedback', 'privacy', 'legal', 'compliance', 'reception',
+        'purchasing', 'procurement', 'sourcing', 'supplychain', 'vendor',
+        'supplier', 'buying', 'enquiry', 'inquiry', 'info-request',
     ];
 
-    private const MIN_QUALITY_SCORE = 30;
+    private const MIN_QUALITY_SCORE = 25;
     private const SCORE_NAME = 25;
     private const SCORE_EMAIL = 20;
     private const SCORE_DOMAIN_MATCH = 10;
@@ -41,9 +68,10 @@ final class UnifiedContactExtractor
      * @var array<string, array<int, string>>
      */
     private const DECISION_MAKER_KEYWORDS = [
-        'procurement' => ['procurement', 'purchasing', 'sourcing', 'buyer', 'commodity', 'supply chain', 'materials'],
-        'executive' => ['ceo', 'coo', 'cto', 'cfo', 'president', 'founder', 'owner', 'managing director', 'general manager', 'vice president', 'vp', 'director', 'head', 'chief'],
-        'engineering' => ['engineering', 'engineer', 'technical', 'r&d', 'operations', 'manufacturing', 'quality', 'product development'],
+        'procurement' => ['procurement', 'purchasing', 'sourcing', 'buyer', 'commodity', 'supply chain', 'materials', 'supplychain'],
+        'executive' => ['ceo', 'coo', 'cto', 'cfo', 'president', 'founder', 'owner', 'managing director', 'general manager', 'vice president', 'vp', 'director', 'head', 'chief', 'chairman', 'chairperson', 'board member', 'partner'],
+        'engineering' => ['engineering', 'engineer', 'technical', 'r&d', 'operations', 'manufacturing', 'quality', 'product development', 'production manager', 'plant manager', 'factory manager', 'process engineer', 'design engineer'],
+        'commercial' => ['sales manager', 'business development', 'account manager', 'commercial director', 'sales director', 'regional sales', 'key account', 'customer relationship', 'bdm'],
     ];
 
     /** @var array<string, int> */
@@ -51,6 +79,7 @@ final class UnifiedContactExtractor
         'procurement' => 15,
         'executive' => 12,
         'engineering' => 10,
+        'commercial' => 8,
         'other' => 0,
     ];
 
@@ -83,6 +112,9 @@ final class UnifiedContactExtractor
 
             // 6. Visible email patterns
             $rawContacts = array_merge($rawContacts, $this->extractFromVisibleEmails($html));
+
+            // 7. Obfuscated email patterns (name [at] domain [dot] com, etc.)
+            $rawContacts = array_merge($rawContacts, $this->extractFromObfuscatedEmails($html));
         }
 
         $preparedContacts = [];
@@ -186,16 +218,58 @@ final class UnifiedContactExtractor
     {
         $contacts = [];
 
+        // Strategy 1: Class-based card matching (div, li, article, section, figure, span)
         foreach (self::TEAM_CLASS_KEYWORDS as $keyword) {
-            $pattern = '/<(?:div|li|article)[^>]*class=["\'][^"\']*'
+            $pattern = '/<(?:div|li|article|section|figure|span)[^>]*class=["\'][^"\']*'
                 . preg_quote($keyword, '/')
-                . '[^"\']*["\'][^>]*>(.*?)<\/(?:div|li|article)>/si';
+                . '[^"\']*["\'][^>]*>(.*?)<\/(?:div|li|article|section|figure|span)>/si';
 
             if (preg_match_all($pattern, $html, $matches)) {
                 foreach ($matches[1] as $cardHtml) {
                     $contact = $this->parseTeamCard($cardHtml);
                     if ($contact) {
                         $contacts[] = $contact;
+                    }
+                }
+            }
+        }
+
+        // Strategy 2: data-* attribute based team members
+        // e.g., <div data-team-member="..." data-name="John" data-title="CEO">
+        if (preg_match_all(
+            '/<(?:div|li|article|section)[^>]*data-(?:team|staff|person|member|employee)(?:-member|-card)?\s*=\s*["\'][^"\']*["\'][^>]*>(.*?)<\/(?:div|li|article|section)>/si',
+            $html,
+            $matches,
+        )) {
+            foreach ($matches[1] as $cardHtml) {
+                $contact = $this->parseTeamCard($cardHtml);
+                if ($contact) {
+                    $contacts[] = $contact;
+                }
+            }
+        }
+
+        // Strategy 3: Section with id="team" / id="leadership" etc.
+        if (preg_match_all(
+            '/<section[^>]*(?:id|data-section)\s*=\s*["\'](?:team|leadership|management|staff|people|our-team|our-people|meet-the-team|executives)["\'][^>]*>(.*?)<\/section>/si',
+            $html,
+            $matches,
+        )) {
+            foreach ($matches[1] as $sectionHtml) {
+                // Within team sections, look for individual person containers
+                if (preg_match_all(
+                    '/<(?:div|li|article|figure)[^>]*>(.*?)<\/(?:div|li|article|figure)>/si',
+                    $sectionHtml,
+                    $innerMatches,
+                )) {
+                    foreach ($innerMatches[1] as $cardHtml) {
+                        // Only parse if it looks like a person card (has name + role)
+                        if (preg_match('/<h[1-6][^>]*>/i', $cardHtml) || preg_match('/class=["\'][^"\']*(?:name|title|position|role)[^"\']*["\']/i', $cardHtml)) {
+                            $contact = $this->parseTeamCard($cardHtml);
+                            if ($contact) {
+                                $contacts[] = $contact;
+                            }
+                        }
                     }
                 }
             }
@@ -253,13 +327,22 @@ final class UnifiedContactExtractor
     private function extractFromLinkedIn(string $html): array
     {
         $contacts = [];
+        $seenUrls = [];
 
+        // Strategy 1: Traditional href attributes
         if (preg_match_all(
             '/href=["\']([^"\']*linkedin\.com\/in\/[^"\']*)["\'][^>]*>([^<]*)/si',
             $html,
             $matches,
         )) {
             foreach ($matches[1] as $i => $url) {
+                $url = html_entity_decode($url, ENT_QUOTES, 'UTF-8');
+                $key = md5($url);
+                if (isset($seenUrls[$key])) {
+                    continue;
+                }
+                $seenUrls[$key] = true;
+
                 $linkText = trim(strip_tags($matches[2][$i]));
                 $contact = [
                     'first_name' => null,
@@ -267,16 +350,101 @@ final class UnifiedContactExtractor
                     'job_title' => null,
                     'email' => null,
                     'phone' => null,
-                    'linkedin_url' => html_entity_decode($url, ENT_QUOTES, 'UTF-8'),
+                    'linkedin_url' => $url,
                 ];
-                if ($linkText !== '' && !preg_match('/linkedin|profile|view/i', $linkText)) {
+                if ($linkText !== '' && !preg_match('/linkedin|profile|view|connect|follow|icon/i', $linkText)) {
                     [$contact['first_name'], $contact['last_name']] = $this->splitName($linkText);
+                }
+                // If no name from link text, try extracting from URL slug
+                if ($contact['first_name'] === null) {
+                    [$contact['first_name'], $contact['last_name']] = $this->extractNameFromLinkedInUrl($url);
                 }
                 $contacts[] = $contact;
             }
         }
 
+        // Strategy 2: data-href, data-url, data-profile attributes
+        if (preg_match_all(
+            '/data-(?:href|url|profile|linkedin)\s*=\s*["\']([^"\']*linkedin\.com\/in\/[^"\']*)["\']/si',
+            $html,
+            $matches,
+        )) {
+            foreach ($matches[1] as $url) {
+                $url = html_entity_decode($url, ENT_QUOTES, 'UTF-8');
+                $key = md5($url);
+                if (isset($seenUrls[$key])) {
+                    continue;
+                }
+                $seenUrls[$key] = true;
+
+                $contact = [
+                    'first_name' => null,
+                    'last_name' => null,
+                    'job_title' => null,
+                    'email' => null,
+                    'phone' => null,
+                    'linkedin_url' => $url,
+                ];
+                [$contact['first_name'], $contact['last_name']] = $this->extractNameFromLinkedInUrl($url);
+                $contacts[] = $contact;
+            }
+        }
+
+        // Strategy 3: Meta tags and JSON-like content with LinkedIn URLs
+        if (preg_match_all(
+            '/(?:content|value|data-value)=["\']([^"\']*linkedin\.com\/in\/[^"\']*)["\']/si',
+            $html,
+            $matches,
+        )) {
+            foreach ($matches[1] as $url) {
+                $url = html_entity_decode($url, ENT_QUOTES, 'UTF-8');
+                $key = md5($url);
+                if (isset($seenUrls[$key])) {
+                    continue;
+                }
+                $seenUrls[$key] = true;
+
+                $contact = [
+                    'first_name' => null,
+                    'last_name' => null,
+                    'job_title' => null,
+                    'email' => null,
+                    'phone' => null,
+                    'linkedin_url' => $url,
+                ];
+                [$contact['first_name'], $contact['last_name']] = $this->extractNameFromLinkedInUrl($url);
+                $contacts[] = $contact;
+            }
+        }
+
         return $contacts;
+    }
+
+    /**
+     * Extract first/last name from a LinkedIn profile URL slug.
+     * E.g., linkedin.com/in/john-doe → John, Doe
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function extractNameFromLinkedInUrl(string $url): array
+    {
+        // Extract the slug portion: /in/john-doe-123abc/
+        if (preg_match('#linkedin\.com/in/([^/?#]+)#i', $url, $m)) {
+            $slug = $m[1];
+            // Remove trailing identifiers (e.g., -123abc, -a123b4)
+            $slug = preg_replace('/-[a-z0-9]{5,}$/i', '', $slug);
+            $slug = preg_replace('/-\d+$/', '', $slug);
+            // Split on hyphens and underscores
+            $parts = preg_split('/[-_]+/', $slug);
+            if (\count($parts) >= 2) {
+                $firstName = $this->normalizeNamePart($parts[0]);
+                $lastName = $this->normalizeNamePart(implode('-', \array_slice($parts, 1)));
+                if ($firstName !== null && $lastName !== null) {
+                    return [$firstName, $lastName];
+                }
+            }
+        }
+        return [null, null];
     }
 
     private function extractFromVisibleEmails(string $html): array
@@ -307,6 +475,95 @@ final class UnifiedContactExtractor
         return $contacts;
     }
 
+    /**
+     * Extract obfuscated emails using anti-spam patterns.
+     *
+     * Handles common obfuscation techniques:
+     *   name [at] domain [dot] com
+     *   name(at)domain(dot)com
+     *   name {at} domain {dot} com
+     *   name AT domain DOT com
+     *   name ät domain döt com
+     *   name [@] domain [.] com
+     *   name (at) domain (dot) com
+     */
+    private function extractFromObfuscatedEmails(string $html): array
+    {
+        $contacts = [];
+        $text = strip_tags($html);
+
+        // Pattern: localpart [at] domain [dot] tld (with various brackets/words)
+        if (preg_match_all(
+            '/([a-zA-Z0-9._%+\-]+)\s*(?:\[at\]|\(at\)|\{at\}|\(@\)|\[@\]|\bat\b|ät|\[@\])\s*([a-zA-Z0-9.\-]+)\s*(?:\[dot\]|\(dot\)|\{dot\}|\(\.\)|\[\.\]|\bdot\b|döt|\[\.\])\s*([a-zA-Z]{2,})/i',
+            $text,
+            $matches,
+        )) {
+            foreach ($matches[0] as $i => $match) {
+                $localPart = trim($matches[1][$i]);
+                $domain = trim($matches[2][$i]);
+                $tld = trim($matches[3][$i]);
+                $email = $this->normalizeEmail($localPart . '@' . $domain . '.' . $tld);
+                if ($email !== null) {
+                    $contacts[] = [
+                        'first_name' => null,
+                        'last_name' => null,
+                        'job_title' => null,
+                        'email' => $email,
+                        'phone' => null,
+                        'linkedin_url' => null,
+                    ];
+                }
+            }
+        }
+
+        // Pattern: localpart [@] domain (dot separated TLD)
+        if (preg_match_all(
+            '/([a-zA-Z0-9._%+\-]+)\s*(?:\[@\]|\(@\)|\{@\})\s*([a-zA-Z0-9.\-]+)\s*(?:\[dot\]|\(dot\)|\{dot\}|\(\.\)|\[\.\]|\bdot\b)\s*([a-zA-Z]{2,})/i',
+            $text,
+            $matches,
+        )) {
+            foreach ($matches[0] as $i => $match) {
+                $localPart = trim($matches[1][$i]);
+                $domain = trim($matches[2][$i]);
+                $tld = trim($matches[3][$i]);
+                $email = $this->normalizeEmail($localPart . '@' . $domain . '.' . $tld);
+                if ($email !== null) {
+                    $contacts[] = [
+                        'first_name' => null,
+                        'last_name' => null,
+                        'job_title' => null,
+                        'email' => $email,
+                        'phone' => null,
+                        'linkedin_url' => null,
+                    ];
+                }
+            }
+        }
+
+        // Pattern: image-based fallback — look for alt text containing email patterns
+        if (preg_match_all(
+            '/<img[^>]*alt=["\']([^"\']+@[^"\']+\.[a-zA-Z]{2,})["\'][^>]*>/si',
+            $html,
+            $matches,
+        )) {
+            foreach ($matches[1] as $altText) {
+                $email = $this->normalizeEmail(trim($altText));
+                if ($email !== null) {
+                    $contacts[] = [
+                        'first_name' => null,
+                        'last_name' => null,
+                        'job_title' => null,
+                        'email' => $email,
+                        'phone' => null,
+                        'linkedin_url' => null,
+                    ];
+                }
+            }
+        }
+
+        return $contacts;
+    }
+
     // ──────────────────────────────────────────────────────────────────
     //  Team card parser
     // ──────────────────────────────────────────────────────────────────
@@ -315,10 +572,18 @@ final class UnifiedContactExtractor
     {
         // Extract name from heading
         $name = null;
-        if (preg_match('/<h[2-6][^>]*>\s*([^<]{2,60})\s*<\/h[2-6]>/si', $cardHtml, $m)) {
+        if (preg_match('/<h[1-6][^>]*>\s*([^<]{2,60})\s*<\/h[1-6]>/si', $cardHtml, $m)) {
             $name = html_entity_decode(trim(strip_tags($m[1])), ENT_QUOTES, 'UTF-8');
         }
         if (!$name && preg_match('/<strong[^>]*>\s*([^<]{2,60})\s*<\/strong>/si', $cardHtml, $m)) {
+            $name = html_entity_decode(trim(strip_tags($m[1])), ENT_QUOTES, 'UTF-8');
+        }
+        // Try <span> with name-related class
+        if (!$name && preg_match('/<span[^>]*class=["\'][^"\']*(?:name|person-name|member-name|employee-name)[^"\']*["\'][^>]*>\s*([^<]{2,60})\s*<\/span>/si', $cardHtml, $m)) {
+            $name = html_entity_decode(trim(strip_tags($m[1])), ENT_QUOTES, 'UTF-8');
+        }
+        // Try <div> with name-related class
+        if (!$name && preg_match('/<div[^>]*class=["\'][^"\']*(?:name|person-name|member-name|employee-name)[^"\']*["\'][^>]*>\s*([^<]{2,60})\s*<\/div>/si', $cardHtml, $m)) {
             $name = html_entity_decode(trim(strip_tags($m[1])), ENT_QUOTES, 'UTF-8');
         }
         if (!$name) {
@@ -339,16 +604,37 @@ final class UnifiedContactExtractor
             'linkedin_url' => null,
         ];
 
-        // Title from class="title/position/role" or first <p>
-        if (preg_match(
-            '/<[^>]*class=["\'][^"\']*(?:title|position|role|job)[^"\']*["\'][^>]*>([^<]{2,100})<\//si',
-            $cardHtml,
-            $tm,
-        )) {
-            $contact['job_title'] = html_entity_decode(trim(strip_tags($tm[1])), ENT_QUOTES, 'UTF-8');
-        } elseif (preg_match('/<p[^>]*>\s*([^<]{3,100})\s*<\/p>/si', $cardHtml, $pm)) {
+        // Title from class="title/position/role/job-title/subtitle/designation" or data-title/data-position
+        $titlePatterns = [
+            // Class-based
+            '/<[^>]*class=["\'][^"\']*(?:title|position|role|job-title|job_title|subtitle|designation|function|department|role-title|person-title|person-role)[^"\']*["\'][^>]*>([^<]{2,100})<\//si',
+            // data-attribute based (modern JS frameworks)
+            '/<[^>]*data-(?:title|position|role|job|designation)\s*=\s*["\']([^"\']{2,100})["\'][^>]*>/si',
+            // aria-label based (accessibility)
+            '/<[^>]*aria-label=["\']([^"\']*(?:ceo|manager|director|engineer|president|sales|procurement|purchasing)[^"\']*)["\'][^>]*>/si',
+        ];
+        foreach ($titlePatterns as $pattern) {
+            if (preg_match($pattern, $cardHtml, $tm)) {
+                $candidate = html_entity_decode(trim(strip_tags($tm[1])), ENT_QUOTES, 'UTF-8');
+                if ($candidate !== '' && $candidate !== $name && mb_strlen($candidate) < 100) {
+                    $contact['job_title'] = $candidate;
+                    break;
+                }
+            }
+        }
+
+        // Fallback: first <p> that looks like a job title (doesn't contain generic text)
+        if ($contact['job_title'] === null && preg_match('/<p[^>]*>\s*([^<]{3,100})\s*<\/p>/si', $cardHtml, $pm)) {
             $title = html_entity_decode(trim(strip_tags($pm[1])), ENT_QUOTES, 'UTF-8');
-            if ($title !== $name && mb_strlen($title) < 80) {
+            if ($title !== $name && mb_strlen($title) < 80 && !preg_match('/^(tel|phone|email|mobile|fax|call|contact|follow|connect|share|view)/i', $title)) {
+                $contact['job_title'] = $title;
+            }
+        }
+
+        // Last fallback: <small> tag (often used for job titles in Bootstrap/tailwind)
+        if ($contact['job_title'] === null && preg_match('/<small[^>]*>\s*([^<]{3,80})\s*<\/small>/si', $cardHtml, $sm)) {
+            $title = html_entity_decode(trim(strip_tags($sm[1])), ENT_QUOTES, 'UTF-8');
+            if ($title !== $name && !preg_match('/^(tel|phone|email|mobile|fax)/i', $title)) {
                 $contact['job_title'] = $title;
             }
         }

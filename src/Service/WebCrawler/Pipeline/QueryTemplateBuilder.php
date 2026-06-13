@@ -16,10 +16,83 @@ namespace App\Service\WebCrawler\Pipeline;
  *   - industrial_zone: targets known manufacturing zones/clusters
  *   - general: broad manufacturing discovery
  *   - certification: finds companies by quality certifications
+ *   - site_directory: site: queries targeting known B2B directories
+ *   - diverse_discovery: varied query patterns for broad coverage
  */
 final class QueryTemplateBuilder
 {
-    private const MAX_QUERIES = 40;
+    private const MAX_QUERIES = 60;
+
+    /**
+     * Region-specific B2B / manufacturing directory sites for site: queries.
+     * Maps region code (MA, US, DE, FR...) to an array of directory domains.
+     */
+    private const REGION_DIRECTORIES = [
+        'MA' => [
+            'site:kerix.net',
+            'site:charika.ma',
+            'site:pagesjaunes.ma',
+            'site:telecontact.ma',
+            'site:amica.org.ma',
+        ],
+        'US' => [
+            'site:thomasnet.com',
+            'site:globalspec.com',
+            'site:industrynet.com',
+            'site:macraesbluebook.com',
+            'site:mfg.com',
+        ],
+        'EU' => [
+            'site:europages.com',
+            'site:kompass.com',
+            'site:industrystock.com',
+            'site:directindustry.com',
+        ],
+        'GB' => [
+            'site:applegate.co.uk',
+            'site:construction.co.uk',
+            'site:themanufacturer.com',
+        ],
+        'DE' => [
+            'site:wlw.de',
+            'site:europages.de',
+            'site:wer-zu-wem.de',
+            'site:industrieanzeiger.de',
+        ],
+        'FR' => [
+            'site:europages.fr',
+            'site:kompass.com',
+            'site:industrie.com',
+            'site:annuaire-pro.fr',
+        ],
+        'TN' => [
+            'site:pagesjaunes.com.tn',
+            'site:tunisieindustrie.nat.tn',
+            'site:annuairetn.net',
+        ],
+        'EG' => [
+            'site:yellowpages.com.eg',
+            'site:daleel.com.eg',
+            'site:egypt-business.com',
+        ],
+        'IT' => [
+            'site:europages.it',
+            'site:kompass.it',
+        ],
+        'ES' => [
+            'site:europages.es',
+            'site:kompass.es',
+        ],
+        'TR' => [
+            'site:yellowpages.com.tr',
+        ],
+        'GCC' => [
+            'site:yellowpages.ae',
+            'site:saudiyellowpages.com',
+            'site:bahrainyellowpages.com',
+            'site:qataryellowpages.com',
+        ],
+    ];
 
     /**
      * Sector keyword families. Each sector maps to an array of keyword groups
@@ -134,6 +207,10 @@ final class QueryTemplateBuilder
     public function buildQueries(?string $sector, ?string $location): array
     {
         $queries = [];
+        $region = $this->resolveRegionFromLocation($location);
+
+        // Common exclusion patterns appended to all generic queries
+        $exclude = ' -site:linkedin.com -site:wikipedia.org -site:facebook.com -site:twitter.com -site:instagram.com -site:youtube.com -site:glassdoor.com -site:crunchbase.com';
 
         // 1. Sector-specific queries
         $sectorConfig = $this->resolveSector($sector);
@@ -147,19 +224,131 @@ final class QueryTemplateBuilder
         // 3. Directory / supplier portal queries
         $queries = array_merge($queries, $this->buildDirectoryQueries($sector, $location));
 
-        // 4. Industrial zone queries (location-specific)
+        // 4. Site: queries targeting known B2B directories
+        $queries = array_merge($queries, $this->buildSiteDirectoryQueries($sector, $location, $region));
+
+        // 5. Industrial zone queries (location-specific)
         if ($location !== null) {
             $queries = array_merge($queries, $this->buildIndustrialZoneQueries($location));
         }
 
-        // 5. General manufacturing queries (always included as fallback)
-        $queries = array_merge($queries, $this->buildGeneralQueries($location));
+        // 6. Contact / team discovery queries — find pages likely to have decision-maker info
+        $queries = array_merge($queries, $this->buildContactDiscoveryQueries($sector, $location));
+
+        // 7. General manufacturing queries (always included as fallback)
+        $queries = array_merge($queries, $this->buildGeneralQueries($location, $exclude));
+
+        // 8. Diverse discovery queries (varied patterns for broad coverage)
+        $queries = array_merge($queries, $this->buildDiverseDiscoveryQueries($sector, $location, $region, $exclude));
 
         // Deduplicate and cap
         $queries = $this->deduplicateQueries($queries);
         $queries = array_slice($queries, 0, self::MAX_QUERIES);
 
         return $queries;
+    }
+
+    /**
+     * Resolve a region code from the location string.
+     * Uses location name matching (like GoogleDorkService::detectRegionFromLocation).
+     */
+    private function resolveRegionFromLocation(?string $location): ?string
+    {
+        if ($location === null || trim($location) === '') {
+            return null;
+        }
+
+        $loc = mb_strtolower($location);
+
+        // Morocco markers
+        $maMarkers = ['morocco', 'maroc', 'المغرب', 'tangier', 'tanger', 'casablanca', 'kenitra', 'rabat', 'marrakech', 'fes', 'meknes'];
+        foreach ($maMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'MA';
+            }
+        }
+
+        // US markers
+        $usMarkers = ['united states', 'usa', 'u.s.a', 'new york', 'california', 'texas', 'florida', 'illinois', 'ohio', 'michigan'];
+        foreach ($usMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'US';
+            }
+        }
+
+        // UK markers
+        $ukMarkers = ['united kingdom', 'uk', 'britain', 'england', 'scotland', 'wales', 'london', 'manchester', 'birmingham'];
+        foreach ($ukMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'GB';
+            }
+        }
+
+        // France markers
+        $frMarkers = ['france', 'paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'lille'];
+        foreach ($frMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'FR';
+            }
+        }
+
+        // Germany markers
+        $deMarkers = ['germany', 'deutschland', 'berlin', 'munich', 'münchen', 'hamburg', 'frankfurt', 'stuttgart', 'cologne', 'köln', 'düsseldorf', 'dusseldorf'];
+        foreach ($deMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'DE';
+            }
+        }
+
+        // Tunisia markers
+        $tnMarkers = ['tunisia', 'tunisie', 'tunis', 'sfax', 'sousse'];
+        foreach ($tnMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'TN';
+            }
+        }
+
+        // Egypt markers
+        $egMarkers = ['egypt', 'cairo', 'alexandria', 'suez'];
+        foreach ($egMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'EG';
+            }
+        }
+
+        // Italy markers
+        $itMarkers = ['italy', 'italia', 'rome', 'milan', 'milano', 'turin', 'torino', 'bologna', 'florence', 'venice'];
+        foreach ($itMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'IT';
+            }
+        }
+
+        // Spain markers
+        $esMarkers = ['spain', 'españa', 'espana', 'madrid', 'barcelona', 'valencia', 'seville', 'bilbao'];
+        foreach ($esMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'ES';
+            }
+        }
+
+        // Turkey markers
+        $trMarkers = ['turkey', 'türkiye', 'turkiye', 'istanbul', 'ankara', 'izmir', 'bursa'];
+        foreach ($trMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'TR';
+            }
+        }
+
+        // GCC markers
+        $gccMarkers = ['uae', 'united arab emirates', 'dubai', 'abu dhabi', 'saudi arabia', 'riyadh', 'jeddah', 'qatar', 'doha', 'kuwait', 'oman', 'bahrain'];
+        foreach ($gccMarkers as $m) {
+            if (str_contains($loc, $m)) {
+                return 'GCC';
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -338,9 +527,163 @@ final class QueryTemplateBuilder
     }
 
     /**
+     * Build contact / team discovery queries.
+     * These find company pages that are likely to have team member listings,
+     * decision-maker contact info, or leadership pages.
+     *
      * @return array<int, array{query: string, type: string}>
      */
-    private function buildGeneralQueries(?string $location): array
+    private function buildContactDiscoveryQueries(?string $sector, ?string $location): array
+    {
+        $queries = [];
+        $locationClause = $location !== null ? ' ' . $location : '';
+        $sectorClause = $sector !== null ? ' ' . $sector : '';
+        $exclude = ' -site:linkedin.com -site:wikipedia.org -site:facebook.com -site:crunchbase.com';
+
+        // Find company "meet the team" / "leadership" pages directly
+        $teamPatterns = [
+            "\"meet our team\" OR \"meet the team\"{$sectorClause}{$locationClause}",
+            "\"leadership team\" OR \"our leadership\"{$sectorClause}{$locationClause}",
+            "\"our team\" \"management\"{$sectorClause}{$locationClause}",
+            "\"board of directors\" OR \"executive team\"{$sectorClause}{$locationClause}",
+        ];
+        foreach ($teamPatterns as $pattern) {
+            $queries[] = [
+                'query' => trim($pattern . $exclude),
+                'type'  => 'contact_discovery',
+            ];
+        }
+
+        // Find "contact us" pages combined with sector — these often have direct emails
+        $contactPatterns = [
+            "\"contact us\" OR \"contact\" \"purchasing\" OR \"procurement\"{$sectorClause}{$locationClause}",
+            "\"sales@\" OR \"purchasing@\" OR \"procurement@\"{$sectorClause}{$locationClause}",
+            "inquiry OR \"request for quote\" OR \"request quote\"{$sectorClause}{$locationClause}",
+        ];
+        foreach ($contactPatterns as $pattern) {
+            $queries[] = [
+                'query' => trim($pattern . $exclude),
+                'type'  => 'contact_discovery',
+            ];
+        }
+
+        // Find company about pages that list key personnel
+        $aboutPatterns = [
+            "\"about us\" \"our team\" \"ceo\"{$sectorClause}{$locationClause}",
+            "\"key personnel\" OR \"key people\"{$sectorClause}{$locationClause}",
+        ];
+        foreach ($aboutPatterns as $pattern) {
+            $queries[] = [
+                'query' => trim($pattern . $exclude),
+                'type'  => 'contact_discovery',
+            ];
+        }
+
+        return $queries;
+    }
+
+    /**
+     * Build site: directory queries targeting known B2B directories.
+     *
+     * @return array<int, array{query: string, type: string}>
+     */
+    private function buildSiteDirectoryQueries(?string $sector, ?string $location, ?string $region): array
+    {
+        $queries = [];
+        $sectorClause = $sector !== null ? ' ' . $sector : '';
+        $locationClause = $location !== null ? ' ' . $location : '';
+
+        // Get region-specific directories
+        $directories = [];
+        if ($region !== null && isset(self::REGION_DIRECTORIES[$region])) {
+            $directories = self::REGION_DIRECTORIES[$region];
+        }
+
+        // Also add general directories (always included)
+        $generalDirectories = self::REGION_DIRECTORIES['EU'] ?? [];
+
+        $allDirectories = array_unique(array_merge($directories, $generalDirectories));
+
+        foreach ($allDirectories as $siteDork) {
+            // With sector: site:kerix.net automotive tangier
+            if ($sector !== null) {
+                $queries[] = [
+                    'query' => trim("{$siteDork}{$sectorClause}{$locationClause}"),
+                    'type'  => 'site_directory',
+                ];
+            }
+            // Without sector: site:kerix.net manufacturer tangier
+            $queries[] = [
+                'query' => trim("{$siteDork} manufacturer{$locationClause}"),
+                'type'  => 'site_directory',
+            ];
+            // Industry-specific: site:kerix.net OEM components
+            $queries[] = [
+                'query' => trim("{$siteDork} OEM components{$locationClause}"),
+                'type'  => 'site_directory',
+            ];
+        }
+
+        // Also add direct sector-specific directory queries
+        // E.g., "automotive companies in Tangier Morocco site:kerix.net"
+        foreach ($allDirectories as $siteDork) {
+            if ($sector !== null) {
+                $queries[] = [
+                    'query' => trim("\"{$sector}\" company{$locationClause} {$siteDork}"),
+                    'type'  => 'site_directory',
+                ];
+            }
+        }
+
+        return $queries;
+    }
+
+    /**
+     * Build diverse discovery queries with varied patterns for broad coverage.
+     * Inspired by the old GoogleDorkService's query diversity.
+     *
+     * @return array<int, array{query: string, type: string}>
+     */
+    private function buildDiverseDiscoveryQueries(?string $sector, ?string $location, ?string $region, string $exclude): array
+    {
+        $queries = [];
+        $locationClause = $location !== null ? ' ' . $location : '';
+
+        if ($sector !== null) {
+            // "about us" style queries — high intent for real companies
+            $queries[] = [
+                'query' => trim("{$sector} \"about us\" OR \"founded\"{$locationClause}{$exclude}"),
+                'type'  => 'diverse_discovery',
+            ];
+            // "our products" style queries — finds product pages
+            $queries[] = [
+                'query' => trim("{$sector} \"our products\" OR \"our solutions\"{$locationClause}{$exclude}"),
+                'type'  => 'diverse_discovery',
+            ];
+            // Technical product queries
+            $queries[] = [
+                'query' => trim("{$sector} OEM manufacturer{$locationClause}{$exclude}"),
+                'type'  => 'diverse_discovery',
+            ];
+            // Wire harness / cable assembly — core EMS service
+            $queries[] = [
+                'query' => trim("{$sector} \"wire harness\" OR \"cable assembly\"{$locationClause}{$exclude}"),
+                'type'  => 'diverse_discovery',
+            ];
+            // Supplier/tier queries
+            $queries[] = [
+                'query' => trim("{$sector} \"tier 1\" OR \"tier 2\" supplier{$locationClause}{$exclude}"),
+                'type'  => 'diverse_discovery',
+            ];
+        }
+
+        return $queries;
+    }
+
+    /**
+     * @return array<int, array{query: string, type: string}>
+     */
+    private function buildGeneralQueries(?string $location, string $exclude = ''): array
     {
         $queries = [];
         $locationClause = $location !== null ? ' ' . $location : '';
@@ -354,7 +697,7 @@ final class QueryTemplateBuilder
 
         foreach ($generalPatterns as $pattern) {
             $queries[] = [
-                'query' => trim($pattern),
+                'query' => trim($pattern . $exclude),
                 'type'  => 'general',
             ];
         }

@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-#[Route('/rfqs')]
+#[Route('/rfq')]
 class RFQController extends AbstractController
 {
     public function __construct(

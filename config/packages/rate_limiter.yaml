@@ -26,3 +26,19 @@ framework:
             policy: 'token_bucket'
             limit: 100                  # Bucket size
             rate: { interval: '1 minute', amount: 60 }  # Refill 60 per minute
+
+        # Per-API-key rate limiter
+        # Prevents a single compromised or misconfigured API key from exhausting
+        # the global pool. Each API key gets its own bucket.
+        api_key:
+            policy: 'token_bucket'
+            limit: 30                   # Max 30 requests per API key
+            rate: { interval: '1 minute', amount: 10 }  # Refill 10 per minute
+
+        # Per-user authenticated rate limiter
+        # Each authenticated user session gets its own rate limit window.
+        # Protects against authenticated user abuse (e.g., bulk data scraping).
+        api_user:
+            policy: 'sliding_window'
+            limit: 200                  # Max 200 requests
+            interval: '1 minute'        # Per minute sliding window

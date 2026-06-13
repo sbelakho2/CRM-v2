@@ -129,7 +129,9 @@ class Quote
 
     private function generateQuoteNumber(): void
     {
-        $this->quoteNumber = 'QTE-' . date('Y') . '-' . strtoupper(substr(uniqid(), -6));
+        // Replaced uniqid() with cryptographically secure random bytes + date prefix.
+        // Format: Q-20260613-a1b2c3d4 — unique, ordered by date, not predictable.
+        $this->quoteNumber = 'Q-' . date('Ymd') . '-' . bin2hex(random_bytes(4));
     }
 
     public function getId(): ?int

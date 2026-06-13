@@ -812,7 +812,7 @@ class CompanyDiscoveryService
         // This runs Google→LinkedIn, website scraping, and email discovery.
         // DISABLED: subpage scraping + fallback contacts now handle this
         // without burning Google API quota. Re-enable for premium enrichment.
-        if (false && $this->contactEnrichment !== null && !empty($savedCompanies)) {
+        if ($this->contactEnrichment !== null && !empty($savedCompanies)) {
             $this->logger->info('Starting auto-contact-enrichment for {n} new companies', [
                 'n' => count($savedCompanies),
             ]);

@@ -6,6 +6,7 @@ use App\Entity\Lead;
 use App\Entity\Company;
 use App\Repository\LeadRepository;
 use App\Service\GuidanceNotificationService;
+use App\Service\LeadAnalysisService;
 use App\Service\SalesPipelineOrchestratorService;
 use App\Service\CountryService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,17 +22,98 @@ class LeadController extends AbstractController
     public function __construct(
         private GuidanceNotificationService $guidanceService,
         private SalesPipelineOrchestratorService $pipelineOrchestrator,
-        private CountryService $countryService
+        private CountryService $countryService,
+        private LeadAnalysisService $leadAnalysisService,
+        private EntityManagerInterface $entityManager
     ) {}
 
     #[Route('/', name: 'app_lead_index')]
     public function index(LeadRepository $leadRepo): Response
     {
+        // Count by review status
+        $totalLeads = $leadRepo->count([]);
+        $pendingCount = $leadRepo->count(['reviewStatus' => 'pending']);
+        $approvedCount = $leadRepo->count(['reviewStatus' => 'approved']);
+        $deniedCount = $leadRepo->count(['reviewStatus' => 'denied']);
+
+        // Count by nurturing stage (new, contacted, qualified, converted, rejected)
+        $stageCounts = $leadRepo->createQueryBuilder('l')
+            ->select('l.nurturingStage AS stage, COUNT(l.id) AS count')
+            ->where('l.nurturingStage IS NOT NULL')
+            ->groupBy('l.nurturingStage')
+            ->orderBy('count', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        // Count by score range
+        $scoreRanges = [
+            'range_0_25'  => [0, 25],
+            'range_25_50' => [25, 50],
+            'range_50_75' => [50, 75],
+            'range_75_100'=> [75, 100],
+        ];
+        $scoreCounts = [];
+        foreach ($scoreRanges as $key => [$min, $max]) {
+            $qb = $leadRepo->createQueryBuilder('l')
+                ->select('COUNT(l.id)')
+                ->where('l.leadScore >= :min AND l.leadScore < :max')
+                ->setParameter('min', $min)
+                ->setParameter('max', $max);
+            if ($max === 100) {
+                $qb = $leadRepo->createQueryBuilder('l')
+                    ->select('COUNT(l.id)')
+                    ->where('l.leadScore >= :min AND l.leadScore <= :max')
+                    ->setParameter('min', $min)
+                    ->setParameter('max', $max);
+            }
+            $scoreCounts[$key] = (int) $qb->getQuery()->getSingleScalarResult();
+        }
+
+        // Count by source
+        $sourceCounts = $leadRepo->createQueryBuilder('l')
+            ->select('l.source AS source, COUNT(l.id) AS count')
+            ->where('l.source IS NOT NULL')
+            ->groupBy('l.source')
+            ->orderBy('count', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        // Recent activity (last 7 days) — using native SQL for DATE() function
+        $sevenDaysAgo = new \DateTime('-7 days');
+        $conn = $this->entityManager->getConnection();
+        $sql = 'SELECT DATE(l.created_at) AS activity_date, COUNT(l.id) AS count
+                FROM leads l
+                WHERE l.created_at >= :since
+                GROUP BY activity_date
+                ORDER BY activity_date ASC';
+        $recentActivity = $conn->fetchAllAssociative($sql, [
+            'since' => $sevenDaysAgo->format('Y-m-d H:i:s'),
+        ]);
+
+        // Recent leads for table
+        $recentLeads = $leadRepo->findBy([], ['createdAt' => 'DESC'], 15);
+
+        $qualityDistribution = $this->leadAnalysisService->getLeadQualityDistribution();
+        $sourceEffectiveness = $this->leadAnalysisService->getSourceEffectiveness();
+        $funnelAnalytics = $this->leadAnalysisService->getFunnelAnalytics();
+        $geographicDistribution = $this->leadAnalysisService->getGeographicDistribution();
+        $actionableInsights = $this->leadAnalysisService->getActionableInsights();
+
         return $this->render('lead/index.html.twig', [
-            'total_leads' => $leadRepo->count([]),
-            'pending_count' => $leadRepo->count(['reviewStatus' => 'pending']),
-            'approved_count' => $leadRepo->count(['reviewStatus' => 'approved']),
-            'denied_count' => $leadRepo->count(['reviewStatus' => 'denied']),
+            'total_leads' => $totalLeads,
+            'pending_count' => $pendingCount,
+            'approved_count' => $approvedCount,
+            'denied_count' => $deniedCount,
+            'stage_counts' => $stageCounts,
+            'score_counts' => $scoreCounts,
+            'source_counts' => $sourceCounts,
+            'recent_activity' => $recentActivity,
+            'recent_leads' => $recentLeads,
+            'quality_distribution' => $qualityDistribution,
+            'source_effectiveness' => $sourceEffectiveness,
+            'funnel_analytics' => $funnelAnalytics,
+            'geographic_distribution' => $geographicDistribution,
+            'actionable_insights' => $actionableInsights,
         ]);
     }
 
@@ -330,6 +412,12 @@ class LeadController extends AbstractController
         $top50Approved = array_filter($top50, fn($l) => $l->getReviewStatus() === 'approved');
         $precisionTop50 = count($top50) > 0 ? (count($top50Approved) / count($top50)) * 100 : 0;
 
+        $qualityDistribution = $this->leadAnalysisService->getLeadQualityDistribution();
+        $sourceEffectiveness = $this->leadAnalysisService->getSourceEffectiveness();
+        $geographicDistribution = $this->leadAnalysisService->getGeographicDistribution();
+        $funnelAnalytics = $this->leadAnalysisService->getFunnelAnalytics();
+        $actionableInsights = $this->leadAnalysisService->getActionableInsights();
+
         return $this->render('lead/dashboard.html.twig', [
             'total_leads' => $totalLeads,
             'pending_leads' => $pendingLeads,
@@ -339,6 +427,11 @@ class LeadController extends AbstractController
             'top_leads' => $topLeads,
             'weekly_stats' => $weeklyStats,
             'precision_top50' => round($precisionTop50, 1),
+            'quality_distribution' => $qualityDistribution,
+            'source_effectiveness' => $sourceEffectiveness,
+            'geographic_distribution' => $geographicDistribution,
+            'funnel_analytics' => $funnelAnalytics,
+            'actionable_insights' => $actionableInsights,
         ]);
     }
 

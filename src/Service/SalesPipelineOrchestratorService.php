@@ -26,6 +26,7 @@ use Psr\Log\LoggerInterface;
  * 5. Feeds RFQ win/loss outcomes back into lead scoring data
  *
  * All state changes go through the EntityManager — nothing is left in-memory only.
+ * All pipeline stage transitions are wrapped in DB transactions for atomicity.
  */
 class SalesPipelineOrchestratorService
 {
@@ -54,63 +55,77 @@ class SalesPipelineOrchestratorService
      * Creates a "Pending" draft RFQ attached to the new company and the
      * originating lead so the relationship is fully traceable.
      *
-     * If a primary contact exists on the new company, it is linked to the RFQ.
+     * Entire operation is wrapped in a DB transaction for atomicity.
      */
     public function afterLeadConverted(Company $company, Lead $lead): ?RFQ
     {
-        // Persist nurturing stage as "converted"
-        $lead->setNurturingStage('converted');
+        $this->entityManager->beginTransaction();
+        try {
+            // Persist nurturing stage as "converted"
+            $lead->setNurturingStage('converted');
 
-        // Create draft RFQ
-        $rfq = new RFQ();
-        $rfq->setCompany($company);
-        $rfq->setLead($lead);
-        $rfq->setType('Standard RFQ');
-        $rfq->setStatus('Pending');
-        $rfq->setRfqDate(new \DateTime());
-        $rfq->setCurrency('EUR');
+            // Create draft RFQ
+            $rfq = new RFQ();
+            $rfq->setCompany($company);
+            $rfq->setLead($lead);
+            $rfq->setType('Standard RFQ');
+            $rfq->setStatus('Pending');
+            $rfq->setRfqDate(new \DateTime());
+            $rfq->setCurrency('EUR');
 
-        // Auto-generate RFQ number: RFQ-{companyId}-{timestamp}
-        $rfq->setRfqNumber('RFQ-' . $company->getId() . '-' . date('Ymd'));
+            // Auto-generate RFQ number: RFQ-{companyId}-{timestamp}
+            $rfq->setRfqNumber('RFQ-' . $company->getId() . '-' . date('Ymd'));
 
-        // Seed technical scope from lead data
-        $scope = [];
-        if ($lead->getSectorTags()) {
-            $scope[] = 'Sectors: ' . implode(', ', $lead->getSectorTags());
-        }
-        if ($lead->getQualityStack()) {
-            $scope[] = 'Quality: ' . implode(', ', $lead->getQualityStack());
-        }
-        if ($lead->getFitSignals()) {
-            $signals = array_keys(array_filter($lead->getFitSignals()));
-            if ($signals) {
-                $scope[] = 'Capabilities: ' . implode(', ', $signals);
+            // Seed technical scope from lead data
+            $scope = [];
+            if ($lead->getSectorTags()) {
+                $scope[] = 'Sectors: ' . implode(', ', $lead->getSectorTags());
             }
+            if ($lead->getQualityStack()) {
+                $scope[] = 'Quality: ' . implode(', ', $lead->getQualityStack());
+            }
+            if ($lead->getFitSignals()) {
+                $signals = array_keys(array_filter($lead->getFitSignals()));
+                if ($signals) {
+                    $scope[] = 'Capabilities: ' . implode(', ', $signals);
+                }
+            }
+            if ($scope) {
+                $rfq->setTechnicalScope(implode("\n", $scope));
+            }
+
+            $rfq->setNotes('Auto-created from Lead #' . $lead->getId() . ' conversion on ' . date('Y-m-d H:i'));
+
+            // Link primary contact if one exists
+            $primaryContact = $this->findPrimaryContact($company);
+            if ($primaryContact) {
+                $rfq->setContact($primaryContact);
+            }
+
+            $this->entityManager->persist($rfq);
+
+            // Advance company to MQL (has an RFQ now)
+            $this->advanceCompanyStage($company, Company::STAGE_MQL);
+
+            $this->entityManager->flush();
+            $this->entityManager->commit();
+
+            $this->logger->info('Pipeline: Auto-created draft RFQ from lead conversion', [
+                'rfq_id'     => $rfq->getId(),
+                'company_id' => $company->getId(),
+                'lead_id'    => $lead->getId(),
+            ]);
+
+            return $rfq;
+        } catch (\Exception $e) {
+            $this->entityManager->rollback();
+            $this->logger->error('Pipeline: Failed to create RFQ from lead conversion', [
+                'company_id' => $company->getId(),
+                'lead_id'    => $lead->getId(),
+                'error'      => $e->getMessage(),
+            ]);
+            throw $e;
         }
-        if ($scope) {
-            $rfq->setTechnicalScope(implode("\n", $scope));
-        }
-
-        $rfq->setNotes('Auto-created from Lead #' . $lead->getId() . ' conversion on ' . date('Y-m-d H:i'));
-
-        // Link primary contact if one exists
-        $primaryContact = $this->findPrimaryContact($company);
-        if ($primaryContact) {
-            $rfq->setContact($primaryContact);
-        }
-
-        $this->entityManager->persist($rfq);
-
-        // Advance company to MQL (has an RFQ now)
-        $this->advanceCompanyStage($company, Company::STAGE_MQL);
-
-        $this->logger->info('Pipeline: Auto-created draft RFQ from lead conversion', [
-            'rfq_id'     => 'pending-flush',
-            'company_id' => $company->getId(),
-            'lead_id'    => $lead->getId(),
-        ]);
-
-        return $rfq;
     }
 
     // ================================================================
@@ -121,41 +136,59 @@ class SalesPipelineOrchestratorService
      * Called when RFQController::updateStatus() changes the status.
      * Advances the parent Company's pipelineStage to match the highest
      * RFQ status — stage never goes backward.
+     *
+     * Entire operation is wrapped in a DB transaction for atomicity.
      */
     public function afterRfqStatusChanged(RFQ $rfq, string $oldStatus, string $newStatus): void
     {
-        $company = $rfq->getCompany();
-        if (!$company) {
-            return;
-        }
+        $this->entityManager->beginTransaction();
+        try {
+            $company = $rfq->getCompany();
+            if (!$company) {
+                $this->entityManager->rollback();
+                return;
+            }
 
-        $targetStage = self::RFQ_STATUS_TO_STAGE[$newStatus] ?? null;
+            $targetStage = self::RFQ_STATUS_TO_STAGE[$newStatus] ?? null;
 
-        if ($targetStage) {
-            $this->advanceCompanyStage($company, $targetStage);
-        }
+            if ($targetStage) {
+                $this->advanceCompanyStage($company, $targetStage);
+            }
 
-        // If Won → set company status to 'active' (eligible for compliance pipeline)
-        if ($newStatus === 'Won' && $company->getCompanyStatus() !== Company::STATUS_ACTIVE) {
-            $company->setCompanyStatus(Company::STATUS_ACTIVE);
-            $this->logger->info('Pipeline: Company activated after RFQ win', [
-                'company_id' => $company->getId(),
+            // If Won → set company status to 'active' (eligible for compliance pipeline)
+            if ($newStatus === 'Won' && $company->getCompanyStatus() !== Company::STATUS_ACTIVE) {
+                $company->setCompanyStatus(Company::STATUS_ACTIVE);
+                $this->logger->info('Pipeline: Company activated after RFQ win', [
+                    'company_id' => $company->getId(),
+                ]);
+            }
+
+            // Feed outcome into lead record for scoring feedback
+            $lead = $rfq->getLead();
+            if ($lead && in_array($newStatus, ['Won', 'Lost'], true)) {
+                $this->feedOutcomeToLead($lead, $newStatus, $rfq);
+            }
+
+            $this->entityManager->flush();
+            $this->entityManager->commit();
+
+            $this->logger->info('Pipeline: RFQ status change processed', [
+                'rfq_id'       => $rfq->getId(),
+                'old_status'   => $oldStatus,
+                'new_status'   => $newStatus,
+                'company_id'   => $company->getId(),
+                'company_stage' => $company->getPipelineStage(),
             ]);
+        } catch (\Exception $e) {
+            $this->entityManager->rollback();
+            $this->logger->error('Pipeline: Failed to process RFQ status change', [
+                'rfq_id'     => $rfq->getId(),
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'error'      => $e->getMessage(),
+            ]);
+            throw $e;
         }
-
-        // Feed outcome into lead record for scoring feedback
-        $lead = $rfq->getLead();
-        if ($lead && in_array($newStatus, ['Won', 'Lost'], true)) {
-            $this->feedOutcomeToLead($lead, $newStatus, $rfq);
-        }
-
-        $this->logger->info('Pipeline: RFQ status change processed', [
-            'rfq_id'       => $rfq->getId(),
-            'old_status'   => $oldStatus,
-            'new_status'   => $newStatus,
-            'company_id'   => $company->getId(),
-            'company_stage' => $company->getPipelineStage(),
-        ]);
     }
 
     // ================================================================
@@ -169,76 +202,96 @@ class SalesPipelineOrchestratorService
      *
      * Creates a new RFQ (opportunity) linked to the contact's company,
      * and links the outbound message to the new RFQ for attribution.
+     *
+     * Entire operation is wrapped in a DB transaction for atomicity.
      */
     public function afterPositiveEmailEngagement(OutboundMessage $message, string $classification): ?RFQ
     {
-        $contact = $message->getContact();
-        if (!$contact) {
-            return null;
-        }
+        $this->entityManager->beginTransaction();
+        try {
+            $contact = $message->getContact();
+            if (!$contact) {
+                $this->entityManager->rollback();
+                return null;
+            }
 
-        $company = $contact->getCompany();
-        if (!$company) {
-            return null;
-        }
+            $company = $contact->getCompany();
+            if (!$company) {
+                $this->entityManager->rollback();
+                return null;
+            }
 
-        // Check if company already has an open RFQ — don't create duplicates
-        $openRfqs = $this->rfqRepository->findBy([
-            'company' => $company,
-            'status'  => ['Pending', 'In Review', 'Submitted'],
-        ]);
-
-        if (count($openRfqs) > 0) {
-            // Link message to existing open RFQ instead
-            $existingRfq = $openRfqs[0];
-            $message->setRfq($existingRfq);
-
-            $this->logger->info('Pipeline: Linked positive reply to existing RFQ', [
-                'message_id' => $message->getId(),
-                'rfq_id'     => $existingRfq->getId(),
+            // Check if company already has an open RFQ — don't create duplicates
+            $openRfqs = $this->rfqRepository->findBy([
+                'company' => $company,
+                'status'  => ['Pending', 'In Review', 'Submitted'],
             ]);
 
-            // Still advance company stage
+            if (count($openRfqs) > 0) {
+                // Link message to existing open RFQ instead
+                $existingRfq = $openRfqs[0];
+                $message->setRfq($existingRfq);
+
+                $this->logger->info('Pipeline: Linked positive reply to existing RFQ', [
+                    'message_id' => $message->getId(),
+                    'rfq_id'     => $existingRfq->getId(),
+                ]);
+
+                // Still advance company stage
+                $this->advanceCompanyStage($company, Company::STAGE_SQL);
+
+                $this->entityManager->flush();
+                $this->entityManager->commit();
+
+                return $existingRfq;
+            }
+
+            // Create new opportunity RFQ
+            $rfq = new RFQ();
+            $rfq->setCompany($company);
+            $rfq->setContact($contact);
+            $rfq->setType('Standard RFQ');
+            $rfq->setStatus('Pending');
+            $rfq->setRfqDate(new \DateTime());
+            $rfq->setCurrency('EUR');
+            $rfq->setRfqNumber('RFQ-OB-' . $company->getId() . '-' . date('Ymd'));
+            $rfq->setNotes(sprintf(
+                "Auto-created from positive email engagement (%s)\nContact: %s %s\nReply classification: %s\nMessage ID: #%d",
+                date('Y-m-d H:i'),
+                $contact->getFirstName(),
+                $contact->getLastName(),
+                $classification,
+                $message->getId()
+            ));
+
+            $this->entityManager->persist($rfq);
+
+            // Link the message to the new RFQ
+            $message->setRfq($rfq);
+
+            // Advance company stage to SQL (sales-qualified due to positive response)
             $this->advanceCompanyStage($company, Company::STAGE_SQL);
 
-            return $existingRfq;
+            $this->entityManager->flush();
+            $this->entityManager->commit();
+
+            $this->logger->info('Pipeline: Created opportunity RFQ from positive email engagement', [
+                'rfq_id'         => $rfq->getId(),
+                'company_id'     => $company->getId(),
+                'contact_id'     => $contact->getId(),
+                'classification' => $classification,
+                'message_id'     => $message->getId(),
+            ]);
+
+            return $rfq;
+        } catch (\Exception $e) {
+            $this->entityManager->rollback();
+            $this->logger->error('Pipeline: Failed to create RFQ from email engagement', [
+                'message_id' => $message->getId(),
+                'error'      => $e->getMessage(),
+            ]);
+            throw $e;
         }
-
-        // Create new opportunity RFQ
-        $rfq = new RFQ();
-        $rfq->setCompany($company);
-        $rfq->setContact($contact);
-        $rfq->setType('Standard RFQ');
-        $rfq->setStatus('Pending');
-        $rfq->setRfqDate(new \DateTime());
-        $rfq->setCurrency('EUR');
-        $rfq->setRfqNumber('RFQ-OB-' . $company->getId() . '-' . date('Ymd'));
-        $rfq->setNotes(sprintf(
-            "Auto-created from positive email engagement (%s)\nContact: %s %s\nReply classification: %s\nMessage ID: #%d",
-            date('Y-m-d H:i'),
-            $contact->getFirstName(),
-            $contact->getLastName(),
-            $classification,
-            $message->getId()
-        ));
-
-        $this->entityManager->persist($rfq);
-
-        // Link the message to the new RFQ
-        $message->setRfq($rfq);
-
-        // Advance company stage to SQL (sales-qualified due to positive response)
-        $this->advanceCompanyStage($company, Company::STAGE_SQL);
-
-        $this->logger->info('Pipeline: Created opportunity RFQ from positive email engagement', [
-            'rfq_id'         => 'pending-flush',
-            'company_id'     => $company->getId(),
-            'contact_id'     => $contact->getId(),
-            'classification' => $classification,
-            'message_id'     => $message->getId(),
-        ]);
-
-        return $rfq;
     }
 
     // ================================================================

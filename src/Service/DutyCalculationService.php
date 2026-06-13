@@ -66,25 +66,27 @@ class DutyCalculationService
         bool $useFta = false,
         ?string $incoterm = null
     ): array {
-        // Step 1: Look up tariff rate
-        $tariffRate = $this->tariffRateRepository->createQueryBuilder('tr')
-            ->where('tr.hsCode = :hsCode')
-            ->andWhere('tr.destinationCountry = :dest')
-            ->andWhere('tr.originCountry = :origin')
-            ->andWhere('tr.effectiveDate <= :today')
-            ->andWhere('tr.expiryDate IS NULL OR tr.expiryDate >= :today')
-            ->setParameter('hsCode', $htsCode)
-            ->setParameter('dest', $destinationCountry)
-            ->setParameter('origin', $originCountry)
-            ->setParameter('today', new \DateTime())
-            ->orderBy('tr.effectiveDate', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+        // Step 1: Look up tariff rate with parent HTS fallback.
+        // Try exact HTS code first, then heading (6 digits), chapter (4 digits),
+        // and finally section (2 digits) to ensure we always find a rate.
+        $htsLevels = $this->buildHtsFallbackLevels($htsCode);
+        $tariffRate = null;
+        $matchedLevel = null;
+        $matchedHtsCode = null;
+        
+        foreach ($htsLevels as $level => $code) {
+            $tariffRate = $this->findTariffRate($code, $destinationCountry, $originCountry);
+            if ($tariffRate !== null) {
+                $matchedLevel = $level;
+                $matchedHtsCode = $code;
+                break;
+            }
+        }
         
         if (!$tariffRate) {
             throw new \RuntimeException(
-                "Tariff rate not found for HTS: $htsCode, Origin: $originCountry, Destination: $destinationCountry"
+                "Tariff rate not found for HTS: $htsCode or any parent heading/chapter. " .
+                "Origin: $originCountry, Destination: $destinationCountry"
             );
         }
         
@@ -139,18 +141,23 @@ class DutyCalculationService
 
     /**
      * Apply FTA preferential rate
-     * 
-     * @param string $htsCode - HTS code
-     * @param string $originCountry - Origin country
-     * @param string $destinationCountry - Destination country
+     *
+     * Looks up the preferential duty rate from the tariff_rates table
+     * for the given HTS code under the applicable FTA agreement.
+     * The FTA agreement name is determined from the eligibility result.
+     *
+     * @param string $htsCode - HTS code (e.g., "8473.30.51")
+     * @param string $originCountry - Origin country code (ISO 2-letter)
+     * @param string $destinationCountry - Destination country code (ISO 2-letter)
      * @param float $customsValue - Customs value
-     * @param array $eligibilityResult - Result from FtaEligibilityService
-     * 
+     * @param array $eligibilityResult - Result from FtaEligibilityService::checkEligibility()
+     *
      * @return array{
-     *   dutyRate: float,
-     *   ftaAgreement: string,
+     *   dutyRate: float|null,
+     *   ftaAgreement: string|null,
      *   requiresDeclaration: bool,
-     *   declarationTemplate: string|null
+     *   declarationTemplate: string|null,
+     *   notFound: bool
      * }
      */
     public function applyFtaRate(
@@ -160,36 +167,50 @@ class DutyCalculationService
         float $customsValue,
         array $eligibilityResult
     ): array {
-        // 1. Query fta_rules table for active FTA rules
-        $today = new \DateTime();
+        // 1. Get FTA agreement from eligibility result
+        $ftaAgreement = $eligibilityResult['fta_agreement'] ?? null;
         
-        $ftaRule = $this->ftaRuleRepository->createQueryBuilder('f')
-            ->where('f.originCountry = :origin')
-            ->andWhere('f.destinationCountry = :dest')
-            ->andWhere('f.htsCode = :hts')
-            ->andWhere('f.effectiveFrom <= :today')
-            ->andWhere('f.effectiveTo IS NULL OR f.effectiveTo >= :today')
-            ->setParameter('origin', $originCountry)
-            ->setParameter('dest', $destinationCountry)
-            ->setParameter('hts', $htsCode)
-            ->setParameter('today', $today)
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
-        
-        if (!$ftaRule) {
-            // No FTA rule found - fallback to MFN rate
+        if (!$ftaAgreement) {
             return [
                 'dutyRate' => null,
                 'ftaAgreement' => null,
                 'requiresDeclaration' => false,
                 'declarationTemplate' => null,
-                'notFound' => true
+                'notFound' => true,
             ];
         }
         
-        // 2. Get preferential rate
-        $preferentialRate = (float) $ftaRule->getPreferentialRate();
+        // 2. Look up the tariff rate with FTA preferential rate
+        // The tariff_rates table stores fta_rate alongside the standard MFN rate
+        $today = new \DateTime('now', new \DateTimeZone('UTC'));
+        
+        $tariffRate = $this->tariffRateRepository->createQueryBuilder('tr')
+            ->where('tr.hsCode = :hsCode')
+            ->andWhere('tr.destinationCountry = :dest')
+            ->andWhere('tr.originCountry = :origin')
+            ->andWhere('tr.effectiveDate <= :today')
+            ->andWhere('tr.expiryDate IS NULL OR tr.expiryDate >= :today')
+            ->setParameter('hsCode', $htsCode)
+            ->setParameter('dest', $destinationCountry)
+            ->setParameter('origin', $originCountry)
+            ->setParameter('today', $today)
+            ->orderBy('tr.effectiveDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        
+        if (!$tariffRate || $tariffRate->getFtaRate() === null) {
+            // No FTA preferential rate found for this HTS code
+            return [
+                'dutyRate' => null,
+                'ftaAgreement' => $ftaAgreement,
+                'requiresDeclaration' => false,
+                'declarationTemplate' => null,
+                'notFound' => true,
+            ];
+        }
+        
+        $preferentialRate = (float) $tariffRate->getFtaRate();
         
         // 3. Check if declaration required
         $eligibilityStatus = $eligibilityResult['eligible'] ?? 'UNKNOWN';
@@ -213,10 +234,10 @@ class DutyCalculationService
         // 4. Return FTA rate data
         return [
             'dutyRate' => $preferentialRate,
-            'ftaAgreement' => $ftaRule->getFtaAgreement(),
+            'ftaAgreement' => $ftaAgreement,
             'requiresDeclaration' => $requiresDeclaration,
             'declarationTemplate' => $declarationTemplate,
-            'notFound' => false
+            'notFound' => false,
         ];
     }
 
@@ -375,7 +396,6 @@ class DutyCalculationService
         // 2. Check FTA eligibility
         try {
             $eligibility = $this->ftaEligibilityService->checkEligibility(
-                $htsCode,
                 $originCountry,
                 $destinationCountry
             );
@@ -448,5 +468,61 @@ class DutyCalculationService
             'ftaAgreement' => $ftaResult['ftaAgreement'] ?? null,
             'requiresDeclaration' => $ftaResult['requiresDeclaration'] ?? false
         ];
+    }
+
+    /**
+     * Build HTS fallback levels for hierarchical rate lookup.
+     *
+     * Strips non-numeric characters (dots, spaces), then tries:
+     * 1. Exact code (10 digits)
+     * 2. Heading level (first 6 digits)
+     * 3. Chapter level (first 4 digits)
+     * 4. Section level (first 2 digits)
+     *
+     * @return array<string, string> Level name => HTS code fragment
+     */
+    private function buildHtsFallbackLevels(string $htsCode): array
+    {
+        // Strip non-digit characters for clean hierarchical parsing
+        $clean = preg_replace('/[^0-9]/', '', $htsCode);
+
+        $levels = [];
+        if (strlen($clean) >= 10) {
+            $levels['exact_10'] = $clean;
+        }
+        if (strlen($clean) >= 6) {
+            $levels['heading_6'] = substr($clean, 0, 6);
+        }
+        if (strlen($clean) >= 4) {
+            $levels['chapter_4'] = substr($clean, 0, 4);
+        }
+        if (strlen($clean) >= 2) {
+            $levels['section_2'] = substr($clean, 0, 2);
+        }
+
+        return $levels;
+    }
+
+    /**
+     * Find a tariff rate for the given HTS code, destination, and origin.
+     *
+     * @return object|null The TariffRate entity, or null if not found
+     */
+    private function findTariffRate(string $hsCode, string $destinationCountry, string $originCountry): ?object
+    {
+        return $this->tariffRateRepository->createQueryBuilder('tr')
+            ->where('tr.hsCode = :hsCode')
+            ->andWhere('tr.destinationCountry = :dest')
+            ->andWhere('tr.originCountry = :origin')
+            ->andWhere('tr.effectiveDate <= :today')
+            ->andWhere('tr.expiryDate IS NULL OR tr.expiryDate >= :today')
+            ->setParameter('hsCode', $hsCode)
+            ->setParameter('dest', $destinationCountry)
+            ->setParameter('origin', $originCountry)
+            ->setParameter('today', new \DateTime())
+            ->orderBy('tr.effectiveDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }

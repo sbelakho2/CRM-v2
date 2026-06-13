@@ -62,14 +62,19 @@ class AlibabaApiClient
     private const REQUEST_TIMEOUT = 15;
     private const MAX_RETRIES = 4; // Increased from 2 — give CAPTCHA retries more chances
 
-    // Real browser user-agents for rotation
+    // Real browser user-agents for rotation — desktop + mobile for fingerprint variety
     private const USER_AGENTS = [
+        // Desktop
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0',
+        // Mobile
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36',
+        'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
     ];
 
     // Accept-Language variants for fingerprint diversity
@@ -82,6 +87,9 @@ class AlibabaApiClient
 
     private float $lastRequestTime = 0;
     private int $requestCount = 0; // Tracks requests in session for escalating delays
+    private int $alibabaBlockedCount = 0; // Consecutive 403 counter for fail-fast
+    private bool $alibabaBlocked = false;  // Fail-fast flag: stop trying if Alibaba is blocking
+    private bool $proxyEnabled;            // Derived from ProxyRotationService availability
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -91,6 +99,11 @@ class AlibabaApiClient
         private ?PartMatchConfidenceCalculator $confidenceCalculator = null
     ) {
         $this->confidenceCalculator ??= new PartMatchConfidenceCalculator();
+        $this->proxyEnabled = $this->proxyRotation !== null;
+
+        if (!$this->proxyEnabled) {
+            $this->logger->warning('AlibabaApiClient: proxy is disabled — anti-bot evasion is significantly weaker. Consider configuring ProxyRotationService.');
+        }
     }
 
     // ========================================================================
@@ -165,7 +178,7 @@ class AlibabaApiClient
             // Adding a SECOND penalty here double-counts the same signal and
             // pushes borderline 90-92 scores to 87-89 → MEDIUM instead of HIGH.
             // Only apply a small penalty for very weak matches (prefix-only).
-            $alibabaPenalty = $mpnMatchScore >= 40 ? 0 : 3;
+            $alibabaPenalty = $mpnMatchScore >= 60 ? 0 : 3;
             $confidence['score'] = max(0, $confidence['score'] - $alibabaPenalty);
             
             // Re-evaluate level after penalty
@@ -197,7 +210,7 @@ class AlibabaApiClient
                 $altConfidence = $this->confidenceCalculator->calculateConfidence(
                     $partNumber, $manufacturer, $description, $alt
                 );
-                $altPenalty = $altMpnScore >= 40 ? 0 : 3;
+                $altPenalty = $altMpnScore >= 60 ? 0 : 3;
                 $altConfidence['score'] = max(0, $altConfidence['score'] - $altPenalty);
                 $alt['confidence'] = $altConfidence;
                 $alternatives[] = $alt;
@@ -289,12 +302,34 @@ class AlibabaApiClient
     }
 
     /**
-     * Fetch a URL with retry, UA rotation, proxy support, and CAPTCHA detection
+     * Fetch a URL with retry, UA rotation, proxy support, CAPTCHA detection,
+     * 403 anti-bot handling, and request-count delay escalation
      */
     private function fetchWithRetry(string $url): ?string
     {
+        // Gap 1: Fail-fast — if Alibaba is blocking us, don't waste resources
+        if ($this->alibabaBlocked) {
+            $this->logger->debug('Alibaba: blocked flag set, skipping request', ['url' => $url]);
+            return null;
+        }
+        
         for ($attempt = 0; $attempt <= self::MAX_RETRIES; $attempt++) {
             $this->respectRateLimit();
+            
+            // Gap 2: Request-count based delay escalation when no proxy
+            if (!$this->proxyEnabled) {
+                $this->requestCount++;
+                if ($this->requestCount > 5) {
+                    // After 5 requests without proxy, increase minimum delay by 0.5s per request
+                    // Cap at 5s extra to prevent excessive waits
+                    $extraDelayUs = (int)min(($this->requestCount - 5) * 500000, 5000000);
+                    $this->logger->debug('Alibaba: no-proxy delay escalation', [
+                        'request_count' => $this->requestCount,
+                        'extra_delay_ms' => $extraDelayUs / 1000,
+                    ]);
+                    usleep($extraDelayUs);
+                }
+            }
             
             $userAgent = self::USER_AGENTS[array_rand(self::USER_AGENTS)];
             $acceptLang = self::ACCEPT_LANGUAGES[array_rand(self::ACCEPT_LANGUAGES)];
@@ -355,11 +390,45 @@ class AlibabaApiClient
                         continue;
                     }
                     
+                    // Reset 403 counter on successful response
+                    $this->alibabaBlockedCount = 0;
+                    
                     if ($proxy) {
                         $this->proxyRotation?->reportSuccess($proxy);
                     }
                     
                     return $content;
+                }
+                
+                // Gap 1: Handle 403 Forbidden — anti-bot response, retry with escalation
+                if ($statusCode === 403) {
+                    $this->alibabaBlockedCount++;
+                    $this->logger->warning('Alibaba returned 403 Forbidden', [
+                        'url' => $url,
+                        'attempt' => $attempt + 1,
+                        'blocked_count' => $this->alibabaBlockedCount,
+                        'proxy' => $proxy ? 'yes' : 'no',
+                    ]);
+                    
+                    if ($proxy) {
+                        $this->proxyRotation?->reportFailure($proxy);
+                    }
+                    
+                    // After 3 consecutive 403s, set fail-fast flag
+                    if ($this->alibabaBlockedCount >= 3) {
+                        $this->alibabaBlocked = true;
+                        $this->logger->warning('Alibaba appears to be blocking requests after 3 consecutive 403s');
+                        return null;
+                    }
+                    
+                    // Escalating backoff: 10s → 20s
+                    $backoffSeconds = 10 * $this->alibabaBlockedCount;
+                    $this->logger->info('Alibaba 403 backoff', [
+                        'seconds' => $backoffSeconds,
+                        'attempt' => $attempt + 1,
+                    ]);
+                    sleep($backoffSeconds);
+                    continue;
                 }
                 
                 if ($statusCode === 429) {
@@ -1443,7 +1512,8 @@ class AlibabaApiClient
                 ];
             }
             // Add deep-bulk tier: at 5x the last ladder qty, price drops 35%
-            $lastTier = end($ladderPricing);
+            // Fix H5: Use array_key_last() instead of end() to avoid mutating internal array pointer.
+            $lastTier = $ladderPricing[array_key_last($ladderPricing)];
             $deepQty = ($lastTier['quantity_min'] ?? 100) * 5;
             $deepPrice = round(($lastTier['price'] ?? $priceLow) * 0.65, 6);
             if ($deepPrice > 0) {
@@ -1528,7 +1598,8 @@ class AlibabaApiClient
             'supplier_type' => $product['verified'] ? 'Verified Supplier' : 'Standard',
             'trade_assurance' => $product['verified'],
             'shipping_from' => $product['country'] ?? 'China',
-            // Crawler metadata (for debugging/auditing)
+            // Crawler metadata — truncated to essential fields only to minimise cache bloat.
+            // Raw HTML metadata, full ladder_pricing copies, and verbose arrays are excluded.
             '_crawl_data' => [
                 'product_id' => $product['product_id'],
                 'supplier_years' => $product['supplier_years'],
@@ -1538,7 +1609,6 @@ class AlibabaApiClient
                 'units_sold' => $product['units_sold'],
                 'dispatch_days' => $product['dispatch_days'],
                 'certifications' => $product['certifications'],
-                'ladder_pricing' => $product['ladder_pricing'] ?? [],
                 'price_range' => ['low' => $product['price_low'], 'high' => $product['price_high']],
                 'relevance_score' => $product['_score'] ?? null,
             ],

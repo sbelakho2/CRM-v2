@@ -90,7 +90,7 @@
         <div class="rams-module rams-module--inset">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label rams-uppercase rams-text-3xs rams-font-mono rams-text--success">{{ 'rfq.won'|trans|default('Won') }}</span>
+                    <span class="rams-metric__label rams-uppercase rams-text-3xs rams-font-mono rams-text--success">{{ 'rfq.won_label'|trans }}</span>
                     <span class="rams-metric__value rams-text--xl">{{ won_count }}</span>
                 </div>
                 <span class="rams-text-3xs rams-text--muted rams-font-mono">
@@ -316,7 +316,7 @@
                     <tr>
                         <th class="rams-table__th">{{ 'common.status'|trans }}</th>
                         <th class="rams-table__th">{{ 'company.title'|trans }}</th>
-                        <th class="rams-table__th">{{ 'rfq.type'|trans }}</th>
+                        <th class="rams-table__th">{{ 'rfq.type_label'|trans }}</th>
                         <th class="rams-table__th">{{ 'rfq.estimated_value'|trans }}</th>
                         <th class="rams-table__th">{{ 'rfq.loss_reason'|trans|default('Reason') }}</th>
                         <th class="rams-table__th">{{ 'rfq.competitor'|trans|default('Competitor') }}</th>
@@ -329,7 +329,7 @@
                     <tr>
                         <td class="rams-table__td">
                             {% if rfq.status == 'Won' %}
-                                <span class="rams-badge rams-badge--success">{{ 'rfq.won'|trans|default('Won') }}</span>
+                                <span class="rams-badge rams-badge--success">{{ 'rfq.won_label'|trans }}</span>
                             {% else %}
                                 <span class="rams-badge rams-badge--danger">{{ 'rfq.lost'|trans|default('Lost') }}</span>
                             {% endif %}

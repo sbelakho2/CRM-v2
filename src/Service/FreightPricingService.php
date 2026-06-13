@@ -73,12 +73,15 @@ class FreightPricingService
         
         // Step 2: Query freight_table for rate - need to parse lane_code to origin/destination
         // Lane code format: "ORIGIN-DESTINATION" (e.g., "Tangier-Rotterdam")
-        $laneParts = explode('-', $laneCode, 2);
-        if (count($laneParts) !== 2) {
+        // Some codes have multi-hyphen destinations like "MA-US-AIR-001", so we split
+        // fully and take first segment as origin, last as destination.
+        $laneParts = explode('-', $laneCode);
+        if (count($laneParts) < 2) {
             throw new \InvalidArgumentException("Invalid lane code format: $laneCode (expected ORIGIN-DESTINATION)");
         }
         
-        [$originPort, $destinationPort] = $laneParts;
+        $originPort = $laneParts[0];
+        $destinationPort = implode('-', array_slice($laneParts, 1));
         
         $freightRate = $this->freightTableRepository->createQueryBuilder('ft')
             ->where('ft.originPort = :origin')

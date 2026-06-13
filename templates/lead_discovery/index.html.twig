@@ -12,118 +12,526 @@
         </div>
     </div>
 
-    {# Search Form Module #}
+    {# Stats Summary Bar #}
+    <div class="rams-grid rams-grid--6">
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.total_leads'|trans }}</span>
+                    <span class="rams-metric__value rams-text--info">{{ total_leads }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.pending_review'|trans }}</span>
+                    <span class="rams-metric__value rams-text--warning">{{ pending_review }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.enriched'|trans }}</span>
+                    <span class="rams-metric__value rams-text--success">{{ enriched }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.needs_enrichment'|trans }}</span>
+                    <span class="rams-metric__value rams-text--danger">{{ needs_enrichment }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.this_week'|trans }}</span>
+                    <span class="rams-metric__value rams-text--success">{{ this_week }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--compact">
+            <div class="rams-module__content">
+                <div class="rams-metric">
+                    <span class="rams-metric__label">{{ 'lead_discovery.this_month'|trans }}</span>
+                    <span class="rams-metric__value">{{ this_month }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# 📊 Analytics Section #}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">📊 Analytics</h2>
+        </div>
+        <div class="rams-module__content">
+            {# Lead Quality Distribution #}
+            <div class="rams-mb-6">
+                <h3 class="rams-text--sm rams-font--medium rams-mb-3">🎯 Lead Quality Distribution</h3>
+                {% if quality_distribution is defined and quality_distribution is not empty %}
+                {% set quality_max = quality_distribution|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
+                <div class="rams-grid rams-grid--4">
+                    {% for range, data in quality_distribution %}
+                    <div class="rams-module rams-module--compact">
+                        <div class="rams-module__content">
+                            <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
+                                <span class="rams-text--lg">
+                                    {% if range == '0-25' %}🔴{% elseif range == '26-50' %}🟠{% elseif range == '51-75' %}🟡{% else %}🟢{% endif %}
+                                </span>
+                                <span class="rams-font--medium">{{ range }} <span class="rams-text--muted rams-text--xs">{% if range == '0-25' %}Low{% elseif range == '26-50' %}Fair{% elseif range == '51-75' %}Good{% else %}Excellent{% endif %}</span></span>
+                            </div>
+                            <div class="rams-metric rams-mb-1">{{ data.count }}</div>
+                            <div class="w-full bg-gray-200 rounded-full h-2 rams-mb-1">
+                                <div class="{% if data.approval_rate >= 75 %}bg-green-500{% elseif data.approval_rate >= 50 %}bg-yellow-500{% else %}bg-red-500{% endif %} h-2 rounded-full" style="width: {{ quality_max > 0 ? (data.count / quality_max * 100)|round : 0 }}%"></div>
+                            </div>
+                            <div class="rams-flex rams-justify-between rams-text--xs">
+                                <span class="rams-text--muted">{{ data.count }} leads</span>
+                                <span class="{% if data.approval_rate >= 75 %}rams-text--success{% elseif data.approval_rate >= 50 %}rams-text--warning{% else %}rams-text--danger{% endif %}">{{ data.approval_rate }}% approval</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="rams-text--muted rams-text--sm rams-py-2">No lead quality data available</div>
+                {% endif %}
+            </div>
+
+            {# Source Effectiveness #}
+            <div class="rams-mb-6">
+                <h3 class="rams-text--sm rams-font--medium rams-mb-3">📡 Source Effectiveness</h3>
+                {% if source_effectiveness is defined and source_effectiveness is not empty %}
+                <div class="rams-overflow-x-auto">
+                    <table class="rams-table rams-w-full data-table">
+                        <thead class="rams-table__header">
+                            <tr>
+                                <th class="rams-table__cell">Source</th>
+                                <th class="rams-table__cell">Count</th>
+                                <th class="rams-table__cell">Avg Score</th>
+                                <th class="rams-table__cell">Approval Rate</th>
+                                <th class="rams-table__cell">Pending</th>
+                                <th class="rams-table__cell">Denied</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set source_effectiveness = source_effectiveness|sort((a, b) => b.count <=> a.count) %}
+                            {% for item in source_effectiveness %}
+                            <tr>
+                                <td class="rams-table__cell rams-font--medium">{{ item.source }}</td>
+                                <td class="rams-table__cell">{{ item.count }}</td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--{% if item.avg_score >= 70 %}success{% elseif item.avg_score >= 50 %}warning{% else %}neutral{% endif %}">{{ item.avg_score|number_format(1) }}</span>
+                                </td>
+                                <td class="rams-table__cell">
+                                    <span class="rams-badge rams-badge--{% if item.approval_rate >= 75 %}success{% elseif item.approval_rate >= 50 %}warning{% else %}danger{% endif %}">{{ item.approval_rate }}%</span>
+                                </td>
+                                <td class="rams-table__cell">{{ item.pending|default(0) }}</td>
+                                <td class="rams-table__cell">{{ item.denied|default(0) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="rams-text--muted rams-text--sm rams-py-2">No source effectiveness data available</div>
+                {% endif %}
+            </div>
+
+            {# Geographic Distribution & Sector Breakdown #}
+            <div class="rams-grid rams-grid--2 rams-gap-4 rams-mb-6">
+                {# Geographic Distribution #}
+                <div>
+                    <h4 class="rams-text--sm rams-font--medium rams-mb-2">🌍 Geographic Distribution</h4>
+                    {% if geographic_distribution is defined and geographic_distribution is not empty %}
+                    {% set geo_max = geographic_distribution|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
+                    <div class="rams-stack rams-gap-2">
+                        {% for item in geographic_distribution %}
+                        <div>
+                            <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
+                                <span class="rams-text--sm">{{ item.region }}</span>
+                                <span class="rams-text--sm rams-font--medium">{{ item.count }}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: {{ geo_max > 0 ? (item.count / geo_max * 100)|round : 0 }}%"></div>
+                            </div>
+                            <div class="rams-flex rams-justify-between rams-text--xs rams-text--muted">
+                                <span>avg: {{ item.avg_score|number_format(1) }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="rams-text--muted rams-text--sm rams-py-2">No geographic data available</div>
+                    {% endif %}
+                </div>
+
+                {# Sector Breakdown #}
+                <div>
+                    <h4 class="rams-text--sm rams-font--medium rams-mb-2">🏭 Sector Breakdown</h4>
+                    {% if sector_breakdown is defined and sector_breakdown is not empty %}
+                    {% set sec_max = sector_breakdown|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
+                    <div class="rams-stack rams-gap-2">
+                        {% for item in sector_breakdown %}
+                        <div>
+                            <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
+                                <span class="rams-text--sm">{{ item.sector|capitalize }}</span>
+                                <span class="rams-text--sm rams-font--medium">{{ item.count }}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-purple-500 h-2 rounded-full" style="width: {{ sec_max > 0 ? (item.count / sec_max * 100)|round : 0 }}%"></div>
+                            </div>
+                            <div class="rams-flex rams-justify-between rams-text--xs rams-text--muted">
+                                <span>avg score: {{ item.avg_score|number_format(1) }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="rams-text--muted rams-text--sm rams-py-2">No sector breakdown data available</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Actionable Insights #}
+            <div>
+                <h3 class="rams-text--sm rams-font--medium rams-mb-3">💡 Actionable Insights</h3>
+                {% if actionable_insights is defined and actionable_insights is not empty %}
+                <div class="rams-stack rams-gap-2">
+                    {% for insight in actionable_insights %}
+                    <div class="rams-module rams-module--nested rams-p-3">
+                        <div class="rams-flex rams-justify-between rams-items-start rams-gap-2">
+                            <div class="rams-flex-1">
+                                <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
+                                    <span class="rams-badge rams-badge--{% if insight.priority == 'high' %}danger{% elseif insight.priority == 'medium' %}warning{% else %}info{% endif %} rams-text--xs">{{ insight.priority|upper }}</span>
+                                    <span class="rams-font--medium rams-text--sm">{{ insight.lead.companyName }}</span>
+                                </div>
+                                <p class="rams-text--sm rams-text--muted">{{ insight.message }}</p>
+                            </div>
+                            <div class="rams-flex rams-items-center rams-gap-1">
+                                <span class="rams-badge rams-badge--{% if insight.score >= 70 %}success{% elseif insight.score >= 50 %}warning{% else %}neutral{% endif %}">{{ insight.score }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="rams-text--muted rams-text--sm rams-py-2">No actionable insights available</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Search Form - compact horizontal layout #}
     <div class="rams-module">
         <div class="rams-module__header">
             <h2 class="rams-module__title">{{ 'lead_discovery.search_companies'|trans }}</h2>
         </div>
         <div class="rams-module__content">
             <form method="post" action="{{ path('lead_discovery_search') }}" class="rams-form">
-                <div class="rams-grid rams-grid--2 rams-gap-6">
-                    <div class="rams-stack rams-gap-4">
-                        <div class="rams-form__group">
-                            <label for="query" class="rams-form__label rams-dymo">
-                                {{ 'lead_discovery.search_query'|trans }}
-                            </label>
-                            <input 
-                                type="text" 
-                                name="query" 
-                                id="query" 
-                                class="rams-form__input"
-                                placeholder="{{ 'lead_discovery.query_placeholder'|trans }}"
-                                required
-                            >
-                            <p class="rams-form__hint">
-                                {{ 'lead_discovery.query_hint'|trans }}
-                            </p>
-                        </div>
-
-                        <div class="rams-grid rams-grid--2 rams-gap-4">
-                            <div class="rams-form__group">
-                                <label for="sector" class="rams-form__label rams-dymo">
-                                    {{ 'lead_discovery.sector'|trans }}
-                                </label>
-                                <select name="sector" id="sector" class="rams-form__select">
-                                    <option value="all">{{ 'lead_discovery.all_sectors'|trans }}</option>
-                                    <option value="aerospace">{{ 'lead_discovery.sector_aerospace'|trans }}</option>
-                                    <option value="automotive">{{ 'lead_discovery.sector_automotive'|trans }}</option>
-                                    <option value="electronics">{{ 'lead_discovery.sector_electronics'|trans }}</option>
-                                    <option value="manufacturing">{{ 'lead_discovery.sector_manufacturing'|trans }}</option>
-                                    <option value="energy">{{ 'lead_discovery.sector_energy'|trans }}</option>
-                                    <option value="pharmaceutical">{{ 'lead_discovery.sector_pharmaceutical'|trans }}</option>
-                                </select>
-                            </div>
-
-                            <div class="rams-form__group">
-                                <label for="limit" class="rams-form__label rams-dymo">
-                                    {{ 'lead_discovery.num_results'|trans }}
-                                </label>
-                                <select name="limit" id="limit" class="rams-form__select">
-                                    <option value="5">5 {{ 'lead_discovery.results_label'|trans }}</option>
-                                    <option value="10" selected>10 {{ 'lead_discovery.results_label'|trans }}</option>
-                                    <option value="20">20 {{ 'lead_discovery.results_label'|trans }}</option>
-                                    <option value="50">50 {{ 'lead_discovery.results_label'|trans }}</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="rams-form__actions">
-                            <button type="submit" class="rams-btn rams-btn--primary">
-                                <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                </svg>
-                                {{ 'lead_discovery.search_companies'|trans }}
-                            </button>
-
-                            <a href="{{ path('app_lead_index') }}" class="rams-btn rams-btn--ghost">
-                                {{ 'lead_discovery.back_to_leads'|trans }}
-                            </a>
-                        </div>
+                <div class="rams-flex rams-flex-wrap rams-gap-4 rams-items-end">
+                    <div class="rams-form__group" style="min-width: 180px; flex: 1;">
+                        <label for="query" class="rams-form__label rams-dymo">
+                            {{ 'lead_discovery.search_query'|trans }}
+                        </label>
+                        <input 
+                            type="text" 
+                            name="query" 
+                            id="query" 
+                            class="rams-form__input"
+                            placeholder="{{ 'lead_discovery.query_placeholder'|trans }}"
+                            required
+                        >
                     </div>
-
-                    <div class="rams-stack rams-gap-6">
-                        {# Example Searches #}
-                        <div class="rams-module rams-module--nested">
-                            <div class="rams-module__header">
-                                <h3 class="rams-module__title">{{ 'lead_discovery.example_searches'|trans }}</h3>
-                            </div>
-                            <div class="rams-module__content">
-                                <div class="rams-flex rams-flex-wrap rams-gap-2">
-                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
-                                        {{ 'lead_discovery.example_search_aerospace'|trans }}
-                                    </button>
-                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
-                                        {{ 'lead_discovery.example_search_automotive'|trans }}
-                                    </button>
-                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
-                                        {{ 'lead_discovery.example_search_electronics'|trans }}
-                                    </button>
-                                    <button type="button" onclick="document.getElementById('query').value = this.textContent.trim()" class="rams-btn rams-btn--sm rams-btn--ghost">
-                                        {{ 'lead_discovery.example_search_manufacturing'|trans }}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {# Info Box #}
-                        <div class="rams-module rams-module--nested rams-module--guidance">
-                            <div class="rams-module__content">
-                                <div class="rams-flex rams-gap-2 rams-items-center rams-mb-3">
-                                    <div class="rams-andon rams-andon--info"><span class="rams-andon__light"></span></div>
-                                    <h3 class="rams-module__title rams-mb-0">{{ 'lead_discovery.about_api'|trans }}</h3>
-                                </div>
-                                <ul class="rams-list rams-list--bullet rams-stack rams-gap-2 rams-text--xs rams-text--muted">
-                                    <li>{{ 'lead_discovery.api_free_tier'|trans }}</li>
-                                    <li>{{ 'lead_discovery.api_paid_tier'|trans }} {{ paid_tier_cost|format_currency(paid_tier_currency) }} {{ 'lead_discovery.api_paid_tier_suffix'|trans }}</li>
-                                    <li>{{ 'lead_discovery.api_dedup'|trans }}</li>
-                                    <li>{{ 'lead_discovery.api_preview'|trans }}</li>
-                                </ul>
-                            </div>
-                        </div>
+                    <div class="rams-form__group" style="min-width: 150px;">
+                        <label for="sector" class="rams-form__label rams-dymo">
+                            {{ 'lead_discovery.sector'|trans }}
+                        </label>
+                        <select name="sector" id="sector" class="rams-form__select">
+                            <option value="all">{{ 'lead_discovery.all_sectors'|trans }}</option>
+                            <option value="aerospace">{{ 'lead_discovery.sector_aerospace'|trans }}</option>
+                            <option value="automotive">{{ 'lead_discovery.sector_automotive'|trans }}</option>
+                            <option value="electronics">{{ 'lead_discovery.sector_electronics'|trans }}</option>
+                            <option value="manufacturing">{{ 'lead_discovery.sector_manufacturing'|trans }}</option>
+                            <option value="energy">{{ 'lead_discovery.sector_energy'|trans }}</option>
+                            <option value="pharmaceutical">{{ 'lead_discovery.sector_pharmaceutical'|trans }}</option>
+                        </select>
+                    </div>
+                    <div class="rams-form__group" style="min-width: 150px;">
+                        <label for="location" class="rams-form__label rams-dymo">
+                            {{ 'lead_discovery.location'|trans }}
+                        </label>
+                        <input 
+                            type="text" 
+                            name="location" 
+                            id="location" 
+                            class="rams-form__input"
+                            placeholder="{{ 'lead_discovery.location_placeholder'|trans }}"
+                        >
+                    </div>
+                    <div class="rams-form__group" style="min-width: 120px;">
+                        <label for="limit" class="rams-form__label rams-dymo">
+                            {{ 'lead_discovery.num_results'|trans }}
+                        </label>
+                        <select name="limit" id="limit" class="rams-form__select">
+                            <option value="5">5 {{ 'lead_discovery.results_label'|trans }}</option>
+                            <option value="10" selected>10 {{ 'lead_discovery.results_label'|trans }}</option>
+                            <option value="20">20 {{ 'lead_discovery.results_label'|trans }}</option>
+                            <option value="50">50 {{ 'lead_discovery.results_label'|trans }}</option>
+                        </select>
+                    </div>
+                    <div class="rams-form__actions rams-flex rams-gap-2">
+                        <button type="submit" class="rams-btn rams-btn--primary">
+                            <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            {{ 'lead_discovery.search_companies'|trans }}
+                        </button>
+                        <a href="{{ path('app_lead_index') }}" class="rams-btn rams-btn--ghost">
+                            {{ 'lead_discovery.back_to_leads'|trans }}
+                        </a>
                     </div>
                 </div>
+                <p class="rams-form__hint rams-mt-2">
+                    {{ 'lead_discovery.query_hint'|trans }}
+                </p>
             </form>
         </div>
     </div>
+
+    {# Main Content Grid #}
+    <div class="rams-grid rams-grid--3">
+        {# Recent Discoveries Table #}
+        <div class="rams-module rams-col-span-2">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'lead_discovery.recent_discoveries'|trans }}</h2>
+                <span class="rams-dymo">{{ recent_discoveries|length }} {{ 'lead_discovery.recent'|trans }}</span>
+            </div>
+            <div class="rams-module__content rams-overflow-x-auto">
+                <table class="rams-table rams-w-full data-table">
+                    <thead class="rams-table__header">
+                        <tr>
+                            <th class="rams-table__cell">{{ 'lead_discovery.company_name'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead_discovery.sector'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead_discovery.region'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead_discovery.status'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead_discovery.score'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead_discovery.discovered_date'|trans }}</th>
+                            <th class="rams-table__cell rams-text--center">{{ 'lead_discovery.actions'|trans }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead in recent_discoveries %}
+                        <tr>
+                            <td class="rams-table__cell rams-font--medium">
+                                <a href="{{ path('app_lead_review', {id: lead.id}) }}" class="rams-link">
+                                    {{ lead.companyName }}
+                                </a>
+                            </td>
+                            <td class="rams-table__cell">
+                                {% if lead.sectorTags %}
+                                    {% for tag in lead.sectorTags %}
+                                        <span class="rams-badge rams-badge--blue">{{ tag }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="rams-text--muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="rams-table__cell">
+                                {% if lead.regionTag %}
+                                    <span class="rams-badge rams-badge--outline">{{ lead.regionTag|upper }}</span>
+                                {% else %}
+                                    <span class="rams-text--muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="rams-table__cell">
+                                {% if lead.reviewStatus == 'approved' %}
+                                    <span class="rams-badge rams-badge--green">{{ 'lead_discovery.status_approved'|trans }}</span>
+                                {% elseif lead.reviewStatus == 'denied' %}
+                                    <span class="rams-badge rams-badge--red">{{ 'lead_discovery.status_denied'|trans }}</span>
+                                {% else %}
+                                    <span class="rams-badge rams-badge--warning">{{ 'lead_discovery.status_pending'|trans }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="rams-table__cell">
+                                {% if lead.leadScore is not null %}
+                                    <div class="rams-flex rams-gap-2 rams-items-center">
+                                        <div class="rams-progress rams-progress--sm" style="width: 60px;">
+                                            <div class="rams-progress__bar" style="width: {{ lead.leadScore }}%; background: {{ lead.leadScore >= 70 ? 'var(--rams-success)' : lead.leadScore >= 40 ? 'var(--rams-warning)' : 'var(--rams-danger)' }}"></div>
+                                        </div>
+                                        <span class="rams-text--xs">{{ lead.leadScore }}</span>
+                                    </div>
+                                {% else %}
+                                    <span class="rams-text--muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="rams-table__cell rams-text--muted rams-text--sm">
+                                {{ lead.createdAt ? lead.createdAt|date('Y-m-d') : '—' }}
+                            </td>
+                            <td class="rams-table__cell rams-text--center">
+                                <div class="rams-flex rams-gap-1 rams-justify-center">
+                                    <a href="{{ path('app_lead_review', {id: lead.id}) }}" class="rams-btn rams-btn--sm rams-btn--ghost" title="{{ 'lead_discovery.view_lead'|trans }}">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </a>
+                                    {% if lead.reviewStatus == 'pending' %}
+                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--success" onclick="enrichLead({{ lead.id }})" title="{{ 'lead_discovery.enrich'|trans }}">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                    </button>
+                                    {% endif %}
+                                    {% if lead.reviewStatus == 'approved' and not lead.company %}
+                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--info" onclick="convertLead({{ lead.id }})" title="{{ 'lead_discovery.convert_to_contact'|trans }}">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td class="rams-table__cell rams-text--center rams-text--muted" colspan="7">
+                                {{ 'lead_discovery.no_recent_discoveries'|trans }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# Right Column: Stats & Quick Actions #}
+        <div class="rams-stack rams-gap-4">
+            {# Sector Breakdown #}
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">{{ 'lead_discovery.by_sector'|trans }}</h3>
+                </div>
+                <div class="rams-module__content">
+                    {% if leads_by_sector|length > 0 %}
+                        {% for item in leads_by_sector|slice(0, 8) %}
+                        <div class="rams-flex rams-justify-between rams-items-center rams-py-1 rams-border-bottom">
+                            <span class="rams-text--sm">{{ item.sector|capitalize }}</span>
+                            <span class="rams-badge rams-badge--blue">{{ item.count }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="rams-text--muted rams-text--sm">{{ 'lead_discovery.no_sector_data'|trans }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Region Breakdown #}
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">{{ 'lead_discovery.by_region'|trans }}</h3>
+                </div>
+                <div class="rams-module__content">
+                    {% if leads_by_region|length > 0 %}
+                        {% for item in leads_by_region|slice(0, 6) %}
+                        <div class="rams-flex rams-justify-between rams-items-center rams-py-1 rams-border-bottom">
+                            <span class="rams-text--sm">{{ item.region|default('lead_discovery.unknown'|trans)|upper }}</span>
+                            <span class="rams-badge rams-badge--outline">{{ item.count }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="rams-text--muted rams-text--sm">{{ 'lead_discovery.no_region_data'|trans }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Quick Actions #}
+            <div class="rams-module">
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">{{ 'lead_discovery.quick_actions'|trans }}</h3>
+                </div>
+                <div class="rams-module__content rams-stack rams-gap-2">
+                    <a href="{{ path('discovery_pipeline_index') }}" class="rams-btn rams-btn--primary rams-w-full">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="m12 15-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-5c1.62-2.2 5-3 5-3"/><path d="M12 15v5s3.03-.55 5-2c2.2-1.62 3-5 3-5"/></svg>
+                        {{ 'lead_discovery.run_full_pipeline'|trans }}
+                    </a>
+                    <button type="button" onclick="enrichExistingLeads()" class="rams-btn rams-w-full">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 3-1.912 5.813a2 2 0 01-1.275 1.275L3 12l5.813 1.912a2 2 0 011.275 1.275L12 21l1.912-5.813a2 2 0 011.275-1.275L21 12l-5.813-1.912a2 2 0 01-1.275-1.275L12 3Z"/></svg>
+                        {{ 'lead_discovery.enrich_existing_leads'|trans }}
+                    </button>
+                    <a href="{{ path('export_leads') }}" class="rams-btn rams-btn--ghost rams-w-full">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        {{ 'lead_discovery.export_leads'|trans }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+function enrichLead(leadId) {
+    if (!confirm('{{ 'lead_discovery.confirm_enrich'|trans }}')) return;
+    fetch('/discovery-pipeline/enrich-existing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 1, lead_ids: [leadId] })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+        } else {
+            showToast(data.error || '{{ 'common.error'|trans }}', 'error');
+        }
+    })
+    .catch(e => showToast(e.message, 'error'));
+}
+
+function convertLead(leadId) {
+    if (!confirm('{{ 'lead_discovery.confirm_convert'|trans }}')) return;
+    fetch('/leads/convert/' + leadId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token("lead_convert") }}' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            showToast(data.message || '{{ 'common.error'|trans }}', 'error');
+        }
+    })
+    .catch(e => showToast(e.message, 'error'));
+}
+
+function enrichExistingLeads() {
+    const count = prompt('{{ 'lead_discovery.enrich_prompt'|trans }}', '50');
+    if (!count) return;
+    fetch('/discovery-pipeline/enrich-existing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: parseInt(count) })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+        } else {
+            showToast(data.error || '{{ 'common.error'|trans }}', 'error');
+        }
+    })
+    .catch(e => showToast(e.message, 'error'));
+}
+
+function showToast(message, type) {
+    type = type || 'success';
+    const toast = document.createElement('div');
+    toast.className = 'rams-alert ' + (type === 'success' ? 'rams-alert--success' : 'rams-alert--error') + ' rams-alert--toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
 {% endblock %}

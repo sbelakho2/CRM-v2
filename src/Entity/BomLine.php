@@ -467,15 +467,16 @@ class BomLine
     }
     
     /**
-     * Get the effective extended price
+     * Get the effective extended price as a formatted string
+     * to maintain type consistency with other price fields.
      */
-    public function getEffectiveExtendedPrice(): ?float
+    public function getEffectiveExtendedPrice(): ?string
     {
         $unitPrice = $this->getEffectiveUnitPrice();
         if ($unitPrice === null) {
             return null;
         }
-        return (float)$unitPrice * ($this->quantity ?? 1);
+        return number_format((float)$unitPrice * ($this->quantity ?? 1), 2, '.', '');
     }
     
     /**

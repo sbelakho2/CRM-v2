@@ -5,7 +5,6 @@ namespace App\Service;
 use App\Entity\Company;
 use App\Entity\Contact;
 use App\Service\GoogleSearchService;
-use App\Service\LlmEnrichmentService;
 use App\Service\DeepScrapingService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -17,8 +16,7 @@ use Psr\Log\LoggerInterface;
  *   1. Google Search API → find LinkedIn profiles for decision-maker roles
  *   2. Website scraping  → structured contact extraction (JSON-LD, team pages, vCards)
  *   3. Google Search API → find @domain email patterns
- *   4. LLM enrichment   → enhance candidate titles / derive missing data
- *   5. Persist valid, deduplicated Contact entities
+ *   4. Persist valid, deduplicated Contact entities
  */
 class ContactEnrichmentService
 {
@@ -83,7 +81,6 @@ class ContactEnrichmentService
     public function __construct(
         private GoogleSearchService     $googleSearchService,
         private DeepScrapingService     $deepScrapingService,
-        private LlmEnrichmentService   $llmEnrichmentService,
         private EntityManagerInterface  $entityManager,
         private LoggerInterface         $logger,
     ) {}
@@ -146,16 +143,6 @@ class ContactEnrichmentService
                 }
             } catch (\Throwable $e) {
                 $this->logger->warning('[ContactEnrichment] Email search failed: {msg}', ['msg' => $e->getMessage()]);
-            }
-        }
-
-        // ── Source 4: LLM enrichment of existing candidates ──
-        if ($this->llmEnrichmentService->isConfigured() && !empty($candidates)) {
-            try {
-                $candidates = $this->llmEnrichCandidates($candidates, $companyName);
-                $sourcesUsed[] = 'llm';
-            } catch (\Throwable $e) {
-                $this->logger->warning('[ContactEnrichment] LLM enrichment failed: {msg}', ['msg' => $e->getMessage()]);
             }
         }
 
@@ -417,58 +404,6 @@ class ContactEnrichmentService
         }
 
         return null;
-    }
-
-    // ──────────────────────────────────────────────────────────────────
-    //  Source 4 — LLM enrichment
-    // ──────────────────────────────────────────────────────────────────
-
-    private function llmEnrichCandidates(array $candidates, string $companyName): array
-    {
-        // Build a summary of names we found, let LLM try to fill in titles
-        $nameList = [];
-        foreach ($candidates as $c) {
-            $name = trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? ''));
-            if ($name) {
-                $nameList[] = $name;
-            }
-        }
-
-        if (empty($nameList)) {
-            return $candidates;
-        }
-
-        $nameList = array_unique($nameList);
-        $text = "Company: {$companyName}\nPeople found: " . implode(', ', $nameList);
-
-        $extracted = $this->llmEnrichmentService->extractContactsFromText($text);
-        if (empty($extracted['names'])) {
-            return $candidates;
-        }
-
-        // Build a lookup: lowercase name → role from LLM
-        $llmRoles = [];
-        foreach ($extracted['names'] as $entry) {
-            $key = mb_strtolower(trim($entry['name'] ?? ''));
-            if ($key && !empty($entry['role'])) {
-                $llmRoles[$key] = $entry['role'];
-            }
-        }
-
-        // Merge LLM roles into candidates that are missing titles
-        foreach ($candidates as &$c) {
-            if (!empty($c['job_title'])) {
-                continue;
-            }
-            $name = mb_strtolower(trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? '')));
-            if (isset($llmRoles[$name])) {
-                $c['job_title'] = $llmRoles[$name];
-                $c['_source']   = ($c['_source'] ?? 'unknown') . '+llm';
-            }
-        }
-        unset($c);
-
-        return $candidates;
     }
 
     // ──────────────────────────────────────────────────────────────────

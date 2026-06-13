@@ -16,6 +16,12 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
  * - WYSIWYG editor support (HTML sanitization)
  * - Template preview generation
  * - Category-based organization
+ * 
+ * Security:
+ * - All user-supplied values are HTML-escaped before injection into email body
+ * - Dangerous HTML tags and attributes are stripped
+ * - javascript: protocol is removed from all href attributes
+ * - Event handler attributes (onclick, onerror, etc.) are stripped
  */
 class EmailTemplateService
 {
@@ -194,14 +200,17 @@ class EmailTemplateService
     /**
      * Render template with personalization data
      * 
+     * All user-supplied values are HTML-escaped before injection into the
+     * email body to prevent XSS attacks via personalization token values.
+     * 
      * @param array $data Associative array of token values
      * @return array ['subject' => string, 'html' => string, 'text' => string]
      */
     public function renderTemplate(EmailTemplate $template, array $data): array
     {
-        $subject = $this->replaceTokens($template->getSubjectLine(), $data);
-        $html = $this->replaceTokens($template->getBodyHtml(), $data);
-        $text = $this->replaceTokens($template->getBodyText() ?? '', $data);
+        $subject = $this->replaceTokens($template->getSubjectLine(), $data, false);
+        $html = $this->replaceTokens($template->getBodyHtml(), $data, true);
+        $text = $this->replaceTokens($template->getBodyText() ?? '', $data, false);
 
         return [
             'subject' => $subject,
@@ -231,19 +240,37 @@ class EmailTemplateService
     }
 
     /**
-     * Replace tokens in text with actual values
+     * Replace tokens in text with actual values.
+     *
+     * When $escapeForHtml is true, values are run through htmlspecialchars()
+     * to prevent XSS injection via personalization data. This is critical
+     * because token values often come from user-supplied contact/company data.
+     *
+     * For plain text contexts (subject line, text body), escaping is skipped
+     * to preserve intended formatting.
+     *
+     * @param string $text The template text containing {{token}} placeholders
+     * @param array $data Associative array of token => value pairs
+     * @param bool $escapeForHtml Whether to HTML-escape values (true for HTML body)
+     * @return string The text with tokens replaced
      */
-    private function replaceTokens(string $text, array $data): string
+    private function replaceTokens(string $text, array $data, bool $escapeForHtml = true): string
     {
         $result = $text;
         
         foreach ($data as $key => $value) {
             // Support dot notation (e.g., contact.firstName)
             $token = '{{' . $key . '}}';
-            $result = str_replace($token, (string) $value, $result);
+            
+            // HTML-escape values when injecting into HTML body to prevent XSS
+            $replacement = $escapeForHtml 
+                ? htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                : (string) $value;
+            
+            $result = str_replace($token, $replacement, $result);
         }
         
-        // Remove any unreplaced tokens
+        // Remove any unreplaced tokens (prevents {{malicious_code}} from being rendered)
         $result = preg_replace('/\{\{[a-zA-Z0-9_.]+\}\}/', '', $result);
         
         return $result;
@@ -292,6 +319,9 @@ class EmailTemplateService
     /**
      * Sanitize HTML content for security
      * Removes dangerous tags and attributes
+     * 
+     * This provides defense-in-depth: even if a template editor
+     * bypasses the WYSIWYG, dangerous content is stripped at storage time.
      */
     private function sanitizeHtml(string $html): string
     {
@@ -312,12 +342,27 @@ class EmailTemplateService
         // Strip tags not in allowed list
         $html = strip_tags($html, '<' . implode('><', $allowedTags) . '>');
         
-        // Remove dangerous attributes (onclick, onerror, etc.)
+        // Remove dangerous attributes (onclick, onerror, etc.) — case-insensitive
         $html = preg_replace('/\son\w+="[^"]*"/i', '', $html);
         $html = preg_replace('/\son\w+=\'[^\']*\'/i', '', $html);
         
-        // Remove javascript: protocol
+        // Also remove event handlers without quotes (e.g., onclick=alert(1))
+        $html = preg_replace('/\son\w+\s*=\s*[^\s>]+/i', '', $html);
+        
+        // Remove javascript: protocol from href attributes
         $html = preg_replace('/href="javascript:[^"]*"/i', 'href="#"', $html);
+        $html = preg_replace('/href=\'javascript:[^\']*\'/i', "href='#'", $html);
+        
+        // Remove data: URIs from src attributes (can be used for XSS)
+        $html = preg_replace('/src="data:[^"]*"/i', 'src=""', $html);
+        $html = preg_replace("/src='data:[^']*'/i", "src=''", $html);
+        
+        // Remove <iframe>, <script>, <object>, <embed>, <style> that may have survived strip_tags
+        $html = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $html);
+        $html = preg_replace('/<iframe[^>]*>.*?<\/iframe>/is', '', $html);
+        $html = preg_replace('/<object[^>]*>.*?<\/object>/is', '', $html);
+        $html = preg_replace('/<embed[^>]*>.*?<\/embed>/is', '', $html);
+        $html = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $html);
         
         return $html;
     }

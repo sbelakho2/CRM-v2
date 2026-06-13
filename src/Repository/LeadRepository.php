@@ -165,4 +165,71 @@ class LeadRepository extends ServiceEntityRepository
 
         return $qb->getQuery()->getSingleResult();
     }
+    /**
+     * Count leads by specific nurturing stage
+     */
+    public function countByStage(string $stage): int
+    {
+        return (int) $this->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.nurturingStage = :stage')
+            ->setParameter('stage', $stage)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Get average score by region
+     */
+    public function getAvgScoreByRegion(): array
+    {
+        return $this->createQueryBuilder('l')
+            ->select('l.regionTag as region, AVG(l.leadScore) as avgScore, COUNT(l.id) as count')
+            ->where('l.leadScore IS NOT NULL')
+            ->groupBy('l.regionTag')
+            ->orderBy('count', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Get lead counts by review status
+     */
+    public function getCountsByStatus(): array
+    {
+        return $this->createQueryBuilder('l')
+            ->select('l.reviewStatus as status, COUNT(l.id) as count')
+            ->groupBy('l.reviewStatus')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Count leads needing enrichment (missing contact emails)
+     */
+    public function countNeedsContactData(): int
+    {
+        return (int) $this->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.contactEmailsPublic IS NULL')
+            ->orWhere('l.contactEmailsPublic = :empty')
+            ->setParameter('empty', '[]')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Get recent leads with score > threshold for alerting
+     */
+    public function findHighScoreRecent(\DateTimeInterface $since, int $minScore = 70): array
+    {
+        return $this->createQueryBuilder('l')
+            ->where('l.createdAt >= :since')
+            ->andWhere('l.leadScore >= :minScore')
+            ->setParameter('since', $since)
+            ->setParameter('minScore', $minScore)
+            ->orderBy('l.leadScore', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

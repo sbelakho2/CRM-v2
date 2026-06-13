@@ -92,7 +92,8 @@ class FtaEligibilityService
         $cooVerification = $this->verifyCooDeclarations($bomData);
         
         // 4. Calculate regional value content (if required)
-        $minimumRvc = $ftaRule->getMinimumValueContentPercent() ?? 0;
+        // getMinimumValueContent() returns a decimal string (e.g., "35.00") or null
+        $minimumRvc = (float) ($ftaRule->getMinimumValueContent() ?? 0);
         $rvcCalculation = null;
         
         if ($minimumRvc > 0 && $totalValue > 0) {
@@ -163,126 +164,197 @@ class FtaEligibilityService
 
     /**
      * Evaluate specific ROO rule for FTA
-     * 
+     *
+     * Determines whether a shipment meets the Rules of Origin requirements
+     * for preferential tariff treatment under an FTA agreement.
+     *
+     * ROO Methods (parsed from ftaRule.rooRequirement text):
+     *   a) CTH (Change in Tariff Heading):
+     *       Product's HS heading (first 4 digits) differs from all component materials
+     *   b) CTC (Change in Tariff Classification/Chapter):
+     *       Product's HS chapter (first 2 digits) differs from all component materials
+     *   c) RVC (Regional Value Content):
+     *       Minimum % of value must originate from FTA region (checked separately)
+     *   d) WHOLLY_OBTAINED:
+     *       All materials must originate from FTA region countries
+     *   e) Specific Process:
+     *       Product must undergo specific manufacturing process in FTA region
+     *
      * @param FtaRule $ftaRule FTA rule entity
-     * @param array $bomData BOM data
-     * @return array ROO evaluation: ['passes' => true, 'method' => 'Change in tariff heading', 'details' => '...']
-     * 
-     * TODO Implementation:
-     * 1. Parse ftaRule.rule_logic_json to get ROO requirements
-     * 2. Common ROO methods:
-     *    a) Change in Tariff Heading (CTH):
-     *       → Check if final product HTS differs from input materials HTS at chapter/heading level
-     *    b) Change in Tariff Classification (CTC):
-     *       → More strict than CTH, requires change at tariff line level
-     *    c) Regional Value Content (RVC):
-     *       → Calculate % of value from FTA region
-     *    d) Wholly Obtained:
-     *       → Product must be 100% from FTA region
-     *    e) Specific Process:
-     *       → Product must undergo specific manufacturing process in FTA region
-     * 3. Apply rule to BOM data
-     * 4. Return pass/fail with details
+     * @param array $bomData BOM with hts_code per line item
+     * @return array ROO evaluation: ['passes' => bool, 'method' => string, 'details' => string]
      */
     public function evaluateRoo(FtaRule $ftaRule, array $bomData): array
     {
-        // Parse rule logic (simplified for now)
-        $ruleLogic = $ftaRule->getRuleLogicJson();
+        // Parse ROO requirement text from the entity's rooRequirement field
+        // The text contains the rule (e.g., "CTH", "CTC 4-6", "RVC 60%", "WHOLLY_OBTAINED")
+        $rooText = strtoupper($ftaRule->getRooRequirement() ?? '');
         
-        if (!$ruleLogic) {
-            // Default: assume passes if no specific logic defined
+        if (empty($rooText)) {
+            // No specific ROO requirement defined — assume passes
             return [
                 'passes' => true,
-                'method' => 'No specific ROO requirements defined',
-                'details' => 'FTA rule does not specify ROO evaluation logic'
+                'method' => 'No specific ROO requirements',
+                'details' => 'FTA rule does not specify ROO evaluation logic',
+                'roo_text' => null,
             ];
         }
         
         try {
-            $logic = json_decode($ruleLogic, true);
-            $method = $logic['method'] ?? 'UNKNOWN';
+            // Determine the ROO method from the requirement text
+            $method = 'UNKNOWN';
+            
+            if (str_contains($rooText, 'WHOLLY OBTAINED') || str_contains($rooText, 'WHOLLY_OBTAINED') || str_contains($rooText, 'WHOLLYOBTAINED')) {
+                $method = 'WHOLLY_OBTAINED';
+            } elseif (str_contains($rooText, 'CTC') || str_contains($rooText, 'CHANGE IN TARIFF CLASSIFICATION') || str_contains($rooText, 'CC')) {
+                $method = 'CTC';
+            } elseif (str_contains($rooText, 'CTH') || str_contains($rooText, 'CHANGE IN TARIFF HEADING') || str_contains($rooText, 'CH') || str_contains($rooText, 'HEADING')) {
+                $method = 'CTH';
+            } elseif (str_contains($rooText, 'RVC') || str_contains($rooText, 'REGIONAL VALUE') || str_contains($rooText, 'VALUE CONTENT')) {
+                $method = 'RVC';
+            } elseif (str_contains($rooText, 'SPECIFIC PROCESS') || str_contains($rooText, 'MANUFACTURING PROCESS') || str_contains($rooText, 'TECHNICAL REQUIREMENT')) {
+                $method = 'SPECIFIC_PROCESS';
+            }
+            
+            // Extract the product's HS code from the rule
+            $productHsCode = $ftaRule->getHsCode() ?? '';
+            $productNormalized = str_replace('.', '', $productHsCode);
             
             switch ($method) {
-                case 'CTH': // Change in Tariff Heading
-                case 'CTC': // Change in Tariff Classification
-                    // Simplified: check if BOM has different HTS codes
-                    $htsCodes = array_unique(array_filter(array_column($bomData, 'hts_code')));
-                    $passes = count($htsCodes) > 1 || empty($bomData);
+                case 'CTH':
+                    // CTH: Product's HS heading (first 4 digits) must differ from all component headings
+                    $productHeading = substr($productNormalized, 0, 4);
+                    $componentHeadings = [];
                     
-                    return [
-                        'passes' => $passes,
-                        'method' => $method,
-                        'details' => $passes 
-                            ? 'Tariff classification change detected'
-                            : 'No tariff classification change'
-                    ];
-                    
-                case 'RVC': // Regional Value Content
-                    // This is checked separately in checkEligibility
-                    return [
-                        'passes' => true,
-                        'method' => 'Regional Value Content',
-                        'details' => 'RVC will be checked separately'
-                    ];
-                    
-                case 'WHOLLY_OBTAINED':
-                    // All materials must be from FTA region
-                    $allFromRegion = true;
                     foreach ($bomData as $item) {
-                        if (isset($item['country_of_origin']) && 
-                            $item['country_of_origin'] !== $ftaRule->getOriginCountry()) {
-                            $allFromRegion = false;
-                            break;
+                        $itemHts = $item['hts_code'] ?? '';
+                        $itemNormalized = str_replace('.', '', $itemHts);
+                        $itemHeading = substr($itemNormalized, 0, 4);
+                        if (!empty($itemHeading)) {
+                            $componentHeadings[] = $itemHeading;
                         }
                     }
                     
+                    // Check if any component shares the same heading as the product
+                    $sameHeading = in_array($productHeading, $componentHeadings);
+                    $passes = !$sameHeading || empty($componentHeadings);
+                    
                     return [
-                        'passes' => $allFromRegion,
+                        'passes' => $passes,
+                        'method' => 'CTH',
+                        'details' => $passes
+                            ? sprintf('Tariff heading change: product %s differs from component headings [%s]', $productHeading, implode(', ', array_unique($componentHeadings)))
+                            : sprintf('No tariff heading change: product %s shares heading with components', $productHeading),
+                        'product_heading' => $productHeading,
+                        'component_headings' => array_unique($componentHeadings),
+                        'roo_text' => $rooText,
+                    ];
+                    
+                case 'CTC':
+                    // CTC: Product's HS chapter (first 2 digits) must differ from all component chapters
+                    $productChapter = substr($productNormalized, 0, 2);
+                    $componentChapters = [];
+                    
+                    foreach ($bomData as $item) {
+                        $itemHts = $item['hts_code'] ?? '';
+                        $itemNormalized = str_replace('.', '', $itemHts);
+                        $itemChapter = substr($itemNormalized, 0, 2);
+                        if (!empty($itemChapter)) {
+                            $componentChapters[] = $itemChapter;
+                        }
+                    }
+                    
+                    // Check if any component shares the same chapter as the product
+                    $sameChapter = in_array($productChapter, $componentChapters);
+                    $passes = !$sameChapter || empty($componentChapters);
+                    
+                    return [
+                        'passes' => $passes,
+                        'method' => 'CTC',
+                        'details' => $passes
+                            ? sprintf('Tariff chapter change: product %s differs from component chapters [%s]', $productChapter, implode(', ', array_unique($componentChapters)))
+                            : sprintf('No tariff chapter change: product %s shares chapter with components', $productChapter),
+                        'product_chapter' => $productChapter,
+                        'component_chapters' => array_unique($componentChapters),
+                        'roo_text' => $rooText,
+                    ];
+                    
+                case 'RVC':
+                    // RVC is evaluated separately in checkEligibility()
+                    return [
+                        'passes' => true,
+                        'method' => 'RVC',
+                        'details' => 'Regional Value Content checked separately in eligibility calculation',
+                        'roo_text' => $rooText,
+                    ];
+                    
+                case 'WHOLLY_OBTAINED':
+                    // All BOM items must have COO within the FTA region
+                    $ftaAgreement = $ftaRule->getFtaAgreement() ?? '';
+                    $regionCountries = $this->getFtaRegionCountries($ftaAgreement);
+                    $nonOriginating = [];
+                    
+                    foreach ($bomData as $item) {
+                        $coo = $item['country_of_origin'] ?? null;
+                        if ($coo === null) {
+                            $nonOriginating[] = $item['mpn'] ?? 'unknown';
+                        } elseif (!in_array($coo, $regionCountries)) {
+                            $nonOriginating[] = sprintf('%s (%s)', $item['mpn'] ?? 'unknown', $coo);
+                        }
+                    }
+                    
+                    $passes = empty($nonOriginating);
+                    
+                    return [
+                        'passes' => $passes,
                         'method' => 'Wholly Obtained',
-                        'details' => $allFromRegion
-                            ? 'All materials from FTA region'
-                            : 'Some materials from outside FTA region'
+                        'details' => $passes
+                            ? 'All materials originate from FTA region'
+                            : sprintf('Materials from outside FTA region: %s', implode('; ', $nonOriginating)),
+                        'non_originating' => $nonOriginating,
+                        'roo_text' => $rooText,
+                    ];
+                    
+                case 'SPECIFIC_PROCESS':
+                    // Specific process requirements — assume passes with note
+                    return [
+                        'passes' => true,
+                        'method' => 'Specific Process',
+                        'details' => 'Specific manufacturing process requirement: ' . $rooText,
+                        'roo_text' => $rooText,
                     ];
                     
                 default:
-                    // Unknown method - assume passes
+                    // Unknown/unspecified method — assume passes
                     return [
                         'passes' => true,
-                        'method' => $method,
-                        'details' => 'ROO evaluation method not implemented'
+                        'method' => 'UNKNOWN',
+                        'details' => sprintf('ROO method "%s" not explicitly implemented; defaulting to pass', $rooText),
+                        'roo_text' => $rooText,
                     ];
             }
         } catch (\Exception $e) {
-            // If parsing fails, assume passes with warning
             return [
                 'passes' => true,
                 'method' => 'UNKNOWN',
-                'details' => 'ROO evaluation error: ' . $e->getMessage()
+                'details' => 'ROO evaluation error: ' . $e->getMessage(),
+                'roo_text' => $rooText,
+                'error' => $e->getMessage(),
             ];
         }
     }
 
     /**
      * Generate FTA declaration template
-     * 
-     * @param FtaRule $ftaRule FTA rule entity
+     *
+     * Builds a standard FTA certificate of origin text template with
+     * the applicable rule language and shipment details.
+     *
+     * @param string $htsCode The classified HTS code
+     * @param string $originCountry Origin country code
+     * @param string $destinationCountry Destination country code
      * @param array $eligibilityResult Result from checkEligibility()
-     * @param array $shipmentData Shipment details (invoice number, date, exporter, importer, etc.)
      * @return string Pre-filled declaration text
-     * 
-     * TODO Implementation:
-     * 1. Get ftaRule.declaration_template (full legal text)
-     * 2. Replace variables with actual data:
-     *    → {{exporter_name}}, {{exporter_address}}, {{importer_name}}, {{importer_address}}
-     *    → {{invoice_number}}, {{invoice_date}}, {{invoice_value}}, {{currency}}
-     *    → {{origin_country}}, {{destination_country}}, {{hs_codes}}
-     *    → {{roo_basis}} (e.g., "Change in tariff heading from 8542.31 to 8542.39")
-     *    → {{rvc_percentage}} (if applicable)
-     * 3. Add required legal language:
-     *    → "I certify that the goods described in this document..."
-     *    → Penalties for false statements
-     *    → Signature/date lines
-     * 4. Return formatted declaration (plain text or HTML)
      */
     public function generateDeclarationTemplate(
         string $htsCode,
@@ -394,13 +466,21 @@ class FtaEligibilityService
      */
     private function getFtaRegionCountries(string $ftaRegion): array
     {
-        // Simplified mapping - in production, query from database
+        $euCountries = [
+            'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
+            'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL',
+            'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+        ];
+        
         $regionMap = [
             'MA-US FTA' => ['MA', 'US'],
             'Morocco-US FTA' => ['MA', 'US'],
-            'EU' => ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'],
+            'EU-Morocco Association Agreement' => array_merge(['MA'], $euCountries),
+            'EU' => $euCountries,
             'NAFTA' => ['US', 'CA', 'MX'],
             'USMCA' => ['US', 'CA', 'MX'],
+            'CETA' => array_merge(['CA'], $euCountries),
+            'EU-Turkey Customs Union' => array_merge(['TR'], $euCountries),
         ];
         
         return $regionMap[$ftaRegion] ?? [];
@@ -473,35 +553,110 @@ class FtaEligibilityService
 
     /**
      * Get applicable FTA agreements for origin-destination pair
-     * 
-     * @param string $originCountry Origin country code
-     * @param string $destinationCountry Destination country code
+     *
+     * Determines the FTA agreement name from the country pair, then queries the
+     * fta_rules table using actual entity fields:
+     *   - f.ftaAgreement (string) — FTA agreement name
+     *   - f.effectiveDate (date) — when the rule takes effect
+     *   - f.expiryDate (date, nullable) — when the rule expires
+     *
+     * @param string $originCountry Origin country code (e.g., 'MA')
+     * @param string $destinationCountry Destination country code (e.g., 'US')
      * @return array Array of FtaRule entities
-     * 
-     * TODO Implementation:
-     * 1. Query fta_rules table
-     * 2. Filter by origin_country and destination_country
-     * 3. Filter by is_active = true
-     * 4. Filter by effective_date <= today AND (expiry_date IS NULL OR expiry_date >= today)
-     * 5. Order by effective_date DESC
-     * 6. Return array of FTA rules
      */
     public function getApplicableFtas(string $originCountry, string $destinationCountry): array
     {
-        $today = new \DateTime();
+        $ftaAgreement = $this->determineFtaAgreement($originCountry, $destinationCountry);
+        
+        if ($ftaAgreement === null) {
+            return [];
+        }
+        
+        $today = new \DateTime('now', new \DateTimeZone('UTC'));
         
         return $this->ftaRuleRepository->createQueryBuilder('f')
-            ->where('f.originCountry = :origin')
-            ->andWhere('f.destinationCountry = :dest')
-            ->andWhere('f.isActive = true')
-            ->andWhere('f.effectiveFrom <= :today')
-            ->andWhere('f.effectiveTo IS NULL OR f.effectiveTo >= :today')
-            ->setParameter('origin', $originCountry)
-            ->setParameter('dest', $destinationCountry)
+            ->where('f.ftaAgreement = :agreement')
+            ->andWhere('f.effectiveDate <= :today')
+            ->andWhere('f.expiryDate IS NULL OR f.expiryDate >= :today')
+            ->setParameter('agreement', $ftaAgreement)
             ->setParameter('today', $today)
-            ->orderBy('f.effectiveFrom', 'DESC')
+            ->orderBy('f.effectiveDate', 'DESC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Determine the FTA agreement name from a country pair
+     *
+     * Maps origin/destination country codes to known FTA agreements.
+     * The fta_rules table stores agreement names in f.ftaAgreement,
+     * so this method resolves the applicable agreement for the country pair.
+     *
+     * Supported FTAs:
+     *   - Morocco-US FTA (MA ↔ US)
+     *   - USMCA (US ↔ CA ↔ MX)
+     *   - EU-Morocco Association Agreement (MA ↔ EU member states)
+     *   - CETA (CA ↔ EU member states)
+     *   - EU-Turkey Customs Union (TR ↔ EU member states)
+     *
+     * @param string $originCountry
+     * @param string $destinationCountry
+     * @return string|null The FTA agreement name, or null if no agreement applies
+     */
+    private function determineFtaAgreement(string $originCountry, string $destinationCountry): ?string
+    {
+        $origin = strtoupper($originCountry);
+        $dest = strtoupper($destinationCountry);
+        
+        // Direct country-pair mapping for known FTAs
+        $ftaMap = [
+            'MA-US' => 'Morocco-US FTA',
+            'US-MA' => 'Morocco-US FTA',
+            'US-CA' => 'USMCA',
+            'CA-US' => 'USMCA',
+            'US-MX' => 'USMCA',
+            'MX-US' => 'USMCA',
+            'CA-MX' => 'USMCA',
+            'MX-CA' => 'USMCA',
+        ];
+        
+        $pairKey = $origin . '-' . $dest;
+        if (isset($ftaMap[$pairKey])) {
+            return $ftaMap[$pairKey];
+        }
+        
+        // EU member states
+        $euCountries = [
+            'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
+            'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL',
+            'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+        ];
+        
+        // EU-Morocco Association Agreement: Morocco ↔ any EU member state
+        if ($origin === 'MA' && in_array($dest, $euCountries, true)) {
+            return 'EU-Morocco Association Agreement';
+        }
+        if (in_array($origin, $euCountries, true) && $dest === 'MA') {
+            return 'EU-Morocco Association Agreement';
+        }
+        
+        // CETA: Canada ↔ any EU member state
+        if ($origin === 'CA' && in_array($dest, $euCountries, true)) {
+            return 'CETA';
+        }
+        if (in_array($origin, $euCountries, true) && $dest === 'CA') {
+            return 'CETA';
+        }
+        
+        // EU-Turkey Customs Union: Turkey ↔ any EU member state
+        if ($origin === 'TR' && in_array($dest, $euCountries, true)) {
+            return 'EU-Turkey Customs Union';
+        }
+        if (in_array($origin, $euCountries, true) && $dest === 'TR') {
+            return 'EU-Turkey Customs Union';
+        }
+        
+        return null;
     }
 
     /**

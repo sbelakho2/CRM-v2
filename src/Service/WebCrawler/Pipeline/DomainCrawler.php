@@ -20,15 +20,59 @@ final class DomainCrawler
      * Each entry maps to a page type used by downstream classifiers.
      */
     private const SUBPAGE_PATHS = [
-        ['path' => '/about',      'type' => 'about'],
-        ['path' => '/about-us',   'type' => 'about'],
-        ['path' => '/contact',    'type' => 'contact'],
-        ['path' => '/contact-us', 'type' => 'contact'],
-        ['path' => '/products',   'type' => 'products'],
-        ['path' => '/quality',    'type' => 'quality'],
-        ['path' => '/team',       'type' => 'team'],
-        ['path' => '/suppliers',  'type' => 'supplier'],
+        // ── About pages ──────────────────────────────────────────
+        ['path' => '/about',           'type' => 'about'],
+        ['path' => '/about-us',        'type' => 'about'],
+        ['path' => '/about-company',   'type' => 'about'],
+        ['path' => '/our-company',     'type' => 'about'],
+        ['path' => '/company',         'type' => 'about'],
+        ['path' => '/who-we-are',      'type' => 'about'],
+        // ── Contact pages ────────────────────────────────────────
+        ['path' => '/contact',         'type' => 'contact'],
+        ['path' => '/contact-us',      'type' => 'contact'],
+        ['path' => '/get-in-touch',    'type' => 'contact'],
+        ['path' => '/contact-us/enquiry','type' => 'contact'],
+        // ── Products / services ──────────────────────────────────
+        ['path' => '/products',        'type' => 'products'],
+        ['path' => '/our-products',    'type' => 'products'],
+        ['path' => '/solutions',       'type' => 'products'],
+        ['path' => '/capabilities',    'type' => 'products'],
+        // ── Quality ──────────────────────────────────────────────
+        ['path' => '/quality',         'type' => 'quality'],
+        ['path' => '/quality-assurance','type' => 'quality'],
+        ['path' => '/quality-policy',  'type' => 'quality'],
+        // ── Team / people pages ──────────────────────────────────
+        ['path' => '/team',            'type' => 'team'],
+        ['path' => '/our-team',        'type' => 'team'],
+        ['path' => '/leadership',      'type' => 'team'],
+        ['path' => '/management',      'type' => 'team'],
+        ['path' => '/people',          'type' => 'team'],
+        ['path' => '/our-people',      'type' => 'team'],
+        ['path' => '/key-personnel',   'type' => 'team'],
+        ['path' => '/executive-team',  'type' => 'team'],
+        ['path' => '/board-of-directors','type' => 'team'],
+        ['path' => '/meet-the-team',   'type' => 'team'],
+        ['path' => '/management-team', 'type' => 'team'],
+        ['path' => '/board',           'type' => 'team'],
+        ['path' => '/board-members',   'type' => 'team'],
+        ['path' => '/executive-management','type' => 'team'],
+        ['path' => '/directors',       'type' => 'team'],
+        ['path' => '/staff',           'type' => 'team'],
+        ['path' => '/employees',       'type' => 'team'],
+        ['path' => '/leadership-team', 'type' => 'team'],
+        // ── Supplier / procurement pages ─────────────────────────
+        ['path' => '/suppliers',              'type' => 'supplier'],
+        ['path' => '/procurement',            'type' => 'supplier'],
+        ['path' => '/vendor-registration',    'type' => 'supplier'],
+        ['path' => '/become-a-supplier',      'type' => 'supplier'],
+        ['path' => '/vendor',                 'type' => 'supplier'],
+        ['path' => '/vendor-portal',          'type' => 'supplier'],
+        ['path' => '/purchasing',             'type' => 'supplier'],
+        ['path' => '/supplier-registration',  'type' => 'supplier'],
     ];
+
+    /** Maximum number of sitemap URLs to parse per domain (prevents runaway). */
+    private const MAX_SITEMAP_URLS = 50;
 
     private const REQUEST_TIMEOUT = 10.0;
     private const ROBOTS_TIMEOUT  = 5.0;
@@ -70,8 +114,14 @@ final class DomainCrawler
         }
         $homepageResponses = $this->fetchBatch(array_values($homepageUrls), true);
 
+        // Phase 1.5: Sitemap discovery — find additional pages from sitemap.xml
+        $sitemapPages = $this->discoverFromSitemaps($domains, $homepageResponses);
+        $this->logger->info('[DomainCrawler] Discovered {n} pages from sitemaps', [
+            'n' => \count($sitemapPages),
+        ]);
+
         // Phase 2: Build subpage URL map → {url: {domain, type}}
-        $subpageUrlMap = [];
+        $subpageUrlMap = $sitemapPages;
         foreach ($domains as $domain) {
             if (!isset($homepageUrls[$domain])) {
                 continue;
@@ -319,6 +369,204 @@ final class DomainCrawler
         }
 
         return true;
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    //  Sitemap discovery
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Path keywords in sitemap URLs that indicate pages likely to yield contacts.
+     * We only add sitemap-discovered pages if they match these patterns.
+     */
+    private const TEAM_SITEMAP_KEYWORDS = [
+        '/team', '/our-team', '/leadership', '/management', '/people',
+        '/our-people', '/staff', '/employees', '/executive', '/board',
+        '/directors', '/about', '/about-us', '/contact', '/contact-us',
+        '/who-we-are', '/key-personnel', '/meet-the-team',
+        '/company/team', '/company/leadership', '/company/management',
+        '/about/team', '/about/leadership', '/about/management',
+    ];
+
+    /**
+     * Try to fetch and parse sitemap.xml for each domain that had a successful
+     * homepage response. Discovers additional team/people/contact pages.
+     *
+     * @param string[] $domains
+     * @param array<string, array{status: int, body: string, error: ?string}> $homepageResponses
+     * @return array<string, array{domain: string, type: string}>
+     */
+    private function discoverFromSitemaps(array $domains, array $homepageResponses): array
+    {
+        $sitemapPages = [];
+
+        foreach ($domains as $domain) {
+            $homepageUrl = 'https://' . $domain;
+            // Only attempt sitemap discovery on domains with a successful homepage
+            if (!isset($homepageResponses[$homepageUrl])
+                || ($homepageResponses[$homepageUrl]['status'] ?? 0) >= 400
+            ) {
+                continue;
+            }
+
+            $sitemapUrl = 'https://' . $domain . '/sitemap.xml';
+            try {
+                $response = $this->httpClient->request('GET', $sitemapUrl, [
+                    'timeout' => self::ROBOTS_TIMEOUT,
+                    'max_redirects' => 2,
+                    'headers' => [
+                        'User-Agent' => self::USER_AGENT,
+                        'Accept' => 'application/xml,text/xml,*/*;q=0.1',
+                    ],
+                ]);
+                $statusCode = $response->getStatusCode();
+                if ($statusCode >= 400) {
+                    continue;
+                }
+                $content = $response->getContent(false);
+                if ($content === '') {
+                    continue;
+                }
+                $parsedUrls = $this->parseSitemapXml($content);
+                $added = 0;
+                foreach ($parsedUrls as $url) {
+                    if ($added >= self::MAX_SITEMAP_URLS) {
+                        break;
+                    }
+                    $pageType = $this->classifySitemapUrl($url);
+                    if ($pageType === null) {
+                        continue;
+                    }
+                    // Avoid adding URLs already in standard subpage paths
+                    $path = parse_url($url, PHP_URL_PATH) ?? '';
+                    $isDuplicate = false;
+                    foreach (self::SUBPAGE_PATHS as $sp) {
+                        if ($sp['path'] === $path) {
+                            $isDuplicate = true;
+                            break;
+                        }
+                    }
+                    if ($isDuplicate) {
+                        continue;
+                    }
+                    $sitemapPages[$url] = [
+                        'domain' => $domain,
+                        'type' => $pageType,
+                    ];
+                    ++$added;
+                }
+            } catch (\Throwable) {
+                // Sitemap not available — continue silently
+            }
+        }
+
+        return $sitemapPages;
+    }
+
+    /**
+     * Parse sitemap XML and extract all URLs.
+     *
+     * Handles both sitemap indexes (pointing to sub-sitemaps) and
+     * standard sitemaps with <url><loc> entries.
+     *
+     * @return string[]
+     */
+    private function parseSitemapXml(string $xml): array
+    {
+        $urls = [];
+
+        // Suppress libxml errors
+        $useErrors = libxml_use_internal_errors(true);
+
+        $doc = new \DOMDocument();
+        $loaded = $doc->loadXML($xml);
+        if (!$loaded) {
+            libxml_clear_errors();
+            libxml_use_internal_errors($useErrors);
+            return [];
+        }
+
+        $xpath = new \DOMXPath($doc);
+        $xpath->registerNamespace('sm', 'http://www.sitemaps.org/schemas/sitemap/0.9');
+
+        // Try standard sitemap URLs first
+        $locNodes = $xpath->query('//sm:url/sm:loc');
+        if ($locNodes !== false && $locNodes->length > 0) {
+            foreach ($locNodes as $node) {
+                $url = trim($node->nodeValue ?? '');
+                if ($url !== '') {
+                    $urls[] = $url;
+                }
+            }
+        }
+
+        // If no URLs found, try sitemap index (points to sub-sitemaps)
+        if (empty($urls)) {
+            $subSitemaps = $xpath->query('//sm:sitemap/sm:loc');
+            if ($subSitemaps !== false && $subSitemaps->length > 0) {
+                foreach ($subSitemaps as $node) {
+                    $subUrl = trim($node->nodeValue ?? '');
+                    if ($subUrl !== '') {
+                        // Recursively fetch and parse sub-sitemaps (limited depth)
+                        try {
+                            $response = $this->httpClient->request('GET', $subUrl, [
+                                'timeout' => self::ROBOTS_TIMEOUT,
+                                'max_redirects' => 2,
+                                'headers' => [
+                                    'User-Agent' => self::USER_AGENT,
+                                    'Accept' => 'application/xml,text/xml,*/*;q=0.1',
+                                ],
+                            ]);
+                            $subContent = $response->getContent(false);
+                            if ($subContent !== '') {
+                                $subUrls = $this->parseSitemapXml($subContent);
+                                $urls = array_merge($urls, $subUrls);
+                            }
+                        } catch (\Throwable) {
+                            // Skip unavailable sub-sitemaps
+                        }
+                    }
+                }
+            }
+        }
+
+        libxml_clear_errors();
+        libxml_use_internal_errors($useErrors);
+
+        return $urls;
+    }
+
+    /**
+     * Classify a sitemap-discovered URL by its path.
+     * Returns the page type or null if not relevant.
+     */
+    private function classifySitemapUrl(string $url): ?string
+    {
+        $path = parse_url($url, PHP_URL_PATH) ?? '';
+        $pathLower = mb_strtolower($path);
+
+        // Check against team/contact/about keywords
+        foreach (self::TEAM_SITEMAP_KEYWORDS as $keyword) {
+            if (str_contains($pathLower, $keyword)) {
+                if (str_contains($pathLower, 'contact')) {
+                    return 'contact';
+                }
+                if (str_contains($pathLower, 'about')) {
+                    return 'about';
+                }
+                return 'team';
+            }
+        }
+
+        // Also check for supplier/procurement keywords
+        $supplierKeywords = ['/supplier', '/procurement', '/vendor', '/purchasing'];
+        foreach ($supplierKeywords as $keyword) {
+            if (str_contains($pathLower, $keyword)) {
+                return 'supplier';
+            }
+        }
+
+        return null;
     }
 
     // ──────────────────────────────────────────────────────────────────

@@ -14,113 +14,483 @@
             </div>
         </div>
 
-        {# Quick Stats #}
-        <div class="rams-grid rams-grid--4">
+        {# Stats Bar #}
+        <div class="rams-grid rams-grid--5">
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead.total_leads'|trans }}</span>
-                    <span class="rams-metric">{{ total_leads }}</span>
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'lead.total_leads'|trans }}</span>
+                        <span class="rams-metric__value rams-text--info">{{ total_leads }}</span>
+                    </div>
                 </div>
             </div>
-
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead.pending_review'|trans }}</span>
-                    <span class="rams-metric rams-text--warning">{{ pending_count }}</span>
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'lead.pending_review'|trans }}</span>
+                        <span class="rams-metric__value rams-text--warning">{{ pending_count }}</span>
+                    </div>
                 </div>
             </div>
-
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead.approved_leads'|trans }}</span>
-                    <span class="rams-metric rams-text--success">{{ approved_count }}</span>
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'lead.contacted'|trans }}</span>
+                        <span class="rams-metric__value rams-text--primary">
+                            {% set contacted = 0 %}
+                            {% for s in stage_counts %}
+                                {% if s.stage == 'contacted' %}{% set contacted = s.count %}{% endif %}
+                            {% endfor %}
+                            {{ contacted }}
+                        </span>
+                    </div>
                 </div>
             </div>
-
             <div class="rams-module rams-module--compact">
                 <div class="rams-module__content">
-                    <span class="rams-dymo">{{ 'lead.denied_leads'|trans }}</span>
-                    <span class="rams-metric rams-text--danger">{{ denied_count }}</span>
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'lead.qualified'|trans }}</span>
+                        <span class="rams-metric__value rams-text--success">
+                            {% set qualified = 0 %}
+                            {% for s in stage_counts %}
+                                {% if s.stage == 'qualified' %}{% set qualified = s.count %}{% endif %}
+                            {% endfor %}
+                            {{ qualified }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="rams-module rams-module--compact">
+                <div class="rams-module__content">
+                    <div class="rams-metric">
+                        <span class="rams-metric__label">{{ 'lead.converted'|trans }}</span>
+                        <span class="rams-metric__value rams-text--success">
+                            {% set converted = 0 %}
+                            {% for s in stage_counts %}
+                                {% if s.stage == 'converted' %}{% set converted = s.count %}{% endif %}
+                            {% endfor %}
+                            {{ converted }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
 
-        {# Action Cards #}
+        {# Stats Grid: Score Distribution + Source Breakdown #}
         <div class="rams-grid rams-grid--2">
+            {# Score Distribution #}
             <div class="rams-module">
-                <div class="rams-module__content rams-module__content--centered">
-                    <svg class="rams-module__icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 11l3 3L22 4"/>
-                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-                    </svg>
-                    <h4 class="rams-module__subtitle">{{ 'lead.review_leads_title'|trans }}</h4>
-                    <p class="rams-module__description">
-                        {{ 'lead.review_leads_description'|trans }}
-                    </p>
-                    <a href="{{ path('app_lead_review') }}" class="rams-btn rams-btn--primary">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-                        </svg>
-                        {{ 'lead.start_reviewing'|trans }}
-                    </a>
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">{{ 'lead.score_distribution'|trans }}</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-stack rams-gap-3">
+                        <div>
+                            <div class="rams-flex rams-justify-between rams-mb-1">
+                                <span class="rams-text--sm">{{ 'lead.score_0_25'|trans }}</span>
+                                <span class="rams-text--sm rams-font--medium">{{ score_counts.range_0_25 }}</span>
+                            </div>
+                            <div class="rams-progress rams-progress--sm">
+                                {% set maxScore = max(score_counts.range_0_25, score_counts.range_25_50, score_counts.range_50_75, score_counts.range_75_100, 1) %}
+                                <div class="rams-progress__bar" style="width: {{ (score_counts.range_0_25 / maxScore * 100)|round }}%; background: var(--rams-danger, #ef4444);"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="rams-flex rams-justify-between rams-mb-1">
+                                <span class="rams-text--sm">{{ 'lead.score_25_50'|trans }}</span>
+                                <span class="rams-text--sm rams-font--medium">{{ score_counts.range_25_50 }}</span>
+                            </div>
+                            <div class="rams-progress rams-progress--sm">
+                                <div class="rams-progress__bar" style="width: {{ (score_counts.range_25_50 / maxScore * 100)|round }}%; background: var(--rams-warning, #f59e0b);"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="rams-flex rams-justify-between rams-mb-1">
+                                <span class="rams-text--sm">{{ 'lead.score_50_75'|trans }}</span>
+                                <span class="rams-text--sm rams-font--medium">{{ score_counts.range_50_75 }}</span>
+                            </div>
+                            <div class="rams-progress rams-progress--sm">
+                                <div class="rams-progress__bar" style="width: {{ (score_counts.range_50_75 / maxScore * 100)|round }}%; background: var(--rams-info, #3b82f6);"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="rams-flex rams-justify-between rams-mb-1">
+                                <span class="rams-text--sm">{{ 'lead.score_75_100'|trans }}</span>
+                                <span class="rams-text--sm rams-font--medium">{{ score_counts.range_75_100 }}</span>
+                            </div>
+                            <div class="rams-progress rams-progress--sm">
+                                <div class="rams-progress__bar" style="width: {{ (score_counts.range_75_100 / maxScore * 100)|round }}%; background: var(--rams-success, #10b981);"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            {# Source Breakdown #}
             <div class="rams-module">
-                <div class="rams-module__content rams-module__content--centered">
-                    <svg class="rams-module__icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="20" x2="12" y2="10"/>
-                        <line x1="18" y1="20" x2="18" y2="4"/>
-                        <line x1="6" y1="20" x2="6" y2="16"/>
-                    </svg>
-                    <h4 class="rams-module__subtitle">{{ 'lead.dashboard_kpis'|trans }}</h4>
-                    <p class="rams-module__description">
-                        {{ 'lead.dashboard_description'|trans }}
-                    </p>
-                    <a href="{{ path('app_lead_dashboard') }}" class="rams-btn rams-btn--primary">
-                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
-                        {{ 'lead.view_dashboard'|trans }}
-                    </a>
+                <div class="rams-module__header">
+                    <h3 class="rams-module__title">{{ 'lead.source_breakdown'|trans }}</h3>
+                </div>
+                <div class="rams-module__content">
+                    {% if source_counts|length > 0 %}
+                        {% set sourceMax = 0 %}
+                        {% for item in source_counts %}
+                            {% if item.count > sourceMax %}{% set sourceMax = item.count %}{% endif %}
+                        {% endfor %}
+                        {% set sourceMax = max(sourceMax, 1) %}
+                        {% for item in source_counts %}
+                        <div class="rams-mb-2">
+                            <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
+                                <span class="rams-text--sm">
+                                    {% if 'google' in item.source|lower or 'search' in item.source|lower or 'discovery' in item.source|lower %}
+                                        <svg class="rams-icon" width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 4px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    {% elseif 'manual' in item.source|lower or 'import' in item.source|lower %}
+                                        <svg class="rams-icon" width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                    {% elseif 'enrich' in item.source|lower %}
+                                        <svg class="rams-icon" width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 4px;"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                                    {% else %}
+                                        <svg class="rams-icon" width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                    {% endif %}
+                                    {{ item.source }}
+                                </span>
+                                <span class="rams-badge rams-badge--blue">{{ item.count }}</span>
+                            </div>
+                            <div class="rams-progress rams-progress--sm">
+                                <div class="rams-progress__bar" style="width: {{ (item.count / sourceMax * 100)|round }}%;"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="rams-text--muted rams-text--sm">{{ 'lead.no_source_data'|trans }}</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
-
-        {# Information Module #}
-        <div class="rams-module">
+    
+        {# 📊 Analytics Section #}
+        <div class="rams-module rams-mb-4">
             <div class="rams-module__header">
-                <h3 class="rams-module__title">{{ 'lead.about_provisional'|trans }}</h3>
+                <h2 class="rams-module__title">📊 Lead Analytics</h2>
             </div>
             <div class="rams-module__content">
-                <div class="rams-prose">
-                    <p>
-                        <strong>{{ 'lead.what_are_leads'|trans }}</strong> 
-                        {{ 'lead.what_are_leads_desc'|trans }}
-                    </p>
-                    <p>
-                        <strong>{{ 'lead.daily_drops'|trans }}</strong> 
-                        {{ 'lead.daily_drops_desc'|trans }}
-                    </p>
-                    <p>
-                        <strong>{{ 'lead.scoring_label'|trans }}</strong> 
-                        {{ 'lead.scoring_desc'|trans }}
-                    </p>
-                    <p>
-                        <strong>{{ 'lead.workflow_label'|trans }}</strong> 
-                        {{ 'lead.workflow_desc'|trans }}
-                    </p>
+                {# Lead Quality Discovery Breakdown #}
+                <div class="rams-mb-6">
+                    <h3 class="rams-text--sm rams-font--medium rams-mb-3">🎯 Lead Quality Discovery Breakdown</h3>
+                    {% if quality_distribution is defined and quality_distribution is not empty %}
+                    {% set quality_max = quality_distribution|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
+                    <div class="rams-grid rams-grid--4">
+                        {% for range, data in quality_distribution %}
+                        <div class="rams-module rams-module--compact">
+                            <div class="rams-module__content">
+                                <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
+                                    <span class="rams-text--lg">
+                                        {% if range == '0-25' %}🔴{% elseif range == '26-50' %}🟠{% elseif range == '51-75' %}🟡{% else %}🟢{% endif %}
+                                    </span>
+                                    <span class="rams-font--medium">{{ range }} <span class="rams-text--muted rams-text--xs">{% if range == '0-25' %}Low{% elseif range == '26-50' %}Fair{% elseif range == '51-75' %}Good{% else %}Excellent{% endif %}</span></span>
+                                </div>
+                                <div class="rams-metric rams-mb-1">{{ data.count }}</div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 rams-mb-1">
+                                    <div class="{% if data.approval_rate >= 75 %}bg-green-500{% elseif data.approval_rate >= 50 %}bg-yellow-500{% else %}bg-red-500{% endif %} h-2 rounded-full" style="width: {{ quality_max > 0 ? (data.count / quality_max * 100)|round : 0 }}%"></div>
+                                </div>
+                                <div class="rams-flex rams-justify-between rams-text--xs">
+                                    <span class="rams-text--muted">{{ data.count }} leads</span>
+                                    <span class="{% if data.approval_rate >= 75 %}rams-text--success{% elseif data.approval_rate >= 50 %}rams-text--warning{% else %}rams-text--danger{% endif %}">{{ data.approval_rate }}% approval</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="rams-text--muted rams-text--sm rams-py-2">No lead quality data available</div>
+                    {% endif %}
                 </div>
-                
-                <div class="rams-andon rams-andon--info">
-                    <strong>{{ 'lead.how_to_add'|trans }}</strong><br>
-                    1. {{ 'lead.step_1'|trans }}<br>
-                    2. {{ 'lead.step_2'|trans }}<br>
-                    3. {{ 'lead.step_3'|trans }}<br>
-                    4. {{ 'lead.step_4'|trans }}
+    
+                {# Source Effectiveness & Funnel Analytics #}
+                <div class="rams-grid rams-grid--2 rams-gap-4 rams-mb-6">
+                    {# Source Effectiveness #}
+                    <div>
+                        <h4 class="rams-text--sm rams-font--medium rams-mb-2">📡 Source Effectiveness</h4>
+                        {% if source_effectiveness is defined and source_effectiveness is not empty %}
+                        {% set src_max = source_effectiveness|reduce((carry, item) => carry > item.count ? carry : item.count, 0) %}
+                        <div class="rams-stack rams-gap-2">
+                            {% for item in source_effectiveness %}
+                            <div>
+                                <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
+                                    <span class="rams-text--sm">{{ item.source }}</span>
+                                    <span class="rams-badge rams-badge--blue">{{ item.count }}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 rams-mb-1">
+                                    <div class="bg-blue-500 h-2 rounded-full" style="width: {{ src_max > 0 ? (item.count / src_max * 100)|round : 0 }}%"></div>
+                                </div>
+                                <div class="rams-flex rams-justify-between rams-text--xs rams-text--muted">
+                                    <span>avg score: <span class="{% if item.avg_score >= 70 %}rams-text--success{% elseif item.avg_score >= 50 %}rams-text--warning{% else %}rams-text--danger{% endif %}">{{ item.avg_score|number_format(1) }}</span></span>
+                                    <span>approval: <span class="{% if item.approval_rate >= 75 %}rams-text--success{% elseif item.approval_rate >= 50 %}rams-text--warning{% else %}rams-text--danger{% endif %}">{{ item.approval_rate }}%</span></span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="rams-text--muted rams-text--sm rams-py-2">No source effectiveness data</div>
+                        {% endif %}
+                    </div>
+    
+                    {# Funnel Analytics #}
+                    <div>
+                        <h4 class="rams-text--sm rams-font--medium rams-mb-2">📊 Funnel Analytics</h4>
+                        {% if funnel_analytics is defined and funnel_analytics is not empty %}
+                        {% set funnel_max = funnel_analytics|reduce((carry, s) => carry > s.count ? carry : s.count, 0) %}
+                        <div class="rams-stack rams-gap-2">
+                            {% for stage in funnel_analytics %}
+                            <div>
+                                <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">
+                                    <span class="rams-text--sm">{{ stage.stage|capitalize }}</span>
+                                    <span class="rams-text--sm rams-font--medium">{{ stage.count }}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                    <div class="bg-green-500 h-3 rounded-full text-xs text-white text-center leading-3" style="width: {{ funnel_max > 0 ? (stage.count / funnel_max * 100)|round : 0 }}%">
+                                        {{ stage.count > 0 ? stage.count : '' }}
+                                    </div>
+                                </div>
+                                <div class="rams-text--xs rams-text--muted">avg score: {{ stage.avg_score }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="rams-text--muted rams-text--sm rams-py-2">No funnel data available</div>
+                        {% endif %}
+                    </div>
+                </div>
+    
+                {# Geographic Distribution #}
+                <div class="rams-mb-6">
+                    <h3 class="rams-text--sm rams-font--medium rams-mb-3">🌍 Geographic Distribution</h3>
+                    {% if geographic_distribution is defined and geographic_distribution is not empty %}
+                    <div class="rams-overflow-x-auto">
+                        <table class="rams-table rams-w-full">
+                            <thead class="rams-table__header">
+                                <tr>
+                                    <th class="rams-table__cell">Region</th>
+                                    <th class="rams-table__cell">Count</th>
+                                    <th class="rams-table__cell">Avg Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in geographic_distribution %}
+                                <tr>
+                                    <td class="rams-table__cell"><span class="rams-badge rams-badge--outline">{{ item.region }}</span></td>
+                                    <td class="rams-table__cell">{{ item.count }}</td>
+                                    <td class="rams-table__cell">
+                                        <span class="rams-badge rams-badge--{% if item.avg_score >= 70 %}success{% elseif item.avg_score >= 50 %}warning{% else %}neutral{% endif %}">{{ item.avg_score|number_format(1) }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="rams-text--muted rams-text--sm rams-py-2">No geographic distribution data</div>
+                    {% endif %}
+                </div>
+    
+                {# Actionable Insights #}
+                <div>
+                    <h3 class="rams-text--sm rams-font--medium rams-mb-3">💡 Actionable Insights</h3>
+                    {% if actionable_insights is defined and actionable_insights is not empty %}
+                    <div class="rams-stack rams-gap-2">
+                        {% for insight in actionable_insights %}
+                        <div class="rams-module rams-module--nested rams-p-3">
+                            <div class="rams-flex rams-justify-between rams-items-start rams-gap-2">
+                                <div class="rams-flex-1">
+                                    <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
+                                        <span class="rams-badge rams-badge--{% if insight.priority == 'high' %}danger{% elseif insight.priority == 'medium' %}warning{% else %}info{% endif %} rams-text--xs">{{ insight.priority|upper }}</span>
+                                        <span class="rams-font--medium rams-text--sm">{{ insight.lead.companyName }}</span>
+                                    </div>
+                                    <p class="rams-text--sm rams-text--muted">{{ insight.message }}</p>
+                                </div>
+                                <div class="rams-flex rams-items-center rams-gap-1">
+                                    <span class="rams-badge rams-badge--{% if insight.score >= 70 %}success{% elseif insight.score >= 50 %}warning{% else %}neutral{% endif %}">{{ insight.score }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="rams-text--muted rams-text--sm rams-py-2">No actionable insights available</div>
+                    {% endif %}
                 </div>
             </div>
         </div>
+    
+        {# Recent Leads Table #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3 class="rams-module__title">{{ 'lead.recent_leads'|trans }}</h3>
+                <span class="rams-dymo">{{ 'lead.last_15'|trans }}</span>
+            </div>
+            <div class="rams-module__content rams-overflow-x-auto">
+                <table class="rams-table rams-w-full data-table">
+                    <thead class="rams-table__header">
+                        <tr>
+                            <th class="rams-table__cell">{{ 'lead.company_name'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead.source'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead.region'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead.status'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead.nurturing_stage'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead.score'|trans }}</th>
+                            <th class="rams-table__cell">{{ 'lead.discovered'|trans }}</th>
+                            <th class="rams-table__cell rams-text--center">{{ 'lead.actions'|trans }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead in recent_leads %}
+                        <tr>
+                            <td class="rams-table__cell rams-font--medium">{{ lead.companyName }}</td>
+                            <td class="rams-table__cell rams-text--sm rams-text--muted">{{ lead.source|default('—') }}</td>
+                            <td class="rams-table__cell">
+                                {% if lead.regionTag %}
+                                    <span class="rams-badge rams-badge--outline">{{ lead.regionTag|upper }}</span>
+                                {% else %}
+                                    <span class="rams-text--muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="rams-table__cell">
+                                {% if lead.reviewStatus == 'approved' %}
+                                    <span class="rams-badge rams-badge--green">{{ 'lead.status_approved'|trans }}</span>
+                                {% elseif lead.reviewStatus == 'denied' %}
+                                    <span class="rams-badge rams-badge--red">{{ 'lead.status_denied'|trans }}</span>
+                                {% else %}
+                                    <span class="rams-badge rams-badge--warning">{{ 'lead.status_pending'|trans }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="rams-table__cell">
+                                {% if lead.nurturingStage %}
+                                    <span class="rams-badge rams-badge--blue">{{ lead.nurturingStage|capitalize }}</span>
+                                {% else %}
+                                    <span class="rams-text--muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="rams-table__cell">
+                                {% if lead.leadScore is not null %}
+                                    <div class="rams-flex rams-gap-2 rams-items-center">
+                                        <div class="rams-progress rams-progress--sm" style="width: 50px;">
+                                            <div class="rams-progress__bar" style="width: {{ lead.leadScore }}%; background: {{ lead.leadScore >= 70 ? 'var(--rams-success)' : lead.leadScore >= 40 ? 'var(--rams-warning)' : 'var(--rams-danger)' }}"></div>
+                                        </div>
+                                        <span class="rams-text--xs">{{ lead.leadScore }}</span>
+                                    </div>
+                                {% else %}
+                                    <span class="rams-text--muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="rams-table__cell rams-text--sm rams-text--muted">
+                                {{ lead.createdAt ? lead.createdAt|date('Y-m-d') : '—' }}
+                            </td>
+                            <td class="rams-table__cell rams-text--center">
+                                <div class="rams-flex rams-gap-1 rams-justify-center">
+                                    <a href="{{ path('app_lead_review', {id: lead.id}) }}" class="rams-btn rams-btn--sm rams-btn--ghost" title="{{ 'lead.view'|trans }}">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </a>
+                                    {% if lead.reviewStatus == 'pending' %}
+                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--success" onclick="approveLead({{ lead.id }})" title="{{ 'lead.approve'|trans }}">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    {% endif %}
+                                    {% if lead.reviewStatus == 'approved' and not lead.company %}
+                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--info" onclick="convertLead({{ lead.id }})" title="{{ 'lead.convert_to_company'|trans }}">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td class="rams-table__cell rams-text--center rams-text--muted" colspan="8">
+                                {{ 'lead.no_leads_yet'|trans }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# Quick Actions #}
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h3 class="rams-module__title">{{ 'lead.quick_actions'|trans }}</h3>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-flex rams-flex-wrap rams-gap-3">
+                    <a href="{{ path('lead_discovery_index') }}" class="rams-btn rams-btn--primary">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        {{ 'lead.discover_new_leads'|trans }}
+                    </a>
+                    <a href="{{ path('discovery_pipeline_index') }}" class="rams-btn">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        {{ 'lead.run_pipeline'|trans }}
+                    </a>
+                    <a href="{{ path('app_lead_review') }}" class="rams-btn rams-btn--ghost">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        {{ 'lead.view_all'|trans }}
+                    </a>
+                    <a href="{{ path('app_lead_export') }}" class="rams-btn rams-btn--ghost">
+                        <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        {{ 'lead.export_csv'|trans }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+function approveLead(leadId) {
+    if (!confirm('{{ 'lead.confirm_approve'|trans }}')) return;
+    fetch('/leads/approve/' + leadId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token("lead_approve") }}' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message || '{{ 'common.error'|trans }}', 'error');
+        }
+    })
+    .catch(e => showToast(e.message, 'error'));
+}
+
+function convertLead(leadId) {
+    if (!confirm('{{ 'lead.confirm_convert'|trans }}')) return;
+    fetch('/leads/convert/' + leadId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token("lead_convert") }}' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            showToast(data.message || '{{ 'common.error'|trans }}', 'error');
+        }
+    })
+    .catch(e => showToast(e.message, 'error'));
+}
+
+function showToast(message, type) {
+    type = type || 'success';
+    const toast = document.createElement('div');
+    toast.className = 'rams-alert ' + (type === 'success' ? 'rams-alert--success' : 'rams-alert--error') + ' rams-alert--toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
 {% endblock %}

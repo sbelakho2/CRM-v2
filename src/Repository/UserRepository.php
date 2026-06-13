@@ -32,4 +32,23 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->getEntityManager()->persist($user);
         $this->getEntityManager()->flush();
     }
+
+    /**
+     * Find all users with a specific role.
+     *
+     * Roles are stored as a JSON array in the 'roles' column.
+     * Uses LIKE to search for the role string within the JSON.
+     *
+     * @return User[]
+     */
+    public function findByRole(string $role): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.roles LIKE :role')
+            ->andWhere('u.active = true')
+            ->setParameter('role', '%"' . $role . '"%')
+            ->orderBy('u.email', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

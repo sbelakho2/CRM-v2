@@ -6,7 +6,12 @@ use App\Service\CommandCenterService;
 use App\Service\LeadSalesAnalystService;
 use App\Service\InteractiveLiveQuoteService;
 use App\Service\CountryService;
+use App\Entity\Activity;
+use App\Entity\EmailSend;
 use App\Entity\Lead;
+use App\Entity\Notification;
+use App\Entity\Quote;
+use App\Entity\Task;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -58,10 +63,120 @@ class CommandCenterController extends AbstractController
                 $regionLabels[$region] = strtoupper((string) $region);
             }
         }
+
+        $em = $this->entityManager;
+
+        // ── Enhanced pipeline data ──
+
+        // Leads by nurturing stage for pipeline visualization
+        $leadsByStage = $em->getRepository(Lead::class)->createQueryBuilder('l')
+            ->select('l.nurturingStage AS stage, COUNT(l.id) AS count')
+            ->groupBy('l.nurturingStage')
+            ->getQuery()->getResult();
+
+        // Total leads count
+        $totalLeads = (int) $em->getRepository(Lead::class)->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->getQuery()->getSingleScalarResult();
+
+        // Open quotes and their total value
+        $openQuotes = $em->getRepository(Quote::class)->createQueryBuilder('q')
+            ->select('q.id, q.quoteNumber, q.totalCost, q.currency, q.status, q.createdAt')
+            ->where('q.status IN (:statuses)')
+            ->setParameter('statuses', ['draft', 'pending_review', 'sent'])
+            ->orderBy('q.totalCost', 'DESC')
+            ->setMaxResults(20)
+            ->getQuery()->getResult();
+
+        $openQuotesValue = 0.0;
+        foreach ($openQuotes as $q) {
+            $openQuotesValue += (float) ($q['totalCost'] ?? 0);
+        }
+
+        // Recent activities counts
+        $now = new \DateTime();
+        $last24h = (new \DateTime())->modify('-24 hours');
+        $last7d = (new \DateTime())->modify('-7 days');
+
+        $activitiesLast24h = (int) $em->getRepository(Activity::class)->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->where('a.createdAt >= :since')
+            ->setParameter('since', $last24h)
+            ->getQuery()->getSingleScalarResult();
+
+        $activitiesLast7d = (int) $em->getRepository(Activity::class)->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->where('a.createdAt >= :since')
+            ->setParameter('since', $last7d)
+            ->getQuery()->getSingleScalarResult();
+
+        // Pending tasks
+        $pendingTasks = (int) $em->getRepository(Task::class)->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->where('t.status NOT IN (:doneStatuses)')
+            ->setParameter('doneStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
+            ->getQuery()->getSingleScalarResult();
+
+        // Unread notifications for current user
+        $currentUser = $this->getUser();
+        $unreadNotifications = 0;
+        if ($currentUser) {
+            $unreadNotifications = (int) $em->getRepository(Notification::class)->createQueryBuilder('n')
+                ->select('COUNT(n.id)')
+                ->where('n.user = :user')
+                ->andWhere('n.readAt IS NULL')
+                ->setParameter('user', $currentUser)
+                ->getQuery()->getSingleScalarResult();
+        }
+
+        // Emails sent today
+        $emailsToday = (int) $em->getRepository(EmailSend::class)->createQueryBuilder('e')
+            ->select('COUNT(e.id)')
+            ->where('e.sentAt >= :today')
+            ->andWhere('e.status = :status')
+            ->setParameter('today', new \DateTime('today'))
+            ->setParameter('status', EmailSend::STATUS_SENT)
+            ->getQuery()->getSingleScalarResult();
+
+        // Open/click/reply rates for sent emails (last 30 days)
+        $emailEngagement = $em->getRepository(EmailSend::class)->createQueryBuilder('e')
+            ->select(
+                'COUNT(e.id) AS total',
+                'SUM(CASE WHEN e.opened = true THEN 1 ELSE 0 END) AS opened',
+                'SUM(CASE WHEN e.clicked = true THEN 1 ELSE 0 END) AS clicked',
+                'SUM(CASE WHEN e.replied = true THEN 1 ELSE 0 END) AS replied'
+            )
+            ->where('e.sentAt >= :month')
+            ->setParameter('month', new \DateTime('-30 days'))
+            ->andWhere('e.status = :status')
+            ->setParameter('status', EmailSend::STATUS_SENT)
+            ->getQuery()->getSingleResult();
+
+        $totalSent = (int) ($emailEngagement['total'] ?? 0);
+        $emailOpenRate = $totalSent > 0 ? round(((int)($emailEngagement['opened'] ?? 0) / $totalSent) * 100, 1) : 0;
+        $emailClickRate = $totalSent > 0 ? round(((int)($emailEngagement['clicked'] ?? 0) / $totalSent) * 100, 1) : 0;
+        $emailReplyRate = $totalSent > 0 ? round(((int)($emailEngagement['replied'] ?? 0) / $totalSent) * 100, 1) : 0;
+
+        // Alerts count (from service)
+        $alertCount = $this->commandCenter->getAlertCount();
         
         return $this->render('command_center/index.html.twig', [
             'data' => $data,
             'region_labels' => $regionLabels,
+            // ── Enhanced pipeline data ──
+            'leads_by_stage'       => $leadsByStage,
+            'total_leads'          => $totalLeads,
+            'open_quotes'          => $openQuotes,
+            'open_quotes_value'    => round($openQuotesValue, 2),
+            'activities_24h'       => $activitiesLast24h,
+            'activities_7d'        => $activitiesLast7d,
+            'pending_tasks'        => $pendingTasks,
+            'unread_notifications' => $unreadNotifications,
+            'emails_today'         => $emailsToday,
+            'email_open_rate'      => $emailOpenRate,
+            'email_click_rate'     => $emailClickRate,
+            'email_reply_rate'     => $emailReplyRate,
+            'alert_count'          => $alertCount,
         ]);
     }
     

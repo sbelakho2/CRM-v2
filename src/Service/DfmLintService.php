@@ -296,15 +296,25 @@ class DfmLintService
      */
     private function formatMessage(string $template, $bomLine): string
     {
+        // Derive designator from available data (BomLine has no direct designator field)
+        $sourcingData = null;
+        $designator = 'N/A';
+        if (method_exists($bomLine, 'getSourcingData')) {
+            $sourcingData = $bomLine->getSourcingData();
+            if (is_array($sourcingData) && !empty($sourcingData['designator'])) {
+                $designator = $sourcingData['designator'];
+            }
+        }
+
         // Replace common BOM line placeholders
         $replacements = [
             '{mpn}' => $bomLine->getMpn() ?? 'N/A',
             '{manufacturer}' => $bomLine->getManufacturer() ?? 'N/A',
             '{description}' => $bomLine->getDescription() ?? 'N/A',
-            '{designator}' => $bomLine->getDesignator() ?? 'N/A',
+            '{designator}' => $designator,
             '{quantity}' => $bomLine->getQuantity() ?? 0,
             '{unitPrice}' => $bomLine->getUnitPrice() ?? 0,
-            '{supplier}' => $bomLine->getSupplier() ?? 'N/A',
+            '{supplier}' => $bomLine->getSupplierName() ?? 'N/A',
             '{leadTimeDays}' => $bomLine->getLeadTimeDays() ?? 'N/A',
         ];
         
@@ -332,11 +342,22 @@ class DfmLintService
             $criteria['severity'] = $severityFilter;
         }
         
-        // 2. Query findings with ordering
-        return $this->dfmFindingRepository->findBy(
+        // 2. Query findings (DB sorts alphabetically which is wrong for severity)
+        $findings = $this->dfmFindingRepository->findBy(
             $criteria,
-            ['severity' => 'ASC', 'detectedAt' => 'DESC']
+            ['detectedAt' => 'DESC']
         );
+        
+        // 3. Sort by severity in correct priority order:
+        //    CRITICAL → HIGH → MEDIUM → LOW → INFO
+        $severityOrder = ['CRITICAL' => 0, 'HIGH' => 1, 'MEDIUM' => 2, 'LOW' => 3, 'INFO' => 4];
+        usort($findings, function ($a, $b) use ($severityOrder) {
+            $aOrder = $severityOrder[$a->getSeverity()] ?? 99;
+            $bOrder = $severityOrder[$b->getSeverity()] ?? 99;
+            return $aOrder <=> $bOrder;
+        });
+        
+        return $findings;
     }
 
     /**

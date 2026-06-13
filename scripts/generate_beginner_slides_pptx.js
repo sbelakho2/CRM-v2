@@ -96,7 +96,7 @@ sections.forEach((sectionHtml) => {
 
     const textLines = [];
     data.paragraphs.forEach((p) => {
-      if (/^(Module:|Module Purpose:|UI Context:|Narrative:|Core Function:|Business Outcomes:|Live Demo Focus:)/i.test(p)) {
+      if (/^(Module:|Module Purpose:|On-screen header:|Where it fits:|What this page does:|Why it matters:|Try this in the demo:)/i.test(p)) {
         textLines.push(p);
       }
     });

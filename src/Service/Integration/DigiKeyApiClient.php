@@ -2,6 +2,7 @@
 
 namespace App\Service\Integration;
 
+use App\Service\PartMatchConfidenceCalculator;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -9,7 +10,7 @@ use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * DigiKey API Client
- * 
+ *
  * Documentation: https://developer.digikey.com/
  * Note: Requires OAuth2 authentication
  */
@@ -26,8 +27,11 @@ class DigiKeyApiClient
         private CacheInterface $cache,
         private LoggerInterface $logger,
         private string $clientId,
-        private string $clientSecret
-    ) {}
+        private string $clientSecret,
+        private ?PartMatchConfidenceCalculator $confidenceCalculator = null
+    ) {
+        $this->confidenceCalculator ??= new PartMatchConfidenceCalculator();
+    }
 
     /**
      * Search for a part by part number
@@ -195,7 +199,8 @@ class DigiKeyApiClient
                     $manufacturer = $manufacturer['Name'] ?? json_encode($manufacturer);
                 }
                 
-                return [
+                // Calculate confidence score
+                $apiResult = [
                     'mpn' => $part['ManufacturerPartNumber'] ?? $part['ManufacturerProductNumber'] ?? $partNumber,
                     'manufacturer' => $manufacturer,
                     'description' => is_string($description) ? $description : null,
@@ -214,6 +219,19 @@ class DigiKeyApiClient
                     'pack_quantity' => $bestPackQty,
                     'multiple_quantity' => $bestMultipleQty,
                 ];
+
+                $confidence = $this->confidenceCalculator->calculateConfidence(
+                    $partNumber,
+                    $manufacturer,
+                    is_string($description) ? $description : null,
+                    $apiResult
+                );
+                $apiResult['confidence_score'] = $confidence['score'];
+                $apiResult['confidence_level'] = $confidence['level'];
+                $apiResult['confidence_reasons'] = $confidence['reasons'];
+                $apiResult['confidence_warnings'] = $confidence['warnings'];
+
+                return $apiResult;
                 
             } catch (\Exception $e) {
                 $this->logger->error('DigiKey API request failed', [
@@ -331,9 +349,15 @@ class DigiKeyApiClient
         return $a;
     }
 
-    private function parseLeadTime(int $weeks): int
+    /**
+     * Parse lead time from API response into days.
+     *
+     * @param string|int $weeks Weeks value from API (may arrive as string)
+     * @return int Lead time in days
+     */
+    private function parseLeadTime(string|int $weeks): int
     {
-        return $weeks * 7; // Convert weeks to days
+        return (int) $weeks * 7; // Convert weeks to days
     }
 
     private function respectRateLimit(): void
@@ -376,7 +400,9 @@ class DigiKeyApiClient
                 foreach ($toList as $to) {
                     $variants[] = $base . $to;
                 }
-                return $variants;
+                // Do NOT return early — let the method continue so generic
+                // suffix swaps below (e.g. D→A) are also added to the list.
+                break;
             }
         }
 

@@ -44,6 +44,7 @@ class PricingEngine
         private MultiDistributorSourcingService $multiDistributor,
         private CurrencyConverter $currencyConverter,
         private PriceImputationService $priceImputation,
+        private RiskAdjustedPricingService $riskAdjustedPricing,
         private LoggerInterface $logger
     ) {}
 
@@ -443,90 +444,98 @@ class PricingEngine
                 }
                 
                 // ── Alt-MPN search: use Remark column's cheaper equivalent ──
-                $altMpn = $this->extractAltMpn($line['remark'] ?? '', $line['mpn']);
-                if ($altMpn) {
-                    $this->logger->info('Searching alternate MPN from BOM remark', [
-                        'original_mpn' => $line['mpn'],
-                        'alt_mpn' => $altMpn,
-                        'original_unit_price' => $unitPrice,
-                    ]);
-                    
-                    // Strategy A: Full waterfall search for alt MPN
-                    $altPricing = $this->getPricing($altMpn, null, $line['description'] ?? null, ['providers' => $allowedProviders]);
-                    $altUnitPrice = $altPricing ? $this->calculateUnitPrice($altPricing['pricing'], $effectiveQty) : 0;
-                    
-                    // Strategy B: Direct DigiKey search for alt MPN (if digikey allowed)
-                    // (waterfall may miss DigiKey if Alibaba scores well)
-                    $useDigikeyForAlt = empty($allowedProviders) || in_array('digikey', $allowedProviders, true);
-                    if ($useDigikeyForAlt) {
-                        try {
-                        $digiKeyAlt = $this->digikeyClient->searchByPartNumber($altMpn);
-                        if ($digiKeyAlt) {
-                            $dkAltPrice = $this->calculateUnitPrice($digiKeyAlt['pricing'] ?? [], $effectiveQty);
-                            if ($dkAltPrice > 0 && ($altUnitPrice <= 0 || $dkAltPrice < $altUnitPrice)) {
-                                $altPricing = $digiKeyAlt;
-                                $altPricing['source'] = 'digikey';
-                                $altPricing['search_url'] = 'https://www.digikey.com/en/products/filter?keywords=' . urlencode($altMpn);
-                                $altUnitPrice = $dkAltPrice;
-                                $this->logger->info('DigiKey direct search for alt MPN found cheaper price', [
-                                    'alt_mpn' => $altMpn, 'dk_price' => $dkAltPrice,
-                                ]);
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        // DigiKey direct search failed, continue with waterfall result
-                    }
-                    } // end if ($useDigikeyForAlt)
-                    
-                    // Also try DigiKey directly for the PRIMARY MPN if currently using Alibaba
-                    if ($useDigikeyForAlt && ($processedLine['source'] ?? '') === 'alibaba' && $unitPrice > 0.01) {
-                        try {
-                            $dkPrimary = $this->digikeyClient->searchByPartNumber($line['mpn']);
-                            if ($dkPrimary) {
-                                $dkPrimaryPrice = $this->calculateUnitPrice($dkPrimary['pricing'] ?? [], $effectiveQty);
-                                if ($dkPrimaryPrice > 0 && $dkPrimaryPrice < $unitPrice) {
-                                    $this->logger->info('DigiKey cheaper for primary MPN at order qty', [
-                                        'mpn' => $line['mpn'], 'alibaba_price' => $unitPrice, 'dk_price' => $dkPrimaryPrice,
+                // Fix H3: Skip this section if alt-MPN was already matched during the unsourced
+                // fallback (lines 316-349) — the second call would overwrite the earlier match.
+                if (empty($pricing['alt_mpn_used'])) {
+                    $altMpn = $this->extractAltMpn($line['remark'] ?? '', $line['mpn']);
+                    if ($altMpn) {
+                        $this->logger->info('Searching alternate MPN from BOM remark', [
+                            'original_mpn' => $line['mpn'],
+                            'alt_mpn' => $altMpn,
+                            'original_unit_price' => $unitPrice,
+                        ]);
+                        
+                        // Strategy A: Full waterfall search for alt MPN
+                        $altPricing = $this->getPricing($altMpn, null, $line['description'] ?? null, ['providers' => $allowedProviders]);
+                        $altUnitPrice = $altPricing ? $this->calculateUnitPrice($altPricing['pricing'], $effectiveQty) : 0;
+                        
+                        // Strategy B: Direct DigiKey search for alt MPN (if digikey allowed)
+                        // (waterfall may miss DigiKey if Alibaba scores well)
+                        $useDigikeyForAlt = empty($allowedProviders) || in_array('digikey', $allowedProviders, true);
+                        if ($useDigikeyForAlt) {
+                            try {
+                            $digiKeyAlt = $this->digikeyClient->searchByPartNumber($altMpn);
+                            if ($digiKeyAlt) {
+                                $dkAltPrice = $this->calculateUnitPrice($digiKeyAlt['pricing'] ?? [], $effectiveQty);
+                                if ($dkAltPrice > 0 && ($altUnitPrice <= 0 || $dkAltPrice < $altUnitPrice)) {
+                                    $altPricing = $digiKeyAlt;
+                                    $altPricing['source'] = 'digikey';
+                                    $altPricing['search_url'] = 'https://www.digikey.com/en/products/filter?keywords=' . urlencode($altMpn);
+                                    $altUnitPrice = $dkAltPrice;
+                                    $this->logger->info('DigiKey direct search for alt MPN found cheaper price', [
+                                        'alt_mpn' => $altMpn, 'dk_price' => $dkAltPrice,
                                     ]);
-                                    $dkPrimary['search_url'] = 'https://www.digikey.com/en/products/filter?keywords=' . urlencode($line['mpn']);
-                                    $pricing = $dkPrimary;
-                                    $unitPrice = $dkPrimaryPrice;
-                                    $processedLine['source'] = 'digikey';
                                 }
                             }
                         } catch (\Exception $e) {
-                            // continue
+                            // DigiKey direct search failed, continue with waterfall result
+                        }
+                        } // end if ($useDigikeyForAlt)
+                        
+                        // Also try DigiKey directly for the PRIMARY MPN if currently using Alibaba
+                        if ($useDigikeyForAlt && ($processedLine['source'] ?? '') === 'alibaba' && $unitPrice > 0.01) {
+                            try {
+                                $dkPrimary = $this->digikeyClient->searchByPartNumber($line['mpn']);
+                                if ($dkPrimary) {
+                                    $dkPrimaryPrice = $this->calculateUnitPrice($dkPrimary['pricing'] ?? [], $effectiveQty);
+                                    if ($dkPrimaryPrice > 0 && $dkPrimaryPrice < $unitPrice) {
+                                        $this->logger->info('DigiKey cheaper for primary MPN at order qty', [
+                                            'mpn' => $line['mpn'], 'alibaba_price' => $unitPrice, 'dk_price' => $dkPrimaryPrice,
+                                        ]);
+                                        $dkPrimary['search_url'] = 'https://www.digikey.com/en/products/filter?keywords=' . urlencode($line['mpn']);
+                                        $pricing = $dkPrimary;
+                                        $unitPrice = $dkPrimaryPrice;
+                                        $processedLine['source'] = 'digikey';
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                // continue
+                            }
+                        }
+                        
+                        if ($altPricing && $altUnitPrice > 0 && ($unitPrice <= 0 || $altUnitPrice < $unitPrice)) {
+                            $savings = $unitPrice > 0 ? round((1 - $altUnitPrice / $unitPrice) * 100, 1) : 0;
+                            $this->logger->info('Alt MPN is CHEAPER — switching', [
+                                'original_mpn' => $line['mpn'],
+                                'alt_mpn' => $altMpn,
+                                'original_price' => $unitPrice,
+                                'alt_price' => $altUnitPrice,
+                                'savings_pct' => $savings . '%',
+                            ]);
+                            
+                            // Swap to the cheaper alternative
+                            $pricing = $altPricing;
+                            $unitPrice = $altUnitPrice;
+                            $processedLine['alt_mpn_used'] = $altMpn;
+                            $processedLine['alt_mpn_savings_pct'] = $savings;
+                            $processedLine['source'] = $altPricing['source'] ?? $processedLine['source'];
+                            
+                            if (isset($altPricing['confidence'])) {
+                                $processedLine['confidence'] = $altPricing['confidence'];
+                                $processedLine['confidence']['reasons'][] = "Used alt MPN {$altMpn} ({$savings}% cheaper)";
+                            }
+                        } else {
+                            $this->logger->debug('Alt MPN not cheaper', [
+                                'alt_mpn' => $altMpn,
+                                'alt_price' => $altUnitPrice,
+                                'original_price' => $unitPrice,
+                            ]);
                         }
                     }
-                    
-                    if ($altPricing && $altUnitPrice > 0 && ($unitPrice <= 0 || $altUnitPrice < $unitPrice)) {
-                        $savings = $unitPrice > 0 ? round((1 - $altUnitPrice / $unitPrice) * 100, 1) : 0;
-                        $this->logger->info('Alt MPN is CHEAPER — switching', [
-                            'original_mpn' => $line['mpn'],
-                            'alt_mpn' => $altMpn,
-                            'original_price' => $unitPrice,
-                            'alt_price' => $altUnitPrice,
-                            'savings_pct' => $savings . '%',
-                        ]);
-                        
-                        // Swap to the cheaper alternative
-                        $pricing = $altPricing;
-                        $unitPrice = $altUnitPrice;
-                        $processedLine['alt_mpn_used'] = $altMpn;
-                        $processedLine['alt_mpn_savings_pct'] = $savings;
-                        $processedLine['source'] = $altPricing['source'] ?? $processedLine['source'];
-                        
-                        if (isset($altPricing['confidence'])) {
-                            $processedLine['confidence'] = $altPricing['confidence'];
-                            $processedLine['confidence']['reasons'][] = "Used alt MPN {$altMpn} ({$savings}% cheaper)";
-                        }
-                    } else {
-                        $this->logger->debug('Alt MPN not cheaper', [
-                            'alt_mpn' => $altMpn,
-                            'alt_price' => $altUnitPrice,
-                            'original_price' => $unitPrice,
-                        ]);
-                    }
+                } else {
+                    $this->logger->debug('Skipping alt-MPN re-search — already matched during unsourced fallback', [
+                        'alt_mpn' => $pricing['alt_mpn_used'],
+                    ]);
                 }
                 
                 // ── BOM-embedded price sanity check ──
@@ -667,7 +676,36 @@ class PricingEngine
                 // credibility info and 'description' contains SEO-stuffed listing titles.
                 // Enrich from alternatives (DigiKey/Mouser) or clean up for presentation.
                 $processedLine = $this->enrichAlibabaPresentation($processedLine, $line);
-                
+
+                // ── C5: Risk-adjusted pricing analysis ──
+                // Calculate risk factors (stock, lead time, lifecycle, supplier) and annotate
+                // the processed line with risk grade, warnings, and adjusted cost.
+                try {
+                    $riskAnalysis = $this->riskAdjustedPricing->calculateRiskAdjustedCost(
+                        $pricing,
+                        $effectiveQty,
+                        $processedLine['source'] ?? 'unknown'
+                    );
+                    $processedLine['risk_analysis'] = $riskAnalysis;
+
+                    // If risk grade is D or F, flag the line for manual review
+                    $riskGrade = $riskAnalysis['risk_grade'] ?? '';
+                    if (in_array($riskGrade, ['D', 'F'], true)) {
+                        $processedLine['confidence']['requiresReview'] = true;
+                        $processedLine['confidence']['warnings'] = array_merge(
+                            $processedLine['confidence']['warnings'] ?? [],
+                            $riskAnalysis['warnings'] ?? []
+                        );
+                        $stats['requires_review_count']++;
+                    }
+                } catch (\Exception $e) {
+                    // Risk analysis is non-critical — log and continue
+                    $this->logger->warning('Risk-adjusted pricing analysis failed', [
+                        'mpn' => $line['mpn'] ?? 'unknown',
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
             } else {
                 // Could not source - mark for manual pricing
                 $processedLine = $line;
@@ -1251,7 +1289,8 @@ class PricingEngine
         // ── Bulk extrapolation: when qty exceeds highest tier by 2x+, apply volume discount ──
         // This reflects real-world negotiated pricing below last posted break.
         // Uses a log-linear learning curve: each doubling of qty reduces price ~15%.
-        $highestBreak = end($priceBreaks);
+        // Fix H4: Use array_key_last() instead of end() to avoid mutating internal array pointer.
+        $highestBreak = $priceBreaks[array_key_last($priceBreaks)];
         $highestQty = (int)($highestBreak['quantity'] ?? 1);
         $highestPrice = (float)($highestBreak['price'] ?? 0);
         

@@ -47,6 +47,10 @@ final class LocalSearxngProvider implements SearchProviderInterface
     ): SearchResultSet {
         $startTime = microtime(true);
 
+        // Strip quotes around single words — SearXNG's site: operator breaks
+        // when a single word is quoted (e.g. site:kerix.net "automotive" returns 0).
+        $query = preg_replace('/"(\w+)"/u', '$1', $query);
+
         // Map startIndex to SearXNG page number (SearXNG uses pageno=1,2,3...)
         // Our startIndex is 1-based: 1=page1, 21=page2, 41=page3
         $pageNo = max(1, (int) ceil($startIndex / 20));
@@ -57,7 +61,16 @@ final class LocalSearxngProvider implements SearchProviderInterface
             'language' => $this->mapRegionToLanguage($region),
             'safesearch' => '0',
             'pageno' => (string) $pageNo,
-            // Don't restrict engines here — use SearXNG's settings.yml config
+            // Only use reliable engines for B2B search.
+            // google: SUSPENDED (access denied) — removed until IPRoyal proxy is rotated
+            // bing: good for B2B queries, supports site: operator
+            // brave: decent general results, supports site: operator
+            // yahoo: useful for directory results
+            // qwant: SUSPENDED (access denied) — removed
+            // mojeek: SUSPENDED (access denied) — removed
+            // Intentionally excluded: startpage (returns too much noise/wikipedia/reddit),
+            // duckduckgo (CAPTCHA-blocked on Hetzner IPs), yep (low quality)
+            'engines' => 'bing,brave,yahoo',
         ];
 
         $url = rtrim($this->baseUrl, '/') . '/search';
@@ -84,9 +97,14 @@ final class LocalSearxngProvider implements SearchProviderInterface
             $data = $response->toArray();
             $rawResults = $data['results'] ?? [];
 
-            // Convert SearXNG results to SearchResult objects
+            // Convert SearXNG results to SearchResult objects.
+            // NOTE: We do NOT deduplicate by root domain here because:
+            // 1. CandidateCollector handles all deduplication (domain-based for normal
+            //    domains, URL-based for known directory domains like kerix.net).
+            // 2. For site: directory queries, ALL results share the same root domain
+            //    (e.g. kerix.net), and we need every one — each is a different company
+            //    profile page for seed extraction.
             $results = [];
-            $seen = []; // Deduplicate by root domain
             foreach ($rawResults as $item) {
                 if (count($results) >= $maxResults) {
                     break;
@@ -101,13 +119,6 @@ final class LocalSearxngProvider implements SearchProviderInterface
                 if (!$host) {
                     continue;
                 }
-
-                // Deduplicate by root domain
-                $rootDomain = strtolower(preg_replace('/^www\./', '', $host));
-                if (isset($seen[$rootDomain])) {
-                    continue;
-                }
-                $seen[$rootDomain] = true;
 
                 $results[] = new SearchResult(
                     url: $itemUrl,
@@ -193,6 +204,16 @@ final class LocalSearxngProvider implements SearchProviderInterface
         );
     }
 
+    /**
+     * Map region code to SearXNG language parameter.
+     *
+     * For North African countries (MA, TN, DZ), we use 'en' instead of 'fr-FR'
+     * because B2B manufacturing content targeted by our site: directory queries
+     * (kerix.net, charika.ma, pagesjaunes.ma, etc.) is predominantly in English.
+     * Using 'fr-FR' with SearXNG's language filter was causing those results to
+     * be suppressed (returning 0 results), while 'en' returns the same directory
+     * pages with full company listings regardless of the page's display language.
+     */
     private function mapRegionToLanguage(?string $region): string
     {
         return match ($region) {
@@ -213,9 +234,10 @@ final class LocalSearxngProvider implements SearchProviderInterface
             'GR' => 'el-GR',
             'TR' => 'tr-TR',
             'EG' => 'ar-EG',
-            'MA' => 'fr-FR',
-            'TN' => 'fr-FR',
-            'DZ' => 'fr-FR',
+            // North Africa — use English for B2B directory search results
+            'MA' => 'en',
+            'TN' => 'en',
+            'DZ' => 'en',
             'SA' => 'ar-SA',
             'AE' => 'ar-AE',
             'JP' => 'ja-JP',

@@ -7,7 +7,6 @@ use App\Entity\Contact;
 use App\Entity\Lead;
 use App\Message\LeadDeepScrapeMessage;
 use App\Service\DeepScrapingService;
-use App\Service\LlmEnrichmentService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -32,7 +31,6 @@ class LeadDeepScrapeMessageHandler
         private EntityManagerInterface $entityManager,
         private DeepScrapingService $scrapingService,
         private LoggerInterface $logger,
-        private ?LlmEnrichmentService $llmService = null
     ) {}
 
     public function __invoke(LeadDeepScrapeMessage $message): void
@@ -68,11 +66,6 @@ class LeadDeepScrapeMessageHandler
 
             // Create Contact entities from structured contacts
             $contactsCreated = $this->createContactEntities($lead, $scrapeResult);
-            
-            // Optionally use LLM for enrichment
-            if ($message->shouldUseLlm() && $this->llmService) {
-                $contactsCreated += $this->enrichWithLlm($lead, $scrapeResult);
-            }
             
             // Save changes
             $lead->setUpdatedAt(new \DateTime());
@@ -368,179 +361,4 @@ class LeadDeepScrapeMessageHandler
         }
     }
 
-    /**
-     * Enrich lead using LLM analysis.
-     * Now also uses LLM to extract contacts from scraped text
-     * and creates Contact entities from the results.
-     *
-     * @return int Number of additional contacts created from LLM
-     */
-    private function enrichWithLlm(Lead $lead, array $scrapeResult): int
-    {
-        if (!$this->llmService || !$this->llmService->isConfigured()) {
-            return 0;
-        }
-        
-        $contactsCreated = 0;
-        
-        try {
-            // 1) Standard enrichment (summary, industry, key_person)
-            $llmResult = $this->llmService->enrichLeadFromScrapedContent(
-                $lead->getCompanyName(),
-                $scrapeResult['about_text'] ?? '',
-                $scrapeResult['contact_names'] ?? []
-            );
-            
-            if ($llmResult) {
-                $notes = $lead->getNotesAuto() ?? '';
-                $notes .= "\n[LLM Enrichment] " . ($llmResult['summary'] ?? '');
-                
-                if (!empty($llmResult['industry'])) {
-                    $sectors = $lead->getSectorTags() ?? [];
-                    $sectors[] = $llmResult['industry'];
-                    $lead->setSectorTags(array_unique($sectors));
-                }
-                
-                // Use key_person data from LLM (was previously discarded!)
-                if (!empty($llmResult['key_person']['name'])) {
-                    $personName = $llmResult['key_person']['name'];
-                    $personRole = $llmResult['key_person']['role'] ?? null;
-                    
-                    $notes .= "\nKey decision-maker: " . $personName;
-                    if ($personRole) {
-                        $notes .= " ({$personRole})";
-                    }
-                    
-                    // Try to create a Contact entity from the key_person
-                    $company = $lead->getCompany();
-                    if ($company) {
-                        $parts = preg_split('/\s+/', trim($personName));
-                        if (count($parts) >= 2) {
-                            $firstName = array_shift($parts);
-                            $lastName = implode(' ', $parts);
-                            
-                            // Check for duplicates
-                            $exists = $this->entityManager->getRepository(Contact::class)
-                                ->createQueryBuilder('c')
-                                ->where('c.company = :company')
-                                ->andWhere('LOWER(c.firstName) = :first')
-                                ->andWhere('LOWER(c.lastName) = :last')
-                                ->setParameter('company', $company)
-                                ->setParameter('first', strtolower($firstName))
-                                ->setParameter('last', strtolower($lastName))
-                                ->setMaxResults(1)
-                                ->getQuery()
-                                ->getOneOrNullResult();
-                            
-                            if (!$exists) {
-                                $contact = new Contact();
-                                $contact->setCompany($company);
-                                $contact->setFirstName($firstName);
-                                $contact->setLastName($lastName);
-                                if ($personRole) {
-                                    $contact->setJobTitle($personRole);
-                                }
-                                $contact->setSource('Webcrawler (LLM)');
-                                $contact->setPrimaryContact(true);
-                                $contact->setNotes('Identified as key decision-maker by AI analysis');
-                                $contact->setCreatedAt(new \DateTime());
-
-                                // Try email pattern matching
-                                if (!empty($llmResult['primary_email_pattern'])) {
-                                    $emailPattern = $llmResult['primary_email_pattern'];
-                                    // Replace placeholders with actual name
-                                    $guessedEmail = str_replace(
-                                        ['firstname', 'lastname', 'first', 'last'],
-                                        [strtolower($firstName), strtolower($lastName), strtolower($firstName), strtolower($lastName)],
-                                        strtolower($emailPattern)
-                                    );
-                                    if (filter_var($guessedEmail, FILTER_VALIDATE_EMAIL)) {
-                                        $contact->setEmail($guessedEmail);
-                                        $contact->setNotes($contact->getNotes() . "\nEmail generated from pattern: {$emailPattern}");
-                                    }
-                                }
-
-                                $this->entityManager->persist($contact);
-                                $contactsCreated++;
-                                
-                                $this->logger->info('Created contact from LLM key_person', [
-                                    'name' => "$firstName $lastName",
-                                    'role' => $personRole,
-                                    'company' => $company->getName(),
-                                ]);
-                            }
-                        }
-                    }
-                }
-                
-                $lead->setNotesAuto($notes);
-            }
-
-            // 2) Use the previously-dead extractContactsFromText() for raw text analysis
-            $rawText = ($scrapeResult['about_text'] ?? '');
-            foreach ($scrapeResult['structured_contacts'] ?? [] as $c) {
-                $rawText .= "\n" . trim(($c['first_name'] ?? '') . ' ' . ($c['last_name'] ?? ''));
-                if (!empty($c['job_title'])) {
-                    $rawText .= ' - ' . $c['job_title'];
-                }
-            }
-
-            if (strlen($rawText) > 50) {
-                $llmContacts = $this->llmService->extractContactsFromText($rawText);
-                if (!empty($llmContacts['names']) && is_array($llmContacts['names'])) {
-                    $company = $lead->getCompany();
-                    if ($company) {
-                        foreach ($llmContacts['names'] as $personData) {
-                            if (!is_array($personData) || empty($personData['name'])) {
-                                continue;
-                            }
-                            $parts = preg_split('/\s+/', trim($personData['name']));
-                            if (count($parts) < 2) {
-                                continue;
-                            }
-                            $firstName = array_shift($parts);
-                            $lastName = implode(' ', $parts);
-                            $role = $personData['role'] ?? null;
-
-                            // Dedup
-                            $exists = $this->entityManager->getRepository(Contact::class)
-                                ->createQueryBuilder('c')
-                                ->where('c.company = :company')
-                                ->andWhere('LOWER(c.firstName) = :first')
-                                ->andWhere('LOWER(c.lastName) = :last')
-                                ->setParameter('company', $company)
-                                ->setParameter('first', strtolower($firstName))
-                                ->setParameter('last', strtolower($lastName))
-                                ->setMaxResults(1)
-                                ->getQuery()
-                                ->getOneOrNullResult();
-
-                            if (!$exists) {
-                                $contact = new Contact();
-                                $contact->setCompany($company);
-                                $contact->setFirstName($firstName);
-                                $contact->setLastName($lastName);
-                                if ($role) {
-                                    $contact->setJobTitle($role);
-                                }
-                                $contact->setSource('Webcrawler (LLM text)');
-                                $contact->setNotes('Extracted from page content by AI');
-                                $contact->setCreatedAt(new \DateTime());
-                                $this->entityManager->persist($contact);
-                                $contactsCreated++;
-                            }
-                        }
-                    }
-                }
-            }
-            
-        } catch (\Exception $e) {
-            $this->logger->warning('LLM enrichment failed', [
-                'lead_id' => $lead->getId(),
-                'error' => $e->getMessage()
-            ]);
-        }
-
-        return $contactsCreated;
-    }
 }

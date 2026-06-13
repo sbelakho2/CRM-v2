@@ -55,17 +55,15 @@ class HtsClassificationService
             ];
         }
         
-        // 2. Try exact MPN match
+        // 2. Try exact MPN match via keywords JSON field
+        // The hts_map_rules.keywords column stores a JSON array of identifiers (MPNs, part numbers)
         $mpn = $bomLine['mpn'] ?? null;
-        $manufacturer = $bomLine['manufacturer'] ?? null;
         
-        if ($mpn && $manufacturer) {
+        if ($mpn) {
             $mappedRule = $this->htsMapRuleRepository->createQueryBuilder('h')
-                ->where('h.mpnPattern = :mpn')
-                ->andWhere('h.manufacturer = :manufacturer')
+                ->where('h.keywords LIKE :mpnPattern')
                 ->andWhere('h.isActive = true')
-                ->setParameter('mpn', $mpn)
-                ->setParameter('manufacturer', $manufacturer)
+                ->setParameter('mpnPattern', '%"' . $mpn . '"%')
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();
@@ -103,77 +101,119 @@ class HtsClassificationService
 
     /**
      * Apply heuristic matching rules for HTS classification
-     * 
+     *
+     * Extracts meaningful keywords from description/category and matches against
+     * the hts_map_rules.keywords JSON array and category fields.
+     *
+     * Component-type keywords are recognized and weighted higher:
+     * - resistor → 8533, capacitor → 8532, diode/transistor/IC → 8541/8542
+     * - connector/switch/relay → 8536, transformer/inductor → 8504
+     * - PCB → 8534, LED/crystal/sensor → 8541
+     *
      * @param array $bomLine BOM line data
      * @return HtsMapRule|null Best matching rule (highest priority) or null
-     * 
-     * TODO Implementation:
-     * 1. Extract keywords from bomLine['description'] and bomLine['category']
-     * 2. Query hts_map_rules WHERE:
-     *    - keyword_pattern matches any extracted keyword (use LIKE '%keyword%')
-     *    - OR category = bomLine['category']
-     *    - AND is_active = true
-     * 3. Order by priority DESC, confidence_score DESC
-     * 4. Return first result or null
-     * 
-     * Example heuristic rules:
-     * - keyword_pattern: '%microcontroller%' → hts_code: '8542.39.00'
-     * - keyword_pattern: '%resistor%' → hts_code: '8533.21.00'
-     * - category: 'Capacitor' → hts_code: '8532.24.00'
      */
     private function applyHeuristics(array $bomLine): ?HtsMapRule
     {
         $description = $bomLine['description'] ?? '';
         $category = $bomLine['category'] ?? '';
+        $mpn = $bomLine['mpn'] ?? '';
+        $manufacturer = $bomLine['manufacturer'] ?? '';
         
-        // Extract keywords from description (words with 4+ characters)
+        // --- 1. Smart Keyword Extraction ---
         $keywords = [];
+        $componentTypes = []; // recognized component-type terms
+        
+        // Known electronic component types mapped to HTS chapters
+        $componentTypeMap = [
+            'resistor' => 'resistor', 'resistive' => 'resistor',
+            'capacitor' => 'capacitor', 'capacitive' => 'capacitor', 'condenser' => 'capacitor',
+            'diode' => 'semiconductor', 'transistor' => 'semiconductor', 'thyristor' => 'semiconductor',
+            'ic' => 'integrated_circuit', 'integrated circuit' => 'integrated_circuit',
+            'microcontroller' => 'integrated_circuit', 'microprocessor' => 'integrated_circuit',
+            'connector' => 'connector', 'header' => 'connector', 'socket' => 'connector',
+            'switch' => 'switch', 'relay' => 'relay', 'transformer' => 'transformer',
+            'inductor' => 'inductor', 'coil' => 'inductor', 'choke' => 'inductor',
+            'led' => 'optoelectronic', 'optocoupler' => 'optoelectronic', 'photodiode' => 'optoelectronic',
+            'crystal' => 'crystal', 'oscillator' => 'crystal', 'resonator' => 'crystal',
+            'sensor' => 'sensor', 'thermistor' => 'sensor',
+            'fuse' => 'fuse', 'polymer' => 'fuse',
+            'pcb' => 'pcb', 'printed circuit' => 'pcb', 'circuit board' => 'pcb',
+            'filter' => 'filter', 'ferrite' => 'inductor',
+        ];
+        
+        // Extract keywords from description
         if ($description) {
-            $words = preg_split('/\s+/', strtolower($description));
+            $words = preg_split('/[\s,;\/()-]+/', strtolower($description));
             foreach ($words as $word) {
-                $cleaned = preg_replace('/[^a-z0-9]/', '', $word);
-                if (strlen($cleaned) >= 4) {
+                $cleaned = preg_replace('/[^a-z0-9.-]/', '', trim($word));
+                if (strlen($cleaned) < 2) {
+                    continue;
+                }
+                
+                // Check if this is a known component type
+                if (isset($componentTypeMap[$cleaned])) {
+                    $componentTypes[$componentTypeMap[$cleaned]] = $cleaned;
+                    // Always include component type names as keywords
+                    $keywords[] = $cleaned;
+                } elseif (strlen($cleaned) >= 3) {
                     $keywords[] = $cleaned;
                 }
             }
         }
         
-        // Build query for heuristic matching
-        $qb = $this->htsMapRuleRepository->createQueryBuilder('h')
-            ->where('h.isActive = true');
-        
-        // Add keyword matching conditions
-        if (!empty($keywords)) {
-            $keywordConditions = [];
-            foreach ($keywords as $i => $keyword) {
-                $keywordConditions[] = "h.keywordPattern LIKE :keyword{$i}";
-                $qb->setParameter("keyword{$i}", "%{$keyword}%");
-            }
-            
-            $qb->andWhere('(' . implode(' OR ', $keywordConditions) . ')');
-        }
-        
-        // Add category matching as alternative
+        // Add category as a keyword if provided
         if ($category) {
-            if (!empty($keywords)) {
-                $qb->orWhere('h.category = :category');
-            } else {
-                $qb->andWhere('h.category = :category');
+            $catLower = strtolower($category);
+            $keywords[] = $catLower;
+            if (isset($componentTypeMap[$catLower])) {
+                $componentTypes[$componentTypeMap[$catLower]] = $catLower;
             }
-            $qb->setParameter('category', $category);
         }
         
-        // If no keywords or category, return null
+        // Add MPN as keyword (helps match rules that list specific part numbers)
+        if ($mpn) {
+            $keywords[] = strtolower($mpn);
+        }
+        
+        // Add manufacturer name
+        if ($manufacturer) {
+            $keywords[] = strtolower($manufacturer);
+        }
+        
+        // Remove duplicates
+        $keywords = array_unique(array_filter($keywords));
+        
+        // --- 2. Query Building ---
         if (empty($keywords) && !$category) {
             return null;
         }
         
-        // Order by priority and confidence
+        $qb = $this->htsMapRuleRepository->createQueryBuilder('h')
+            ->where('h.isActive = true');
+        
+        // Keyword matching against JSON text field
+        $keywordConditions = [];
+        foreach ($keywords as $i => $keyword) {
+            $keywordConditions[] = "h.keywords LIKE :keyword{$i}";
+            $qb->setParameter("keyword{$i}", "%{$keyword}%");
+        }
+        
+        $qb->andWhere('(' . implode(' OR ', $keywordConditions) . ')');
+        
+        // Order by priority (higher = more specific rule matches first)
         $qb->orderBy('h.priority', 'DESC')
-            ->addOrderBy('h.confidenceScore', 'DESC')
             ->setMaxResults(1);
         
-        return $qb->getQuery()->getOneOrNullResult();
+        $result = $qb->getQuery()->getOneOrNullResult();
+        
+        // --- 3. Category-based fallback ---
+        // If keyword matching failed but we have a category, try direct category match
+        if (!$result && $category) {
+            $result = $this->htsMapRuleRepository->findByCategory($category);
+        }
+        
+        return $result;
     }
 
     /**

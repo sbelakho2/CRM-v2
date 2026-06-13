@@ -151,26 +151,32 @@ class CostingEngineService
             $multiplier *= 0.95;
         }
         
-        // 4. Calculate unit cost
+        // 4. Calculate unit cost (base, before quantity discount)
         $pricePerSqcm = $basePricePerSqcm * $multiplier;
         $unitCost = $areaPerBoard * $pricePerSqcm;
         
         // 5. Apply quantity discounts
+        // Fix H6: Apply discount to the LINE ITEM TOTAL (unitCost × qty), NOT to the unit cost
+        // before multiplication. Previously the discount was applied to unitCost which was then
+        // multiplied by qty in totalCost — this double-applied the discount.
         $qty = $pcbSpec['qty'] ?? 1;
+        $lineTotal = $unitCost * $qty;
         if ($qty >= 1000) {
-            $unitCost *= 0.7;
+            $lineTotal *= 0.7; // 30% discount for qty >= 1000
         } elseif ($qty >= 100) {
-            $unitCost *= 0.85;
+            $lineTotal *= 0.85; // 15% discount for qty >= 100
         }
+        // Recalculate unit cost after discount
+        $discountedUnitCost = $lineTotal / $qty;
         
         // 6. Setup cost
         $setupCost = $setupCostBase;
         
         // 7. Return cost breakdown
         return [
-            'unitCost' => round($unitCost, 2),
+            'unitCost' => round($discountedUnitCost, 2),
             'setupCost' => round($setupCost, 2),
-            'totalCost' => round(($unitCost * $qty) + $setupCost, 2),
+            'totalCost' => round($lineTotal + $setupCost, 2),
             'areaPerBoard' => round($areaPerBoard, 2),
             'pricePerSqcm' => round($pricePerSqcm, 4)
         ];
@@ -297,25 +303,31 @@ class CostingEngineService
             $totalCost *= 1.4;
         }
         
-        // 4. Calculate unit cost
+        // 4. Calculate unit cost (base, before quantity discount)
         $unitCost = $totalCost;
         
         // 5. Apply quantity discounts
+        // Fix H6: Apply discount to the LINE ITEM TOTAL (unitCost × qty), NOT to the unit cost
+        // before multiplication. Previously the discount was applied to unitCost which was then
+        // multiplied by qty in totalCost — this double-applied the discount.
         $qty = $asmSpec['qty'] ?? 1;
+        $lineTotal = $unitCost * $qty;
         if ($qty >= 1000) {
-            $unitCost *= 0.75;
+            $lineTotal *= 0.75; // 25% discount for qty >= 1000
         } elseif ($qty >= 100) {
-            $unitCost *= 0.9;
+            $lineTotal *= 0.9;  // 10% discount for qty >= 100
         }
+        // Recalculate unit cost after discount
+        $discountedUnitCost = $lineTotal / $qty;
         
         // 6. Setup cost
         $setupCost = $setupCostBase;
         
         // 7. Return cost breakdown
         return [
-            'unitCost' => round($unitCost, 2),
+            'unitCost' => round($discountedUnitCost, 2),
             'setupCost' => round($setupCost, 2),
-            'totalCost' => round(($unitCost * $qty) + $setupCost, 2),
+            'totalCost' => round($lineTotal + $setupCost, 2),
             'pricePerComponent' => round($basePricePerComponent, 4)
         ];
     }

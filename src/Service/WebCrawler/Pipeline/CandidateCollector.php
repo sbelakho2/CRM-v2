@@ -43,23 +43,54 @@ final class CandidateCollector
         // Social media
         'linkedin.com', 'facebook.com', 'twitter.com', 'x.com', 'instagram.com',
         'youtube.com', 'tiktok.com', 'pinterest.com', 'reddit.com',
+        'threads.net', 'snapchat.com', 'whatsapp.com', 'telegram.org',
         // News / media
         'bloomberg.com', 'reuters.com', 'bbc.com', 'bbc.co.uk', 'cnn.com',
         'theguardian.com', 'nytimes.com', 'ft.com', 'wsj.com', 'forbes.com',
         'businessinsider.com', 'techcrunch.com', 'wired.com', 'zdnet.com',
+        'cnbc.com', 'marketwatch.com', 'economist.com', 'newsweek.com',
+        'usatoday.com', 'huffpost.com', 'buzzfeed.com', 'vox.com',
         // Job boards
         'glassdoor.com', 'indeed.com', 'monster.com', 'stepstone.de',
         'jobrapido.com', 'seek.com.au', 'bayt.com',
-        // Marketplaces / directories
+        'dice.com', 'careerbuilder.com', 'totaljobs.com', 'reed.co.uk',
+        // Marketplaces / directories (blocked as crawl targets, not as seed sources)
         'amazon.com', 'alibaba.com', 'aliexpress.com', 'ebay.com',
         'thomasnet.com', 'europages.com', 'kompass.com', 'dnb.com',
         'crunchbase.com', 'zoominfo.com', 'owler.com',
+        'mouser.com', 'digikey.com', 'farnell.com', 'rs-online.com',
+        'newark.com', 'arrow.com', 'element14.com',
         // Reference / encyclopedia
         'wikipedia.org', 'wikimedia.org', 'wikidata.org',
+        'britannica.com', 'investopedia.com',
         // File sharing / code
         'github.com', 'gitlab.com', 'bitbucket.org', 'stackoverflow.com',
-        // Search engines
+        'medium.com', 'blogspot.com', 'wordpress.com', 'tumblr.com',
+        'wixsite.com', 'squarespace.com', 'weebly.com',
+        // Search engines / portals
         'google.com', 'bing.com', 'yahoo.com', 'duckduckgo.com',
+        'baidu.com', 'yandex.com', 'ask.com', 'aol.com',
+        // Social / review / rating platforms
+        'yelp.com', 'trustpilot.com', 'g2.com', 'capterra.com',
+        'glassdoor.co.in', 'sitejabber.com',
+        // Patent / IP databases
+        'patents.google.com', 'patentscope.wipo.int', 'uspto.gov',
+        'espacenet.com', 'freepatentsonline.com',
+        // Academic / research
+        'researchgate.net', 'academia.edu', 'scholar.google.com',
+    ];
+
+    /**
+     * Known directory domains that should bypass domain deduplication.
+     * These domains host company listings (kerix.net, charika.ma, etc.)
+     * where each search result is a DIFFERENT company profile page.
+     * We need ALL results, not just the first one, so the DirectorySeedExtractor
+     * can extract every company name from their respective titles/snippets.
+     */
+    private const SEED_DIRECTORY_DOMAINS = [
+        'kerix.net', 'charika.ma', 'pagesjaunes.ma', 'telecontact.ma',
+        'amica.org.ma', 'yellowpages.com.eg', 'daleel.com.eg',
+        'pagesjaunes.com.tn', 'tunisieindustrie.nat.tn',
     ];
 
     public function __construct(
@@ -104,8 +135,16 @@ final class CandidateCollector
                     continue;
                 }
 
-                // Skip if already collected
-                if (isset($candidates[$domain])) {
+                // Determine dedup key:
+                // - For known directory domains (kerix.net, charika.ma, etc.), use the FULL URL
+                //   so each different company profile page is collected as a separate seed source.
+                // - For normal domains, use the root domain to avoid duplicates.
+                $dedupKey = $this->isSeedDirectoryDomain($domain)
+                    ? $result->getUrl()
+                    : $domain;
+
+                // Skip if already collected (by dedup key)
+                if (isset($candidates[$dedupKey])) {
                     continue;
                 }
 
@@ -114,9 +153,17 @@ final class CandidateCollector
                     continue;
                 }
 
-                $candidates[$domain] = [
+                // Derive company name from search result
+                $companyName = $this->deriveCompanyName($result);
+
+                // Filter junk company names early — before wasting crawl resources
+                if ($this->isJunkCompanyName($companyName, $result->getSnippet(), $domain)) {
+                    continue;
+                }
+
+                $candidates[$dedupKey] = [
                     'domain'     => $domain,
-                    'name'       => $this->deriveCompanyName($result),
+                    'name'       => $companyName,
                     'url'        => $result->getUrl(),
                     'title'      => $result->getTitle(),
                     'snippet'    => $result->getSnippet(),
@@ -174,6 +221,23 @@ final class CandidateCollector
     }
 
     /**
+     * Check if the domain is a known seed directory domain.
+     * These are directory sites (kerix.net, charika.ma, etc.) where each
+     * search result is a DIFFERENT company profile page. We keep all results
+     * as separate candidates so the DirectorySeedExtractor can extract every
+     * company name from their individual titles/snippets.
+     */
+    private function isSeedDirectoryDomain(string $domain): bool
+    {
+        foreach (self::SEED_DIRECTORY_DOMAINS as $seedDomain) {
+            if (str_contains($domain, $seedDomain)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Derive a company name from the search result title.
      * Strips common suffixes like " - Wikipedia", " | LinkedIn", " - Home".
      */
@@ -199,5 +263,96 @@ final class CandidateCollector
         }
 
         return $title;
+    }
+
+    /**
+     * Filter out junk/non-company names early to avoid wasting crawl resources.
+     * Based on patterns from CompanyDiscoveryService junk name detection.
+     */
+    private function isJunkCompanyName(string $name, string $snippet, string $domain): bool
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return true;
+        }
+
+        // Too short to be a real company name
+        if (mb_strlen($name) < 3) {
+            return true;
+        }
+
+        // Too long — likely a title/description, not a company name
+        if (mb_strlen($name) > 100) {
+            return true;
+        }
+
+        // Error/page-not-found indicators
+        $errorPatterns = [
+            'page not found', '404 not found', 'access denied', 'forbidden',
+            'just a moment', 'please wait', 'verify you are human',
+            'captcha', 'attention required', 'sorry', 'error',
+            'maintenance', 'under construction', 'coming soon',
+            'this site can\'t be reached', 'server not found',
+            'connection timed out', 'ssl error', 'privacy error',
+        ];
+        $nameLower = mb_strtolower($name);
+        foreach ($errorPatterns as $pattern) {
+            if (str_contains($nameLower, $pattern)) {
+                return true;
+            }
+        }
+
+        // Category/directory label patterns — not real company names
+        $nonCompanyPatterns = [
+            '/^[a-z]+\s+companies\s+in\s+/i',
+            '/^top\s+\d+\s+/i',
+            '/\blist\s+of\b/i',
+            '/\bdirectory\b/i',
+            '/^\d+\s+best\b/i',
+            '/\bsupplier\s+directory\b/i',
+            '/\bmanufacturing\s+companies\b/i',
+            '/^manufacturers?\s+in\b/i',
+            '/^suppliers?\s+in\b/i',
+            '/^factories\s+in\b/i',
+        ];
+        foreach ($nonCompanyPatterns as $pattern) {
+            if (preg_match($pattern, $nameLower) === 1) {
+                return true;
+            }
+        }
+
+        // Domain-only or URL-like names (no real company identifier)
+        if (preg_match('/^https?:\/\//i', $name) || preg_match('/^www\./i', $name)) {
+            return true;
+        }
+
+        // All-caps single word — likely a category, not a company
+        if (mb_strlen($name) < 10 && preg_match('/^[A-Z\s]+$/', $name) && !preg_match('/\s/', $name)) {
+            // Check snippet and domain for company indicators
+            $combined = mb_strtolower($snippet . ' ' . $domain);
+            if (!preg_match('/\b(manufacturer|company|corp|inc|ltd|gmbh|sarl|sas|spa)\b/i', $combined)) {
+                return true;
+            }
+        }
+
+        // Excessive special characters — likely junk
+        $specialCharCount = preg_match_all('/[^a-zA-Z0-9\s\-.,&()\/]/', $name);
+        if ($specialCharCount > 5) {
+            return true;
+        }
+
+        // Generic navigation/page title patterns
+        $genericTitles = [
+            'home', 'homepage', 'index', 'default', 'main',
+            'products', 'services', 'solutions', 'about us',
+            'contact us', 'careers', 'news', 'blog',
+            'industries', 'capabilities', 'quality',
+            'sign in', 'login', 'register', 'subscribe',
+        ];
+        if (in_array(mb_strtolower($name), $genericTitles, true)) {
+            return true;
+        }
+
+        return false;
     }
 }

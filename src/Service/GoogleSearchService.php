@@ -330,9 +330,12 @@ class GoogleSearchService
         $dailyQuota = 2000;
         $costPerQuery = 0.005; // $5 per 1000 queries
 
+        $freeQuota = max(0, $dailyQuota - $totalQueries);
+
         return [
             'total_queries' => $totalQueries,
             'daily_quota' => $dailyQuota,
+            'free_quota' => $freeQuota,
             'billable_queries' => $totalQueries,
             'estimated_cost' => $totalQueries * $costPerQuery,
             'currency' => 'USD',

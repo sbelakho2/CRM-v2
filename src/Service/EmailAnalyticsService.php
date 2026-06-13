@@ -70,29 +70,30 @@ class EmailAnalyticsService
      */
     public function getEngagementTimeline(EmailCampaign $campaign, string $interval = 'day'): array
     {
-        // Get opens over time
-        $opens = $this->entityManager->createQuery(
-            "SELECT DATE(es.openedAt) as date, COUNT(es.id) as count 
-             FROM App\Entity\EmailSend es 
-             WHERE es.campaign = :campaign 
-             AND es.openedAt IS NOT NULL 
-             GROUP BY DATE(es.openedAt) 
-             ORDER BY date ASC"
-        )
-        ->setParameter('campaign', $campaign)
-        ->getResult();
+        $conn = $this->entityManager->getConnection();
+        $campaignId = $campaign->getId();
 
-        // Get clicks over time
-        $clicks = $this->entityManager->createQuery(
-            "SELECT DATE(es.clickedAt) as date, COUNT(es.id) as count 
-             FROM App\Entity\EmailSend es 
-             WHERE es.campaign = :campaign 
-             AND es.clickedAt IS NOT NULL 
-             GROUP BY DATE(es.clickedAt) 
-             ORDER BY date ASC"
-        )
-        ->setParameter('campaign', $campaign)
-        ->getResult();
+        // Get opens over time — using native SQL for DATE()
+        $opens = $conn->fetchAllAssociative(
+            "SELECT DATE(es.opened_at) AS date, COUNT(es.id) AS count
+             FROM email_sends es
+             WHERE es.campaign_id = :campaign
+             AND es.opened_at IS NOT NULL
+             GROUP BY DATE(es.opened_at)
+             ORDER BY date ASC",
+            ['campaign' => $campaignId]
+        );
+
+        // Get clicks over time — using native SQL for DATE()
+        $clicks = $conn->fetchAllAssociative(
+            "SELECT DATE(es.clicked_at) AS date, COUNT(es.id) AS count
+             FROM email_sends es
+             WHERE es.campaign_id = :campaign
+             AND es.clicked_at IS NOT NULL
+             GROUP BY DATE(es.clicked_at)
+             ORDER BY date ASC",
+            ['campaign' => $campaignId]
+        );
 
         return [
             'opens' => $opens,

@@ -40,4 +40,18 @@ class QuoteRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Find a single quote with its BOM lines eagerly loaded (avoids N+1).
+     */
+    public function findWithBomLines(int $id): ?Quote
+    {
+        return $this->createQueryBuilder('q')
+            ->leftJoin('q.bomLines', 'b')
+            ->addSelect('b')
+            ->where('q.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

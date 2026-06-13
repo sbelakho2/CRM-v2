@@ -633,6 +633,13 @@ class PriceImputationService
             'relay' => '/\b(relay)\b/',
             'sensor' => '/\b(sensor|accelerometer|gyro|temp)\b/',
             'crystal_oscillator' => '/\b(crystal|oscillator|xtal)\b/',
+            // Additional categories for mechanical/assembly parts
+            'wire_harness' => '/\b(wire.harness|cable.harness|wiring|harness)\b/',
+            'cable_assembly' => '/\b(cable.assembly|cable|ribbon.cable|coaxial)\b/',
+            'pcb_bare' => '/\b(pcb|pc.bare|printed.circuit|bare.board)\b/',
+            'pcba_assembly' => '/\b(pcba|pcb.assembly|smt.assembly|board.assembly)\b/',
+            'mechanical_part' => '/\b(mechanical|bracket|mount|enclosure|housing|chassis)\b/',
+            'machined_part' => '/\b(machined|cnc|lathe|milled|turned)\b/',
         ];
 
         foreach ($simplePatterns as $cat => $pattern) {
@@ -651,11 +658,13 @@ class PriceImputationService
     private function normalizeInput(BomLine|array $component): array
     {
         if ($component instanceof BomLine) {
+            // Fix C2: BomLine entity has NO getPackage() method (only getMpn, getManufacturer,
+            // getDescription, getQuantity). Remove the package field since neither BomLine
+            // nor the array path necessarily carries it.
             return [
                 'mpn' => $component->getMpn() ?? '',
                 'manufacturer' => $component->getManufacturer() ?? '',
                 'description' => $component->getDescription() ?? '',
-                'package' => $component->getPackage() ?? '',
                 'quantity' => $component->getQuantity() ?? 1,
             ];
         }
@@ -664,7 +673,6 @@ class PriceImputationService
             'mpn' => $component['mpn'] ?? '',
             'manufacturer' => $component['manufacturer'] ?? '',
             'description' => $component['description'] ?? '',
-            'package' => $component['package'] ?? '',
             'quantity' => $component['quantity'] ?? 1,
             'supplier' => $component['supplier'] ?? '',
             'source' => $component['source'] ?? '',

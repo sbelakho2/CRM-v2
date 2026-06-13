@@ -3,8 +3,11 @@
 namespace App\Controller;
 
 use App\Entity\Lead;
+use App\Repository\LeadRepository;
 use App\Service\GoogleSearchService;
 use App\Service\CountryService;
+use App\Service\LeadAnalysisService;
+use App\Service\WebCrawler\LeadScoringService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,15 +22,125 @@ class LeadDiscoveryController extends AbstractController
     public function __construct(
         private GoogleSearchService $googleSearchService,
         private EntityManagerInterface $entityManager,
-        private CountryService $countryService
+        private CountryService $countryService,
+        private LeadAnalysisService $leadAnalysisService,
+        private LeadRepository $leadRepository,
+        private LeadScoringService $leadScoringService
     ) {}
 
     #[Route('/', name: 'lead_discovery_index', methods: ['GET'])]
     public function index(): Response
     {
+        $leadRepo = $this->entityManager->getRepository(Lead::class);
+
+        // Total leads discovered this week / month
+        $now = new \DateTime();
+        $weekStart = (clone $now)->modify('monday this week')->setTime(0, 0, 0);
+        $monthStart = (clone $now)->modify('first day of this month')->setTime(0, 0, 0);
+
+        $thisWeek = (int) $leadRepo->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.createdAt >= :start')
+            ->setParameter('start', $weekStart)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $thisMonth = (int) $leadRepo->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.createdAt >= :start')
+            ->setParameter('start', $monthStart)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // Leads by sector (sectorTags is JSON array; group in PHP)
+        $allSectorRows = $leadRepo->createQueryBuilder('l')
+            ->select('l.sectorTags')
+            ->where('l.sectorTags IS NOT NULL')
+            ->getQuery()
+            ->getScalarResult();
+
+        $sectorCounts = [];
+        foreach ($allSectorRows as $row) {
+            $tags = $row['sectorTags'];
+            if (is_array($tags)) {
+                foreach ($tags as $tag) {
+                    $tag = trim((string) $tag);
+                    if ($tag === '') continue;
+                    $sectorCounts[$tag] = ($sectorCounts[$tag] ?? 0) + 1;
+                }
+            }
+        }
+        arsort($sectorCounts);
+        $leadsBySector = [];
+        foreach ($sectorCounts as $sector => $count) {
+            $leadsBySector[] = ['sector' => $sector, 'count' => $count];
+        }
+
+        // Leads by region
+        $leadsByRegion = $leadRepo->createQueryBuilder('l')
+            ->select('l.regionTag AS region, COUNT(l.id) AS count')
+            ->where('l.regionTag IS NOT NULL')
+            ->groupBy('l.regionTag')
+            ->orderBy('count', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        // Pending review
+        $pendingReview = (int) $leadRepo->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.reviewStatus = :status')
+            ->setParameter('status', 'pending')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // Enrichment statuses
+        $enriched = (int) $leadRepo->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.contactEmailsPublic IS NOT NULL')
+            ->andWhere('l.contactEmailsPublic != :empty')
+            ->setParameter('empty', '[]')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $needsEnrichment = (int) $leadRepo->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->where('l.websiteRoot IS NOT NULL')
+            ->andWhere('(l.contactEmailsPublic IS NULL OR l.contactEmailsPublic = :empty)')
+            ->andWhere('l.hasContactForm = false')
+            ->setParameter('empty', '[]')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // Recent discoveries timeline (last 10)
+        $recentDiscoveries = $leadRepo->createQueryBuilder('l')
+            ->orderBy('l.createdAt', 'DESC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult();
+
+        $qualityDistribution = $this->leadAnalysisService->getLeadQualityDistribution();
+        $sourceEffectiveness = $this->leadAnalysisService->getSourceEffectiveness();
+        $geographicDistribution = $this->leadAnalysisService->getGeographicDistribution();
+        $sectorBreakdown = $this->leadAnalysisService->getSectorBreakdown();
+        $actionableInsights = $this->leadAnalysisService->getActionableInsights();
+
         return $this->render('lead_discovery/index.html.twig', [
             'paid_tier_cost' => 5,
             'paid_tier_currency' => 'USD',
+            'total_leads' => $leadRepo->count([]),
+            'this_week' => $thisWeek,
+            'this_month' => $thisMonth,
+            'leads_by_sector' => $leadsBySector,
+            'leads_by_region' => $leadsByRegion,
+            'pending_review' => $pendingReview,
+            'enriched' => $enriched,
+            'needs_enrichment' => $needsEnrichment,
+            'recent_discoveries' => $recentDiscoveries,
+            'quality_distribution' => $qualityDistribution,
+            'source_effectiveness' => $sourceEffectiveness,
+            'geographic_distribution' => $geographicDistribution,
+            'sector_breakdown' => $sectorBreakdown,
+            'actionable_insights' => $actionableInsights,
         ]);
     }
 
@@ -125,6 +238,18 @@ class LeadDiscoveryController extends AbstractController
                 $lead->setSectorTags([$sector]);
             }
 
+            // Apply scoring engine for quality assessment
+            $scoreData = $this->leadScoringService->scoreLead([
+                'company_name' => $lead->getCompanyName(),
+                'website_root' => $website,
+                'region_tag' => $lead->getRegionTag(),
+                'site_location' => $location,
+                'sector_tags' => $sector ? [$sector] : [],
+                'page_content' => $result['snippet'] ?? '',
+                'address' => $result['snippet'] ?? '',
+            ]);
+            $lead->setLeadScore($scoreData['score'] ?? 30);
+
             $this->entityManager->persist($lead);
             $imported++;
         }
@@ -186,6 +311,18 @@ class LeadDiscoveryController extends AbstractController
             if ($sector && $sector !== 'all') {
                 $lead->setSectorTags([$sector]);
             }
+
+            // Apply scoring engine for quality assessment
+            $scoreData = $this->leadScoringService->scoreLead([
+                'company_name' => $lead->getCompanyName(),
+                'website_root' => $website,
+                'region_tag' => $lead->getRegionTag(),
+                'site_location' => $location,
+                'sector_tags' => $sector ? [$sector] : [],
+                'page_content' => $result['snippet'] ?? '',
+                'address' => $result['snippet'] ?? '',
+            ]);
+            $lead->setLeadScore($scoreData['score'] ?? 30);
 
             $this->entityManager->persist($lead);
             $imported++;

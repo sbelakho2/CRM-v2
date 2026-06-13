@@ -9,6 +9,9 @@
     {# Sensei-Rams Design System CSS #}
     <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}">
     
+    {# DataTables - Lightweight client-side table sorting/searching/pagination #}
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.tailwindcss.css">
+    
     {# Font preloading for performance - preconnect early, load fonts async #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -84,6 +87,39 @@
             margin: 0 auto;
             padding: var(--space-6, 24px);
         }
+        /* Quick-add "+" links in sidebar */
+        .rams-sidebar__nav-item--with-add {
+            display: flex;
+            align-items: center;
+        }
+        .rams-sidebar__nav-item--with-add .rams-sidebar__nav-link {
+            flex: 1;
+            min-width: 0;
+        }
+        .sidebar-quick-add {
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px;
+            border-radius: 4px;
+            color: var(--rams-muted);
+            text-decoration: none;
+            margin-left: 2px;
+        }
+        .rams-sidebar__nav-item--with-add:hover .sidebar-quick-add,
+        .sidebar-quick-add:focus {
+            opacity: 1;
+            color: var(--rams-accent);
+        }
+        .sidebar-quick-add:hover {
+            background: var(--rams-panel);
+        }
+        .sidebar-quick-add svg {
+            width: 14px;
+            height: 14px;
+        }
     </style>
 
     {% block stylesheets %}{% endblock %}
@@ -133,6 +169,81 @@
             
             <nav class="rams-sidebar__nav">
                 <ul class="rams-sidebar__nav-list">
+                    {# Quick Links - always visible at top #}
+                    <li class="rams-sidebar__nav-group is-open">
+                        <div class="rams-sidebar__group-header" onclick="this.parentElement.classList.toggle('is-open')">
+                            <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
+                            <span>{{ 'nav.group.quick_links'|trans|default('Quick Links') }}</span>
+                        </div>
+                        <ul class="rams-sidebar__nav-list--nested">
+                            <li class="rams-sidebar__nav-item">
+                                <a href="{{ path('command_center_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'command_center' %}rams-sidebar__nav-link--active{% endif %}">
+                                    <span class="rams-sidebar__nav-indicator"></span>
+                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="2" y="2" width="12" height="12" rx="1"/><path d="M2 6H14M6 6V14"/>
+                                    </svg>
+                                    <span>{{ 'nav.command_center'|trans }}</span>
+                                </a>
+                            </li>
+                            <li class="rams-sidebar__nav-item">
+                                <a href="{{ path('app_lead_review') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'app_lead_review' %}rams-sidebar__nav-link--active{% endif %}">
+                                    <span class="rams-sidebar__nav-indicator"></span>
+                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M8 2L3 7L8 12L13 7L8 2Z"/><circle cx="8" cy="7" r="2"/>
+                                    </svg>
+                                    <span>{{ 'nav.leads'|trans }}</span>
+                                </a>
+                            </li>
+                            <li class="rams-sidebar__nav-item">
+                                <a href="{{ path('quote_copilot_list') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'quote_copilot' %}rams-sidebar__nav-link--active{% endif %}">
+                                    <span class="rams-sidebar__nav-indicator"></span>
+                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="8" cy="8" r="6"/><path d="M8 5V8L10 10"/>
+                                    </svg>
+                                    <span>{{ 'quote.title'|trans }}</span>
+                                </a>
+                            </li>
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
+                                <a href="{{ path('app_company_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_company' %}rams-sidebar__nav-link--active{% endif %}">
+                                    <span class="rams-sidebar__nav-indicator"></span>
+                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M2 13V5L8 2L14 5V13"/><rect x="5" y="8" width="2" height="5"/><rect x="9" y="8" width="2" height="5"/>
+                                    </svg>
+                                    <span>{{ 'company.plural'|trans|default('Companies') }}</span>
+                                </a>
+                                <a href="{{ path('app_company_new') }}" class="sidebar-quick-add" title="Add Company">
+                                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                                </a>
+                            </li>
+                            <li class="rams-sidebar__nav-item">
+                                <a href="{{ path('app_activity_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_activity' %}rams-sidebar__nav-link--active{% endif %}">
+                                    <span class="rams-sidebar__nav-indicator"></span>
+                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="8" cy="8" r="6"/><path d="M8 4V8L11 11"/>
+                                    </svg>
+                                    <span>{{ 'activity.plural'|trans|default('Activities') }}</span>
+                                </a>
+                            </li>
+                            <li class="rams-sidebar__nav-item">
+                                <a href="{{ path('app_task_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_task_' %}rams-sidebar__nav-link--active{% endif %}">
+                                    <span class="rams-sidebar__nav-indicator"></span>
+                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6 8L7 9L10 6"/>
+                                    </svg>
+                                    <span>{{ 'task.plural'|trans }}</span>
+                                </a>
+                            </li>
+                            <li class="rams-sidebar__nav-item">
+                                <a href="{{ path('discovery_pipeline_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'discovery_pipeline' %}rams-sidebar__nav-link--active{% endif %}">
+                                    <span class="rams-sidebar__nav-indicator"></span>
+                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M4 2v12M8 2v12M12 2v12"/><circle cx="4" cy="10" r="2" fill="currentColor"/><circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/>
+                                    </svg>
+                                    <span>{{ 'discovery_pipeline.title'|trans|default('Discovery Pipeline') }}</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
                     <li class="rams-sidebar__nav-group">
                         <div class="rams-sidebar__group-header" onclick="this.parentElement.classList.toggle('is-open')">
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
@@ -148,7 +259,7 @@
                             <span>{{ 'nav.dashboard'|trans }}</span>
                         </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('app_company_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_company' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -156,8 +267,11 @@
                             </svg>
                             <span>{{ 'nav.companies'|trans }}</span>
                         </a>
+                        <a href="{{ path('app_company_new') }}" class="sidebar-quick-add" title="Add Company">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                        </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('app_contact_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_contact' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -165,8 +279,11 @@
                             </svg>
                             <span>{{ 'nav.contacts'|trans }}</span>
                         </a>
+                        <a href="{{ path('app_contact_new') }}" class="sidebar-quick-add" title="Add Contact">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                        </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('app_activity_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_activity' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -174,8 +291,11 @@
                             </svg>
                             <span>{{ 'nav.activities'|trans }}</span>
                         </a>
+                        <a href="{{ path('app_activity_new') }}" class="sidebar-quick-add" title="Add Activity">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                        </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('app_task_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_task_' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -183,8 +303,11 @@
                             </svg>
                             <span>{{ 'nav.tasks'|trans|default('Tasks') }}</span>
                         </a>
+                        <a href="{{ path('app_task_new') }}" class="sidebar-quick-add" title="Add Task">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                        </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('calendar_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'calendar_' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -192,14 +315,20 @@
                             </svg>
                             <span>{{ 'nav.calendar'|trans|default('Calendar') }}</span>
                         </a>
+                        <a href="{{ path('calendar_new') }}" class="sidebar-quick-add" title="Add Event">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                        </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('meeting_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'meeting_' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <rect x="2" y="4" width="12" height="8" rx="1"/><circle cx="8" cy="8" r="2"/><path d="M5 2V4M11 2V4"/>
                             </svg>
                             <span>{{ 'nav.meetings'|trans|default('Meetings') }}</span>
+                        </a>
+                        <a href="{{ path('meeting_new') }}" class="sidebar-quick-add" title="Add Meeting">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
                         </a>
                     </li>
                         </ul>
@@ -239,13 +368,16 @@
                             <span>{{ 'nav.leads'|trans }}</span>
                         </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('app_rfq_pipeline') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_rfq' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6 7H10M6 10H8"/>
                             </svg>
                             <span>{{ 'nav.rfq_pipeline'|trans }}</span>
+                        </a>
+                        <a href="{{ path('app_rfq_new') }}" class="sidebar-quick-add" title="Add RFQ">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
                         </a>
                     </li>
                             <li class="rams-sidebar__nav-item">
@@ -296,7 +428,7 @@
                             <span>{{ 'nav.abm_playbooks'|trans }}</span>
                         </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('app_email_campaign_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_email_campaign' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -304,14 +436,20 @@
                             </svg>
                             <span>{{ 'nav.email_campaigns'|trans }}</span>
                         </a>
+                        <a href="{{ path('app_email_campaign_new') }}" class="sidebar-quick-add" title="Add Campaign">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                        </a>
                     </li>
-                            <li class="rams-sidebar__nav-item">
+                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
                         <a href="{{ path('app_webinar_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_webinar' %}rams-sidebar__nav-link--active{% endif %}">
                             <span class="rams-sidebar__nav-indicator"></span>
                             <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <rect x="2" y="4" width="12" height="8" rx="1"/><path d="M5 7L8 9L11 7"/>
                             </svg>
                             <span>{{ 'nav.webinars'|trans }}</span>
+                        </a>
+                        <a href="{{ path('app_webinar_new') }}" class="sidebar-quick-add" title="Add Webinar">
+                            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
                         </a>
                     </li>
                             <li class="rams-sidebar__nav-item">
@@ -321,50 +459,6 @@
                                 <circle cx="8" cy="8" r="6"/><path d="M2 8H14M8 2C6 4 5 6 5 8C5 10 6 12 8 14M8 2C10 4 11 6 11 8C11 10 10 12 8 14"/>
                             </svg>
                             <span>{{ 'nav.webcrawler'|trans }}</span>
-                        </a>
-                    </li>
-                        </ul>
-                    </li>
-                    <li class="rams-sidebar__nav-group {% if app.request.get('_route') starts with 'comp_crawler' %}is-open{% endif %}">
-                        <div class="rams-sidebar__group-header" onclick="this.parentElement.classList.toggle('is-open')">
-                            <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
-                            <span>{{ 'nav.group.competitor_intel'|trans }}</span>
-                        </div>
-                        <ul class="rams-sidebar__nav-list--nested">
-                            <li class="rams-sidebar__nav-item">
-                        <a href="{{ path('comp_crawler_dashboard') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'comp_crawler_dashboard' %}rams-sidebar__nav-link--active{% endif %}">
-                            <span class="rams-sidebar__nav-indicator"></span>
-                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <rect x="2" y="2" width="12" height="12" rx="2" stroke-dasharray="2 1"/><path d="M5 6L8 9L11 6"/>
-                            </svg>
-                            <span>{{ 'nav.comp_dashboard'|trans }}</span>
-                        </a>
-                    </li>
-                            <li class="rams-sidebar__nav-item">
-                        <a href="{{ path('comp_crawler_list') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'comp_crawler_list' %}rams-sidebar__nav-link--active{% endif %}">
-                            <span class="rams-sidebar__nav-indicator"></span>
-                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M3 4H13M3 8H13M3 12H13"/><circle cx="5" cy="4" r="0.5" fill="currentColor"/><circle cx="5" cy="8" r="0.5" fill="currentColor"/><circle cx="5" cy="12" r="0.5" fill="currentColor"/>
-                            </svg>
-                            <span>{{ 'nav.comp_list'|trans }}</span>
-                        </a>
-                    </li>
-                            <li class="rams-sidebar__nav-item">
-                        <a href="{{ path('comp_crawler_changes') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'comp_crawler_changes' %}rams-sidebar__nav-link--active{% endif %}">
-                            <span class="rams-sidebar__nav-indicator"></span>
-                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M2 13L5 10L8 13L14 7"/><path d="M10 7H14V11"/>
-                            </svg>
-                            <span>{{ 'nav.comp_changes'|trans }}</span>
-                        </a>
-                    </li>
-                            <li class="rams-sidebar__nav-item">
-                        <a href="{{ path('comp_crawler_watchlists') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'comp_crawler_watchlists' %}rams-sidebar__nav-link--active{% endif %}">
-                            <span class="rams-sidebar__nav-indicator"></span>
-                            <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M8 2C4 2 1 8 1 8C1 8 4 14 8 14C12 14 15 8 15 8C15 8 12 2 8 2Z"/><circle cx="8" cy="8" r="2.5"/>
-                            </svg>
-                            <span>{{ 'nav.comp_watchlists'|trans }}</span>
                         </a>
                     </li>
                         </ul>
@@ -693,6 +787,51 @@
         applyDensity(density);
         applyReducedMotion(reducedMotion);
     })();
+    </script>
+
+    {# DataTables scripts #}
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/2.1.8/js/dataTables.tailwindcss.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('table.data-table').forEach(function(table) {
+            if (table.hasAttribute('data-no-datatable')) return;
+
+            // Skip tables with empty tbody or colspan rows (empty-state messages)
+            var tbody = table.querySelector('tbody');
+            if (tbody) {
+                var rows = tbody.querySelectorAll('tr');
+                if (rows.length === 0) return; // no data rows at all
+                // Check if the only row is a colspan empty-state row
+                if (rows.length === 1) {
+                    var firstTd = rows[0].querySelector('td');
+                    if (firstTd && firstTd.hasAttribute('colspan')) return;
+                }
+            }
+
+            // Count columns from thead to tell DataTables how many to expect
+            var ths = table.querySelectorAll('thead th');
+            var colCount = ths.length;
+
+            var pageLength = table.getAttribute('data-page-length') || 25;
+            new DataTable(table, {
+                pageLength: parseInt(pageLength),
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+                order: [],
+                columns: colCount > 0 ? Array(colCount).fill(null) : undefined,
+                language: {
+                    search: 'Search:',
+                    lengthMenu: '_MENU_ per page',
+                    info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+                    infoEmpty: 'No entries',
+                    infoFiltered: '(filtered from _MAX_ total)',
+                    zeroRecords: 'No matching records found'
+                },
+                dom: '<"rams-flex rams-flex-wrap rams-items-center rams-justify-between rams-gap-2 rams-mb-3"lf>t<"rams-flex rams-flex-wrap rams-items-center rams-justify-between rams-gap-2 rams-mt-3"ip>'
+            });
+        });
+    });
     </script>
 </body>
 </html>

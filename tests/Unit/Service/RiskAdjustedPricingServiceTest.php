@@ -5,6 +5,8 @@ namespace App\Tests\Unit\Service;
 use App\Service\RiskAdjustedPricingService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * Unit tests for the Risk-Adjusted Pricing Service
@@ -18,6 +20,18 @@ class RiskAdjustedPricingServiceTest extends TestCase
     {
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->service = new RiskAdjustedPricingService($this->logger);
+    }
+
+    /**
+     * Create a service instance with a cache for testing cache persistence.
+     */
+    private function createServiceWithCache(?array $cachedData = null): RiskAdjustedPricingService
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        if ($cachedData !== null) {
+            $cache->method('get')->willReturn($cachedData);
+        }
+        return new RiskAdjustedPricingService($this->logger, $cache);
     }
 
     public function testCalculateRiskAdjustedCostWithInStockInventory(): void
@@ -220,5 +234,87 @@ class RiskAdjustedPricingServiceTest extends TestCase
         $this->assertArrayHasKey('risk_adjusted_cost', $result);
         // Price should be positive
         $this->assertGreaterThanOrEqual(0, $result['risk_adjusted_cost']);
+    }
+
+    // ──────────────────────────────────────────────
+    // Cache persistence tests (E2)
+    // ──────────────────────────────────────────────
+
+    public function testConstructorLoadsFromCacheWhenProvided(): void
+    {
+        $cachedReliability = [
+            'digikey' => 0.99,
+            'mouser' => 0.50,
+        ];
+
+        $service = $this->createServiceWithCache($cachedReliability);
+        $scores = $service->getSupplierReliabilityScores();
+
+        // Should have loaded from cache (digikey 0.99 instead of default 0.93)
+        $this->assertEquals(0.99, $scores['digikey']);
+        $this->assertEquals(0.50, $scores['mouser']);
+    }
+
+    public function testConstructorUsesDefaultsWhenNoCache(): void
+    {
+        // Service without cache (from setUp) should use default scores
+        $scores = $this->service->getSupplierReliabilityScores();
+
+        $this->assertEquals(0.95, $scores['mouser']);
+        $this->assertEquals(0.93, $scores['digikey']);
+        $this->assertEquals(0.70, $scores['manual']);
+    }
+
+    public function testConstructorUsesDefaultsWhenCacheThrows(): void
+    {
+        $failingCache = $this->createMock(CacheInterface::class);
+        $failingCache->method('get')->willThrowException(new \RuntimeException('Cache unavailable'));
+
+        $service = new RiskAdjustedPricingService($this->logger, $failingCache);
+        $scores = $service->getSupplierReliabilityScores();
+
+        // Should fall back to defaults on cache error
+        $this->assertEquals(0.95, $scores['mouser']);
+        $this->assertEquals(0.93, $scores['digikey']);
+    }
+
+    public function testUpdateSupplierReliabilityPersistsToCache(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(null);
+
+        // Expect cache->delete() to be called at least once (persist deletes + re-writes)
+        $cache->expects($this->atLeastOnce())
+            ->method('delete')
+            ->with('risk_adjusted_pricing.supplier_reliability');
+
+        $service = new RiskAdjustedPricingService($this->logger, $cache);
+
+        // Update reliability — this should trigger persistSupplierReliability()
+        $service->updateSupplierReliability('mouser', true);
+    }
+
+    public function testUpdateSupplierReliabilityIncreasesScoreOnTime(): void
+    {
+        $service = $this->createServiceWithCache(['mouser' => 0.90]);
+        $before = $service->getSupplierReliabilityScores()['mouser'];
+
+        // Mark as on-time — score should increase
+        $service->updateSupplierReliability('mouser', true);
+        $after = $service->getSupplierReliabilityScores()['mouser'];
+
+        $this->assertGreaterThan($before, $after);
+    }
+
+    public function testUpdateSupplierReliabilityDecreasesScoreLate(): void
+    {
+        $service = $this->createServiceWithCache(['mouser' => 0.90]);
+        $before = $service->getSupplierReliabilityScores()['mouser'];
+
+        // Mark as late — score should decrease
+        $service->updateSupplierReliability('mouser', false);
+        $after = $service->getSupplierReliabilityScores()['mouser'];
+
+        $this->assertLessThan($before, $after);
     }
 }

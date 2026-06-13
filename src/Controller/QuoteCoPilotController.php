@@ -242,108 +242,6 @@ class QuoteCoPilotController extends AbstractController
             return $this->redirectToRoute('quote_copilot_index');
         }
     }
-        //        return $this->redirectToRoute('quote_copilot_index');
-        //    }
-        //    
-        //    $allowedExtensions = ['csv', 'xlsx', 'xls'];
-        //    if (!in_array($bomFile->getClientOriginalExtension(), $allowedExtensions)) {
-        //        $this->addFlash('error', 'Invalid file format. Please upload CSV or Excel file');
-        //        return $this->redirectToRoute('quote_copilot_index');
-        //    }
-        // 
-        // 2. Get form parameters:
-        //    $params = [
-        //        'quantity' => (int) $request->request->get('quantity', 100),
-        //        'destinationCountry' => $request->request->get('destination_country'), // REQUIRED for landed-cost
-        //        'originCountry' => $request->request->get('origin_country', 'MA'), // Morocco default
-        //        'pcbLayers' => (int) $request->request->get('pcb_layers', 2),
-        //        'pcbDimensionX' => (float) $request->request->get('pcb_dimension_x', 100),
-        //        'pcbDimensionY' => (float) $request->request->get('pcb_dimension_y', 100),
-        //        'runDfm' => (bool) $request->request->get('run_dfm', true),
-        //        'autoPublish' => (bool) $request->request->get('auto_publish', false)
-        //    ];
-        // 
-        // 2a. Validate destination country:
-        //    if (!$params['destinationCountry']) {
-        //        $this->addFlash('error', 'Please select a destination country');
-        //        return $this->redirectToRoute('quote_copilot_index');
-        //    }
-        // 
-        // 3. Process BOM with Quote Co-Pilot:
-        //    $result = $this->copilotService->processBom(
-        //        $bomFile->getPathname(),
-        //        $params['quantity']
-        //    );
-        // 
-        // 4. Create Quote entity:
-        //    $quote = new Quote();
-        //    $quote->setQuantity($params['quantity']);
-        //    $quote->setPcbLayers($params['pcbLayers']);
-        //    $quote->setPcbDimensionX($params['pcbDimensionX']);
-        //    $quote->setPcbDimensionY($params['pcbDimensionY']);
-        //    $quote->setCoverage($result['coverage']);
-        //    $quote->setStatus($result['canAutoPublish'] && $params['autoPublish'] ? 'PUBLISHED' : 'DRAFT');
-        //    $quote->setCreatedAt(new \DateTime());
-        //    
-        //    $this->entityManager->persist($quote);
-        // 
-        // 5. Create BomLine entities:
-        //    foreach ($result['bomLines'] as $lineData) {
-        //        $bomLine = new BomLine();
-        //        $bomLine->setQuote($quote);
-        //        $bomLine->setRefDes($lineData['refDes']);
-        //        $bomLine->setMpn($lineData['mpn']);
-        //        $bomLine->setManufacturer($lineData['manufacturer']);
-        //        $bomLine->setDescription($lineData['description']);
-        //        $bomLine->setQuantity($lineData['quantity']);
-        //        $bomLine->setUnitPrice($lineData['unitPrice']);
-        //        $bomLine->setExtPrice($lineData['extPrice']);
-        //        $bomLine->setSource($lineData['source']);
-        //        $bomLine->setLeadTimeDays($lineData['leadTimeDays']);
-        //        $bomLine->setStockStatus($lineData['stockStatus']);
-        //        
-        //        $this->entityManager->persist($bomLine);
-        //    }
-        // 
-        // 6. Run DFM linting if requested:
-        //    if ($params['runDfm']) {
-        //        $dfmFindings = $this->dfmLintService->lintBom(
-        //            $quote->getId(),
-        //            $params['pcbLayers'],
-        //            $params['pcbDimensionX'],
-        //            $params['pcbDimensionY']
-        //        );
-        //        $quote->setDfmFindings(json_encode($dfmFindings));
-        //    }
-        // 
-        // 7. Calculate PCB/ASM/NRE costs:
-        //    $costs = $this->costingEngine->calculatePcbCost(
-        //        $params['pcbLayers'],
-        //        $params['pcbDimensionX'] * $params['pcbDimensionY'] / 10000, // convert mm² to dm²
-        //        $params['quantity']
-        //    );
-        //    $quote->setPcbCost($costs['totalCost']);
-        //    
-        //    $asmCost = $this->costingEngine->calculateAsmCost(
-        //        $quote->getId(),
-        //        $params['quantity']
-        //    );
-        //    $quote->setAsmCost($asmCost['totalCost']);
-        //    
-        //    $nreCost = $this->costingEngine->calculateNre($quote->getId());
-        //    $quote->setNreCost($nreCost['totalNre']);
-        // 
-        // 8. Calculate total quote value:
-        //    $bomCost = array_sum(array_column($result['bomLines'], 'extPrice'));
-        //    $totalCost = $bomCost + $quote->getPcbCost() + $quote->getAsmCost() + $quote->getNreCost();
-        //    $quote->setTotalCost($totalCost);
-        // 
-        // 9. Save to database:
-        //    $this->entityManager->flush();
-        // 
-        // 10. Redirect to results:
-        //     return $this->redirectToRoute('quote_copilot_results', ['id' => $quote->getId()]);
-
     /**
      * Show quote results with coverage metrics
      */
@@ -418,7 +316,7 @@ class QuoteCoPilotController extends AbstractController
     #[Route('/{id}/excel', name: 'quote_copilot_customer_excel', methods: ['GET'])]
     public function downloadCustomerExcel(int $id): Response
     {
-        $quote = $this->entityManager->getRepository(Quote::class)->find($id);
+        $quote = $this->entityManager->getRepository(Quote::class)->findWithBomLines($id);
         if (!$quote) {
             throw $this->createNotFoundException('Quote not found');
         }
@@ -455,14 +353,14 @@ class QuoteCoPilotController extends AbstractController
                 $line->getManufacturer() ?? '',
                 $line->getDescription() ?? '',
                 $line->getQuantity() ?? '',
-                $line->getUnitPrice() !== null ? number_format($line->getUnitPrice(), 4) : '',
-                $line->getExtendedPrice() !== null ? number_format($line->getExtendedPrice(), 2) : '',
+                number_format($line->getUnitPrice() ?? 0, 4),
+                number_format($line->getExtendedPrice() ?? 0, 2),
                 $notes,
             ];
         }
 
         $csv[] = [];
-        $csv[] = ['Total Cost', $quote->getTotalCost() !== null ? number_format($quote->getTotalCost(), 2) : ''];
+        $csv[] = ['Total Cost', number_format($quote->getTotalCost() ?? 0, 2)];
         $csv[] = ['Coverage', $quote->getCoveragePercent() . '%'];
         $csv[] = [];
         $csv[] = ['This quote is valid for 30 days from the date of issue.'];
@@ -495,7 +393,7 @@ class QuoteCoPilotController extends AbstractController
     #[Route('/{id}/full-excel', name: 'quote_copilot_full_excel', methods: ['GET'])]
     public function downloadFullExcel(int $id): Response
     {
-        $quote = $this->entityManager->getRepository(Quote::class)->find($id);
+        $quote = $this->entityManager->getRepository(Quote::class)->findWithBomLines($id);
         if (!$quote) {
             throw $this->createNotFoundException('Quote not found');
         }
@@ -748,7 +646,8 @@ class QuoteCoPilotController extends AbstractController
         // Create Notification for sales team
         // Find admin/sales users to notify
         $userRepository = $this->entityManager->getRepository(\App\Entity\User::class);
-        $adminUsers = $userRepository->findBy(['roles' => 'ROLE_ADMIN']);
+        $allUsers = $userRepository->findAll();
+        $adminUsers = array_filter($allUsers, fn($u) => in_array('ROLE_ADMIN', $u->getRoles()));
         
         // If no specific admins, try to notify current user or skip
         $notifyUsers = !empty($adminUsers) ? $adminUsers : ($user ? [$user] : []);

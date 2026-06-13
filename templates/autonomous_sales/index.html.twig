@@ -115,9 +115,49 @@
 
     {% elseif active_tab == 'overview' %}
         {# ============================================================== #}
-        {# OVERVIEW TAB — Setup wizard + Performance metrics               #}
+        {# OVERVIEW TAB — Setup wizard + Performance metrics + Funnel     #}
         {# ============================================================== #}
         <div class="rams-tab-content">
+
+            {# ── Summary Stats Row ── #}
+            <div class="rams-grid rams-grid--6 rams-gap-4 rams-mb-6">
+                <div class="rams-card rams-p-4">
+                    <div class="rams-stat">
+                        <span class="rams-stat__label">Total Leads</span>
+                        <span class="rams-stat__value">{{ total_leads|number_format }}</span>
+                    </div>
+                </div>
+                <div class="rams-card rams-p-4">
+                    <div class="rams-stat">
+                        <span class="rams-stat__label">Emails Sent (7d)</span>
+                        <span class="rams-stat__value">{{ weekly_emails|number_format }}</span>
+                    </div>
+                </div>
+                <div class="rams-card rams-p-4">
+                    <div class="rams-stat">
+                        <span class="rams-stat__label">Open Rate</span>
+                        <span class="rams-stat__value">{{ email_open_rate }}%</span>
+                    </div>
+                </div>
+                <div class="rams-card rams-p-4">
+                    <div class="rams-stat">
+                        <span class="rams-stat__label">Reply Rate</span>
+                        <span class="rams-stat__value">{{ email_reply_rate }}%</span>
+                    </div>
+                </div>
+                <div class="rams-card rams-p-4">
+                    <div class="rams-stat">
+                        <span class="rams-stat__label">Active Campaigns</span>
+                        <span class="rams-stat__value">{{ active_campaigns }}</span>
+                    </div>
+                </div>
+                <div class="rams-card rams-p-4">
+                    <div class="rams-stat">
+                        <span class="rams-stat__label">Pipeline Value</span>
+                        <span class="rams-stat__value">{{ pipeline_value|number_format }}</span>
+                    </div>
+                </div>
+            </div>
 
             {# ── Wizard-style setup (only if incomplete) ── #}
             {% if not setup.allDone %}
@@ -199,6 +239,52 @@
                 </div>
             {% endif %}
 
+            {# ── Sales Funnel Visual ── #}
+            {% if lead_stage_counts|length > 0 %}
+                <div class="rams-module rams-mb-6">
+                    <div class="rams-module__header">
+                        <h3>Sales Funnel</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-grid rams-grid--4 rams-gap-4">
+                            {% set stage_labels = {
+                                'new': 'New',
+                                'contacted': 'Contacted',
+                                'engaged': 'Engaged',
+                                'qualified': 'Qualified',
+                                'opportunity': 'Opportunity',
+                                'converted': 'Converted',
+                                'dormant': 'Dormant',
+                                'lost': 'Lost'
+                            } %}
+                            {% set stage_colors = {
+                                'new': 'info',
+                                'contacted': 'primary',
+                                'engaged': 'warning',
+                                'qualified': 'success',
+                                'opportunity': 'success',
+                                'converted': 'success',
+                                'dormant': 'muted',
+                                'lost': 'danger'
+                            } %}
+                            {% for stage in lead_stage_counts %}
+                                {% set stage_name = stage_labels[stage.stage]|default(stage.stage|capitalize) %}
+                                {% set stage_color = stage_colors[stage.stage]|default('info') %}
+                                <div class="rams-card rams-p-4 rams-text--center">
+                                    <div class="rams-stat">
+                                        <span class="rams-stat__value">{{ stage.count }}</span>
+                                        <span class="rams-stat__label">{{ stage_name }}</span>
+                                    </div>
+                                    <div class="rams-progress rams-mt-2">
+                                        <div class="rams-progress__bar rams-progress__bar--{{ stage_color }}" style="width: {{ (stage.count / total_leads * 100)|round }}%"></div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
             {# ── Performance metrics (only if there is data) ── #}
             {% if performance.emailsSent > 0 or performance.leadsTotal > 0 %}
                 <div class="rams-module rams-mb-6">
@@ -232,9 +318,124 @@
                 </div>
             {% endif %}
 
-            {# ── Quick actions (simplified — no batch inputs) ── #}
+            {# ── Recent Email Activity Feed ── #}
+            {% if recent_email_events|length > 0 %}
+                <div class="rams-module rams-mb-6">
+                    <div class="rams-module__header">
+                        <h3>Recent Email Activity</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-table-container">
+                            <table class="rams-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Recipient</th>
+                                        <th>Variant</th>
+                                        <th>Events</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in recent_email_events %}
+                                        <tr>
+                                            <td class="rams-text--xs">{{ event.sentAt ? event.sentAt|date('M d, H:i') : '—' }}</td>
+                                            <td class="rams-text--sm">{{ event.emailAddress|default('—') }}</td>
+                                            <td class="rams-text--xs">{{ event.variant|default('—') }}</td>
+                                            <td>
+                                                <div class="rams-flex rams-gap-1">
+                                                    {% if event.opened %}<span class="rams-badge rams-badge--success rams-badge--xs">Opened</span>{% endif %}
+                                                    {% if event.clicked %}<span class="rams-badge rams-badge--info rams-badge--xs">Clicked</span>{% endif %}
+                                                    {% if event.replied %}<span class="rams-badge rams-badge--primary rams-badge--xs">Replied</span>{% endif %}
+                                                    {% if not event.opened and not event.clicked and not event.replied %}
+                                                        <span class="rams-text--xs rams-text--muted">Sent</span>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# ── Top Performing Variations ── #}
+            {% set top_variations = [] %}
+            {% for section in variations %}
+                {% for item in section.items %}
+                    {% if item.emailsSent > 0 and not item.isControl and item.badge == 'winning' %}
+                        {% set top_variations = top_variations|merge([item]) %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% if top_variations|length > 0 %}
+                <div class="rams-module rams-mb-6">
+                    <div class="rams-module__header">
+                        <h3>Top Performing Variations</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-table-container">
+                            <table class="rams-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Value</th>
+                                        <th class="rams-text--right">Sent</th>
+                                        <th class="rams-text--right">Open Rate</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in top_variations|slice(0, 5) %}
+                                        <tr>
+                                            <td class="rams-text--bold">{{ item.name }}</td>
+                                            <td class="rams-text--xs rams-text--muted">{{ item.value|length > 40 ? item.value[:40] ~ '…' : item.value }}</td>
+                                            <td class="rams-text--right">{{ item.emailsSent }}</td>
+                                            <td class="rams-text--right">
+                                                <span style="color: var(--rams-success)">{{ item.successPct }}%</span>
+                                                {% if item.vsBaseline > 0 %}
+                                                    <span style="color: var(--rams-success)">↑{{ item.vsBaseline }}%</span>
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="rams-badge rams-badge--success rams-badge--xs">Top Performer</span></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# ── Quick actions (shown when setup is complete) ── #}
             {% if setup.allDone %}
-                <div class="rams-module">
+                <div class="rams-module rams-mb-6">
+                    <div class="rams-module__header">
+                        <h3>Quick Actions</h3>
+                    </div>
+                    <div class="rams-module__content">
+                        <div class="rams-grid rams-grid--4 rams-gap-4">
+                            <a href="{{ path('autonomous_sales_index', {tab: 'optimization'}) }}" class="rams-btn rams-btn--primary rams-text--center rams-p-3">
+                                Compose & Send
+                            </a>
+                            <form method="post" action="{{ path('autonomous_sales_score_leads') }}" class="rams-mb-0">
+                                <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_score_leads') }}">
+                                <input type="hidden" name="limit" value="50">
+                                <button type="submit" class="rams-btn rams-btn--primary" style="width:100%">Score Leads</button>
+                            </form>
+                            <a href="{{ path('command_center_index') }}" class="rams-btn rams-btn--primary rams-text--center rams-p-3">
+                                Process Inbox
+                            </a>
+                            <a href="{{ path('command_center_index') }}" class="rams-btn rams-btn--primary rams-text--center rams-p-3">
+                                View Full Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── Quick actions (simplified — no batch inputs) — kept for backward compat ── #}
+                <div class="rams-module rams-mb-6">
                     <div class="rams-module__header">
                         <h3>{{ 'autonomous_sales.quick_actions_title'|trans }}</h3>
                     </div>
@@ -282,9 +483,123 @@
 
     {% elseif active_tab == 'optimization' %}
         {# ============================================================== #}
-        {# OPTIMIZATION TAB — Full actions + variations table              #}
+        {# OPTIMIZATION TAB — Full actions + variations + Thompson Stats  #}
         {# ============================================================== #}
         <div class="rams-tab-content">
+
+            {# ── Thompson Sampling Arm Statistics ── #}
+            <div class="rams-module rams-mb-6">
+                <div class="rams-module__header">
+                    <h3>Thompson Sampling Statistics</h3>
+                </div>
+                <div class="rams-module__content">
+                    <p class="rams-text--sm rams-text--muted rams-mb-4">The system uses Thompson Sampling (a Bayesian bandit algorithm) to automatically find the best email variations. Below are the raw arm statistics.</p>
+                    <div class="rams-grid rams-grid--3 rams-gap-4">
+                        {% for section in variations %}
+                            <div class="rams-card rams-p-4">
+                                <h4 class="rams-text--bold rams-mb-3">{{ section.label }}</h4>
+                                <div class="rams-table-container">
+                                    <table class="rams-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Arm</th>
+                                                <th class="rams-text--right">Pulls</th>
+                                                <th class="rams-text--right">Wins</th>
+                                                <th class="rams-text--right">Win Rate</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in section.items|slice(0, 8) %}
+                                                <tr>
+                                                    <td class="rams-text--xs rams-text--bold">{{ item.name|length > 20 ? item.name[:20] ~ '…' : item.name }}</td>
+                                                    <td class="rams-text--right">{{ item.emailsSent }}</td>
+                                                    <td class="rams-text--right">{{ item.opens }}</td>
+                                                    <td class="rams-text--right">{{ item.successPct }}%</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            {# ── Subject Line Performance Comparison ── #}
+            {% for section in variations %}
+                {% if section.type == 'subject_line' and section.items|length > 0 %}
+                    <div class="rams-module rams-mb-6">
+                        <div class="rams-module__header">
+                            <h3>Subject Line Performance Comparison</h3>
+                        </div>
+                        <div class="rams-module__content">
+                            <div class="rams-stack rams-gap-3">
+                                {% set max_pct = 0 %}
+                                {% for item in section.items %}
+                                    {% if item.successPct > max_pct %}
+                                        {% set max_pct = item.successPct %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% set max_pct = max_pct > 0 ? max_pct : 100 %}
+                                {% for item in section.items|slice(0, 10) %}
+                                    <div class="rams-flex rams-gap-3 rams-items-center">
+                                        <div class="rams-text--xs" style="width: 140px; flex-shrink: 0;">{{ item.name|length > 25 ? item.name[:25] ~ '…' : item.name }}</div>
+                                        <div class="rams-progress" style="flex: 1; height: 20px;">
+                                            <div class="rams-progress__bar {% if item.badge == 'winning' %}rams-progress__bar--success{% elseif item.badge == 'losing' %}rams-progress__bar--danger{% else %}rams-progress__bar--info{% endif %}"
+                                                 style="width: {{ (item.successPct / max_pct * 100)|round }}%; height: 20px; line-height: 20px;">
+                                                <span class="rams-text--xs" style="padding: 0 6px;">{{ item.successPct }}%</span>
+                                            </div>
+                                        </div>
+                                        <span class="rams-badge rams-badge--xs rams-badge--{{ item.badge == 'winning' ? 'success' : (item.badge == 'losing' ? 'danger' : (item.badge == 'baseline' ? 'info' : 'neutral')) }}">
+                                            {{ item.badgeLabel }}
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+            {# ── A/B Test Results Visualization ── #}
+            <div class="rams-module rams-mb-6">
+                <div class="rams-module__header">
+                    <h3>A/B Test Results</h3>
+                </div>
+                <div class="rams-module__content">
+                    <p class="rams-text--sm rams-text--muted rams-mb-4">Comparison of how each variation type is performing against its baseline.</p>
+                    {% for section in variations %}
+                        {% if section.items|length > 1 %}
+                            <div class="rams-module rams-module--inset rams-mb-4">
+                                <div class="rams-module__content">
+                                    <h4 class="rams-text--bold rams-mb-2">{{ section.label }}</h4>
+                                    <div class="rams-grid rams-grid--3 rams-gap-4 rams-mb-3">
+                                        <div class="rams-metric">
+                                            <span class="rams-metric__label">Total Variations</span>
+                                            <span class="rams-metric__value">{{ section.count }}</span>
+                                        </div>
+                                        <div class="rams-metric">
+                                            <span class="rams-metric__label">Top Performer</span>
+                                            <span class="rams-metric__value" style="color: var(--rams-success)">
+                                                {% set top = section.items|filter(i => i.badge == 'winning')|first %}
+                                                {{ top ? top.name|length > 15 ? top.name[:15] ~ '…' : top.name : 'N/A' }}
+                                            </span>
+                                        </div>
+                                        <div class="rams-metric">
+                                            <span class="rams-metric__label">Best Open Rate</span>
+                                            <span class="rams-metric__value" style="color: var(--rams-success)">
+                                                {% set best = section.items|sort((a, b) => b.successPct <=> a.successPct)|first %}
+                                                {{ best ? best.successPct ~ '%' : 'N/A' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
 
             {# ── Advanced actions with full controls ── #}
             <div class="rams-module rams-mb-6">
@@ -453,6 +768,49 @@
         {# SETTINGS TAB — How it works + Full safety features + Setup     #}
         {# ============================================================== #}
         <div class="rams-tab-content">
+
+            {# ── Safety Status Indicator ── #}
+            <div class="rams-module rams-mb-6">
+                <div class="rams-module__header">
+                    <h3>🛡️ Safety Status</h3>
+                </div>
+                <div class="rams-module__content">
+                    <div class="rams-grid rams-grid--3 rams-gap-4">
+                        <div class="rams-card rams-p-4">
+                            <div class="rams-stat">
+                                <span class="rams-stat__label">System Mode</span>
+                                <span class="rams-stat__value">
+                                    {% if health.safeMode %}
+                                        <span class="rams-badge rams-badge--warning">Safe Mode Active</span>
+                                    {% elseif enabled %}
+                                        <span class="rams-badge rams-badge--success">Normal</span>
+                                    {% else %}
+                                        <span class="rams-badge rams-badge--neutral">Disabled</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="rams-card rams-p-4">
+                            <div class="rams-stat">
+                                <span class="rams-stat__label">Active Safety Features</span>
+                                <span class="rams-stat__value">{{ safety_count }}</span>
+                            </div>
+                        </div>
+                        <div class="rams-card rams-p-4">
+                            <div class="rams-stat">
+                                <span class="rams-stat__label">Quarantined Variations</span>
+                                <span class="rams-stat__value">{{ health.quarantined }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rams-flex rams-gap-2 rams-mt-4">
+                        <span class="rams-badge rams-badge--{% if health.status == 'green' %}success{% elseif health.status == 'yellow' %}warning{% else %}danger{% endif %}">
+                            Status: {{ health.statusLabel }}
+                        </span>
+                        <span class="rams-text--xs rams-text--muted">{{ health.statusDesc }}</span>
+                    </div>
+                </div>
+            </div>
 
             {# ── How it works ── #}
             <div class="rams-module rams-mb-6">

@@ -46,8 +46,7 @@ class TaskController extends AbstractController
             ->leftJoin('t.company', 'c')
             ->leftJoin('t.contact', 'co')
             ->addSelect('a', 'cb', 'c', 'co')
-            ->orderBy('t.dueDate', 'ASC')
-            ->addOrderBy('t.priority', 'DESC');
+            ->orderBy('t.createdAt', 'DESC');
 
         // Filter by user unless showing all
         if (!$showAll && !$this->isGranted('ROLE_ADMIN')) {

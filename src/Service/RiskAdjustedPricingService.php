@@ -6,6 +6,8 @@ use App\Service\Integration\MouserApiClient;
 use App\Service\Integration\DigiKeyApiClient;
 use App\Service\Integration\NexarApiClient;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * Risk-Adjusted Pricing Service
@@ -52,7 +54,10 @@ class RiskAdjustedPricingService
     private const LEAD_TIME_SLOW = 56;      // Slow (8 weeks)
     private const LEAD_TIME_CRITICAL = 84;  // Critical (12+ weeks)
     
-    // Supplier reliability scores (historical data - would be from database in production)
+    private const CACHE_KEY = 'risk_adjusted_pricing.supplier_reliability';
+    private const CACHE_TTL = 2592000; // 30 days
+
+    // Supplier reliability scores — loaded from cache, with these defaults
     private array $supplierReliability = [
         'mouser' => 0.95,      // 95% on-time delivery
         'digikey' => 0.93,     // 93% on-time delivery
@@ -63,8 +68,59 @@ class RiskAdjustedPricingService
     ];
     
     public function __construct(
-        private LoggerInterface $logger
-    ) {}
+        private LoggerInterface $logger,
+        private ?CacheInterface $cache = null
+    ) {
+        $this->loadSupplierReliability();
+    }
+
+    /**
+     * Load supplier reliability scores from cache on construction.
+     */
+    private function loadSupplierReliability(): void
+    {
+        if ($this->cache === null) {
+            return; // No cache configured — use defaults
+        }
+
+        try {
+            $cached = $this->cache->get(self::CACHE_KEY, function (ItemInterface $item) {
+                $item->expiresAfter(self::CACHE_TTL);
+                // Return defaults as the initial cached value
+                return $this->supplierReliability;
+            });
+
+            if (is_array($cached) && !empty($cached)) {
+                $this->supplierReliability = $cached;
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to load supplier reliability from cache, using defaults', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Persist current reliability scores to cache.
+     */
+    private function persistSupplierReliability(): void
+    {
+        if ($this->cache === null) {
+            return;
+        }
+
+        try {
+            $this->cache->delete(self::CACHE_KEY);
+            $this->cache->get(self::CACHE_KEY, function (ItemInterface $item) {
+                $item->expiresAfter(self::CACHE_TTL);
+                return $this->supplierReliability;
+            });
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to persist supplier reliability to cache', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
     
     /**
      * Calculate risk-adjusted cost for a distributor result
@@ -200,7 +256,10 @@ class RiskAdjustedPricingService
         $alternatives = array_slice($analyzedOptions, 1);
         
         // Calculate savings from risk-adjusted selection
-        $cheapestRaw = min(array_column($analyzedOptions, 'risk_analysis')['raw_unit_price'] ?? [0]);
+        // Fix C1: array_column() returns indexed array; cannot use string key on it.
+        // Extract risk_analysis arrays first, then column for raw_unit_price.
+        $riskAnalyses = array_column($analyzedOptions, 'risk_analysis');
+        $cheapestRaw = min(array_column($riskAnalyses, 'raw_unit_price') ?: [0]);
         $selectedRaw = $selected['risk_analysis']['raw_unit_price'];
         
         $this->logger->info('Risk-adjusted pricing selection', [
@@ -563,8 +622,8 @@ class RiskAdjustedPricingService
     }
     
     /**
-     * Update supplier reliability score based on actual performance
-     * (In production, this would persist to database)
+     * Update supplier reliability score based on actual performance.
+     * Persists to cache so scores survive between requests.
      */
     public function updateSupplierReliability(string $source, bool $wasOnTime): void
     {
@@ -578,10 +637,13 @@ class RiskAdjustedPricingService
         $alpha = 0.1; // Learning rate
         $newValue = $wasOnTime ? 1.0 : 0.0;
         
-        $this->supplierReliability[$source] = 
+        $this->supplierReliability[$source] =
             ($alpha * $newValue) + ((1 - $alpha) * $this->supplierReliability[$source]);
         
-        $this->logger->info('Supplier reliability updated', [
+        // Persist updated scores to cache
+        $this->persistSupplierReliability();
+        
+        $this->logger->info('Supplier reliability updated and persisted', [
             'source' => $source,
             'was_on_time' => $wasOnTime,
             'new_reliability' => $this->supplierReliability[$source],
