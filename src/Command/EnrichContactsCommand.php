@@ -209,7 +209,7 @@ HELP
                 // Partial name match
                 $matches = $this->companyRepository->createQueryBuilder('c')
                     ->where('LOWER(c.name) LIKE :name')
-                    ->setParameter('name', '%' . mb_strtolower($companyArg) . '%')
+                    ->setParameter('name', '%' . addcslashes(mb_strtolower($companyArg), '%_') . '%')
                     ->setMaxResults(5)
                     ->getQuery()
                     ->getResult();

@@ -8,6 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: FtaRuleRepository::class)]
 #[ORM\Table(name: 'fta_rules')]
 #[ORM\Index(name: 'idx_hs_code', columns: ['hs_code'])]
+#[ORM\HasLifecycleCallbacks]
 class FtaRule
 {
     #[ORM\Id]
@@ -21,7 +22,7 @@ class FtaRule
     #[ORM\Column(length: 100)]
     private ?string $ftaAgreement = null; // Morocco-US FTA, USMCA, EU-Morocco, etc.
 
-    #[ORM\Column(type: 'text')]
+    #[ORM\Column(type: 'text', nullable: true)]
     private ?string $rooRequirement = null; // Rules of Origin requirement text
 
     #[ORM\Column(type: 'text', nullable: true)]
@@ -56,7 +57,20 @@ class FtaRule
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int

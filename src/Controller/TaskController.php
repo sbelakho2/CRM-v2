@@ -15,8 +15,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/tasks')]
+#[IsGranted('ROLE_USER')]
 class TaskController extends AbstractController
 {
     public function __construct(
@@ -237,11 +239,6 @@ class TaskController extends AbstractController
             $this->entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('task.flash.completed'));
-        }
-
-        $referer = $request->headers->get('referer');
-        if ($referer) {
-            return $this->redirect($referer);
         }
 
         return $this->redirectToRoute('app_task_index');

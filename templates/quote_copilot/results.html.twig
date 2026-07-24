@@ -311,23 +311,37 @@ async function initiatePublish(quoteId) {
     }
 }
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 function showContactModal(contacts) {
     const contactList = document.getElementById('contactList');
     contactList.innerHTML = contacts.map(contact => {
-        const escapedName = contact.name.replace(/'/g, '&apos;').replace(/"/g, '&quot;');
-        const escapedEmail = contact.email.replace(/'/g, '&apos;').replace(/"/g, '&quot;');
         return `
-        <div class="rams-list-item rams-list-item--clickable" onclick="selectContact(${contact.id}, '${escapedName}', '${escapedEmail}')">
+        <div class="rams-list-item rams-list-item--clickable" data-contact-id="${contact.id}" data-contact-name="${escapeHtml(contact.name)}" data-contact-email="${escapeHtml(contact.email)}">
             <div class="rams-list-item__content">
-                <p class="rams-text rams-text--bold">${contact.name}</p>
-                <p class="rams-text rams-text--sm rams-text--muted">${contact.email}</p>
-                ${contact.role ? `<p class="rams-text rams-text--xs rams-text--muted">${contact.role}</p>` : ''}
+                <p class="rams-text rams-text--bold">${escapeHtml(contact.name)}</p>
+                <p class="rams-text rams-text--sm rams-text--muted">${escapeHtml(contact.email)}</p>
+                ${contact.role ? `<p class="rams-text rams-text--xs rams-text--muted">${escapeHtml(contact.role)}</p>` : ''}
             </div>
             <svg class="rams-list-item__chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
         </div>
     `}).join('');
+    
+    contactList.querySelectorAll('.rams-list-item--clickable').forEach(item => {
+        item.addEventListener('click', function() {
+            selectContact(
+                parseInt(this.dataset.contactId),
+                this.dataset.contactName,
+                this.dataset.contactEmail
+            );
+        });
+    });
     
     document.getElementById('contactModal').classList.remove('rams-modal--hidden');
 }
@@ -338,10 +352,7 @@ function closeContactModal() {
 }
 
 function selectContact(contactId, contactName, contactEmail) {
-    const unescapeName = contactName.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
-    const unescapeEmail = contactEmail.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
-    
-    ramsConfirm(`{{ 'quote.copilot.send_to'|trans }} ${unescapeName} (${unescapeEmail})?`, function() {
+    ramsConfirm(`{{ 'quote.copilot.send_to'|trans }} ${contactName} (${contactEmail})?`, function() {
         closeContactModal();
         publishQuote(currentQuoteId, contactId);
     });

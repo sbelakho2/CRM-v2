@@ -59,7 +59,7 @@ class Contact
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
-    #[ORM\OneToMany(mappedBy: 'contact', targetEntity: Activity::class)]
+    #[ORM\OneToMany(mappedBy: 'contact', targetEntity: Activity::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $activities;
 
     #[ORM\ManyToMany(targetEntity: EmailCampaign::class, inversedBy: 'contacts')]
@@ -68,9 +68,16 @@ class Contact
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
         $this->activities = new ArrayCollection();
         $this->emailCampaigns = new ArrayCollection();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

@@ -10,12 +10,22 @@ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
 class UserAdminType extends AbstractType
 {
+    private AuthorizationCheckerInterface $authChecker;
+
+    public function __construct(AuthorizationCheckerInterface $authChecker)
+    {
+        $this->authChecker = $authChecker;
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $isNew = $options['is_new'] ?? false;
@@ -52,7 +62,32 @@ class UserAdminType extends AbstractType
                 'attr' => ['class' => 'rams-form__select', 'size' => 5],
             ]);
             
-        // Add password field only for new users
+        $builder->addEventListener(FormEvents::SUBMIT, function (FormEvent $event) {
+            $user = $event->getData();
+            $roles = $user->getRoles();
+
+            $manageableRoles = [
+                'ROLE_USER',
+                'ROLE_VIEWER',
+                'ROLE_SALES',
+                'ROLE_DIGITAL_REP',
+                'ROLE_FIELD_REP',
+                'ROLE_SALES_OPS',
+                'ROLE_MANAGER',
+                'ROLE_ENGINEERING',
+            ];
+
+            if ($this->authChecker->isGranted('ROLE_ADMIN')) {
+                $manageableRoles[] = 'ROLE_ADMIN';
+            }
+
+            foreach ($roles as $role) {
+                if (!in_array($role, $manageableRoles, true)) {
+                    $user->setRoles(array_intersect($roles, $manageableRoles));
+                    break;
+                }
+            }
+        });
         if ($isNew) {
             $builder->add('plainPassword', PasswordType::class, [
                 'mapped' => false,

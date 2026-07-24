@@ -10,13 +10,16 @@ use App\Service\CompetitorDetectionService;
 use App\Service\EmailClassifierService;
 use App\Repository\ContactRepository;
 use App\Repository\OutboundMessageRepository;
+use App\Repository\LeadRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Lock\LockFactory;
 
 /**
  * Autonomous Sales System Command
@@ -59,6 +62,9 @@ class AutonomousSalesCommand extends Command
         private ContactRepository $contactRepository,
         private ?OutboundMessageRepository $outboundMessageRepository,
         private EntityManagerInterface $entityManager,
+        private LockFactory $lockFactory,
+        private ?LoggerInterface $logger = null,
+        private ?LeadRepository $leadRepository = null,
     ) {
         parent::__construct();
     }
@@ -225,9 +231,8 @@ class AutonomousSalesCommand extends Command
         }
 
         // Data readiness guard
-        $conn = $this->entityManager->getConnection();
-        $contactCount = (int) $conn->fetchOne('SELECT COUNT(*) FROM contacts');
-        $leadCount = (int) $conn->fetchOne('SELECT COUNT(*) FROM leads');
+        $contactCount = $this->contactRepository->count([]);
+        $leadCount = $this->leadRepository ? $this->leadRepository->count([]) : 0;
         $minContacts = (int) $this->settingsService->getSetting('auto_min_contacts', 1);
         $minLeads = (int) $this->settingsService->getSetting('auto_min_leads', 0);
 
@@ -243,13 +248,9 @@ class AutonomousSalesCommand extends Command
         }
 
         // Lock to prevent overlapping runs
-        $lockPath = getcwd() . '/var/autonomous_sales_auto.lock';
-        $lockHandle = @fopen($lockPath, 'c');
-        if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
+        $lock = $this->lockFactory->createLock('autonomous_sales_auto', 3600);
+        if (!$lock->acquire()) {
             $io->warning('Auto-run skipped because another run is in progress.');
-            if ($lockHandle) {
-                fclose($lockHandle);
-            }
             return Command::SUCCESS;
         }
 
@@ -273,10 +274,7 @@ class AutonomousSalesCommand extends Command
 
             return $result;
         } finally {
-            if ($lockHandle) {
-                flock($lockHandle, LOCK_UN);
-                fclose($lockHandle);
-            }
+            $lock->release();
         }
     }
 
@@ -764,23 +762,21 @@ class AutonomousSalesCommand extends Command
 
     private function getCompetitorCacheAge(): int
     {
-        // Check for cache timestamp in competitor_learner_cache table or similar
-        // For now, return a default that triggers refresh
         try {
             $conn = $this->entityManager->getConnection();
             $result = $conn->executeQuery(
                 "SELECT MAX(updated_at) as last_update FROM known_competitor"
             )->fetchAssociative();
-            
+
             if ($result && $result['last_update']) {
                 $lastUpdate = new \DateTime($result['last_update']);
                 return time() - $lastUpdate->getTimestamp();
             }
         } catch (\Exception $e) {
-            // Table may not exist or be empty
+            $this->logger?->error('Failed to get competitor cache age', ['exception' => $e]);
         }
-        
-        return PHP_INT_MAX; // Force refresh if no data
+
+        return PHP_INT_MAX;
     }
 
     private function getCompetitorCacheSize(): int
@@ -789,6 +785,7 @@ class AutonomousSalesCommand extends Command
             $conn = $this->entityManager->getConnection();
             return (int) $conn->executeQuery("SELECT COUNT(*) FROM known_competitor")->fetchOne();
         } catch (\Exception $e) {
+            $this->logger?->error('Failed to get competitor cache size', ['exception' => $e]);
             return 0;
         }
     }

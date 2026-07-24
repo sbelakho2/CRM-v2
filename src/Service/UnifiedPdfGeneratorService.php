@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Quote;
@@ -8,6 +10,7 @@ use App\Entity\Company;
 use App\Entity\OnboardingPack;
 use App\Repository\ReportAuditRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Twig\Environment;
 
 /**
@@ -34,6 +37,8 @@ class UnifiedPdfGeneratorService
         private Environment $twig,
         private ReportAuditRepository $reportAuditRepository,
         private IssuingCompanyService $issuingCompanyService,
+        private ?string $projectDir = null,
+        private ?LoggerInterface $logger = null,
     ) {}
 
     /**
@@ -80,7 +85,12 @@ class UnifiedPdfGeneratorService
             'margin_footer' => 10,
         ]);
 
-        $mpdf->WriteHTML($html);
+        try {
+            $mpdf->WriteHTML($html);
+        } catch (\Exception $e) {
+            $this->logger?->warning('Mpdf WriteHTML failed', ['exception' => $e]);
+            throw $e;
+        }
         
         return $mpdf->Output('', 'S'); // Return as string
     }
@@ -401,7 +411,7 @@ class UnifiedPdfGeneratorService
         $mpdf->WriteHTML($html);
         
         // 3. Save to file and return path
-        $uploadDir = 'public/uploads/onboarding';
+        $uploadDir = ($this->projectDir ?? '') . '/public/uploads/onboarding';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }

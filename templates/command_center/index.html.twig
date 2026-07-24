@@ -18,7 +18,8 @@
             <span class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mr-4">{{ 'common.date'|trans }}: {{ data.timestamp|date('H:i:s') }}</span>
             <button class="rams-btn uppercase" onclick="location.reload()">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    <path d="M2 8a6 6 0 0110.472-4M14 8a6 6 0 01-10.472 4"/>
+                    <path d="M14 2v4h-4M2 14v-4h4"/>
                 </svg>
                 {{ 'common.refresh'|trans }}
             </button>
@@ -312,6 +313,12 @@
 {% block javascripts %}
 {{ parent() }}
 <script>
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 function analyzeLeadQuick(leadId) {
     document.getElementById('leadAnalysisModal').classList.remove('rams-hidden');
     document.getElementById('leadAnalysisContent').innerHTML = `
@@ -326,50 +333,158 @@ function analyzeLeadQuick(leadId) {
     fetch(`/command-center/lead/${leadId}/analysis`)
         .then(response => response.json())
         .then(data => {
-            let html = `
-                <div class="rams-mb-4">
-                    <h5 class="rams-text--lg rams-font-semibold">${data.company_name}</h5>
-                    <div class="rams-flex rams-gap-2 rams-mt-2">
-                        <span class="rams-badge ${data.fit_grade === 'A' ? 'rams-badge--success' : data.fit_grade === 'B' ? 'rams-badge--info' : data.fit_grade === 'C' ? 'rams-badge--warning' : ''}">
-                            {{ 'lead.score'|trans }}: ${data.fit_grade}
-                        </span>
-                        <span class="rams-badge rams-badge--neutral">{{ 'common.total'|trans }}: ${data.overall_fit_score}</span>
-                        <span class="rams-badge rams-badge--neutral">{{ 'rfq.priority'|trans }}: ${data.priority_score}</span>
-                    </div>
-                </div>
-            `;
+            const container = document.getElementById('leadAnalysisContent');
+            container.innerHTML = '';
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'rams-mb-4';
+            
+            const title = document.createElement('h5');
+            title.className = 'rams-text--lg rams-font-semibold';
+            title.textContent = data.company_name;
+            headerDiv.appendChild(title);
+            
+            const badgesDiv = document.createElement('div');
+            badgesDiv.className = 'rams-flex rams-gap-2 rams-mt-2';
+            
+            const gradeSpan = document.createElement('span');
+            let gradeClass = data.fit_grade === 'A' ? 'rams-badge--success' : data.fit_grade === 'B' ? 'rams-badge--info' : data.fit_grade === 'C' ? 'rams-badge--warning' : '';
+            gradeSpan.className = 'rams-badge ' + gradeClass;
+            gradeSpan.textContent = '{{ 'lead.score'|trans }}: ' + data.fit_grade;
+            badgesDiv.appendChild(gradeSpan);
+            
+            const totalSpan = document.createElement('span');
+            totalSpan.className = 'rams-badge rams-badge--neutral';
+            totalSpan.textContent = '{{ 'common.total'|trans }}: ' + data.overall_fit_score;
+            badgesDiv.appendChild(totalSpan);
+            
+            const prioritySpan = document.createElement('span');
+            prioritySpan.className = 'rams-badge rams-badge--neutral';
+            prioritySpan.textContent = '{{ 'rfq.priority'|trans }}: ' + data.priority_score;
+            badgesDiv.appendChild(prioritySpan);
+            
+            headerDiv.appendChild(badgesDiv);
+            container.appendChild(headerDiv);
             
             if (data.pain_points && data.pain_points.length > 0) {
-                html += `<div class="rams-border-t border-rams-line rams-pt-3 rams-mt-3"><h6 class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-2">{{ 'guidance.tips'|trans }}</h6><div class="rams-flex rams-flex-col rams-gap-2">`;
+                const ppSection = document.createElement('div');
+                ppSection.className = 'rams-border-t border-rams-line rams-pt-3 rams-mt-3';
+                
+                const ppHeader = document.createElement('h6');
+                ppHeader.className = 'font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-2';
+                ppHeader.textContent = '{{ 'guidance.tips'|trans }}';
+                ppSection.appendChild(ppHeader);
+                
+                const ppList = document.createElement('div');
+                ppList.className = 'rams-flex rams-flex-col rams-gap-2';
+                
                 data.pain_points.forEach(pp => {
-                    html += `<div class="rams-alert rams-alert--info"><div class="rams-alert__content"><strong>${pp.type.replace('_', ' ').toUpperCase()}</strong> (${pp.confidence})<br><small class="rams-text--muted">${pp.pitch}</small></div></div>`;
+                    const alert = document.createElement('div');
+                    alert.className = 'rams-alert rams-alert--info';
+                    const alertContent = document.createElement('div');
+                    alertContent.className = 'rams-alert__content';
+                    
+                    const strong = document.createElement('strong');
+                    strong.textContent = pp.type.replace('_', ' ').toUpperCase();
+                    alertContent.appendChild(strong);
+                    alertContent.appendChild(document.createTextNode(' (' + pp.confidence + ')'));
+                    
+                    const br = document.createElement('br');
+                    alertContent.appendChild(br);
+                    
+                    const small = document.createElement('small');
+                    small.className = 'rams-text--muted';
+                    small.textContent = pp.pitch;
+                    alertContent.appendChild(small);
+                    
+                    alert.appendChild(alertContent);
+                    ppList.appendChild(alert);
                 });
-                html += `</div></div>`;
+                
+                ppSection.appendChild(ppList);
+                container.appendChild(ppSection);
             }
             
             if (data.conversation_starters && data.conversation_starters.length > 0) {
-                html += `<div class="rams-border-t border-rams-line rams-pt-3 rams-mt-3"><h6 class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-2">{{ 'common.notes'|trans }}</h6>`;
+                const csSection = document.createElement('div');
+                csSection.className = 'rams-border-t border-rams-line rams-pt-3 rams-mt-3';
+                
+                const csHeader = document.createElement('h6');
+                csHeader.className = 'font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-2';
+                csHeader.textContent = '{{ 'common.notes'|trans }}';
+                csSection.appendChild(csHeader);
+                
                 data.conversation_starters.slice(0, 3).forEach(cs => {
-                    html += `<div class="rams-p-3 rams-bg-panel border border-rams-line rounded-rams-sm rams-mb-2"><div class="rams-module__content"><em>"${cs.opener}"</em><br><small class="rams-text--muted">${cs.follow_up}</small></div></div>`;
+                    const card = document.createElement('div');
+                    card.className = 'rams-p-3 rams-bg-panel border border-rams-line rounded-rams-sm rams-mb-2';
+                    
+                    const content = document.createElement('div');
+                    content.className = 'rams-module__content';
+                    
+                    const em = document.createElement('em');
+                    em.textContent = '"' + cs.opener + '"';
+                    content.appendChild(em);
+                    
+                    const br = document.createElement('br');
+                    content.appendChild(br);
+                    
+                    const small = document.createElement('small');
+                    small.className = 'rams-text--muted';
+                    small.textContent = cs.follow_up;
+                    content.appendChild(small);
+                    
+                    card.appendChild(content);
+                    csSection.appendChild(card);
                 });
-                html += `</div>`;
+                
+                container.appendChild(csSection);
             }
             
             if (data.next_steps && data.next_steps.length > 0) {
-                html += `<div class="rams-border-t border-rams-line rams-pt-3 rams-mt-3"><h6 class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-2">{{ 'common.actions'|trans }}</h6><ol class="rams-list rams-list--ordered">`;
+                const nsSection = document.createElement('div');
+                nsSection.className = 'rams-border-t border-rams-line rams-pt-3 rams-mt-3';
+                
+                const nsHeader = document.createElement('h6');
+                nsHeader.className = 'font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-2';
+                nsHeader.textContent = '{{ 'common.actions'|trans }}';
+                nsSection.appendChild(nsHeader);
+                
+                const ol = document.createElement('ol');
+                ol.className = 'rams-list rams-list--ordered';
+                
                 data.next_steps.forEach(ns => {
-                    html += `<li class="rams-list__item"><strong>${ns.action}</strong>: ${ns.description} <span class="rams-badge rams-badge--neutral">${ns.timeframe}</span></li>`;
+                    const li = document.createElement('li');
+                    li.className = 'rams-list__item';
+                    
+                    const strong = document.createElement('strong');
+                    strong.textContent = ns.action;
+                    li.appendChild(strong);
+                    li.appendChild(document.createTextNode(': ' + ns.description + ' '));
+                    
+                    const badge = document.createElement('span');
+                    badge.className = 'rams-badge rams-badge--neutral';
+                    badge.textContent = ns.timeframe;
+                    li.appendChild(badge);
+                    
+                    ol.appendChild(li);
                 });
-                html += `</ol></div>`;
+                
+                nsSection.appendChild(ol);
+                container.appendChild(nsSection);
             }
             
-            html += `<div class="rams-mt-6"><a href="/lead/${leadId}" class="rams-btn rams-btn--primary uppercase">{{ 'common.view'|trans }} {{ 'common.details'|trans }}</a></div>`;
-            
-            document.getElementById('leadAnalysisContent').innerHTML = html;
+            const linkDiv = document.createElement('div');
+            linkDiv.className = 'rams-mt-6';
+            const link = document.createElement('a');
+            link.href = '/lead/' + leadId;
+            link.className = 'rams-btn rams-btn--primary uppercase';
+            link.textContent = '{{ 'common.view'|trans }} {{ 'common.details'|trans }}';
+            linkDiv.appendChild(link);
+            container.appendChild(linkDiv);
         })
         .catch(error => {
             document.getElementById('leadAnalysisContent').innerHTML = `
-                <div class="rams-alert rams-alert--error">{{ 'common.error'|trans }}: ${error.message}</div>
+                <div class="rams-alert rams-alert--error">{{ 'common.error'|trans }}: ${escapeHtml(error.message)}</div>
             `;
         });
 }

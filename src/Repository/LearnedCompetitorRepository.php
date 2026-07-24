@@ -49,6 +49,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->orderBy('c.tier', 'ASC')
             ->addOrderBy('c.detectionCount', 'DESC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -127,7 +128,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->where('c.active = :active')
             ->andWhere('LOWER(c.name) LIKE :query OR LOWER(c.domain) LIKE :query OR LOWER(c.fullName) LIKE :query')
             ->setParameter('active', true)
-            ->setParameter('query', '%' . $query . '%')
+            ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('c.tier', 'ASC')
             ->getQuery()
             ->getResult();
@@ -172,7 +173,14 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
         
         // Count verified and high confidence
         $stats['verified'] = $this->count(['active' => true, 'verified' => true]);
-        $stats['highConfidence'] = count($this->findHighConfidence(70));
+        $stats['highConfidence'] = (int) $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.active = :active')
+            ->andWhere('c.confidenceScore >= :minConfidence')
+            ->setParameter('active', true)
+            ->setParameter('minConfidence', 70)
+            ->getQuery()
+            ->getSingleScalarResult();
         
         return $stats;
     }

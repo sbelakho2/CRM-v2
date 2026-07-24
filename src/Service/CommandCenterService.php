@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Lead;
@@ -650,28 +652,25 @@ class CommandCenterService
             ? round(((int)$acceptedQuotes / (int)$totalQuotes) * 100, 1) 
             : 0;
         
-        // Average quote value (converted to display currency)
-        $recentQuotes = $this->quoteRepository->createQueryBuilder('q')
-            ->where('q.createdAt >= :monthAgo')
-            ->setParameter('monthAgo', $monthAgo)
-            ->setMaxResults(500)
-            ->getQuery()
-            ->getResult();
-
+        // Average quote value via aggregate DQL query (avoids loading all entities)
         $avgQuoteValue = 0.0;
-        if (count($recentQuotes) > 0) {
-            $sum = 0.0;
-            $count = 0;
-            foreach ($recentQuotes as $quote) {
-                $amount = (float) $quote->getTotalCost();
-                if ($amount <= 0) {
-                    continue;
-                }
-                $sourceCurrency = $quote->getCurrency() ?: $displayCurrency;
-                $sum += $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
-                $count++;
+        try {
+            $aggResult = $this->quoteRepository->createQueryBuilder('q')
+                ->select('AVG(q.totalCost) as avgValue, COUNT(q.id) as totalCount')
+                ->where('q.createdAt >= :monthAgo')
+                ->andWhere('q.totalCost > 0')
+                ->setParameter('monthAgo', $monthAgo)
+                ->getQuery()
+                ->getOneOrNullResult();
+
+            if ($aggResult && $aggResult['totalCount'] > 0) {
+                $avgQuoteValue = (float) $aggResult['avgValue'];
             }
-            $avgQuoteValue = $count > 0 ? $sum / $count : 0.0;
+        } catch (\Exception $e) {
+            $this->logger?->warning('Failed to calculate average quote value via DQL, falling back to null', [
+                'exception' => $e,
+            ]);
+            $avgQuoteValue = 0.0;
         }
 
         // Pipeline health (converted to display currency)

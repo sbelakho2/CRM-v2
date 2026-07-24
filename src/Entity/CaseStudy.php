@@ -9,6 +9,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'case_studies')]
 class CaseStudy
 {
+    public const LANGUAGE_EN = 'EN';
+    public const LANGUAGE_FR = 'FR';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -39,8 +42,8 @@ class CaseStudy
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $anonymized = false;
 
-    #[ORM\Column(length: 10)]
-    private ?string $language = 'EN'; // EN or FR
+    #[ORM\Column(length: 5)]
+    private ?string $language = self::LANGUAGE_EN; // EN or FR
 
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $pdfPath = null;

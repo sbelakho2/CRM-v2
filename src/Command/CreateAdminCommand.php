@@ -47,6 +47,11 @@ class CreateAdminCommand extends Command
         $firstName = $input->getOption('firstName') ?? $io->ask($this->translator->trans('command.create_admin.prompt.first_name'));
         $lastName = $input->getOption('lastName') ?? $io->ask($this->translator->trans('command.create_admin.prompt.last_name'));
 
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $io->error("Invalid email address: {$email}");
+            return Command::FAILURE;
+        }
+
         // Check if user exists
         $existingUser = $this->entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
         if ($existingUser) {

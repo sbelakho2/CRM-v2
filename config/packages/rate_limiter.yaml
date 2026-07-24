@@ -2,43 +2,57 @@
 # Protects sensitive endpoints from abuse
 framework:
     rate_limiter:
-        # Password reset rate limiter
-        # Limits password reset requests to prevent email spam attacks
         password_reset:
             policy: 'sliding_window'
-            limit: 3                    # Max 3 requests
-            interval: '1 hour'          # Per hour
-            
-        # Per-IP password reset limiter (more restrictive)
+            limit: 3
+            interval: '1 hour'
+
         password_reset_ip:
             policy: 'fixed_window'
-            limit: 5                    # Max 5 requests from same IP
-            interval: '15 minutes'      # Per 15 minutes
-            
-        # Login attempt rate limiter (brute force protection)
+            limit: 5
+            interval: '15 minutes'
+
+        forgot_password_form:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '15 minutes'
+
+        registration:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '1 hour'
+
+        registration_ip:
+            policy: 'fixed_window'
+            limit: 5
+            interval: '1 hour'
+
         login:
             policy: 'sliding_window'
-            limit: 5                    # Max 5 failed attempts
-            interval: '15 minutes'      # Before temporary lockout
-            
-        # API rate limiter for general endpoints
+            limit: 5
+            interval: '15 minutes'
+
+        webhook_email:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '1 minute'
+
+        webhook_email_ip:
+            policy: 'fixed_window'
+            limit: 100
+            interval: '1 minute'
+
         api_general:
             policy: 'token_bucket'
-            limit: 100                  # Bucket size
-            rate: { interval: '1 minute', amount: 60 }  # Refill 60 per minute
+            limit: 100
+            rate: { interval: '1 minute', amount: 60 }
 
-        # Per-API-key rate limiter
-        # Prevents a single compromised or misconfigured API key from exhausting
-        # the global pool. Each API key gets its own bucket.
         api_key:
             policy: 'token_bucket'
-            limit: 30                   # Max 30 requests per API key
-            rate: { interval: '1 minute', amount: 10 }  # Refill 10 per minute
+            limit: 30
+            rate: { interval: '1 minute', amount: 10 }
 
-        # Per-user authenticated rate limiter
-        # Each authenticated user session gets its own rate limit window.
-        # Protects against authenticated user abuse (e.g., bulk data scraping).
         api_user:
             policy: 'sliding_window'
-            limit: 200                  # Max 200 requests
-            interval: '1 minute'        # Per minute sliding window
+            limit: 200
+            interval: '1 minute'

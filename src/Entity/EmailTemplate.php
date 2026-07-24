@@ -65,8 +65,15 @@ class EmailTemplate
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
         $this->personalizationTokens = [];
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     #[ORM\PreUpdate]

@@ -4,6 +4,7 @@ namespace App\Form;
 
 use App\Entity\CustomFieldDefinition;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -21,6 +22,10 @@ class CustomFieldDefinitionType extends AbstractType
         $builder
             ->add('label', TextType::class, [
                 'label' => 'Field Label',
+                'constraints' => [
+                    new Assert\NotBlank(['message' => 'Please enter a field label']),
+                    new Assert\Length(['max' => 255]),
+                ],
                 'attr' => [
                     'class' => 'rams-input',
                     'placeholder' => 'e.g., Industry Type, Contract Value',
@@ -154,10 +159,11 @@ class CustomFieldDefinitionType extends AbstractType
             // Convert options text to array
             $optionsText = $form->get('options')->getData();
             if ($optionsText && $field->hasOptions()) {
-                $lines = array_filter(array_map('trim', explode("\n", $optionsText)));
+                $sanitized = array_map('trim', array_filter(explode("\n", $optionsText)));
+                $sanitized = array_map('strip_tags', $sanitized);
                 $options = array_map(function ($line) {
                     return ['label' => $line, 'value' => $line];
-                }, $lines);
+                }, $sanitized);
                 $field->setOptions($options);
             }
 

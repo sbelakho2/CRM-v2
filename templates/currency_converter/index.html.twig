@@ -384,6 +384,12 @@
         statStale.textContent = stale;
     }
 
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     function rebuildRatesTable(rates) {
         const tbody = document.getElementById('rates-tbody');
         const badge = document.getElementById('rates-count-badge');
@@ -397,7 +403,7 @@
                 ? '<span class="rams-andon"><span class="rams-andon__light rams-andon__light--amber"></span><span class="rams-andon__text rams-andon__text--amber">{{ 'currency_converter.stale'|trans }}</span></span>'
                 : '<span class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span><span class="rams-andon__text rams-andon__text--green">{{ 'currency_converter.fresh'|trans }}</span></span>';
             html += `<tr>
-                <td class="rams-table__td rams-text--mono">${pair}</td>
+                <td class="rams-table__td rams-text--mono">${escapeHtml(pair)}</td>
                 <td class="rams-table__td rams-text--mono">${parseFloat(info.rate).toFixed(6)}</td>
                 <td class="rams-table__td rams-text--muted">${parseFloat(info.age_hours).toFixed(1)}h</td>
                 <td class="rams-table__td">${statusHtml}</td>

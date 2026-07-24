@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\FxRate;
@@ -139,6 +141,14 @@ class LiveFxRateFetcher
             }
         }
         
+        if (empty($results['success'])) {
+            $this->logger->critical('All FX rate sources failed — no rates retrieved', [
+                'source' => $results['source'] ?? 'none',
+                'failed_count' => count($results['failed']),
+                'failed' => $results['failed'],
+            ]);
+        }
+
         $this->logger->info('FX rate fetch completed', [
             'source' => $results['source'],
             'success_count' => count($results['success']),

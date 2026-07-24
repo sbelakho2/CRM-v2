@@ -20,6 +20,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_ph_source', columns: ['source'])]
 #[ORM\Index(name: 'idx_ph_date', columns: ['recorded_at'])]
 #[ORM\Index(name: 'idx_ph_mpn_source', columns: ['mpn', 'source'])]
+#[ORM\HasLifecycleCallbacks]
 class PriceHistory
 {
     #[ORM\Id]
@@ -88,8 +89,15 @@ class PriceHistory
 
     public function __construct()
     {
-        $this->recordedAt = new \DateTime();
         $this->priceBreaks = [];
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->recordedAt === null) {
+            $this->recordedAt = new \DateTime();
+        }
     }
 
     // ==================== Getters and Setters ====================

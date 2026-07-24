@@ -29,7 +29,7 @@
                         <div class="rams-text--3xs rams-text--muted font-mono">{{ notification.timestamp|date('H:i') }}</div>
                     </div>
                     <p class="rams-alert__text">
-                        {{ notification.message|raw }}
+                        {{ notification.message|striptags('<b><i><u><a><br><p>')|raw }}
                     </p>
                 </div>
 

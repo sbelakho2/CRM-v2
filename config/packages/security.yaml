@@ -16,38 +16,44 @@ security:
       lazy: true
       provider: app_user_provider
       custom_authenticator: App\Security\LoginFormAuthenticator
+      login_throttling:
+        max_attempts: 5
+        interval: '15 minutes'
+      remember_me:
+        secret: '%kernel.secret%'
+        lifetime: 604800
+        path: /
       logout:
         path: app_logout
         target: app_login
 
   access_control:
-    # Public access for login and register
     - { path: ^/login, roles: PUBLIC_ACCESS }
     - { path: ^/register, roles: PUBLIC_ACCESS }
     - { path: ^/logout, roles: PUBLIC_ACCESS }
     - { path: ^/forgot-password, roles: PUBLIC_ACCESS }
     - { path: ^/reset-password, roles: PUBLIC_ACCESS }
-    # Public access for email tracking (must be accessible by non-logged-in email recipients)
     - { path: ^/email-campaigns/track, roles: PUBLIC_ACCESS }
-    # Public access for email webhooks (must be accessible by email service providers)
     - { path: ^/webhook/email, roles: PUBLIC_ACCESS }
-    # Admin area
     - { path: ^/admin, roles: ROLE_ADMIN }
-    # Engineering-only workspace: quotation engine + operations module
     - { path: ^/quote-copilot, roles: [ROLE_USER, ROLE_ENGINEERING] }
     - { path: ^/quote-review, roles: [ROLE_USER, ROLE_ENGINEERING] }
     - { path: ^/reports, roles: [ROLE_USER, ROLE_ENGINEERING] }
     - { path: ^/compliance, roles: [ROLE_USER, ROLE_ENGINEERING] }
     - { path: ^/supplier-portal, roles: [ROLE_USER, ROLE_ENGINEERING] }
     - { path: ^/currency-converter, roles: [ROLE_USER, ROLE_ENGINEERING] }
-    # All other routes require at least ROLE_USER
+    - { path: ^/api, roles: ROLE_USER }
     - { path: ^/, roles: ROLE_USER }
 
   role_hierarchy:
-    ROLE_ADMIN: [ROLE_SALES_OPS, ROLE_DIGITAL_REP, ROLE_FIELD_REP, ROLE_USER]
+    ROLE_ADMIN: [ROLE_ENGINEERING, ROLE_MANAGER, ROLE_SALES, ROLE_SALES_OPS, ROLE_DIGITAL_REP, ROLE_FIELD_REP, ROLE_VIEWER, ROLE_USER]
+    ROLE_ENGINEERING: [ROLE_MANAGER, ROLE_SALES, ROLE_VIEWER, ROLE_USER]
+    ROLE_MANAGER: [ROLE_SALES, ROLE_VIEWER, ROLE_USER]
+    ROLE_SALES: [ROLE_VIEWER, ROLE_USER]
     ROLE_SALES_OPS: [ROLE_DIGITAL_REP, ROLE_FIELD_REP, ROLE_USER]
     ROLE_DIGITAL_REP: ROLE_USER
     ROLE_FIELD_REP: ROLE_USER
+    ROLE_VIEWER: ROLE_USER
 
 when@test:
   security:

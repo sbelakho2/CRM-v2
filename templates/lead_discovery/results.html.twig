@@ -125,7 +125,7 @@
                                 <div class="rams-flex-1">
                                     <div class="rams-flex rams-justify-between rams-items-start rams-mb-2">
                                         <h3 class="rams-heading rams-heading--3">
-                                            {{ result.title|raw }}
+                                            {{ result.title }}
                                         </h3>
                                         <a 
                                             href="{{ result.link }}" 
@@ -139,7 +139,7 @@
                                         </a>
                                     </div>
                                     <p class="rams-text--sm rams-mb-3">
-                                        {{ result.snippet|raw }}
+                                        {{ result.snippet }}
                                     </p>
                                     
                                     {% if result.pagemap.organization is defined %}

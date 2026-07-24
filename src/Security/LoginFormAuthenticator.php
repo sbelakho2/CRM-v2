@@ -42,7 +42,6 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        // Redirect to the target path if it exists, otherwise go to dashboard
         if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
             return new RedirectResponse($targetPath);
         }
@@ -51,7 +50,7 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         if (in_array('ROLE_ENGINEERING', $roles, true) && !in_array('ROLE_USER', $roles, true)) {
             return new RedirectResponse($this->urlGenerator->generate('quote_copilot_list'));
         }
-        
+
         return new RedirectResponse($this->urlGenerator->generate('app_dashboard'));
     }
 

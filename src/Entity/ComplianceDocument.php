@@ -12,6 +12,11 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[Vich\Uploadable]
 class ComplianceDocument
 {
+    public const STATUS_PENDING = 'Pending';
+    public const STATUS_APPROVED = 'Approved';
+    public const STATUS_REJECTED = 'Rejected';
+    public const STATUS_EXPIRED = 'Expired';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -222,23 +227,36 @@ class ComplianceDocument
      */
     public function isExpired(): bool
     {
-        if ($this->expiryDate === null) {
+        return self::isExpiredStatic($this->expiryDate);
+    }
+
+    public static function isExpiredStatic(?\DateTimeInterface $expiryDate): bool
+    {
+        if ($expiryDate === null) {
             return false;
         }
-        return $this->expiryDate < new \DateTime('today');
+        return $expiryDate < new \DateTime('today');
     }
-    
+
     /**
      * Check if document is expiring soon (within specified days)
      */
     public function isExpiringSoon(int $days = 30): bool
     {
-        if ($this->expiryDate === null || $this->isExpired()) {
+        return self::isExpiringSoonStatic($this->expiryDate, $days);
+    }
+
+    public static function isExpiringSoonStatic(?\DateTimeInterface $expiryDate, int $days = 30): bool
+    {
+        if ($expiryDate === null) {
             return false;
         }
-        
-        $warningDate = (new \DateTime('today'))->modify("+{$days} days");
-        return $this->expiryDate <= $warningDate;
+        $today = new \DateTime('today');
+        if ($expiryDate < $today) {
+            return false;
+        }
+        $warningDate = (clone $today)->modify("+{$days} days");
+        return $expiryDate <= $warningDate;
     }
     
     /**

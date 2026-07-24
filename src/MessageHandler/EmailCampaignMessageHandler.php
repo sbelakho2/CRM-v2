@@ -21,7 +21,7 @@ class EmailCampaignMessageHandler
     {
         $campaign = $this->campaignRepository->find($message->getCampaignId());
         if (!$campaign) {
-            throw new \Exception('Campaign not found');
+            throw new \RuntimeException('Campaign not found');
         }
 
         $recipients = $this->contactRepository->findBy(['id' => $message->getRecipientIds()]);

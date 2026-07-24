@@ -30,6 +30,7 @@
         "symfony/mailer": "7.0.*",
         "symfony/messenger": "7.0.*",
         "symfony/monolog-bundle": "*",
+        "symfony/process": "7.0.*",
         "symfony/rate-limiter": "7.0.*",
         "symfony/runtime": "7.1.7",
         "symfony/security-bundle": "7.0.*",
@@ -60,7 +61,10 @@
             "symfony/flex": true,
             "symfony/runtime": true
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "audit": {
+            "block-insecure": false
+        }
     },
     "autoload": {
         "psr-4": {

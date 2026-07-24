@@ -13,6 +13,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -35,14 +36,24 @@ class GenerateTestDataCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this
+            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'Test user email (random if not provided)')
+            ->addOption('password', null, InputOption::VALUE_REQUIRED, 'Test user password (random if not provided)');
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         
         $io->title('Generating Test Data');
 
+        $email = $input->getOption('email') ?? 'test_' . bin2hex(random_bytes(4)) . '@example.com';
+        $password = $input->getOption('password') ?? bin2hex(random_bytes(6));
+
         // Create test user if not exists
-        $user = $this->createTestUser($io);
+        $user = $this->createTestUser($io, $email, $password);
 
         // Generate companies
         $io->section('Creating Companies...');
@@ -79,9 +90,8 @@ class GenerateTestDataCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function createTestUser(SymfonyStyle $io): User
+    private function createTestUser(SymfonyStyle $io, string $email, string $password): User
     {
-        $email = 'test@starz.ma';
         $existingUser = $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
         
         if ($existingUser) {
@@ -92,7 +102,7 @@ class GenerateTestDataCommand extends Command
         $user = new User();
         $user->setEmail($email);
         $user->setRoles(['ROLE_USER', 'ROLE_ADMIN']);
-        $user->setPassword($this->passwordHasher->hashPassword($user, 'test123'));
+        $user->setPassword($this->passwordHasher->hashPassword($user, $password));
         $user->setFirstName('Test');
         $user->setLastName('User');
         $user->setActive(true);
@@ -100,7 +110,7 @@ class GenerateTestDataCommand extends Command
         $this->em->persist($user);
         $this->em->flush();
 
-        $io->success('Created test user: ' . $email . ' / password: test123');
+        $io->success('Created test user: ' . $email . ' / password: ' . $password);
         
         return $user;
     }

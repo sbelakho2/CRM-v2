@@ -60,7 +60,7 @@
 
                             {# Content #}
                             <div class="rams-notification__content">
-                                <p class="rams-notification__message">{{ notification.message|raw }}</p>
+                                <p class="rams-notification__message">{{ notification.message|striptags('<b><i><u><a><br><p>')|raw }}</p>
                                 <p class="rams-dymo rams-mt-1">{{ notification.timestamp|date('M d, Y g:i A') }}</p>
                             </div>
 

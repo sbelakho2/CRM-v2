@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
+
+use Psr\Log\LoggerInterface;
 
 class CurrencyConverter
 {
@@ -59,7 +63,8 @@ class CurrencyConverter
 
     public function __construct(
         private CurrencyConversionService $conversionService,
-        private CurrencyPreferenceService $currencyPreferenceService
+        private CurrencyPreferenceService $currencyPreferenceService,
+        private ?LoggerInterface $logger = null,
     ) {
     }
 

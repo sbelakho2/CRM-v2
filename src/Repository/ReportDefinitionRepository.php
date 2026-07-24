@@ -136,11 +136,15 @@ class ReportDefinitionRepository extends ServiceEntityRepository
      */
     public function findScheduledReports(): array
     {
-        return $this->createQueryBuilder('r')
+        $results = $this->createQueryBuilder('r')
             ->andWhere('r.scheduledDelivery IS NOT NULL')
-            ->andWhere("JSON_LENGTH(r.scheduledDelivery) > 0")
             ->getQuery()
             ->getResult();
+
+        return array_filter($results, function (ReportDefinition $r) {
+            $scheduled = $r->getScheduledDelivery();
+            return is_array($scheduled) && count($scheduled) > 0;
+        });
     }
     
     /**
@@ -152,7 +156,7 @@ class ReportDefinitionRepository extends ServiceEntityRepository
             ->andWhere('r.createdBy = :user OR r.isPublic = true')
             ->andWhere('r.name LIKE :query OR r.description LIKE :query')
             ->setParameter('user', $user)
-            ->setParameter('query', '%' . $query . '%')
+            ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('r.name', 'ASC')
             ->getQuery()
             ->getResult();

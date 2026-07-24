@@ -4,6 +4,7 @@ namespace App\Form;
 
 use App\Entity\MeetingSlot;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -19,6 +20,10 @@ class MeetingSlotType extends AbstractType
         $builder
             ->add('title', TextType::class, [
                 'label' => 'meeting.form.title',
+                'constraints' => [
+                    new Assert\NotBlank(['message' => 'Please enter a meeting title']),
+                    new Assert\Length(['max' => 255]),
+                ],
                 'attr' => [
                     'class' => 'rams-input',
                     'placeholder' => 'meeting.form.title_placeholder',
@@ -99,24 +104,10 @@ class MeetingSlotType extends AbstractType
     
     private function getTimezoneChoices(): array
     {
-        $timezones = [
-            'America/New_York' => 'Eastern Time (US & Canada)',
-            'America/Chicago' => 'Central Time (US & Canada)',
-            'America/Denver' => 'Mountain Time (US & Canada)',
-            'America/Los_Angeles' => 'Pacific Time (US & Canada)',
-            'America/Phoenix' => 'Arizona',
-            'America/Anchorage' => 'Alaska',
-            'Pacific/Honolulu' => 'Hawaii',
-            'UTC' => 'UTC',
-            'Europe/London' => 'London',
-            'Europe/Paris' => 'Paris',
-            'Europe/Berlin' => 'Berlin',
-            'Asia/Tokyo' => 'Tokyo',
-            'Asia/Shanghai' => 'Shanghai',
-            'Asia/Singapore' => 'Singapore',
-            'Australia/Sydney' => 'Sydney',
-        ];
-        
-        return array_flip($timezones);
+        $timezones = [];
+        foreach (\DateTimeZone::listIdentifiers() as $tz) {
+            $timezones[$tz] = $tz;
+        }
+        return $timezones;
     }
 }

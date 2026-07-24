@@ -89,12 +89,10 @@ class BayesTrainingRepository extends ServiceEntityRepository
      */
     public function learnFromText(string $text, string $classification): int
     {
-        // Tokenize
         $text = strtolower($text);
         preg_match_all('/\b[a-z\']+\b/', $text, $matches);
         $words = $matches[0] ?? [];
 
-        // Filter stop words
         $stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 
                       'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 
                       'would', 'could', 'should', 'may', 'might', 'must', 'shall',
@@ -112,17 +110,38 @@ class BayesTrainingRepository extends ServiceEntityRepository
 
         $words = array_filter($words, fn($w) => !in_array($w, $stopWords) && strlen($w) > 2);
         
-        // Count frequencies
         $wordCounts = array_count_values($words);
 
-        // Update database
+        $em = $this->getEntityManager();
+        $existingRecords = $this->createQueryBuilder('bt')
+            ->where('bt.classification = :classification')
+            ->andWhere('bt.word IN (:words)')
+            ->setParameter('classification', $classification)
+            ->setParameter('words', array_keys($wordCounts))
+            ->getQuery()
+            ->getResult();
+
+        $existingIndex = [];
+        foreach ($existingRecords as $record) {
+            $existingIndex[$record->getWord()] = $record;
+        }
+
         $updated = 0;
         foreach ($wordCounts as $word => $count) {
-            $this->updateWordFrequency($word, $classification, $count);
+            if (isset($existingIndex[$word])) {
+                $existingIndex[$word]->incrementFrequency($count);
+                $em->persist($existingIndex[$word]);
+            } else {
+                $entry = new BayesTraining();
+                $entry->setWord($word);
+                $entry->setClassification($classification);
+                $entry->setFrequency($count);
+                $em->persist($entry);
+            }
             $updated++;
         }
 
-        $this->getEntityManager()->flush();
+        $em->flush();
 
         return $updated;
     }

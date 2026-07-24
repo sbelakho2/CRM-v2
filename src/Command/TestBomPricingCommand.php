@@ -10,6 +10,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -25,7 +26,8 @@ class TestBomPricingCommand extends Command
 {
     public function __construct(
         private BOMParser $bomParser,
-        private PricingEngine $pricingEngine
+        private PricingEngine $pricingEngine,
+        private ?LoggerInterface $logger = null,
     ) {
         parent::__construct();
     }
@@ -238,7 +240,9 @@ class TestBomPricingCommand extends Command
                 $excelPath = $this->exportToExcel($result, $bomLines, $filePath);
                 $io->success('Excel exported: ' . $excelPath);
             } catch (\Exception $excelErr) {
-                $io->warning('Excel export failed: ' . $excelErr->getMessage());
+                $this->logger?->error('Excel export failed', ['exception' => $excelErr]);
+                $fallbackPath = dirname($filePath) . '/' . pathinfo($filePath, PATHINFO_FILENAME) . '_priced_' . date('Ymd_His') . '.xlsx';
+                $io->warning('Excel export failed: ' . $excelErr->getMessage() . '. Partial file may exist at: ' . $fallbackPath);
             }
             
         } catch (\Exception $e) {

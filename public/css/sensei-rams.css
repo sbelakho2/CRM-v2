@@ -891,12 +891,17 @@ body {
 .rams-btn__icon {
     width: 16px;
     height: 16px;
+    overflow: hidden;
 }
 
 .rams-btn__icon--end {
     width: 12px;
     height: 12px;
     margin-left: var(--space-1);
+}
+
+.rams-btn svg {
+    overflow: hidden;
 }
 
 /* Icon Size Utilities (for SVGs and icon elements) */
@@ -906,6 +911,7 @@ body {
     display: inline-block;
     vertical-align: middle;
     flex-shrink: 0;
+    overflow: hidden;
 }
 
 .rams-icon--xs {

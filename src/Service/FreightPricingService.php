@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Repository\FreightTableRepository;
@@ -25,6 +27,10 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class FreightPricingService
 {
+    private const GENERIC_RATE_AIR_PER_KG = 5.0;
+    private const GENERIC_RATE_LCL_PER_CBM = 50.0;
+    private const GENERIC_RATE_FCL_PER_CONTAINER = 2000.0;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private FreightTableRepository $freightTableRepository,
@@ -407,17 +413,10 @@ class FreightPricingService
             // Fallback to generic estimate if no route found
             $mode = $this->routeSelectionService->evaluateModeByWeight($weightKg, $volumeM3);
             
-            // Generic rates per mode
-            $genericRates = [
-                'AIR' => 5.0,  // $5/kg
-                'LCL' => 50.0, // $50/cbm
-                'FCL' => 2000.0 // $2000/container
-            ];
-            
             $freight = match($mode) {
-                'AIR' => $weightKg * $genericRates['AIR'],
-                'LCL' => $volumeM3 * $genericRates['LCL'],
-                'FCL' => $genericRates['FCL'],
+                'AIR' => $weightKg * self::GENERIC_RATE_AIR_PER_KG,
+                'LCL' => $volumeM3 * self::GENERIC_RATE_LCL_PER_CBM,
+                'FCL' => self::GENERIC_RATE_FCL_PER_CONTAINER,
                 default => 0
             };
             

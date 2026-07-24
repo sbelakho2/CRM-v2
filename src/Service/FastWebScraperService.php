@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use Psr\Log\LoggerInterface;
@@ -194,6 +196,10 @@ class FastWebScraperService
                         'Connection: keep-alive',
                     ],
                     CURLOPT_ENCODING => '', // auto-decode gzip
+                    // SSL verification is intentionally disabled for broad scraping
+                    // compatibility. WARNING: this accepts self-signed/expired certs and
+                    // disables MITM protection. Only scrape trusted or publicly-accessible
+                    // sources. DO NOT use this pattern for authenticated API calls.
                     CURLOPT_SSL_VERIFYPEER => false,
                     CURLOPT_SSL_VERIFYHOST => 0,
                 ]);
@@ -201,9 +207,14 @@ class FastWebScraperService
                 $handles[$url] = $ch;
             }
 
+            $cumulativeStart = microtime(true);
+
             // Execute all requests
             $running = null;
             do {
+                if (microtime(true) - $cumulativeStart > self::TIMEOUT) {
+                    break;
+                }
                 curl_multi_exec($mh, $running);
                 curl_multi_select($mh, 0.5);
             } while ($running > 0);

@@ -4,7 +4,7 @@ namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: \App\Repository\QuotePartBreakdownRepository::class)]
 #[ORM\Table(name: 'quote_part_breakdowns')]
 class QuotePartBreakdown
 {

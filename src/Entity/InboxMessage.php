@@ -18,6 +18,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_inbox_classification', columns: ['classification'])]
 #[ORM\Index(name: 'idx_inbox_review', columns: ['requires_human_review'])]
 #[ORM\Index(name: 'idx_inbox_from', columns: ['from_email'])]
+#[ORM\HasLifecycleCallbacks]
 class InboxMessage
 {
     public const CLASSIFICATION_INTERESTED = 'INTERESTED';
@@ -91,8 +92,17 @@ class InboxMessage
 
     public function __construct()
     {
-        $this->receivedAt = new \DateTime();
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->receivedAt === null) {
+            $this->receivedAt = new \DateTime();
+        }
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

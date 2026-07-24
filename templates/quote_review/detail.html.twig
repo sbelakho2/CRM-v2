@@ -403,22 +403,29 @@
 const quoteId = {{ quote.id }};
 
 function computeCharDiff(original, matched) {
-    if (!original || !matched) return matched || '';
+    if (!original || !matched) return escapeHtml(matched || '');
     const origNorm = original.toUpperCase().replace(/[\s\-]/g, '');
     const matchNorm = matched.toUpperCase().replace(/[\s\-]/g, '');
-    if (origNorm === matchNorm) return `<span class="rams-diff-match">${matched}</span>`;
+    if (origNorm === matchNorm) return `<span class="rams-diff-match">${escapeHtml(matched)}</span>`;
     
     let result = '', i = 0, j = 0;
     while (j < matched.length) {
         if (i < origNorm.length && origNorm[i] === matchNorm[j]) {
-            result += `<span class="rams-diff-match">${matched[j]}</span>`;
+            result += `<span class="rams-diff-match">${escapeHtml(matched[j])}</span>`;
             i++; j++;
         } else {
-            result += `<span class="rams-diff-insert">${matched[j]}</span>`;
+            result += `<span class="rams-diff-insert">${escapeHtml(matched[j])}</span>`;
             j++;
         }
     }
     return result;
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
 }
 
 function initDiffViews() {

@@ -8,6 +8,10 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Bundle\SecurityBundle\Security;
 
+/**
+ * UserPreferenceSubscriber handles user-specific preference setup that complements
+ * UserLocaleTimezoneSubscriber (which handles locale and timezone at priority 0).
+ */
 class UserPreferenceSubscriber implements EventSubscriberInterface
 {
     public function __construct(private Security $security) {}
@@ -42,7 +46,7 @@ class UserPreferenceSubscriber implements EventSubscriberInterface
 
         $preferredTimezone = $user->getPreferredTimezone();
         if ($preferredTimezone) {
-            @date_default_timezone_set($preferredTimezone);
+            $request->attributes->set('_timezone', $preferredTimezone);
         }
     }
 }

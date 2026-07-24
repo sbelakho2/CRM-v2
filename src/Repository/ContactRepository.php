@@ -39,7 +39,7 @@ class ContactRepository extends ServiceEntityRepository
 
         if ($search) {
             $qb->andWhere('c.firstName LIKE :search OR c.lastName LIKE :search OR c.email LIKE :search')
-               ->setParameter('search', '%' . $search . '%');
+               ->setParameter('search', '%' . addcslashes($search, '%_') . '%');
         }
 
         return $qb->orderBy('c.lastName', 'ASC')
@@ -58,6 +58,7 @@ class ContactRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('c')
             ->leftJoin('c.company', 'co')->addSelect('co')
             ->orderBy('c.lastName', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }

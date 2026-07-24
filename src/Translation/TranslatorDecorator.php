@@ -66,6 +66,10 @@ class TranslatorDecorator implements TranslatorInterface, LocaleAwareInterface, 
         $last = str_replace('_', ' ', $last);
         $last = preg_replace('/\s+/', ' ', $last);
 
+        if ($last === null) {
+            return $id;
+        }
+
         return ucwords($last);
     }
 }

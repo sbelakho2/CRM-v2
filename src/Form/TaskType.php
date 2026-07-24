@@ -11,6 +11,7 @@ use App\Entity\Lead;
 use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -29,6 +30,10 @@ class TaskType extends AbstractType
         $builder
             ->add('title', TextType::class, [
                 'label' => 'Task Title',
+                'constraints' => [
+                    new Assert\NotBlank(['message' => 'Please enter a task title']),
+                    new Assert\Length(['max' => 255]),
+                ],
                 'attr' => [
                     'class' => 'rams-input',
                     'placeholder' => 'Enter task title...',

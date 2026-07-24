@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'email_segment')]
 #[ORM\Index(name: 'idx_segment_name', columns: ['name'])]
 #[ORM\Index(name: 'idx_segment_active', columns: ['is_active'])]
+#[ORM\HasLifecycleCallbacks]
 class EmailSegment
 {
     #[ORM\Id]
@@ -46,8 +47,21 @@ class EmailSegment
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
         $this->filterRulesJson = [];
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int

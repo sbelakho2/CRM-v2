@@ -20,7 +20,7 @@ doctrine:
 when@test:
   doctrine:
     dbal:
-      url: "mysql://root:Formation2020*@127.0.0.1:3306/starz_crm_test?serverVersion=8.0"
+      url: "%env(resolve:DATABASE_URL)%"
       use_savepoints: true
       logging: false
     orm:

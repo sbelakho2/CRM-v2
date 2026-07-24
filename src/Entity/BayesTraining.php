@@ -18,6 +18,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'unique_word_class', columns: ['word', 'classification'])]
 #[ORM\Index(name: 'idx_bayes_classification', columns: ['classification'])]
 #[ORM\Index(name: 'idx_bayes_word', columns: ['word'])]
+#[ORM\HasLifecycleCallbacks]
 class BayesTraining
 {
     #[ORM\Id]
@@ -39,7 +40,14 @@ class BayesTraining
 
     public function __construct()
     {
-        $this->lastUpdated = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->lastUpdated === null) {
+            $this->lastUpdated = new \DateTime();
+        }
     }
 
     public function getId(): ?int

@@ -19,6 +19,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use DateTimeImmutable;
 
 #[Route('/meetings')]
+#[IsGranted('ROLE_USER')]
 class MeetingSchedulerController extends AbstractController
 {
     public function __construct(
@@ -437,7 +438,8 @@ class MeetingSchedulerController extends AbstractController
     {
         $idPart = $userId ?? 0;
         $emailPart = $email ?? '';
-        $secret = (string) $this->getParameter('kernel.secret');
+        // Use a dedicated signing key instead of kernel.secret for better security isolation
+        $secret = (string) $this->getParameter('app.booking_secret');
 
         return hash_hmac('sha256', $idPart . '|' . strtolower($emailPart), $secret);
     }

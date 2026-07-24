@@ -16,6 +16,13 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class Quote
 {
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_PENDING_REVIEW = 'pending_review';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_SENT = 'sent';
+    public const STATUS_ACCEPTED = 'accepted';
+    public const STATUS_REJECTED = 'rejected';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -37,7 +44,7 @@ class Quote
     private ?string $quoteNumber = null; // QTE-2025-001
 
     #[ORM\Column(length: 50)]
-    private ?string $status = 'draft'; // draft, pending_review, approved, sent, accepted, rejected
+    private ?string $status = self::STATUS_DRAFT; // draft, pending_review, approved, sent, accepted, rejected
 
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2)]
     private ?string $totalCost = '0.00';
@@ -123,8 +130,17 @@ class Quote
     {
         $this->partBreakdowns = new ArrayCollection();
         $this->bomLines = new ArrayCollection();
-        $this->createdAt = new \DateTime();
-        $this->generateQuoteNumber();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+        if ($this->quoteNumber === null) {
+            $this->generateQuoteNumber();
+        }
     }
 
     private function generateQuoteNumber(): void

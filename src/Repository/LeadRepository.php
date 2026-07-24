@@ -39,7 +39,8 @@ class LeadRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('l')
             ->where('l.reviewStatus = :status')
             ->setParameter('status', 'pending')
-            ->orderBy('l.leadScore', 'DESC');
+            ->orderBy('l.leadScore', 'DESC')
+            ->setMaxResults(500);
 
         if ($regionTag) {
             $qb->andWhere('l.regionTag = :region')
@@ -120,6 +121,7 @@ class LeadRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('l')
             ->select('l.regionTag, COUNT(l.id) as total, AVG(l.leadScore) as avg_score')
             ->groupBy('l.regionTag')
+            ->setMaxResults(1000)
             ->getQuery()
             ->getResult();
     }
@@ -209,10 +211,13 @@ class LeadRepository extends ServiceEntityRepository
      */
     public function countNeedsContactData(): int
     {
+        $orX = $this->createQueryBuilder('l')->expr()->orX();
+        $orX->add('l.contactEmailsPublic IS NULL');
+        $orX->add('l.contactEmailsPublic = :empty');
+
         return (int) $this->createQueryBuilder('l')
             ->select('COUNT(l.id)')
-            ->where('l.contactEmailsPublic IS NULL')
-            ->orWhere('l.contactEmailsPublic = :empty')
+            ->where($orX)
             ->setParameter('empty', '[]')
             ->getQuery()
             ->getSingleScalarResult();
@@ -229,6 +234,7 @@ class LeadRepository extends ServiceEntityRepository
             ->setParameter('since', $since)
             ->setParameter('minScore', $minScore)
             ->orderBy('l.leadScore', 'DESC')
+            ->setMaxResults(1000)
             ->getQuery()
             ->getResult();
     }

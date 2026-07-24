@@ -62,6 +62,7 @@ class DfmRuleRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->orderBy('dr.ruleType', 'ASC')
             ->addOrderBy('dr.severity', 'DESC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }

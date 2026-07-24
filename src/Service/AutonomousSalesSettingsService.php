@@ -1,15 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 
 class AutonomousSalesSettingsService
 {
     private string $settingsPath;
 
-    public function __construct(KernelInterface $kernel)
-    {
+    public function __construct(
+        KernelInterface $kernel,
+        private ?LoggerInterface $logger = null,
+    ) {
         $this->settingsPath = $kernel->getProjectDir() . '/var/autonomous_sales_settings.json';
     }
 
@@ -59,11 +64,13 @@ class AutonomousSalesSettingsService
 
         $raw = file_get_contents($this->settingsPath);
         if ($raw === false) {
+            $this->logger?->warning('Failed to read settings file', ['path' => $this->settingsPath]);
             return ['enabled' => true];
         }
 
         $data = json_decode($raw, true);
         if (!is_array($data)) {
+            $this->logger?->warning('Settings file contains invalid JSON, resetting to defaults', ['path' => $this->settingsPath]);
             return ['enabled' => true];
         }
 
@@ -77,6 +84,9 @@ class AutonomousSalesSettingsService
             @mkdir($dir, 0775, true);
         }
 
-        file_put_contents($this->settingsPath, json_encode($data, JSON_PRETTY_PRINT));
+        $result = file_put_contents($this->settingsPath, json_encode($data, JSON_PRETTY_PRINT));
+        if ($result === false) {
+            $this->logger?->error('Failed to write settings file', ['path' => $this->settingsPath]);
+        }
     }
 }

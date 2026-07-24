@@ -15,8 +15,14 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: RfqLineItemRepository::class)]
 #[ORM\Table(name: 'rfq_line_items')]
+#[ORM\HasLifecycleCallbacks]
 class RfqLineItem
 {
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_QUOTED = 'quoted';
+    public const STATUS_DECLINED = 'declined';
+    public const STATUS_AWARDED = 'awarded';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -81,7 +87,7 @@ class RfqLineItem
     private ?string $notes = null;
     
     #[ORM\Column(length: 50, nullable: true)]
-    private ?string $status = 'pending'; // pending, quoted, declined, awarded
+    private ?string $status = self::STATUS_PENDING; // pending, quoted, declined, awarded
     
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
@@ -91,7 +97,20 @@ class RfqLineItem
     
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
     
     // Getters and Setters

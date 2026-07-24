@@ -112,7 +112,7 @@ class CustomFieldDefinition
     #[ORM\JoinColumn(name: 'created_by_id', nullable: true)]
     private ?User $createdBy = null;
 
-    #[ORM\OneToMany(mappedBy: 'fieldDefinition', targetEntity: CustomFieldValue::class, cascade: ['remove'])]
+    #[ORM\OneToMany(mappedBy: 'fieldDefinition', targetEntity: CustomFieldValue::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $values;
 
     public function __construct()

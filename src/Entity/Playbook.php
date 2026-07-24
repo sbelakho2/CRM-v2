@@ -21,10 +21,10 @@ class Playbook
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
-    #[ORM\Column(type: Types::TEXT)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $triggerRules = null; // JSON with trigger conditions
 
-    #[ORM\Column(type: Types::TEXT)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $actions = null; // JSON with actions to execute
 
     #[ORM\Column(type: 'integer')]

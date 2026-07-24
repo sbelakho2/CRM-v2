@@ -239,7 +239,7 @@ class DiscoveryPipelineController extends AbstractController
             ]);
             
             return new JsonResponse([
-                'error' => 'Pipeline failed: ' . $e->getMessage()
+                'error' => 'Pipeline operation failed. Please try again.'
             ], 500);
         }
     }
@@ -304,7 +304,7 @@ class DiscoveryPipelineController extends AbstractController
             ]);
             
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => $e->getMessage()], 500);
+            return new JsonResponse(['error' => 'Preview operation failed. Please try again.'], 500);
         }
     }
 

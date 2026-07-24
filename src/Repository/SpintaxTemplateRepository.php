@@ -35,21 +35,15 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
      */
     public function findBestPerforming(string $templateType = 'email'): ?SpintaxTemplate
     {
-        $templates = $this->findActiveByType($templateType);
-        
-        if (empty($templates)) {
-            return null;
-        }
-
-        // Sort by reply rate, then open rate
-        usort($templates, function($a, $b) {
-            if ($a->getReplyRate() !== $b->getReplyRate()) {
-                return $b->getReplyRate() <=> $a->getReplyRate();
-            }
-            return $b->getOpenRate() <=> $a->getOpenRate();
-        });
-        
-        return $templates[0];
+        return $this->createQueryBuilder('t')
+            ->where('t.templateType = :type')
+            ->andWhere('t.active = true')
+            ->setParameter('type', $templateType)
+            ->orderBy('t.replyRate', 'DESC')
+            ->addOrderBy('t.openRate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**
@@ -57,13 +51,28 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
      */
     public function findRandomActive(string $templateType = 'email'): ?SpintaxTemplate
     {
-        $templates = $this->findActiveByType($templateType);
-        
-        if (empty($templates)) {
+        $total = (int) $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->where('t.templateType = :type')
+            ->andWhere('t.active = true')
+            ->setParameter('type', $templateType)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        if ($total === 0) {
             return null;
         }
-        
-        return $templates[array_rand($templates)];
+
+        $offset = random_int(0, $total - 1);
+
+        return $this->createQueryBuilder('t')
+            ->where('t.templateType = :type')
+            ->andWhere('t.active = true')
+            ->setParameter('type', $templateType)
+            ->setFirstResult($offset)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     public function save(SpintaxTemplate $entity, bool $flush = false): void

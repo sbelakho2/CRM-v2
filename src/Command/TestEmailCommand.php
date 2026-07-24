@@ -59,9 +59,9 @@ class TestEmailCommand extends Command
         $email = (new Email())
             ->from($this->mailerFromAddress)
             ->to($to)
-            ->subject('Test Email from Starz CRM')
-            ->text('This is a test email to verify SMTP configuration.')
-            ->html('<p>This is a <strong>test email</strong> to verify SMTP configuration.</p>');
+            ->subject('Test Email - Email Configuration Verification')
+            ->text('This is a test email to verify SMTP configuration is working correctly.')
+            ->html('<p>This is a test email to verify <strong>SMTP configuration</strong> is working correctly.</p>');
 
         // Attempt to send
         $io->section('Sending Test Email');

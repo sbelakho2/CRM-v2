@@ -46,6 +46,7 @@ class PcbCurveRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->orderBy('pc.layers', 'ASC')
             ->addOrderBy('pc.areaM2', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }

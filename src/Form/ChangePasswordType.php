@@ -27,6 +27,9 @@ class ChangePasswordType extends AbstractType
                     new NotBlank([
                         'message' => 'validation.required',
                     ]),
+                    new SecurityAssert\UserPassword([
+                        'message' => 'Current password is incorrect',
+                    ]),
                 ],
             ])
             ->add('newPassword', RepeatedType::class, [

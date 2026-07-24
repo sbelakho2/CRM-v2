@@ -83,7 +83,7 @@ class AbmAccountRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('a')
             ->andWhere('a.accountName LIKE :query OR a.domain LIKE :query')
-            ->setParameter('query', '%' . $query . '%')
+            ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('a.engagementScore', 'DESC')
             ->setMaxResults(20)
             ->getQuery()

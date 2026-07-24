@@ -54,8 +54,37 @@ class TestPdfGenerationCommand extends Command
         $marginPercent = (float) $input->getOption('margin');
         $companyName = $input->getOption('company');
         $issuerKey = $input->getOption('issuer');
-        $boardCount = max(1, (int) $input->getOption('board-count'));
-        $orderMultiple = max(1, (int) $input->getOption('order-multiple'));
+        $boardCount = $input->getOption('board-count');
+        $orderMultiple = $input->getOption('order-multiple');
+
+        if (!filter_var($boardCount, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
+            $io->error('--board-count must be a positive integer.');
+            return Command::FAILURE;
+        }
+        $boardCount = (int) $boardCount;
+
+        if (!filter_var($orderMultiple, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
+            $io->error('--order-multiple must be a positive integer.');
+            return Command::FAILURE;
+        }
+        $orderMultiple = (int) $orderMultiple;
+
+        if (!is_numeric($marginPercent) || $marginPercent < 0) {
+            $io->error('--margin must be a non-negative number.');
+            return Command::FAILURE;
+        }
+        $marginPercent = (float) $marginPercent;
+
+        // Path traversal check for output
+        $outputPath = realpath($outputPath) ?: $outputPath;
+        $projectDir = realpath(dirname(__DIR__, 2));
+        $resolvedDir = realpath(dirname($outputPath)) ?: dirname($outputPath);
+        if (str_starts_with($resolvedDir, '/') && !str_starts_with($resolvedDir, $projectDir)
+            && dirname($outputPath) !== '.' && !str_starts_with($resolvedDir, realpath(sys_get_temp_dir()))
+        ) {
+            $io->error('Output path must be within the project directory.');
+            return Command::FAILURE;
+        }
         
         // Parse providers option
         $providersStr = $input->getOption('providers');

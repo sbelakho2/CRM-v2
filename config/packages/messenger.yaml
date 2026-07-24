@@ -3,17 +3,24 @@ framework:
     failure_transport: failed
 
     transports:
-      async: "%env(MESSENGER_TRANSPORT_DSN)%"
+      async:
+        dsn: "%env(MESSENGER_TRANSPORT_DSN)%"
+        retry_strategy:
+          max_retries: 3
+          delay: 1000
+          multiplier: 2
       failed: "doctrine://default?queue_name=failed"
       sync: "sync://"
       mailer:
         dsn: "doctrine://default?queue_name=mailer"
         options:
           queue_name: mailer
+        retry_strategy:
+          max_retries: 3
+          delay: 1000
+          multiplier: 2
 
     routing:
-      # Send emails asynchronously to avoid blocking page loads
-      # Requires running: bin/console messenger:consume async --time-limit=3600
       'Symfony\Component\Mailer\Messenger\SendEmailMessage': async
       'App\Message\EmailCampaignMessage': mailer
 

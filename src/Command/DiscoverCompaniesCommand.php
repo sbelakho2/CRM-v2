@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Service\WebCrawler\CompanyDiscoveryService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -17,7 +18,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class DiscoverCompaniesCommand extends Command
 {
     public function __construct(
-        private CompanyDiscoveryService $discoveryService
+        private CompanyDiscoveryService $discoveryService,
+        private ?LoggerInterface $logger = null,
     ) {
         parent::__construct();
     }
@@ -83,7 +85,14 @@ HELP
             }
 
             $io->progressStart();
-            $companies = $this->discoveryService->discoverAllSectors($region);
+            try {
+                $companies = $this->discoveryService->discoverAllSectors($region);
+            } catch (\Throwable $e) {
+                $this->logger?->error('discoverAllSectors failed', ['exception' => $e]);
+                $io->progressFinish();
+                $io->error('Discovery failed: ' . $e->getMessage());
+                return Command::FAILURE;
+            }
             $io->progressFinish();
 
             $io->success(sprintf('Discovered %d companies across all sectors', count($companies)));

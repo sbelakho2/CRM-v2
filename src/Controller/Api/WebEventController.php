@@ -80,9 +80,10 @@ class WebEventController extends AbstractController
             ]);
             
         } catch (\Exception $e) {
+            error_log('WebEvent tracking failed: ' . $e->getMessage());
             return new JsonResponse([
-                'error' => 'Failed to track event',
-                'message' => $e->getMessage()
+                'error' => 'Operation failed. Please try again.',
+                'message' => 'An unexpected error occurred.'
             ], 500);
         }
     }

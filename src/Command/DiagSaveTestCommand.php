@@ -24,29 +24,7 @@ class DiagSaveTestCommand extends Command
     {
         $output->writeln('=== DIAGNOSTIC SAVE TEST v2 ===');
 
-        // Check if $this->em and the EM used by discovery service are the same instance
-        $ref = new \ReflectionProperty($this->discoveryService, 'em');
-        $ref->setAccessible(true);
-        $svcEm = $ref->getValue($this->discoveryService);
-        
-        $output->writeln('Command EM = ' . spl_object_id($this->em) . ' (' . get_class($this->em) . ')');
-        $output->writeln('Service EM = ' . spl_object_id($svcEm) . ' (' . get_class($svcEm) . ')');
-        $output->writeln('Same instance: ' . ($this->em === $svcEm ? 'YES' : 'NO!!!!'));
-
-        // Check the repo too
-        $repoRef = new \ReflectionProperty($this->discoveryService, 'companyRepo');
-        $repoRef->setAccessible(true);
-        $svcRepo = $repoRef->getValue($this->discoveryService);
-        
-        // Get the EM from the repo
-        $repoEmRef = new \ReflectionMethod($svcRepo, 'getEntityManager');
-        $repoEmRef->setAccessible(true);
-        $repoEm = $repoEmRef->invoke($svcRepo);
-        
-        $output->writeln('Repo EM  = ' . spl_object_id($repoEm) . ' (' . get_class($repoEm) . ')');
-        $output->writeln('Repo EM === Service EM: ' . ($repoEm === $svcEm ? 'YES' : 'NO!!!!'));
-
-        // Test 1: Direct save via our EM (should work)
+        // Test 1: Direct save via our EM
         $output->writeln("\n--- Test 1: Direct save via command EM ---");
         $c1 = new Company();
         $c1->setName('T1_' . time());
@@ -57,32 +35,11 @@ class DiagSaveTestCommand extends Command
         $c1->setCreatedAt(new \DateTime());
         $c1->setUpdatedAt(new \DateTime());
         $this->em->persist($c1);
-        $uow = $this->em->getUnitOfWork();
-        $output->writeln('  Scheduled inserts (command EM): ' . count($uow->getScheduledEntityInsertions()));
         $this->em->flush();
         $output->writeln('  ID: ' . $c1->getId());
 
-        // Test 2: Save via service EM
-        $output->writeln("\n--- Test 2: Direct save via service EM ---");
-        $c2 = new Company();
-        $c2->setName('T2_' . time());
-        $c2->setSector('Automotive');
-        $c2->setPipelineStage('Prospect');
-        $c2->setAccountTier('C');
-        $c2->setCompanyStatus(Company::STATUS_DISCOVERED);
-        $c2->setCreatedAt(new \DateTime());
-        $c2->setUpdatedAt(new \DateTime());
-        $svcEm->persist($c2);
-        $uow2 = $svcEm->getUnitOfWork();
-        $output->writeln('  Scheduled inserts (service EM): ' . count($uow2->getScheduledEntityInsertions()));
-        $svcEm->flush();
-        $output->writeln('  ID: ' . $c2->getId());
-
-        // Test 3: Full saveDiscoveredCompanies path via reflection
-        $output->writeln("\n--- Test 3: saveDiscoveredCompanies via reflection ---");
-        $saveRef = new \ReflectionMethod($this->discoveryService, 'saveDiscoveredCompanies');
-        $saveRef->setAccessible(true);
-        
+        // Test 2: Save via discovery service
+        $output->writeln("\n--- Test 2: Full saveDiscoveredCompanies path ---");
         $fakeData = [
             [
                 'name' => 'T3_' . time(),
@@ -90,7 +47,7 @@ class DiagSaveTestCommand extends Command
                 'buyer_evidence' => ['verdict' => 'ACCEPT', 'reason' => 'Test', 'positive_families' => ['x' => 1]],
             ],
         ];
-        $result = $saveRef->invoke($this->discoveryService, $fakeData, 'Automotive', 'Tunis Tunisia');
+        $result = $this->discoveryService->saveDiscoveredCompanies($fakeData, 'Automotive', 'Tunis Tunisia');
         $output->writeln('  Returned: ' . count($result));
         foreach ($result as $c) {
             $output->writeln('  Saved: ' . $c->getName() . ' (ID: ' . $c->getId() . ')');
@@ -100,16 +57,20 @@ class DiagSaveTestCommand extends Command
         $output->writeln("\n--- DB Verification ---");
         $conn = $this->em->getConnection();
         $rows = $conn->fetchAllAssociative(
-            "SELECT id, name FROM companies WHERE name LIKE 'T1_%' OR name LIKE 'T2_%' OR name LIKE 'T3_%' ORDER BY id"
+            "SELECT id, name FROM companies WHERE name LIKE 'T1_%' OR name LIKE 'T3_%' ORDER BY id"
         );
         foreach ($rows as $r) {
             $output->writeln("  DB: id={$r['id']} name={$r['name']}");
         }
 
-        // Cleanup
+        // Cleanup - use EntityManager remove instead of raw SQL
         foreach ($rows as $r) {
-            $conn->executeStatement("DELETE FROM companies WHERE id = ?", [$r['id']]);
+            $company = $this->em->getRepository(Company::class)->find($r['id']);
+            if ($company) {
+                $this->em->remove($company);
+            }
         }
+        $this->em->flush();
         $output->writeln('Cleaned up ' . count($rows) . ' test rows');
         $output->writeln('=== DONE ===');
 

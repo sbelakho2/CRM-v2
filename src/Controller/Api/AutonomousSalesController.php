@@ -25,6 +25,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Autonomous Sales API Controller
@@ -34,6 +35,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * @see Documentation/AUTONOMOUS_SALES_V2.md
  */
 #[Route('/api/autonomous')]
+#[IsGranted('ROLE_USER')]
 class AutonomousSalesController extends AbstractController
 {
     public function __construct(
@@ -84,7 +86,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 500);
         }
     }
@@ -105,7 +107,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 500);
         }
     }
@@ -167,7 +169,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 400);
         }
     }
@@ -205,7 +207,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 400);
         }
     }
@@ -252,7 +254,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 400);
         }
     }
@@ -297,7 +299,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 400);
         }
     }
@@ -347,7 +349,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 500);
         }
     }
@@ -375,7 +377,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 500);
         }
     }
@@ -438,7 +440,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 500);
         }
     }
@@ -472,7 +474,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 400);
         }
     }
@@ -568,7 +570,7 @@ class AutonomousSalesController extends AbstractController
                 'seeded' => count($seeded),
             ]);
         } catch (\Exception $e) {
-            return $this->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
 
@@ -604,7 +606,7 @@ class AutonomousSalesController extends AbstractController
                 'total' => count($discovered),
             ]);
         } catch (\Exception $e) {
-            return $this->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
 
@@ -640,7 +642,7 @@ class AutonomousSalesController extends AbstractController
                 ],
             ]);
         } catch (\Exception $e) {
-            return $this->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
 
@@ -704,7 +706,7 @@ class AutonomousSalesController extends AbstractController
                 'similarProfilesUsed' => $result['similarProfilesUsed'],
             ]);
         } catch (\Exception $e) {
-            return $this->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
 
@@ -782,7 +784,7 @@ class AutonomousSalesController extends AbstractController
                 ],
             ]);
         } catch (\Exception $e) {
-            return $this->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
 
@@ -829,7 +831,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 500);
         }
     }
@@ -876,7 +878,7 @@ class AutonomousSalesController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 500);
         }
     }

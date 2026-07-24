@@ -15,8 +15,10 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/leads')]
+#[IsGranted('ROLE_USER')]
 class LeadController extends AbstractController
 {
     public function __construct(
@@ -457,14 +459,14 @@ class LeadController extends AbstractController
                     ->getQuery()
                     ->getResult();
 
-        // Generate CSV
-        $csv = "Company Name,Legal Name,Website,Region,Score,Status,Location,Contact Emails,Portal URL,Last Seen\n";
+        // Generate CSV with BOM for UTF-8 and formula injection protection
+        $csv = "\xEF\xBB\xBFCompany Name,Legal Name,Website,Region,Score,Status,Location,Contact Emails,Portal URL,Last Seen\n";
         
         foreach ($leads as $lead) {
             $csv .= sprintf(
                 '"%s","%s","%s","%s",%d,"%s","%s","%s","%s","%s"' . "\n",
-                str_replace('"', '""', $lead->getCompanyName()),
-                str_replace('"', '""', $lead->getLegalName() ?? ''),
+                str_replace('"', '""', $this->sanitizeCsvField($lead->getCompanyName())),
+                str_replace('"', '""', $this->sanitizeCsvField($lead->getLegalName() ?? '')),
                 $lead->getWebsiteRoot() ?? '',
                 $lead->getRegionTag() ?? '',
                 $lead->getLeadScore() ?? 0,
@@ -481,5 +483,13 @@ class LeadController extends AbstractController
         $response->headers->set('Content-Disposition', 'attachment; filename="leads_export_' . date('Y-m-d') . '.csv"');
 
         return $response;
+    }
+
+    private function sanitizeCsvField(string $value): string
+    {
+        if ($value !== '' && in_array($value[0], ['=', '+', '-', '@'], true)) {
+            return "\t" . $value;
+        }
+        return $value;
     }
 }

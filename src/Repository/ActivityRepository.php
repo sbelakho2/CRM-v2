@@ -11,6 +11,8 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class ActivityRepository extends ServiceEntityRepository
 {
+    private const TYPE_MEETING = 'Meeting';
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Activity::class);
@@ -68,7 +70,7 @@ class ActivityRepository extends ServiceEntityRepository
             ->where('a.type = :type')
             ->andWhere('a.activityDate >= :start')
             ->andWhere('a.activityDate <= :end')
-            ->setParameter('type', 'Meeting')
+            ->setParameter('type', self::TYPE_MEETING)
             ->setParameter('start', $start)
             ->setParameter('end', $end)
             ->getQuery()

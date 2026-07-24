@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'procurement_exception')]
 #[ORM\Index(name: 'idx_proc_exc_bomline', columns: ['bom_line_id'])]
 #[ORM\Index(name: 'idx_proc_exc_severity', columns: ['severity'])]
+#[ORM\HasLifecycleCallbacks]
 class ProcurementException
 {
     #[ORM\Id]
@@ -40,7 +41,14 @@ class ProcurementException
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

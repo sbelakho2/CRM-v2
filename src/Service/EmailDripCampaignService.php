@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\EmailCampaign;
@@ -84,6 +86,9 @@ class EmailDripCampaignService
         ];
 
         // Store in abTestVariants field (reusing existing JSON field for drip config)
+        // WARNING: abTestVariants is being repurposed for drip sequence storage.
+        // This may conflict with actual A/B test functionality if both features
+        // are used on the same campaign. Consider migrating to a dedicated column.
         $campaign->setAbTestVariants([$dripConfig]);
 
         $this->entityManager->persist($campaign);

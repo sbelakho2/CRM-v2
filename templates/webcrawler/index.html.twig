@@ -327,10 +327,11 @@ async function checkStatus() {
             const resultsContent = document.getElementById('results-content');
             resultsDiv.classList.remove('rams-hidden');
             const saved = (data.stats || {}).saved || 0;
+            const discTotal = data.discovered_total || 0;
             resultsContent.innerHTML = `
                 <div class="rams-alert rams-alert--success">
                     <p class="rams-alert__title">Discovery Complete</p>
-                    <p class="rams-alert__message">${saved} companies saved. Total discovered: ${data.discovered_total || 0}.</p>
+                    <p class="rams-alert__message">${escapeHtml(String(saved))} companies saved. Total discovered: ${escapeHtml(String(discTotal))}.</p>
                     <p class="rams-alert__message"><a class="rams-link" href="{{ path('app_company_discovered') }}">Review discovered companies</a></p>
                 </div>`;
         } else {
@@ -362,6 +363,12 @@ async function stopDiscovery() {
     }
 }
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 function showError(message) {
     const resultsDiv = document.getElementById('discovery-results');
     const resultsContent = document.getElementById('results-content');
@@ -369,7 +376,7 @@ function showError(message) {
     resultsContent.innerHTML = `
         <div class="rams-alert rams-alert--danger">
             <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
-            <p class="rams-alert__message">${message}</p>
+            <p class="rams-alert__message">${escapeHtml(message)}</p>
         </div>`;
 }
 </script>

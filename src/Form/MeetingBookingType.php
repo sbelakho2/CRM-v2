@@ -49,6 +49,10 @@ class MeetingBookingType extends AbstractType
             ->add('company', TextType::class, [
                 'label' => 'Company',
                 'required' => false,
+                'constraints' => [
+                    new Assert\NotBlank(['message' => 'Please enter your company name']),
+                    new Assert\Length(['max' => 255]),
+                ],
                 'attr' => [
                     'class' => 'rams-input',
                     'placeholder' => 'Your company name',
@@ -69,7 +73,9 @@ class MeetingBookingType extends AbstractType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
-            // No data class - just a simple form
+            'csrf_protection' => true,
+            'csrf_field_name' => '_token',
+            'csrf_token_id' => 'meeting_booking',
         ]);
     }
 }

@@ -33,7 +33,12 @@ class PersonalizationProfileRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find or create profile for contact
+     * Find or create profile for contact.
+     *
+     * Persists the new entity but does NOT flush.
+     * The caller is responsible for calling flush() on the EntityManager.
+     *
+     * @return PersonalizationProfile
      */
     public function findOrCreateForContact(int $contactId): PersonalizationProfile
     {
@@ -43,7 +48,6 @@ class PersonalizationProfileRepository extends ServiceEntityRepository
             $profile = new PersonalizationProfile();
             $profile->setContactId($contactId);
             $this->getEntityManager()->persist($profile);
-            $this->getEntityManager()->flush();
         }
         
         return $profile;

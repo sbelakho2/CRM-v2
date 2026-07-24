@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\EmailSegment;
@@ -165,12 +167,16 @@ class EmailSegmentService
     private function getContactsByFilters(array $filterRules, ?int $limit = null, int $offset = 0): array
     {
         if (empty($filterRules)) {
+            // TODO: Convert to DQL query for scalability. findAll() loads all rows
+            // into memory and will degrade with >100k contacts. Use a DQL/SQL
+            // query with WHERE clauses and pagination instead.
             return $this->contactRepository->findAll();
         }
 
         // Get all contacts and filter in memory
         // For production, this should be converted to DQL for better performance
-        $allContacts = $this->contactRepository->findAll();
+        // TODO: Convert to DQL query for scalability
+        $allContacts = $this->contactRepository->findBy([], null, 10000); // temporary limit
         $matchingContacts = [];
 
         foreach ($allContacts as $contact) {

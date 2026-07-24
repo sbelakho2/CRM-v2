@@ -15,8 +15,13 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: RfqVersionRepository::class)]
 #[ORM\Table(name: 'rfq_versions')]
+#[ORM\HasLifecycleCallbacks]
 class RfqVersion
 {
+    public const STATUS_DRAFT = 'Draft';
+    public const STATUS_SUBMITTED = 'Submitted';
+    public const STATUS_SUPERSEDED = 'Superseded';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -36,7 +41,7 @@ class RfqVersion
     private ?string $revisionReason = null;
     
     #[ORM\Column(length: 50)]
-    private ?string $status = 'Draft'; // Draft, Submitted, Superseded
+    private ?string $status = self::STATUS_DRAFT; // Draft, Submitted, Superseded
     
     // Snapshot of RFQ data at time of version
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2, nullable: true)]
@@ -65,7 +70,14 @@ class RfqVersion
     
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
     
     // Getters and Setters
@@ -239,17 +251,17 @@ class RfqVersion
      */
     public function submit(): self
     {
-        $this->status = 'Submitted';
+        $this->status = self::STATUS_SUBMITTED;
         $this->submittedAt = new \DateTime();
         return $this;
     }
-    
+
     /**
      * Mark as superseded (by newer version)
      */
     public function supersede(): self
     {
-        $this->status = 'Superseded';
+        $this->status = self::STATUS_SUPERSEDED;
         return $this;
     }
 }

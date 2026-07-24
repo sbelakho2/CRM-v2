@@ -53,6 +53,11 @@ class CreateUserCommand extends Command
         $role = $isAdmin ? 'Admin' : $input->getOption('role');
         $territory = $input->getOption('territory');
 
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $io->error("Invalid email address: {$email}");
+            return Command::FAILURE;
+        }
+
         // Check if user already exists
         if ($this->userRepository->findOneBy(['email' => $email])) {
             $io->error("User with email {$email} already exists.");

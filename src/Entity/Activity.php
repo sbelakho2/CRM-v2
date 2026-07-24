@@ -93,8 +93,17 @@ class Activity
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
-        $this->activityDate = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+        if ($this->activityDate === null) {
+            $this->activityDate = new \DateTime();
+        }
     }
 
     public function getId(): ?int
@@ -381,5 +390,11 @@ class Activity
             $this->outcomeDetail = $outcomeDetail;
         }
         return $this;
+    }
+
+    public static function isValidStatusTransition(string $from, string $to): bool
+    {
+        return !($from === self::STATUS_COMPLETED && $to === self::STATUS_OPEN)
+            && !($from === self::STATUS_CANCELLED && $to !== self::STATUS_OPEN);
     }
 }

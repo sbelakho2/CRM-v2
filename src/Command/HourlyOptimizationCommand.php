@@ -10,6 +10,8 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Lock\LockFactory;
+use Psr\Log\LoggerInterface;
 
 /**
  * Hourly Optimization Command
@@ -35,6 +37,8 @@ class HourlyOptimizationCommand extends Command
     public function __construct(
         private HourlyOptimizationService $hourlyOptimizer,
         private AutonomousSalesSettingsService $settingsService,
+        private LockFactory $lockFactory,
+        private ?LoggerInterface $logger = null,
     ) {
         parent::__construct();
     }
@@ -67,30 +71,32 @@ class HourlyOptimizationCommand extends Command
         }
 
         // Lock to prevent overlapping cycles
-        $lockPath = getcwd() . '/var/hourly_optimize.lock';
-        $lockHandle = @fopen($lockPath, 'c');
-        if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
+        $lock = $this->lockFactory->createLock('hourly_optimize', 3600);
+        if (!$lock->acquire()) {
             $io->warning('Another hourly cycle is already running. Skipping.');
-            if ($lockHandle) {
-                fclose($lockHandle);
-            }
             return Command::SUCCESS;
         }
 
         try {
             $report = $this->hourlyOptimizer->runHourlyCycle($dryRun || $reportOnly, $limit);
             $this->renderReport($io, $report);
+
+            $hasErrors = false;
+            foreach ($report['stages'] ?? [] as $stageIndex => $stage) {
+                if (!empty($stage['error']) || !empty($stage['errors'])) {
+                    $hasErrors = true;
+                    break;
+                }
+            }
+
+            return $hasErrors ? Command::FAILURE : Command::SUCCESS;
         } catch (\Throwable $e) {
             $io->error('Hourly cycle failed: ' . $e->getMessage());
+            $this->logger?->error('Hourly cycle failed', ['exception' => $e]);
             return Command::FAILURE;
         } finally {
-            if ($lockHandle) {
-                flock($lockHandle, LOCK_UN);
-                fclose($lockHandle);
-            }
+            $lock->release();
         }
-
-        return Command::SUCCESS;
     }
 
     /**

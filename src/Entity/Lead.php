@@ -15,8 +15,13 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_leads_created', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_leads_scraped', columns: ['last_scraped_at'])]
 #[ORM\Index(name: 'idx_leads_nurturing', columns: ['nurturing_stage'])]
+#[ORM\HasLifecycleCallbacks]
 class Lead
 {
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_DENIED = 'denied';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -140,11 +145,24 @@ class Lead
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
-        $this->reviewStatus = 'pending';
+        $this->reviewStatus = self::STATUS_PENDING;
         $this->moroccoSignal = false;
         $this->defenseFlag = false;
         $this->alreadyInCrm = false;
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     // Getters and Setters
@@ -464,34 +482,37 @@ class Lead
 
     /**
      * Generate external CRM URL based on CRM record ID and configured CRM type
-     * 
+     *
      * @param string $crmType Type of CRM: 'salesforce', 'hubspot', 'zoho', 'pipedrive', 'dynamics'
      * @param string|null $instanceUrl Base URL for the CRM instance (required for Salesforce)
      */
     public function generateExternalCrmUrl(string $crmType, ?string $instanceUrl = null): self
     {
-        if (!$this->crmRecordId) {
-            return $this;
-        }
-
-        $url = match (strtolower($crmType)) {
-            'salesforce' => $instanceUrl 
-                ? rtrim($instanceUrl, '/') . '/lightning/r/Lead/' . $this->crmRecordId . '/view'
-                : null,
-            'hubspot' => 'https://app.hubspot.com/contacts/' . $this->crmRecordId,
-            'zoho' => 'https://crm.zoho.com/crm/tab/Leads/' . $this->crmRecordId,
-            'pipedrive' => 'https://app.pipedrive.com/person/' . $this->crmRecordId,
-            'dynamics' => $instanceUrl 
-                ? rtrim($instanceUrl, '/') . '/main.aspx?etn=lead&id=' . $this->crmRecordId . '&pagetype=entityrecord'
-                : null,
-            default => null,
-        };
-
+        $url = self::generateExternalCrmUrlStatic($this->crmRecordId, $crmType, $instanceUrl);
         if ($url) {
             $this->externalCrmUrl = $url;
         }
-
         return $this;
+    }
+
+    public static function generateExternalCrmUrlStatic(?string $crmRecordId, string $crmType, ?string $instanceUrl = null): ?string
+    {
+        if (!$crmRecordId) {
+            return null;
+        }
+
+        return match (strtolower($crmType)) {
+            'salesforce' => $instanceUrl
+                ? rtrim($instanceUrl, '/') . '/lightning/r/Lead/' . $crmRecordId . '/view'
+                : null,
+            'hubspot' => 'https://app.hubspot.com/contacts/' . $crmRecordId,
+            'zoho' => 'https://crm.zoho.com/crm/tab/Leads/' . $crmRecordId,
+            'pipedrive' => 'https://app.pipedrive.com/person/' . $crmRecordId,
+            'dynamics' => $instanceUrl
+                ? rtrim($instanceUrl, '/') . '/main.aspx?etn=lead&id=' . $crmRecordId . '&pagetype=entityrecord'
+                : null,
+            default => null,
+        };
     }
 
     public function getOwnerRep(): ?string

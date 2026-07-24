@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\EmailCampaign;
@@ -15,6 +17,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class EmailCampaignService
 {
+    private const DEFAULT_WEBSITE_URL = 'https://starzelectronics.site';
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private EmailCampaignRepository $campaignRepository,
@@ -126,7 +130,7 @@ class EmailCampaignService
         
         $websiteUrl = $contact->getCompany() && $contact->getCompany()->getWebsite() 
             ? $contact->getCompany()->getWebsite() 
-            : 'https://starzelectronics.site';
+            : self::DEFAULT_WEBSITE_URL;
             
         $trackingLinkSig = $send->getId() ? $this->trackingSigner->signClick($send->getId(), $websiteUrl) : null;
         $trackingLinkUrl = $this->urlGenerator->generate(

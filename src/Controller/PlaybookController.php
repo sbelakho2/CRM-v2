@@ -15,8 +15,10 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/playbooks')]
+#[IsGranted('ROLE_USER')]
 class PlaybookController extends AbstractController
 {
     public function __construct(
@@ -58,6 +60,10 @@ class PlaybookController extends AbstractController
     public function new(Request $request): Response
     {
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('playbook_new', $request->request->get('_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token');
+            }
+
             $playbook = new Playbook();
             $playbook->setName($request->request->get('name'));
             $playbook->setDescription($request->request->get('description'));
@@ -113,6 +119,10 @@ class PlaybookController extends AbstractController
     public function edit(Request $request, Playbook $playbook): Response
     {
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('playbook_edit', $request->request->get('_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token');
+            }
+
             $playbook->setName($request->request->get('name'));
             $playbook->setDescription($request->request->get('description'));
             $playbook->setPriority((int) $request->request->get('priority', 100));
@@ -145,6 +155,10 @@ class PlaybookController extends AbstractController
     #[Route('/{id}/delete', name: 'app_playbook_delete', methods: ['POST'])]
     public function delete(Request $request, Playbook $playbook): Response
     {
+        if ($playbook->getCreatedBy() !== $this->getUser()) {
+            throw $this->createAccessDeniedException();
+        }
+
         $this->entityManager->remove($playbook);
         $this->entityManager->flush();
         
@@ -170,6 +184,10 @@ class PlaybookController extends AbstractController
     public function builderTriggers(Request $request, Playbook $playbook): Response
     {
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('playbook_builder_triggers', $request->request->get('_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token');
+            }
+
             $payload = $request->request->get('trigger_rules', '[]');
             $decoded = json_decode($payload, true);
 
@@ -195,6 +213,10 @@ class PlaybookController extends AbstractController
     public function builderActions(Request $request, Playbook $playbook): Response
     {
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('playbook_builder_actions', $request->request->get('_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token');
+            }
+
             $payload = $request->request->get('actions', '[]');
             $decoded = json_decode($payload, true);
 

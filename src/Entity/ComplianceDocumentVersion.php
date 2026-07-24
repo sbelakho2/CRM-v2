@@ -17,6 +17,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'compliance_document_versions')]
 class ComplianceDocumentVersion
 {
+    public const STATUS_PENDING = 'Pending';
+    public const STATUS_APPROVED = 'Approved';
+    public const STATUS_REJECTED = 'Rejected';
+    public const STATUS_SUPERSEDED = 'Superseded';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -67,7 +72,14 @@ class ComplianceDocumentVersion
     
     public function __construct()
     {
-        $this->uploadedAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->uploadedAt === null) {
+            $this->uploadedAt = new \DateTime();
+        }
     }
     
     // Getters and Setters
@@ -230,39 +242,44 @@ class ComplianceDocumentVersion
      */
     public function approve(string $approvedBy): self
     {
-        $this->status = 'Approved';
+        $this->status = self::STATUS_APPROVED;
         $this->approvedBy = $approvedBy;
         $this->approvedAt = new \DateTime();
         return $this;
     }
-    
+
     /**
      * Mark this version as rejected
      */
     public function reject(string $rejectedBy, string $reason): self
     {
-        $this->status = 'Rejected';
+        $this->status = self::STATUS_REJECTED;
         $this->approvedBy = $rejectedBy;
         $this->approvedAt = new \DateTime();
         $this->rejectionReason = $reason;
         return $this;
     }
-    
+
     /**
      * Mark as superseded (newer version available)
      */
     public function supersede(): self
     {
-        $this->status = 'Superseded';
+        $this->status = self::STATUS_SUPERSEDED;
         $this->isCurrent = false;
         return $this;
     }
     
+    public function getUploadedAtFormatted(): ?string
+    {
+        return $this->uploadedAt?->format('Y-m-d');
+    }
+
     /**
      * Get display label
      */
     public function getDisplayLabel(): string
     {
-        return sprintf('v%d - %s', $this->versionNumber, $this->uploadedAt->format('Y-m-d'));
+        return sprintf('v%d - %s', $this->versionNumber, $this->uploadedAt?->format('Y-m-d') ?? 'N/A');
     }
 }

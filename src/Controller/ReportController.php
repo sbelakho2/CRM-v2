@@ -13,8 +13,10 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/reports')]
+#[IsGranted('ROLE_USER')]
 class ReportController extends AbstractController
 {
     public function __construct(
@@ -328,10 +330,16 @@ class ReportController extends AbstractController
         if (!isset($data['dataSource'])) {
             return new JsonResponse(['error' => 'Data source is required'], 400);
         }
+
+        $dataSource = $data['dataSource'];
+        $allowedSources = ['leads', 'companies', 'contacts', 'quotes', 'activities', 'rfqs'];
+        if (!in_array($dataSource, $allowedSources, true)) {
+            return new JsonResponse(['error' => 'Invalid data source'], 400);
+        }
         
         // Create temporary report definition
         $report = new ReportDefinition();
-        $report->setDataSource($data['dataSource']);
+        $report->setDataSource($dataSource);
         $report->setReportType($data['reportType'] ?? ReportDefinition::TYPE_TABLE);
         $report->setColumns($data['columns'] ?? []);
         $report->setFilters($data['filters'] ?? []);

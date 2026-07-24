@@ -12,6 +12,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_abm_domain', columns: ['domain'])]
 #[ORM\Index(name: 'idx_abm_icp_tier', columns: ['icp_tier'])]
 #[ORM\Index(name: 'idx_abm_engagement', columns: ['engagement_score'])]
+#[ORM\HasLifecycleCallbacks]
 class AbmAccount
 {
     #[ORM\Id]
@@ -56,14 +57,29 @@ class AbmAccount
     #[ORM\JoinColumn(nullable: true)]
     private ?Company $company = null;
 
-    #[ORM\OneToMany(mappedBy: 'abmAccount', targetEntity: AbmHit::class)]
+    #[ORM\OneToMany(mappedBy: 'abmAccount', targetEntity: AbmHit::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $abmHits;
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
-        $this->firstSeenAt = new \DateTime();
         $this->abmHits = new ArrayCollection();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+        if ($this->firstSeenAt === null) {
+            $this->firstSeenAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int

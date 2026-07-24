@@ -30,7 +30,7 @@ class CompanyRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    public function findBySectorAndTier(string $sector, string $tier)
+    public function findBySectorAndTier(string $sector, string $tier): array
     {
         return $this->createQueryBuilder('c')
             ->where('c.sector = :sector')

@@ -16,6 +16,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Psr\Log\LoggerInterface;
 
 /**
  * SupplierPortalController
@@ -38,6 +40,7 @@ use Symfony\Component\Routing\Annotation\Route;
  * - POST /supplier-portal/{id}/submit  - Submit onboarding pack
  */
 #[Route('/supplier-portal')]
+#[IsGranted('ROLE_USER')]
 class SupplierPortalController extends AbstractController
 {
     public function __construct(
@@ -46,7 +49,8 @@ class SupplierPortalController extends AbstractController
         private OnboardingPackService $onboardingPack,
         private UnifiedPdfGeneratorService $pdfGenerator,
         private TrackerDataService $trackerData,
-        private TranslatorInterface $translator
+        private TranslatorInterface $translator,
+        private LoggerInterface $logger,
     ) {}
 
     /**
@@ -96,6 +100,10 @@ class SupplierPortalController extends AbstractController
     public function discover(Request $request): Response
     {
         // 1. Get company name and domain from request
+        if (!$this->isCsrfTokenValid('supplier_portal_discover', $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
         $companyName = $request->request->get('company_name');
         $domain = $request->request->get('domain');
         
@@ -128,7 +136,8 @@ class SupplierPortalController extends AbstractController
             return $this->redirectToRoute('supplier_portal_index');
             
         } catch (\Exception $e) {
-            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.discovery_failed', ['%message%' => $e->getMessage()]));
+            $this->logger->error('Portal discovery failed', ['exception' => $e]);
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.discovery_failed', ['%message%' => 'Operation failed. Please try again.']));
             return $this->redirectToRoute('supplier_portal_index');
         }
     }
@@ -140,6 +149,10 @@ class SupplierPortalController extends AbstractController
     public function onboard(int $id, Request $request): Response
     {
         // 1. Get company ID from request
+        if (!$this->isCsrfTokenValid('supplier_portal_onboard', $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
         $companyId = $request->request->get('company_id', 1);
         
         // 2. Get pack type
@@ -163,7 +176,8 @@ class SupplierPortalController extends AbstractController
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
             
         } catch (\Exception $e) {
-            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pack_failed', ['%message%' => $e->getMessage()]));
+            $this->logger->error('Onboarding pack generation failed', ['exception' => $e]);
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pack_failed', ['%message%' => 'Operation failed. Please try again.']));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
         }
     }
@@ -172,6 +186,7 @@ class SupplierPortalController extends AbstractController
      * Submit onboarding pack to portal
      */
     #[Route('/{id}/submit', name: 'supplier_portal_submit', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function submit(int $id, Request $request): Response
     {
         // 1. Get pack ID and credentials
@@ -182,6 +197,7 @@ class SupplierPortalController extends AbstractController
         }
         
         // 2. Get credentials if provided
+        // TODO: Credentials should be stored encrypted, not plaintext
         $credentials = [
             'username' => $request->request->get('username'),
             'password' => $request->request->get('password')
@@ -234,7 +250,8 @@ class SupplierPortalController extends AbstractController
             return $this->file($pdfPath, sprintf('onboarding_pack_%d.pdf', $packId));
             
         } catch (\Exception $e) {
-            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pdf_failed', ['%message%' => $e->getMessage()]));
+            $this->logger->error('PDF download failed', ['exception' => $e]);
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pdf_failed', ['%message%' => 'Operation failed. Please try again.']));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $portalId]);
         }
     }

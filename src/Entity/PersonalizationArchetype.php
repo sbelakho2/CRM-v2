@@ -20,6 +20,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'unique_archetype_name', columns: ['archetype_name'])]
 #[ORM\Index(name: 'idx_archetype_industry', columns: ['target_industry'])]
 #[ORM\Index(name: 'idx_archetype_role', columns: ['target_role'])]
+#[ORM\HasLifecycleCallbacks]
 class PersonalizationArchetype
 {
     #[ORM\Id]
@@ -65,9 +66,16 @@ class PersonalizationArchetype
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
         $this->featureEmbedding = array_fill(0, 64, 0.5);
         $this->topicInterests = [];
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

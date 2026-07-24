@@ -11,19 +11,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
-/**
- * Handler for LeadDeepScrapeMessage
- * 
- * Processes lead websites in the background to extract:
- * - Structured contacts (name, email, phone, title, LinkedIn)
- * - Email addresses
- * - Phone numbers
- * - Social media links
- * - Company description
- * 
- * Creates Contact entities linked to the Lead's Company.
- * Optionally uses LLM for additional enrichment and contact discovery.
- */
 #[AsMessageHandler]
 class LeadDeepScrapeMessageHandler
 {
@@ -37,40 +24,41 @@ class LeadDeepScrapeMessageHandler
     {
         $leadId = $message->getLeadId();
         $websiteUrl = $message->getWebsiteUrl();
-        
+
         $this->logger->info('Starting deep scrape for lead', [
             'lead_id' => $leadId,
             'website' => $websiteUrl
         ]);
-        
-        // Find the lead
+
         $lead = $this->entityManager->getRepository(Lead::class)->find($leadId);
-        
+
         if (!$lead) {
             $this->logger->warning('Lead not found for deep scrape', ['lead_id' => $leadId]);
             return;
         }
-        
+
         try {
-            // Refresh entity state to avoid race conditions with concurrent handlers
-            $this->entityManager->refresh($lead);
-            
-            // Scrape the website
+            try {
+                $this->entityManager->refresh($lead);
+            } catch (\Exception $e) {
+                $this->logger->warning('Could not refresh lead entity', [
+                    'lead_id' => $leadId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             $scrapeResult = $this->scrapingService->scrapeWebsite(
                 $websiteUrl,
                 $message->getMaxPages()
             );
-            
-            // Update lead with scraped data
+
             $this->updateLeadFromScrapeResult($lead, $scrapeResult);
 
-            // Create Contact entities from structured contacts
             $contactsCreated = $this->createContactEntities($lead, $scrapeResult);
-            
-            // Save changes
+
             $lead->setUpdatedAt(new \DateTime());
             $this->entityManager->flush();
-            
+
             $this->logger->info('Deep scrape completed for lead', [
                 'lead_id' => $leadId,
                 'emails_found' => count($scrapeResult['emails']),
@@ -78,32 +66,23 @@ class LeadDeepScrapeMessageHandler
                 'structured_contacts' => count($scrapeResult['structured_contacts'] ?? []),
                 'contacts_created' => $contactsCreated,
             ]);
-            
+
         } catch (\Exception $e) {
             $this->logger->error('Deep scrape failed for lead', [
                 'lead_id' => $leadId,
                 'error' => $e->getMessage()
             ]);
-            
-            // Update lead to indicate scrape was attempted
+
             $notes = $lead->getNotesAuto() ?? '';
             $notes .= "\n[" . date('Y-m-d H:i') . "] Deep scrape failed: " . $e->getMessage();
             $lead->setNotesAuto($notes);
-            $this->entityManager->flush();
+
+            if ($this->entityManager->isOpen()) {
+                $this->entityManager->flush();
+            }
         }
     }
 
-    /**
-     * Create Contact entities from structured contacts discovered during scraping.
-     *
-     * Only creates contacts that meet quality thresholds:
-     * - Must have both first and last name
-     * - Must have at least one of: email, phone, LinkedIn
-     * - Email domain must match company website domain (if available)
-     * - Deduplicates against existing contacts for the company
-     *
-     * @return int Number of contacts created
-     */
     private function createContactEntities(Lead $lead, array $scrapeResult): int
     {
         $structuredContacts = $scrapeResult['structured_contacts'] ?? [];
@@ -111,10 +90,8 @@ class LeadDeepScrapeMessageHandler
             return 0;
         }
 
-        // Find or resolve the Company entity
         $company = $lead->getCompany();
         if (!$company) {
-            // Try to find company by name
             $companyName = $lead->getCompanyName();
             if ($companyName) {
                 $company = $this->entityManager->getRepository(Company::class)
@@ -132,7 +109,6 @@ class LeadDeepScrapeMessageHandler
         }
 
         if (!$company) {
-            // Create a Company from the Lead if we don't have one
             $companyName = $lead->getCompanyName();
             if (!$companyName) {
                 $this->logger->debug('Cannot create contacts: no company linked to lead', ['lead_id' => $lead->getId()]);
@@ -157,7 +133,6 @@ class LeadDeepScrapeMessageHandler
             $lead->setCompany($company);
         }
 
-        // Get existing contacts for dedup
         $existingContacts = $this->entityManager->getRepository(Contact::class)
             ->findBy(['company' => $company]);
         $existingKeys = [];
@@ -168,7 +143,6 @@ class LeadDeepScrapeMessageHandler
             }
         }
 
-        // Extract company domain for email validation
         $companyDomain = null;
         $website = $company->getWebsite() ?? $lead->getWebsiteRoot() ?? $lead->getLeadUrl();
         if ($website) {
@@ -186,7 +160,6 @@ class LeadDeepScrapeMessageHandler
                 continue;
             }
 
-            // Must have at least one reachable identifier
             $hasEmail = !empty($data['email']);
             $hasPhone = !empty($data['phone']);
             $hasLinkedIn = !empty($data['linkedin_url']);
@@ -194,12 +167,9 @@ class LeadDeepScrapeMessageHandler
                 continue;
             }
 
-            // Validate email domain matches company
             if ($hasEmail && $companyDomain) {
                 $emailDomain = explode('@', $data['email'])[1] ?? '';
                 $emailDomain = preg_replace('/^www\./', '', strtolower($emailDomain));
-                // Only reject if email is from a clearly different company domain
-                // Allow generic providers (gmail, outlook) as they might be legit for small companies
                 $genericProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com', 'protonmail.com'];
                 if ($emailDomain !== $companyDomain && !in_array($emailDomain, $genericProviders, true)) {
                     $this->logger->debug('Skipping contact with mismatched email domain', [
@@ -211,7 +181,6 @@ class LeadDeepScrapeMessageHandler
                 }
             }
 
-            // Dedup check
             $nameKey = strtolower("$firstName|$lastName");
             if (isset($existingKeys[$nameKey])) {
                 continue;
@@ -220,7 +189,6 @@ class LeadDeepScrapeMessageHandler
                 continue;
             }
 
-            // Quality gate: score must be at least 30
             $quality = $this->scrapingService->scoreContactQuality($data, $companyDomain);
             if ($quality < 30) {
                 $this->logger->debug('Skipping low-quality contact', [
@@ -230,7 +198,6 @@ class LeadDeepScrapeMessageHandler
                 continue;
             }
 
-            // Create the Contact entity
             $contact = new Contact();
             $contact->setCompany($company);
             $contact->setFirstName($firstName);
@@ -251,7 +218,6 @@ class LeadDeepScrapeMessageHandler
                 $contact->setLinkedInUrl($data['linkedin_url']);
             }
 
-            // Mark as primary if this is a decision-maker
             if ($this->scrapingService->isDecisionMaker($data)) {
                 $contact->setPrimaryContact(true);
                 $contact->setNotes('Decision-maker (auto-detected). Quality score: ' . $quality);
@@ -278,26 +244,21 @@ class LeadDeepScrapeMessageHandler
         return $created;
     }
 
-    /**
-     * Update lead entity with scraped data
-     */
     private function updateLeadFromScrapeResult(Lead $lead, array $result): void
     {
-        // Update emails if found
         if (!empty($result['emails'])) {
             $existingEmails = $lead->getContactEmailsPublic() ?? [];
             $allEmails = array_unique(array_merge($existingEmails, $result['emails']));
             $lead->setContactEmailsPublic(array_slice($allEmails, 0, 10));
         }
-        
-        // Update notes with phones and contact names
+
         $notes = $lead->getNotesAuto() ?? '';
         $newNotes = [];
-        
+
         if (!empty($result['phones'])) {
             $newNotes[] = "Phones found: " . implode(', ', array_slice($result['phones'], 0, 3));
         }
-        
+
         if (!empty($result['structured_contacts'])) {
             $contactSummary = [];
             foreach (array_slice($result['structured_contacts'], 0, 5) as $c) {
@@ -314,34 +275,29 @@ class LeadDeepScrapeMessageHandler
         } elseif (!empty($result['contact_names'])) {
             $newNotes[] = "Contact names: " . implode(', ', array_slice($result['contact_names'], 0, 5));
         }
-        
+
         if (!empty($newNotes)) {
             $notes .= "\n[" . date('Y-m-d H:i') . "] Deep scrape results:\n" . implode("\n", $newNotes);
         }
-        
-        // Append company description from about text if available
+
         if (!empty($result['about_text'])) {
             $notes .= "\n\nCompany Description: " . $result['about_text'];
         }
-        
-        // Persist accumulated notes
+
         if ($notes !== ($lead->getNotesAuto() ?? '')) {
             $lead->setNotesAuto($notes);
         }
-        
-        // Set scraping metadata
+
         $lead->setLastScrapedAt(new \DateTime());
         $lead->setPagesScraped($result['pages_scraped'] ?? null);
         $lead->setScrapingMethod($result['scraping_method'] ?? 'static');
         $lead->setHasContactForm(!empty($result['has_contact_form']));
-        
-        // Set last seen timestamp
+
         $lead->setLastSeen(new \DateTime());
-        
-        // Increase lead score if we found good contact info
+
         $currentScore = $lead->getLeadScore() ?? 0;
         $scoreBoost = 0;
-        
+
         if (!empty($result['emails'])) {
             $scoreBoost += 10;
         }
@@ -349,13 +305,12 @@ class LeadDeepScrapeMessageHandler
             $scoreBoost += 5;
         }
         if (!empty($result['structured_contacts'])) {
-            // Boost more for structured contacts, especially decision-makers
             $decisionMakers = array_filter($result['structured_contacts'], fn($c) => $this->scrapingService->isDecisionMaker($c));
             $scoreBoost += count($decisionMakers) > 0 ? 15 : 5;
         } elseif (!empty($result['contact_names'])) {
             $scoreBoost += 5;
         }
-        
+
         if ($scoreBoost > 0) {
             $lead->setLeadScore(min(100, $currentScore + $scoreBoost));
         }

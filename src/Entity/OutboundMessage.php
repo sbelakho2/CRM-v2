@@ -19,6 +19,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_outbound_arm', columns: ['subject_arm_id'])]
 #[ORM\Index(name: 'idx_outbound_status', columns: ['status'])]
 #[ORM\Index(name: 'idx_outbound_sent', columns: ['sent_at'])]
+#[ORM\HasLifecycleCallbacks]
 class OutboundMessage
 {
     public const STATUS_PENDING = 'pending';
@@ -188,7 +189,20 @@ class OutboundMessage
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int

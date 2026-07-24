@@ -340,16 +340,40 @@
             .then(response => response.json())
             .then(result => {
                 closeModal('acceptModal');
-                document.querySelector('..rams-module__content').innerHTML = `
-                    <div class="rams-text--center rams-py-xl">
-                        <div class="rams-text--success rams-text-6xl">✓</div>
-                        <h2 class="rams-heading rams-heading--2 rams-mt-md">${i18n.acceptedTitle}</h2>
-                        <p class="rams-text rams-text--muted">${result.message}</p>
-                        <ul class="rams-list rams-list--check rams-text--left rams-mx-auto" style="max-width: 400px;">
-                            ${result.next_steps.map(s => `<li class="rams-list__item">✓ ${s}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
+                const container = document.querySelector('..rams-module__content');
+                const div = document.createElement('div');
+                div.className = 'rams-text--center rams-py-xl';
+                
+                const check = document.createElement('div');
+                check.className = 'rams-text--success rams-text-6xl';
+                check.textContent = '✓';
+                div.appendChild(check);
+                
+                const title = document.createElement('h2');
+                title.className = 'rams-heading rams-heading--2 rams-mt-md';
+                title.textContent = i18n.acceptedTitle;
+                div.appendChild(title);
+                
+                const msg = document.createElement('p');
+                msg.className = 'rams-text rams-text--muted';
+                msg.textContent = result.message;
+                div.appendChild(msg);
+                
+                const ul = document.createElement('ul');
+                ul.className = 'rams-list rams-list--check rams-text--left rams-mx-auto';
+                ul.style.maxWidth = '400px';
+                if (result.next_steps) {
+                    result.next_steps.forEach(s => {
+                        const li = document.createElement('li');
+                        li.className = 'rams-list__item';
+                        li.textContent = '✓ ' + s;
+                        ul.appendChild(li);
+                    });
+                }
+                div.appendChild(ul);
+                
+                container.innerHTML = '';
+                container.appendChild(div);
             })
             .catch(error => ramsAlert(`${i18n.errorLabel}: ${error.message}`, {variant: 'error'}));
         }

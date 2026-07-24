@@ -283,18 +283,38 @@ class MeetingSlotRepository extends ServiceEntityRepository
         string $timezone = 'UTC'
     ): array {
         $slots = [];
+
+        $existingSlots = $this->findByUserAndDateRange($owner, $rangeStart, $rangeEnd);
+        $conflictIndex = [];
+        foreach ($existingSlots as $existing) {
+            $dateKey = $existing->getStartTime()->format('Y-m-d');
+            $conflictIndex[$dateKey][] = [
+                'start' => $existing->getStartTime(),
+                'end' => $existing->getEndTime(),
+            ];
+        }
+
         $current = $rangeStart;
-        
         while ($current <= $rangeEnd) {
             $dayOfWeek = (int) $current->format('w');
-            
+
             if (in_array($dayOfWeek, $weekdays)) {
                 [$hour, $minute] = explode(':', $startTimeOfDay);
                 $startTime = $current->setTime((int) $hour, (int) $minute);
                 $endTime = $startTime->modify("+{$durationMinutes} minutes");
-                
-                // Check for conflicts
-                if (empty($this->findConflicts($owner, $startTime, $endTime))) {
+
+                $dateKey = $startTime->format('Y-m-d');
+                $hasConflict = false;
+                if (isset($conflictIndex[$dateKey])) {
+                    foreach ($conflictIndex[$dateKey] as $conflict) {
+                        if ($startTime < $conflict['end'] && $endTime > $conflict['start']) {
+                            $hasConflict = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$hasConflict) {
                     $slot = new MeetingSlot();
                     $slot->setTitle($title)
                          ->setMeetingType($meetingType)
@@ -306,17 +326,17 @@ class MeetingSlotRepository extends ServiceEntityRepository
                          ->setLocation($location)
                          ->setMeetingUrl($meetingUrl)
                          ->setTimezone($timezone);
-                    
+
                     $this->save($slot);
                     $slots[] = $slot;
                 }
             }
-            
+
             $current = $current->modify('+1 day');
         }
-        
+
         $this->getEntityManager()->flush();
-        
+
         return $slots;
     }
     

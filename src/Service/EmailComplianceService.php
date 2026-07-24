@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\EmailCampaign;
@@ -16,10 +18,15 @@ class EmailComplianceService
     private EntityManagerInterface $em;
     private EmailConsentService $consentService;
     
+    private const DEFAULT_COMPANY_NAME = 'STARZ Morocco';
+    private const DEFAULT_PHYSICAL_ADDRESS = '123 Business Avenue, Tangier, Morocco';
+    private const DEFAULT_COMPANY_PHONE = '+212 539 123 456';
+    private const DEFAULT_APP_BASE_URL = 'https://crm.starz-morocco.com';
+    
     // Company information for compliance
-    private string $companyName = 'STARZ Morocco';
-    private string $physicalAddress = '123 Business Avenue, Tangier, Morocco';
-    private string $companyPhone = '+212 539 123 456';
+    private string $companyName;
+    private string $physicalAddress;
+    private string $companyPhone;
 
     public function __construct(
         EntityManagerInterface $em,
@@ -27,6 +34,9 @@ class EmailComplianceService
     ) {
         $this->em = $em;
         $this->consentService = $consentService;
+        $this->companyName = self::DEFAULT_COMPANY_NAME;
+        $this->physicalAddress = self::DEFAULT_PHYSICAL_ADDRESS;
+        $this->companyPhone = self::DEFAULT_COMPANY_PHONE;
     }
 
     /**
@@ -120,7 +130,7 @@ class EmailComplianceService
             nl2br(htmlspecialchars($this->physicalAddress)),
             htmlspecialchars($this->companyPhone),
             htmlspecialchars($unsubscribeLink),
-            rtrim($_ENV['APP_BASE_URL'] ?? 'https://crm.starz-morocco.com', '/'),
+            rtrim($_ENV['APP_BASE_URL'] ?? self::DEFAULT_APP_BASE_URL, '/'),
             base64_encode($contact->getEmail()),
             htmlspecialchars($contact->getEmail())
         );

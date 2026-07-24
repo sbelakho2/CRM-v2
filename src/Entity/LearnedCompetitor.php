@@ -219,15 +219,24 @@ class LearnedCompetitor
 
     private function updateConfidenceFromDetections(): void
     {
-        // Confidence grows with detections (logarithmic)
-        $this->confidenceScore = min(100, (int)(50 + 15 * log($this->detectionCount + 1)));
-        
-        // Auto-promote to higher tier if detected frequently enough
-        if ($this->detectionCount >= 20 && $this->tier === 3) {
-            $this->tier = 2; // Promote from Tier 3 to Tier 2
-        } elseif ($this->detectionCount >= 50 && $this->tier === 2) {
-            $this->tier = 1; // Promote from Tier 2 to Tier 1
+        $this->confidenceScore = self::calculateConfidenceFromDetections($this->confidenceScore, $this->detectionCount, $this->tier);
+        $this->tier = self::calculateTierFromDetections($this->detectionCount, $this->tier);
+    }
+
+    public static function calculateConfidenceFromDetections(int $currentConfidence, int $detectionCount, int $currentTier): int
+    {
+        return min(100, (int)(50 + 15 * log(max(1, $detectionCount + 1))));
+    }
+
+    public static function calculateTierFromDetections(int $detectionCount, int $currentTier): int
+    {
+        if ($detectionCount >= 50 && $currentTier === 2) {
+            return 1;
         }
+        if ($detectionCount >= 20 && $currentTier === 3) {
+            return 2;
+        }
+        return $currentTier;
     }
 
     public function getConfidenceScore(): int

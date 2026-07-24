@@ -12,6 +12,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class RFQ
 {
+    public const TYPE_NPI = 'NPI';
+    public const TYPE_FRAMEWORK = 'Framework Agreement';
+    public const TYPE_STANDARD = 'Standard RFQ';
+
+    public const STATUS_PENDING = 'Pending';
+    public const STATUS_SUBMITTED = 'Submitted';
+    public const STATUS_WON = 'Won';
+    public const STATUS_LOST = 'Lost';
+    public const STATUS_IN_REVIEW = 'In Review';
+
     // Loss reason categories for competitive intelligence
     public const LOSS_REASON_PRICE = 'price';
     public const LOSS_REASON_LEAD_TIME = 'lead_time';
@@ -61,7 +71,7 @@ class RFQ
     private ?\DateTimeInterface $rfqDate = null;
 
     #[ORM\Column(length: 50)]
-    private ?string $type = 'Standard RFQ'; // NPI, Framework Agreement, Standard RFQ
+    private ?string $type = self::TYPE_STANDARD; // NPI, Framework Agreement, Standard RFQ
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $ndaSent = false;
@@ -73,7 +83,7 @@ class RFQ
     private bool $ndaExecuted = false;
 
     #[ORM\Column(length: 50)]
-    private ?string $status = 'Pending'; // Pending, Submitted, Won, Lost, In Review
+    private ?string $status = self::STATUS_PENDING; // Pending, Submitted, Won, Lost, In Review
 
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2, nullable: true)]
     private ?string $estimatedValue = null;
@@ -507,36 +517,27 @@ class RFQ
      */
     public function isWon(): bool
     {
-        return $this->status === 'Won';
+        return $this->status === self::STATUS_WON;
     }
-    
-    /**
-     * Check if RFQ was lost
-     */
+
     public function isLost(): bool
     {
-        return $this->status === 'Lost';
+        return $this->status === self::STATUS_LOST;
     }
-    
-    /**
-     * Mark RFQ as lost with details
-     */
+
     public function markLost(string $reason, ?string $competitor = null, ?string $detail = null): self
     {
-        $this->status = 'Lost';
+        $this->status = self::STATUS_LOST;
         $this->lossReason = $reason;
         $this->competitorWon = $competitor;
         $this->lossReasonDetail = $detail;
         $this->decisionDate = new \DateTime();
         return $this;
     }
-    
-    /**
-     * Mark RFQ as won with details
-     */
+
     public function markWon(?string $factors = null, ?\DateTimeInterface $awardDate = null): self
     {
-        $this->status = 'Won';
+        $this->status = self::STATUS_WON;
         $this->winFactors = $factors;
         $this->awardDate = $awardDate ?? new \DateTime();
         $this->decisionDate = new \DateTime();

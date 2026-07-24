@@ -46,6 +46,7 @@ class RoutePreferenceRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->orderBy('rp.destinationCountry', 'ASC')
             ->addOrderBy('rp.rank', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }

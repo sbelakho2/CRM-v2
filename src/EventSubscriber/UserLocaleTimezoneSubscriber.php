@@ -13,7 +13,9 @@ class UserLocaleTimezoneSubscriber implements EventSubscriberInterface
 {
     public function __construct(
         private Security $security,
-        private TranslatorInterface $translator
+        private TranslatorInterface $translator,
+        private string $defaultLocale,
+        private string $defaultTimezone
     ) {
     }
 
@@ -46,23 +48,16 @@ class UserLocaleTimezoneSubscriber implements EventSubscriberInterface
             }
 
             if ($timezone) {
-                date_default_timezone_set($timezone);
+                $request->attributes->set('_timezone', $timezone);
             }
         } else {
-            $fallbackLocale = $_ENV['DEFAULT_LOCALE'] ?? null;
-            $fallbackTimezone = $_ENV['DEFAULT_TIMEZONE'] ?? null;
-
-            if ($fallbackLocale) {
-                $request->setLocale($fallbackLocale);
-                $this->translator->setLocale($fallbackLocale);
-                if ($request->hasSession()) {
-                    $request->getSession()->set('_locale', $fallbackLocale);
-                }
+            $request->setLocale($this->defaultLocale);
+            $this->translator->setLocale($this->defaultLocale);
+            if ($request->hasSession()) {
+                $request->getSession()->set('_locale', $this->defaultLocale);
             }
 
-            if ($fallbackTimezone) {
-                date_default_timezone_set($fallbackTimezone);
-            }
+            $request->attributes->set('_timezone', $this->defaultTimezone);
         }
     }
 }

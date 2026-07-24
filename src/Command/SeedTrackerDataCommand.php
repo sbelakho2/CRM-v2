@@ -7,6 +7,7 @@ use App\Entity\Company;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -23,9 +24,15 @@ class SeedTrackerDataCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this
+            ->addArgument('file', InputArgument::OPTIONAL, 'Path to Tracker.xlsx', __DIR__ . '/../../Tracker.xlsx');
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $trackerFile = __DIR__ . '/../../Tracker.xlsx';
+        $trackerFile = $input->getArgument('file');
         
         if (!file_exists($trackerFile)) {
             $output->writeln('<error>Tracker.xlsx not found</error>');

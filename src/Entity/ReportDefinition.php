@@ -523,25 +523,30 @@ class ReportDefinition
     
     public function canUserAccess(User $user): bool
     {
+        return self::canUserAccessStatic($this, $user);
+    }
+
+    public static function canUserAccessStatic(self $report, User $user): bool
+    {
         // Creator always has access
-        if ($this->createdBy && $this->createdBy->getId() === $user->getId()) {
+        if ($report->createdBy && $report->createdBy->getId() === $user->getId()) {
             return true;
         }
-        
+
         // Public reports are accessible to all
-        if ($this->isPublic) {
+        if ($report->isPublic) {
             return true;
         }
-        
+
         // Check role-based access
-        if ($this->accessRoles) {
-            foreach ($this->accessRoles as $role) {
+        if ($report->accessRoles) {
+            foreach ($report->accessRoles as $role) {
                 if (in_array($role, $user->getRoles())) {
                     return true;
                 }
             }
         }
-        
+
         return false;
     }
 }

@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Notification;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -49,18 +50,19 @@ class NotificationRepository extends ServiceEntityRepository
     /**
      * Get all notifications for a user (paginated)
      */
-    public function findForUser(User $user, int $page = 1, int $limit = 20): array
+    public function findForUser(User $user, int $page = 1, int $limit = 20): Paginator
     {
         $offset = ($page - 1) * $limit;
 
-        return $this->createQueryBuilder('n')
+        $query = $this->createQueryBuilder('n')
             ->where('n.user = :user')
             ->setParameter('user', $user)
             ->orderBy('n.createdAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($limit)
-            ->getQuery()
-            ->getResult();
+            ->getQuery();
+
+        return new Paginator($query);
     }
 
     /**

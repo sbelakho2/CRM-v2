@@ -15,8 +15,10 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/rfq')]
+#[IsGranted('ROLE_USER')]
 class RFQController extends AbstractController
 {
     public function __construct(

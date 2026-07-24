@@ -18,6 +18,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'personalization_profiles')]
 #[ORM\Index(name: 'idx_pers_contact', columns: ['contact_id'])]
 #[ORM\Index(name: 'idx_pers_company', columns: ['company_id'])]
+#[ORM\HasLifecycleCallbacks]
 class PersonalizationProfile
 {
     // Tone preferences
@@ -102,12 +103,27 @@ class PersonalizationProfile
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
-        $this->updatedAt = new \DateTime();
         $this->topicInterests = [];
         $this->avoidTopics = [];
         $this->interactionHistory = [];
         $this->successfulSubjectPatterns = [];
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+        if ($this->updatedAt === null) {
+            $this->updatedAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int
@@ -343,22 +359,16 @@ class PersonalizationProfile
 
     /**
      * Calculate engagement score with recency weighting (0-100)
-     *
-     * Instead of using raw lifetime counts, we weight recent interactions
-     * higher via exponential decay on the interaction history.
-     *
-     * Math:
-     *   For each interaction at time t:
-     *     w(t) = exp(-λ · days_ago(t))   where λ = ln(2)/30  (half-life = 30 days)
-     *   engagement = 50 × Σ(w_open) / Σ(w_any) + 50 × Σ(w_reply) / max(1, Σ(w_open))
-     *
-     * Falls back to lifetime counters if interaction history is empty.
      */
     public function getEngagementScore(): float
     {
-        $history = $this->interactionHistory ?? [];
+        return self::calculateEngagementScore($this->interactionHistory, $this->emailsOpened, $this->emailsReplied, $this->emailsBounced);
+    }
 
-        // If we have detailed interaction history, use recency-weighted scoring
+    public static function calculateEngagementScore(?array $interactionHistory, int $emailsOpened, int $emailsReplied, int $emailsBounced): float
+    {
+        $history = $interactionHistory ?? [];
+
         if (!empty($history)) {
             $now = time();
             $halfLifeDays = 30;
@@ -402,10 +412,10 @@ class PersonalizationProfile
         }
 
         // Fallback: lifetime counters
-        $totalEmails = $this->emailsOpened + $this->emailsBounced + 1;
-        $openRate = $this->emailsOpened / $totalEmails;
-        $replyRate = $this->emailsOpened > 0 ? $this->emailsReplied / $this->emailsOpened : 0;
-        
+        $totalEmails = $emailsOpened + $emailsBounced + 1;
+        $openRate = $emailsOpened / $totalEmails;
+        $replyRate = $emailsOpened > 0 ? $emailsReplied / $emailsOpened : 0;
+
         return min(100, ($openRate * 50) + ($replyRate * 50));
     }
 }

@@ -7,6 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: WebinarAttendeeRepository::class)]
 #[ORM\Table(name: 'webinar_attendees')]
+#[ORM\HasLifecycleCallbacks]
 class WebinarAttendee
 {
     #[ORM\Id]
@@ -43,7 +44,14 @@ class WebinarAttendee
 
     public function __construct()
     {
-        $this->registeredAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->registeredAt === null) {
+            $this->registeredAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

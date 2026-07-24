@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'report_audits')]
 #[ORM\Index(name: 'idx_report_type', columns: ['report_type'])]
 #[ORM\Index(name: 'idx_entity_type_id', columns: ['entity_type', 'entity_id'])]
+#[ORM\HasLifecycleCallbacks]
 class ReportAudit
 {
     #[ORM\Id]
@@ -57,7 +58,14 @@ class ReportAudit
 
     public function __construct()
     {
-        $this->generatedAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->generatedAt === null) {
+            $this->generatedAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

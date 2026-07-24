@@ -7,6 +7,8 @@ parameters:
   mailer_from_address: "%env(MAILER_FROM_ADDRESS)%"
   mailer_from_name: "%env(MAILER_FROM_NAME)%"
   admin_email: "%env(default::ADMIN_EMAIL)%"
+  default_locale: "%env(default::DEFAULT_LOCALE)%"
+  default_timezone: "%env(default::DEFAULT_TIMEZONE)%"
 
 services:
   # default configuration for services in *this* file
@@ -17,6 +19,8 @@ services:
       $mailerFromAddress: "%mailer_from_address%"
       $mailerFromName: "%mailer_from_name%"
       $adminEmail: "%admin_email%"
+      $defaultLocale: "%default_locale%"
+      $defaultTimezone: "%default_timezone%"
 
   # makes classes in src/ available to be used as services
   # this creates a service per class whose id is the fully-qualified class name
@@ -33,6 +37,7 @@ services:
       - { name: doctrine.event_listener, event: postPersist }
       - { name: doctrine.event_listener, event: preUpdate }
       - { name: doctrine.event_listener, event: preRemove }
+      - { name: doctrine.event_listener, event: postFlush }
 
   # API Client Configuration
   App\Service\Integration\AlibabaApiClient:
@@ -62,20 +67,6 @@ services:
   App\Service\WebCrawler\SearchProvider\SearchProviderInterface:
     alias: App\Service\WebCrawler\SearchProvider\LocalSearxngProvider
 
-  # ── Local dev overrides ──────────────────────────────────────────────────────
-  # SearXNG is not running locally. These configs force fallback to Google CSE.
-  # Remove these blocks when SearXNG (port 8888) is running again.
-
-  # GoogleDorkService: force null searchProvider → falls back to Google CSE
-  App\Service\WebCrawler\GoogleDorkService:
-    arguments:
-      $searchProvider: null
-
-  # CompanyDiscoveryService: force null discoveryPipeline → falls back to GoogleDorkService
-  App\Service\WebCrawler\CompanyDiscoveryService:
-    arguments:
-      $discoveryPipeline: null
-
   App\Service\WebCrawler\CompanyClassifierService:
     arguments:
       $projectDir: '%kernel.project_dir%'
@@ -98,3 +89,17 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+  # ── Local dev overrides ──────────────────────────────────────────────────────
+  # SearXNG is not running locally. These configs force fallback to Google CSE.
+  # Remove these blocks when SearXNG (port 8888) is running again.
+
+  # GoogleDorkService: force null searchProvider → falls back to Google CSE
+  App\Service\WebCrawler\GoogleDorkService:
+    arguments:
+      $searchProvider: null
+
+  # CompanyDiscoveryService: force null discoveryPipeline → falls back to GoogleDorkService
+  App\Service\WebCrawler\CompanyDiscoveryService:
+    arguments:
+      $discoveryPipeline: null

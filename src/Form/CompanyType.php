@@ -5,16 +5,26 @@ namespace App\Form;
 use App\Entity\Company;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\CountryType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Url;
 
 class CompanyType extends AbstractType
 {
+    public const REGION_CHOICES = [
+        'Morocco' => 'MA',
+        'United States' => 'US',
+        'Europe' => 'EU',
+        'United Kingdom' => 'GB',
+        'Egypt' => 'EG',
+        'GCC / Gulf' => 'GCC',
+    ];
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
@@ -25,7 +35,8 @@ class CompanyType extends AbstractType
                     'placeholder' => 'company.form.name_placeholder'
                 ],
                 'constraints' => [
-                    new NotBlank(['message' => 'validation.required'])
+                    new NotBlank(['message' => 'validation.required']),
+                    new Length(['max' => 255]),
                 ]
             ])
             ->add('legalName', TextType::class, [
@@ -89,25 +100,15 @@ class CompanyType extends AbstractType
             ])
             ->add('region', ChoiceType::class, [
                 'label' => 'company.region',
-                'choices' => [
-                    'Morocco' => 'MA',
-                    'United States' => 'US',
-                    'Europe' => 'EU',
-                    'United Kingdom' => 'GB',
-                    'Egypt' => 'EG',
-                    'GCC / Gulf' => 'GCC',
-                ],
+                'choices' => self::REGION_CHOICES,
                 'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'Select region (optional)',
                 'required' => false
             ])
-            ->add('country', TextType::class, [
+            ->add('country', CountryType::class, [
                 'label' => 'Country',
-                'attr' => [
-                    'class' => 'rams-form__input',
-                    'placeholder' => 'Country code (e.g. US, GB, DE)'
-                ],
-                'required' => false
+                'required' => false,
+                'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('city', TextType::class, [
                 'label' => 'City',
@@ -155,16 +156,18 @@ class CompanyType extends AbstractType
                     new Url(['message' => 'validation.url'])
                 ]
             ])
+            // @deprecated: linkedInUrl is a duplicate of linkedinCompanyUrl for Company entities.
+            // Kept for backward compatibility with existing data. Prefer linkedinCompanyUrl for company pages.
             ->add('linkedInUrl', UrlType::class, [
                 'label' => 'LinkedIn Profile URL',
                 'attr' => [
                     'class' => 'rams-form__input',
-                    'placeholder' => 'https://linkedin.com/in/...'
+                    'placeholder' => 'https://linkedin.com/in/...',
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Url(['message' => 'validation.url'])
-                ]
+                    new Url(['message' => 'validation.url']),
+                ],
             ])
             ->add('googleDriveLink', UrlType::class, [
                 'label' => 'company.google_drive_link',

@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class TrackerDataService
 {
-    private ?array $cachedData = null;
+    private static ?array $cachedData = null;
     
     public function getSuppliers(?int $limit = null, ?int $offset = 0): array
     {
@@ -93,8 +95,8 @@ class TrackerDataService
     
     private function loadTrackerData(): array
     {
-        if ($this->cachedData !== null) {
-            return $this->cachedData;
+        if (self::$cachedData !== null) {
+            return self::$cachedData;
         }
 
         $trackerFile = dirname(__DIR__, 2) . '/Tracker.xlsx';
@@ -163,14 +165,14 @@ class TrackerDataService
                 $byRegion[$region] = ($byRegion[$region] ?? 0) + 1;
             }
 
-            $this->cachedData = [
+            self::$cachedData = [
                 'suppliers' => $suppliers,
                 'by_priority' => $byPriority,
                 'by_status' => $byStatus,
                 'by_region' => $byRegion
             ];
 
-            return $this->cachedData;
+            return self::$cachedData;
 
         } catch (\Exception $e) {
             return [

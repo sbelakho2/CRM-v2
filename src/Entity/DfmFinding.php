@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'dfm_finding')]
 #[ORM\Index(name: 'idx_dfm_quote', columns: ['quote_id'])]
 #[ORM\Index(name: 'idx_dfm_severity', columns: ['severity'])]
+#[ORM\HasLifecycleCallbacks]
 class DfmFinding
 {
     #[ORM\Id]
@@ -30,7 +31,7 @@ class DfmFinding
     #[ORM\Column(length: 20)]
     private ?string $severity = 'MEDIUM'; // CRITICAL, HIGH, MEDIUM, LOW
 
-    #[ORM\Column(type: 'text')]
+    #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
@@ -50,7 +51,14 @@ class DfmFinding
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

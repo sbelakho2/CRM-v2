@@ -17,8 +17,10 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/email-campaigns')]
+#[IsGranted('ROLE_USER')]
 class EmailCampaignController extends AbstractController
 {
     public function __construct(

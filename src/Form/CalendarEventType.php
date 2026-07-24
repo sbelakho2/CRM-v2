@@ -12,6 +12,7 @@ use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\ColorType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
@@ -30,6 +31,10 @@ class CalendarEventType extends AbstractType
         $builder
             ->add('title', TextType::class, [
                 'label' => 'Event Title',
+                'constraints' => [
+                    new Assert\NotBlank(['message' => 'Please enter an event title']),
+                    new Assert\Length(['max' => 255]),
+                ],
                 'attr' => [
                     'class' => 'rams-input',
                     'placeholder' => 'e.g., Sales Meeting with Acme Corp',
@@ -149,7 +154,8 @@ class CalendarEventType extends AbstractType
                     return $er->createQueryBuilder('u')
                         ->where('u.active = :active')
                         ->setParameter('active', true)
-                        ->orderBy('u.firstName', 'ASC');
+                        ->orderBy('u.firstName', 'ASC')
+                        ->setMaxResults(500);
                 },
                 'attr' => [
                     'class' => 'rams-select',

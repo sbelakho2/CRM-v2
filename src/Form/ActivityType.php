@@ -5,6 +5,7 @@ namespace App\Form;
 use App\Entity\Activity;
 use App\Entity\Company;
 use App\Entity\Contact;
+use App\Repository\CompanyRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -50,6 +51,9 @@ class ActivityType extends AbstractType
                 'label' => 'company.title_singular',
                 'attr' => ['class' => 'rams-form__select'],
                 'placeholder' => 'activity.form.select_company',
+                'query_builder' => function (CompanyRepository $repo) {
+                    return $repo->createQueryBuilder('c')->orderBy('c.name', 'ASC')->setMaxResults(1000);
+                },
                 'constraints' => [
                     new NotBlank(['message' => 'validation.required'])
                 ]

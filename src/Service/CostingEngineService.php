@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Quote;
@@ -393,12 +395,7 @@ class CostingEngineService
                 ->getOneOrNullResult();
             
             // Default costs if not found in database
-            $defaults = [
-                'stencil' => 150.00,
-                'fixture' => 500.00,
-                'programming' => 200.00,
-                'firstArticle' => 300.00
-            ];
+            $defaults = self::DEFAULT_NRE_COSTS;
             
             $nreRates[$item] = $rate?->getCost() ?? $defaults[$item];
         }
@@ -416,6 +413,13 @@ class CostingEngineService
         // 3. Return NRE breakdown
         return array_merge($costs, ['totalNre' => round($totalNre, 2)]);
     }
+
+    private const DEFAULT_NRE_COSTS = [
+        'stencil' => 150.00,
+        'fixture' => 500.00,
+        'programming' => 200.00,
+        'firstArticle' => 300.00,
+    ];
 
     /**
      * Check production capacity and book slot
@@ -548,33 +552,34 @@ class CostingEngineService
         //    $this->entityManager->flush();
         //    return true;
 
-        // 1. Get capacity slot
-        $slot = $this->capacityCalendarRepository->find($slotId);
-        if (!$slot) {
-            throw new \RuntimeException("Capacity slot $slotId not found");
-        }
-        
-        // 2. Check capacity still available
-        $capacityRemaining = $slot->getMaxBoards() - $slot->getBookedBoards();
-        if ($capacityRemaining < $quantityBoards) {
-            return false;
-        }
-        
-        // 3. Update booked_boards
-        $slot->setBookedBoards($slot->getBookedBoards() + $quantityBoards);
-        
-        // 4. Add quote ID to bookings JSON
-        $bookings = json_decode($slot->getBookingsJson() ?? '[]', true);
-        $bookings[] = [
-            'quoteId' => $quoteId,
-            'quantity' => $quantityBoards,
-            'bookedAt' => (new \DateTime())->format('Y-m-d H:i:s')
-        ];
-        $slot->setBookingsJson(json_encode($bookings));
-        
-        // 5. Flush changes
-        $this->entityManager->flush();
-        return true;
+        $result = false;
+
+        $this->entityManager->wrapInTransaction(function () use ($slotId, $quantityBoards, $quoteId, &$result) {
+            $slot = $this->capacityCalendarRepository->find($slotId);
+            if (!$slot) {
+                throw new \RuntimeException("Capacity slot $slotId not found");
+            }
+            
+            $capacityRemaining = $slot->getMaxBoards() - $slot->getBookedBoards();
+            if ($capacityRemaining < $quantityBoards) {
+                $result = false;
+                return;
+            }
+            
+            $slot->setBookedBoards($slot->getBookedBoards() + $quantityBoards);
+            
+            $bookings = json_decode($slot->getBookingsJson() ?? '[]', true);
+            $bookings[] = [
+                'quoteId' => $quoteId,
+                'quantity' => $quantityBoards,
+                'bookedAt' => (new \DateTime())->format('Y-m-d H:i:s')
+            ];
+            $slot->setBookingsJson(json_encode($bookings));
+            
+            $result = true;
+        });
+
+        return $result;
     }
 
     /**

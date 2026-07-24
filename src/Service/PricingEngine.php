@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Service\Integration\AlibabaApiClient;
@@ -753,13 +755,15 @@ class PricingEngine
         ];
     }
     
+    private const FINDCHIPS_SEARCH_URL = 'https://www.findchips.com/search/%s';
+
     /**
      * Build a generic search URL for parts not found in APIs
      */
     private function buildGenericSearchUrl(string $mpn): string
     {
         $encoded = urlencode($mpn);
-        return "https://www.findchips.com/search/{$encoded}";
+        return sprintf(self::FINDCHIPS_SEARCH_URL, $encoded);
     }
 
     /**

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\OnboardingPack;
@@ -44,6 +46,43 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class OnboardingPackService
 {
+    private const DEFAULT_CANDIDATE = [
+        'companyName' => 'CRM Starz Morocco',
+        'address' => 'Industrial Zone, Tangier Free Zone',
+        'city' => 'Tangier',
+        'country' => 'Morocco',
+        'postalCode' => '90000',
+        'yearEstablished' => 2018,
+        'employeeCount' => 50,
+        'website' => 'https://crmstarz.ma',
+        'vatNumber' => 'MA123456789',
+        'dunsNumber' => '987654321',
+        'bankIban' => 'MA12345678901234567890123456',
+        'bankSwift' => 'BCMAMAMC',
+        'bankName' => 'Bank of Africa',
+        'bankAccountName' => 'CRM Starz Morocco SARL',
+        'contactSalesName' => 'Sales Department',
+        'contactSalesEmail' => 'sales@crmstarz.ma',
+        'contactSalesPhone' => '+212 5 39 XX XX XX',
+        'contactFinanceName' => 'Finance Department',
+        'contactFinanceEmail' => 'finance@crmstarz.ma',
+        'contactFinancePhone' => '+212 5 39 XX XX XX',
+    ];
+
+    private const DEFAULT_CAPABILITIES = [
+        'PCB Fabrication (2-16 layers)',
+        'SMT Assembly (0201-BGA)',
+        'THT Assembly',
+        'Testing (ICT, FCT, AOI)',
+        'Design Services (DFM, layout)',
+    ];
+
+    private const DEFAULT_CERTIFICATIONS = [
+        'ISO 9001:2015',
+        'ISO 14001:2015',
+        'IPC-A-610 Class 3',
+    ];
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private OnboardingPackRepository $onboardingPackRepository,
@@ -335,40 +374,29 @@ class OnboardingPackService
         // 1. Create PortalCandidate with CRM Starz Morocco info
         $candidate = new PortalCandidate();
         $candidate->setCompanyId($companyId);
-        $candidate->setCompanyName('CRM Starz Morocco');
-        $candidate->setAddress('Industrial Zone, Tangier Free Zone');
-        $candidate->setCity('Tangier');
-        $candidate->setCountry('Morocco');
-        $candidate->setPostalCode('90000');
-        $candidate->setYearEstablished(2018);
-        $candidate->setEmployeeCount(50);
-        $candidate->setWebsite('https://crmstarz.ma');
-        $candidate->setVatNumber('MA123456789');
-        $candidate->setDunsNumber('987654321');
-        $candidate->setBankIban('MA12345678901234567890123456');
-        $candidate->setBankSwift('BCMAMAMC');
-        $candidate->setBankName('Bank of Africa');
-        $candidate->setBankAccountName('CRM Starz Morocco SARL');
-        $candidate->setContactSalesName('Sales Department');
-        $candidate->setContactSalesEmail('sales@crmstarz.ma');
-        $candidate->setContactSalesPhone('+212 5 39 XX XX XX');
-        $candidate->setContactFinanceName('Finance Department');
-        $candidate->setContactFinanceEmail('finance@crmstarz.ma');
-        $candidate->setContactFinancePhone('+212 5 39 XX XX XX');
+        $candidate->setCompanyName(self::DEFAULT_CANDIDATE['companyName']);
+        $candidate->setAddress(self::DEFAULT_CANDIDATE['address']);
+        $candidate->setCity(self::DEFAULT_CANDIDATE['city']);
+        $candidate->setCountry(self::DEFAULT_CANDIDATE['country']);
+        $candidate->setPostalCode(self::DEFAULT_CANDIDATE['postalCode']);
+        $candidate->setYearEstablished(self::DEFAULT_CANDIDATE['yearEstablished']);
+        $candidate->setEmployeeCount(self::DEFAULT_CANDIDATE['employeeCount']);
+        $candidate->setWebsite(self::DEFAULT_CANDIDATE['website']);
+        $candidate->setVatNumber(self::DEFAULT_CANDIDATE['vatNumber']);
+        $candidate->setDunsNumber(self::DEFAULT_CANDIDATE['dunsNumber']);
+        $candidate->setBankIban(self::DEFAULT_CANDIDATE['bankIban']);
+        $candidate->setBankSwift(self::DEFAULT_CANDIDATE['bankSwift']);
+        $candidate->setBankName(self::DEFAULT_CANDIDATE['bankName']);
+        $candidate->setBankAccountName(self::DEFAULT_CANDIDATE['bankAccountName']);
+        $candidate->setContactSalesName(self::DEFAULT_CANDIDATE['contactSalesName']);
+        $candidate->setContactSalesEmail(self::DEFAULT_CANDIDATE['contactSalesEmail']);
+        $candidate->setContactSalesPhone(self::DEFAULT_CANDIDATE['contactSalesPhone']);
+        $candidate->setContactFinanceName(self::DEFAULT_CANDIDATE['contactFinanceName']);
+        $candidate->setContactFinanceEmail(self::DEFAULT_CANDIDATE['contactFinanceEmail']);
+        $candidate->setContactFinancePhone(self::DEFAULT_CANDIDATE['contactFinancePhone']);
         
-        $candidate->setCapabilitiesJson(json_encode([
-            'PCB Fabrication (2-16 layers)',
-            'SMT Assembly (0201-BGA)',
-            'THT Assembly',
-            'Testing (ICT, FCT, AOI)',
-            'Design Services (DFM, layout)'
-        ]));
-        
-        $candidate->setCertificationsJson(json_encode([
-            'ISO 9001:2015',
-            'ISO 14001:2015',
-            'IPC-A-610 Class 3'
-        ]));
+        $candidate->setCapabilitiesJson(json_encode(self::DEFAULT_CAPABILITIES));
+        $candidate->setCertificationsJson(json_encode(self::DEFAULT_CERTIFICATIONS));
         
         $this->entityManager->persist($candidate);
         $this->entityManager->flush();

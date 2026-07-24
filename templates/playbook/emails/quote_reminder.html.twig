@@ -32,7 +32,7 @@
                 <strong>{{ 'common.domain'|trans }}:</strong> {{ domain }}<br>
                 {% endif %}
                 {% if quote_value is defined %}
-                <strong>{{ 'common.value'|trans }}:</strong> {{ quote_value }}<br>
+                <strong>{{ 'common.value'|trans }}:</strong> {{ quote_value|number_format(2) }}<br>
                 {% endif %}
             </div>
             

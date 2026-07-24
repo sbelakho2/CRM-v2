@@ -147,6 +147,10 @@ class LeadDiscoveryController extends AbstractController
     #[Route('/search', name: 'lead_discovery_search', methods: ['POST'])]
     public function search(Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('lead_discovery_search', $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
         $query = $request->request->get('query');
         $limit = (int)$request->request->get('limit', 10);
         $sector = $request->request->get('sector');
@@ -191,6 +195,10 @@ class LeadDiscoveryController extends AbstractController
     #[Route('/import', name: 'lead_discovery_import', methods: ['POST'])]
     public function import(Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('lead_discovery_import', $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
         $results = $request->getSession()->get('search_results', []);
         $query = $request->getSession()->get('search_query', 'Unknown');
         $location = $request->getSession()->get('search_location');
@@ -273,6 +281,10 @@ class LeadDiscoveryController extends AbstractController
     #[Route('/import-all', name: 'lead_discovery_import_all', methods: ['POST'])]
     public function importAll(Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('lead_discovery_import_all', $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
         $results = $request->getSession()->get('search_results', []);
         $query = $request->getSession()->get('search_query', 'Unknown');
         $location = $request->getSession()->get('search_location');

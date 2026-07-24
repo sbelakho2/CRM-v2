@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -198,6 +200,15 @@ class DeepScrapingService
             }
         }
         
+        // Check if all pages failed and log warning
+        if ($result['pages_scraped'] === 0 && !empty($result['errors'])) {
+            $this->logger->warning('All pages failed to scrape', [
+                'url' => $url,
+                'error_count' => count($result['errors']),
+                'errors' => $result['errors'],
+            ]);
+        }
+
         // Clean and deduplicate results
         $result['emails'] = $this->cleanEmails(array_unique($result['emails']));
         $result['phones'] = $this->cleanPhones(array_unique($result['phones']));
@@ -889,21 +900,27 @@ class DeepScrapingService
                     $contact['email'] = strtolower($email);
                 }
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            $this->logger->warning('Structured contact extraction failed', ['exception' => $e]);
+        }
 
         // Phone
         try {
             if ($card->filter('a[href^="tel:"]')->count() > 0) {
                 $contact['phone'] = str_replace('tel:', '', $card->filter('a[href^="tel:"]')->attr('href'));
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            $this->logger->warning('Phone extraction failed', ['exception' => $e]);
+        }
 
         // LinkedIn
         try {
             if ($card->filter('a[href*="linkedin.com/in/"]')->count() > 0) {
                 $contact['linkedin_url'] = $card->filter('a[href*="linkedin.com/in/"]')->attr('href');
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            $this->logger->warning('LinkedIn extraction failed', ['exception' => $e]);
+        }
 
         $result['structured_contacts'][] = $contact;
     }
@@ -933,7 +950,9 @@ class DeepScrapingService
                     }
                 }
             });
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            $this->logger->warning('LinkedIn DOM extraction failed', ['exception' => $e]);
+        }
     }
 
     /**
@@ -996,7 +1015,9 @@ class DeepScrapingService
 
                 $result['structured_contacts'][] = $contact;
             });
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            $this->logger->warning('vCard structured contact extraction failed', ['exception' => $e]);
+        }
     }
 
     /**

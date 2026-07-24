@@ -1,10 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
-use App\Service\Integration\MouserApiClient;
-use App\Service\Integration\DigiKeyApiClient;
-use App\Service\Integration\NexarApiClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;

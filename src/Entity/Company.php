@@ -122,16 +122,16 @@ class Company
     private ?string $sector = null; // Automotive, Industrial, Aerospace, Rail, Renewables, Power Electronics
 
     #[ORM\Column(length: 10)]
-    private ?string $accountTier = 'C'; // A, B, C
+    private ?string $accountTier = self::TIER_C; // A, B, C
 
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $region = null; // TAC, TFZ, AFZ Kenitra, Casablanca/Midparc, Bouskoura
 
     #[ORM\Column(length: 50)]
-    private ?string $pipelineStage = 'Prospect'; // Prospect, MQL, SQL, SQO, Proposal, Award
+    private ?string $pipelineStage = self::STAGE_PROSPECT; // Prospect, MQL, SQL, SQO, Proposal, Award
 
     #[ORM\Column(length: 30, options: ['default' => 'approved'])]
-    private string $companyStatus = 'approved'; // discovered, approved, active
+    private string $companyStatus = self::STATUS_APPROVED; // discovered, approved, active
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $website = null;
@@ -189,7 +189,14 @@ class Company
         $this->contacts = new ArrayCollection();
         $this->activities = new ArrayCollection();
         $this->rfqs = new ArrayCollection();
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

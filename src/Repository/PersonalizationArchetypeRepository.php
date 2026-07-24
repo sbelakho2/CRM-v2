@@ -21,7 +21,7 @@ class PersonalizationArchetypeRepository extends ServiceEntityRepository
      */
     public function findAllActive(): array
     {
-        return $this->findBy(['isActive' => true]);
+        return $this->findBy(['isActive' => true], null, 500);
     }
 
     /**

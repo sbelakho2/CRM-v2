@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'tariff_rates')]
 #[ORM\Index(name: 'idx_hs_code', columns: ['hs_code'])]
 #[ORM\Index(name: 'idx_effective_date', columns: ['effective_date'])]
+#[ORM\HasLifecycleCallbacks]
 class TariffRate
 {
     #[ORM\Id]
@@ -60,7 +61,20 @@ class TariffRate
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int

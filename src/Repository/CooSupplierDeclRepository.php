@@ -47,6 +47,7 @@ class CooSupplierDeclRepository extends ServiceEntityRepository
             ->setParameter('verified', true)
             ->setParameter('now', new \DateTime())
             ->orderBy('csd.supplierName', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }

@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'packaging_factors')]
 #[ORM\Index(name: 'idx_category', columns: ['category'])]
 #[ORM\Index(name: 'idx_asof', columns: ['asof'])]
+#[ORM\HasLifecycleCallbacks]
 class PackagingFactor
 {
     #[ORM\Id]
@@ -45,9 +46,20 @@ class PackagingFactor
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
-        $this->asof = new \DateTime();
-        $this->versionId = bin2hex(random_bytes(18)); // Simple version ID
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+        if ($this->asof === null) {
+            $this->asof = new \DateTime();
+        }
+        if ($this->versionId === null) {
+            $this->versionId = bin2hex(random_bytes(18));
+        }
     }
 
     public function getId(): ?int

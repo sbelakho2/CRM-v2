@@ -6,6 +6,9 @@ use App\Entity\PackagingFactor;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
+/**
+ * @extends ServiceEntityRepository<PackagingFactor>
+ */
 class PackagingFactorRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -38,6 +41,7 @@ class PackagingFactorRepository extends ServiceEntityRepository
             ->where('p.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('p.category', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }

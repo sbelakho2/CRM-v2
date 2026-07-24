@@ -127,7 +127,7 @@
                             <p style="margin: 0 0 15px; color: #666666; font-size: 12px; text-align: center; line-height: 1.6;">
                                 {{ issuer.location|default('emails.quote_notification.footer_location'|trans) }}<br>
                                 {{ 'common.email'|trans }}: <a href="mailto:{{ issuer.email|default('emails.quote_notification.footer_email_address'|trans) }}" style="color: #FFBE00; text-decoration: none;">{{ issuer.email|default('emails.quote_notification.footer_email_label'|trans) }}</a><br>
-                                {{ 'company.website'|trans }}: <a href="https://{{ issuer.website|default('starzelectronics.site') }}" style="color: #FFBE00; text-decoration: none;">{{ issuer.website|default('emails.quote_notification.footer_site_label'|trans) }}</a>
+                                {{ 'company.website'|trans }}: {% set website = issuer.website|default('') %}{% if website matches '#^https?://#' %}<a href="{{ website }}" style="color: #FFBE00; text-decoration: none;">{{ website }}</a>{% elseif website %}<a href="https://{{ website }}" style="color: #FFBE00; text-decoration: none;">{{ website }}</a>{% endif %}
                             </p>
                             <p style="margin: 0; color: #5a5a5a; font-size: 11px; text-align: center;">
                                 {{ 'emails.quote_notification.email_sent_for'|trans({'%quote%': quote.quoteNumber ?? ('Q-' ~ quote.id)}) }}

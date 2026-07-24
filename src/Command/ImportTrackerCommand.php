@@ -26,7 +26,7 @@ class ImportTrackerCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('file', InputArgument::OPTIONAL, 'Path to CSV file (converted from Tracker.xlsx)')
+            ->addArgument('file', InputArgument::REQUIRED, 'Path to CSV file (converted from Tracker.xlsx)')
             ->addOption('template', 't', InputOption::VALUE_NONE, 'Generate CSV template')
             ->setHelp(<<<'HELP'
 Import companies from Tracker.xlsx into the CRM database.
@@ -39,9 +39,6 @@ IMPORTANT: Convert Tracker.xlsx to CSV format first:
 Examples:
   # Import from CSV file
   php bin/console app:import-tracker path/to/tracker.csv
-
-  # Import from default location
-  php bin/console app:import-tracker "C:\Users\sadok\CRM Project\Tracker.csv"
 
   # Generate CSV template
   php bin/console app:import-tracker --template
@@ -94,29 +91,6 @@ HELP
 
         // Get file path
         $filePath = $input->getArgument('file');
-        
-        if (!$filePath) {
-            // Try default location
-            $defaultPath = 'C:\Users\sadok\CRM Project\Tracker.csv';
-            
-            if (file_exists($defaultPath)) {
-                $filePath = $defaultPath;
-                $io->note("Using default file: {$filePath}");
-            } else {
-                $io->error('Please provide a CSV file path or convert Tracker.xlsx to CSV first');
-                $io->info([
-                    'To convert Tracker.xlsx to CSV:',
-                    '1. Open Tracker.xlsx in Excel',
-                    '2. File > Save As > CSV (Comma delimited)',
-                    '3. Save as Tracker.csv',
-                    '',
-                    'Then run: php bin/console app:import-tracker "C:\Users\sadok\CRM Project\Tracker.csv"',
-                    '',
-                    'Or generate a template: php bin/console app:import-tracker --template'
-                ]);
-                return Command::FAILURE;
-            }
-        }
 
         // Verify file exists
         if (!file_exists($filePath)) {

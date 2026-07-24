@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\SpintaxTemplate;
@@ -225,6 +227,10 @@ class SpintaxEngineService
         $sampledA = substr($a, 0, $sampleSize);
         $sampledB = substr($b, 0, $sampleSize);
         
+        if (strlen($sampledA) > 255 || strlen($sampledB) > 255) {
+            return 0; // Fallback for very long strings
+        }
+
         // Scale up the result proportionally
         $sampleDistance = levenshtein($sampledA, $sampledB);
         $scaleFactor = max(strlen($a), strlen($b)) / $sampleSize;

@@ -32,6 +32,8 @@ class RegistrationController extends AbstractController
             $user->setPassword($hashed);
             // default role
             $user->setRoles(['ROLE_USER']);
+            // TODO: Implement email verification flow - set isVerified to false and send verification email
+            $user->setIsVerified(false);
 
             $em->persist($user);
             $em->flush();

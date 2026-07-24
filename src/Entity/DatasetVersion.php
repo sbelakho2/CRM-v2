@@ -4,12 +4,14 @@ namespace App\Entity;
 
 use App\Repository\DatasetVersionRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: DatasetVersionRepository::class)]
 #[ORM\Table(name: 'dataset_version')]
 #[ORM\Index(name: 'idx_dataset_type', columns: ['dataset_type'])]
 #[ORM\Index(name: 'idx_dataset_active', columns: ['is_active'])]
 #[ORM\Index(name: 'idx_dataset_uuid', columns: ['version_uuid'])]
+#[ORM\HasLifecycleCallbacks]
 class DatasetVersion
 {
     #[ORM\Id]
@@ -43,8 +45,17 @@ class DatasetVersion
 
     public function __construct()
     {
-        $this->importedAt = new \DateTime();
-        $this->versionUuid = \Symfony\Component\Uid\Uuid::v4()->toRfc4122();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->importedAt === null) {
+            $this->importedAt = new \DateTime();
+        }
+        if ($this->versionUuid === null) {
+            $this->versionUuid = Uuid::v4()->toRfc4122();
+        }
     }
 
     public function getId(): ?int
@@ -96,9 +107,9 @@ class DatasetVersion
         return $this;
     }
 
-    public function isActive(): ?bool
+    public function isActive(): bool
     {
-        return $this->isActive;
+        return $this->isActive ?? false;
     }
 
     public function setIsActive(bool $isActive): self

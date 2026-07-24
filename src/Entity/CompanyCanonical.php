@@ -9,6 +9,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: CompanyCanonicalRepository::class)]
 #[ORM\Table(name: 'company_canonicals')]
 #[ORM\Index(name: 'idx_domain', columns: ['domain'])]
+#[ORM\Index(name: 'idx_company_id', columns: ['company_id'])]
+#[ORM\HasLifecycleCallbacks]
 class CompanyCanonical
 {
     #[ORM\Id]
@@ -37,7 +39,14 @@ class CompanyCanonical
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

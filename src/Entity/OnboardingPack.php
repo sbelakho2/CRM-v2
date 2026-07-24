@@ -9,8 +9,15 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: OnboardingPackRepository::class)]
 #[ORM\Table(name: 'onboarding_packs')]
 #[ORM\Index(name: 'idx_company_portal', columns: ['company_id', 'portal_candidate_id'])]
+#[ORM\HasLifecycleCallbacks]
 class OnboardingPack
 {
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_READY = 'ready';
+    public const STATUS_SUBMITTED = 'submitted';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -47,8 +54,15 @@ class OnboardingPack
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
-        $this->status = 'draft';
+        $this->status = self::STATUS_DRAFT;
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

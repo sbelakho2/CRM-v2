@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\HtsMapRule;
@@ -60,10 +62,11 @@ class HtsClassificationService
         $mpn = $bomLine['mpn'] ?? null;
         
         if ($mpn) {
+            $safeMpn = addcslashes($mpn, '%_');
             $mappedRule = $this->htsMapRuleRepository->createQueryBuilder('h')
                 ->where('h.keywords LIKE :mpnPattern')
                 ->andWhere('h.isActive = true')
-                ->setParameter('mpnPattern', '%"' . $mpn . '"%')
+                ->setParameter('mpnPattern', '%"' . $safeMpn . '"%')
                 ->setMaxResults(1)
                 ->getQuery()
                 ->getOneOrNullResult();

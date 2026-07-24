@@ -49,6 +49,7 @@ class PriceHistoryRepository extends ServiceEntityRepository
      * @param string $source Optional source filter
      * @param int $days Number of days to analyze
      * @return array{date: string, avg_price: float, min_price: float, max_price: float, samples: int}[]
+     * @internal Uses raw SQL for performance. Callers should not depend on this approach.
      */
     public function getPriceTrend(string $mpn, ?string $source = null, int $days = 90): array
     {
@@ -124,23 +125,33 @@ class PriceHistoryRepository extends ServiceEntityRepository
     public function getPriceVolatility(string $mpn, int $days = 90): ?float
     {
         $since = new \DateTime("-{$days} days");
-        
-        $result = $this->createQueryBuilder('ph')
-            ->select("AVG(CAST(ph.unitPriceUsd AS DECIMAL(10,4))) as avg_price")
-            ->addSelect("STDDEV(CAST(ph.unitPriceUsd AS DECIMAL(10,4))) as std_dev")
+
+        $prices = $this->createQueryBuilder('ph')
+            ->select('CAST(ph.unitPriceUsd AS DECIMAL(10,4)) as price')
             ->where('ph.mpn = :mpn')
             ->andWhere('ph.recordedAt >= :since')
             ->andWhere('ph.unitPriceUsd IS NOT NULL')
             ->setParameter('mpn', $mpn)
             ->setParameter('since', $since)
             ->getQuery()
-            ->getOneOrNullResult();
-        
-        if (!$result || !$result['avg_price'] || $result['avg_price'] == 0) {
+            ->getScalarResult();
+
+        $values = array_column($prices, 'price');
+        $count = count($values);
+
+        if ($count < 2) {
             return null;
         }
-        
-        return $result['std_dev'] / $result['avg_price']; // Coefficient of variation
+
+        $mean = array_sum($values) / $count;
+        if ($mean == 0) {
+            return null;
+        }
+
+        $variance = array_sum(array_map(fn($v) => ($v - $mean) ** 2, $values)) / $count;
+        $stdDev = sqrt($variance);
+
+        return $stdDev / $mean;
     }
 
     /**

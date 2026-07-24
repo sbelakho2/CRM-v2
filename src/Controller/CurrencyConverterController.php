@@ -10,14 +10,18 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Psr\Log\LoggerInterface;
 
 #[Route('/currency-converter')]
+#[IsGranted('ROLE_USER')]
 class CurrencyConverterController extends AbstractController
 {
     public function __construct(
         private CurrencyConversionService $conversionService,
         private CurrencyConverter $currencyConverter,
         private LiveFxRateFetcher $liveFxRateFetcher,
+        private LoggerInterface $logger,
     ) {}
 
     /**
@@ -115,9 +119,10 @@ class CurrencyConverterController extends AbstractController
                 'timestamp' => (new \DateTime())->format('Y-m-d H:i:s T'),
             ]);
         } catch (\Exception $e) {
+            $this->logger->error('Failed to refresh rates', ['exception' => $e]);
             return $this->json([
                 'success' => false,
-                'error' => 'Failed to refresh rates: ' . $e->getMessage(),
+                'error' => 'Operation failed. Please try again.',
             ], 500);
         }
     }

@@ -11,6 +11,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_playbook_abm_hit', columns: ['playbook_id', 'abm_hit_id'])]
 class PlaybookRun
 {
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_IN_PROGRESS = 'in_progress';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_FAILED = 'failed';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -45,7 +50,7 @@ class PlaybookRun
     public function __construct()
     {
         $this->triggeredAt = new \DateTime();
-        $this->status = 'pending';
+        $this->status = self::STATUS_PENDING;
     }
 
     public function getId(): ?int

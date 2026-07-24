@@ -12,6 +12,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_user', columns: ['user_id'])]
 #[ORM\Index(name: 'idx_action', columns: ['action'])]
 #[ORM\Index(name: 'idx_created_at', columns: ['created_at'])]
+#[ORM\HasLifecycleCallbacks]
 class AuditLog
 {
     #[ORM\Id]
@@ -55,7 +56,14 @@ class AuditLog
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

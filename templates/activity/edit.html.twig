@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const companySelect = document.getElementById('activity_company');
     const contactSelect = document.getElementById('activity_contact');
     const contactSearchUrl = '{{ contactSearchUrl }}';
-    const initialContactData = {{ initialContactData|raw }};
+    const initialContactData = {{ initialContactData|json_encode|raw }};
     
     if (!companySelect || !contactSelect) {
         return;

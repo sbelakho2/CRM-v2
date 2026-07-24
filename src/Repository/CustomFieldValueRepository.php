@@ -112,14 +112,25 @@ class CustomFieldValueRepository extends ServiceEntityRepository
         $em = $this->getEntityManager();
 
         foreach ($fieldValues as $fieldKey => $value) {
-            // Find the field definition
             $field = $em->getRepository(CustomFieldDefinition::class)
                 ->findOneBy(['fieldKey' => $fieldKey, 'entityType' => $entityType]);
 
             if ($field && $field->isActive()) {
-                $this->setValue($field, $entityType, $entityId, $value);
+                $fieldValue = $this->findValue($field, $entityType, $entityId);
+
+                if (!$fieldValue) {
+                    $fieldValue = new CustomFieldValue();
+                    $fieldValue->setFieldDefinition($field);
+                    $fieldValue->setEntityType($entityType);
+                    $fieldValue->setEntityId($entityId);
+                }
+
+                $fieldValue->setValue($value);
+                $em->persist($fieldValue);
             }
         }
+
+        $em->flush();
     }
 
     /**

@@ -7,18 +7,14 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\Intl\Currencies;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class CurrencyPreferenceType extends AbstractType
 {
+    private const MAJOR_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'CHF', 'MAD', 'AED'];
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $currencyChoices = [];
-        foreach (Currencies::getNames() as $code => $name) {
-            $currencyChoices["{$code} - {$name}"] = $code;
-        }
-        ksort($currencyChoices);
+        $currencyChoices = array_combine(self::MAJOR_CURRENCIES, self::MAJOR_CURRENCIES);
 
         $languageChoices = [
             'language.english' => 'en',

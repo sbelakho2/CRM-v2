@@ -62,7 +62,14 @@ class EmailUnsubscribe
 
     public function __construct()
     {
-        $this->unsubscribedAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->unsubscribedAt === null) {
+            $this->unsubscribedAt = new \DateTime();
+        }
     }
 
     public function getId(): ?int

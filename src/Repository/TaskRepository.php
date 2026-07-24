@@ -231,11 +231,72 @@ class TaskRepository extends ServiceEntityRepository
             $stats['total'] += (int) $row['count'];
         }
 
-        $stats['overdue'] = count($this->findOverdue($user));
-        $stats['due_today'] = count($this->findDueToday($user));
-        $stats['due_this_week'] = count($this->findDueThisWeek($user));
+        $stats['overdue'] = $this->countOverdue($user);
+        $stats['due_today'] = $this->countDueToday($user);
+        $stats['due_this_week'] = $this->countDueThisWeek($user);
 
         return $stats;
+    }
+
+    private function countOverdue(?User $user = null): int
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->where('t.dueDate < :today')
+            ->andWhere('t.status NOT IN (:completedStatuses)')
+            ->setParameter('today', new \DateTime('today'))
+            ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED]);
+
+        if ($user !== null) {
+            $qb->andWhere('t.assignedTo = :user')
+               ->setParameter('user', $user);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    private function countDueToday(?User $user = null): int
+    {
+        $today = new \DateTime('today');
+        $tomorrow = new \DateTime('tomorrow');
+
+        $qb = $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->where('t.dueDate >= :today')
+            ->andWhere('t.dueDate < :tomorrow')
+            ->andWhere('t.status NOT IN (:completedStatuses)')
+            ->setParameter('today', $today)
+            ->setParameter('tomorrow', $tomorrow)
+            ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED]);
+
+        if ($user !== null) {
+            $qb->andWhere('t.assignedTo = :user')
+               ->setParameter('user', $user);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    private function countDueThisWeek(?User $user = null): int
+    {
+        $today = new \DateTime('today');
+        $endOfWeek = new \DateTime('sunday this week 23:59:59');
+
+        $qb = $this->createQueryBuilder('t')
+            ->select('COUNT(t.id)')
+            ->where('t.dueDate >= :today')
+            ->andWhere('t.dueDate <= :endOfWeek')
+            ->andWhere('t.status NOT IN (:completedStatuses)')
+            ->setParameter('today', $today)
+            ->setParameter('endOfWeek', $endOfWeek)
+            ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED]);
+
+        if ($user !== null) {
+            $qb->andWhere('t.assignedTo = :user')
+               ->setParameter('user', $user);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -279,7 +340,7 @@ class TaskRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('t')
             ->where('t.title LIKE :query OR t.description LIKE :query')
-            ->setParameter('query', '%' . $query . '%')
+            ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('t.createdAt', 'DESC')
             ->setMaxResults($limit);
 

@@ -14,6 +14,7 @@ use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Email;
+use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Url;
 
@@ -30,6 +31,7 @@ class ContactType extends AbstractType
                 ],
                 'constraints' => [
                     new NotBlank(['message' => 'validation.required']),
+                    new Length(['max' => 100]),
                 ],
             ])
             ->add('lastName', TextType::class, [
@@ -40,6 +42,7 @@ class ContactType extends AbstractType
                 ],
                 'constraints' => [
                     new NotBlank(['message' => 'validation.required']),
+                    new Length(['max' => 100]),
                 ],
             ])
             ->add('company', EntityType::class, [

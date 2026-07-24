@@ -57,7 +57,7 @@ class EmailTemplateRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('e')
             ->andWhere('e.name LIKE :query OR e.description LIKE :query')
-            ->setParameter('query', '%' . $query . '%')
+            ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('e.name', 'ASC')
             ->setMaxResults(20)
             ->getQuery()

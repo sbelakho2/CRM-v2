@@ -17,6 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'bandit_arms')]
 #[ORM\Index(name: 'idx_bandit_arm_type', columns: ['arm_type'])]
 #[ORM\Index(name: 'idx_bandit_active', columns: ['active'])]
+#[ORM\HasLifecycleCallbacks]
 class BanditArm
 {
     #[ORM\Id]
@@ -95,7 +96,20 @@ class BanditArm
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int
@@ -307,7 +321,12 @@ class BanditArm
      */
     public function getExpectedRate(): float
     {
-        return $this->alpha / ($this->alpha + $this->beta);
+        return self::calculateExpectedRate($this->alpha, $this->beta);
+    }
+
+    public static function calculateExpectedRate(float $alpha, float $beta): float
+    {
+        return $alpha / ($alpha + $beta);
     }
 
     /**

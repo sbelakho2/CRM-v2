@@ -17,6 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'spintax_templates')]
 #[ORM\Index(name: 'idx_spintax_type', columns: ['template_type'])]
 #[ORM\Index(name: 'idx_spintax_active', columns: ['active'])]
+#[ORM\HasLifecycleCallbacks]
 class SpintaxTemplate
 {
     #[ORM\Id]
@@ -37,13 +38,13 @@ class SpintaxTemplate
      * Subject line with spintax: {Quick question about|Question re:} {{app_name}}
      */
     #[ORM\Column(type: 'text')]
-    private ?string $subjectSpintax = null;
+    private string $subjectSpintax = '';
 
     /**
      * Body with spintax: {Hi|Hello|Hey} {{first_name}}, {I noticed|I came across} ...
      */
     #[ORM\Column(type: 'text')]
-    private ?string $bodySpintax = null;
+    private string $bodySpintax = '';
 
     /**
      * Available variables like ["first_name", "company_name", "app_name"]
@@ -71,7 +72,20 @@ class SpintaxTemplate
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int
@@ -112,7 +126,7 @@ class SpintaxTemplate
         return $this;
     }
 
-    public function getSubjectSpintax(): ?string
+    public function getSubjectSpintax(): string
     {
         return $this->subjectSpintax;
     }
@@ -123,7 +137,7 @@ class SpintaxTemplate
         return $this;
     }
 
-    public function getBodySpintax(): ?string
+    public function getBodySpintax(): string
     {
         return $this->bodySpintax;
     }

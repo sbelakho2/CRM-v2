@@ -4,6 +4,7 @@ namespace App\Form;
 
 use App\Entity\EmailCampaign;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -19,6 +20,10 @@ class EmailCampaignType extends AbstractType
         $builder
             ->add('name', TextType::class, [
                 'label' => 'email_campaign.campaign_name',
+                'constraints' => [
+                    new Assert\NotBlank(['message' => 'Please enter a campaign name']),
+                    new Assert\Length(['max' => 255]),
+                ],
                 'attr' => ['class' => 'geist-input', 'placeholder' => 'email_campaign.form.name_placeholder'],
             ])
             ->add('language', ChoiceType::class, [

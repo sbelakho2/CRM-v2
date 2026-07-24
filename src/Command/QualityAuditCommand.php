@@ -15,6 +15,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Process\Process;
 
 #[AsCommand(
     name: 'app:quality-audit',
@@ -99,19 +100,33 @@ class QualityAuditCommand extends Command
         if ($wipe && !$auditOnly) {
             $io->section('Phase 0: Wiping discovered companies and contacts');
 
-            // Delete contacts belonging to discovered companies
-            $contactsDeleted = $this->em->createQuery(
-                'DELETE FROM App\\Entity\\Contact c WHERE c.company IN ('
-                . 'SELECT comp FROM App\\Entity\\Company comp WHERE comp.companyStatus = :status'
-                . ')'
-            )->setParameter('status', Company::STATUS_DISCOVERED)->execute();
+            $this->em->beginTransaction();
+            try {
+                $discoveredCompanies = $this->em->getRepository(Company::class)->findBy([
+                    'companyStatus' => Company::STATUS_DISCOVERED,
+                ]);
 
-            // Delete discovered companies
-            $companiesDeleted = $this->em->createQuery(
-                'DELETE FROM App\\Entity\\Company c WHERE c.companyStatus = :status'
-            )->setParameter('status', Company::STATUS_DISCOVERED)->execute();
+                foreach ($discoveredCompanies as $company) {
+                    foreach ($company->getContacts() as $contact) {
+                        $this->em->remove($contact);
+                    }
+                }
+                $this->em->flush();
 
-            $io->success("Wiped {$companiesDeleted} discovered companies and {$contactsDeleted} contacts.");
+                $companiesDeleted = count($discoveredCompanies);
+                foreach ($discoveredCompanies as $company) {
+                    $this->em->remove($company);
+                }
+                $this->em->flush();
+                $this->em->commit();
+
+                $contactsDeleted = 0;
+                $io->success("Wiped {$companiesDeleted} discovered companies and their contacts.");
+            } catch (\Throwable $e) {
+                $this->em->rollback();
+                $io->error('Wipe failed: ' . $e->getMessage());
+                throw $e;
+            }
         }
 
         // ── PHASE 1: Run discovery (unless --audit-only) ─────────
@@ -174,7 +189,7 @@ class QualityAuditCommand extends Command
         $totalCompanies = count($allCompanies);
         if ($totalCompanies === 0) {
             $io->warning('No discovered companies in the database. Run without --audit-only first.');
-            return Command::SUCCESS;
+            return Command::FAILURE;
         }
 
         $io->writeln("Auditing <info>{$totalCompanies}</info> discovered companies...\n");

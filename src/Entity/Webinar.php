@@ -11,6 +11,13 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'webinars')]
 class Webinar
 {
+    public const STATUS_SCHEDULED = 'Scheduled';
+    public const STATUS_COMPLETED = 'Completed';
+    public const STATUS_CANCELLED = 'Cancelled';
+
+    public const LANGUAGE_EN = 'EN';
+    public const LANGUAGE_FR = 'FR';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -20,7 +27,7 @@ class Webinar
     private ?string $title = null;
 
     #[ORM\Column(length: 10)]
-    private ?string $language = 'EN'; // EN or FR
+    private ?string $language = self::LANGUAGE_EN; // EN or FR
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $scheduledDate = null;
@@ -49,11 +56,11 @@ class Webinar
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $maxAttendees = null;
 
-    #[ORM\OneToMany(mappedBy: 'webinar', targetEntity: WebinarAttendee::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'webinar', targetEntity: WebinarAttendee::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $attendees;
 
     #[ORM\Column(length: 50)]
-    private ?string $status = 'Scheduled'; // Scheduled, Completed, Cancelled
+    private ?string $status = self::STATUS_SCHEDULED; // Scheduled, Completed, Cancelled
 
     public function __construct()
     {

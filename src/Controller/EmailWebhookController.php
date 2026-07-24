@@ -529,7 +529,7 @@ class EmailWebhookController extends AbstractController
             
             return new Response(json_encode([
                 'status' => 'error',
-                'message' => 'Failed to process event: ' . $e->getMessage(),
+                'message' => 'Failed to process event. Please try again.',
             ]), 500, ['Content-Type' => 'application/json']);
         }
     }

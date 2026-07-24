@@ -14,10 +14,12 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
 #[Route('/compliance')]
+#[IsGranted('ROLE_USER')]
 class ComplianceController extends AbstractController
 {
     public function __construct(
@@ -126,7 +128,14 @@ class ComplianceController extends AbstractController
         try {
             $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = $this->slugger->slug($originalFilename);
-            $newFilename = $safeFilename.'-'.uniqid().'.'.$file->guessExtension();
+
+            $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
+            $extension = strtolower($file->guessExtension());
+            if (!in_array($extension, $allowedExtensions, true)) {
+                throw new \RuntimeException('Invalid file type');
+            }
+
+            $newFilename = $safeFilename.'-'.uniqid().'.'.$extension;
 
             $file->move($uploadDir, $newFilename);
 
@@ -202,12 +211,7 @@ class ComplianceController extends AbstractController
             ]));
         }
         
-        // Redirect back to referrer or company compliance page
-        $referer = $request->headers->get('referer');
-        if ($referer && str_contains($referer, '/compliance/')) {
-            return $this->redirect($referer);
-        }
-        
+        // Redirect back to company compliance page
         return $this->redirectToRoute('app_compliance_company', [
             'id' => $document->getCompany()->getId()
         ]);
@@ -226,12 +230,7 @@ class ComplianceController extends AbstractController
             $this->addFlash('success', $this->translator->trans('compliance.flash.snooze_cleared'));
         }
         
-        // Redirect back to referrer or company compliance page
-        $referer = $request->headers->get('referer');
-        if ($referer && str_contains($referer, '/compliance/')) {
-            return $this->redirect($referer);
-        }
-        
+        // Redirect back to company compliance page
         return $this->redirectToRoute('app_compliance_company', [
             'id' => $document->getCompany()->getId()
         ]);

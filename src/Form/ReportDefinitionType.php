@@ -4,6 +4,7 @@ namespace App\Form;
 
 use App\Entity\ReportDefinition;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -19,6 +20,10 @@ class ReportDefinitionType extends AbstractType
         $builder
             ->add('name', TextType::class, [
                 'label' => 'report.form.name',
+                'constraints' => [
+                    new Assert\NotBlank(['message' => 'Please enter a report name']),
+                    new Assert\Length(['max' => 255]),
+                ],
                 'attr' => [
                     'class' => 'rams-input',
                     'placeholder' => 'report.form.name_placeholder',

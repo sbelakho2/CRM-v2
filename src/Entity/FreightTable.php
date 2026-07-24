@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'freight_tables')]
 #[ORM\Index(name: 'idx_route', columns: ['origin_port', 'destination_port'])]
 #[ORM\Index(name: 'idx_effective_date', columns: ['effective_date'])]
+#[ORM\HasLifecycleCallbacks]
 class FreightTable
 {
     #[ORM\Id]
@@ -63,7 +64,20 @@ class FreightTable
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int

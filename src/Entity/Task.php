@@ -12,6 +12,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_task_due_date', columns: ['due_date'])]
 #[ORM\Index(name: 'idx_task_assigned', columns: ['assigned_to_id'])]
 #[ORM\Index(name: 'idx_task_priority', columns: ['priority'])]
+#[ORM\HasLifecycleCallbacks]
 class Task
 {
     // Status constants
@@ -174,7 +175,18 @@ class Task
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        $this->createdAt = $this->createdAt ?? new \DateTime();
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int

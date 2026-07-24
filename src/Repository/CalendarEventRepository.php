@@ -221,17 +221,21 @@ class CalendarEventRepository extends ServiceEntityRepository
     {
         $now = new \DateTime();
 
-        return $this->createQueryBuilder('e')
+        $results = $this->createQueryBuilder('e')
             ->where('e.reminderMinutes IS NOT NULL')
             ->andWhere('e.reminderSent = :false')
             ->andWhere('e.startAt > :now')
             ->andWhere('e.status = :confirmed')
-            ->andWhere('DATE_SUB(e.startAt, e.reminderMinutes, \'MINUTE\') <= :now')
             ->setParameter('false', false)
             ->setParameter('now', $now)
             ->setParameter('confirmed', CalendarEvent::STATUS_CONFIRMED)
             ->getQuery()
             ->getResult();
+
+        return array_filter($results, function (CalendarEvent $e) use ($now) {
+            $reminderThreshold = (clone $e->getStartAt())->modify('-' . (int) $e->getReminderMinutes() . ' minutes');
+            return $reminderThreshold <= $now;
+        });
     }
 
     /**
@@ -309,7 +313,7 @@ class CalendarEventRepository extends ServiceEntityRepository
         $to = $to ?? new \DateTime('last day of this month 23:59:59');
 
         $qb = $this->createQueryBuilder('e')
-            ->select('e.eventType, COUNT(e.id) as count, SUM(TIMESTAMPDIFF(MINUTE, e.startAt, e.endAt)) as totalMinutes')
+            ->select('e.eventType, e.startAt, e.endAt')
             ->where('e.startAt BETWEEN :from AND :to')
             ->andWhere(
                 $qb->expr()->orX(
@@ -319,8 +323,7 @@ class CalendarEventRepository extends ServiceEntityRepository
             )
             ->setParameter('from', $from)
             ->setParameter('to', $to)
-            ->setParameter('user', $user)
-            ->groupBy('e.eventType');
+            ->setParameter('user', $user);
 
         $results = $qb->getQuery()->getResult();
 
@@ -331,12 +334,18 @@ class CalendarEventRepository extends ServiceEntityRepository
         ];
 
         foreach ($results as $row) {
-            $stats['byType'][$row['eventType']] = [
-                'count' => (int) $row['count'],
-                'minutes' => (int) $row['totalMinutes'],
-            ];
-            $stats['totalEvents'] += (int) $row['count'];
-            $stats['totalMinutes'] += (int) $row['totalMinutes'];
+            $eventType = $row['eventType'];
+            $minutes = 0;
+            if ($row['startAt'] && $row['endAt']) {
+                $minutes = (int) (($row['endAt']->getTimestamp() - $row['startAt']->getTimestamp()) / 60);
+            }
+            if (!isset($stats['byType'][$eventType])) {
+                $stats['byType'][$eventType] = ['count' => 0, 'minutes' => 0];
+            }
+            $stats['byType'][$eventType]['count']++;
+            $stats['byType'][$eventType]['minutes'] += $minutes;
+            $stats['totalEvents']++;
+            $stats['totalMinutes'] += $minutes;
         }
 
         return $stats;
@@ -360,7 +369,7 @@ class CalendarEventRepository extends ServiceEntityRepository
                     'ct.lastName LIKE :query'
                 )
             )
-            ->setParameter('query', '%' . $query . '%')
+            ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('e.startAt', 'DESC')
             ->setMaxResults($limit);
 

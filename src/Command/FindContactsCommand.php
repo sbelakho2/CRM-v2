@@ -71,7 +71,7 @@ HELP
 
         // Try to find company by ID first
         $company = null;
-        if (is_numeric($companyInput)) {
+        if (filter_var($companyInput, FILTER_VALIDATE_INT) !== false) {
             $company = $this->companyRepo->find((int)$companyInput);
         }
 

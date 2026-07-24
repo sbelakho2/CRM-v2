@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: DfmRuleRepository::class)]
 #[ORM\Table(name: 'dfm_rules')]
 #[ORM\Index(name: 'idx_rule_type_severity', columns: ['rule_type', 'severity'])]
+#[ORM\HasLifecycleCallbacks]
 class DfmRule
 {
     #[ORM\Id]
@@ -25,7 +26,7 @@ class DfmRule
     #[ORM\Column(length: 50)]
     private ?string $severity = null; // Critical, Warning, Info
 
-    #[ORM\Column(type: Types::TEXT)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -48,7 +49,22 @@ class DfmRule
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+        if ($this->updatedAt === null) {
+            $this->updatedAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
         $this->updatedAt = new \DateTime();
     }
 

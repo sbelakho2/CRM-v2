@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Process\Process;
 
 /**
  * Pre-deployment quality gate that validates:
@@ -243,11 +244,10 @@ class QualityGateCommand extends Command
         $outputs = [];
 
         foreach ($testFiles as $file) {
-            $cmd = sprintf('php %s %s 2>&1', escapeshellarg($phpunit), escapeshellarg($file));
-            $out = '';
-            $code = 0;
-            exec($cmd, $lines, $code);
-            $out = implode("\n", $lines);
+            $process = new Process(['php', $phpunit, $file]);
+            $process->run();
+            $out = $process->getOutput() . $process->getErrorOutput();
+            $code = $process->getExitCode();
             $outputs[] = basename($file) . ": " . ($code === 0 ? 'OK' : "FAIL (exit $code)");
 
             if ($code !== 0) {
@@ -273,11 +273,10 @@ class QualityGateCommand extends Command
     private function runContainerLint(): array
     {
         $console = $this->projectDir . '/bin/console';
-        $cmd = sprintf('php %s lint:container 2>&1', escapeshellarg($console));
-        $out = '';
-        $code = 0;
-        exec($cmd, $lines, $code);
-        $out = implode("\n", $lines);
+        $process = new Process(['php', $console, 'lint:container']);
+        $process->run();
+        $out = $process->getOutput() . $process->getErrorOutput();
+        $code = $process->getExitCode();
 
         return [
             'passed' => $code === 0,

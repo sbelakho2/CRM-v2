@@ -43,6 +43,7 @@ use Psr\Log\LoggerInterface;
  * - POST /quote-copilot/{id}/publish - Publish quote to customer
  */
 #[Route('/quote-copilot')]
+#[IsGranted('ROLE_USER')]
 class QuoteCoPilotController extends AbstractController
 {
     public function __construct(
@@ -238,7 +239,8 @@ class QuoteCoPilotController extends AbstractController
             return $this->redirectToRoute('quote_copilot_results', ['id' => $quote->getId()]);
 
         } catch (\Exception $e) {
-            $this->addFlash('error', 'Error processing BOM: ' . $e->getMessage());
+            $this->logger->error('Error processing BOM', ['exception' => $e]);
+            $this->addFlash('error', 'Operation failed. Please try again.');
             return $this->redirectToRoute('quote_copilot_index');
         }
     }
@@ -302,7 +304,7 @@ class QuoteCoPilotController extends AbstractController
                 'trace' => $e->getTraceAsString()
             ]);
             
-            $this->addFlash('error', 'Error generating PDF: ' . $e->getMessage());
+            $this->addFlash('error', 'Error generating PDF. Please try again.');
             return $this->redirectToRoute('quote_copilot_results', ['id' => $id]);
         }
     }
@@ -624,7 +626,7 @@ class QuoteCoPilotController extends AbstractController
             
             return $this->json([
                 'success' => false,
-                'message' => 'Error sending email: ' . $e->getMessage()
+                'message' => 'Operation failed. Please try again.'
             ], 500);
         }
 

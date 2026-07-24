@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_bom_quote', columns: ['quote_id'])]
 #[ORM\Index(name: 'idx_bom_mpn', columns: ['mpn'])]
 #[ORM\Index(name: 'idx_bom_review', columns: ['requires_review'])]
+#[ORM\HasLifecycleCallbacks]
 class BomLine
 {
     #[ORM\Id]
@@ -135,7 +136,20 @@ class BomLine
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(): void
+    {
+        $this->updatedAt = new \DateTime();
     }
 
     public function getId(): ?int
@@ -242,9 +256,9 @@ class BomLine
         return $this;
     }
 
-    public function isHasException(): ?bool
+    public function hasException(): bool
     {
-        return $this->hasException;
+        return $this->hasException ?? false;
     }
 
     public function setHasException(bool $hasException): self
@@ -387,11 +401,11 @@ class BomLine
         return $this;
     }
     
-    public function isRequiresReview(): ?bool
+    public function requiresReview(): bool
     {
-        return $this->requiresReview;
+        return $this->requiresReview ?? false;
     }
-    
+
     public function setRequiresReview(?bool $requiresReview): self
     {
         $this->requiresReview = $requiresReview;
@@ -460,10 +474,15 @@ class BomLine
      */
     public function getEffectiveUnitPrice(): ?string
     {
-        if ($this->manualUnitPrice !== null) {
-            return $this->manualUnitPrice;
+        return self::resolveEffectiveUnitPrice($this->manualUnitPrice, $this->unitPrice);
+    }
+
+    public static function resolveEffectiveUnitPrice(?string $manualUnitPrice, ?string $unitPrice): ?string
+    {
+        if ($manualUnitPrice !== null) {
+            return $manualUnitPrice;
         }
-        return $this->unitPrice;
+        return $unitPrice;
     }
     
     /**

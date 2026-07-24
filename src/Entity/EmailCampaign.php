@@ -31,6 +31,9 @@ class EmailCampaign
     public const TYPE_TRIGGERED = 'triggered';
     public const TYPE_DRIP = 'drip';
 
+    public const LANGUAGE_EN = 'EN';
+    public const LANGUAGE_FR = 'FR';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -40,7 +43,7 @@ class EmailCampaign
     private ?string $name = null;
 
     #[ORM\Column(length: 10)]
-    private ?string $language = 'EN'; // EN or FR
+    private ?string $language = self::LANGUAGE_EN; // EN or FR
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description = null;
@@ -93,7 +96,7 @@ class EmailCampaign
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
-    #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: EmailSend::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: EmailSend::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $emailSends;
 
     #[ORM\ManyToMany(targetEntity: Contact::class, mappedBy: 'emailCampaigns')]

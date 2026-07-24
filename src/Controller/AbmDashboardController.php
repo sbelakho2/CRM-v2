@@ -114,7 +114,7 @@ class AbmDashboardController extends AbstractController
         try {
             $heatMapCompanies = $this->heatMapService->getTopCompaniesByEngagement(20);
         } catch (\Exception $e) {
-            $heatMapError = $e->getMessage();
+            $heatMapError = 'Operation failed. Please try again.';
         }
         
         return $this->render('abm_dashboard/index.html.twig', [
@@ -172,6 +172,10 @@ class AbmDashboardController extends AbstractController
         $account = new AbmAccount();
         
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('abm_account_new', $request->request->get('_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token');
+            }
+
             $account->setAccountName($request->request->get('account_name'));
             $account->setDomain($request->request->get('domain'));
             $account->setIcpTier($request->request->get('icp_tier'));
@@ -211,6 +215,10 @@ class AbmDashboardController extends AbstractController
         }
         
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('abm_account_edit', $request->request->get('_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token');
+            }
+
             $account->setAccountName($request->request->get('account_name'));
             $account->setDomain($request->request->get('domain'));
             $account->setIcpTier($request->request->get('icp_tier'));
@@ -331,6 +339,10 @@ class AbmDashboardController extends AbstractController
     #[Route('/playbook/create', name: 'abm_dashboard_playbook_create', methods: ['POST'])]
     public function createPlaybook(Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('abm_playbook_create', $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
         $name = $request->request->get('name');
         $description = $request->request->get('description');
         $triggerRulesJson = $request->request->get('trigger_rules');

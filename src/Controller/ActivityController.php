@@ -14,8 +14,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/activities')]
+#[IsGranted('ROLE_USER')]
 class ActivityController extends AbstractController
 {
     public function __construct(
@@ -242,7 +244,9 @@ class ActivityController extends AbstractController
 
             $this->addFlash('success', 'Activity logged successfully!');
 
-            $targetRoute = $request->query->get('redirect', 'app_activity_index');
+            $allowedTargets = ['app_activity_index', 'app_company_show', 'app_contact_show'];
+            $targetRoute = $request->query->get('redirect', '');
+            $targetRoute = in_array($targetRoute, $allowedTargets, true) ? $targetRoute : 'app_activity_index';
             $targetParams = [];
             
             $redirectParams = $request->query->get('redirect_params');

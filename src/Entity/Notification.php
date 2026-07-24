@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'notification')]
 #[ORM\Index(name: 'idx_notification_user_read', columns: ['user_id', 'read_at'])]
 #[ORM\Index(name: 'idx_notification_created', columns: ['created_at'])]
+#[ORM\HasLifecycleCallbacks]
 class Notification
 {
     // ── Notification type constants ──
@@ -71,7 +72,12 @@ class Notification
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        $this->createdAt = $this->createdAt ?? new \DateTime();
     }
 
     public function getId(): ?int

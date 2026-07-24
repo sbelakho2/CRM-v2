@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'fx_rates')]
 #[ORM\Index(name: 'idx_currencies', columns: ['from_currency', 'to_currency'])]
 #[ORM\Index(name: 'idx_asof', columns: ['asof'])]
+#[ORM\HasLifecycleCallbacks]
 class FxRate
 {
     #[ORM\Id]
@@ -39,9 +40,20 @@ class FxRate
 
     public function __construct()
     {
-        $this->createdAt = new \DateTime();
-        $this->asof = new \DateTime();
-        $this->versionId = bin2hex(random_bytes(18));
+    }
+
+    #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTime();
+        }
+        if ($this->asof === null) {
+            $this->asof = new \DateTime();
+        }
+        if ($this->versionId === null) {
+            $this->versionId = bin2hex(random_bytes(18));
+        }
     }
 
     public function getId(): ?int

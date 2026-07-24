@@ -199,7 +199,7 @@
             navLinks: true,
             editable: true,
             dayMaxEvents: true,
-            events: {{ events|default('[]')|raw }}, // Assuming events are passed as JSON
+            events: {{ events|default('[]')|json_encode|raw }}, // Assuming events are passed as JSON
             eventClick: function(info) {
                 if (info.event.url) {
                     window.location.href = info.event.url;
