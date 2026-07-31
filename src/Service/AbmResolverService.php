@@ -396,7 +396,11 @@ class AbmResolverService
                 continue; // Skip empty rows
             }
             
-            $data = array_combine($header, $row);
+            try {
+                $data = array_combine($header, $row);
+            } catch (\ValueError $e) {
+                continue;
+            }
             
             // Check if account already exists
             $existingAccount = $this->abmAccountRepository->findOneBy([

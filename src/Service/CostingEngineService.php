@@ -295,7 +295,7 @@ class CostingEngineService
         }
         
         // If no package data, use component count
-        if ($totalCost == 0 && isset($asmSpec['componentCount'])) {
+        if (abs($totalCost) < 0.0001 && isset($asmSpec['componentCount'])) {
             $totalCost = $asmSpec['componentCount'] * $basePricePerComponent;
         }
         

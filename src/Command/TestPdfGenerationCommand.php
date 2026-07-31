@@ -76,11 +76,14 @@ class TestPdfGenerationCommand extends Command
         $marginPercent = (float) $marginPercent;
 
         // Path traversal check for output
-        $outputPath = realpath($outputPath) ?: $outputPath;
+        $outputPath = is_string($outputPath) ? $outputPath : 'test_quote.pdf';
         $projectDir = realpath(dirname(__DIR__, 2));
-        $resolvedDir = realpath(dirname($outputPath)) ?: dirname($outputPath);
-        if (str_starts_with($resolvedDir, '/') && !str_starts_with($resolvedDir, $projectDir)
-            && dirname($outputPath) !== '.' && !str_starts_with($resolvedDir, realpath(sys_get_temp_dir()))
+        $resolvedOutput = realpath($outputPath) ?: $outputPath;
+        $resolvedDir = dirname($resolvedOutput);
+        $resolvedDir = ($resolvedDir === '.') ? getcwd() : $resolvedDir;
+        $resolvedDirReal = realpath($resolvedDir) ?: $resolvedDir;
+        if (!str_starts_with($resolvedDirReal, $projectDir . '/')
+            && !str_starts_with($resolvedDirReal, realpath(sys_get_temp_dir()) . '/')
         ) {
             $io->error('Output path must be within the project directory.');
             return Command::FAILURE;

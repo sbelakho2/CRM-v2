@@ -229,6 +229,7 @@ class CommandCenterService
         );
 
         $highValueQuotes = [];
+        $convertedCache = [];
         foreach ($highValueCandidates as $quote) {
             $amount = (float) $quote->getTotalCost();
             if ($amount <= 0) {
@@ -238,14 +239,13 @@ class CommandCenterService
             $converted = $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
             if ($converted >= $highValueThreshold) {
                 $highValueQuotes[] = $quote;
+                $convertedCache[$quote->getId()] = $converted;
             }
         }
 
-        usort($highValueQuotes, function (Quote $a, Quote $b) use ($displayCurrency) {
-            $aCurrency = $a->getCurrency() ?: $displayCurrency;
-            $bCurrency = $b->getCurrency() ?: $displayCurrency;
-            $aValue = $this->currencyConverter->convert((float) $a->getTotalCost(), $aCurrency, $displayCurrency);
-            $bValue = $this->currencyConverter->convert((float) $b->getTotalCost(), $bCurrency, $displayCurrency);
+        usort($highValueQuotes, function (Quote $a, Quote $b) use ($convertedCache) {
+            $aValue = $convertedCache[$a->getId()] ?? 0.0;
+            $bValue = $convertedCache[$b->getId()] ?? 0.0;
             return $bValue <=> $aValue;
         });
 
@@ -346,17 +346,15 @@ class CommandCenterService
     }
     
     /**
-     * Get price change alerts
+     * Get price change alerts — batch-loads previous prices to avoid N+1 queries
      */
     private function getPriceChangeAlerts(): array
     {
         $alerts = [];
         
         try {
-            // Check if PriceHistory repository exists and has data
             $priceHistoryRepo = $this->entityManager->getRepository(PriceHistory::class);
             
-            // Get recent price records and compare with previous prices for same MPN
             $recentChanges = $priceHistoryRepo->createQueryBuilder('ph')
                 ->where('ph.recordedAt >= :threshold')
                 ->andWhere('ph.unitPrice IS NOT NULL')
@@ -366,21 +364,46 @@ class CommandCenterService
                 ->getQuery()
                 ->getResult();
             
+            if (empty($recentChanges)) {
+                return $alerts;
+            }
+            
+            $mpns = array_unique(array_map(fn($change) => $change->getMpn(), $recentChanges));
+            $sources = array_unique(array_map(fn($change) => $change->getSource(), $recentChanges));
+            
+            $previousRecords = $priceHistoryRepo->createQueryBuilder('ph2')
+                ->where('ph2.mpn IN (:mpns)')
+                ->andWhere('ph2.source IN (:sources)')
+                ->andWhere('ph2.unitPrice IS NOT NULL')
+                ->setParameter('mpns', $mpns)
+                ->setParameter('sources', $sources)
+                ->orderBy('ph2.recordedAt', 'DESC')
+                ->getQuery()
+                ->getResult();
+            
+            $indexedByMpnSource = [];
+            foreach ($previousRecords as $rec) {
+                $key = $rec->getMpn() . '|' . $rec->getSource();
+                if (!isset($indexedByMpnSource[$key])) {
+                    $indexedByMpnSource[$key] = $rec;
+                }
+            }
+            
             foreach ($recentChanges as $change) {
-                // Find previous price for same MPN to calculate change
-                $previousRecord = $priceHistoryRepo->createQueryBuilder('ph2')
-                    ->where('ph2.mpn = :mpn')
-                    ->andWhere('ph2.source = :source')
-                    ->andWhere('ph2.recordedAt < :currentDate')
-                    ->andWhere('ph2.unitPrice IS NOT NULL')
-                    ->setParameter('mpn', $change->getMpn())
-                    ->setParameter('source', $change->getSource())
-                    ->setParameter('currentDate', $change->getRecordedAt())
-                    ->orderBy('ph2.recordedAt', 'DESC')
-                    ->setMaxResults(1)
-                    ->getQuery()
-                    ->getOneOrNullResult();
-
+                $mpn = $change->getMpn();
+                $source = $change->getSource();
+                $currentDate = $change->getRecordedAt();
+                
+                $previousRecord = null;
+                foreach ($previousRecords as $rec) {
+                    if ($rec->getMpn() === $mpn 
+                        && $rec->getSource() === $source
+                        && $rec->getRecordedAt() < $currentDate) {
+                        $previousRecord = $rec;
+                        break;
+                    }
+                }
+                
                 if (!$previousRecord) {
                     continue;
                 }
@@ -399,8 +422,8 @@ class CommandCenterService
                     $alerts[] = [
                         'type' => 'price_increase',
                         'severity' => $percentChange >= 0.25 ? 'critical' : 'warning',
-                        'mpn' => $change->getMpn(),
-                        'distributor' => $change->getSource(),
+                        'mpn' => $mpn,
+                        'distributor' => $source,
                         'previous_price' => round($previousPrice, 4),
                         'current_price' => round($currentPrice, 4),
                         'currency' => $currency,
@@ -408,7 +431,7 @@ class CommandCenterService
                         'message' => sprintf(
                             'Price increased %.1f%% for %s (from %s to %s)',
                             $percentChange * 100,
-                            $change->getMpn(),
+                            $mpn,
                             $previousFormatted,
                             $currentFormatted
                         ),
@@ -444,6 +467,7 @@ class CommandCenterService
             if (!$bomJson) continue;
             
             $bomData = json_decode($bomJson, true);
+            if (!is_array($bomData)) { continue; }
             $lines = $bomData['lines'] ?? $bomData ?? [];
             
             foreach ($lines as $line) {
@@ -505,6 +529,7 @@ class CommandCenterService
             if (!$bomJson) continue;
             
             $bomData = json_decode($bomJson, true);
+            if (!is_array($bomData)) { continue; }
             $lines = $bomData['lines'] ?? $bomData ?? [];
             
             foreach ($lines as $line) {

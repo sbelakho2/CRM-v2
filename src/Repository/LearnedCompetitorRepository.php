@@ -35,6 +35,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->setParameter('tier', $tier)
             ->orderBy('c.detectionCount', 'DESC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -65,6 +66,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->setParameter('verified', true)
             ->orderBy('c.tier', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -80,6 +82,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->setParameter('minConfidence', $minConfidence)
             ->orderBy('c.confidenceScore', 'DESC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -97,6 +100,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('verified', false)
             ->setParameter('minDetections', $minDetections)
             ->orderBy('c.detectionCount', 'DESC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -113,6 +117,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('industry', $industry)
             ->orderBy('c.tier', 'ASC')
             ->addOrderBy('c.detectionCount', 'DESC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -130,6 +135,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('c.tier', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -140,13 +146,23 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
     public function getStatistics(): array
     {
         $qb = $this->createQueryBuilder('c')
-            ->select('c.tier, c.industry, COUNT(c.id) as count, SUM(c.detectionCount) as totalDetections, AVG(c.confidenceScore) as avgConfidence')
+            ->select('
+                c.tier,
+                c.industry,
+                COUNT(c.id) as count,
+                SUM(c.detectionCount) as totalDetections,
+                AVG(c.confidenceScore) as avgConfidence,
+                SUM(CASE WHEN c.verified = :verified THEN 1 ELSE 0 END) as verifiedCount,
+                SUM(CASE WHEN c.confidenceScore >= :minConfidence THEN 1 ELSE 0 END) as highConfidenceCount
+            ')
             ->where('c.active = :active')
             ->setParameter('active', true)
+            ->setParameter('verified', true)
+            ->setParameter('minConfidence', 70)
             ->groupBy('c.tier, c.industry');
-        
-        $results = $qb->getQuery()->getResult();
-        
+
+        $results = $qb->getQuery()->getArrayResult();
+
         $stats = [
             'byTier' => [],
             'byIndustry' => [],
@@ -154,34 +170,25 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             'verified' => 0,
             'highConfidence' => 0,
         ];
-        
+
         foreach ($results as $row) {
             $tier = $row['tier'];
             $industry = $row['industry'];
-            
+
             if (!isset($stats['byTier'][$tier])) {
                 $stats['byTier'][$tier] = 0;
             }
             if (!isset($stats['byIndustry'][$industry])) {
                 $stats['byIndustry'][$industry] = 0;
             }
-            
-            $stats['byTier'][$tier] += $row['count'];
-            $stats['byIndustry'][$industry] += $row['count'];
-            $stats['total'] += $row['count'];
+
+            $stats['byTier'][$tier] += (int) $row['count'];
+            $stats['byIndustry'][$industry] += (int) $row['count'];
+            $stats['total'] += (int) $row['count'];
+            $stats['verified'] = (int) ($row['verifiedCount'] ?? 0);
+            $stats['highConfidence'] = (int) ($row['highConfidenceCount'] ?? 0);
         }
-        
-        // Count verified and high confidence
-        $stats['verified'] = $this->count(['active' => true, 'verified' => true]);
-        $stats['highConfidence'] = (int) $this->createQueryBuilder('c')
-            ->select('COUNT(c.id)')
-            ->where('c.active = :active')
-            ->andWhere('c.confidenceScore >= :minConfidence')
-            ->setParameter('active', true)
-            ->setParameter('minConfidence', 70)
-            ->getQuery()
-            ->getSingleScalarResult();
-        
+
         return $stats;
     }
 

@@ -10,6 +10,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Lock\LockFactory;
 
 #[AsCommand(
     name: 'app:discover-companies',
@@ -19,6 +20,7 @@ class DiscoverCompaniesCommand extends Command
 {
     public function __construct(
         private CompanyDiscoveryService $discoveryService,
+        private LockFactory $lockFactory,
         private ?LoggerInterface $logger = null,
     ) {
         parent::__construct();
@@ -61,6 +63,9 @@ HELP
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+
+        $lock = $this->lockFactory->createLock('discover_companies', 1800);
+        $lock->acquire();
 
         $io->title('Company Discovery Webcrawler');
 

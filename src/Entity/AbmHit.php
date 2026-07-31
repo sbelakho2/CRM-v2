@@ -42,7 +42,7 @@ class AbmHit
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $pageViews = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?string $firmographicData = null; // JSON
 
     #[ORM\Column(type: 'boolean')]

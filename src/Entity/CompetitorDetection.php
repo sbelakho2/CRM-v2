@@ -15,7 +15,7 @@ class CompetitorDetection
     #[ORM\Column(type: "integer")]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Lead::class, inversedBy: "competitorDetections")]
+    #[ORM\ManyToOne(targetEntity: Lead::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: "CASCADE")]
     private ?Lead $lead = null;
 

@@ -61,6 +61,13 @@ class RFQController extends AbstractController
             $qb->andWhere('r.ndaSent = false');
         }
 
+        $qb->orderBy('r.createdAt', 'DESC');
+
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limit = 50;
+        $qb->setMaxResults($limit)
+           ->setFirstResult(($page - 1) * $limit);
+
         $rfqs = $qb->getQuery()->getResult();
 
         return $this->render('rfq/index.html.twig', [

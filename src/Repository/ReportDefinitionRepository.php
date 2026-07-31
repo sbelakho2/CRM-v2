@@ -141,6 +141,8 @@ class ReportDefinitionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
+        // TODO: Move this filter to DQL when multi-DB support is added. Use JSON_LENGTH
+        // or JSON_CONTAINS for MySQL, jsonb_array_length for PostgreSQL.
         return array_filter($results, function (ReportDefinition $r) {
             $scheduled = $r->getScheduledDelivery();
             return is_array($scheduled) && count($scheduled) > 0;
@@ -167,57 +169,47 @@ class ReportDefinitionRepository extends ServiceEntityRepository
      */
     public function getStatistics(User $user): array
     {
-        $qb = $this->createQueryBuilder('r');
-        
-        $total = (int) $qb->select('COUNT(r.id)')
-            ->andWhere('r.createdBy = :user OR r.isPublic = true')
+        $result = $this->createQueryBuilder('r')
+            ->select('
+                COUNT(r.id) as total,
+                SUM(CASE WHEN r.createdBy = :user THEN 1 ELSE 0 END) as myReports,
+                SUM(CASE WHEN r.isFavorite = true THEN 1 ELSE 0 END) as favorites,
+                r.dataSource,
+                r.reportType
+            ')
+            ->andWhere('r.createdBy = :user2 OR r.isPublic = true')
             ->setParameter('user', $user)
-            ->getQuery()
-            ->getSingleScalarResult();
-        
-        $myReports = (int) $this->createQueryBuilder('r')
-            ->select('COUNT(r.id)')
-            ->andWhere('r.createdBy = :user')
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getSingleScalarResult();
-        
-        $favorites = (int) $this->createQueryBuilder('r')
-            ->select('COUNT(r.id)')
-            ->andWhere('r.createdBy = :user OR r.isPublic = true')
-            ->andWhere('r.isFavorite = true')
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getSingleScalarResult();
-        
-        // By data source
-        $bySource = $this->createQueryBuilder('r')
-            ->select('r.dataSource, COUNT(r.id) as count')
-            ->andWhere('r.createdBy = :user OR r.isPublic = true')
-            ->setParameter('user', $user)
-            ->groupBy('r.dataSource')
+            ->setParameter('user2', $user)
+            ->groupBy('r.dataSource, r.reportType')
             ->getQuery()
             ->getResult();
-        
+
+        $total = 0;
+        $myReports = 0;
+        $favorites = 0;
         $sourceStats = [];
-        foreach ($bySource as $row) {
-            $sourceStats[$row['dataSource']] = (int) $row['count'];
-        }
-        
-        // By report type
-        $byType = $this->createQueryBuilder('r')
-            ->select('r.reportType, COUNT(r.id) as count')
-            ->andWhere('r.createdBy = :user OR r.isPublic = true')
-            ->setParameter('user', $user)
-            ->groupBy('r.reportType')
-            ->getQuery()
-            ->getResult();
-        
         $typeStats = [];
-        foreach ($byType as $row) {
-            $typeStats[$row['reportType']] = (int) $row['count'];
+
+        foreach ($result as $row) {
+            $total = (int) $row['total'];
+            $myReports = (int) $row['myReports'];
+            $favorites = (int) $row['favorites'];
+            $source = $row['dataSource'];
+            if ($source && !isset($sourceStats[$source])) {
+                $sourceStats[$source] = 0;
+            }
+            if ($source) {
+                $sourceStats[$source]++;
+            }
+            $rType = $row['reportType'];
+            if ($rType && !isset($typeStats[$rType])) {
+                $typeStats[$rType] = 0;
+            }
+            if ($rType) {
+                $typeStats[$rType]++;
+            }
         }
-        
+
         return [
             'total' => $total,
             'myReports' => $myReports,

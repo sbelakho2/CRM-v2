@@ -35,21 +35,28 @@ class BanditArmRepository extends ServiceEntityRepository
      */
     public function getStatsByType(string $armType): array
     {
-        $arms = $this->findActiveByType($armType);
-        
-        $totalTrials = array_sum(array_map(fn($a) => $a->getTotalTrials(), $arms));
-        $totalSuccesses = array_sum(array_map(fn($a) => $a->getTotalSuccesses(), $arms));
-        
-        // Calculate convergence (how sure we are about the best arm)
+        $result = $this->createQueryBuilder('a')
+            ->select('SUM(a.totalTrials) as totalTrials, SUM(a.totalSuccesses) as totalSuccesses, COUNT(a.id) as armCount')
+            ->where('a.armType = :type')
+            ->andWhere('a.active = true')
+            ->setParameter('type', $armType)
+            ->getQuery()
+            ->getSingleResult();
+
+        $totalTrials = (int) ($result['totalTrials'] ?? 0);
+        $totalSuccesses = (int) ($result['totalSuccesses'] ?? 0);
+        $armCount = (int) ($result['armCount'] ?? 0);
+
         $convergence = 0.0;
-        if (count($arms) > 1 && $totalTrials > 0) {
+        if ($armCount > 1 && $totalTrials > 0) {
+            $arms = $this->findActiveByType($armType);
             $rates = array_map(fn($a) => $a->getExpectedRate(), $arms);
             rsort($rates);
             $convergence = isset($rates[1]) ? ($rates[0] - $rates[1]) : 1.0;
         }
 
         return [
-            'arm_count' => count($arms),
+            'arm_count' => $armCount,
             'total_trials' => $totalTrials,
             'total_successes' => $totalSuccesses,
             'overall_rate' => $totalTrials > 0 ? round($totalSuccesses / $totalTrials, 4) : 0,

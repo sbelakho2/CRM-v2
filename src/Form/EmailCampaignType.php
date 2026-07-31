@@ -24,7 +24,7 @@ class EmailCampaignType extends AbstractType
                     new Assert\NotBlank(['message' => 'Please enter a campaign name']),
                     new Assert\Length(['max' => 255]),
                 ],
-                'attr' => ['class' => 'geist-input', 'placeholder' => 'email_campaign.form.name_placeholder'],
+                'attr' => ['class' => 'rams-form__input', 'placeholder' => 'email_campaign.form.name_placeholder'],
             ])
             ->add('language', ChoiceType::class, [
                 'label' => 'profile.language',
@@ -34,17 +34,17 @@ class EmailCampaignType extends AbstractType
                     'language.bilingual' => 'Bilingual',
                 ],
                 'choice_translation_domain' => 'messages',
-                'attr' => ['class' => 'geist-select'],
+                'attr' => ['class' => 'rams-form__select'],
             ])
             ->add('description', TextareaType::class, [
                 'label' => 'common.description',
                 'required' => false,
-                'attr' => ['class' => 'geist-textarea', 'rows' => 4, 'placeholder' => 'email_campaign.form.description_placeholder'],
+                'attr' => ['class' => 'rams-form__textarea', 'rows' => 4, 'placeholder' => 'email_campaign.form.description_placeholder'],
             ])
             ->add('touchCount', IntegerType::class, [
                 'label' => 'email_campaign.form.touch_count',
                 'attr' => [
-                    'class' => 'geist-input',
+                    'class' => 'rams-form__input',
                     'min' => 1,
                     'max' => 10,
                     'placeholder' => 'email_campaign.form.touch_count_placeholder',

@@ -111,23 +111,36 @@ class CustomFieldValueRepository extends ServiceEntityRepository
     {
         $em = $this->getEntityManager();
 
+        $definitionRepo = $em->getRepository(CustomFieldDefinition::class);
+        $allDefinitions = $definitionRepo->findBy(['entityType' => $entityType, 'isActive' => true]);
+        $definitionsByKey = [];
+        foreach ($allDefinitions as $def) {
+            $definitionsByKey[$def->getFieldKey()] = $def;
+        }
+
+        $existingValues = $this->findByEntity($entityType, $entityId);
+        $valuesByFieldKey = [];
+        foreach ($existingValues as $ev) {
+            $valuesByFieldKey[$ev->getFieldDefinition()->getFieldKey()] = $ev;
+        }
+
         foreach ($fieldValues as $fieldKey => $value) {
-            $field = $em->getRepository(CustomFieldDefinition::class)
-                ->findOneBy(['fieldKey' => $fieldKey, 'entityType' => $entityType]);
-
-            if ($field && $field->isActive()) {
-                $fieldValue = $this->findValue($field, $entityType, $entityId);
-
-                if (!$fieldValue) {
-                    $fieldValue = new CustomFieldValue();
-                    $fieldValue->setFieldDefinition($field);
-                    $fieldValue->setEntityType($entityType);
-                    $fieldValue->setEntityId($entityId);
-                }
-
-                $fieldValue->setValue($value);
-                $em->persist($fieldValue);
+            $field = $definitionsByKey[$fieldKey] ?? null;
+            if ($field === null) {
+                continue;
             }
+
+            $fieldValue = $valuesByFieldKey[$fieldKey] ?? null;
+
+            if (!$fieldValue) {
+                $fieldValue = new CustomFieldValue();
+                $fieldValue->setFieldDefinition($field);
+                $fieldValue->setEntityType($entityType);
+                $fieldValue->setEntityId($entityId);
+            }
+
+            $fieldValue->setValue($value);
+            $em->persist($fieldValue);
         }
 
         $em->flush();

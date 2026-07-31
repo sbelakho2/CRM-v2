@@ -128,6 +128,10 @@ class WebinarController extends AbstractController
     public function register(Request $request, Webinar $webinar): Response
     {
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('webinar_register_' . $webinar->getId(), $request->request->get('_csrf_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token.');
+            }
+
             $email = $request->request->get('email');
             $firstName = $request->request->get('first_name');
             $lastName = $request->request->get('last_name');
@@ -174,8 +178,12 @@ class WebinarController extends AbstractController
 
 
     #[Route('/{id}/attendees/{attendeeId}/mark-attended', name: 'app_webinar_mark_attended', methods: ['POST'])]
-    public function markAttended(Webinar $webinar, int $attendeeId): Response
+    public function markAttended(Request $request, Webinar $webinar, int $attendeeId): Response
     {
+        if (!$this->isCsrfTokenValid('webinar_mark_attended_' . $attendeeId, $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         $attendee = $this->entityManager->getRepository(WebinarAttendee::class)->find($attendeeId);
 
         if ($attendee && $attendee->getWebinar()->getId() === $webinar->getId()) {

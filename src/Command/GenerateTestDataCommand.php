@@ -55,35 +55,44 @@ class GenerateTestDataCommand extends Command
         // Create test user if not exists
         $user = $this->createTestUser($io, $email, $password);
 
-        // Generate companies
-        $io->section('Creating Companies...');
-        $companies = $this->generateCompanies(15);
-        $io->success(sprintf('Created %d companies', count($companies)));
+        $this->em->beginTransaction();
+        try {
+            // Generate companies
+            $io->section('Creating Companies...');
+            $companies = $this->generateCompanies(15);
+            $io->success(sprintf('Created %d companies', count($companies)));
 
-        // Generate contacts
-        $io->section('Creating Contacts...');
-        $contacts = $this->generateContacts($companies, 30);
-        $io->success(sprintf('Created %d contacts', count($contacts)));
+            // Generate contacts
+            $io->section('Creating Contacts...');
+            $contacts = $this->generateContacts($companies, 30);
+            $io->success(sprintf('Created %d contacts', count($contacts)));
 
-        // Generate activities
-        $io->section('Creating Activities...');
-        $activities = $this->generateActivities($companies, $contacts, $user, 50);
-        $io->success(sprintf('Created %d activities', count($activities)));
+            // Generate activities
+            $io->section('Creating Activities...');
+            $activities = $this->generateActivities($companies, $contacts, $user, 50);
+            $io->success(sprintf('Created %d activities', count($activities)));
 
-        // Generate leads
-        $io->section('Creating Leads...');
-        $leads = $this->generateLeads(20);
-        $io->success(sprintf('Created %d leads', count($leads)));
+            // Generate leads
+            $io->section('Creating Leads...');
+            $leads = $this->generateLeads(20);
+            $io->success(sprintf('Created %d leads', count($leads)));
 
-        // Generate RFQs
-        $io->section('Creating RFQs...');
-        $rfqs = $this->generateRFQs($companies, 10);
-        $io->success(sprintf('Created %d RFQs', count($rfqs)));
+            // Generate RFQs
+            $io->section('Creating RFQs...');
+            $rfqs = $this->generateRFQs($companies, 10);
+            $io->success(sprintf('Created %d RFQs', count($rfqs)));
 
-        // Generate compliance documents
-        $io->section('Creating Compliance Documents...');
-        $compliance = $this->generateCompliance($companies, 25);
-        $io->success(sprintf('Created %d compliance documents', count($compliance)));
+            // Generate compliance documents
+            $io->section('Creating Compliance Documents...');
+            $compliance = $this->generateCompliance($companies, 25);
+            $io->success(sprintf('Created %d compliance documents', count($compliance)));
+
+            $this->em->commit();
+        } catch (\Throwable $e) {
+            $this->em->rollback();
+            $io->error('Test data generation failed: ' . $e->getMessage());
+            return Command::FAILURE;
+        }
 
         $io->success('All test data generated successfully!');
         

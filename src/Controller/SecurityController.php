@@ -64,6 +64,10 @@ class SecurityController extends AbstractController
         RateLimiterFactory $passwordResetIpLimiter
     ): Response {
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('forgot_password', $request->request->get('_csrf_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token.');
+            }
+
             $email = $request->request->get('email');
             $clientIp = $request->getClientIp() ?? 'unknown';
             
@@ -161,6 +165,10 @@ class SecurityController extends AbstractController
         }
 
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('reset_password', $request->request->get('_csrf_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token.');
+            }
+
             $password = $request->request->get('password');
             $confirmPassword = $request->request->get('confirm_password');
 

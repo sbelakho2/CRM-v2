@@ -176,6 +176,10 @@ class EmailSegmentService
         // Get all contacts and filter in memory
         // For production, this should be converted to DQL for better performance
         // TODO: Convert to DQL query for scalability
+        // TODO: Strongly recommended — migrate to DQL aggregation with indexed filters.
+        //       The current findBy([], null, 10000) loads entities into memory and
+        //       will degrade with large contact volumes. Use a DQL/SQL query with
+        //       WHERE clauses and pagination instead.
         $allContacts = $this->contactRepository->findBy([], null, 10000); // temporary limit
         $matchingContacts = [];
 

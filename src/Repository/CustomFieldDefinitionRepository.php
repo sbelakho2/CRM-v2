@@ -160,25 +160,15 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
      */
     public function updateSortOrders(array $orderedIds): void
     {
-        $em = $this->getEntityManager();
-        $em->beginTransaction();
-
-        try {
-            foreach ($orderedIds as $order => $id) {
-                $this->createQueryBuilder('f')
-                    ->update()
-                    ->set('f.sortOrder', ':order')
-                    ->where('f.id = :id')
-                    ->setParameter('order', $order)
-                    ->setParameter('id', $id)
-                    ->getQuery()
-                    ->execute();
-            }
-
-            $em->commit();
-        } catch (\Throwable $e) {
-            $em->rollback();
-            throw $e;
+        foreach ($orderedIds as $order => $id) {
+            $this->createQueryBuilder('f')
+                ->update()
+                ->set('f.sortOrder', ':order')
+                ->where('f.id = :id')
+                ->setParameter('order', $order)
+                ->setParameter('id', $id)
+                ->getQuery()
+                ->executeStatement();
         }
     }
 

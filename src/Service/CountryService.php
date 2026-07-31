@@ -17,6 +17,9 @@ use Symfony\Component\Intl\Subdivisions;
  */
 class CountryService
 {
+    private static ?array $cachedCountryList = null;
+    private static ?array $cachedUsRegionList = null;
+
     /**
      * Get list of supported destination countries
      * 
@@ -26,8 +29,13 @@ class CountryService
      */
     public function getCountryList(): array
     {
+        if (self::$cachedCountryList !== null) {
+            return self::$cachedCountryList;
+        }
+
         $countries = Countries::getNames('en');
         ksort($countries);
+        self::$cachedCountryList = $countries;
 
         return $countries;
     }
@@ -39,6 +47,10 @@ class CountryService
      */
     public function getUsRegionList(): array
     {
+        if (self::$cachedUsRegionList !== null) {
+            return self::$cachedUsRegionList;
+        }
+
         if (class_exists(Subdivisions::class)) {
             $regions = Subdivisions::getNames('US', 'en');
         } else {
@@ -102,6 +114,7 @@ class CountryService
             ];
         }
         ksort($regions);
+        self::$cachedUsRegionList = $regions;
 
         return $regions;
     }

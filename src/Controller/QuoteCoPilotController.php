@@ -65,7 +65,7 @@ class QuoteCoPilotController extends AbstractController
     public function index(): Response
     {
         $companyRepository = $this->entityManager->getRepository(\App\Entity\Company::class);
-        $companies = $companyRepository->findAll();
+        $companies = $companyRepository->findBy([], ['name' => 'ASC'], 500);
         $countries = $this->countryService->getCountryList();
 
         return $this->render('quote_copilot/index.html.twig', [
@@ -145,6 +145,10 @@ class QuoteCoPilotController extends AbstractController
     #[Route('/process', name: 'quote_copilot_process', methods: ['POST'])]
     public function process(Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('quote_copilot_process', $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         // Validate file upload
         /** @var UploadedFile $bomFile */
         $bomFile = $request->files->get('bom_file');
@@ -285,6 +289,11 @@ class QuoteCoPilotController extends AbstractController
             throw $this->createNotFoundException('Quote not found');
         }
 
+        $company = $quote->getCompany();
+        if (!$company) {
+            throw $this->createAccessDeniedException('Quote has no associated company.');
+        }
+
         try {
             // Generate PDF using the unified PDF generator service
             $pdfContent = $this->pdfGenerator->generateQuotePdf($quote);
@@ -321,6 +330,11 @@ class QuoteCoPilotController extends AbstractController
         $quote = $this->entityManager->getRepository(Quote::class)->findWithBomLines($id);
         if (!$quote) {
             throw $this->createNotFoundException('Quote not found');
+        }
+
+        $company = $quote->getCompany();
+        if (!$company) {
+            throw $this->createAccessDeniedException('Quote has no associated company.');
         }
 
         // Resolve issuing company for branding
@@ -398,6 +412,11 @@ class QuoteCoPilotController extends AbstractController
         $quote = $this->entityManager->getRepository(Quote::class)->findWithBomLines($id);
         if (!$quote) {
             throw $this->createNotFoundException('Quote not found');
+        }
+
+        $company = $quote->getCompany();
+        if (!$company) {
+            throw $this->createAccessDeniedException('Quote has no associated company.');
         }
 
         $issuer = $this->issuingCompanyService->getCompanyProfile($quote->getIssuingCompany());
@@ -544,11 +563,12 @@ class QuoteCoPilotController extends AbstractController
             return $this->json(['success' => false, 'message' => 'Quote not found'], 404);
         }
 
+        $company = $quote->getCompany();
+        if (!$company) {
+            return $this->json(['success' => false, 'message' => $this->translator->trans('quote.copilot.company_deleted')], 400);
+        }
+
         try {
-            $company = $quote->getCompany();
-            if (!$company) {
-                return $this->json(['success' => false, 'message' => $this->translator->trans('quote.copilot.company_deleted')], 400);
-            }
             $contacts = $company->getContacts();
         } catch (\Doctrine\ORM\EntityNotFoundException $e) {
             return $this->json(['success' => false, 'message' => $this->translator->trans('quote.copilot.company_deleted')], 400);
@@ -579,6 +599,11 @@ class QuoteCoPilotController extends AbstractController
     #[Route('/{id}/publish', name: 'quote_copilot_publish', methods: ['POST'])]
     public function publish(int $id, Request $request): Response
     {
+        $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('quote_copilot_publish_' . $id, $data['_csrf_token'] ?? '')) {
+            return $this->json(['success' => false, 'message' => 'Invalid CSRF token.'], 403);
+        }
+
         $quote = $this->entityManager->getRepository(Quote::class)->find($id);
         if (!$quote) {
             return $this->json(['success' => false, 'message' => 'Quote not found'], 404);
@@ -593,7 +618,6 @@ class QuoteCoPilotController extends AbstractController
         }
 
         // Get contact ID from request
-        $data = json_decode($request->getContent(), true);
         $contactId = $data['contactId'] ?? null;
 
         // Safely resolve company (may have been deleted)

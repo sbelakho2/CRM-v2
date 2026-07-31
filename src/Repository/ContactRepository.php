@@ -43,6 +43,7 @@ class ContactRepository extends ServiceEntityRepository
         }
 
         return $qb->orderBy('c.lastName', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }

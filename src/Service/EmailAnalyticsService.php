@@ -443,9 +443,11 @@ class EmailAnalyticsService
      */
     public function getTopPerformingCampaigns(int $limit = 10, string $metric = 'openRate'): array
     {
-        // Get all campaigns and calculate metrics
-        $campaigns = $this->entityManager->getRepository('App\Entity\EmailCampaign')
-            ->findAll();
+        $campaigns = $this->entityManager->createQuery(
+            'SELECT c FROM App\Entity\EmailCampaign c ORDER BY c.createdAt DESC'
+        )
+        ->setMaxResults($limit * 2)
+        ->getResult();
 
         $performance = [];
         foreach ($campaigns as $campaign) {

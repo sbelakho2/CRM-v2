@@ -31,7 +31,7 @@ class CompetitorLearnerService
     // Services: PCBA, Cable/Wire Harness, Overmolding, Copper Windings, System Integration
     // Industries: Automotive, Aerospace, Industrial
     // NOTE: Tier 1 auto suppliers (Aptiv, Yazaki, Leoni, Valeo, Lear, Sumitomo) are CUSTOMERS!
-    private const SEED_COMPETITORS = [
+    public const SEED_COMPETITORS = [
         // Tier 1 - Direct Competitors (North Africa - same services, same region)
         ['telnet-group.com', 'Telnet', 'Telnet Holding', 1, 'ems'],              // Tunisia - aerospace/auto EMS
         ['all-circuits.com', 'All Circuits', 'All Circuits Group', 1, 'ems'],    // Tunisia/Morocco - PCBA
@@ -505,5 +505,19 @@ class CompetitorLearnerService
     public function getStatistics(): array
     {
         return $this->competitorRepository->getStatistics();
+    }
+
+    /**
+     * Get static seed competitor map for use by CompetitorDetectionService.
+     *
+     * @return array<int, array<string, string>> Tier => [domain => name]
+     */
+    public static function getStaticCompetitorsByTier(): array
+    {
+        $map = [1 => [], 2 => [], 3 => []];
+        foreach (self::SEED_COMPETITORS as [$domain, $name, $fullName, $tier, $industry]) {
+            $map[$tier][$domain] = $name;
+        }
+        return $map;
     }
 }

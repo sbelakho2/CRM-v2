@@ -53,6 +53,10 @@ class CurrencyConverterController extends AbstractController
     public function convert(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('currency_converter_convert', $data['_csrf_token'] ?? '')) {
+            return $this->json(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         $amount = (float) ($data['amount'] ?? 0);
         $from = strtoupper(trim($data['from'] ?? 'USD'));
         $to = strtoupper(trim($data['to'] ?? 'USD'));
@@ -104,8 +108,12 @@ class CurrencyConverterController extends AbstractController
      * This updates the entire system's currency data.
      */
     #[Route('/refresh-rates', name: 'currency_converter_refresh', methods: ['POST'])]
-    public function refreshRates(): JsonResponse
+    public function refreshRates(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('currency_converter_refresh', $request->request->get('_csrf_token'))) {
+            return $this->json(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         try {
             $results = $this->liveFxRateFetcher->fetchAllRates();
             $freshness = $this->liveFxRateFetcher->checkRateFreshness();

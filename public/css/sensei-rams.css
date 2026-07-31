@@ -304,25 +304,6 @@ body {
     z-index: 100;
 }
 
-.rams-screw {
-    position: fixed;
-    z-index: 101;
-    opacity: 0.3;
-    width: 12px;
-    height: 12px;
-    display: none;
-}
-
-.rams-screw--tl { top: 2px; left: 2px; }
-.rams-screw--tr { top: 2px; right: 2px; }
-.rams-screw--bl { bottom: calc(var(--status-bar-height) + 2px); left: 2px; }
-.rams-screw--br { bottom: calc(var(--status-bar-height) + 2px); right: 2px; }
-
-.rams-screw svg {
-    width: 100%;
-    height: 100%;
-}
-
 /* Status bar removed */
 
 /* ============================================
@@ -629,33 +610,6 @@ body {
     position: relative;
 }
 
-/* Industrial Decorative Elements */
-.rams-module::before {
-    content: "";
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    width: 8px;
-    height: 8px;
-    border: 1px solid var(--rams-line);
-    border-radius: 50%;
-    opacity: 0.3;
-    pointer-events: none;
-}
-
-.rams-module::after {
-    content: "";
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 8px;
-    height: 8px;
-    border: 1px solid var(--rams-line);
-    border-radius: 50%;
-    opacity: 0.3;
-    pointer-events: none;
-}
-
 .rams-module--inset {
     background: var(--rams-panel);
     box-shadow: var(--shadow-inset);
@@ -781,8 +735,7 @@ body {
 }
 
 .rams-btn--primary:hover {
-    filter: brightness(1.05);
-    background: var(--rams-orange);
+    background: color-mix(in srgb, var(--rams-orange) 90%, white);
     box-shadow: inset 1px 1px 0 rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.15);
 }
 
@@ -959,10 +912,10 @@ body {
     right: 0;
     min-width: 220px;
     margin-top: var(--space-1);
-    background: var(--rams-background);
-    border: 1px solid var(--rams-border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
+    background: var(--rams-chassis);
+    border: 1px solid var(--rams-line);
+    border-radius: var(--radius-sm);
+    box-shadow: none;
     z-index: 100;
     animation: rams-dropdown-enter 0.15s ease-out;
 }
@@ -1008,7 +961,7 @@ body {
 }
 
 .rams-dropdown__item:hover {
-    background: var(--rams-hover);
+    background: var(--rams-panel);
 }
 
 .rams-dropdown__divider {
@@ -1383,7 +1336,7 @@ body {
     display: flex;
     align-items: center;
     gap: var(--space-4);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     position: relative;
     overflow: hidden;
 }
@@ -2284,29 +2237,7 @@ body {
 }
 
 /* ============================================
-   19. PERFORATED GRILLE PATTERNS
-   ============================================ */
-
-.rams-grille {
-    background-image: radial-gradient(circle, var(--rams-muted) 1px, transparent 1px);
-    background-size: 6px 6px;
-}
-
-.rams-grille--fine {
-    background-image: radial-gradient(circle, var(--rams-muted) 0.5px, transparent 0.5px);
-    background-size: 4px 4px;
-}
-
-.rams-blueprint {
-    background-image: 
-        linear-gradient(var(--rams-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--rams-line) 1px, transparent 1px);
-    background-size: 20px 20px;
-    opacity: 0.3;
-}
-
-/* ============================================
-   20. MODAL / DIALOG
+    20. MODAL / DIALOG
    ============================================ */
 
 .rams-modal-backdrop {
@@ -2935,60 +2866,6 @@ body {
     text-decoration: underline;
 }
 
-/* Lists */
-.rams-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.rams-list--bullet {
-    list-style: disc;
-    padding-left: var(--space-4);
-}
-
-.rams-list--bullet li {
-    margin-bottom: var(--space-1);
-    color: var(--rams-muted);
-    font-size: var(--text-sm);
-}
-
-/* Toggle Buttons (Rams-style status indicators) */
-.rams-toggle-btn {
-    appearance: none;
-    border: 1px solid var(--rams-line);
-    background: var(--rams-panel);
-    padding: 2px 8px;
-    border-radius: 2px;
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    transition: all 0.1s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 80px;
-}
-
-.rams-toggle-btn--active {
-    background: var(--rams-green);
-    color: #fff;
-    border-color: var(--rams-green);
-}
-
-.rams-toggle-btn--inactive {
-    background: var(--rams-panel);
-    color: var(--rams-muted);
-    border-color: var(--rams-line);
-}
-
-.rams-toggle-btn:hover {
-    filter: brightness(0.9);
-}
-
 /* Results Count */
 .rams-results-count {
     font-size: var(--text-2xs);
@@ -3283,23 +3160,6 @@ body {
     color: var(--rams-muted);
 }
 
-.rams-empty-state {
-    text-align: center;
-    padding: var(--space-6);
-    color: var(--rams-muted);
-}
-
-.rams-empty-state__icon {
-    width: 32px;
-    height: 32px;
-    opacity: 0.5;
-    margin: 0 auto var(--space-2);
-}
-
-.rams-empty-state__text {
-    font-size: var(--text-sm);
-}
-
 /* Alert Header Variant */
 .rams-module__header--alert {
     background: var(--rams-danger-bg);
@@ -3459,20 +3319,7 @@ body {
 }
 
 /* ============================================
-   36. ANIMATIONS
-   ============================================ */
-
-@keyframes rams-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-.rams-pulse {
-    animation: rams-pulse 1s infinite;
-}
-
-/* ============================================
-   37. ADDITIONAL ICON SIZE UTILITIES
+    37. ADDITIONAL ICON SIZE UTILITIES
    ============================================ */
 
 /* Extra-small icon (10px) for compact indicators */
@@ -3869,75 +3716,6 @@ body {
     justify-content: center;
     font-weight: 600;
     font-size: 10px;
-}
-
-/* Kanban Board Component */
-.rams-kanban {
-    display: flex;
-    gap: 1rem;
-    overflow-x: auto;
-    padding-bottom: 1rem;
-    min-height: calc(100vh - 200px);
-}
-
-.rams-kanban__column {
-    flex: 0 0 320px;
-    background: var(--rams-panel);
-    border: 1px solid var(--rams-line);
-    border-radius: var(--radius-sm);
-    display: flex;
-    flex-direction: column;
-}
-
-.rams-kanban__header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--rams-line);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-weight: 600;
-}
-
-.rams-kanban__body {
-    padding: 0.75rem;
-    flex: 1;
-    overflow-y: auto;
-}
-
-.rams-kanban__card {
-    background: var(--rams-chassis);
-    border: 1px solid var(--rams-line);
-    border-radius: var(--radius-sm);
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-    cursor: grab;
-    transition: box-shadow var(--duration-fast), border-color var(--duration-fast);
-}
-
-.rams-kanban__card:hover {
-    border-color: var(--rams-orange);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
-}
-
-.rams-kanban__card-title {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    display: block;
-    color: var(--rams-foreground);
-    text-decoration: none;
-}
-
-.rams-kanban__card-title:hover {
-    color: var(--rams-orange);
-}
-
-.rams-kanban__card-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0.75rem;
-    font-size: var(--text-xs);
-    color: var(--rams-muted);
 }
 
 /* ============================================
@@ -4468,18 +4246,6 @@ a.rams-module:hover {
     color: var(--rams-muted);
 }
 
-.rams-legend {
-    display: flex;
-    gap: var(--space-4);
-    margin-top: var(--space-2);
-}
-
-.rams-legend__item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
 /* Keyboard focus styles */
 .rams-heat-map__cell:focus {
     outline: 2px solid var(--rams-orange);
@@ -4705,13 +4471,13 @@ a.rams-module:hover {
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--rams-bg-panel, #f0f0f0);
+    background: var(--rams-bg-panel, var(--rams-chassis));
 }
 
 ::-webkit-scrollbar-thumb {
     background: var(--rams-muted, #6F6F6F);
     border-radius: 4px;
-    border: 2px solid var(--rams-bg-panel, #f0f0f0);
+    border: 2px solid var(--rams-bg-panel, var(--rams-chassis));
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -5173,12 +4939,6 @@ a.rams-module:hover {
     animation: rams-dash 1.2s ease-in-out infinite;
 }
 
-@keyframes rams-spin {
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
 @keyframes rams-dash {
     0% {
         stroke-dasharray: 1, 150;
@@ -5198,7 +4958,7 @@ a.rams-module:hover {
     font-family: var(--font-mono);
     font-size: var(--text-xl);
     font-weight: 700;
-    color: var(--rams-text);
+    color: var(--rams-foreground);
     margin: 0 0 var(--space-2) 0;
     text-transform: uppercase;
     letter-spacing: 0.05em;

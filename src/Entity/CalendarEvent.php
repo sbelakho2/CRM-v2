@@ -14,6 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(columns: ['start_at'], name: 'idx_calendar_start')]
 #[ORM\Index(columns: ['end_at'], name: 'idx_calendar_end')]
 #[ORM\Index(columns: ['event_type'], name: 'idx_calendar_type')]
+#[ORM\Index(columns: ['organizer_id'], name: 'idx_calendar_organizer')]
 #[ORM\HasLifecycleCallbacks]
 class CalendarEvent
 {
@@ -314,6 +315,8 @@ class CalendarEvent
             return false;
         }
 
+        if ($this->startAt === null) { return false; }
+
         $reminderTime = (clone $this->startAt)->modify("-{$this->reminderMinutes} minutes");
         $now = new \DateTime();
 
@@ -325,8 +328,8 @@ class CalendarEvent
         return [
             'id' => $this->id,
             'title' => $this->title,
-            'start' => $this->startAt->format('c'),
-            'end' => $this->endAt->format('c'),
+            'start' => $this->startAt?->format('c') ?? '',
+            'end' => $this->endAt?->format('c') ?? '',
             'allDay' => $this->allDay,
             'color' => $this->getTypeColor(),
             'extendedProps' => [

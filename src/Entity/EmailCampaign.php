@@ -55,7 +55,7 @@ class EmailCampaign
     private array $touchTemplates = []; // Array of template IDs
 
     #[ORM\Column(type: 'json', nullable: true)]
-    private array $abTestVariants = [];
+    private ?array $abTestVariants = null;
 
     #[ORM\Column(type: 'boolean')]
     private bool $active = false;
@@ -277,7 +277,7 @@ class EmailCampaign
      */
     public function getAbTestVariants(): array
     {
-        return $this->abTestVariants;
+        return $this->abTestVariants ?? [];
     }
 
     public function setAbTestVariants(array $variants): self

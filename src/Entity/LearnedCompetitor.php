@@ -219,11 +219,11 @@ class LearnedCompetitor
 
     private function updateConfidenceFromDetections(): void
     {
-        $this->confidenceScore = self::calculateConfidenceFromDetections($this->confidenceScore, $this->detectionCount, $this->tier);
+        $this->confidenceScore = self::calculateConfidenceFromDetections($this->detectionCount);
         $this->tier = self::calculateTierFromDetections($this->detectionCount, $this->tier);
     }
 
-    public static function calculateConfidenceFromDetections(int $currentConfidence, int $detectionCount, int $currentTier): int
+    public static function calculateConfidenceFromDetections(int $detectionCount): int
     {
         return min(100, (int)(50 + 15 * log(max(1, $detectionCount + 1))));
     }
@@ -290,7 +290,8 @@ class LearnedCompetitor
     public function addAlias(string $alias): static
     {
         $alias = strtolower(trim($alias));
-        if (!in_array($alias, $this->aliases ?? [])) {
+        if ($this->aliases === null) { $this->aliases = []; }
+        if (!in_array($alias, $this->aliases)) {
             $this->aliases[] = $alias;
         }
         return $this;
@@ -310,7 +311,8 @@ class LearnedCompetitor
     public function addKeyword(string $keyword): static
     {
         $keyword = strtolower(trim($keyword));
-        if (!in_array($keyword, $this->keywords ?? [])) {
+        if ($this->keywords === null) { $this->keywords = []; }
+        if (!in_array($keyword, $this->keywords)) {
             $this->keywords[] = $keyword;
         }
         return $this;

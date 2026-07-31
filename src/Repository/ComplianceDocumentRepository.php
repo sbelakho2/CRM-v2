@@ -103,92 +103,42 @@ class ComplianceDocumentRepository extends ServiceEntityRepository
     {
         $today = new \DateTime('today');
         $warningDate = (new \DateTime())->modify('+30 days');
-        
-        // Base condition to exclude snoozed
-        $notSnoozedCondition = '(d.snoozedUntil IS NULL OR d.snoozedUntil < :today)';
-        
-        // Expired count (not snoozed, active companies only)
-        $expired = $this->createQueryBuilder('d')
-            ->select('COUNT(d.id)')
+
+        $result = $this->createQueryBuilder('d')
+            ->select('
+                SUM(CASE WHEN (d.snoozedUntil IS NULL OR d.snoozedUntil < :today) AND d.expiryDate IS NOT NULL AND d.expiryDate < :today THEN 1 ELSE 0 END) as expired,
+                SUM(CASE WHEN (d.snoozedUntil IS NULL OR d.snoozedUntil < :today) AND d.expiryDate >= :today AND d.expiryDate <= :warningDate THEN 1 ELSE 0 END) as expiringSoon,
+                SUM(CASE WHEN (d.snoozedUntil IS NULL OR d.snoozedUntil < :today) AND d.required = :required AND d.provided = :provided THEN 1 ELSE 0 END) as missing,
+                SUM(CASE WHEN (d.snoozedUntil IS NULL OR d.snoozedUntil < :today) AND d.status = :rejectedStatus THEN 1 ELSE 0 END) as rejected,
+                SUM(CASE WHEN d.snoozedUntil IS NOT NULL AND d.snoozedUntil >= :today AND ((d.expiryDate IS NOT NULL AND d.expiryDate <= :warningDate) OR (d.required = :required AND d.provided = :provided) OR d.status IN (:alertStatuses)) THEN 1 ELSE 0 END) as snoozed
+            ')
             ->leftJoin('d.company', 'c')
             ->where('c.companyStatus = :companyStatus')
-            ->andWhere('d.expiryDate IS NOT NULL AND d.expiryDate < :today')
-            ->andWhere($notSnoozedCondition)
-            ->setParameter('companyStatus', 'active')
-            ->setParameter('today', $today)
-            ->getQuery()
-            ->getSingleScalarResult();
-        
-        // Expiring soon (within 30 days but not yet expired, not snoozed, active companies only)
-        $expiringSoon = $this->createQueryBuilder('d')
-            ->select('COUNT(d.id)')
-            ->leftJoin('d.company', 'c')
-            ->where('c.companyStatus = :companyStatus')
-            ->andWhere('d.expiryDate >= :today AND d.expiryDate <= :warningDate')
-            ->andWhere($notSnoozedCondition)
-            ->setParameter('companyStatus', 'active')
-            ->setParameter('today', $today)
-            ->setParameter('warningDate', $warningDate)
-            ->getQuery()
-            ->getSingleScalarResult();
-        
-        // Missing (required but not provided, not snoozed, active companies only)
-        $missing = $this->createQueryBuilder('d')
-            ->select('COUNT(d.id)')
-            ->leftJoin('d.company', 'c')
-            ->where('c.companyStatus = :companyStatus')
-            ->andWhere('d.required = :required AND d.provided = :provided')
-            ->andWhere($notSnoozedCondition)
-            ->setParameter('companyStatus', 'active')
-            ->setParameter('required', true)
-            ->setParameter('provided', false)
-            ->setParameter('today', $today)
-            ->getQuery()
-            ->getSingleScalarResult();
-        
-        // Rejected (not snoozed, active companies only)
-        $rejected = $this->createQueryBuilder('d')
-            ->select('COUNT(d.id)')
-            ->leftJoin('d.company', 'c')
-            ->where('c.companyStatus = :companyStatus')
-            ->andWhere('d.status = :status')
-            ->andWhere($notSnoozedCondition)
-            ->setParameter('companyStatus', 'active')
-            ->setParameter('status', 'Rejected')
-            ->setParameter('today', $today)
-            ->getQuery()
-            ->getSingleScalarResult();
-        
-        // Snoozed (with underlying issues, active companies only)
-        $snoozed = $this->createQueryBuilder('d')
-            ->select('COUNT(d.id)')
-            ->leftJoin('d.company', 'c')
-            ->where('c.companyStatus = :companyStatus')
-            ->andWhere('d.snoozedUntil IS NOT NULL AND d.snoozedUntil >= :today')
-            ->andWhere(
-                '(d.expiryDate IS NOT NULL AND d.expiryDate <= :warningDate) OR ' .
-                '(d.required = :required AND d.provided = :provided) OR ' .
-                'd.status IN (:alertStatuses)'
-            )
             ->setParameter('companyStatus', 'active')
             ->setParameter('today', $today)
             ->setParameter('warningDate', $warningDate)
             ->setParameter('required', true)
             ->setParameter('provided', false)
+            ->setParameter('rejectedStatus', 'Rejected')
             ->setParameter('alertStatuses', ['Rejected', 'Expired'])
             ->getQuery()
-            ->getSingleScalarResult();
-        
-        $total = (int) ($expired + $expiringSoon + $missing + $rejected);
-        
+            ->getSingleResult();
+
+        $expired = (int) ($result['expired'] ?? 0);
+        $expiringSoon = (int) ($result['expiringSoon'] ?? 0);
+        $missing = (int) ($result['missing'] ?? 0);
+        $rejected = (int) ($result['rejected'] ?? 0);
+        $snoozed = (int) ($result['snoozed'] ?? 0);
+        $total = $expired + $expiringSoon + $missing + $rejected;
+
         return [
-            'expired' => (int) $expired,
-            'expiring_soon' => (int) $expiringSoon,
-            'missing' => (int) $missing,
-            'rejected' => (int) $rejected,
-            'snoozed' => (int) $snoozed,
+            'expired' => $expired,
+            'expiring_soon' => $expiringSoon,
+            'missing' => $missing,
+            'rejected' => $rejected,
+            'snoozed' => $snoozed,
             'total' => $total,
-            'total_with_snoozed' => $total + (int) $snoozed,
+            'total_with_snoozed' => $total + $snoozed,
         ];
     }
 }

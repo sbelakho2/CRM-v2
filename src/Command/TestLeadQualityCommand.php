@@ -13,6 +13,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Lock\LockFactory;
 
 /**
  * Test command to validate lead generation quality across European regions.
@@ -246,6 +247,7 @@ class TestLeadQualityCommand extends Command
     public function __construct(
         private GoogleDorkService $googleDork,
         private EntityManagerInterface $entityManager,
+        private LockFactory $lockFactory,
         private ?GoogleSearchService $googleSearchService = null,
     ) {
         parent::__construct();
@@ -285,6 +287,9 @@ HELP
     {
         $io = new SymfonyStyle($input, $output);
         $io->title('🧪 Lead Generation Quality Test — 3 Gates');
+
+        $lock = $this->lockFactory->createLock('test_lead_quality', 3600);
+        $lock->acquire();
 
         $countries = self::TEST_COUNTRIES;
         $sectors = self::TEST_SECTORS;
@@ -776,17 +781,18 @@ HELP
         $existingCompany = null;
         try {
             $qb = $this->entityManager->createQueryBuilder();
-            $qb->select('c')
+            $qb->select('PARTIAL c.{id, website}')
                ->from(Company::class, 'c')
                ->where('c.website IS NOT NULL')
                ->andWhere('c.website != :empty')
                ->setParameter('empty', '');
-            $allCompanies = $qb->getQuery()->getResult();
+            $iterableResult = $qb->getQuery()->toIterable();
 
-            foreach ($allCompanies as $c) {
+            foreach ($iterableResult as $row) {
+                $c = is_array($row) ? $row[0] : $row;
                 $cWebsite = preg_replace('#^https?://(www\.)?#i', '', rtrim($c->getWebsite() ?? '', '/'));
                 if ($cWebsite !== '' && strcasecmp($cWebsite, $websiteNorm) === 0) {
-                    $existingCompany = $c;
+                    $existingCompany = $this->entityManager->getRepository(Company::class)->find($c->getId());
                     break;
                 }
             }

@@ -40,11 +40,6 @@ class RFQRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    public function countBetweenDates(\DateTime $start, \DateTime $end): int
-    {
-        return $this->countSubmittedBetween($start, $end);
-    }
-
     public function countNPIAwards(\DateTime $start, \DateTime $end): int
     {
         return $this->createQueryBuilder('r')

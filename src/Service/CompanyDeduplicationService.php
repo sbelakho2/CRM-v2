@@ -282,7 +282,11 @@ class CompanyDeduplicationService
         $processed = [];
 
         // Get all companies sorted by ID for consistent processing
-        $allCompanies = $this->companyRepository->findBy([], ['id' => 'ASC']);
+        $companyCount = $this->companyRepository->count([]);
+        if ($companyCount === 0) {
+            return [];
+        }
+        $allCompanies = $this->companyRepository->findBy([], ['id' => 'ASC'], 500);
         $companyCount = count($allCompanies);
         
         $this->logger->info('Dedup: Starting duplicate detection', ['company_count' => $companyCount]);

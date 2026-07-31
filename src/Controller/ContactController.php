@@ -59,6 +59,11 @@ class ContactController extends AbstractController
 
         $qb->orderBy('c.createdAt', 'DESC');
 
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limit = 50;
+        $qb->setMaxResults($limit)
+           ->setFirstResult(($page - 1) * $limit);
+
         $contacts = $qb->getQuery()->getResult();
 
         // Get filter options

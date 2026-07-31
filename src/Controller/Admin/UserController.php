@@ -11,8 +11,10 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/admin/users')]
+#[IsGranted('ROLE_ADMIN')]
 class UserController extends AbstractController
 {
     #[Route('', name: 'admin_user_index', methods: ['GET'])]
@@ -53,8 +55,6 @@ class UserController extends AbstractController
     #[Route('/new', name: 'admin_user_new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher, TranslatorInterface $translator): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
-
         $user = new User();
         $form = $this->createForm(UserAdminType::class, $user, ['is_new' => true]);
         $form->handleRequest($request);
@@ -80,8 +80,6 @@ class UserController extends AbstractController
     #[Route('/{id}/edit', name: 'admin_user_edit', methods: ['GET','POST'])]
     public function edit(Request $request, User $user, EntityManagerInterface $em, TranslatorInterface $translator): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
-
         $form = $this->createForm(UserAdminType::class, $user);
         $form->handleRequest($request);
 
@@ -100,8 +98,6 @@ class UserController extends AbstractController
     #[Route('/{id}/delete', name: 'admin_user_delete', methods: ['POST'])]
     public function delete(Request $request, User $user, EntityManagerInterface $em, TranslatorInterface $translator): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
-
         if ($this->isCsrfTokenValid('delete_user'.$user->getId(), $request->request->get('_token'))) {
             $em->remove($user);
             $em->flush();

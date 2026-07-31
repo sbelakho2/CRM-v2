@@ -97,7 +97,7 @@ class AutonomousSalesCommand extends Command
 
         if (!$this->settingsService->isEnabled() && !$input->getOption('stats')) {
             $io->warning('Autonomous Sales system is disabled. Enable it to run operations.');
-            return Command::SUCCESS;
+            return Command::INVALID;
         }
         
         $dryRun = $input->getOption('dry-run');
@@ -160,6 +160,10 @@ class AutonomousSalesCommand extends Command
 
         // Compose message
         if ($contactId = $input->getOption('compose')) {
+            if (!filter_var($contactId, FILTER_VALIDATE_INT)) {
+                $io->error("Invalid contact ID: {$contactId}");
+                return Command::FAILURE;
+            }
             $serviceType = $input->getOption('service') ?? 'general';
             return $this->runCompose($io, (int) $contactId, $serviceType);
         }
@@ -227,7 +231,7 @@ class AutonomousSalesCommand extends Command
         $now = time();
         if ($lastRun > 0 && ($now - $lastRun) < ($cooldownMinutes * 60)) {
             $io->text('Auto-run skipped due to cooldown window.');
-            return Command::SUCCESS;
+            return Command::INVALID;
         }
 
         // Data readiness guard
@@ -657,7 +661,8 @@ class AutonomousSalesCommand extends Command
         $qb->select('a')
             ->from(\App\Entity\BanditArm::class, 'a')
             ->where('a.lastUsedAt < :cutoff OR a.lastUsedAt IS NULL')
-            ->setParameter('cutoff', new \DateTime('-14 days'));
+            ->setParameter('cutoff', new \DateTime('-14 days'))
+            ->setMaxResults(1000);
         
         $staleArms = $qb->getQuery()->getResult();
         

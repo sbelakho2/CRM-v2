@@ -16,14 +16,21 @@ use Symfony\Component\Uid\Uuid;
  */
 class EmailConsentService
 {
+    private const DEFAULT_BASE_URL = 'https://crm.starz-morocco.com';
+
     private EntityManagerInterface $em;
     private LoggerInterface $logger;
     private string $baseUrl;
 
+    public function getBaseUrl(): string
+    {
+        return $this->baseUrl;
+    }
+
     public function __construct(
         EntityManagerInterface $em,
         LoggerInterface $logger,
-        string $baseUrl = 'https://crm.starz-morocco.com'
+        string $baseUrl = self::DEFAULT_BASE_URL
     ) {
         $this->em = $em;
         $this->logger = $logger;

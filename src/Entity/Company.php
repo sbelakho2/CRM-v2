@@ -9,6 +9,10 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CompanyRepository::class)]
 #[ORM\Table(name: 'companies')]
+#[ORM\Index(name: 'idx_company_name', columns: ['name'])]
+#[ORM\Index(name: 'idx_company_sector', columns: ['sector'])]
+#[ORM\Index(name: 'idx_company_pipeline', columns: ['pipelineStage'])]
+#[ORM\Index(name: 'idx_company_status', columns: ['companyStatus'])]
 #[ORM\HasLifecycleCallbacks]
 class Company
 {
@@ -166,13 +170,13 @@ class Company
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $googleDriveLink = null;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: Contact::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: Contact::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $contacts;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: Activity::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: Activity::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $activities;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: RFQ::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: RFQ::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $rfqs;
 
     #[ORM\OneToOne(mappedBy: 'company', targetEntity: SupplierPortal::class, cascade: ['persist', 'remove'])]
@@ -574,30 +578,4 @@ class Company
         return $this;
     }
 
-    /**
-     * Get annual revenue (stub for QuoteWinPredictorService compatibility)
-     * Returns null to use default scoring - revenue tracking not yet implemented
-     */
-    public function getAnnualRevenue(): ?float
-    {
-        return null;
-    }
-
-    /**
-     * Get employee count (stub for QuoteWinPredictorService compatibility)
-     * Returns null to use default scoring - employee tracking not yet implemented
-     */
-    public function getEmployeeCount(): ?int
-    {
-        return null;
-    }
-
-    /**
-     * Get industry (stub for QuoteWinPredictorService compatibility)
-     * Returns null to use default scoring - industry tracking not yet implemented
-     */
-    public function getIndustry(): ?string
-    {
-        return null;
-    }
 }

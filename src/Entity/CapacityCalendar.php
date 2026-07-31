@@ -105,8 +105,9 @@ class CapacityCalendar
         return $this;
     }
 
-    public function getRemainingSlots(): int
+    public function getRemainingSlots(): ?int
     {
+        if ($this->availableSlots === null || $this->bookedSlots === null) { return null; }
         return $this->availableSlots - $this->bookedSlots;
     }
 }

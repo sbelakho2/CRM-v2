@@ -9,13 +9,15 @@ use Symfony\Component\HttpKernel\KernelInterface;
 
 class AutonomousSalesSettingsService
 {
+    private const SETTINGS_PATH_SUFFIX = '/var/autonomous_sales_settings.json';
+
     private string $settingsPath;
 
     public function __construct(
         KernelInterface $kernel,
         private ?LoggerInterface $logger = null,
     ) {
-        $this->settingsPath = $kernel->getProjectDir() . '/var/autonomous_sales_settings.json';
+        $this->settingsPath = $kernel->getProjectDir() . self::SETTINGS_PATH_SUFFIX;
     }
 
     public function isEnabled(): bool

@@ -11,6 +11,7 @@ use App\Entity\EmailCampaign;
 
 #[ORM\Entity(repositoryClass: ContactRepository::class)]
 #[ORM\Table(name: 'contacts')]
+#[ORM\Index(name: 'idx_contact_email', columns: ['email'])]
 #[ORM\HasLifecycleCallbacks]
 class Contact
 {

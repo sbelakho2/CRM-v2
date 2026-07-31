@@ -179,14 +179,13 @@ class QualityAuditCommand extends Command
         // ── PHASE 2: Quality audit on all discovered companies ───
         $io->section('Phase 2: Quality Audit');
 
-        $allCompanies = $this->companyRepo->createQueryBuilder('c')
+        $totalCompanies = (int) $this->companyRepo->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
             ->where('c.companyStatus = :status')
             ->setParameter('status', Company::STATUS_DISCOVERED)
-            ->orderBy('c.createdAt', 'DESC')
             ->getQuery()
-            ->getResult();
+            ->getSingleScalarResult();
 
-        $totalCompanies = count($allCompanies);
         if ($totalCompanies === 0) {
             $io->warning('No discovered companies in the database. Run without --audit-only first.');
             return Command::FAILURE;
@@ -207,81 +206,46 @@ class QualityAuditCommand extends Command
         $sectorBreakdown = [];
         $junkExamples = [];
 
-        foreach ($allCompanies as $company) {
+        $batchSize = 100;
+        $iterableResult = $this->companyRepo->createQueryBuilder('c')
+            ->where('c.companyStatus = :status')
+            ->setParameter('status', Company::STATUS_DISCOVERED)
+            ->orderBy('c.createdAt', 'DESC')
+            ->getQuery()
+            ->iterate();
+
+        $batchCompanies = [];
+        $batchIds = [];
+
+        foreach ($iterableResult as $row) {
             /** @var Company $company */
-            $name = $company->getName();
-            $sector = $company->getSector() ?? 'Unknown';
-            $region = $company->getRegion() ?? 'Unknown';
+            $company = $row[0];
+            $batchCompanies[$company->getId()] = $company;
+            $batchIds[] = $company->getId();
 
-            // Initialize breakdowns
-            if (!isset($regionBreakdown[$region])) {
-                $regionBreakdown[$region] = ['total' => 0, 'junk' => 0, 'contacts' => 0, 'address' => 0];
+            if (count($batchCompanies) >= $batchSize) {
+                $this->processCompanyBatch(
+                    $batchCompanies, $batchIds,
+                    $junkCount, $junkReasons, $hasContactCount, $hasAddressCount,
+                    $hasPhoneCount, $hasWebsiteCount, $hasLinkedInCount,
+                    $hasDescriptionCount, $regionBreakdown, $sectorBreakdown,
+                    $junkExamples
+                );
+                $batchCompanies = [];
+                $batchIds = [];
+                $this->em->clear();
             }
-            if (!isset($sectorBreakdown[$sector])) {
-                $sectorBreakdown[$sector] = ['total' => 0, 'junk' => 0, 'contacts' => 0, 'address' => 0];
-            }
+        }
 
-            $regionBreakdown[$region]['total']++;
-            $sectorBreakdown[$sector]['total']++;
-
-            // ── Junk detection ───────────────────────────────────
-            $isJunk = $this->isJunkCompany($company);
-            if ($isJunk) {
-                $junkCount++;
-                $regionBreakdown[$region]['junk']++;
-                $sectorBreakdown[$sector]['junk']++;
-                $reason = $this->getJunkReason($company);
-                $junkReasons[$reason] = ($junkReasons[$reason] ?? 0) + 1;
-                if (count($junkExamples) < 30) {
-                    $junkExamples[] = [
-                        'name' => $name,
-                        'website' => $company->getWebsite() ?? 'N/A',
-                        'sector' => $sector,
-                        'reason' => $reason,
-                    ];
-                }
-                continue; // Don't count junk in contact/address stats
-            }
-
-            // ── Contact check ────────────────────────────────────
-            $contacts = $this->em->getRepository(Contact::class)->findBy(['company' => $company]);
-            $hasRealContact = false;
-            foreach ($contacts as $contact) {
-                $fn = trim($contact->getFirstName() ?? '');
-                $ln = trim($contact->getLastName() ?? '');
-                if (!empty($fn) && !empty($ln)) {
-                    // Reject fake "General Contact" fallback entries
-                    if ($fn === 'General' && $ln === 'Contact') {
-                        continue;
-                    }
-                    $hasRealContact = true;
-                    break;
-                }
-            }
-            if ($hasRealContact) {
-                $hasContactCount++;
-                $regionBreakdown[$region]['contacts']++;
-                $sectorBreakdown[$sector]['contacts']++;
-            }
-
-            // ── Address check ────────────────────────────────────
-            $address = $company->getAddress();
-            $city = $company->getCity();
-            $country = $company->getCountry();
-            $hasAddress = (!empty($address) && mb_strlen($address) >= 5)
-                || (!empty($city) && !empty($country));
-            if ($hasAddress) {
-                $hasAddressCount++;
-                $regionBreakdown[$region]['address']++;
-                $sectorBreakdown[$sector]['address']++;
-            }
-
-            // ── Other enrichment ─────────────────────────────────
-            if (!empty($company->getWebsite())) $hasWebsiteCount++;
-            if (!empty($company->getLinkedinCompanyUrl())) $hasLinkedInCount++;
-            $notes = $company->getNotes() ?? '';
-            if (!empty($notes) && mb_strlen($notes) >= 20) $hasDescriptionCount++;
-            if (str_contains($notes, '📞')) $hasPhoneCount++;
+        if (!empty($batchCompanies)) {
+            $this->processCompanyBatch(
+                $batchCompanies, $batchIds,
+                $junkCount, $junkReasons, $hasContactCount, $hasAddressCount,
+                $hasPhoneCount, $hasWebsiteCount, $hasLinkedInCount,
+                $hasDescriptionCount, $regionBreakdown, $sectorBreakdown,
+                $junkExamples
+            );
+            $this->em->clear();
         }
 
         // ── Report ───────────────────────────────────────────────
@@ -366,6 +330,114 @@ class QualityAuditCommand extends Command
             if (!$passAddresses) $failures[] = "Addresses: {$addressPct}% (need ≥90%)";
             $io->error('QUALITY THRESHOLDS NOT MET: ' . implode(' | ', $failures));
             return Command::FAILURE;
+        }
+    }
+
+    /**
+     * Process a batch of companies for the quality audit.
+     * Pre-loads all contacts in one query to avoid N+1.
+     * Metrics are passed by reference and updated in-place.
+     */
+    private function processCompanyBatch(
+        array $batchCompanies,
+        array $batchIds,
+        int &$junkCount,
+        array &$junkReasons,
+        int &$hasContactCount,
+        int &$hasAddressCount,
+        int &$hasPhoneCount,
+        int &$hasWebsiteCount,
+        int &$hasLinkedInCount,
+        int &$hasDescriptionCount,
+        array &$regionBreakdown,
+        array &$sectorBreakdown,
+        array &$junkExamples,
+    ): void {
+        // Pre-load all contacts for this batch in one query
+        $contactsMap = [];
+        $batchContacts = $this->em->getRepository(Contact::class)
+            ->createQueryBuilder('ct')
+            ->where('ct.company IN (:companyIds)')
+            ->setParameter('companyIds', $batchIds)
+            ->getQuery()
+            ->getResult();
+
+        foreach ($batchContacts as $contact) {
+            $companyId = $contact->getCompany()->getId();
+            $contactsMap[$companyId][] = $contact;
+        }
+        unset($batchContacts);
+
+        foreach ($batchCompanies as $company) {
+            /** @var Company $company */
+            $name = $company->getName();
+            $sector = $company->getSector() ?? 'Unknown';
+            $region = $company->getRegion() ?? 'Unknown';
+
+            if (!isset($regionBreakdown[$region])) {
+                $regionBreakdown[$region] = ['total' => 0, 'junk' => 0, 'contacts' => 0, 'address' => 0];
+            }
+            if (!isset($sectorBreakdown[$sector])) {
+                $sectorBreakdown[$sector] = ['total' => 0, 'junk' => 0, 'contacts' => 0, 'address' => 0];
+            }
+
+            $regionBreakdown[$region]['total']++;
+            $sectorBreakdown[$sector]['total']++;
+
+            $isJunk = $this->isJunkCompany($company);
+            if ($isJunk) {
+                $junkCount++;
+                $regionBreakdown[$region]['junk']++;
+                $sectorBreakdown[$sector]['junk']++;
+                $reason = $this->getJunkReason($company);
+                $junkReasons[$reason] = ($junkReasons[$reason] ?? 0) + 1;
+                if (count($junkExamples) < 30) {
+                    $junkExamples[] = [
+                        'name' => $name,
+                        'website' => $company->getWebsite() ?? 'N/A',
+                        'sector' => $sector,
+                        'reason' => $reason,
+                    ];
+                }
+                continue;
+            }
+
+            // Look up contacts from pre-loaded map
+            $contacts = $contactsMap[$company->getId()] ?? [];
+            $hasRealContact = false;
+            foreach ($contacts as $contact) {
+                $fn = trim($contact->getFirstName() ?? '');
+                $ln = trim($contact->getLastName() ?? '');
+                if (!empty($fn) && !empty($ln)) {
+                    if ($fn === 'General' && $ln === 'Contact') {
+                        continue;
+                    }
+                    $hasRealContact = true;
+                    break;
+                }
+            }
+            if ($hasRealContact) {
+                $hasContactCount++;
+                $regionBreakdown[$region]['contacts']++;
+                $sectorBreakdown[$sector]['contacts']++;
+            }
+
+            $address = $company->getAddress();
+            $city = $company->getCity();
+            $country = $company->getCountry();
+            $hasAddress = (!empty($address) && mb_strlen($address) >= 5)
+                || (!empty($city) && !empty($country));
+            if ($hasAddress) {
+                $hasAddressCount++;
+                $regionBreakdown[$region]['address']++;
+                $sectorBreakdown[$sector]['address']++;
+            }
+
+            if (!empty($company->getWebsite())) $hasWebsiteCount++;
+            if (!empty($company->getLinkedinCompanyUrl())) $hasLinkedInCount++;
+            $notes = $company->getNotes() ?? '';
+            if (!empty($notes) && mb_strlen($notes) >= 20) $hasDescriptionCount++;
+            if (str_contains($notes, '📞')) $hasPhoneCount++;
         }
     }
 

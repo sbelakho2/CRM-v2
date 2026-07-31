@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Psr\Log\LoggerInterface;
 
 #[Route('/webcrawler')]
 #[IsGranted('ROLE_USER')]
@@ -46,7 +47,8 @@ class WebCrawlerController extends AbstractController
         #[Autowire('%kernel.project_dir%')]
         private string $projectDir,
         private ?ContactEnrichmentService $contactEnrichmentService = null,
-        private ?CompanyRepository $companyRepository = null
+        private ?CompanyRepository $companyRepository = null,
+        private ?LoggerInterface $logger = null
     ) {}
 
     #[Route('', name: 'app_webcrawler_index', methods: ['GET'])]
@@ -295,9 +297,10 @@ class WebCrawlerController extends AbstractController
             ]);
 
         } catch (\Exception $e) {
+            $this->logger->error('Google search failed', ['exception' => $e]);
             return new JsonResponse([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => 'Search operation failed. Please try again.'
             ], 500);
         }
     }
@@ -388,9 +391,10 @@ class WebCrawlerController extends AbstractController
                 ], $result['contacts'] ?? []),
             ]);
         } catch (\Exception $e) {
+            $this->logger?->error('Contact enrichment failed', ['exception' => $e]);
             return new JsonResponse([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Contact enrichment failed. Please try again.',
             ], 500);
         }
     }
@@ -462,9 +466,10 @@ class WebCrawlerController extends AbstractController
                 'results' => $results,
             ]);
         } catch (\Exception $e) {
+            $this->logger?->error('Batch enrichment failed', ['exception' => $e]);
             return new JsonResponse([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Batch enrichment failed. Please try again.',
             ], 500);
         }
     }

@@ -84,6 +84,11 @@ class CompanyController extends AbstractController
 
         $qb->orderBy('c.name', 'ASC');
 
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limit = 50;
+        $qb->setMaxResults($limit)
+           ->setFirstResult(($page - 1) * $limit);
+
         $companies = $qb->getQuery()->getResult();
 
         // Get filter options

@@ -107,7 +107,12 @@ HELP
             if ($sector) {
                 $results = $this->googleSearchService->searchBySector($sector, $location ?: 'all', $limit);
             } else {
-                $results = $this->googleSearchService->searchCompanies($query, min($limit, 10));
+                if ($limit > 10) {
+                    $clamped = min($limit, 50);
+                    $io->warning("Limit of {$limit} requested, clamping to {$clamped} for safety.");
+                    $limit = $clamped;
+                }
+                $results = $this->googleSearchService->searchCompanies($query, $limit);
             }
 
             if (empty($results['results'])) {

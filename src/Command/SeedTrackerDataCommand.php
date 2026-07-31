@@ -33,13 +33,22 @@ class SeedTrackerDataCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $trackerFile = $input->getArgument('file');
-        
+        $projectDir = realpath(dirname(__DIR__, 2));
+
         if (!file_exists($trackerFile)) {
             $output->writeln('<error>Tracker.xlsx not found</error>');
             return Command::FAILURE;
         }
 
+        $resolvedPath = realpath($trackerFile);
+        if ($resolvedPath === false || !str_starts_with($resolvedPath, $projectDir)) {
+            $output->writeln('<error>File path is outside the project directory.</error>');
+            return Command::FAILURE;
+        }
+
         try {
+            $this->entityManager->beginTransaction();
+
             $spreadsheet = IOFactory::load($trackerFile);
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
@@ -72,10 +81,14 @@ class SeedTrackerDataCommand extends Command
             }
 
             $this->entityManager->flush();
+            $this->entityManager->commit();
             $output->writeln("<info>Successfully seeded $count supplier portal records</info>");
             return Command::SUCCESS;
 
         } catch (\Exception $e) {
+            if ($this->entityManager->getConnection()->isTransactionActive()) {
+                $this->entityManager->rollback();
+            }
             $output->writeln("<error>Error: " . $e->getMessage() . "</error>");
             return Command::FAILURE;
         }

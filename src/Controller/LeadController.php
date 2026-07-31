@@ -143,8 +143,13 @@ class LeadController extends AbstractController
                ->setParameter('scoreMin', $scoreMin);
         }
 
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limit = min(100, max(10, (int) $request->query->get('limit', 100)));
+        $offset = ($page - 1) * $limit;
+
         $leads = $qb->orderBy('l.leadScore', 'DESC')
-                    ->setMaxResults(100)
+                    ->setMaxResults($limit)
+                    ->setFirstResult($offset)
                     ->getQuery()
                     ->getResult();
 

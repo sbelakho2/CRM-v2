@@ -199,6 +199,7 @@ class PersonalizationProfile
 
     public function addTopicInterest(string $topic, float $weight = 1.0): static
     {
+        if ($this->topicInterests === null) { $this->topicInterests = []; }
         $this->topicInterests[$topic] = $weight;
         return $this;
     }

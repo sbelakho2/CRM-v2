@@ -155,6 +155,10 @@ class PlaybookController extends AbstractController
     #[Route('/{id}/delete', name: 'app_playbook_delete', methods: ['POST'])]
     public function delete(Request $request, Playbook $playbook): Response
     {
+        if (!$this->isCsrfTokenValid('playbook_delete_' . $playbook->getId(), $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         if ($playbook->getCreatedBy() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
@@ -167,8 +171,12 @@ class PlaybookController extends AbstractController
     }
 
     #[Route('/{id}/toggle', name: 'app_playbook_toggle', methods: ['POST'])]
-    public function toggle(Playbook $playbook): JsonResponse
+    public function toggle(Request $request, Playbook $playbook): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('playbook_toggle_' . $playbook->getId(), $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         $playbook->setIsActive(!$playbook->isActive());
         $playbook->setUpdatedAt(new \DateTime());
         $this->entityManager->flush();

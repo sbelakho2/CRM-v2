@@ -1026,6 +1026,7 @@ class DeepScrapingService
     private function splitPersonName(string $name): array
     {
         $parts = preg_split('/\s+/', trim($name));
+        if (empty($parts)) { return [null, null]; }
         if (count($parts) < 2) {
             return [$parts[0] ?? null, null];
         }

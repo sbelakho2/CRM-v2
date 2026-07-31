@@ -302,6 +302,21 @@ class DutyCalculationService
         ];
     }
 
+    private const DEFAULT_VAT_RATES = [
+        'MA' => 20.0,  // Morocco
+        'FR' => 20.0,  // France
+        'DE' => 19.0,  // Germany
+        'ES' => 21.0,  // Spain
+        'IT' => 22.0,  // Italy
+        'NL' => 21.0,  // Netherlands
+        'BE' => 21.0,  // Belgium
+        'UK' => 20.0,  // United Kingdom
+        'US' => 0.0,   // USA (no federal VAT)
+        'CN' => 13.0,  // China
+        'IN' => 18.0,  // India
+        'TR' => 18.0,  // Turkey
+    ];
+
     /**
      * Calculate VAT/GST for DDP shipments
      * 
@@ -320,23 +335,7 @@ class DutyCalculationService
         float $dutyAmount,
         string $destinationCountry
     ): array {
-        // Country-specific VAT rates
-        $vatRates = [
-            'MA' => 20.0,  // Morocco
-            'FR' => 20.0,  // France
-            'DE' => 19.0,  // Germany
-            'ES' => 21.0,  // Spain
-            'IT' => 22.0,  // Italy
-            'NL' => 21.0,  // Netherlands
-            'BE' => 21.0,  // Belgium
-            'UK' => 20.0,  // United Kingdom
-            'US' => 0.0,   // USA (no federal VAT)
-            'CN' => 13.0,  // China
-            'IN' => 18.0,  // India
-            'TR' => 18.0,  // Turkey
-        ];
-        
-        $vatRate = $vatRates[$destinationCountry] ?? 0.0;
+        $vatRate = self::DEFAULT_VAT_RATES[$destinationCountry] ?? 0.0;
         
         // Calculate VAT base (duty-inclusive)
         $vatBase = $customsValue + $dutyAmount;

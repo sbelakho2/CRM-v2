@@ -310,8 +310,8 @@ class DocumentManagerService
      */
     public function getStatistics(): array
     {
-        // 1. Get all documents
-        $documents = $this->complianceDocumentRepository->findAll();
+        // 1. Get all documents (paginated)
+        $documents = $this->complianceDocumentRepository->findBy([], null, 500);
         
         // 2. Calculate statistics
         $stats = [
@@ -334,6 +334,7 @@ class DocumentManagerService
             
             // Track oldest/newest
             $generatedAt = $doc->getGeneratedAt();
+            if ($generatedAt === null) continue;
             if (!$stats['oldestDocument'] || $generatedAt < $stats['oldestDocument']) {
                 $stats['oldestDocument'] = $generatedAt;
             }
@@ -357,8 +358,8 @@ class DocumentManagerService
      */
     public function cleanupOldVersions(int $keepVersions = 5): int
     {
-        // 1. Get all documents grouped by entity + type
-        $allDocs = $this->complianceDocumentRepository->findAll();
+        // 1. Get all documents grouped by entity + type (paginated)
+        $allDocs = $this->complianceDocumentRepository->findBy([], null, 500);
         
         $grouped = [];
         foreach ($allDocs as $doc) {

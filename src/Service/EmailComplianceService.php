@@ -15,18 +15,33 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class EmailComplianceService
 {
-    private EntityManagerInterface $em;
-    private EmailConsentService $consentService;
-    
     private const DEFAULT_COMPANY_NAME = 'STARZ Morocco';
     private const DEFAULT_PHYSICAL_ADDRESS = '123 Business Avenue, Tangier, Morocco';
     private const DEFAULT_COMPANY_PHONE = '+212 539 123 456';
     private const DEFAULT_APP_BASE_URL = 'https://crm.starz-morocco.com';
     
+    private EntityManagerInterface $em;
+    private EmailConsentService $consentService;
+    
     // Company information for compliance
     private string $companyName;
     private string $physicalAddress;
     private string $companyPhone;
+
+    public function getCompanyName(): string
+    {
+        return $this->companyName;
+    }
+
+    public function getPhysicalAddress(): string
+    {
+        return $this->physicalAddress;
+    }
+
+    public function getCompanyPhone(): string
+    {
+        return $this->companyPhone;
+    }
 
     public function __construct(
         EntityManagerInterface $em,

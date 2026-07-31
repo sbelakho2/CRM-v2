@@ -134,6 +134,9 @@ class DiscoveryPipelineController extends AbstractController
     public function runPipeline(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('discovery_pipeline_run', $data['_csrf_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
         
         $sector = $data['sector'] ?? null;
         $location = $data['location'] ?? null;
@@ -315,6 +318,10 @@ class DiscoveryPipelineController extends AbstractController
     public function enrichExistingLeads(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('discovery_pipeline_enrich', $data['_csrf_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         $limit = min($data['limit'] ?? 50, 100);
         
         // Find leads with websites but no emails
@@ -374,7 +381,13 @@ class DiscoveryPipelineController extends AbstractController
         // Fuzzy name match — catch variants like "Acme Corp" vs "Acme Corporation"
         // Only run if website-based check found nothing
         $fuzzyMatch = null;
-        $allLeads = $this->leadRepository->findAll();
+        $allLeads = $this->entityManager->getRepository(Lead::class)
+            ->createQueryBuilder('l')
+            ->where('LOWER(l.companyName) LIKE :namePrefix')
+            ->setParameter('namePrefix', strtolower(substr($name, 0, 3)) . '%')
+            ->setMaxResults(5000)
+            ->getQuery()
+            ->getResult();
         foreach ($allLeads as $existingLead) {
             $existingName = strtolower(trim($existingLead->getCompanyName()));
             $newName = strtolower(trim($name));

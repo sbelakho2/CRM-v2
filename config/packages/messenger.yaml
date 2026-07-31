@@ -13,8 +13,6 @@ framework:
       sync: "sync://"
       mailer:
         dsn: "doctrine://default?queue_name=mailer"
-        options:
-          queue_name: mailer
         retry_strategy:
           max_retries: 3
           delay: 1000

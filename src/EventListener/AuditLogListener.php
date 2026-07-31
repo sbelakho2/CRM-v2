@@ -44,6 +44,7 @@ class AuditLogListener
     ];
 
     private array $queuedAuditLogs = [];
+    private bool $isPostFlushing = false;
 
     public function __construct(
         private EntityManagerInterface $em,
@@ -92,15 +93,21 @@ class AuditLogListener
 
     public function postFlush(PostFlushEventArgs $args): void
     {
+        if ($this->isPostFlushing) {
+            return;
+        }
+
         if (empty($this->queuedAuditLogs)) {
             return;
         }
 
+        $this->isPostFlushing = true;
         foreach ($this->queuedAuditLogs as $auditLog) {
             $this->em->persist($auditLog);
         }
         $this->queuedAuditLogs = [];
         $this->em->flush();
+        $this->isPostFlushing = false;
     }
 
     private function shouldAudit(object $entity): bool

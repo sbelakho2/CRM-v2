@@ -39,7 +39,7 @@ security:
   password_hashers:
     # Use plaintext password hasher for tests to speed up test execution
     Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
-      algorithm: plaintext
+      algorithm: auto
 
 doctrine:
   dbal:

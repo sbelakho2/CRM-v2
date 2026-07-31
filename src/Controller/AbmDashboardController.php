@@ -377,8 +377,12 @@ class AbmDashboardController extends AbstractController
      * Toggle playbook active status
      */
     #[Route('/playbook/{id}/toggle', name: 'abm_dashboard_playbook_toggle', methods: ['POST'])]
-    public function togglePlaybook(string $id): JsonResponse
+    public function togglePlaybook(Request $request, string $id): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('abm_playbook_toggle_' . $id, $request->request->get('_csrf_token'))) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         $playbook = $this->entityManager->getRepository(Playbook::class)->find((int)$id);
         
         if (!$playbook) {

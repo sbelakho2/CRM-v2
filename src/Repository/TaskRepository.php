@@ -207,9 +207,26 @@ class TaskRepository extends ServiceEntityRepository
      */
     public function getStatistics(?User $user = null): array
     {
+        $today = new \DateTime('today');
+        $tomorrow = new \DateTime('tomorrow');
+        $endOfWeek = new \DateTime('sunday this week 23:59:59');
+
         $qb = $this->createQueryBuilder('t')
-            ->select('t.status, COUNT(t.id) as count')
-            ->groupBy('t.status');
+            ->select('
+                t.status,
+                COUNT(t.id) as count,
+                SUM(CASE WHEN t.dueDate < :today AND t.status NOT IN (:completedStatuses) THEN 1 ELSE 0 END) as overdueCnt,
+                SUM(CASE WHEN t.dueDate >= :today AND t.dueDate < :tomorrow AND t.status NOT IN (:completedStatuses2) THEN 1 ELSE 0 END) as dueTodayCnt,
+                SUM(CASE WHEN t.dueDate >= :today2 AND t.dueDate <= :endOfWeek AND t.status NOT IN (:completedStatuses3) THEN 1 ELSE 0 END) as dueWeekCnt
+            ')
+            ->groupBy('t.status')
+            ->setParameter('today', $today)
+            ->setParameter('today2', $today)
+            ->setParameter('tomorrow', $tomorrow)
+            ->setParameter('endOfWeek', $endOfWeek)
+            ->setParameter('completedStatuses', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
+            ->setParameter('completedStatuses2', [Task::STATUS_DONE, Task::STATUS_CANCELLED])
+            ->setParameter('completedStatuses3', [Task::STATUS_DONE, Task::STATUS_CANCELLED]);
 
         if ($user !== null) {
             $qb->andWhere('t.assignedTo = :user')
@@ -229,11 +246,10 @@ class TaskRepository extends ServiceEntityRepository
         foreach ($results as $row) {
             $stats['by_status'][$row['status']] = (int) $row['count'];
             $stats['total'] += (int) $row['count'];
+            $stats['overdue'] = (int) ($row['overdueCnt'] ?? 0);
+            $stats['due_today'] = (int) ($row['dueTodayCnt'] ?? 0);
+            $stats['due_this_week'] = (int) ($row['dueWeekCnt'] ?? 0);
         }
-
-        $stats['overdue'] = $this->countOverdue($user);
-        $stats['due_today'] = $this->countDueToday($user);
-        $stats['due_this_week'] = $this->countDueThisWeek($user);
 
         return $stats;
     }

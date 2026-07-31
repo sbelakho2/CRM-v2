@@ -60,7 +60,7 @@ HELP
         $lock = $this->lockFactory->createLock('check_notifications', 300);
         if (!$lock->acquire()) {
             $io->warning('Another notification check is already running. Skipping.');
-            return Command::SUCCESS;
+            return Command::FAILURE;
         }
 
         try {
@@ -85,10 +85,17 @@ HELP
             // Check all users
             if ($checkAll) {
                 $io->section('Checking notifications for all users');
-                $users = $this->userRepository->findAll();
-                $io->progressStart(count($users));
+                $userCount = (int) $this->userRepository->createQueryBuilder('u')
+                    ->select('COUNT(u.id)')
+                    ->getQuery()
+                    ->getSingleScalarResult();
+                $users = $this->userRepository->createQueryBuilder('u')
+                    ->getQuery()
+                    ->iterate();
+                $io->progressStart($userCount);
 
-                foreach ($users as $user) {
+                foreach ($users as $row) {
+                    $user = $row[0];
                     $rfqCount = $this->notificationService->checkRFQDeadlines($user);
                     $emailCount = $this->notificationService->checkEmailReplies($user);
                     $leadCount = $this->notificationService->checkLeadApprovals($user);

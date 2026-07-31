@@ -343,53 +343,38 @@ class EmailActivityLogger
      */
     public function getCompanyEmailStats(Company $company): array
     {
-        $activities = $this->getEmailActivities($company, 1000);
-        
-        $stats = [
-            'total_emails_sent' => 0,
-            'emails_opened' => 0,
-            'emails_clicked' => 0,
-            'emails_replied' => 0,
-            'campaigns_received' => 0,
-            'outbound_sent' => 0,
-            'last_email_date' => null,
-            'engagement_rate' => 0
-        ];
+        $stats = $this->em->getRepository(Activity::class)
+            ->createQueryBuilder('a')
+            ->select([
+                'COUNT(a.id) as total_emails_sent',
+                'SUM(CASE WHEN a.type = :outboundType THEN 1 ELSE 0 END) as outbound_sent',
+                "SUM(CASE WHEN a.description LIKE :openPattern THEN 1 ELSE 0 END) as emails_opened",
+                "SUM(CASE WHEN a.description LIKE :clickPattern THEN 1 ELSE 0 END) as emails_clicked",
+                "SUM(CASE WHEN a.description LIKE :replyPattern THEN 1 ELSE 0 END) as emails_replied",
+                'MAX(a.activityDate) as last_email_date',
+            ])
+            ->where('a.company = :company')
+            ->andWhere('a.type IN (:types)')
+            ->setParameter('company', $company)
+            ->setParameter('types', ['Email', 'Email Campaign', 'Outbound Email', 'Outbound Email Engagement'])
+            ->setParameter('outboundType', 'Outbound Email')
+            ->setParameter('openPattern', '%✓ Opened%')
+            ->setParameter('clickPattern', '%✓ Clicked%')
+            ->setParameter('replyPattern', '%✓ Replied%')
+            ->getQuery()
+            ->getSingleResult();
 
-        foreach ($activities as $activity) {
-            $type = $activity->getType();
-            $description = $activity->getDescription();
+        $stats['total_emails_sent'] = (int) ($stats['total_emails_sent'] ?? 0);
+        $stats['outbound_sent'] = (int) ($stats['outbound_sent'] ?? 0);
+        $stats['emails_opened'] = (int) ($stats['emails_opened'] ?? 0);
+        $stats['emails_clicked'] = (int) ($stats['emails_clicked'] ?? 0);
+        $stats['emails_replied'] = (int) ($stats['emails_replied'] ?? 0);
 
-            if ($type === 'Email' || $type === 'Outbound Email') {
-                $stats['total_emails_sent']++;
-
-                if ($type === 'Outbound Email') {
-                    $stats['outbound_sent']++;
-                }
-
-                if (strpos($description, '✓ Opened') !== false) {
-                    $stats['emails_opened']++;
-                }
-                if (strpos($description, '✓ Clicked') !== false) {
-                    $stats['emails_clicked']++;
-                }
-                if (strpos($description, '✓ Replied') !== false) {
-                    $stats['emails_replied']++;
-                }
-                
-                if (!$stats['last_email_date'] || $activity->getActivityDate() > $stats['last_email_date']) {
-                    $stats['last_email_date'] = $activity->getActivityDate();
-                }
-            } elseif ($type === 'Email Campaign') {
-                $stats['campaigns_received']++;
-            }
-        }
-
-        // Calculate engagement rate
-        if ($stats['total_emails_sent'] > 0) {
-            $engaged = $stats['emails_opened'] + $stats['emails_clicked'] + $stats['emails_replied'];
-            $stats['engagement_rate'] = round(($engaged / $stats['total_emails_sent']) * 100, 1);
-        }
+        $total = $stats['total_emails_sent'];
+        $stats['campaigns_received'] = 0;
+        $stats['engagement_rate'] = $total > 0
+            ? round((($stats['emails_opened'] + $stats['emails_clicked'] + $stats['emails_replied']) / $total) * 100, 1)
+            : 0;
 
         return $stats;
     }

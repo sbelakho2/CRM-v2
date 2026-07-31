@@ -19,6 +19,10 @@ class GuidanceController extends AbstractController
     #[Route('/guidance/dismiss', name: 'guidance_dismiss', methods: ['POST'])]
     public function dismiss(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('guidance_dismiss', $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         $index = $request->request->get('index');
         $session = $request->getSession();
         
@@ -49,6 +53,10 @@ class GuidanceController extends AbstractController
     #[Route('/guidance/dismiss-all', name: 'guidance_dismiss_all', methods: ['POST'])]
     public function dismissAll(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('guidance_dismiss_all', $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         $session = $request->getSession();
         
         // Get all notifications and mark their dismissKeys as permanently dismissed

@@ -89,6 +89,10 @@ class AdminDatasetController extends AbstractController
     #[Route('/import', name: 'admin_dataset_import', methods: ['POST'])]
     public function import(Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('admin_dataset_import', $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         // 1. Validate file upload
         $datasetFile = $request->files->get('dataset_file');
         if (!$datasetFile) {
@@ -159,6 +163,10 @@ class AdminDatasetController extends AbstractController
     #[Route('/{datasetType}/rollback', name: 'admin_dataset_rollback', methods: ['POST'])]
     public function rollback(string $datasetType, Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('admin_dataset_rollback_' . $datasetType, $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         // 1. Validate dataset type
         $validTypes = ['tariff_rate', 'freight_table', 'fx_rate'];
         if (!in_array($datasetType, $validTypes)) {

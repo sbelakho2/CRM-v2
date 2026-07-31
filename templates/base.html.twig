@@ -7,7 +7,7 @@
     <title>{% block title %}{{ 'app.name'|trans }}{% endblock %} - {{ 'app.company'|trans }}</title>
     
     {# Sensei-Rams Design System CSS #}
-    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}?v={{ 'now'|date('U') }}">
     
     {# DataTables - Lightweight client-side table sorting/searching/pagination #}
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.tailwindcss.css">

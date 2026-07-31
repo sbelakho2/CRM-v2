@@ -74,6 +74,9 @@ class RFQType extends AbstractType
                 ],
                 'choice_translation_domain' => 'messages',
                 'required' => true,
+                'constraints' => [
+                    new NotBlank(['message' => 'validation.required']),
+                ],
                 'label' => 'rfq.form.rfq_type',
                 'attr' => ['class' => 'rams-form__select'],
             ])
@@ -86,6 +89,9 @@ class RFQType extends AbstractType
                     'rfq.statuses.lost' => 'Lost',
                 ],
                 'required' => true,
+                'constraints' => [
+                    new NotBlank(['message' => 'validation.required']),
+                ],
                 'choice_translation_domain' => 'messages',
                 'attr' => ['class' => 'rams-form__select'],
             ])

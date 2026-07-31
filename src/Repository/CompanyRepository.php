@@ -38,6 +38,7 @@ class CompanyRepository extends ServiceEntityRepository
             ->setParameter('sector', $sector)
             ->setParameter('tier', $tier)
             ->orderBy('c.name', 'ASC')
+            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -76,6 +77,7 @@ class CompanyRepository extends ServiceEntityRepository
         $rows = $this->createQueryBuilder('c')
             ->select('c.website')
             ->where('c.website IS NOT NULL')
+            ->setMaxResults(500)
             ->getQuery()
             ->getScalarResult();
 

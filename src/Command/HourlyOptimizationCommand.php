@@ -59,7 +59,7 @@ class HourlyOptimizationCommand extends Command
 
         if (!$this->settingsService->isEnabled()) {
             $io->warning('Autonomous sales system is disabled. Enable it to run the hourly optimizer.');
-            return Command::SUCCESS;
+            return Command::INVALID;
         }
 
         $dryRun = (bool) $input->getOption('dry-run');

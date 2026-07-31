@@ -89,6 +89,11 @@ class QuoteReviewController extends AbstractController
         }
 
         $quote = $row[0] ?? $row;
+
+        $company = $quote->getCompany();
+        if (!$company) {
+            throw $this->createAccessDeniedException('Quote has no associated company.');
+        }
         $companyName = is_array($row) ? ($row['company_name'] ?? null) : null;
 
         // Get BOM lines grouped by review status
@@ -114,13 +119,17 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/verify', name: 'quote_review_verify_line', methods: ['POST'])]
     public function verifyLine(int $id, Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('quote_review_verify_line_' . $id, $data['_csrf_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         try {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
         }
 
-        $data = json_decode($request->getContent(), true);
         
         $bomLine->setManuallyVerified(true);
         $bomLine->setRequiresReview(false);
@@ -156,13 +165,17 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/override', name: 'quote_review_override_line', methods: ['POST'])]
     public function overrideLine(int $id, Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('quote_review_override_line_' . $id, $data['_csrf_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         try {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
         }
 
-        $data = json_decode($request->getContent(), true);
         
         if (!isset($data['unit_price']) || !is_numeric($data['unit_price'])) {
             return new JsonResponse(['error' => 'Valid unit_price is required'], 400);
@@ -226,14 +239,17 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/reject', name: 'quote_review_reject_line', methods: ['POST'])]
     public function rejectLine(int $id, Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('quote_review_reject_line_' . $id, $data['_csrf_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         try {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
         }
 
-        $data = json_decode($request->getContent(), true);
-        
         // Clear the API-sourced pricing
         $bomLine->setUnitPrice(null);
         $bomLine->setExtendedPrice(null);
@@ -275,8 +291,13 @@ class QuoteReviewController extends AbstractController
      * Bulk verify all high-confidence matches
      */
     #[Route('/{id}/verify-all-high', name: 'quote_review_verify_all_high', methods: ['POST'])]
-    public function verifyAllHighConfidence(int $id): JsonResponse
+    public function verifyAllHighConfidence(int $id, Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('quote_review_verify_all_high_' . $id, $data['_csrf_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         try {
         $quote = $this->quoteRepository->find($id);
         if (!$quote) {
@@ -323,8 +344,13 @@ class QuoteReviewController extends AbstractController
      * Approve quote for publishing (all lines must be verified or manually priced)
      */
     #[Route('/{id}/approve', name: 'quote_review_approve', methods: ['POST'])]
-    public function approveQuote(int $id): JsonResponse
+    public function approveQuote(int $id, Request $request): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('quote_review_approve_' . $id, $data['_csrf_token'] ?? '')) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         try {
         $quote = $this->quoteRepository->find($id);
         if (!$quote) {

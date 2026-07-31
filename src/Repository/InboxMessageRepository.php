@@ -68,7 +68,9 @@ class InboxMessageRepository extends ServiceEntityRepository
                 'm.classification',
                 'COUNT(m.id) as total',
                 'AVG(m.classificationConfidence) as avgConfidence',
+                'SUM(CASE WHEN m.requiresHumanReview = :pendingReview AND m.humanReviewedAt IS NULL THEN 1 ELSE 0 END) as pendingCount',
             ])
+            ->setParameter('pendingReview', true)
             ->groupBy('m.classification');
 
         $results = $qb->getQuery()->getResult();
@@ -86,10 +88,8 @@ class InboxMessageRepository extends ServiceEntityRepository
                 'avg_confidence' => round((float) ($row['avgConfidence'] ?? 0), 2),
             ];
             $stats['total'] += (int) $row['total'];
+            $stats['pending_review'] += (int) ($row['pendingCount'] ?? 0);
         }
-
-        // Count pending reviews
-        $stats['pending_review'] = $this->count(['requiresHumanReview' => true, 'humanReviewedAt' => null]);
 
         return $stats;
     }

@@ -74,7 +74,7 @@ class LeadDeepScrapeMessageHandler
             ]);
 
             $notes = $lead->getNotesAuto() ?? '';
-            $notes .= "\n[" . date('Y-m-d H:i') . "] Deep scrape failed: " . $e->getMessage();
+            $notes .= "\n[" . date('Y-m-d H:i') . "] Deep scrape failed. Please try again later.";
             $lead->setNotesAuto($notes);
 
             if ($this->entityManager->isOpen()) {

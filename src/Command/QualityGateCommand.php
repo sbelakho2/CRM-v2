@@ -74,15 +74,23 @@ class QualityGateCommand extends Command
             ? $datasetPath
             : $this->projectDir . '/' . $datasetPath;
 
-        if (!file_exists($fullPath)) {
+        $resolvedFullPath = realpath($fullPath);
+        $projectDirReal = realpath($this->projectDir);
+        if ($resolvedFullPath === false || !str_starts_with($resolvedFullPath, $projectDirReal . '/')) {
             $checks['golden_dataset'] = [
                 'passed' => false,
-                'detail' => "Dataset file not found: {$fullPath}",
+                'detail' => "Dataset path is outside the project directory: {$datasetPath}",
+            ];
+            $allPassed = false;
+        } elseif (!file_exists($resolvedFullPath)) {
+            $checks['golden_dataset'] = [
+                'passed' => false,
+                'detail' => "Dataset file not found: {$resolvedFullPath}",
             ];
             $allPassed = false;
         } else {
             try {
-                $this->goldenDatasetRunner->loadFromFile($fullPath);
+                $this->goldenDatasetRunner->loadFromFile($resolvedFullPath);
                 $report = $this->goldenDatasetRunner->run();
 
                 $passed = $report->meetsThreshold($threshold / 100);

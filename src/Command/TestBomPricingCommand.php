@@ -45,8 +45,15 @@ class TestBomPricingCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $filePath = $input->getArgument('file');
 
-        if (!file_exists($filePath)) {
-            $io->error("File not found: {$filePath}");
+        if (!file_exists($filePath) || !is_readable($filePath)) {
+            $io->error("File not found or not readable: {$filePath}");
+            return Command::FAILURE;
+        }
+
+        $projectDir = realpath(dirname(__DIR__, 2));
+        $resolvedPath = realpath($filePath);
+        if ($resolvedPath === false || !str_starts_with($resolvedPath, $projectDir)) {
+            $io->error('File path must be within the project directory.');
             return Command::FAILURE;
         }
 

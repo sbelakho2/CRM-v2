@@ -189,6 +189,10 @@ class SupplierPortalController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function submit(int $id, Request $request): Response
     {
+        if (!$this->isCsrfTokenValid('supplier_portal_submit_' . $id, $request->request->get('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         // 1. Get pack ID and credentials
         $packId = $request->request->get('pack_id');
         if (!$packId) {

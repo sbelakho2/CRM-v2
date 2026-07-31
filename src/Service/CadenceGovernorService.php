@@ -238,6 +238,30 @@ class CadenceGovernorService
      * Infer timezone from contact's company geography.
      * Falls back to CET (Morocco / Western Europe) if unknown.
      */
+    private const TIMEZONE_MAP = [
+        // EU countries → Europe/Berlin
+        '/\b(germany|france|spain|italy|netherlands|belgium|austria|poland|czech|sweden|norway|denmark|finland|switzerland)\b/' => 'Europe/Berlin',
+        // UK → Europe/London
+        '/\buk|united kingdom|england|scotland|wales\b/' => 'Europe/London',
+        // US Pacific
+        '/\b(california|washington|oregon|nevada)\b/' => 'America/Los_Angeles',
+        // US Eastern
+        '/\b(new york|boston|virginia|florida|carolina|georgia|maryland|pennsylvania|ohio|michigan|illinois|texas|colorado)\b/' => 'America/New_York',
+        // US fallback
+        '/\b(usa|united states)\b/' => 'America/Chicago',
+        // Asia
+        '/\b(china|hong kong|taiwan|singapore)\b/' => 'Asia/Shanghai',
+        '/\bjapan\b/' => 'Asia/Tokyo',
+        '/\bindia\b/' => 'Asia/Kolkata',
+        '/\bkorea\b/' => 'Asia/Seoul',
+        // MENA
+        '/\b(uae|dubai|abu dhabi|saudi|qatar|bahrain|oman|kuwait)\b/' => 'Asia/Dubai',
+        '/\bmorocco|casablanca|tangier|rabat\b/' => 'Africa/Casablanca',
+        '/\bturkey|istanbul|ankara\b/' => 'Europe/Istanbul',
+        // Africa
+        '/\b(south africa|johannesburg|cape town)\b/' => 'Africa/Johannesburg',
+    ];
+
     private function inferTimezone(Contact $contact): string
     {
         $company = $contact->getCompany();
@@ -245,34 +269,11 @@ class CadenceGovernorService
 
         $location = strtolower($company->getPhysicalSite() ?? $company->getRegion() ?? '');
 
-        // EU countries
-        if (preg_match('/\b(germany|france|spain|italy|netherlands|belgium|austria|poland|czech|sweden|norway|denmark|finland|switzerland)\b/', $location)) {
-            return 'Europe/Berlin';
+        foreach (self::TIMEZONE_MAP as $pattern => $timezone) {
+            if (preg_match($pattern, $location)) {
+                return $timezone;
+            }
         }
-        if (preg_match('/\buk|united kingdom|england|scotland|wales\b/', $location)) {
-            return 'Europe/London';
-        }
-        // US
-        if (preg_match('/\b(california|washington|oregon|nevada)\b/', $location)) {
-            return 'America/Los_Angeles';
-        }
-        if (preg_match('/\b(new york|boston|virginia|florida|carolina|georgia|maryland|pennsylvania|ohio|michigan|illinois|texas|colorado)\b/', $location)) {
-            return 'America/New_York';
-        }
-        if (preg_match('/\b(usa|united states)\b/', $location)) {
-            return 'America/Chicago'; // central fallback
-        }
-        // Asia
-        if (preg_match('/\b(china|hong kong|taiwan|singapore)\b/', $location)) return 'Asia/Shanghai';
-        if (preg_match('/\bjapan\b/', $location)) return 'Asia/Tokyo';
-        if (preg_match('/\bindia\b/', $location)) return 'Asia/Kolkata';
-        if (preg_match('/\bkorea\b/', $location)) return 'Asia/Seoul';
-        // MENA
-        if (preg_match('/\b(uae|dubai|abu dhabi|saudi|qatar|bahrain|oman|kuwait)\b/', $location)) return 'Asia/Dubai';
-        if (preg_match('/\bmorocco|casablanca|tangier|rabat\b/', $location)) return 'Africa/Casablanca';
-        if (preg_match('/\bturkey|istanbul|ankara\b/', $location)) return 'Europe/Istanbul';
-        // Africa
-        if (preg_match('/\b(south africa|johannesburg|cape town)\b/', $location)) return 'Africa/Johannesburg';
 
         return 'Africa/Casablanca'; // default (Starz Electronics timezone)
     }

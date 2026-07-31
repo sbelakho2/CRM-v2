@@ -177,17 +177,13 @@ class CompetitorDetectionService
             return $this->dynamicCompetitorCache;
         }
         
-        // Start with static competitors
+        // Start with static competitors from CompetitorLearnerService
         $allCompetitors = [];
-        
-        foreach (self::TIER_1_COMPETITORS as $domain => $name) {
-            $allCompetitors[$domain] = ['name' => $name, 'tier' => 1, 'source' => 'static'];
-        }
-        foreach (self::TIER_2_COMPETITORS as $domain => $name) {
-            $allCompetitors[$domain] = ['name' => $name, 'tier' => 2, 'source' => 'static'];
-        }
-        foreach (self::TIER_3_COMPETITORS as $domain => $name) {
-            $allCompetitors[$domain] = ['name' => $name, 'tier' => 3, 'source' => 'static'];
+        $staticByTier = CompetitorLearnerService::getStaticCompetitorsByTier();
+        foreach ($staticByTier as $tier => $competitors) {
+            foreach ($competitors as $domain => $name) {
+                $allCompetitors[$domain] = ['name' => $name, 'tier' => $tier, 'source' => 'static'];
+            }
         }
         
         // Add dynamically learned competitors
@@ -231,14 +227,11 @@ class CompetitorDetectionService
      */
     private function getTierForDomain(string $domain): int
     {
-        if (isset(self::TIER_1_COMPETITORS[$domain])) {
-            return 1;
-        }
-        if (isset(self::TIER_2_COMPETITORS[$domain])) {
-            return 2;
-        }
-        if (isset(self::TIER_3_COMPETITORS[$domain])) {
-            return 3;
+        $staticByTier = CompetitorLearnerService::getStaticCompetitorsByTier();
+        foreach ($staticByTier as $tier => $competitors) {
+            if (isset($competitors[$domain])) {
+                return $tier;
+            }
         }
         
         // Check dynamic competitors

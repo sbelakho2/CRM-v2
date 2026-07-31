@@ -7,7 +7,6 @@ namespace App\Service;
 use App\Entity\Activity;
 use App\Entity\Company;
 use App\Entity\Contact;
-use Psr\Log\LoggerInterface;
 
 /**
  * Activity Template Service
@@ -339,13 +338,6 @@ TEMPLATE,
             'tags' => ['lost_deal', 'feedback'],
         ],
     ];
-    
-    private LoggerInterface $logger;
-    
-    public function __construct(LoggerInterface $logger)
-    {
-        $this->logger = $logger;
-    }
     
     /**
      * Get all available templates

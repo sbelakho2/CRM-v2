@@ -352,8 +352,8 @@ class QuoteWinPredictorService
             return 'unknown';
         }
         
-        $revenue = $company->getAnnualRevenue() ?? 0;
-        $employees = $company->getEmployeeCount() ?? 0;
+        $revenue = null;
+        $employees = null;
         
         if ($revenue > 100000000 || $employees > 1000) {
             return 'enterprise';
@@ -377,27 +377,8 @@ class QuoteWinPredictorService
             return 'unknown';
         }
         
-        $industry = strtolower($company->getIndustry() ?? '');
-        
-        $industryMappings = [
-            'medical' => ['medical', 'healthcare', 'pharma', 'biotech', 'life science'],
-            'aerospace' => ['aerospace', 'aviation', 'satellite', 'space'],
-            'defense' => ['defense', 'military', 'government'],
-            'automotive' => ['automotive', 'auto', 'vehicle', 'ev'],
-            'industrial' => ['industrial', 'manufacturing', 'machinery'],
-            'consumer' => ['consumer', 'retail', 'appliance'],
-            'iot' => ['iot', 'smart', 'connected', 'wearable'],
-            'telecom' => ['telecom', 'telecommunications', 'network', '5g'],
-        ];
-        
-        foreach ($industryMappings as $vertical => $keywords) {
-            foreach ($keywords as $keyword) {
-                if (str_contains($industry, $keyword)) {
-                    return $vertical;
-                }
-            }
-        }
-        
+        // Industry tracking not yet implemented; see Company entity for sector field
+        // $company->getSector() can be used as a substitute once detection logic is updated
         return 'unknown';
     }
 

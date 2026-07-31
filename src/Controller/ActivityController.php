@@ -123,6 +123,11 @@ class ActivityController extends AbstractController
 
         $qb->orderBy('a.activityDate', 'DESC');
 
+        $page = max(1, (int) $request->query->get('page', 1));
+        $limit = 50;
+        $qb->setMaxResults($limit)
+           ->setFirstResult(($page - 1) * $limit);
+
         $activities = $qb->getQuery()->getResult();
 
         // Get filter options

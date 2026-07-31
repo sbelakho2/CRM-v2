@@ -118,7 +118,7 @@ class ComplianceDocument
         $this->file = $file;
 
         if (null !== $file) {
-            $this->updatedAt = new \DateTimeImmutable();
+            $this->updatedAt = new \DateTime();
         }
     }
 

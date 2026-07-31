@@ -162,8 +162,13 @@ class CurrencyConversionService
      * 
      * @return array{rate: float, source: string, stale: bool, warning: ?string}
      */
-    public function getRate(string $fromCurrency, string $toCurrency): array
+    public function getRate(string $fromCurrency, string $toCurrency, array &$visitedCurrencies = []): array
     {
+        if (in_array($fromCurrency, $visitedCurrencies, true)) {
+            throw new \RuntimeException('Currency conversion cycle detected');
+        }
+        $visitedCurrencies[] = $fromCurrency;
+
         // 1. Try direct rate from database (fresh)
         $fxRate = $this->fxRateRepository->findOneBy([
             'fromCurrency' => $fromCurrency,
@@ -235,8 +240,8 @@ class CurrencyConversionService
         
         // 4. Try via USD (multi-hop) with any available rates
         if ($fromCurrency !== 'USD' && $toCurrency !== 'USD') {
-            $fromToUsd = $this->getRate($fromCurrency, 'USD');
-            $usdToTarget = $this->getRate('USD', $toCurrency);
+            $fromToUsd = $this->getRate($fromCurrency, 'USD', $visitedCurrencies);
+            $usdToTarget = $this->getRate('USD', $toCurrency, $visitedCurrencies);
             
             if ($fromToUsd['source'] !== 'unknown' && $usdToTarget['source'] !== 'unknown') {
                 $combinedRate = $fromToUsd['rate'] * $usdToTarget['rate'];

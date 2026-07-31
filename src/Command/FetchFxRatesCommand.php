@@ -9,6 +9,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Lock\LockFactory;
 
 /**
  * Fetch live FX rates from central bank APIs
@@ -25,7 +26,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class FetchFxRatesCommand extends Command
 {
     public function __construct(
-        private LiveFxRateFetcher $fxRateFetcher
+        private LiveFxRateFetcher $fxRateFetcher,
+        private LockFactory $lockFactory,
     ) {
         parent::__construct();
     }
@@ -58,7 +60,10 @@ HELP
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        
+
+        $lock = $this->lockFactory->createLock('fetch_fx_rates', 1800);
+        $lock->acquire();
+
         // Check-only mode
         if ($input->getOption('check')) {
             return $this->checkFreshness($io);

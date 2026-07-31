@@ -13,18 +13,16 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/profile')]
+#[IsGranted('ROLE_USER')]
 class ProfileController extends AbstractController
 {
     #[Route('', name: 'profile_index', methods: ['GET', 'POST'])]
     public function index(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher, TranslatorInterface $translator, UserRepository $userRepository): Response
     {
         $user = $this->getUser();
-        
-        if (!$user) {
-            return $this->redirectToRoute('app_login');
-        }
 
         $form = $this->createForm(ChangePasswordType::class);
         $form->handleRequest($request);

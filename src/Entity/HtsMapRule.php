@@ -20,7 +20,7 @@ class HtsMapRule
     #[ORM\Column(length: 100)]
     private ?string $category = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?string $keywords = null; // JSON array of keywords
 
     #[ORM\Column(length: 100)]

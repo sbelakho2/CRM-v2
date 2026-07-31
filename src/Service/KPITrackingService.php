@@ -65,7 +65,7 @@ class KPITrackingService
      */
     private function getRFQCount(\DateTime $start, \DateTime $end): int
     {
-        return $this->rfqRepository->countBetweenDates($start, $end);
+        return $this->rfqRepository->countSubmittedBetween($start, $end);
     }
 
     /**

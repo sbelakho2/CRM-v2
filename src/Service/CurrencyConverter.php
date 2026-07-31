@@ -75,8 +75,8 @@ class CurrencyConverter
         }
 
         $displayCurrency = $this->currencyPreferenceService->getDisplayCurrency();
-        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency;
-        $from = strtoupper($fallback);
+        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency ?? 'USD';
+        $from = strtoupper((string) $fallback);
         $to = strtoupper($toCurrency ?? $this->currencyPreferenceService->getDisplayCurrency($from));
 
         if ($from === $to) {
@@ -95,8 +95,8 @@ class CurrencyConverter
         }
 
         $displayCurrency = $this->currencyPreferenceService->getDisplayCurrency();
-        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency;
-        $from = strtoupper($fallback);
+        $fallback = $fromCurrency ?? $toCurrency ?? $displayCurrency ?? 'USD';
+        $from = strtoupper((string) $fallback);
         $to = strtoupper($toCurrency ?? $this->currencyPreferenceService->getDisplayCurrency($from));
         $value = $this->convert($amount, $from, $to);
 

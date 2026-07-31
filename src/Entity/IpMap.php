@@ -34,7 +34,7 @@ class IpMap
     #[ORM\Column(length: 2, nullable: true)]
     private ?string $country = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?string $firmographicData = null; // JSON with industry, size, etc.
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
