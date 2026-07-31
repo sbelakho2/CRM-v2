@@ -119,7 +119,7 @@ class AuditLogListener
 
         $metadata = $this->em->getClassMetadata(get_class($entity));
         $identifierValues = $metadata->getIdentifierValues($entity);
-        $entityId = json_encode($identifierValues);
+        $entityId = reset($identifierValues);
 
         if ($entityId) {
             $auditLog->setEntityId($entityId);
