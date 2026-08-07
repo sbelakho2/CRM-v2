@@ -848,7 +848,7 @@ class AutonomousSalesController extends AbstractController
         $profile = $this->personalizationRepository->findByContactId($contactId);
         
         if (!$profile) {
-            return $this->json(['success' => false, 'error' => 'Profile not found'], 404);
+            return $this->json(['success' => false, 'profile' => null, 'message' => 'No profile yet']);
         }
 
         return $this->json([

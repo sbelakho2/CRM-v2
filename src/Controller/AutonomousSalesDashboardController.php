@@ -66,7 +66,8 @@ class AutonomousSalesDashboardController extends AbstractController
         // Total leads in pipeline
         $totalLeads = $leadRepo->createQueryBuilder('l')
             ->select('COUNT(l.id)')
-            ->getQuery()->getSingleScalarResult();
+            ->getQuery()
+            ->getSingleScalarResult();
 
         // Email stats
         $emailSendRepo = $this->entityManager->getRepository(EmailSend::class);
@@ -129,7 +130,7 @@ class AutonomousSalesDashboardController extends AbstractController
         $pipelineValue = $this->entityManager->createQuery(
             'SELECT COALESCE(SUM(q.totalCost), 0) FROM App\Entity\Quote q WHERE q.status IN (:statuses)'
         )->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
-         ->getQuery()->getSingleScalarResult();
+         ->getSingleScalarResult();
 
         // Gather raw arm data from the sampler (backend unchanged)
         $armTypes = [

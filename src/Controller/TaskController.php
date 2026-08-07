@@ -253,6 +253,30 @@ class TaskController extends AbstractController
         return $this->redirectToRoute('app_task_index');
     }
 
+    #[Route('/{id}/toggle', name: 'app_task_toggle', methods: ['POST'])]
+    public function toggle(Request $request, Task $task): Response
+    {
+        if (!$this->canModify($task)) {
+            throw $this->createAccessDeniedException('You cannot modify this task.');
+        }
+
+        if ($this->isCsrfTokenValid('toggle' . $task->getId(), $request->request->get('_token'))) {
+            $isDone = $task->getStatus() === Task::STATUS_DONE;
+            $task->setStatus($isDone ? Task::STATUS_TODO : Task::STATUS_DONE);
+            $task->setCompletedAt($isDone ? null : new \DateTime());
+            $task->setUpdatedAt(new \DateTime());
+            $this->entityManager->flush();
+        }
+
+        // Return to the page the toggle came from (same-host only)
+        $referer = $request->headers->get('referer');
+        if ($referer && str_starts_with($referer, $request->getSchemeAndHttpHost())) {
+            return $this->redirect($referer);
+        }
+
+        return $this->redirectToRoute('app_task_index');
+    }
+
     #[Route('/{id}/complete', name: 'app_task_complete', methods: ['POST'])]
     public function complete(Request $request, Task $task): Response
     {

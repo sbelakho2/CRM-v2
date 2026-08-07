@@ -390,7 +390,7 @@ class QuoteCoPilotController extends AbstractController
 
         $output = fopen('php://temp', 'r+');
         foreach ($csv as $row) {
-            fputcsv($output, $row);
+            fputcsv($output, $row, ',', '"', '\\');
         }
         rewind($output);
         $csvContent = stream_get_contents($output);

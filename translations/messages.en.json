@@ -1403,7 +1403,14 @@
         "save_field": "Save Field",
         "searchable": "Searchable",
         "select_placeholder": "Select...",
-        "title": "Custom Fields"
+        "title": "Custom Fields",
+        "confirm_delete": "Delete this custom field?",
+        "details": "Details",
+        "field_key": "Field key",
+        "placeholder": "Placeholder",
+        "options": "Options",
+        "help_text": "Help text",
+        "description": "Description"
     },
     "dashboard": {
         "active": "Active",
@@ -2263,7 +2270,23 @@
         "no_geographic_data": "No geographic distribution data",
         "actionable_insights": "Actionable Insights",
         "no_actionable_insights": "No actionable insights available",
-        "deny_reason": "Deny reason"
+        "deny_reason": "Deny reason",
+        "stage_new": "New",
+        "stage_contacted": "Contacted",
+        "stage_qualified": "Qualified",
+        "stage_converted": "Converted",
+        "stage_rejected": "Rejected",
+        "legal_name": "Legal name",
+        "emails": "Emails",
+        "contact_form": "Contact form",
+        "lead_url": "Lead URL",
+        "firmographics": "Firmographics",
+        "us_state": "US state",
+        "us_city_metro": "City / metro",
+        "site_location": "Site location",
+        "morocco_signal": "Morocco signal",
+        "quality_stack": "Quality stack",
+        "fit_signals": "Fit signals"
     },
     "lead_discovery": {
         "about_api": "About api",
@@ -3465,7 +3488,8 @@
         "visible_to_all": "Visible to all users",
         "visualization": "Visualization",
         "visualization_help": "Choose how to visualize the data.",
-        "remove": "Remove"
+        "remove": "Remove",
+        "confirm_delete": "Delete this report?"
     },
     "rfq": {
         "actions": {

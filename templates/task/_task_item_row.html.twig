@@ -1,6 +1,7 @@
 <div class="rams-module rams-flex rams-items-center rams-p-4 rams-border-l" style="border-left-width: 4px; border-left-color:  {{ overdue|default(false) ? 'var(--rams-red)'  : 'var(--rams-orange)' }};">   
     <div class="rams-flex-shrink-0 rams-mr-4">
         <form method="post" action="{{ path('app_task_toggle', {id: task.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ task.id) }}">
             <label class="rams-sr-only" for="task-toggle-{{ task.id }}">{{ 'task.complete'|trans }}</label> <input type="checkbox" id="task-toggle-{{ task.id }}" class="rams-checkbox" onchange="this.form.submit()" {{ task.status == 'done' ? 'checked' : '' }}>
         </form>
     </div>

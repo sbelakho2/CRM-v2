@@ -240,7 +240,7 @@
                     info.jsEvent.preventDefault();
                 } else {
                               
-                    window.location.href = '{{ path('calendar_show', {id: '__ID__'}) }}'.replace('__ID__', info.event.id);   
+                    window.location.href = '{{ path('calendar_show', {id: 0}) }}'.replace('/0', '/' + info.event.id);   
                 }
             }
         });

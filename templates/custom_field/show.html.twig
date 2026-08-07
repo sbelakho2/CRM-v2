@@ -1,0 +1,68 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ field.label|default('custom_field.title'|trans) }} — {{ 'custom_field.title'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <nav class="rams-breadcrumb rams-mb-4" aria-label="{{ 'common.breadcrumb'|trans }}">
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('custom_field_index', {entity: field.entityType}) }}" class="rams-breadcrumb__link">{{ 'custom_field.title'|trans }}</a></li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current" aria-current="page">{{ field.label }}</li>
+        </ol>
+    </nav>
+
+    <div class="rams-module rams-mb-6">
+        <div class="rams-module__header rams-flex rams-flex-wrap rams-items-center rams-justify-between rams-gap-3">
+            <div>
+                <h1 class="rams-module__title">{{ field.label }}</h1>
+                <div class="rams-flex rams-items-center rams-gap-2 rams-mt-2">
+                    <span class="rams-badge">{{ field.entityType }}</span>
+                    <span class="rams-badge rams-badge--info">{{ field.fieldType }}</span>
+                    {% if field.isRequired %}
+                        <span class="rams-badge rams-badge--danger">{{ 'custom_field.required'|trans }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="rams-flex rams-items-center rams-gap-2">
+                <a href="{{ path('custom_field_edit', {id: field.id}) }}" class="rams-btn rams-btn--primary">{{ 'common.edit'|trans }}</a>
+                {{ include('custom_field/_delete_form.html.twig', {field: field}) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <h2 class="rams-module__title">{{ 'custom_field.details'|trans }}</h2>
+        </div>
+        <div class="rams-module__content">
+            <div class="rams-mb-3">
+                <div class="rams-dymo">{{ 'custom_field.field_key'|trans }}</div>
+                <div>{{ field.fieldKey }}</div>
+            </div>
+            {% if field.description %}
+                <div class="rams-mb-3">
+                    <div class="rams-dymo">{{ 'custom_field.description'|trans }}</div>
+                    <div>{{ field.description }}</div>
+                </div>
+            {% endif %}
+            <div class="rams-mb-3">
+                <div class="rams-dymo">{{ 'custom_field.placeholder'|trans }}</div>
+                <div>{{ field.placeholder|default('common.n_a'|trans) }}</div>
+            </div>
+            {% if field.options|length > 0 %}
+                <div class="rams-mb-3">
+                    <div class="rams-dymo">{{ 'custom_field.options'|trans }}</div>
+                    <div>
+                        <div class="rams-flex rams-flex-wrap rams-gap-2">
+                            {% for option in field.options %}
+                                <span class="rams-badge">{{ option }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

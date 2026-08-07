@@ -54,7 +54,7 @@
                                    class="rams-block rams-p-2 rams-mb-2 rams-rounded rams-bg-chassis rams-border rams-transition-colors rams-text--xs"
                                    style="border-left: 3px solid {{ event.backgroundColor|default('var(--rams-primary)') }};">
                                     <div class="rams-font-semibold rams-truncate">{{   event.title }}</div>
-                                    <div class="rams-text--muted">{{ event.allDay ? 'calendar.all_day'|trans : event.start|date('H:i') }}</div>
+                                    <div class="rams-text--muted">{{ event.allDay ? 'calendar.all_day'|trans : event.startAt|date('H:i') }}</div>
                                 </a>
                             {% endfor %}
                         </div>

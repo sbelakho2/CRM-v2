@@ -600,7 +600,7 @@ class ReportBuilderService
         
         // Headers
         $headers = array_keys($results[0]);
-        fputcsv($output, $headers);
+        fputcsv($output, $headers, ',', '"', '\\');
         
         // Data
         foreach ($results as $row) {
@@ -616,7 +616,7 @@ class ReportBuilderService
                 }
                 $rowData[] = $value;
             }
-            fputcsv($output, $rowData);
+            fputcsv($output, $rowData, ',', '"', '\\');
         }
         
         rewind($output);

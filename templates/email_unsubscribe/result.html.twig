@@ -11,7 +11,7 @@
         <div class="rams-alert rams-alert--{{ success ? 'success' : 'error' }} rams-mb-4" role="status">
             <div class="rams-alert__content">
                 {{ message == 'email_unsubscribe.success' ? 'email_unsubscribe.success'|trans({}, 'messages') : message|trans }}
-                {% if email %}<br><strong>{{ email }}</strong>{% endif %}
+                {% if email is defined and email %}<br><strong>{{ email }}</strong>{% endif %}
             </div>
         </div>
         <p class="rams-text--muted">{{ 'email_unsubscribe.footer_note'|trans }}</p>

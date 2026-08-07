@@ -9,6 +9,9 @@ parameters:
   admin_email: "%env(default::ADMIN_EMAIL)%"
   default_locale: "%env(default::DEFAULT_LOCALE)%"
   default_timezone: "%env(default::DEFAULT_TIMEZONE)%"
+  # Signing key for public meeting booking/cancellation tokens
+  app.booking_secret_default: 'change-me-booking-secret'
+  app.booking_secret: "%env(default:app.booking_secret_default:APP_BOOKING_SECRET)%"
 
 services:
   # default configuration for services in *this* file

@@ -93,9 +93,10 @@
                     <div class="rams-module__content rams-p-2">
                         <div id="selected-columns" class="rams-builder-dropzone rams-p-2" style="min-height: 100px;">      
                              {% for col in report.columns %}
-                                 <div class="rams-field-item rams-builder-drag" data-field="{{ col.property }}">
-                                    <span>{{ col.label }}</span>
-                                    <input type="hidden" name="columns[]" value="{{ col.property }}">
+                                 {% set colField = col.field is defined ? col.field : col %}
+                                 <div class="rams-field-item rams-builder-drag" data-field="{{ colField }}">
+                                    <span>{{ colField }}</span>
+                                    <input type="hidden" name="columns[]" value="{{ colField }}">
                                     <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()" aria-label="{{ 'report.remove'|trans }}">×</button> 
                                 </div>
                              {% endfor %}
@@ -112,16 +113,17 @@
                     <div class="rams-module__content rams-p-2">
                          <div id="report-filters" class="rams-builder-dropzone rams-p-2" style="min-height: 100px;">      
                             {% for filter in report.filters %}
-                                <div class="rams-field-item rams-builder-drag" data-field="{{ filter.property }}">
+                                {% set filterField = filter.field is defined ? filter.field : filter %}
+                                <div class="rams-field-item rams-builder-drag" data-field="{{ filterField }}">
                                     <div class="rams-flex-1 rams-grid rams-grid--3 rams-gap-2 rams-items-center">
-                                        <span class="rams-text--strong">{{  filter.label }}</span>
-                                        <select name="filters[{{ filter.property }}][operator]" class="rams-form__select">  
+                                        <span class="rams-text--strong">{{ filterField }}</span>
+                                        <select name="filters[{{ filterField }}][operator]" class="rams-form__select">  
                                             <option value="equals" {{ filter.operator == 'equals' ? 'selected' : '' }}>{{ 'report.equals'|trans }}</option>
                                             <option value="contains" {{ filter.operator == 'contains' ? 'selected' : '' }}>{{ 'report.contains'|trans }}</option>
                                             <option value="gt" {{ filter.operator == 'gt' ? 'selected' : '' }}>{{ 'report.greater_than'|trans }}</option>
                                             <option value="lt" {{ filter.operator == 'lt' ? 'selected' : '' }}>{{ 'report.less_than'|trans }}</option>
                                         </select>
-                                        <input type="text" name="filters[{{ filter.property }}][value]" value="{{ filter.value }}" class="rams-form__input"   placeholder="{{ 'report.value'|trans }}">
+                                        <input type="text" name="filters[{{ filterField }}][value]" value="{{ filter.value|default('') }}" class="rams-form__input"   placeholder="{{ 'report.value'|trans }}">
                                     </div>
                                     <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()" aria-label="{{ 'report.remove'|trans }}">×</button> 
                                 </div>
@@ -137,11 +139,12 @@
                     </div>
                     <div class="rams-module__content rams-p-2">
                         <div id="report-sorting" class="rams-builder-dropzone rams-p-2" style="min-height: 80px;">      
-                             {% for sort in report.sorting %}
-                                <div class="rams-field-item rams-builder-drag" data-field="{{ sort.property }}">
+                             {% for sort in report.orderBy %}
+                                {% set sortField = sort.field is defined ? sort.field : sort %}
+                                <div class="rams-field-item rams-builder-drag" data-field="{{ sortField }}">
                                     <div class="rams-flex-1 rams-flex rams-items-center rams-justify-between rams-gap-2"> 
-                                        <span>{{ sort.label }}</span>
-                                        <select name="sorting[{{ sort.property }}]" class="rams-form__select">   
+                                        <span>{{ sortField }}</span>
+                                        <select name="sorting[{{ sortField }}]" class="rams-form__select">   
                                             <option value="asc" {{ sort.direction == 'asc' ? 'selected' : '' }}>{{ 'report.ascending'|trans }}</option>
                                             <option value="desc" {{ sort.direction == 'desc' ? 'selected' : '' }}>{{ 'report.descending'|trans }}</option>
                                         </select>

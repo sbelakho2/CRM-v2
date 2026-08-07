@@ -510,4 +510,11 @@ class LeadController extends AbstractController
         }
         return $value;
     }
+    #[Route('/{id}', name: 'app_lead_show', methods: ['GET'])]
+    public function show(Lead $lead): Response
+    {
+        return $this->render('lead/show.html.twig', [
+            'lead' => $lead,
+        ]);
+    }
 }

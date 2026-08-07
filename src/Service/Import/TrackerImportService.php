@@ -273,7 +273,7 @@ class TrackerImportService
         ];
 
         $handle = fopen($outputPath, 'w');
-        fputcsv($handle, $headers);
+        fputcsv($handle, $headers, ',', '"', '\\');
         
         // Add example row
         $example = [
@@ -292,7 +292,7 @@ class TrackerImportService
             'john.doe@example.com',
             'Tier 1 automotive supplier'
         ];
-        fputcsv($handle, $example);
+        fputcsv($handle, $example, ',', '"', '\\');
         
         fclose($handle);
 

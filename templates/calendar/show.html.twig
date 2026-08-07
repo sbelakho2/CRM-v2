@@ -71,10 +71,10 @@
                     <div class="rams-module__content">
                          <div class="rams-stat-card rams-mb-4" style="border-left: 4px solid {{ event.backgroundColor|default('var(--rams-steel)') }}">
                             <div class="rams-stat-card__value" style="font-size: 1.25rem;">
-                                {{ event.start ? event.start|date('M j, Y') : '' }}
+                                {{ event.startAt ? event.startAt|date('M j, Y') : '' }}
                             </div>
                             <div class="rams-stat-card__label">
-                                {{ event.start ? event.start|date('H:i') : '' }} - {{ event.end ? event.end|date('H:i') : '' }}
+                                {{ event.startAt ? event.startAt|date('H:i') : '' }} - {{ event.endAt ? event.endAt|date('H:i') : '' }}
                             </div>
                          </div>
 
@@ -90,8 +90,8 @@
                             <div class="rams-definition-list__item"> 
                                 <dt class="rams-definition-list__term">{{  'calendar.link'|trans }}</dt>
                                 <dd class="rams-definition-list__desc"> 
-                                    {% if event.url %}
-                                        <a href="{{ event.url }}" target="_blank" class="rams-link">{{ 'calendar.open_link'|trans }}</a>
+                                    {% if event.meetingUrl %}
+                                        <a href="{{ event.meetingUrl }}" target="_blank" class="rams-link">{{ 'calendar.open_link'|trans }}</a>
                                     {% else %}
                                         -
                                     {% endif %}

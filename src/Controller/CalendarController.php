@@ -68,25 +68,31 @@ class CalendarController extends AbstractController
             $this->getUser()
         );
 
-        $payload = array_map(static function (CalendarEvent $event): array {
+        $payload = array_map(static function (array $event): array {
             $eventData = [
-                'id' => $event->getId(),
-                'title' => $event->getTitle() ?? '',
-                'start' => $event->getStartAt()?->format(\DateTimeInterface::ATOM),
-                'allDay' => $event->isAllDay(),
+                'id' => $event['id'],
+                'title' => $event['title'] ?? '',
+                'start' => $event['start'] ?? null,
+                'allDay' => $event['allDay'] ?? false,
                 'url' => null,
                 'extendedProps' => [
-                    'description' => $event->getDescription(),
-                    'location' => $event->getLocation(),
+                    'description' => $event['description'] ?? null,
+                    'location' => $event['location'] ?? null,
                 ],
             ];
 
-            if (!$event->isAllDay() && $event->getEndAt()) {
-                $eventData['end'] = $event->getEndAt()->format(\DateTimeInterface::ATOM);
+            if (!empty($event['end'])) {
+                $eventData['end'] = $event['end'];
             }
 
-            if ($event->getColor()) {
-                $eventData['backgroundColor'] = $event->getColor();
+            if (!empty($event['color'])) {
+                $eventData['backgroundColor'] = $event['color'];
+            }
+            if (!empty($event['borderColor'])) {
+                $eventData['borderColor'] = $event['borderColor'];
+            }
+            if (!empty($event['textColor'])) {
+                $eventData['textColor'] = $event['textColor'];
             }
 
             return $eventData;

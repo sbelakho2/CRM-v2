@@ -1403,7 +1403,14 @@
         "save_field": "حفظ الحقل",
         "searchable": "قابل للبحث",
         "select_placeholder": "اختر...",
-        "title": "الحقول المخصصة"
+        "title": "الحقول المخصصة",
+        "confirm_delete": "حذف هذا الحقل المخصص؟",
+        "details": "التفاصيل",
+        "field_key": "مفتاح الحقل",
+        "placeholder": "النص التوضيحي",
+        "options": "الخيارات",
+        "help_text": "نص المساعدة",
+        "description": "الوصف"
     },
     "dashboard": {
         "active": "\\u0646\\u0634\\u0637",
@@ -2263,7 +2270,23 @@
         "no_geographic_data": "لا تتوفر بيانات التوزيع الجغرافي",
         "actionable_insights": "رؤى قابلة للتنفيذ",
         "no_actionable_insights": "لا تتوفر رؤى قابلة للتنفيذ",
-        "deny_reason": "سبب الرفض"
+        "deny_reason": "سبب الرفض",
+        "stage_new": "جديد",
+        "stage_contacted": "تم التواصل",
+        "stage_qualified": "مؤهل",
+        "stage_converted": "تم التحويل",
+        "stage_rejected": "مرفوض",
+        "legal_name": "الاسم القانوني",
+        "emails": "البريد الإلكتروني",
+        "contact_form": "نموذج التواصل",
+        "lead_url": "رابط العميل المحتمل",
+        "firmographics": "البيانات التعريفية",
+        "us_state": "الولاية الأمريكية",
+        "us_city_metro": "المدينة / المنطقة الحضرية",
+        "site_location": "موقع المنشأة",
+        "morocco_signal": "إشارة المغرب",
+        "quality_stack": "الشهادات",
+        "fit_signals": "إشارات الملاءمة"
     },
     "lead_discovery": {
         "about_api": "حول واجهة البرمجة",
@@ -3465,7 +3488,8 @@
         "visible_to_all": "مرئي لجميع المستخدمين",
         "visualization": "العرض البصري",
         "visualization_help": "اختر كيفية عرض البيانات بصرياً.",
-        "remove": "إزالة"
+        "remove": "إزالة",
+        "confirm_delete": "حذف هذا التقرير؟"
     },
     "rfq": {
         "actions": {

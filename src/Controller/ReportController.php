@@ -112,6 +112,16 @@ class ReportController extends AbstractController
         }
         
         $fields = $this->reportBuilder->getFieldsForSource($report->getDataSource());
+
+        // Flat list of {property, label, type} entries for the builder palette
+        $availableFields = [];
+        foreach ($fields as $property => $field) {
+            $availableFields[] = [
+                'property' => $property,
+                'label' => $field['label'] ?? $property,
+                'type' => $field['type'] ?? 'string',
+            ];
+        }
         
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('report_builder', $request->request->get('_token'))) {
@@ -207,6 +217,7 @@ class ReportController extends AbstractController
         return $this->render('report/builder.html.twig', [
             'report' => $report,
             'fields' => $fields,
+            'availableFields' => $availableFields,
             'aggregations' => ReportDefinition::getAggregationTypes(),
             'dateRangePresets' => ReportDefinition::getDateRangePresets(),
             'previewResults' => $previewResults,

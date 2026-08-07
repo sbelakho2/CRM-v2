@@ -1403,7 +1403,14 @@
         "save_field": "Enregistrer le champ",
         "searchable": "Recherchable",
         "select_placeholder": "Sélectionner...",
-        "title": "Champs personnalisés"
+        "title": "Champs personnalisés",
+        "confirm_delete": "Supprimer ce champ personnalisé ?",
+        "details": "Détails",
+        "field_key": "Clé du champ",
+        "placeholder": "Espace réservé",
+        "options": "Options",
+        "help_text": "Texte d'aide",
+        "description": "Description"
     },
     "dashboard": {
         "active": "Actif",
@@ -2263,7 +2270,23 @@
         "no_geographic_data": "Aucune donnée de répartition géographique",
         "actionable_insights": "Actions à mener",
         "no_actionable_insights": "Aucune action à mener disponible",
-        "deny_reason": "Motif du refus"
+        "deny_reason": "Motif du refus",
+        "stage_new": "Nouveau",
+        "stage_contacted": "Contacté",
+        "stage_qualified": "Qualifié",
+        "stage_converted": "Converti",
+        "stage_rejected": "Rejeté",
+        "legal_name": "Nom légal",
+        "emails": "E-mails",
+        "contact_form": "Formulaire de contact",
+        "lead_url": "URL du prospect",
+        "firmographics": "Firmographie",
+        "us_state": "État américain",
+        "us_city_metro": "Ville / métropole",
+        "site_location": "Emplacement du site",
+        "morocco_signal": "Signal Maroc",
+        "quality_stack": "Certifications",
+        "fit_signals": "Signaux d'adéquation"
     },
     "lead_discovery": {
         "about_api": "À propos de l’API",
@@ -3465,7 +3488,8 @@
         "visible_to_all": "Visible par tous les utilisateurs",
         "visualization": "Visualisation",
         "visualization_help": "Choisissez comment visualiser les données.",
-        "remove": "Supprimer"
+        "remove": "Supprimer",
+        "confirm_delete": "Supprimer ce rapport ?"
     },
     "rfq": {
         "actions": {

@@ -66,12 +66,12 @@
                              <div style="padding: 0.5rem; position: relative;">
                                   <!-- Slots for events in this hour -->
                                   {% for event in events %}
-                                     {% if event.start|date('H') == hour and not event.allDay %}
+                                     {% if event.startAt|date('H') == hour and not event.allDay %}
                                         <a href="{{ path('calendar_show', {id: event.id}) }}" 
                                            class="rams-block rams-p-2 rams-mb-1 rams-rounded rams-bg-module rams-border rams-text--sm"  
                                            style="border-left: 4px solid rgba(0,0,0,0.2);">
                                            <div class="rams-text--bold">{{ event.title }}</div>
-                                           <div class="rams-text--xs rams-opacity-75">{{  event.start|date('H:i') }} - {{ event.end|date('H:i') }}</div>
+                                           <div class="rams-text--xs rams-opacity-75">{{  event.startAt|date('H:i') }} - {{ event.endAt|date('H:i') }}</div>
                                         </a>
                                      {% endif %}
                                   {% endfor %}

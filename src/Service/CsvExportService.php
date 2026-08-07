@@ -77,7 +77,7 @@ class CsvExportService
             
             // Write header row
             $headers = array_map(fn($f) => $availableFields[$f] ?? $f, $exportFields);
-            fputcsv($handle, $headers);
+            fputcsv($handle, $headers, ',', '"', '\\');
             
             // Build query
             $qb = $this->leadRepository->createQueryBuilder('l');
@@ -125,7 +125,7 @@ class CsvExportService
             
             foreach ($leads as $lead) {
                 $row = $this->leadToRow($lead, $exportFields);
-                fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row));
+                fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row), ',', '"', '\\');
             }
             
             fclose($handle);
@@ -177,7 +177,7 @@ class CsvExportService
             $headers[] = 'Price Source URL';
             $headers[] = 'Notes';
             
-            fputcsv($handle, $headers);
+            fputcsv($handle, $headers, ',', '"', '\\');
             
             // Export BOM lines
             foreach ($quote->getBomLines() as $line) {
@@ -232,18 +232,18 @@ class CsvExportService
                 $row[] = $line->getPriceSourceUrl();
                 $row[] = $line->getManualNotes();
                 
-                fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row));
+                fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row), ',', '"', '\\');
             }
             
             // Add summary rows
-            fputcsv($handle, []); // Empty row
-            fputcsv($handle, ['Summary']);
-            fputcsv($handle, ['Total Lines', count($quote->getBomLines())]);
-            fputcsv($handle, ['Total Cost', $quote->getTotalCost()]);
-            fputcsv($handle, ['Coverage %', $quote->getCoveragePercent()]);
-            fputcsv($handle, ['Quote Number', $quote->getQuoteNumber()]);
-            fputcsv($handle, ['Status', $quote->getStatus()]);
-            fputcsv($handle, ['Exported', date('Y-m-d H:i:s')]);
+            fputcsv($handle, [], ',', '"', '\\'); // Empty row
+            fputcsv($handle, ['Summary'], ',', '"', '\\');
+            fputcsv($handle, ['Total Lines', count($quote->getBomLines())], ',', '"', '\\');
+            fputcsv($handle, ['Total Cost', $quote->getTotalCost()], ',', '"', '\\');
+            fputcsv($handle, ['Coverage %', $quote->getCoveragePercent()], ',', '"', '\\');
+            fputcsv($handle, ['Quote Number', $quote->getQuoteNumber()], ',', '"', '\\');
+            fputcsv($handle, ['Status', $quote->getStatus()], ',', '"', '\\');
+            fputcsv($handle, ['Exported', date('Y-m-d H:i:s')], ',', '"', '\\');
             
             fclose($handle);
         });
@@ -268,7 +268,7 @@ class CsvExportService
                 'Source', 'Unit Price', 'Extended Price', 'Confidence',
                 'Lifecycle Warning', 'Has Alternatives', 'Alt Count'
             ];
-            fputcsv($handle, $headers);
+            fputcsv($handle, $headers, ',', '"', '\\');
             
             foreach ($quoteIds as $quoteId) {
                 $quote = $this->quoteRepository->find($quoteId);
@@ -289,7 +289,7 @@ class CsvExportService
                         $line->hasAlternatives() ? 'Yes' : 'No',
                         $line->getAlternativeCount(),
                     ];
-                    fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row));
+                    fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row), ',', '"', '\\');
                 }
             }
             
@@ -322,14 +322,14 @@ class CsvExportService
                 'us_city_metro' => $lead->getUsCityMetro(),
                 'sectors' => implode(', ', $lead->getSectorTags() ?? []),
                 'fit_signals' => $this->formatJsonField($lead->getFitSignals()),
-                'morocco_signal' => $lead->isMoroccoSignal() ? 'Yes' : 'No',
+                'morocco_signal' => $lead->getMoroccoSignal() ? 'Yes' : 'No',
                 'quality_stack' => implode(', ', $lead->getQualityStack() ?? []),
                 'emails' => implode(', ', $lead->getContactEmailsPublic() ?? []),
                 'has_contact_form' => $lead->hasContactForm() ? 'Yes' : 'No',
                 'contact_form_url' => $lead->getContactFormUrl(),
                 'supplier_portal_url' => $lead->getSupplierPortalUrl(),
                 'rfq_page_url' => $lead->getRfqRfpPageUrl(),
-                'defense_flag' => $lead->isDefenseFlag() ? 'Yes' : 'No',
+                'defense_flag' => $lead->getDefenseFlag() ? 'Yes' : 'No',
                 'lead_score' => $lead->getLeadScore(),
                 'review_status' => $lead->getReviewStatus(),
                 'scraping_method' => $lead->getScrapingMethod(),

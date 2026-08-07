@@ -28,7 +28,7 @@ class OnboardingPack
     private ?Company $company = null;
 
     #[ORM\ManyToOne(targetEntity: PortalCandidate::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?PortalCandidate $portalCandidate = null;
 
     #[ORM\Column(length: 50)]

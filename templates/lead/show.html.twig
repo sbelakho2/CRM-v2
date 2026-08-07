@@ -1,0 +1,271 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ lead.companyName|default('lead.title'|trans) }} — {{ 'lead.title'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-page">
+    <nav class="rams-breadcrumb rams-mb-4" aria-label="{{ 'common.breadcrumb'|trans }}">
+        <ol class="rams-breadcrumb__list">
+            <li class="rams-breadcrumb__item"><a href="{{ path('app_lead_index') }}" class="rams-breadcrumb__link">{{ 'lead.title'|trans }}</a></li>
+            <li class="rams-breadcrumb__item rams-breadcrumb__item--current" aria-current="page">{{ lead.companyName|default('common.n_a'|trans) }}</li>
+        </ol>
+    </nav>
+
+    <div class="rams-module rams-mb-6">
+        <div class="rams-module__header rams-flex rams-flex-wrap rams-items-center rams-justify-between rams-gap-3">
+            <div>
+                <h1 class="rams-module__title">{{ lead.companyName|default('common.n_a'|trans) }}</h1>
+                <div class="rams-flex rams-items-center rams-gap-2 rams-mt-2">
+                    {% if lead.defenseFlag %}
+                        <span class="rams-badge rams-badge--danger">{{ 'lead.defense'|trans }}</span>
+                    {% endif %}
+                    <span class="rams-badge">{{ ('lead.status_' ~ lead.reviewStatus)|trans }}</span>
+                    {% if lead.nurturingStage %}
+                        <span class="rams-badge">{{ ('lead.stage_' ~ lead.nurturingStage)|trans }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="rams-flex rams-items-center rams-gap-2">
+                {% if lead.reviewStatus == 'pending' %}
+                    <button type="button" class="rams-btn rams-btn--primary" onclick="approveLead({{ lead.id }})">{{ 'lead.approve'|trans }}</button>
+                    <button type="button" class="rams-btn rams-btn--danger" onclick="denyLead({{ lead.id }})">{{ 'lead.deny'|trans }}</button>
+                {% endif %}
+                {% if lead.reviewStatus == 'approved' %}
+                    <button type="button" class="rams-btn rams-btn--primary" onclick="convertLead({{ lead.id }})">{{ 'lead.convert_to_company'|trans }}</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="rams-grid rams-grid--4 rams-gap-3 rams-mb-6">
+        <div class="rams-module rams-module--inset">
+            <div class="rams-metric">
+                <div class="rams-metric__label">{{ 'lead.score'|trans }}</div>
+                <div class="rams-metric__value {% if lead.leadScore is not null and lead.leadScore >= 70 %}rams-text--success{% elseif lead.leadScore is not null and lead.leadScore >= 40 %}rams-text--info{% endif %}">{{ lead.leadScore ?? 'common.n_a'|trans }}</div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--inset">
+            <div class="rams-metric">
+                <div class="rams-metric__label">{{ 'lead.region'|trans }}</div>
+                <div class="rams-metric__value rams-text--sm">{{ lead.regionTag|default('common.n_a'|trans) }}</div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--inset">
+            <div class="rams-metric">
+                <div class="rams-metric__label">{{ 'lead.source'|trans }}</div>
+                <div class="rams-metric__value rams-text--sm">{{ lead.source|default('common.n_a'|trans) }}</div>
+            </div>
+        </div>
+        <div class="rams-module rams-module--inset">
+            <div class="rams-metric">
+                <div class="rams-metric__label">{{ 'lead.created_at'|trans }}</div>
+                <div class="rams-metric__value rams-text--sm">{{ lead.createdAt ? lead.createdAt|date('Y-m-d') : 'common.n_a'|trans }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rams-grid rams-grid--2 rams-gap-4">
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'lead.contact_info'|trans }}</h2>
+            </div>
+            <div class="rams-module__content">
+                <div class="rams-mb-3">
+                    <div class="rams-dymo">{{ 'lead.company_name'|trans }}</div>
+                    <div>{{ lead.companyName|default('common.n_a'|trans) }}</div>
+                </div>
+                {% if lead.legalName %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.legal_name'|trans }}</div>
+                        <div>{{ lead.legalName }}</div>
+                    </div>
+                {% endif %}
+                {% if lead.websiteRoot %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.website'|trans }}</div>
+                        <div><a href="{{ lead.websiteRoot }}" target="_blank" rel="noopener noreferrer" class="rams-link">{{ lead.websiteRoot }}</a></div>
+                    </div>
+                {% endif %}
+                {% if lead.contactEmailsPublic|length > 0 %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.emails'|trans }}</div>
+                        <div>
+                            {% for email in lead.contactEmailsPublic %}
+                                <div><a href="mailto:{{ email }}" class="rams-link">{{ email }}</a></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+                {% if lead.contactFormUrl %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.contact_form'|trans }}</div>
+                        <div><a href="{{ lead.contactFormUrl }}" target="_blank" rel="noopener noreferrer" class="rams-link">{{ lead.contactFormUrl }}</a></div>
+                    </div>
+                {% endif %}
+                {% if lead.leadUrl %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.lead_url'|trans }}</div>
+                        <div><a href="{{ lead.leadUrl }}" target="_blank" rel="noopener noreferrer" class="rams-link">{{ lead.leadUrl }}</a></div>
+                    </div>
+                {% endif %}
+                {% if lead.supplierPortalUrl %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.supplier_portal'|trans }}</div>
+                        <div><a href="{{ lead.supplierPortalUrl }}" target="_blank" rel="noopener noreferrer" class="rams-link">{{ lead.supplierPortalUrl }}</a></div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="rams-module">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'lead.firmographics'|trans }}</h2>
+            </div>
+            <div class="rams-module__content">
+                {% if lead.usState %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.us_state'|trans }}</div>
+                        <div>{{ lead.usState }}</div>
+                    </div>
+                {% endif %}
+                {% if lead.usCityMetro %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.us_city_metro'|trans }}</div>
+                        <div>{{ lead.usCityMetro }}</div>
+                    </div>
+                {% endif %}
+                {% if lead.siteLocation %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.site_location'|trans }}</div>
+                        <div>{{ lead.siteLocation }}</div>
+                    </div>
+                {% endif %}
+                {% if lead.moroccoSignal %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.morocco_signal'|trans }}</div>
+                        <div>{{ 'common.yes'|trans }}</div>
+                    </div>
+                {% endif %}
+                {% if lead.sectorTags|length > 0 %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.sectors'|trans }}</div>
+                        <div>
+                            <div class="rams-flex rams-flex-wrap rams-gap-2">
+                                {% for sector in lead.sectorTags %}
+                                    <span class="rams-badge">{{ sector }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+                {% if lead.qualityStack|length > 0 %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.quality_stack'|trans }}</div>
+                        <div>
+                            <div class="rams-flex rams-flex-wrap rams-gap-2">
+                                {% for cert in lead.qualityStack %}
+                                    <span class="rams-badge">{{ cert }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+                {% if lead.fitSignals|length > 0 %}
+                    <div class="rams-mb-3">
+                        <div class="rams-dymo">{{ 'lead.fit_signals'|trans }}</div>
+                        <div>
+                            <div class="rams-flex rams-flex-wrap rams-gap-2">
+                                {% for signal, needed in lead.fitSignals %}
+                                    {% if needed %}
+                                        <span class="rams-badge rams-badge--success">{{ signal }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if lead.description or lead.notesAuto %}
+        <div class="rams-module rams-mt-4">
+            <div class="rams-module__header">
+                <h2 class="rams-module__title">{{ 'lead.notes'|trans }}</h2>
+            </div>
+            <div class="rams-module__content">
+                {% if lead.description %}<p>{{ lead.description }}</p>{% endif %}
+                {% if lead.notesAuto %}<p class="rams-text--muted">{{ lead.notesAuto }}</p>{% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ parent() }}
+<script>
+    function leadActionUrl(action, id) {
+        var urls = {
+            approve: "{{ path('app_lead_approve', {id: 0}) }}".replace('/0', '/' + id),
+            deny: "{{ path('app_lead_deny', {id: 0}) }}".replace('/0', '/' + id),
+            convert: "{{ path('app_lead_convert', {id: 0}) }}".replace('/0', '/' + id)
+        };
+        return urls[action];
+    }
+
+    function postLeadAction(action, id) {
+        var csrf = "{{ csrf_token('lead_action_' ~ lead.id) }}";
+        fetch(leadActionUrl(action, id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrf
+            },
+            body: JSON.stringify({})
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                if (!response.ok || !data.success) {
+                    ramsAlert(data.message || '{{ 'common.error'|trans }}', {title: '{{ 'common.error'|trans }}'});
+                    return;
+                }
+                window.location.reload();
+            });
+        }).catch(function () {
+            ramsAlert('{{ 'lead.convert_error'|trans }}', {title: '{{ 'common.error'|trans }}'});
+        });
+    }
+
+    function approveLead(id) {
+        ramsConfirm('{{ 'lead.confirm_approve'|trans }}', function () { postLeadAction('approve', id); }, {variant: 'warning'});
+    }
+
+    function denyLead(id) {
+        ramsPrompt('{{ 'lead.deny_reason_prompt'|trans }}', function (reason) {
+            var csrf = "{{ csrf_token('lead_action_' ~ lead.id) }}";
+            fetch(leadActionUrl('deny', id), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrf
+                },
+                body: JSON.stringify({reason: reason})
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    if (!response.ok || !data.success) {
+                        ramsAlert(data.message || '{{ 'common.error'|trans }}', {title: '{{ 'common.error'|trans }}'});
+                        return;
+                    }
+                    window.location.reload();
+                });
+            }).catch(function () {
+                ramsAlert('{{ 'common.error'|trans }}', {title: '{{ 'common.error'|trans }}'});
+            });
+        }, {inputLabel: '{{ 'lead.deny_reason_prompt'|trans }}'});
+    }
+
+    function convertLead(id) {
+        ramsConfirm('{{ 'lead.confirm_convert'|trans }}', function () { postLeadAction('convert', id); }, {variant: 'warning'});
+    }
+</script>
+{% endblock %}

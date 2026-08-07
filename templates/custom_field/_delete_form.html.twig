@@ -1,0 +1,4 @@
+<form method="post" action="{{ path('custom_field_delete', {'id': field.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'custom_field.confirm_delete'|trans }}', {variant: 'danger'})">
+    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ field.id) }}">
+    <button type="submit" class="rams-btn rams-btn--danger">{{ 'common.delete'|trans }}</button>
+</form>
