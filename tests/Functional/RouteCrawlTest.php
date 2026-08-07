@@ -394,6 +394,15 @@ class RouteCrawlTest extends WebTestCase
         }
     }
 
+    public function testNoRouteReturns500OrUnexpected404Anonymously(): void
+    {
+        $urls = $this->buildUrls();
+        $failures = [];
+        $this->crawl($urls, $failures, []);
+
+        $this->assertSame([], $failures, 'Routes failing anonymously: ' . json_encode($failures));
+    }
+
     public function testNoRouteReturns500OrUnexpected404AsRegularUser(): void
     {
         $user = $this->entityManager->getRepository(User::class)->findOneBy(['email' => 'crawl@example.com']);
@@ -404,6 +413,51 @@ class RouteCrawlTest extends WebTestCase
         $this->crawl($urls, $failures, []);
 
         $this->assertSame([], $failures, 'Routes failing as ROLE_USER: ' . json_encode($failures));
+    }
+
+    public function testPostRoutesResolveWithoutErrors(): void
+    {
+        $user = $this->entityManager->getRepository(User::class)->findOneBy(['email' => 'crawl@example.com']);
+        $this->client->loginUser($user);
+
+        $router = self::getContainer()->get('router');
+        $failures = [];
+        foreach ($router->getRouteCollection() as $name => $route) {
+            $methods = $route->getMethods();
+            if ($methods === [] || !in_array('POST', $methods, true)) {
+                continue;
+            }
+            $path = $route->getPath();
+            if (!preg_match_all('/\{(\w+)\}/', $path, $m)) {
+                $url = $path;
+            } else {
+                $substitutions = $this->substitute($m[1], $name);
+                if ($substitutions === null) {
+                    continue;
+                }
+                $url = $path;
+                $query = [];
+                foreach ($substitutions as $param => $value) {
+                    if (str_contains($path, '{' . $param . '}')) {
+                        $url = str_replace('{' . $param . '}', (string) $value, $url);
+                    } else {
+                        $query[$param] = $value;
+                    }
+                }
+                if ($query !== []) {
+                    $url .= '?' . http_build_query($query);
+                }
+            }
+            // No CSRF token: the request must be rejected cleanly (4xx/3xx),
+            // never 500, and the route must exist (never 404).
+            $this->client->request('POST', $url, [], [], ['CONTENT_TYPE' => 'application/json'], '{}');
+            $status = $this->client->getResponse()->getStatusCode();
+            if ($status === 500 || $status === 404) {
+                $failures[$name] = $status;
+            }
+        }
+
+        $this->assertSame([], $failures, 'POST routes failing: ' . json_encode($failures));
     }
 
     public function testNoRouteReturns500OrUnexpected404AsAdmin(): void
