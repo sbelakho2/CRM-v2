@@ -130,6 +130,78 @@ class PricingEngineTest extends TestCase
         $this->assertNotNull($result);
     }
 
+    public function testGetPricingMemoizesIdenticalInput(): void
+    {
+        $multiResult = [
+            'selected' => ['mpn' => 'MEMO-1', 'unit_price' => 5.00, 'confidence' => ['level' => 'HIGH', 'score' => 95]],
+            'source' => 'mouser',
+            'alternatives' => [],
+            'waterfall_triggered' => false,
+            'waterfall_reason' => null,
+            'all_sources' => ['mouser' => true],
+        ];
+
+        // The underlying source must be hit exactly once for identical input
+        $this->multiDistributor->expects($this->once())
+            ->method('searchPart')
+            ->willReturn($multiResult);
+
+        $first = $this->engine->getPricing('MEMO-1');
+        $second = $this->engine->getPricing('MEMO-1');
+
+        $this->assertNotNull($first);
+        $this->assertSame($first['source'], $second['source']);
+        $this->assertSame($first['mpn'], $second['mpn']);
+    }
+
+    public function testGetPricingMemoRespectsOptions(): void
+    {
+        $multiResult = [
+            'selected' => ['mpn' => 'MEMO-2', 'unit_price' => 5.00, 'confidence' => ['level' => 'HIGH', 'score' => 95]],
+            'source' => 'mouser',
+            'alternatives' => [],
+            'waterfall_triggered' => false,
+            'waterfall_reason' => null,
+            'all_sources' => ['mouser' => true],
+        ];
+
+        $this->multiDistributor->expects($this->exactly(2))
+            ->method('searchPart')
+            ->willReturn($multiResult);
+
+        // Different providers option = different input = no memo hit
+        $this->engine->getPricing('MEMO-2', null, null, ['providers' => ['mouser']]);
+        $this->engine->getPricing('MEMO-2', null, null, ['providers' => ['digikey']]);
+    }
+
+    public function testGetPricingMemoIsPerPartNumber(): void
+    {
+        $this->multiDistributor->expects($this->exactly(2))
+            ->method('searchPart')
+            ->willReturn([
+                'selected' => ['mpn' => 'X', 'unit_price' => 1.0, 'confidence' => ['level' => 'HIGH', 'score' => 90]],
+                'source' => 'mouser',
+                'alternatives' => [],
+                'waterfall_triggered' => false,
+                'waterfall_reason' => null,
+                'all_sources' => ['mouser' => true],
+            ]);
+
+        $this->engine->getPricing('PART-A');
+        $this->engine->getPricing('PART-B');
+    }
+
+    public function testGetPricingFromSourceMemoizes(): void
+    {
+        $expected = ['mpn' => 'SRC-1', 'source' => 'mouser'];
+        $this->mouserClient->expects($this->once())
+            ->method('searchByPartNumber')
+            ->willReturn($expected);
+
+        $this->engine->getPricingFromSource('SRC-1', 'mouser');
+        $this->engine->getPricingFromSource('SRC-1', 'mouser');
+    }
+
     // ── getPricingFromSource() tests ──
     // getPricingFromSource() uses match() to call individual client searchByPartNumber()
 

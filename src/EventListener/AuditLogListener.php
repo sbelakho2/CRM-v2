@@ -14,9 +14,12 @@ use App\Entity\Quote;
 use App\Entity\RFQ;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostPersistEventArgs;
-use Doctrine\ORM\Event\PreRemoveEventArgs;
-use Doctrine\ORM\Event\PreUpdateEventArgs;
+use Doctrine\ORM\Event\PostFlushEventArgs;
+use Doctrine\ORM\UnitOfWork;
+
+
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -52,6 +55,12 @@ class AuditLogListener
         private RequestStack $requestStack
     ) {}
 
+    /**
+     * Audits INSERTs. Runs after the entity's ID is assigned, so the audit
+     * row can reference it. The audit log is persisted with a computed
+     * change set; because this flush's insert order is already fixed, it is
+     * written by the conditional postFlush flush below.
+     */
     public function postPersist(PostPersistEventArgs $args): void
     {
         $entity = $args->getObject();
@@ -60,35 +69,62 @@ class AuditLogListener
             return;
         }
 
-        $this->em->persist($this->createAuditLog('create', $entity));
+        $this->scheduleAuditLog($args->getObjectManager()->getUnitOfWork(), 'create', $entity);
     }
 
-    public function preUpdate(PreUpdateEventArgs $args): void
+    /**
+     * Audits UPDATEs and DELETEs. Both fire with the entity's identifier
+     * intact, and entities persisted here are inserted in the SAME flush
+     * (the insert execution order is computed after onFlush).
+     */
+    public function onFlush(OnFlushEventArgs $args): void
     {
-        $entity = $args->getObject();
+        $uow = $args->getObjectManager()->getUnitOfWork();
 
-        if (!$this->shouldAudit($entity)) {
-            return;
+        foreach ($uow->getScheduledEntityUpdates() as $entity) {
+            if (!$this->shouldAudit($entity)) {
+                continue;
+            }
+            $changeSet = $uow->getEntityChangeSet($entity);
+            if (empty($changeSet)) {
+                continue;
+            }
+            $this->scheduleAuditLog($uow, 'update', $entity, $changeSet);
         }
 
-        $changeSet = $args->getEntityChangeSet();
-
-        if (empty($changeSet)) {
-            return;
+        foreach ($uow->getScheduledEntityDeletions() as $entity) {
+            if ($this->shouldAudit($entity)) {
+                $this->scheduleAuditLog($uow, 'delete', $entity);
+            }
         }
-
-        $this->em->persist($this->createAuditLog('update', $entity, $changeSet));
     }
 
-    public function preRemove(PreRemoveEventArgs $args): void
+    /**
+     * Writes any audit entries that could not be inserted during the flush
+     * that triggered them (create entries persisted in postPersist land
+     * after the insert order is fixed). This flush only runs when audit
+     * entries are actually pending — plain write requests pay nothing.
+     */
+    public function postFlush(PostFlushEventArgs $args): void
     {
-        $entity = $args->getObject();
-
-        if (!$this->shouldAudit($entity)) {
+        $uow = $args->getObjectManager()->getUnitOfWork();
+        if (empty($uow->getScheduledEntityInsertions())) {
             return;
         }
+        $this->em->flush();
+    }
 
-        $this->em->persist($this->createAuditLog('delete', $entity));
+    /**
+     * Persist an audit entry and compute its change set so the INSERT is
+     * built with real data in the current flush. Entities persisted inside
+     * lifecycle events are otherwise inserted with an empty change set,
+     * which produces an unparameterised INSERT and a MySQL syntax error.
+     */
+    private function scheduleAuditLog(UnitOfWork $uow, string $action, object $entity, array $changeSet = []): void
+    {
+        $auditLog = $this->createAuditLog($action, $entity, $changeSet);
+        $this->em->persist($auditLog);
+        $uow->computeChangeSet($this->em->getClassMetadata(AuditLog::class), $auditLog);
     }
 
     private function shouldAudit(object $entity): bool

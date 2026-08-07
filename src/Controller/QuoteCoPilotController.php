@@ -164,6 +164,12 @@ class QuoteCoPilotController extends AbstractController
             return $this->redirectToRoute('quote_copilot_index');
         }
 
+        // Enforce a size cap so a malicious BOM cannot exhaust memory/disk
+        if ($bomFile->getSize() > 10 * 1024 * 1024) {
+            $this->addFlash('error', 'File too large. Maximum allowed size is 10MB.');
+            return $this->redirectToRoute('quote_copilot_index');
+        }
+
         // Get form parameters
         $companyId = $request->request->get('company_id');
         $shipToCountry = $request->request->get('ship_to_country');

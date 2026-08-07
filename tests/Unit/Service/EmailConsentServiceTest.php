@@ -22,6 +22,43 @@ class EmailConsentServiceTest extends TestCase
         $this->service = new EmailConsentService($this->em, $this->logger);
     }
 
+    protected function tearDown(): void
+    {
+        // Restore any env variables the tests cleared
+        parent::tearDown();
+    }
+
+    public function testTokenSigningFailsClosedWithoutAppSecret(): void
+    {
+        $backup = [
+            'env' => $_ENV['APP_SECRET'] ?? null,
+            'server' => $_SERVER['APP_SECRET'] ?? null,
+            'getenv' => getenv('APP_SECRET') ?: false,
+        ];
+
+        unset($_ENV['APP_SECRET'], $_SERVER['APP_SECRET']);
+        putenv('APP_SECRET');
+
+        try {
+            $contact = $this->createMock(Contact::class);
+            $contact->method('getEmail')->willReturn('test@example.com');
+
+            $this->expectException(\RuntimeException::class);
+            $this->service->requestDoubleOptIn($contact);
+        } finally {
+            // Restore the environment so other tests are unaffected
+            if ($backup['env'] !== null) {
+                $_ENV['APP_SECRET'] = $backup['env'];
+            }
+            if ($backup['server'] !== null) {
+                $_SERVER['APP_SECRET'] = $backup['server'];
+            }
+            if ($backup['getenv'] !== false) {
+                putenv('APP_SECRET=' . $backup['getenv']);
+            }
+        }
+    }
+
     public function testRequestDoubleOptInGeneratesHmacToken(): void
     {
         $contact = $this->createMock(Contact::class);
