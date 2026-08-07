@@ -86,7 +86,7 @@
     },
     "scripts": {
         "auto-scripts": {
-            "cache:clear": "php -d memory_limit=512M bin/console cache:clear",
+            "cache:clear": "symfony-cmd",
             "assets:install %PUBLIC_DIR%": "symfony-cmd"
         },
         "post-install-cmd": [

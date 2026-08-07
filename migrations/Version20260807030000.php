@@ -12,11 +12,11 @@ use Doctrine\Migrations\AbstractMigration;
  *
  * (a) RENAME legacy singular table names to the plural names mapped by the
  *     current entities — task -> tasks, user -> users, bom_line -> bom_lines —
- *     but only when the source exists and the target does not.
- * (b) DROP orphaned tables that no longer have an entity mapping:
- *     estimates (removed in an earlier migration cycle) and legacy
- *     competitor_* tables (the mapped table is competitor_detection,
- *     which is protected from this sweep).
+ *     but only when the source exists and the target does not. RENAME
+ *     preserves all rows.
+ * (b) DROP orphaned tables (estimates, legacy competitor_*) ONLY when they
+ *     are confirmed EMPTY (COUNT(*) = 0). Any table that still holds rows is
+ *     left untouched — production data is never deleted by this migration.
  * (c) Create missing FK indexes required by the current entity mappings:
  *     activities(user_id, activity_date), activities(company_id),
  *     email_sends(campaign_id), email_sends(contact_id),
@@ -28,7 +28,7 @@ final class Version20260807030000 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Corrective migration: rename legacy singular tables, drop orphaned tables, add missing FK indexes';
+        return 'Corrective migration: rename legacy singular tables, drop only EMPTY orphaned tables, add missing FK indexes';
     }
 
     public function up(Schema $schema): void
@@ -38,8 +38,8 @@ final class Version20260807030000 extends AbstractMigration
         $this->renameTableIfExists('user', 'users');
         $this->renameTableIfExists('bom_line', 'bom_lines');
 
-        // ── (b) Drop orphaned tables (no entity mapping) ──
-        $this->dropTableIfExists('estimates');
+        // ── (b) Drop orphaned tables ONLY when confirmed empty ──
+        $this->dropTableIfExistsAndEmpty('estimates');
 
         $conn = $this->connection;
         $orphanRows = $conn->executeQuery(
@@ -50,7 +50,7 @@ final class Version20260807030000 extends AbstractMigration
         foreach ($orphanRows as $tableName) {
             // 'competitor_detection' (singular) IS mapped by CompetitorDetection entity — never drop it.
             if ($tableName !== 'competitor_detection') {
-                $this->dropTableIfExists((string) $tableName);
+                $this->dropTableIfExistsAndEmpty((string) $tableName);
             }
         }
 
@@ -120,6 +120,30 @@ final class Version20260807030000 extends AbstractMigration
         if ($this->tableExists($table)) {
             $this->addSql("DROP TABLE `{$table}`");
         }
+    }
+
+    /**
+     * Drop an orphaned table ONLY when it holds no rows. COUNT(*) is an
+     * exact check (information_schema.table_rows is only an estimate), so
+     * production data can never be destroyed by this migration.
+     */
+    private function dropTableIfExistsAndEmpty(string $table): void
+    {
+        if (!$this->tableExists($table)) {
+            return;
+        }
+        $rowCount = (int) $this->connection->executeQuery(
+            "SELECT COUNT(*) FROM `{$table}`"
+        )->fetchOne();
+        if ($rowCount > 0) {
+            $this->write(sprintf(
+                'Skipping DROP of orphaned table `%s`: it still holds %d rows (data preserved).',
+                $table,
+                $rowCount
+            ));
+            return;
+        }
+        $this->addSql("DROP TABLE `{$table}`");
     }
 
     private function createIndexIfColumnExists(string $table, string $indexName, string $column): void
