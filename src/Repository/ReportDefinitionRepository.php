@@ -191,9 +191,9 @@ class ReportDefinitionRepository extends ServiceEntityRepository
         $typeStats = [];
 
         foreach ($result as $row) {
-            $total = (int) $row['total'];
-            $myReports = (int) $row['myReports'];
-            $favorites = (int) $row['favorites'];
+            $total += (int) $row['total'];
+            $myReports += (int) $row['myReports'];
+            $favorites += (int) $row['favorites'];
             $source = $row['dataSource'];
             if ($source && !isset($sourceStats[$source])) {
                 $sourceStats[$source] = 0;

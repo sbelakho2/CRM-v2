@@ -5,7 +5,7 @@
 {% block body %}
 <div class="rams-stack rams-gap-6">
     {# Breadcrumb #}
-    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+    <nav class="rams-breadcrumb" aria-label="{{ 'common.breadcrumb'|trans }}"> 
         <ol class="rams-breadcrumb__list">
             <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
             <li class="rams-breadcrumb__separator">/</li>

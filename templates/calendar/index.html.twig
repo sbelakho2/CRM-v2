@@ -4,7 +4,7 @@
 
 {% block stylesheets %}
 {{ parent() }}
-<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" integrity="sha384-a+uEN0SA9NPmaoLnc5WsmxDS2SgEiUlzTisgqmWvaOsxzPREhiatn8EIBuY/Zsl2" crossorigin="anonymous">   
 <style>
     /* FullCalendar Overrides to match Sensei-Rams */
     .fc {
@@ -124,13 +124,13 @@
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <span>{{ 'calendar.title'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'calendar.title'|trans }}</h1>
         </div>
         <div class="rams-page__actions mobile-stack">
-            <a href="{{ path('calendar_new') }}" class="rams-btn rams-btn--orange uppercase">
+            <a href="{{ path('calendar_new') }}" class="rams-btn rams-btn--primary rams-uppercase">  
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 2V14M2 8H14"/>
                 </svg>
@@ -140,7 +140,7 @@
     </div>
 
     <div class="rams-grid rams-grid--4 rams-gap-6 mobile-stack">
-        <div class="rams-grid-span-1 mobile-w-full">
+        <div class="mobile-w-full">  
              <div class="rams-module rams-mb-4">
                  <div class="rams-module__header">
                      <h3 class="rams-module__title">{{ 'calendar.views'|trans }}</h3>
@@ -165,10 +165,27 @@
                      <h3 class="rams-module__title">{{ 'calendar.upcoming_events'|trans }}</h3>
                  </div>
                  <div class="rams-module__content">
-                     <div class="rams-empty-state rams-py-3">
-                         <div class="rams-empty-state__title">{{ 'calendar.no_upcoming_events'|trans }}</div>
-                     </div>
-                 </div>
+                    {% if upcomingEvents|length > 0 %}
+                    <div class="rams-stack rams-gap-2">
+                        {% for event in upcomingEvents %}
+                        <a href="{{ path('calendar_show', {id: event.id}) }}" class="rams-list__item">
+                            <div class="rams-flex rams-justify-between rams-items-center rams-gap-2">
+                                <span class="rams-text--sm rams-text--bold">{{ event.title }}</span>
+                                {% if event.allDay %}
+                                <span class="rams-badge rams-badge--small">{{ event.startAt|date('M d') }}</span>
+                                {% else %}
+                                <span class="rams-badge rams-badge--small">{{ event.startAt|date('M d H:i') }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="rams-empty-state rams-py-md">
+                        <div class="rams-empty-state__title">{{ 'calendar.no_upcoming_events'|trans }}</div>
+                    </div>
+                    {% endif %}
+                </div>
              </div>
         </div>
 
@@ -185,7 +202,7 @@
 
 {% block javascripts %}
 {{ parent() }}
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js" integrity="sha384-WfE/vOHqht3KDj6FvpwQUf3UxEPUHoGJ3w1yZ8rhpLWnVigt8HjXL2zXqtcfS7mf" crossorigin="anonymous"></script> 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
@@ -199,14 +216,31 @@
             navLinks: true,
             editable: true,
             dayMaxEvents: true,
-            events: {{ events|default('[]')|json_encode|raw }}, // Assuming events are passed as JSON
+            events: function(info, successCallback, failureCallback) {
+                fetch('{{ path('calendar_events_json') }}?start=' + encodeURIComponent(info.startStr) + '&end=' + encodeURIComponent(info.endStr), {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load events');
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    successCallback(data);
+                })
+                .catch(function(error) {
+                    failureCallback(error);
+                });
+            },
             eventClick: function(info) {
                 if (info.event.url) {
                     window.location.href = info.event.url;
                     info.jsEvent.preventDefault();
                 } else {
-                    // Fallback to show page if we generate URL from ID
-                    window.location.href = '/calendar/' + info.event.id;
+                              
+                    window.location.href = '{{ path('calendar_show', {id: '__ID__'}) }}'.replace('__ID__', info.event.id);   
                 }
             }
         });

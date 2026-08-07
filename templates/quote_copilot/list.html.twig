@@ -5,10 +5,10 @@
 {% block body %}
 <div class="rams-stack rams-stack--lg">
     {# Header #}
-    <header class="rams-module__header rams-module__header--row rams-module__header--rams-border-bottom">
+    <header class="rams-module__header rams-module__header--row rams-module__header--border-bottom">
         <div>
             <h1 class="rams-heading rams-heading--1">{{ 'quote.copilot.list'|trans }}</h1>
-            <p class="rams-text rams-text--muted">{{ 'quote.copilot.list_subtitle'|trans }}</p>
+            <p class=" rams-text--muted">{{ 'quote.copilot.list_subtitle'|trans }}</p>
         </div>
         <a href="{{ path('quote_copilot_index') }}" class="rams-btn">
             <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
@@ -21,25 +21,26 @@
     {# Quotes Table #}
     <div class="rams-module">
         <div class="rams-table-container">
-            <table class="rams-table">
-                <thead class="rams-table__header">
+            <table class="rams-table" aria-label="{{ 'quote.copilot.list'|trans }}">
+                <caption class="rams-sr-only">{{ 'quote.copilot.list'|trans }}</caption>
+                <thead>
                     <tr>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.quote_number'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.company'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.created_at'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.quantity'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.ship_to'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.coverage'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.total'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'quote.status'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.quote_number'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.company'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.created_at'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.quantity'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.ship_to'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.copilot.coverage'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.total'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'quote.status'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
-                <tbody class="rams-table__body">
+                <tbody>
                     {% for quote in quotes %}
                         {% set q = quote[0] is defined ? quote[0] : quote %}
                         <tr class="rams-table__row">
-                            <td class="rams-table__cell rams-table__cell--bold">
+                            <td class="rams-table__cell rams-text--bold">
                                 {{ q.quoteNumber ?? ('Q-' ~ q.id) }}
                             </td>
                             <td class="rams-table__cell">
@@ -56,12 +57,12 @@
                             </td>
                             <td class="rams-table__cell">
                                 {% set coverage = q.coveragePercent|default(0) %}
-                                <div class="rams-progress rams-progress--sm">
+                                <div class="rams-progress rams-progress--compact"> 
                                     <div class="rams-progress__bar rams-progress__bar--{% if coverage >= 90 %}green{% elseif coverage >= 60 %}yellow{% else %}red{% endif %}" style="width: {{ coverage }}%"></div>
-                                    <span class="rams-progress__label">{{ coverage|number_format(0) }}%</span>
+                                    <span class="rams-text--xs rams-text--muted">{{ coverage|number_format(0) }}%</span>
                                 </div>
                             </td>
-                            <td class="rams-table__cell rams-table__cell--bold">
+                            <td class="rams-table__cell rams-text--bold">
                                 {{ q.totalCost|format_currency(q.currency, null, 2) }}
                             </td>
                             <td class="rams-table__cell">
@@ -75,33 +76,33 @@
                             </td>
                             <td class="rams-table__cell rams-table__cell--actions">
                                 <div class="rams-btn-group mobile-stack">
-                                    <a href="{{ path('quote_copilot_results', {'id': q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.view'|trans }}">
+                                    <a href="{{ path('quote_copilot_results', {'id': q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.view'|trans }}" aria-label="{{ 'common.view'|trans }}">
                                         <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M1 8C1 8 3 3 8 3C13 3 15 8 15 8C15 8 13 13 8 13C3 13 1 8 1 8Z"/>
                                             <circle cx="8" cy="8" r="2"/>
                                         </svg>
                                     </a>
-                                    <a href="{{ path('quote_copilot_pdf', {'id': q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'quote.copilot.download_pdf'|trans }}">
+                                    <a href="{{ path('quote_copilot_pdf', {'id': q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'quote.copilot.download_pdf'|trans }}" aria-label="{{ 'quote.copilot.download_pdf'|trans }}">
                                         <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M8 3V11M5 8L8 11L11 8"/>
                                             <path d="M3 13H13"/>
                                         </svg>
                                     </a>
-                                    <a href="{{ path('quote_copilot_customer_excel', {'id': q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'quote.copilot.download_customer_excel'|trans({}, 'messages')|default('Customer Excel') }}">
+                                    <a href="{{ path('quote_copilot_customer_excel', {'id': q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'quote.copilot.download_customer_excel'|trans({}, 'messages')|default('Customer Excel') }}" aria-label="{{ 'quote.copilot.download_customer_excel'|trans({}, 'messages')|default('Customer Excel') }}">
                                         <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                             <rect x="3" y="3" width="10" height="10" rx="1"/>
                                             <path d="M3 6H13M6 3V13"/>
                                         </svg>
                                     </a>
-                                    <a href="{{ path('quote_copilot_full_excel', {'id': q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--accent rams-btn--sm" title="{{ 'quote.copilot.download_full_excel'|trans({}, 'messages')|default('Full Sourcing Excel') }}">
+                                    <a href="{{ path('quote_copilot_full_excel', {'id': q.id}) }}" class="rams-btn rams-btn--ghost rams-btn--accent rams-btn--sm" title="{{ 'quote.copilot.download_full_excel'|trans({}, 'messages')|default('Full Sourcing Excel') }}" aria-label="{{ 'quote.copilot.download_full_excel'|trans({}, 'messages')|default('Full Sourcing Excel') }}">
                                         <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                             <rect x="3" y="3" width="10" height="10" rx="1"/>
                                             <path d="M3 6H13M3 9H13M6 3V13M10 3V13"/>
                                         </svg>
                                     </a>
-                                    <form action="{{ path('quote_copilot_delete', {'id': q.id}) }}" method="POST" style="display: inline;" onsubmit="return confirm('{{ 'quote.copilot.confirm_delete'|trans|e('js') }}');">
+                                    <form action="{{ path('quote_copilot_delete', {'id': q.id}) }}" method="POST" style="display: inline;" onsubmit="return ramsConfirmSubmit(event, '{{ 'quote.copilot.confirm_delete'|trans|e('js') }}', {variant: 'danger'});">
                                         <input type="hidden" name="_token" value="{{ csrf_token('delete-quote-' ~ q.id) }}">
-                                        <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger" title="{{ 'common.delete'|trans }}">
+                                        <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger" title="{{ 'common.delete'|trans }}" aria-label="{{ 'common.delete'|trans }}">
                                             <svg class="rams-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 5H13M5 5V13H11V5M7 7V11M9 7V11M6 5V3H10V5"/>
                                             </svg>
@@ -112,7 +113,7 @@
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="9" class="rams-table__cell rams-table__cell--empty">
+                            <td colspan="9" class="rams-table__cell rams-table__cell">
                                 <div class="rams-empty-state">
                                     <p class="rams-empty-state__text">{{ 'quote.copilot.no_quotes'|trans }}</p>
                                     <a href="{{ path('quote_copilot_index') }}" class="rams-link">

@@ -80,7 +80,29 @@ class ComplianceController extends AbstractController
             throw $this->createNotFoundException($this->translator->trans('compliance.error.file_not_found'));
         }
 
-        return new BinaryFileResponse($filePath);
+        // Serve as a download (attachment) with an explicit Content-Type so that
+        // HTML/SVG payloads can never render inline in the browser
+        $contentTypes = [
+            'pdf' => 'application/pdf',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ];
+        $extension = strtolower(pathinfo($document->getFilePath(), PATHINFO_EXTENSION));
+
+        $response = new BinaryFileResponse($filePath);
+        $response->headers->set('Content-Type', $contentTypes[$extension] ?? 'application/octet-stream');
+        $response->headers->set(
+            'Content-Disposition',
+            'attachment; filename="' . basename($document->getFilePath()) . '"'
+        );
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+
+        return $response;
     }
 
     #[Route('/document/{id}/delete', name: 'app_compliance_delete', methods: ['POST'])]
@@ -114,6 +136,10 @@ class ComplianceController extends AbstractController
     #[Route('/document/{id}/upload', name: 'app_compliance_upload', methods: ['POST'])]
     public function uploadDocument(Request $request, ComplianceDocument $document): Response
     {
+        if (!$this->isCsrfTokenValid('upload'.$document->getId(), $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         $file = $request->files->get('file');
         if (!$file) {
             $this->addFlash('danger', $this->translator->trans('compliance.error.no_file'));
@@ -129,10 +155,29 @@ class ComplianceController extends AbstractController
             $originalFilename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = $this->slugger->slug($originalFilename);
 
+            // Enforce a strict extension + MIME allowlist (no sniffing, no SVG/HTML)
             $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
-            $extension = strtolower($file->guessExtension());
+            $allowedMimeTypes = [
+                'application/pdf',
+                'image/jpeg',
+                'image/png',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ];
+            $extension = strtolower((string) $file->guessExtension());
             if (!in_array($extension, $allowedExtensions, true)) {
                 throw new \RuntimeException('Invalid file type');
+            }
+            $detectedMime = $file->getMimeType();
+            if ($detectedMime && $detectedMime !== 'application/octet-stream' && !in_array($detectedMime, $allowedMimeTypes, true)) {
+                throw new \RuntimeException('Invalid file content type');
+            }
+
+            // Enforce a 10 MB upload limit
+            if ($file->getSize() > 10 * 1024 * 1024) {
+                throw new \RuntimeException('File too large (max 10 MB)');
             }
 
             $newFilename = $safeFilename.'-'.uniqid().'.'.$extension;

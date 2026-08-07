@@ -29,48 +29,48 @@
         </div>
 
         {# Filters - Compact horizontal layout #}
-        <div class="rams-card mb-6">
-            <div class="rams-card-body">
-                <form method="get" action="{{ path('app_activity_index') }}" class="space-y-3">
-                    <div class="flex flex-wrap items-end gap-3">
-                        <div class="w-40">
-                            <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'activity.type'|trans }}</label>
-                            <select name="type" class="rams-input text-sm py-1.5 w-full">
+        <div class="rams-module rams-mb-6">  
+            <div class="rams-module__content"> 
+                <form method="get" action="{{ path('app_activity_index') }}" class="rams-stack rams-gap-3"> 
+                    <div class="rams-flex rams-flex-wrap rams-items-end rams-gap-3">    
+                        <div class="rams-w-auto"> 
+                            <label for="activity-filter-type" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'activity.type'|trans }}</label>
+                            <select name="type" id="activity-filter-type" class="rams-input rams-text--sm rams-w-full">   
                                 <option value="">{{ 'activity.all_types'|trans }}</option>
                                 {% for type in types %}
                                     <option value="{{ type }}" {{ current_type == type ? 'selected' : '' }}>{{ ('activity.types.' ~ type|lower|replace({' ': '_', '-': '_'}) )|trans }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="w-48">
-                            <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'activity.company'|trans }}</label>
-                            <select name="company" class="rams-input text-sm py-1.5 w-full">
+                        <div class="rams-w-auto"> 
+                            <label for="activity-filter-company" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'activity.company'|trans }}</label>
+                            <select name="company" id="activity-filter-company" class="rams-input rams-text--sm rams-w-full">   
                                 <option value="">{{ 'company.all_companies'|trans }}</option>
                                 {% for company in companies %}
                                     <option value="{{ company.id }}" {{ current_company == company.id ? 'selected' : '' }}>{{ company.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="w-44">
-                            <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'activity.team_member'|trans }}</label>
-                            <select name="user" class="rams-input text-sm py-1.5 w-full">
+                        <div class="rams-w-auto"> 
+                            <label for="activity-filter-user" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'activity.team_member'|trans }}</label>
+                            <select name="user" id="activity-filter-user" class="rams-input rams-text--sm rams-w-full">   
                                 <option value="">{{ 'activity.all_members'|trans }}</option>
                                 {% for user in users %}
                                     <option value="{{ user.id }}" {{ current_user == user.id ? 'selected' : '' }}>{{ user.firstName }} {{ user.lastName }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="w-36">
-                            <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'activity.from_date'|trans }}</label>
-                            <input type="date" name="date_from" value="{{ current_date_from }}" class="rams-input text-sm py-1.5 w-full">
+                        <div class="rams-w-auto"> 
+                            <label for="activity-filter-date-from" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'activity.from_date'|trans }}</label>
+                            <input type="date" name="date_from" id="activity-filter-date-from" value="{{ current_date_from }}" class="rams-input rams-text--sm rams-w-full">   
                         </div>
-                        <div class="w-36">
-                            <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'activity.to_date'|trans }}</label>
-                            <input type="date" name="date_to" value="{{ current_date_to }}" class="rams-input text-sm py-1.5 w-full">
+                        <div class="rams-w-auto"> 
+                            <label for="activity-filter-date-to" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'activity.to_date'|trans }}</label>
+                            <input type="date" name="date_to" id="activity-filter-date-to" value="{{ current_date_to }}" class="rams-input rams-text--sm rams-w-full">   
                         </div>
-                        <div class="flex items-end gap-2">
-                            <button type="submit" class="rams-btn rams-btn--primary text-sm py-1.5 px-3">{{ 'common.apply'|trans }}</button>
-                            <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost text-sm py-1.5 px-3">{{ 'common.clear'|trans }}</a>
+                        <div class="rams-flex rams-items-end rams-gap-2">   
+                            <button type="submit" class="rams-btn rams-btn--primary rams-text--sm">{{    'common.apply'|trans }}</button>
+                            <a href="{{ path('app_activity_index') }}" class="rams-btn rams-btn--ghost rams-text--sm">{{    'common.clear'|trans }}</a>
                         </div>
                     </div>
                 </form>
@@ -91,14 +91,15 @@
             <div class="rams-module__content rams-module__content--flush">
                 <div class="rams-table-container">
                     <table class="rams-table data-table">
-                        <thead class="rams-table__header">
+                        <caption class="rams-sr-only">{{ 'activity.title'|trans }}</caption>
+                        <thead>
                             <tr>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'activity.type'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'activity.company'|trans }} / {{ 'activity.contact'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'activity.notes'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'activity.team_member'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'activity.date'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions"><span class="rams-sr-only">{{ 'common.actions'|trans }}</span></th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'activity.type'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'activity.company'|trans }} / {{ 'activity.contact'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'activity.notes'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'activity.team_member'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'activity.date'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header rams-table__cell--actions"><span class="rams-sr-only">{{ 'common.actions'|trans }}</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -109,7 +110,7 @@
                                         {{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}
                                     </span>
                                     {% if activity.outcome %}
-                                        <span class="rams-text--xs rams-text--muted block mt-1">{{ ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans }}</span>
+                                        <span class="rams-text--xs rams-text--muted rams-block rams-mt-1">{{   ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell">
@@ -134,13 +135,13 @@
                                 <td class="rams-table__cell">{{ activity.user.firstName }} {{ activity.user.lastName }}</td>
                                 <td class="rams-table__cell">{{ activity.activityDate|date('M d, Y') }}</td>
                                 <td class="rams-table__cell rams-table__cell--actions">
-                                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}">
+                                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}" aria-label="{{ 'common.view'|trans }}">
                                         <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                         </svg>
                                     </a>
-                                    <a href="{{ path('app_activity_edit', {id: activity.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
+                                    <a href="{{ path('app_activity_edit', {id: activity.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}" aria-label="{{ 'common.edit'|trans }}">
                                         <svg class="rams-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
@@ -149,7 +150,7 @@
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="6" class="rams-table__cell rams-table__cell--empty">
+                                <td colspan="6" class="rams-table__cell rams-table__cell">
                                     <div class="rams-empty-state">
                                         <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:48px;height:48px;">
                                             <circle cx="8" cy="8" r="6" stroke-width="2"/>
@@ -157,7 +158,7 @@
                                         </svg>
                                         <h3 class="rams-empty-state__title">{{ 'activity.empty.no_activities'|trans }}</h3>
                                         <p class="rams-empty-state__description">{{ 'activity.create_first'|trans }}</p>
-                                        <div class="rams-empty-state__actions">
+                                        <div class="rams-flex rams-gap-2 rams-justify-center"> 
                                             <a href="{{ path('app_activity_new') }}" class="rams-btn rams-btn--primary">
                                                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>

@@ -64,7 +64,7 @@ class PersonalizationProfileRepository extends ServiceEntityRepository
             ->setParameter('minOpens', $minOpens)
             ->setParameter('minReplies', $minReplies)
             ->orderBy('p.emailsReplied', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -77,7 +77,7 @@ class PersonalizationProfileRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('p')
             ->where('p.featureEmbedding IS NOT NULL')
             ->andWhere('p.emailsOpened > 0')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

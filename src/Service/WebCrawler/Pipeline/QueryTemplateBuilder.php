@@ -16,12 +16,10 @@ namespace App\Service\WebCrawler\Pipeline;
  *   - industrial_zone: targets known manufacturing zones/clusters
  *   - general: broad manufacturing discovery
  *   - certification: finds companies by quality certifications
- *   - site_directory: site: queries targeting known B2B directories
- *   - diverse_discovery: varied query patterns for broad coverage
  */
 final class QueryTemplateBuilder
 {
-    private const MAX_QUERIES = 60;
+    private const MAX_QUERIES = 40;
 
     /**
      * Region-specific B2B / manufacturing directory sites for site: queries.
@@ -550,7 +548,7 @@ final class QueryTemplateBuilder
         foreach ($teamPatterns as $pattern) {
             $queries[] = [
                 'query' => trim($pattern . $exclude),
-                'type'  => 'contact_discovery',
+                'type'  => 'general',
             ];
         }
 
@@ -563,7 +561,7 @@ final class QueryTemplateBuilder
         foreach ($contactPatterns as $pattern) {
             $queries[] = [
                 'query' => trim($pattern . $exclude),
-                'type'  => 'contact_discovery',
+                'type'  => 'general',
             ];
         }
 
@@ -575,7 +573,7 @@ final class QueryTemplateBuilder
         foreach ($aboutPatterns as $pattern) {
             $queries[] = [
                 'query' => trim($pattern . $exclude),
-                'type'  => 'contact_discovery',
+                'type'  => 'general',
             ];
         }
 
@@ -609,18 +607,18 @@ final class QueryTemplateBuilder
             if ($sector !== null) {
                 $queries[] = [
                     'query' => trim("{$siteDork}{$sectorClause}{$locationClause}"),
-                    'type'  => 'site_directory',
+                    'type'  => 'directory',
                 ];
             }
             // Without sector: site:kerix.net manufacturer tangier
             $queries[] = [
                 'query' => trim("{$siteDork} manufacturer{$locationClause}"),
-                'type'  => 'site_directory',
+                'type'  => 'directory',
             ];
             // Industry-specific: site:kerix.net OEM components
             $queries[] = [
                 'query' => trim("{$siteDork} OEM components{$locationClause}"),
-                'type'  => 'site_directory',
+                'type'  => 'directory',
             ];
         }
 
@@ -630,7 +628,7 @@ final class QueryTemplateBuilder
             if ($sector !== null) {
                 $queries[] = [
                     'query' => trim("\"{$sector}\" company{$locationClause} {$siteDork}"),
-                    'type'  => 'site_directory',
+                    'type'  => 'directory',
                 ];
             }
         }
@@ -653,27 +651,27 @@ final class QueryTemplateBuilder
             // "about us" style queries — high intent for real companies
             $queries[] = [
                 'query' => trim("{$sector} \"about us\" OR \"founded\"{$locationClause}{$exclude}"),
-                'type'  => 'diverse_discovery',
+                'type'  => 'general',
             ];
             // "our products" style queries — finds product pages
             $queries[] = [
                 'query' => trim("{$sector} \"our products\" OR \"our solutions\"{$locationClause}{$exclude}"),
-                'type'  => 'diverse_discovery',
+                'type'  => 'general',
             ];
             // Technical product queries
             $queries[] = [
                 'query' => trim("{$sector} OEM manufacturer{$locationClause}{$exclude}"),
-                'type'  => 'diverse_discovery',
+                'type'  => 'general',
             ];
             // Wire harness / cable assembly — core EMS service
             $queries[] = [
                 'query' => trim("{$sector} \"wire harness\" OR \"cable assembly\"{$locationClause}{$exclude}"),
-                'type'  => 'diverse_discovery',
+                'type'  => 'general',
             ];
             // Supplier/tier queries
             $queries[] = [
                 'query' => trim("{$sector} \"tier 1\" OR \"tier 2\" supplier{$locationClause}{$exclude}"),
-                'type'  => 'diverse_discovery',
+                'type'  => 'general',
             ];
         }
 

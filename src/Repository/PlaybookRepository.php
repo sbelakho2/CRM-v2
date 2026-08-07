@@ -27,7 +27,7 @@ class PlaybookRepository extends ServiceEntityRepository
             ->andWhere('p.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('p.priority', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

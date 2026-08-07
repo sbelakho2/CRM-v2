@@ -44,7 +44,7 @@ class AsmCurveRepository extends ServiceEntityRepository
             ->andWhere('ac.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('ac.componentCountMin', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

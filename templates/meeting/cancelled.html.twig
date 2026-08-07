@@ -4,7 +4,7 @@
 
 {% block body %}
 <div class="rams-page">
-    <div class="rams-grid rams-grid--1 rams-place-items-center" style="min-height: 60vh;">
+    <div class="rams-flex rams-items-center rams-justify-center"    style="min-height: 60vh;">
         <div class="rams-module" style="max-width: 500px; width: 100%;">
             <div class="rams-module__content rams-text--center rams-p-8">
                 <div class="rams-mb-6">
@@ -16,10 +16,10 @@
                 <h1 class="rams-text-2xl rams-text--bold rams-mb-4">{{ 'meeting.cancelled'|trans }}</h1>
                 <p class="rams-text--muted rams-mb-8">{{ 'meeting.cancelled_desc'|trans }}</p>
                 
-                <div class="rams-bg-surface-alt rams-p-6 rams-rounded-lg rams-text--left rams-mb-8">
+                <div class="rams-bg-panel rams-p-6 rams-rounded-lg rams-text--left rams-mb-8">
                     <strong class="rams-block rams-mb-2">{{ slot.title }}</strong>
                     <span class="rams-text--muted rams-text--sm">
-                        {{ slot.startTime|date('l, F j, Y') }} at {{ slot.startTime|date('H:i') }}
+                        {{ slot.startTime|date('l, F j, Y') }} {{ 'meeting.at'|trans }}  {{ slot.startTime|date('H:i') }}
                     </span>
                 </div>
                 

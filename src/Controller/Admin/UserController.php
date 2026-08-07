@@ -102,38 +102,17 @@ class UserController extends AbstractController
             return $this->redirectToRoute('admin_user_index');
         }
 
-        $conn = $em->getConnection();
-        $userId = $user->getId();
-        $adminUser = $this->getUser();
-        $reassignId = $adminUser ? $adminUser->getId() : 1;
-
         try {
-            $conn->beginTransaction();
-
-            // NULL-out nullable FK columns
-            $conn->executeStatement('UPDATE audit_logs SET user_id = NULL WHERE user_id = ?', [$userId]);
-            $conn->executeStatement('UPDATE custom_field_definitions SET created_by_id = NULL WHERE created_by_id = ?', [$userId]);
-            $conn->executeStatement('UPDATE tasks SET assigned_to_id = NULL WHERE assigned_to_id = ?', [$userId]);
-
-            // Reassign NOT NULL FK columns to the current admin
-            $conn->executeStatement('UPDATE activities SET user_id = ? WHERE user_id = ?', [$reassignId, $userId]);
-            $conn->executeStatement('UPDATE calendar_event_attendees SET user_id = ? WHERE user_id = ?', [$reassignId, $userId]);
-            $conn->executeStatement('UPDATE calendar_events SET organizer_id = ? WHERE organizer_id = ?', [$reassignId, $userId]);
-            $conn->executeStatement('UPDATE meeting_slots SET owner_id = ? WHERE owner_id = ?', [$reassignId, $userId]);
-            $conn->executeStatement('UPDATE notification SET user_id = ? WHERE user_id = ?', [$reassignId, $userId]);
-            $conn->executeStatement('UPDATE report_definitions SET created_by_id = ? WHERE created_by_id = ?', [$reassignId, $userId]);
-            $conn->executeStatement('UPDATE tasks SET created_by_id = ? WHERE created_by_id = ?', [$reassignId, $userId]);
-
+            // FK integrity is handled by DB-level ON DELETE rules:
+            //   CASCADE: activities, calendar_events.organizer_id, meeting_slots.owner_id,
+            //            notifications, report_definitions, tasks.created_by_id
+            //   SET NULL: audit_logs.user_id, custom_field_definitions.created_by_id,
+            //             tasks.assigned_to_id, calendar_event_attendees via join table
             $em->remove($user);
             $em->flush();
 
-            $conn->commit();
-
             $this->addFlash('success', $translator->trans('administration.users.flash.deleted'));
         } catch (\Throwable $e) {
-            if ($conn->isTransactionActive()) {
-                $conn->rollBack();
-            }
             throw $e;
         }
 

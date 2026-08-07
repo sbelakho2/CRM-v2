@@ -109,7 +109,7 @@
         .signature-label {
             font-size: 8pt;
             color: var(--rams-muted);
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.05em;
         }
         .verification-card {
@@ -152,7 +152,7 @@
         .summary-label {
             font-size: 8pt;
             color: var(--rams-muted);
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.05em;
         }
     </style>
@@ -196,7 +196,7 @@
         </tr>
         <tr>
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.total_value'|trans|default('Total Value') }}</strong></td>
-            <td>${{ (quote.totalPrice ?? 0)|number_format(2) }}</td>
+            <td>{{  (quote.totalPrice ?? 0)|format_currency(quote.currency|default('USD'))  }}</td>
             <td style="background: var(--rams-panel);"><strong>{{ 'pdf.audit_trail.bom_lines'|trans|default('BOM Lines') }}</strong></td>
             <td>{{ quote.bomLines|length }}</td>
         </tr>
@@ -205,19 +205,19 @@
     {# Audit Statistics #}
     <div class="summary-grid">
         <div class="summary-item">
-            <div class="summary-value">{{ auditData.totalEvents ?? 12 }}</div>
+            <div class="summary-value">{{ auditData.totalEvents ?? 0  }}</div>
             <div class="summary-label">{{ 'pdf.audit_trail.total_events'|trans|default('Total Events') }}</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">{{ auditData.revisions ?? 3 }}</div>
+            <div class="summary-value">{{ auditData.revisions ?? 0  }}</div>
             <div class="summary-label">{{ 'pdf.audit_trail.revisions'|trans|default('Revisions') }}</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">{{ auditData.approvals ?? 2 }}</div>
+            <div class="summary-value">{{ auditData.approvals ?? 0  }}</div>
             <div class="summary-label">{{ 'pdf.audit_trail.approvals'|trans|default('Approvals') }}</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">{{ auditData.users ?? 3 }}</div>
+            <div class="summary-value">{{ auditData.users ?? 0  }}</div>
             <div class="summary-label">{{ 'pdf.audit_trail.users_involved'|trans|default('Users Involved') }}</div>
         </div>
     </div>
@@ -242,11 +242,12 @@
                 {% endif %}
                 {% if event.changes is defined and event.changes|length > 0 %}
                 <table class="change-table">
+                    <caption>{{ 'pdf.audit_trail.changes'|trans }}</caption>
                     <thead>
                         <tr>
-                            <th style="width: 30%;">Field</th>
-                            <th style="width: 35%;">Previous</th>
-                            <th style="width: 35%;">New</th>
+                            <th scope="col" style="width: 30%;">Field</th>
+                            <th scope="col" style="width: 35%;">Previous</th>
+                            <th scope="col" style="width: 35%;">New</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -286,12 +287,12 @@
     
     <div style="margin: 15pt 0;">
         <strong>{{ 'pdf.audit_trail.document_hash'|trans|default('Document Hash (SHA-256)') }}:</strong>
-        <div class="hash-display">{{ auditData.documentHash ?? '8f7d9e2a1b4c6f3d5e8a7b2c9d0e1f4a3b6c5d8e7f0a1b2c3d4e5f6a7b8c9d0e' }}</div>
+        <div class="hash-display">{{ auditData.documentHash ?? 'N/A'  }}</div>
     </div>
     
     <div style="margin: 15pt 0;">
         <strong>{{ 'pdf.audit_trail.audit_hash'|trans|default('Audit Trail Hash (SHA-256)') }}:</strong>
-        <div class="hash-display">{{ auditData.auditHash ?? 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2' }}</div>
+        <div class="hash-display">{{ auditData.auditHash ?? 'N/A'  }}</div>
     </div>
 
     {# Signature Block #}

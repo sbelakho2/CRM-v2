@@ -7,6 +7,7 @@ use App\Entity\EmailSend;
 use App\Entity\Contact;
 use App\Form\EmailCampaignType;
 use App\Repository\EmailCampaignRepository;
+use App\Repository\EmailSendRepository;
 use App\Repository\ContactRepository;
 use App\Service\EmailCampaignService;
 use App\Service\EmailTrackingSigner;
@@ -20,7 +21,6 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/email-campaigns')]
-#[IsGranted('ROLE_USER')]
 class EmailCampaignController extends AbstractController
 {
     public function __construct(
@@ -30,10 +30,11 @@ class EmailCampaignController extends AbstractController
         private EmailCampaignService $campaignService,
         private EmailTrackingSigner $trackingSigner,
         private GuidanceNotificationService $guidanceService,
-        private TranslatorInterface $translator
+        private TranslatorInterface $translator,
+        private EmailSendRepository $emailSendRepository
     ) {}
-
     #[Route('/', name: 'app_email_campaign_index', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
     public function index(Request $request): Response
     {
         $status = $request->query->get('status', 'all');
@@ -54,11 +55,11 @@ class EmailCampaignController extends AbstractController
 
         $campaigns = $qb->getQuery()->getResult();
 
-        // Calculate metrics for each campaign
-        $campaignMetrics = [];
-        foreach ($campaigns as $campaign) {
-            $campaignMetrics[$campaign->getId()] = $this->campaignService->getCampaignMetrics($campaign);
-        }
+        // Batch metrics for all campaigns in a single aggregate query
+        // (replaces N per-campaign getCampaignMetrics() queries)
+        $campaignMetrics = $this->campaignRepository->findWithSendCounts(
+            array_map(static fn(EmailCampaign $campaign) => (int) $campaign->getId(), $campaigns)
+        );
 
         return $this->render('email_campaign/index.html.twig', [
             'campaigns' => $campaigns,
@@ -69,6 +70,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/new', name: 'app_email_campaign_new', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_USER')]
     public function new(Request $request): Response
     {
         $campaign = new EmailCampaign();
@@ -96,13 +98,15 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_email_campaign_show', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
     public function show(EmailCampaign $campaign): Response
     {
         $metrics = $this->campaignService->getCampaignMetrics($campaign);
         
-        // Get sends grouped by touch number
+        // Get sends grouped by touch number (recipient contacts joined in
+        // one query instead of lazy-loading each send's contact)
         $sendsByTouch = [];
-        foreach ($campaign->getEmailSends() as $send) {
+        foreach ($this->emailSendRepository->findByCampaignWithContact($campaign->getId()) as $send) {
             $touchNum = $send->getTouchNumber();
             if (!isset($sendsByTouch[$touchNum])) {
                 $sendsByTouch[$touchNum] = [];
@@ -158,6 +162,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_email_campaign_edit', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_USER')]
     public function edit(Request $request, EmailCampaign $campaign): Response
     {
         $form = $this->createForm(EmailCampaignType::class, $campaign);
@@ -177,6 +182,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/{id}/delete', name: 'app_email_campaign_delete', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function delete(Request $request, EmailCampaign $campaign): Response
     {
         if ($this->isCsrfTokenValid('delete'.$campaign->getId(), $request->request->get('_token'))) {
@@ -190,6 +196,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/{id}/toggle-active', name: 'app_email_campaign_toggle_active', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function toggleActive(Request $request, EmailCampaign $campaign): Response
     {
         if ($this->isCsrfTokenValid('toggle'.$campaign->getId(), $request->request->get('_token'))) {
@@ -204,6 +211,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/{id}/send', name: 'app_email_campaign_send', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_USER')]
     public function send(Request $request, EmailCampaign $campaign): Response
     {
         if ($request->isMethod('POST')) {
@@ -255,6 +263,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/{id}/analytics', name: 'app_email_campaign_analytics', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
     public function analytics(EmailCampaign $campaign): Response
     {
         $metrics = $this->campaignService->getCampaignMetrics($campaign);
@@ -295,6 +304,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/track/{id}/open', name: 'app_email_send_track_open', methods: ['GET'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function trackOpen(Request $request, EmailSend $send): Response
     {
         $sig = $request->query->get('sig');
@@ -309,6 +319,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/track/{id}/click', name: 'app_email_send_track_click', methods: ['GET'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function trackClick(Request $request, EmailSend $send): Response
     {
         // Redirect to the actual URL
@@ -350,6 +361,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/send/{id}/mark-replied', name: 'app_email_send_mark_replied', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function markReplied(EmailSend $send, Request $request): Response
     {
         if (!$this->isCsrfTokenValid('mark_replied' . $send->getId(), $request->request->get('_token'))) {
@@ -365,6 +377,7 @@ class EmailCampaignController extends AbstractController
     }
 
     #[Route('/send/{id}/mark-bounced', name: 'app_email_send_mark_bounced', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function markBounced(EmailSend $send, Request $request): Response
     {
         if (!$this->isCsrfTokenValid('mark_bounced' . $send->getId(), $request->request->get('_token'))) {

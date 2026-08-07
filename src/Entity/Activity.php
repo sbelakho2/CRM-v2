@@ -7,6 +7,8 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ActivityRepository::class)]
 #[ORM\Table(name: 'activities')]
+#[ORM\Index(name: 'idx_activities_user_date', columns: ['user_id', 'activity_date'])]
+#[ORM\Index(name: 'idx_activities_company', columns: ['company_id'])]
 #[ORM\HasLifecycleCallbacks]
 class Activity
 {
@@ -44,15 +46,15 @@ class Activity
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'activities')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Company $company = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class, inversedBy: 'activities')]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Contact $contact = null;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'activities')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
 
     #[ORM\Column(length: 50)]
@@ -93,6 +95,8 @@ class Activity
 
     public function __construct()
     {
+        $this->createdAt = new \DateTime();
+        $this->activityDate = new \DateTime();
     }
 
     #[ORM\PrePersist]
@@ -382,12 +386,12 @@ class Activity
      */
     public function complete(?string $outcome = null, ?string $outcomeDetail = null): self
     {
-        $this->status = self::STATUS_COMPLETED;
+        $this->setStatus(self::STATUS_COMPLETED);
         if ($outcome !== null) {
-            $this->outcome = $outcome;
+            $this->setOutcomeCategory($outcome);
         }
         if ($outcomeDetail !== null) {
-            $this->outcomeDetail = $outcomeDetail;
+            $this->setOutcomeDetail($outcomeDetail);
         }
         return $this;
     }

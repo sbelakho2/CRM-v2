@@ -28,7 +28,7 @@ class PortalCandidateRepository extends ServiceEntityRepository
             ->andWhere('pc.company = :company')
             ->setParameter('company', $company)
             ->orderBy('pc.discoveredAt', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -44,7 +44,7 @@ class PortalCandidateRepository extends ServiceEntityRepository
             ->andWhere('pc.status = :status')
             ->setParameter('status', $status)
             ->orderBy('pc.discoveredAt', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -60,7 +60,7 @@ class PortalCandidateRepository extends ServiceEntityRepository
             ->andWhere('pc.status = :status')
             ->setParameter('status', 'discovered')
             ->orderBy('pc.discoveredAt', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -76,7 +76,7 @@ class PortalCandidateRepository extends ServiceEntityRepository
             ->andWhere('pc.status = :status')
             ->setParameter('status', 'active')
             ->orderBy('pc.company', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

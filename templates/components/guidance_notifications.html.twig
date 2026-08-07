@@ -6,27 +6,17 @@
     
     <div class="rams-guidance-stack" id="guidance-notifications-container">
         {% for notification in notifications|slice(0, maxDisplay) %}
-            <div class="rams-alert {{ 
-                notification.type == 'success' ? 'rams-alert--success' :
-                notification.type == 'warning' ? 'rams-alert--warning' :
-                notification.type == 'error' ? 'rams-alert--error' :
-                'rams-alert--info'
-            }} guidance-notification rams-elevation-2" data-notification-index="{{ loop.index0 }}">
+            <div class="rams-alert {{ notification.type == 'success' ? 'rams-alert--success' : notification.type == 'warning' ? 'rams-alert--warning' : notification.type == 'error' ? 'rams-alert--error' : 'rams-alert--info' }} guidance-notification rams-module--inset" data-notification-index="{{ loop.index0 }}">
                 {# Icon with Andon #}
                 <div class="rams-alert__icon">
-                    <span class="rams-andon {{ 
-                        notification.type == 'success' ? 'rams-andon--success' :
-                        notification.type == 'warning' ? 'rams-andon--warning' :
-                        notification.type == 'error' ? 'rams-andon--error' :
-                        'rams-andon--info'
-                    }}"><span class="rams-andon__light"></span></span>
+                    <span class="rams-andon {{ notification.type == 'success' ? 'rams-andon--success' : notification.type == 'warning' ? 'rams-andon--warning' : notification.type == 'error' ? 'rams-andon--error' : 'rams-andon--info' }}"><span class="rams-andon__light"></span></span>
                 </div>
 
                 {# Content #}
                 <div class="rams-alert__content">
                     <div class="rams-flex rams-justify-between rams-items-start">
                         <span class="rams-alert__title">{{ ('common.' ~ notification.type)|trans }}</span>
-                        <div class="rams-text--3xs rams-text--muted font-mono">{{ notification.timestamp|date('H:i') }}</div>
+                        <div class="rams-text--3xs rams-text--muted rams-font-mono">{{  notification.timestamp|date('H:i') }}</div>
                     </div>
                     <p class="rams-alert__text">
                         {{ notification.message|striptags('<b><i><u><a><br><p>')|raw }}
@@ -36,12 +26,12 @@
                 {# Action Buttons #}
                 <div class="rams-alert__actions">
                     {% if notification.actionUrl and notification.actionLabel %}
-                        <a href="{{ notification.actionUrl }}" class="rams-btn rams-btn--primary rams-btn--sm uppercase">
+                        <a href="{{ notification.actionUrl }}" class="rams-btn rams-btn--primary rams-btn--sm rams-uppercase"> 
                             {{ notification.actionLabel }}
                         </a>
                     {% endif %}
                     {# Dismiss Button #}
-                    <button type="button" onclick="dismissGuidanceNotification(this)" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.close'|trans }}">
+                    <button type="button" onclick="dismissGuidanceNotification(this)" class="rams-btn rams-btn--ghost rams-btn--sm" aria-label="{{  'common.close'|trans }}">
                         <svg class="rams-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 6L6 18M6 6l12 12"/>
                         </svg>
@@ -66,7 +56,7 @@
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: 'index=' + index
-        }).then(response => {
+        + '&_csrf_token=' + encodeURIComponent('{{ csrf_token('guidance_dismiss') }}') }).then(response => {
             if (response.ok) {
                 setTimeout(() => {
                     notification.remove();
@@ -83,7 +73,7 @@
     function clearAllGuidanceNotifications() {
         ramsConfirm('{{ 'guidance.clear_confirm'|trans }}', function() {
             fetch('{{ path('guidance_dismiss_all') }}', {
-                method: 'POST'
+                method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', }, body: '_csrf_token=' + encodeURIComponent('{{ csrf_token('guidance_dismiss_all') }}') 
             }).then(response => {
                 if (response.ok) {
                     location.reload();

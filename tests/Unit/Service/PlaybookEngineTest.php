@@ -167,7 +167,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionEquals()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 5, '=', 5));
         $this->assertTrue($method->invoke($this->engine, 'test', '==', 'test'));
@@ -177,7 +176,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionNotEquals()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 5, '!=', 10));
         $this->assertTrue($method->invoke($this->engine, 'a', '<>', 'b'));
@@ -187,7 +185,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionGreaterThan()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 10, '>', 5));
         $this->assertFalse($method->invoke($this->engine, 5, '>', 10));
@@ -197,7 +194,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionLessThan()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 5, '<', 10));
         $this->assertFalse($method->invoke($this->engine, 10, '<', 5));
@@ -207,7 +203,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionGreaterThanOrEqual()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 10, '>=', 5));
         $this->assertTrue($method->invoke($this->engine, 5, '>=', 5));
@@ -217,7 +212,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionLessThanOrEqual()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 5, '<=', 10));
         $this->assertTrue($method->invoke($this->engine, 5, '<=', 5));
@@ -227,7 +221,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionContains()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 'hello world', 'contains', 'world'));
         $this->assertTrue($method->invoke($this->engine, 'test@example.com', 'contains', '@'));
@@ -237,7 +230,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionIn()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 'A', 'in', ['A', 'B', 'C']));
         $this->assertTrue($method->invoke($this->engine, 5, 'in', [1, 5, 10]));
@@ -247,7 +239,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionNotIn()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 'D', 'not_in', ['A', 'B', 'C']));
         $this->assertFalse($method->invoke($this->engine, 'A', 'not_in', ['A', 'B', 'C']));
@@ -256,7 +247,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionRegex()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->assertTrue($method->invoke($this->engine, 'test@example.com', 'regex', '/.*@example\.com$/'));
         $this->assertTrue($method->invoke($this->engine, '192.168.1.1', 'regex', '/^\d+\.\d+\.\d+\.\d+$/'));
@@ -266,7 +256,6 @@ class PlaybookEngineTest extends TestCase
     public function testEvaluateConditionThrowsExceptionForUnknownOperator()
     {
         $method = new \ReflectionMethod(PlaybookEngine::class, 'evaluateCondition');
-        $method->setAccessible(true);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unknown operator: invalid_op');

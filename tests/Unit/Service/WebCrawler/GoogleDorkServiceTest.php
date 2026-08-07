@@ -180,7 +180,6 @@ class GoogleDorkServiceTest extends TestCase
     private function callPrivate(string $method, array $args): mixed
     {
         $ref = new \ReflectionMethod(GoogleDorkService::class, $method);
-        $ref->setAccessible(true);
         return $ref->invoke($this->service, ...$args);
     }
 

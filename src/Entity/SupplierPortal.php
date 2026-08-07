@@ -15,7 +15,7 @@ class SupplierPortal
     private ?int $id = null;
 
     #[ORM\OneToOne(targetEntity: Company::class, inversedBy: 'supplierPortal')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Company $company = null;
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]

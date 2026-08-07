@@ -632,6 +632,15 @@ body {
     transform: translateY(-1px);
 }
 
+.rams-module--hoverable--selected {
+    border-color: var(--rams-green);
+    box-shadow: 0 0 0 1px var(--rams-green) inset, 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.rams-module--hoverable--selected:hover {
+    border-color: var(--rams-green);
+}
+
 .rams-card-list {
     display: flex;
     flex-direction: column;
@@ -1873,8 +1882,8 @@ body {
 .rams-border { border: 1px solid var(--rams-line); }
 .rams-border-t { border-top: 1px solid var(--rams-line); }
 .rams-border-b { border-bottom: 1px solid var(--rams-line); }
-.rams-border-l { border-left: 1px solid var(--rams-line); }
-.rams-border-r { border-right: 1px solid var(--rams-line); }
+.rams-border-l { border-inline-start: 1px solid var(--rams-line); }
+.rams-border-r { border-inline-end: 1px solid var(--rams-line); }
 
 .rams-font-mono { font-family: var(--font-mono); }
 .rams-font-sans { font-family: var(--font-sans); }
@@ -1951,16 +1960,16 @@ body {
 .rams-pb-md { padding-bottom: var(--space-3); }
 .rams-pb-lg { padding-bottom: var(--space-6); }
 .rams-pb-xl { padding-bottom: var(--space-8); }
-.rams-pl-xs { padding-left: var(--space-1); }
-.rams-pl-sm { padding-left: var(--space-2); }
-.rams-pl-md { padding-left: var(--space-3); }
-.rams-pl-lg { padding-left: var(--space-6); }
-.rams-pl-xl { padding-left: var(--space-8); }
-.rams-pr-xs { padding-right: var(--space-1); }
-.rams-pr-sm { padding-right: var(--space-2); }
-.rams-pr-md { padding-right: var(--space-3); }
-.rams-pr-lg { padding-right: var(--space-6); }
-.rams-pr-xl { padding-right: var(--space-8); }
+.rams-pl-xs { padding-inline-start: var(--space-1); }
+.rams-pl-sm { padding-inline-start: var(--space-2); }
+.rams-pl-md { padding-inline-start: var(--space-3); }
+.rams-pl-lg { padding-inline-start: var(--space-6); }
+.rams-pl-xl { padding-inline-start: var(--space-8); }
+.rams-pr-xs { padding-inline-end: var(--space-1); }
+.rams-pr-sm { padding-inline-end: var(--space-2); }
+.rams-pr-md { padding-inline-end: var(--space-3); }
+.rams-pr-lg { padding-inline-end: var(--space-6); }
+.rams-pr-xl { padding-inline-end: var(--space-8); }
 
 /* Flex utilities */
 .rams-flex { display: flex; }
@@ -1984,14 +1993,14 @@ body {
 .rams-gap-6 { gap: var(--space-6); }
 
 /* Margin right utilities */
-.rams-mr-1 { margin-right: var(--space-1); }
-.rams-mr-2 { margin-right: var(--space-2); }
-.rams-mr-3 { margin-right: var(--space-3); }
-.rams-mr-4 { margin-right: var(--space-4); }
-.rams-ml-1 { margin-left: var(--space-1); }
-.rams-ml-2 { margin-left: var(--space-2); }
-.rams-ml-3 { margin-left: var(--space-3); }
-.rams-ml-4 { margin-left: var(--space-4); }
+.rams-mr-1 { margin-inline-end: var(--space-1); }
+.rams-mr-2 { margin-inline-end: var(--space-2); }
+.rams-mr-3 { margin-inline-end: var(--space-3); }
+.rams-mr-4 { margin-inline-end: var(--space-4); }
+.rams-ml-1 { margin-inline-start: var(--space-1); }
+.rams-ml-2 { margin-inline-start: var(--space-2); }
+.rams-ml-3 { margin-inline-start: var(--space-3); }
+.rams-ml-4 { margin-inline-start: var(--space-4); }
 .rams-mx-auto { margin-left: auto; margin-right: auto; }
 .rams-mx-xs { margin-left: var(--space-1); margin-right: var(--space-1); }
 .rams-mx-sm { margin-left: var(--space-2); margin-right: var(--space-2); }
@@ -2006,8 +2015,8 @@ body {
 
 /* Text alignment utilities */
 .rams-text-center { text-align: center; }
-.rams-text-left { text-align: left; }
-.rams-text-right { text-align: right; }
+.rams-text-left { text-align: start; }
+.rams-text-right { text-align: end; }
 .rams-text--center { text-align: center; }
 .rams-text--left { text-align: left; }
 .rams-text--right { text-align: right; }
@@ -4976,4 +4985,143 @@ a.rams-module:hover {
     color: var(--rams-steel);
     margin: 0;
     font-style: italic;
+}
+
+/* ============================================================
+   RTL SUPPORT (Arabic)
+   Mirrors physical directional properties when dir="rtl".
+   Fires via html[dir=rtl] set in base.html.twig / base_login.html.twig.
+   ============================================================ */
+
+[dir="rtl"] body {
+    text-align: right;
+}
+
+/* 5. Rack sidebar: mirror to the right edge */
+[dir="rtl"] .rams-sidebar {
+    left: auto;
+    right: 0;
+    border-right: none;
+    border-left: 1px solid var(--rams-line);
+}
+
+/* 6. Main content: offset from the right edge */
+[dir="rtl"] .rams-main {
+    margin-left: 0;
+    margin-right: var(--sidebar-width);
+}
+
+[dir="rtl"] .rams-sidebar__nav-badge {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* Accent borders flip to the right side */
+[dir="rtl"] .rams-module--filters,
+[dir="rtl"] .rams-lifecycle-warning,
+[dir="rtl"] .rams-alert,
+[dir="rtl"] .rams-kanban__card--info,
+[dir="rtl"] .rams-kanban__card--warning,
+[dir="rtl"] .rams-kanban__card--success,
+[dir="rtl"] .rams-kanban__card--danger,
+[dir="rtl"] .rams-kanban__card--high,
+[dir="rtl"] .rams-kanban__card--medium,
+[dir="rtl"] .rams-kanban__card--low,
+[dir="rtl"] .rams-kanban__card--urgent {
+    border-left-width: 0;
+    border-left-color: transparent;
+}
+
+[dir="rtl"] .rams-module--filters { border-right: 4px solid var(--rams-orange); }
+[dir="rtl"] .rams-lifecycle-warning { border-right: 4px solid var(--rams-orange); }
+[dir="rtl"] .rams-alert { border-right: 4px solid var(--rams-muted); }
+[dir="rtl"] .rams-kanban__card--info { border-right: 3px solid var(--rams-steel); }
+[dir="rtl"] .rams-kanban__card--warning { border-right: 3px solid var(--rams-orange); }
+[dir="rtl"] .rams-kanban__card--success { border-right: 3px solid var(--rams-green); }
+[dir="rtl"] .rams-kanban__card--danger { border-right: 3px solid var(--rams-red); }
+[dir="rtl"] .rams-kanban__card--high { border-right: 3px solid var(--rams-red); }
+[dir="rtl"] .rams-kanban__card--medium { border-right: 3px solid var(--rams-orange); }
+[dir="rtl"] .rams-kanban__card--low { border-right: 3px solid var(--rams-steel); }
+[dir="rtl"] .rams-kanban__card--urgent { border-right: 3px solid var(--rams-red); }
+
+/* Border utilities */
+
+/* Spacing utilities flip side */
+
+
+/* Text alignment utilities flip */
+[dir="rtl"] .rams-text--left { text-align: right; }
+[dir="rtl"] .rams-text--right { text-align: left; }
+
+/* Inline element offsets flip */
+[dir="rtl"] .rams-btn__icon--end { margin-left: 0; margin-right: var(--space-1); }
+[dir="rtl"] .rams-metric__unit { margin-left: 0; margin-right: var(--space-2); }
+[dir="rtl"] .rams-info-panel__list { padding-left: 0; padding-right: var(--space-4); }
+
+/* Absolute-positioned elements flip */
+[dir="rtl"] .rams-dropdown { right: auto; left: 0; }
+[dir="rtl"] .rams-savings-badge { right: auto; left: -8px; }
+[dir="rtl"] .rams-notification__modal { left: auto; right: calc(var(--sidebar-width) + 10px); }
+[dir="rtl"] .rams-guidance-stack { right: auto; left: 24px; }
+[dir="rtl"] .rams-module--guidance::after { right: auto; left: 0; }
+[dir="rtl"] .rams-toast { right: auto; left: 20px; }
+[dir="rtl"] .rams-skip-link { left: auto; right: 0; }
+
+/* Tables: headers align right; numeric/action cells stay right-aligned */
+[dir="rtl"] .rams-table th { text-align: right; }
+[dir="rtl"] .rams-table__cell--actions,
+[dir="rtl"] .rams-table__cell--right { text-align: left; }
+
+[dir="rtl"] .mobile-text-left { text-align: right !important; }
+
+/* Arabic typography: strip decorative letter-spacing from labels (disconnects Arabic glyphs) */
+[dir="rtl"] .rams-module__title,
+[dir="rtl"] .rams-btn,
+[dir="rtl"] .rams-dropdown__header,
+[dir="rtl"] .rams-label,
+[dir="rtl"] .rams-table th,
+[dir="rtl"] .rams-dymo,
+[dir="rtl"] .rams-metric__label,
+[dir="rtl"] .rams-alert__title,
+[dir="rtl"] .rams-badge,
+[dir="rtl"] .rams-status-text,
+[dir="rtl"] .rams-definition-list__term,
+[dir="rtl"] .rams-empty-state__title,
+[dir="rtl"] .rams-link--back,
+[dir="rtl"] .rams-uppercase,
+[dir="rtl"] .rams-form__label,
+[dir="rtl"] .rams-modal__title,
+[dir="rtl"] .rams-auth-logo__title,
+[dir="rtl"] .rams-breadcrumb__item,
+[dir="rtl"] .rams-loading-overlay__title {
+    letter-spacing: normal;
+}
+
+/* ============================================
+   Icon button variant (compact square button
+   carrying only an SVG icon)
+   ============================================ */
+.rams-btn--icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.rams-btn--icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Warning variant for confirmation buttons */
+.rams-btn--warning {
+    background: var(--rams-orange, #d97706);
+    border-color: var(--rams-orange, #d97706);
+    color: #fff;
+}
+.rams-btn--warning:hover {
+    background: var(--rams-orange, #d97706);
+    filter: brightness(0.92);
 }

@@ -11,13 +11,13 @@
             <p class="rams-page-subtitle">{{ 'rfq.index.subtitle'|trans }}</p>
         </div>
         <div class="rams-btn-group mobile-stack">
-            <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn uppercase">
+            <a href="{{ path('app_rfq_pipeline') }}" class="rams-btn rams-uppercase"> 
                 <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M2 14V6l6-4 6 4v8M6 14V9h4v5"/>
                 </svg>
                 {{ 'rfq.actions.pipeline_view'|trans }}
             </a>
-            <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary uppercase">
+            <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary rams-uppercase"> 
                 <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 2v12M2 8h12"/>
                 </svg>
@@ -31,8 +31,8 @@
         <div class="rams-module__content">
             <form method="get" class="rams-form rams-form__row rams-form__row--5">
                 <div class="rams-form__group">
-                    <label class="rams-dymo">{{ 'rfq.fields.type'|trans }}</label>
-                    <select name="type" class="rams-form__select">
+                    <label class="rams-dymo" for="rfq-filter-type">{{ 'rfq.fields.type'|trans }}</label>
+                    <select id="rfq-filter-type" name="type" class="rams-form__select">
                         <option value="">{{ 'rfq.filters.all_types'|trans }}</option>
                         <option value="Standard RFQ" {% if app.request.get('type') == 'Standard RFQ' %}selected{% endif %}>{{ 'rfq.type.standard'|trans }}</option>
                         <option value="NPI" {% if app.request.get('type') == 'NPI' %}selected{% endif %}>{{ 'rfq.type.npi'|trans }}</option>
@@ -41,8 +41,8 @@
                 </div>
                 
                 <div class="rams-form__group">
-                    <label class="rams-dymo">{{ 'rfq.fields.status'|trans }}</label>
-                    <select name="status" class="rams-form__select">
+                    <label class="rams-dymo" for="rfq-filter-status">{{ 'rfq.fields.status'|trans }}</label>
+                    <select id="rfq-filter-status" name="status" class="rams-form__select">
                         <option value="">{{ 'rfq.filters.all_statuses'|trans }}</option>
                         <option value="Pending" {% if app.request.get('status') == 'Pending' %}selected{% endif %}>{{ 'rfq.status.pending'|trans }}</option>
                         <option value="In Review" {% if app.request.get('status') == 'In Review' %}selected{% endif %}>{{ 'rfq.status.in_review'|trans }}</option>
@@ -53,16 +53,16 @@
                 </div>
                 
                 <div class="rams-form__group">
-                    <label class="rams-dymo">{{ 'rfq.fields.company'|trans }}</label>
-                    <select name="company" class="rams-form__select">
+                    <label class="rams-dymo" for="rfq-filter-company">{{ 'rfq.fields.company'|trans }}</label>
+                    <select id="rfq-filter-company" name="company" class="rams-form__select">
                         <option value="">{{ 'rfq.filters.all_companies'|trans }}</option>
-                        {# Companies will be populated dynamically #}
+                        {% for company in companies %} <option value="{{ company.id }}" {% if app.request.get('company') == company.id %}selected{% endif %}>{{ company.name }}</option> {% endfor %}       
                     </select>
                 </div>
 
                 <div class="rams-form__group">
-                    <label class="rams-dymo">{{ 'rfq.fields.nda_status'|trans }}</label>
-                    <select name="nda_status" class="rams-form__select">
+                    <label class="rams-dymo" for="rfq-filter-nda">{{ 'rfq.fields.nda_status'|trans }}</label>
+                    <select id="rfq-filter-nda" name="nda_status" class="rams-form__select">
                         <option value="">{{ 'common.all'|trans }}</option>
                         <option value="pending" {% if app.request.get('nda_status') == 'pending' %}selected{% endif %}>{{ 'rfq.nda.pending'|trans }}</option>
                         <option value="sent" {% if app.request.get('nda_status') == 'sent' %}selected{% endif %}>{{ 'rfq.nda.sent'|trans }}</option>
@@ -73,8 +73,8 @@
                 <div class="rams-form__group rams-form__group--actions">
                     <label class="rams-dymo">&nbsp;</label>
                     <div class="rams-btn-group mobile-stack">
-                        <button type="submit" class="rams-btn rams-btn--primary uppercase">{{ 'common.apply'|trans }}</button>
-                        <a href="{{ path('app_rfq_index') }}" class="rams-btn uppercase">{{ 'common.clear'|trans }}</a>
+                        <button type="submit" class="rams-btn rams-btn--primary rams-uppercase">{{  'common.apply'|trans }}</button>
+                        <a href="{{ path('app_rfq_index') }}" class="rams-btn rams-uppercase">{{  'common.clear'|trans }}</a>
                     </div>
                 </div>
             </form>
@@ -187,13 +187,13 @@
                             </div>
 
                             <div class="rams-flex rams-gap-2">
-                                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}">
+                                <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.view'|trans }}" aria-label="{{ 'common.view'|trans }}">
                                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M2 8C2 8 4 4 8 4C12 4 14 8 14 8C14 8 12 12 8 12C4 12 2 8 2 8Z"/>
                                         <circle cx="8" cy="8" r="2"/>
                                     </svg>
                                 </a>
-                                <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
+                                <a href="{{ path('app_rfq_edit', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}" aria-label="{{ 'common.edit'|trans }}">
                                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                                     </svg>
@@ -208,12 +208,12 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-empty-state">
-                    <div class="rams-empty-state__icon-wrapper">
+                     
                         <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="rams-empty-state__icon">
                             <rect x="3" y="3" width="10" height="10" rx="1"/>
                             <path d="M6 7H10M6 10H8"/>
                         </svg>
-                    </div>
+                    
                     <h3 class="rams-empty-state__title">{{ 'rfq.empty.title'|trans }}</h3>
                     <p class="rams-empty-state__description">{{ 'rfq.empty.description'|trans }}</p>
                     <a href="{{ path('app_rfq_new') }}" class="rams-btn rams-btn--primary">

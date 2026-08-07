@@ -287,7 +287,6 @@ class MathQualityReport extends TestCase
         // Use reflection to test the private method
         $service = $this->createEmailAbTestService();
         $method = new \ReflectionMethod($service, 'zScoreToConfidence');
-        $method->setAccessible(true);
 
         $testCases = [
             // [z-score, expected_confidence, tolerance, label]
@@ -319,7 +318,6 @@ class MathQualityReport extends TestCase
     {
         $service = $this->createEmailAnalyticsService();
         $method = new \ReflectionMethod($service, 'chiSquareToConfidence');
-        $method->setAccessible(true);
 
         echo "\n📊 CHI-SQUARE → CONFIDENCE mapping (df=1):\n";
         $testCases = [
@@ -348,7 +346,6 @@ class MathQualityReport extends TestCase
     {
         $service = $this->createEmailAnalyticsService();
         $method = new \ReflectionMethod($service, 'chiSquareToConfidence');
-        $method->setAccessible(true);
 
         // df=2 (3 variants): critical value should be 5.991, not 3.841
         $conf_df1 = $method->invoke($service, 4.5, 1); // Above 3.841 for df=1

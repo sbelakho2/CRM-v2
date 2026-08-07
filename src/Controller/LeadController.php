@@ -261,96 +261,106 @@ class LeadController extends AbstractController
             ], 400);
         }
 
-        // Create new company from lead with all available data
-        $company = new Company();
-        $company->setName($lead->getCompanyName());
-        
-        // Set legal name if available
-        if ($lead->getLegalName()) {
-            $company->setLegalName($lead->getLegalName());
-        }
-        
-        // Set website
-        if ($lead->getWebsiteRoot()) {
-            $company->setWebsite($lead->getWebsiteRoot());
-        }
-        
-        // Set physical site/location
-        if ($lead->getSiteLocation()) {
-            $company->setPhysicalSite($lead->getSiteLocation());
-        }
-        
-        // Set LinkedIn if available
-        if ($lead->getLeadUrl() && str_contains($lead->getLeadUrl(), 'linkedin.com')) {
-            $company->setLinkedinCompanyUrl($lead->getLeadUrl());
-        }
-        
-        // Build comprehensive source notes
-        $notes = "Converted from Lead #" . $lead->getId() . " on " . (new \DateTime())->format('Y-m-d H:i') . "\n";
-        $notes .= "Lead Score: " . $lead->getLeadScore() . "/100\n";
-        $notes .= "Region: " . strtoupper($lead->getRegionTag() ?? 'Unknown') . "\n";
-        
-        if ($lead->getContactEmailsPublic()) {
-            $notes .= "Contact Emails: " . implode(', ', $lead->getContactEmailsPublic()) . "\n";
-        }
-        
-        if ($lead->getSupplierPortalUrl()) {
-            $notes .= "Supplier Portal: " . $lead->getSupplierPortalUrl() . "\n";
-        }
-        
-        if ($lead->getContactFormUrl()) {
-            $notes .= "Contact Form: " . $lead->getContactFormUrl() . "\n";
-        }
-        
-        if ($lead->getQualityStack() && count($lead->getQualityStack()) > 0) {
-            $notes .= "Quality Certifications: " . implode(', ', $lead->getQualityStack()) . "\n";
-        }
-        
-        if ($lead->getNotesAuto()) {
-            $notes .= "\nAuto-Generated Notes:\n" . $lead->getNotesAuto();
-        }
-        
-        $company->setSourceNotes($notes);
-        
-        // Set account tier based on lead score
-        if ($lead->getLeadScore() >= 70) {
-            $company->setAccountTier('A');
-        } elseif ($lead->getLeadScore() >= 55) {
-            $company->setAccountTier('B');
-        } else {
-            $company->setAccountTier('C');
-        }
-        
-        // Set pipeline stage
-        $company->setPipelineStage('Prospect');
-        
-        // Set sector from tags
-        if ($lead->getSectorTags() && count($lead->getSectorTags()) > 0) {
-            $company->setSector(ucfirst($lead->getSectorTags()[0]));
-        } else {
-            $company->setSector('General Manufacturing');
-        }
-        
-        $company->setCreatedAt(new \DateTime());
-        $em->persist($company);
+        // Wrap the whole conversion (company creation + enrichment writes +
+        // draft RFQ) in a single transaction so it commits atomically.
+        $em->beginTransaction();
+        try {
+            // Create new company from lead with all available data
+            $company = new Company();
+            $company->setName($lead->getCompanyName());
+            
+            // Set legal name if available
+            if ($lead->getLegalName()) {
+                $company->setLegalName($lead->getLegalName());
+            }
+            
+            // Set website
+            if ($lead->getWebsiteRoot()) {
+                $company->setWebsite($lead->getWebsiteRoot());
+            }
+            
+            // Set physical site/location
+            if ($lead->getSiteLocation()) {
+                $company->setPhysicalSite($lead->getSiteLocation());
+            }
+            
+            // Set LinkedIn if available
+            if ($lead->getLeadUrl() && str_contains($lead->getLeadUrl(), 'linkedin.com')) {
+                $company->setLinkedinCompanyUrl($lead->getLeadUrl());
+            }
+            
+            // Build comprehensive source notes
+            $notes = "Converted from Lead #" . $lead->getId() . " on " . (new \DateTime())->format('Y-m-d H:i') . "\n";
+            $notes .= "Lead Score: " . $lead->getLeadScore() . "/100\n";
+            $notes .= "Region: " . strtoupper($lead->getRegionTag() ?? 'Unknown') . "\n";
+            
+            if ($lead->getContactEmailsPublic()) {
+                $notes .= "Contact Emails: " . implode(', ', $lead->getContactEmailsPublic()) . "\n";
+            }
+            
+            if ($lead->getSupplierPortalUrl()) {
+                $notes .= "Supplier Portal: " . $lead->getSupplierPortalUrl() . "\n";
+            }
+            
+            if ($lead->getContactFormUrl()) {
+                $notes .= "Contact Form: " . $lead->getContactFormUrl() . "\n";
+            }
+            
+            if ($lead->getQualityStack() && count($lead->getQualityStack()) > 0) {
+                $notes .= "Quality Certifications: " . implode(', ', $lead->getQualityStack()) . "\n";
+            }
+            
+            if ($lead->getNotesAuto()) {
+                $notes .= "\nAuto-Generated Notes:\n" . $lead->getNotesAuto();
+            }
+            
+            $company->setSourceNotes($notes);
+            
+            // Set account tier based on lead score
+            if ($lead->getLeadScore() >= 70) {
+                $company->setAccountTier('A');
+            } elseif ($lead->getLeadScore() >= 55) {
+                $company->setAccountTier('B');
+            } else {
+                $company->setAccountTier('C');
+            }
+            
+            // Set pipeline stage
+            $company->setPipelineStage('Prospect');
+            
+            // Set sector from tags
+            if ($lead->getSectorTags() && count($lead->getSectorTags()) > 0) {
+                $company->setSector(ucfirst($lead->getSectorTags()[0]));
+            } else {
+                $company->setSector('General Manufacturing');
+            }
+            
+            $company->setCreatedAt(new \DateTime());
+            $em->persist($company);
 
-        // Link lead to company
-        $lead->setCompany($company);
-        $lead->setAlreadyInCrm(true);
-        $lead->setUpdatedAt(new \DateTime());
+            // Link lead to company
+            $lead->setCompany($company);
+            $lead->setAlreadyInCrm(true);
+            $lead->setUpdatedAt(new \DateTime());
 
-        $em->flush();
-        
-        // After flush, update CRM record ID
-        $lead->setCrmRecordId((string)$company->getId());
-        $em->flush();
+            $em->flush();
+            
+            // After flush, update CRM record ID
+            $lead->setCrmRecordId((string)$company->getId());
+            $em->flush();
 
-        // Auto-create draft RFQ and advance pipeline stage
-        $draftRfq = $this->pipelineOrchestrator->afterLeadConverted($company, $lead);
-        $em->flush();
+            // Auto-create draft RFQ and advance pipeline stage
+            $draftRfq = $this->pipelineOrchestrator->afterLeadConverted($company, $lead);
+            $em->flush();
 
-        // Provide guidance after lead conversion
-        $this->guidanceService->afterLeadConverted($company, $lead);
+            $em->commit();
+
+            // Provide guidance after lead conversion
+            $this->guidanceService->afterLeadConverted($company, $lead);
+        } catch (\Throwable $e) {
+            $em->rollback();
+            throw $e;
+        }
 
         return $this->json([
             'success' => true,
@@ -470,16 +480,16 @@ class LeadController extends AbstractController
         foreach ($leads as $lead) {
             $csv .= sprintf(
                 '"%s","%s","%s","%s",%d,"%s","%s","%s","%s","%s"' . "\n",
-                str_replace('"', '""', $this->sanitizeCsvField($lead->getCompanyName())),
-                str_replace('"', '""', $this->sanitizeCsvField($lead->getLegalName() ?? '')),
-                $lead->getWebsiteRoot() ?? '',
-                $lead->getRegionTag() ?? '',
+                $this->sanitizeCsvField($lead->getCompanyName() ?? ''),
+                $this->sanitizeCsvField($lead->getLegalName() ?? ''),
+                $this->sanitizeCsvField($lead->getWebsiteRoot() ?? ''),
+                $this->sanitizeCsvField($lead->getRegionTag() ?? ''),
                 $lead->getLeadScore() ?? 0,
-                $lead->getReviewStatus() ?? '',
-                $lead->getSiteLocation() ?? '',
-                implode('; ', $lead->getContactEmailsPublic() ?? []),
-                $lead->getSupplierPortalUrl() ?? '',
-                $lead->getLastSeen() ? $lead->getLastSeen()->format('Y-m-d') : ''
+                $this->sanitizeCsvField($lead->getReviewStatus() ?? ''),
+                $this->sanitizeCsvField($lead->getSiteLocation() ?? ''),
+                $this->sanitizeCsvField(implode('; ', $lead->getContactEmailsPublic() ?? [])),
+                $this->sanitizeCsvField($lead->getSupplierPortalUrl() ?? ''),
+                $this->sanitizeCsvField($lead->getLastSeen() ? $lead->getLastSeen()->format('Y-m-d') : '')
             );
         }
 
@@ -492,8 +502,11 @@ class LeadController extends AbstractController
 
     private function sanitizeCsvField(string $value): string
     {
-        if ($value !== '' && in_array($value[0], ['=', '+', '-', '@'], true)) {
-            return "\t" . $value;
+        $value = str_replace('"', '""', $value);
+        if ($value !== '' && in_array($value[0], ['=', '+', '-', '@', "\t"], true)) {
+            if ($value[0] !== "\t") {
+                return "\t" . $value;
+            }
         }
         return $value;
     }

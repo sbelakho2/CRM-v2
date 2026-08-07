@@ -15,7 +15,7 @@
 
         <div class="rams-table-container">
             <table class="rams-table">
-                <thead class="rams-table__header">
+                <thead>
                     <tr>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.version'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.dataset_name'|trans }}</th>
@@ -26,7 +26,7 @@
                         <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
-                <tbody class="rams-table__body">
+                <tbody>
                     {% if versions | default([]) %}
                         {% for version in versions %}
                             <tr class="rams-table__row">
@@ -118,7 +118,7 @@
     </div>
 
     <div class="rams-module__footer">
-        <a href="{{ path('admin_dataset_index') }}" class="rams-btn rams-btn--ghost uppercase">
+        <a href="{{ path('admin_dataset_index') }}" class="rams-btn rams-btn--ghost rams-uppercase"> 
             <svg class="rams-icon rams-mr-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M10 4L6 8L10 12"/>
             </svg>
@@ -126,4 +126,18 @@
         </a>
     </div>
 </div>
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .rams-timeline { position: relative; }
+    .rams-timeline__item { position: relative; display: flex; gap: var(--space-3); padding-bottom: var(--space-4); }
+    .rams-timeline__marker { position: relative; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+    .rams-timeline__marker .rams-andon__light { width: 14px; height: 14px; }
+    .rams-timeline__line { position: absolute; top: 16px; bottom: 0; width: 2px; background: var(--rams-line); }
+    .rams-timeline__content { flex: 1; min-width: 0; padding-bottom: var(--space-2); border-bottom: 1px solid var(--rams-line); }
+    .rams-timeline__title { margin: 0 0 var(--space-1); font-weight: 600; }
+    .rams-timeline__description { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--rams-muted); }
+</style>
+{% endblock %}
 {% endblock %}

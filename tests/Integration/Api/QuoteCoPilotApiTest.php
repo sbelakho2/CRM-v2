@@ -14,6 +14,7 @@ class QuoteCoPilotApiTest extends WebTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        static::createClient();
         $this->entityManager = static::getContainer()->get('doctrine')->getManager();
         $this->entityManager->beginTransaction();
     }
@@ -65,7 +66,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
     public function testPublishQuoteApiRouteExists(): void
     {
-        $client = static::createClient();
+        $client = static::getClient();
         $quoteId = $this->createTestQuote('route-exists', '75.0');
 
         $client->request('POST', "/quote-copilot/{$quoteId}/publish");
@@ -77,7 +78,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
     public function testPublishQuoteApiRequiresPostMethod(): void
     {
-        $client = static::createClient();
+        $client = static::getClient();
         $quoteId = $this->createTestQuote('get-method', '75.0');
 
         $client->request('GET', "/quote-copilot/{$quoteId}/publish");
@@ -89,7 +90,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
     public function testPublishQuoteApiWithInvalidId(): void
     {
-        $client = static::createClient();
+        $client = static::getClient();
 
         // Use a clearly non-existent ID
         $client->request('POST', '/quote-copilot/999999999/publish');
@@ -101,7 +102,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
     public function testPublishQuoteApiWithLowCoverage(): void
     {
-        $client = static::createClient();
+        $client = static::getClient();
         $quoteId = $this->createTestQuote('low-coverage', '45.5'); // Below 60% threshold
 
         // Try to publish quote with low coverage
@@ -114,7 +115,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
     public function testPublishQuoteApiWithHighCoverage(): void
     {
-        $client = static::createClient();
+        $client = static::getClient();
         $quoteId = $this->createTestQuote('high-coverage', '85.0'); // Above 60% threshold
 
         // Try to publish quote with high coverage
@@ -127,7 +128,7 @@ class QuoteCoPilotApiTest extends WebTestCase
 
     public function testPublishApiReturnsJsonResponse(): void
     {
-        $client = static::createClient();
+        $client = static::getClient();
         $quoteId = $this->createTestQuote('json-response', '75.0');
 
         // Make API call

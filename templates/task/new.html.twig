@@ -8,9 +8,9 @@
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <a href="{{ path('app_task_index') }}">{{ 'task.title'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <span>{{ 'task.new_task'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'task.create_task'|trans }}</h1>
@@ -21,7 +21,7 @@
         <div class="rams-module__content">
             {{ form_start(form, {'attr': {'class': 'rams-form'}}) }}
             
-            <div class="rams-grid rams-grid--1 rams-gap-4">
+            <div class="rams-stack rams-gap-4">
                 {{ form_row(form.title) }}
                 {{ form_row(form.description, {'attr': {'rows': 4}}) }}
             </div>
@@ -43,21 +43,21 @@
                 {{ form_row(form.reminderAt) }}
             </div>
 
-            <hr class="rams-hr rams-my-6">
-            <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-4">{{ 'task.related_records'|trans }}</h3>
+            <div class="rams-border-t rams-my-lg"></div>   
+            <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted rams-mb-4">{{ 'task.related_records'|trans }}</h3>
 
             <div class="rams-grid rams-grid--2 rams-gap-4">
                 {{ form_row(form.company) }}
             </div>
 
             <div class="rams-actions rams-mt-6 mobile-stack">
-                <button type="submit" class="rams-btn rams-btn--primary uppercase">
+                <button type="submit" class="rams-btn rams-btn--primary rams-uppercase"> 
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                     </svg>
                     {{ 'task.create_task'|trans }}
                 </button>
-                <a href="{{ path('app_task_index') }}" class="rams-btn rams-btn--ghost uppercase">{{ 'common.cancel'|trans }}</a>
+                <a href="{{ path('app_task_index') }}" class="rams-btn rams-btn--ghost rams-uppercase">{{  'common.cancel'|trans }}</a>
             </div>
             {{ form_end(form) }}
         </div>

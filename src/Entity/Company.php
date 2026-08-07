@@ -11,8 +11,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'companies')]
 #[ORM\Index(name: 'idx_company_name', columns: ['name'])]
 #[ORM\Index(name: 'idx_company_sector', columns: ['sector'])]
-#[ORM\Index(name: 'idx_company_pipeline', columns: ['pipelineStage'])]
-#[ORM\Index(name: 'idx_company_status', columns: ['companyStatus'])]
+#[ORM\Index(name: 'idx_company_pipeline', columns: ['pipeline_stage'])]
+#[ORM\Index(name: 'idx_company_status', columns: ['company_status'])]
 #[ORM\HasLifecycleCallbacks]
 class Company
 {
@@ -182,6 +182,18 @@ class Company
     #[ORM\OneToOne(mappedBy: 'company', targetEntity: SupplierPortal::class, cascade: ['persist', 'remove'])]
     private ?SupplierPortal $supplierPortal = null;
 
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: ComplianceDocument::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $complianceDocuments;
+
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: PortalCandidate::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $portalCandidates;
+
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: OnboardingPack::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $onboardingPacks;
+
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: CompanyCanonical::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $companyCanonicals;
+
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
 
@@ -193,6 +205,11 @@ class Company
         $this->contacts = new ArrayCollection();
         $this->activities = new ArrayCollection();
         $this->rfqs = new ArrayCollection();
+        $this->complianceDocuments = new ArrayCollection();
+        $this->portalCandidates = new ArrayCollection();
+        $this->onboardingPacks = new ArrayCollection();
+        $this->companyCanonicals = new ArrayCollection();
+        $this->createdAt = new \DateTime();
     }
 
     #[ORM\PrePersist]
@@ -479,6 +496,114 @@ class Company
     public function getSupplierPortal(): ?SupplierPortal
     {
         return $this->supplierPortal;
+    }
+
+    /**
+     * @return Collection<int, ComplianceDocument>
+     */
+    public function getComplianceDocuments(): Collection
+    {
+        return $this->complianceDocuments;
+    }
+
+    public function addComplianceDocument(ComplianceDocument $document): self
+    {
+        if (!$this->complianceDocuments->contains($document)) {
+            $this->complianceDocuments->add($document);
+            $document->setCompany($this);
+        }
+        return $this;
+    }
+
+    public function removeComplianceDocument(ComplianceDocument $document): self
+    {
+        if ($this->complianceDocuments->removeElement($document)) {
+            if ($document->getCompany() === $this) {
+                $document->setCompany(null);
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, PortalCandidate>
+     */
+    public function getPortalCandidates(): Collection
+    {
+        return $this->portalCandidates;
+    }
+
+    public function addPortalCandidate(PortalCandidate $candidate): self
+    {
+        if (!$this->portalCandidates->contains($candidate)) {
+            $this->portalCandidates->add($candidate);
+            $candidate->setCompany($this);
+        }
+        return $this;
+    }
+
+    public function removePortalCandidate(PortalCandidate $candidate): self
+    {
+        if ($this->portalCandidates->removeElement($candidate)) {
+            if ($candidate->getCompany() === $this) {
+                $candidate->setCompany(null);
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, OnboardingPack>
+     */
+    public function getOnboardingPacks(): Collection
+    {
+        return $this->onboardingPacks;
+    }
+
+    public function addOnboardingPack(OnboardingPack $pack): self
+    {
+        if (!$this->onboardingPacks->contains($pack)) {
+            $this->onboardingPacks->add($pack);
+            $pack->setCompany($this);
+        }
+        return $this;
+    }
+
+    public function removeOnboardingPack(OnboardingPack $pack): self
+    {
+        if ($this->onboardingPacks->removeElement($pack)) {
+            if ($pack->getCompany() === $this) {
+                $pack->setCompany(null);
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, CompanyCanonical>
+     */
+    public function getCompanyCanonicals(): Collection
+    {
+        return $this->companyCanonicals;
+    }
+
+    public function addCompanyCanonical(CompanyCanonical $canonical): self
+    {
+        if (!$this->companyCanonicals->contains($canonical)) {
+            $this->companyCanonicals->add($canonical);
+            $canonical->setCompany($this);
+        }
+        return $this;
+    }
+
+    public function removeCompanyCanonical(CompanyCanonical $canonical): self
+    {
+        if ($this->companyCanonicals->removeElement($canonical)) {
+            if ($canonical->getCompany() === $this) {
+                $canonical->setCompany(null);
+            }
+        }
+        return $this;
     }
 
     public function setSupplierPortal(?SupplierPortal $supplierPortal): self

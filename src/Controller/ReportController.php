@@ -114,6 +114,10 @@ class ReportController extends AbstractController
         $fields = $this->reportBuilder->getFieldsForSource($report->getDataSource());
         
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('report_builder', $request->request->get('_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token.');
+            }
+
             $data = $request->request->all();
             
             // Update columns
@@ -276,6 +280,13 @@ class ReportController extends AbstractController
             throw $this->createAccessDeniedException();
         }
         
+        $token = $request->headers->get('X-CSRF-Token')
+            ?? $request->request->get('_token')
+            ?? $request->request->get('_csrf_token');
+        if (!$this->isCsrfTokenValid('report_toggle_favorite', (string) $token)) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+
         $report->setIsFavorite(!$report->isFavorite());
         $this->em->flush();
         
@@ -325,6 +336,15 @@ class ReportController extends AbstractController
     #[Route('/api/preview', name: 'report_api_preview', methods: ['POST'])]
     public function apiPreview(Request $request): JsonResponse
     {
+        $token = $request->headers->get('X-CSRF-Token');
+        if (!$token) {
+            $body = json_decode($request->getContent(), true);
+            $token = is_array($body) ? ($body['_token'] ?? null) : null;
+        }
+        if (!$this->isCsrfTokenValid('report_api_preview', (string) $token)) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         $data = json_decode($request->getContent(), true);
         
         if (!isset($data['dataSource'])) {

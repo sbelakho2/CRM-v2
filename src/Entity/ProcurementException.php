@@ -18,7 +18,7 @@ class ProcurementException
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: BomLine::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?BomLine $bomLine = null;
 
     #[ORM\Column(length: 50)]

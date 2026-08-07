@@ -1124,8 +1124,10 @@ class EmailPersonalizationService
     /**
      * Determine content length based on engagement score
      */
-    private function determineContentLength(int $engagementScore): string
+    private function determineContentLength(int|float $engagementScore): string
     {
+        $engagementScore = (int) round($engagementScore);
+
         if ($engagementScore >= 70) {
             return 'detailed'; // High engagement - they want more detail
         } elseif ($engagementScore >= 40) {

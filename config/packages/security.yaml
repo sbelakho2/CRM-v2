@@ -30,6 +30,8 @@ security:
   access_control:
     - { path: ^/login, roles: PUBLIC_ACCESS }
     - { path: ^/register, roles: PUBLIC_ACCESS }
+    - { path: ^/verify-email, roles: PUBLIC_ACCESS }
+    - { path: ^/email/unsubscribe, roles: PUBLIC_ACCESS }
     - { path: ^/logout, roles: PUBLIC_ACCESS }
     - { path: ^/forgot-password, roles: PUBLIC_ACCESS }
     - { path: ^/reset-password, roles: PUBLIC_ACCESS }
@@ -42,6 +44,9 @@ security:
     - { path: ^/compliance, roles: [ROLE_USER, ROLE_ENGINEERING] }
     - { path: ^/supplier-portal, roles: [ROLE_USER, ROLE_ENGINEERING] }
     - { path: ^/currency-converter, roles: [ROLE_USER, ROLE_ENGINEERING] }
+    # Provider webhook callbacks authenticate via their own shared-secret
+    # header (X-Webhook-Secret), so the firewall must not require a session.
+    - { path: ^/api/autonomous/webhook, roles: PUBLIC_ACCESS }
     - { path: ^/api, roles: ROLE_USER }
     - { path: ^/, roles: ROLE_USER }
 

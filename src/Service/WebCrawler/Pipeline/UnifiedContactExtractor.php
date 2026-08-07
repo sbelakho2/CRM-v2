@@ -429,7 +429,7 @@ final class UnifiedContactExtractor
     private function extractNameFromLinkedInUrl(string $url): array
     {
         // Extract the slug portion: /in/john-doe-123abc/
-        if (preg_match('#linkedin\.com/in/([^/?#]+)#i', $url, $m)) {
+        if (preg_match('~linkedin\.com/in/([^/?#]+)~i', $url, $m)) {
             $slug = $m[1];
             // Remove trailing identifiers (e.g., -123abc, -a123b4)
             $slug = preg_replace('/-[a-z0-9]{5,}$/i', '', $slug);

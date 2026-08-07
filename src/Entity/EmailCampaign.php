@@ -106,10 +106,11 @@ class EmailCampaign
     private ?\DateTimeInterface $scheduledAt = null;
 
     #[ORM\ManyToOne(targetEntity: EmailTemplate::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?EmailTemplate $template = null;
 
     #[ORM\ManyToOne(targetEntity: EmailSegment::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?EmailSegment $segment = null;
 
     public function __construct()

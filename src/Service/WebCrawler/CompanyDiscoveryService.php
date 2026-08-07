@@ -171,8 +171,13 @@ class CompanyDiscoveryService
                     $companies = $this->discoverCompanies($sector, $name);
                     $allCompanies = array_merge($allCompanies, $companies);
 
-                    // Sleep to avoid rate limiting
-                    sleep(2);
+                    // Short configurable delay between discovery runs to stay
+                    // polite to search providers. Default 200ms; set
+                    // DISCOVERY_SECTOR_DELAY_MS=0 to disable entirely.
+                    $delayMs = (int) (getenv('DISCOVERY_SECTOR_DELAY_MS') ?: 200);
+                    if ($delayMs > 0) {
+                        usleep($delayMs * 1000);
+                    }
                 }
             }
         }
@@ -1044,7 +1049,7 @@ class CompanyDiscoveryService
 
     private function ensureEntityManagerOpen(): void
     {
-        if (!method_exists($this->em, 'isOpen') || $this->em->isOpen()) {
+        if (!method_exists($this->em, 'isOpen') || $this->em->isOpen() !== false) {
             return;
         }
 

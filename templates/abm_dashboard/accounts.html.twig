@@ -31,29 +31,29 @@
     {# Filters #}
     <div class="rams-module">
         <div class="rams-module__content">
-            <form class="rams-form rams-grid rams-grid--3 mobile-stack">
+            <form method="get" action="{{ path('abm_dashboard_accounts') }}" class="rams-form rams-grid rams-grid--3 mobile-stack">
                 <div class="rams-form__group">
-                    <label class="rams-form__label rams-dymo">{{ 'common.search'|trans }}</label>
-                    <input type="text" placeholder="{{ 'abm_dashboard.search_accounts'|trans }}" class="rams-form__input">
+                    <label class="rams-form__label rams-dymo" for="abm-account-search">{{  'common.search'|trans }}</label>
+                    <input type="text" id="abm-account-search" name="q" value="{{ q|default('') }}" placeholder="{{ 'abm_dashboard.search_accounts'|trans }}" class="rams-form__input">
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label rams-dymo">{{ 'company.region'|trans }}</label>
-                    <select class="rams-form__select">
+                    <label class="rams-form__label rams-dymo" for="abm-account-region">{{  'company.region'|trans }}</label>
+                    <select class="rams-form__select" id="abm-account-region" name="region"> 
                         <option value="">{{ 'abm_dashboard.all_regions'|trans }}</option>
-                        <option value="MA">{{ 'abm_dashboard.region_morocco'|trans }}</option>
-                        <option value="US">{{ 'abm_dashboard.region_us'|trans }}</option>
-                        <option value="EU">{{ 'abm_dashboard.region_eu'|trans }}</option>
+                        <option value="MA" {% if region|default('') == 'MA' %}selected{% endif %}>{{  'abm_dashboard.region_morocco'|trans }}</option>
+                        <option value="US" {% if region|default('') == 'US' %}selected{% endif %}>{{  'abm_dashboard.region_us'|trans }}</option>
+                        <option value="EU" {% if region|default('') == 'EU' %}selected{% endif %}>{{  'abm_dashboard.region_eu'|trans }}</option>
                     </select>
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label rams-dymo">{{ 'common.status'|trans }}</label>
-                    <select class="rams-form__select">
+                    <label class="rams-form__label rams-dymo" for="abm-account-status">{{  'common.status'|trans }}</label>
+                    <select class="rams-form__select" id="abm-account-status" name="status"> 
                         <option value="">{{ 'abm_dashboard.all_statuses'|trans }}</option>
-                        <option value="active">{{ 'common.active'|trans }}</option>
-                        <option value="prospect">{{ 'abm_dashboard.status_prospect'|trans }}</option>
-                        <option value="inactive">{{ 'common.inactive'|trans }}</option>
+                        <option value="active" {% if status|default('') == 'active' %}selected{% endif %}>{{  'common.active'|trans }}</option>
+                        <option value="prospect" {% if status|default('') == 'prospect' %}selected{% endif %}>{{  'abm_dashboard.status_prospect'|trans }}</option>
+                        <option value="inactive" {% if status|default('') == 'inactive' %}selected{% endif %}>{{  'common.inactive'|trans }}</option>
                     </select>
-                </div>
+                </div> <div class="rams-form__group rams-form__group--actions rams-grid-span-3"> <button type="submit" class="rams-btn rams-w-full"> <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"> <circle cx="7" cy="7" r="4"/> <path d="M11 11L14 14"/> </svg> {{ 'common.filter'|trans }} </button> </div>
             </form>
         </div>
     </div>
@@ -62,7 +62,7 @@
     <div class="rams-grid rams-grid--3 rams-gap-6">
         {% if accounts | default([]) %}
             {% for account in accounts %}
-                <div class="rams-module rams-module--hoverable" onclick="location.href='{{ path('abm_dashboard_account_detail', {'id': account.id | default(1)}) }}'">
+                <div class="rams-module rams-module--hoverable" onclick="location.href='{{ path('abm_dashboard_account_detail', {'id': account.id})    }}'">
                     <div class="rams-module__content">
                         <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
                             <div>
@@ -100,10 +100,10 @@
                         </div>
                     </div>
                     <div class="rams-module__footer rams-flex rams-gap-2 mobile-stack" onclick="event.stopPropagation()">
-                        <a href="{{ path('abm_dashboard_account_detail', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm rams-flex-1">
+                        <a href="{{ path('abm_dashboard_account_detail', {'id': account.id})    }}" class="rams-btn rams-btn--ghost rams-btn--sm rams-flex-1">
                             {{ 'common.view'|trans }}
                         </a>
-                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">
+                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id})    }}" class="rams-btn rams-btn--ghost rams-btn--sm">
                             <svg class="rams-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 2L14 5L6 13H3V10L11 2Z"/>
                             </svg>
@@ -130,7 +130,7 @@
         <a href="{{ path('admin_dataset_import_form') }}" class="rams-module rams-module--inset rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
-                    <div class="rams-metric__icon">
+                    <div class="rams-icon rams-icon--xl">
                         <svg class="rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
@@ -145,7 +145,7 @@
         <a href="{{ path('abm_dashboard_index') }}" class="rams-module rams-module--inset rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
-                    <div class="rams-metric__icon">
+                    <div class="rams-icon rams-icon--xl">
                         <svg class="rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="20" x2="18" y2="10"></line>
                             <line x1="12" y1="20" x2="12" y2="4"></line>

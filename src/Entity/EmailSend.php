@@ -8,6 +8,8 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: EmailSendRepository::class)]
 #[ORM\Table(name: 'email_sends')]
+#[ORM\Index(name: 'idx_email_sends_campaign', columns: ['campaign_id'])]
+#[ORM\Index(name: 'idx_email_sends_contact', columns: ['contact_id'])]
 #[ORM\HasLifecycleCallbacks]
 class EmailSend
 {
@@ -33,11 +35,11 @@ class EmailSend
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: EmailCampaign::class, inversedBy: 'emailSends')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?EmailCampaign $campaign = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Contact $contact = null;
 
     #[ORM\Column(type: 'integer')]

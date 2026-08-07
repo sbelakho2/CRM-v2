@@ -21,7 +21,7 @@ class CaseStudy
     private ?string $title = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Company $company = null; // Can be anonymized
 
     #[ORM\Column(length: 100)]

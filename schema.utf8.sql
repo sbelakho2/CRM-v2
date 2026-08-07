@@ -1,152 +1,1682 @@
-﻿CREATE TABLE activities (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, contact_id INTEGER DEFAULT NULL, user_id INTEGER NOT NULL, type VARCHAR(50) NOT NULL, description CLOB DEFAULT NULL, notes CLOB DEFAULT NULL, outcome VARCHAR(50) DEFAULT NULL, activity_date DATETIME NOT NULL, follow_up_date DATETIME DEFAULT NULL, created_at DATETIME NOT NULL, CONSTRAINT FK_B5F1AFE5979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_B5F1AFE5E7A1254A FOREIGN KEY (contact_id) REFERENCES contacts (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_B5F1AFE5A76ED395 FOREIGN KEY (user_id) REFERENCES users (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_B5F1AFE5979B1AD6 ON activities (company_id);
-CREATE INDEX IDX_B5F1AFE5E7A1254A ON activities (contact_id);
-CREATE INDEX IDX_B5F1AFE5A76ED395 ON activities (user_id);
-CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, email VARCHAR(180) NOT NULL, roles CLOB NOT NULL --(DC2Type:json)
-, password VARCHAR(255) NOT NULL, first_name VARCHAR(100) NOT NULL, last_name VARCHAR(100) NOT NULL, role VARCHAR(50) DEFAULT NULL, territory VARCHAR(100) DEFAULT NULL, active BOOLEAN NOT NULL);
-CREATE UNIQUE INDEX UNIQ_1483A5E9E7927C74 ON users (email);
-CREATE TABLE companies (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name VARCHAR(255) NOT NULL, sector VARCHAR(100) DEFAULT NULL, account_tier VARCHAR(10) NOT NULL, region VARCHAR(100) DEFAULT NULL, pipeline_stage VARCHAR(50) NOT NULL, website VARCHAR(255) DEFAULT NULL, address VARCHAR(255) DEFAULT NULL, city VARCHAR(100) DEFAULT NULL, country VARCHAR(50) DEFAULT NULL, linked_in_url VARCHAR(255) DEFAULT NULL, notes CLOB DEFAULT NULL, physical_site VARCHAR(255) DEFAULT NULL, linkedin_company_url VARCHAR(500) DEFAULT NULL, source_notes CLOB DEFAULT NULL, legal_name VARCHAR(255) DEFAULT NULL, google_drive_link VARCHAR(500) DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL);
-CREATE TABLE compliance_documents (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, name VARCHAR(255) NOT NULL, required BOOLEAN NOT NULL, provided BOOLEAN NOT NULL, status VARCHAR(100) DEFAULT NULL, file_name VARCHAR(255) DEFAULT NULL, file_size INTEGER DEFAULT NULL, expiry_date DATE DEFAULT NULL, uploaded_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, CONSTRAINT FK_EABE6873979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_EABE6873979B1AD6 ON compliance_documents (company_id);
-CREATE TABLE contacts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, first_name VARCHAR(255) NOT NULL, last_name VARCHAR(255) NOT NULL, job_title VARCHAR(100) DEFAULT NULL, email VARCHAR(255) DEFAULT NULL, phone VARCHAR(50) DEFAULT NULL, linked_in_url VARCHAR(255) DEFAULT NULL, source VARCHAR(50) DEFAULT NULL, primary_contact BOOLEAN DEFAULT 0 NOT NULL, notes CLOB DEFAULT NULL, role VARCHAR(100) DEFAULT NULL, created_at DATETIME NOT NULL, CONSTRAINT FK_33401573979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_33401573979B1AD6 ON contacts (company_id);
-CREATE TABLE contact_email_campaigns (contact_id INTEGER NOT NULL, email_campaign_id INTEGER NOT NULL, PRIMARY KEY(contact_id, email_campaign_id), CONSTRAINT FK_776FD465E7A1254A FOREIGN KEY (contact_id) REFERENCES contacts (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_776FD465E0F98BC3 FOREIGN KEY (email_campaign_id) REFERENCES email_campaigns (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_776FD465E7A1254A ON contact_email_campaigns (contact_id);
-CREATE INDEX IDX_776FD465E0F98BC3 ON contact_email_campaigns (email_campaign_id);
-CREATE TABLE email_campaigns (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, template_id INTEGER DEFAULT NULL, name VARCHAR(255) NOT NULL, language VARCHAR(10) NOT NULL, description CLOB DEFAULT NULL, touch_count INTEGER NOT NULL, touch_templates CLOB NOT NULL --(DC2Type:json)
-, active BOOLEAN NOT NULL, scheduled_at DATETIME DEFAULT NULL, CONSTRAINT FK_EC78EB5B5DA0FB8 FOREIGN KEY (template_id) REFERENCES email_template (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_EC78EB5B5DA0FB8 ON email_campaigns (template_id);
-CREATE TABLE email_sends (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, campaign_id INTEGER NOT NULL, contact_id INTEGER NOT NULL, touch_number INTEGER NOT NULL, sent_at DATETIME NOT NULL, opened BOOLEAN DEFAULT 0 NOT NULL, clicked BOOLEAN DEFAULT 0 NOT NULL, replied BOOLEAN DEFAULT 0 NOT NULL, bounced BOOLEAN DEFAULT 0 NOT NULL, CONSTRAINT FK_633143B3F639F774 FOREIGN KEY (campaign_id) REFERENCES email_campaigns (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_633143B3E7A1254A FOREIGN KEY (contact_id) REFERENCES contacts (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_633143B3F639F774 ON email_sends (campaign_id);
-CREATE INDEX IDX_633143B3E7A1254A ON email_sends (contact_id);
-CREATE TABLE leads (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER DEFAULT NULL, company_name VARCHAR(255) NOT NULL, legal_name VARCHAR(255) DEFAULT NULL, website_root VARCHAR(255) DEFAULT NULL, lead_url VARCHAR(500) DEFAULT NULL, site_location VARCHAR(255) DEFAULT NULL, us_state VARCHAR(10) DEFAULT NULL, us_city_metro VARCHAR(100) DEFAULT NULL, region_tag VARCHAR(50) DEFAULT NULL, sector_tags CLOB DEFAULT NULL --(DC2Type:json)
-, fit_signals CLOB DEFAULT NULL --(DC2Type:json)
-, morocco_signal BOOLEAN DEFAULT NULL, quality_stack CLOB DEFAULT NULL --(DC2Type:json)
-, contact_emails_public CLOB DEFAULT NULL --(DC2Type:json)
-, contact_form_url VARCHAR(500) DEFAULT NULL, supplier_portal_url VARCHAR(500) DEFAULT NULL, rfq_rfp_page_url VARCHAR(500) DEFAULT NULL, supplier_portal_complexity VARCHAR(50) DEFAULT NULL, defense_flag BOOLEAN DEFAULT NULL, last_seen DATETIME DEFAULT NULL, content_last_modified DATETIME DEFAULT NULL, lead_score INTEGER DEFAULT NULL, notes_auto CLOB DEFAULT NULL, dupe_key VARCHAR(255) DEFAULT NULL, already_in_crm BOOLEAN DEFAULT NULL, review_status VARCHAR(50) DEFAULT NULL, deny_reason CLOB DEFAULT NULL, crm_record_id VARCHAR(100) DEFAULT NULL, owner_rep VARCHAR(100) DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, CONSTRAINT FK_17904552979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE SET NULL NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_17904552979B1AD6 ON leads (company_id);
-CREATE INDEX idx_leads_dupe ON leads (dupe_key);
-CREATE INDEX idx_leads_region ON leads (region_tag);
-CREATE INDEX idx_leads_score ON leads (lead_score);
-CREATE TABLE rfqs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, rfq_number VARCHAR(100) DEFAULT NULL, rfq_date DATE DEFAULT NULL, type VARCHAR(50) NOT NULL, nda_sent BOOLEAN DEFAULT 0 NOT NULL, nda_date DATE DEFAULT NULL, nda_executed BOOLEAN DEFAULT 0 NOT NULL, status VARCHAR(50) NOT NULL, estimated_value NUMERIC(15, 2) DEFAULT NULL, volume_annual INTEGER DEFAULT NULL, sop_date DATE DEFAULT NULL, technical_scope CLOB DEFAULT NULL, notes CLOB DEFAULT NULL, created_at DATETIME NOT NULL, CONSTRAINT FK_530068A8979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_530068A8979B1AD6 ON rfqs (company_id);
-CREATE TABLE webinars (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, title VARCHAR(255) NOT NULL, language VARCHAR(10) NOT NULL, scheduled_date DATETIME NOT NULL, duration INTEGER NOT NULL, description CLOB DEFAULT NULL, registration_url VARCHAR(500) DEFAULT NULL, recording_url VARCHAR(500) DEFAULT NULL, meeting_url VARCHAR(500) DEFAULT NULL, registered_count INTEGER DEFAULT 0 NOT NULL, attended_count INTEGER DEFAULT 0 NOT NULL, max_attendees INTEGER DEFAULT NULL, status VARCHAR(50) NOT NULL);
-CREATE TABLE abm_account (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, account_name VARCHAR(255) NOT NULL, domain VARCHAR(255) NOT NULL, icp_tier VARCHAR(20) DEFAULT NULL, engagement_score INTEGER DEFAULT NULL, total_visits INTEGER DEFAULT NULL, total_page_views INTEGER DEFAULT NULL, first_seen_at DATETIME DEFAULT NULL, last_activity_at DATETIME DEFAULT NULL, metadata CLOB DEFAULT NULL --(DC2Type:json)
-, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL);
-CREATE UNIQUE INDEX UNIQ_EEBF221AA7A91E0B ON abm_account (domain);
-CREATE INDEX idx_abm_domain ON abm_account (domain);
-CREATE INDEX idx_abm_icp_tier ON abm_account (icp_tier);
-CREATE INDEX idx_abm_engagement ON abm_account (engagement_score);
-CREATE TABLE abm_hits (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER DEFAULT NULL, timestamp DATETIME NOT NULL, ip_address VARCHAR(45) NOT NULL, organization_name VARCHAR(255) DEFAULT NULL, url_visited CLOB DEFAULT NULL, session_duration INTEGER DEFAULT NULL, page_views INTEGER DEFAULT NULL, firmographic_data CLOB DEFAULT NULL, is_identified BOOLEAN NOT NULL, playbook_triggered BOOLEAN NOT NULL, notes CLOB DEFAULT NULL, CONSTRAINT FK_50A8D529979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_50A8D529979B1AD6 ON abm_hits (company_id);
-CREATE INDEX idx_company_timestamp ON abm_hits (company_id, timestamp);
-CREATE TABLE asm_curves (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, component_count_min INTEGER NOT NULL, component_count_max INTEGER DEFAULT NULL, cost_per_unit NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active BOOLEAN NOT NULL, notes CLOB DEFAULT NULL);
-CREATE INDEX idx_component_count_asof ON asm_curves (component_count_min, asof);
-CREATE TABLE bom_line (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, quote_id INTEGER NOT NULL, line_number INTEGER NOT NULL, mpn VARCHAR(255) DEFAULT NULL, manufacturer VARCHAR(255) DEFAULT NULL, description CLOB DEFAULT NULL, quantity INTEGER NOT NULL, unit_price NUMERIC(10, 4) DEFAULT NULL, extended_price NUMERIC(12, 2) DEFAULT NULL, procurement_source VARCHAR(50) DEFAULT NULL, has_exception BOOLEAN DEFAULT NULL, exception_reason VARCHAR(100) DEFAULT NULL, lead_time_days INTEGER DEFAULT NULL, availability VARCHAR(20) DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, CONSTRAINT FK_746B6BD7DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX idx_bom_quote ON bom_line (quote_id);
-CREATE INDEX idx_bom_mpn ON bom_line (mpn);
-CREATE TABLE capacity_calendars (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, production_date DATE NOT NULL, available_slots INTEGER NOT NULL, booked_slots INTEGER NOT NULL, is_holiday BOOLEAN NOT NULL, holiday_name CLOB DEFAULT NULL, notes CLOB DEFAULT NULL);
-CREATE INDEX idx_production_date ON capacity_calendars (production_date);
-CREATE TABLE case_studies (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER DEFAULT NULL, title VARCHAR(255) NOT NULL, sector VARCHAR(100) NOT NULL, challenge CLOB DEFAULT NULL, solution CLOB DEFAULT NULL, results CLOB DEFAULT NULL, published BOOLEAN DEFAULT 0 NOT NULL, anonymized BOOLEAN DEFAULT 0 NOT NULL, language VARCHAR(10) NOT NULL, pdf_path VARCHAR(500) DEFAULT NULL, published_at DATETIME DEFAULT NULL, CONSTRAINT FK_6C0AEF34979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_6C0AEF34979B1AD6 ON case_studies (company_id);
-CREATE TABLE company_canonicals (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, domain VARCHAR(255) NOT NULL, alias VARCHAR(255) DEFAULT NULL, is_primary BOOLEAN NOT NULL, notes CLOB DEFAULT NULL, created_at DATETIME DEFAULT NULL, CONSTRAINT FK_514DA330979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_514DA330979B1AD6 ON company_canonicals (company_id);
-CREATE INDEX idx_domain ON company_canonicals (domain);
-CREATE TABLE coo_supplier_decls (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, supplier_name VARCHAR(255) NOT NULL, mpn VARCHAR(255) NOT NULL, country_of_origin VARCHAR(2) NOT NULL, hts_code VARCHAR(100) DEFAULT NULL, evidence_url CLOB DEFAULT NULL, declared_at DATETIME NOT NULL, expires_at DATETIME DEFAULT NULL, certificate_number VARCHAR(100) DEFAULT NULL, notes CLOB DEFAULT NULL, is_verified BOOLEAN NOT NULL, verified_by VARCHAR(255) DEFAULT NULL);
-CREATE INDEX idx_supplier_mpn ON coo_supplier_decls (supplier_name, mpn);
-CREATE TABLE dataset_version (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, dataset_type VARCHAR(100) NOT NULL, version_uuid VARCHAR(36) NOT NULL, sha256_hash VARCHAR(64) NOT NULL, record_count INTEGER DEFAULT NULL, is_active BOOLEAN DEFAULT NULL, metadata CLOB DEFAULT NULL --(DC2Type:json)
-, imported_at DATETIME NOT NULL, imported_by VARCHAR(100) DEFAULT NULL);
-CREATE UNIQUE INDEX UNIQ_94CEFF85606F4CA2 ON dataset_version (version_uuid);
-CREATE INDEX idx_dataset_type ON dataset_version (dataset_type);
-CREATE INDEX idx_dataset_active ON dataset_version (is_active);
-CREATE INDEX idx_dataset_uuid ON dataset_version (version_uuid);
-CREATE TABLE dfm_finding (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, quote_id INTEGER NOT NULL, dfm_rule_id INTEGER DEFAULT NULL, finding_type VARCHAR(100) NOT NULL, severity VARCHAR(20) NOT NULL, description CLOB NOT NULL, remediation CLOB DEFAULT NULL, cost_impact NUMERIC(10, 2) DEFAULT NULL, lead_time_impact INTEGER DEFAULT NULL, metadata CLOB DEFAULT NULL --(DC2Type:json)
-, created_at DATETIME NOT NULL, CONSTRAINT FK_4C2C6BB0DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_4C2C6BB09F7B7BD7 FOREIGN KEY (dfm_rule_id) REFERENCES dfm_rules (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_4C2C6BB09F7B7BD7 ON dfm_finding (dfm_rule_id);
-CREATE INDEX idx_dfm_quote ON dfm_finding (quote_id);
-CREATE INDEX idx_dfm_severity ON dfm_finding (severity);
-CREATE TABLE dfm_rules (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, rule_type VARCHAR(100) NOT NULL, rule_name VARCHAR(255) NOT NULL, severity VARCHAR(50) NOT NULL, description CLOB NOT NULL, remediation_text CLOB DEFAULT NULL, check_logic CLOB DEFAULT NULL, is_active BOOLEAN NOT NULL, notes CLOB DEFAULT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL);
-CREATE INDEX idx_rule_type_severity ON dfm_rules (rule_type, severity);
-CREATE TABLE email_segment (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name VARCHAR(255) NOT NULL, description CLOB DEFAULT NULL, filter_rules_json CLOB NOT NULL --(DC2Type:json)
-, contact_count INTEGER NOT NULL, is_active BOOLEAN NOT NULL, last_calculated_at DATETIME DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, created_by VARCHAR(100) DEFAULT NULL);
-CREATE INDEX idx_segment_name ON email_segment (name);
-CREATE INDEX idx_segment_active ON email_segment (is_active);
-CREATE TABLE email_template (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name VARCHAR(255) NOT NULL, subject_line VARCHAR(255) NOT NULL, preview_text VARCHAR(255) DEFAULT NULL, body_html CLOB NOT NULL, body_text CLOB DEFAULT NULL, description CLOB DEFAULT NULL, category VARCHAR(50) DEFAULT NULL, is_active BOOLEAN NOT NULL, personalization_tokens CLOB DEFAULT NULL --(DC2Type:json)
-, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, created_by VARCHAR(100) DEFAULT NULL);
-CREATE INDEX idx_template_name ON email_template (name);
-CREATE INDEX idx_template_active ON email_template (is_active);
-CREATE TABLE email_unsubscribe (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, contact_id INTEGER DEFAULT NULL, email VARCHAR(255) NOT NULL, reason VARCHAR(100) DEFAULT NULL, feedback_text CLOB DEFAULT NULL, unsubscribed_at DATETIME NOT NULL, ip_address VARCHAR(45) DEFAULT NULL, user_agent VARCHAR(255) DEFAULT NULL, CONSTRAINT FK_B3AC4CB9E7A1254A FOREIGN KEY (contact_id) REFERENCES contacts (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX idx_unsubscribe_contact ON email_unsubscribe (contact_id);
-CREATE INDEX idx_unsubscribe_email ON email_unsubscribe (email);
-CREATE TABLE estimates (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, rfq_id INTEGER DEFAULT NULL, estimate_number VARCHAR(50) NOT NULL, origin_country VARCHAR(100) NOT NULL, destination_country VARCHAR(100) NOT NULL, origin_port VARCHAR(100) DEFAULT NULL, destination_port VARCHAR(100) DEFAULT NULL, material_cost NUMERIC(15, 2) NOT NULL, labor_cost NUMERIC(15, 2) NOT NULL, freight_cost NUMERIC(15, 2) NOT NULL, duty_cost NUMERIC(15, 2) NOT NULL, other_costs NUMERIC(15, 2) DEFAULT NULL, total_landed_cost NUMERIC(15, 2) NOT NULL, currency VARCHAR(10) NOT NULL, duty_rate NUMERIC(5, 2) DEFAULT NULL, fta_agreement VARCHAR(100) DEFAULT NULL, fta_qualified BOOLEAN NOT NULL, bom_data CLOB DEFAULT NULL, sha256_hash VARCHAR(64) DEFAULT NULL, version_id VARCHAR(100) DEFAULT NULL, notes CLOB DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, CONSTRAINT FK_85B8B0EE979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_85B8B0EEABD9545F FOREIGN KEY (rfq_id) REFERENCES rfqs (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE UNIQUE INDEX UNIQ_85B8B0EE9D3C8144 ON estimates (estimate_number);
-CREATE INDEX IDX_85B8B0EEABD9545F ON estimates (rfq_id);
-CREATE INDEX idx_company ON estimates (company_id);
-CREATE INDEX idx_estimate_number ON estimates (estimate_number);
-CREATE TABLE freight_tables (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, origin_port VARCHAR(100) NOT NULL, destination_port VARCHAR(100) NOT NULL, transport_mode VARCHAR(50) NOT NULL, container_type VARCHAR(20) NOT NULL, cost_per_unit NUMERIC(10, 2) NOT NULL, currency VARCHAR(10) NOT NULL, transit_days INTEGER DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, carrier VARCHAR(255) DEFAULT NULL, notes CLOB DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL);
-CREATE INDEX idx_route ON freight_tables (origin_port, destination_port);
-CREATE INDEX idx_effective_date ON freight_tables (effective_date);
-CREATE TABLE fta_rules (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, hs_code VARCHAR(20) NOT NULL, fta_agreement VARCHAR(100) NOT NULL, roo_requirement CLOB NOT NULL, roo_language CLOB DEFAULT NULL, minimum_value_content NUMERIC(5, 2) DEFAULT NULL, requires_certificate BOOLEAN NOT NULL, certificate_type VARCHAR(50) DEFAULT NULL, required_documents CLOB DEFAULT NULL, notes CLOB DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL);
-CREATE INDEX idx_hs_code ON fta_rules (hs_code);
-CREATE TABLE fx_rates (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, from_currency VARCHAR(10) NOT NULL, to_currency VARCHAR(10) NOT NULL, rate NUMERIC(12, 6) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(36) NOT NULL, is_active BOOLEAN NOT NULL, created_at DATETIME NOT NULL);
-CREATE INDEX idx_currencies ON fx_rates (from_currency, to_currency);
-CREATE INDEX idx_asof ON fx_rates (asof);
-CREATE TABLE hts_map_rules (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, category VARCHAR(100) NOT NULL, keywords CLOB DEFAULT NULL, hts_code VARCHAR(100) NOT NULL, confidence VARCHAR(50) NOT NULL, heuristic_logic CLOB DEFAULT NULL, priority INTEGER NOT NULL, notes CLOB DEFAULT NULL, is_active BOOLEAN NOT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL);
-CREATE INDEX idx_category_keywords ON hts_map_rules (category);
-CREATE TABLE ip_maps (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, ip_address VARCHAR(45) NOT NULL, organization_name VARCHAR(255) DEFAULT NULL, domain VARCHAR(255) DEFAULT NULL, city VARCHAR(100) DEFAULT NULL, region VARCHAR(100) DEFAULT NULL, country VARCHAR(2) DEFAULT NULL, firmographic_data CLOB DEFAULT NULL, asof DATETIME NOT NULL, expires_at DATETIME DEFAULT NULL);
-CREATE INDEX idx_ip_asof ON ip_maps (ip_address, asof);
-CREATE TABLE notification (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, user_id INTEGER NOT NULL, type VARCHAR(50) NOT NULL, entity_type VARCHAR(50) NOT NULL, entity_id INTEGER NOT NULL, message VARCHAR(255) NOT NULL, data CLOB DEFAULT NULL --(DC2Type:json)
-, read_at DATETIME DEFAULT NULL, created_at DATETIME NOT NULL, CONSTRAINT FK_BF5476CAA76ED395 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_BF5476CAA76ED395 ON notification (user_id);
-CREATE INDEX idx_notification_user_read ON notification (user_id, read_at);
-CREATE INDEX idx_notification_created ON notification (created_at);
-CREATE TABLE nre_tables (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, service_type VARCHAR(100) NOT NULL, flat_fee NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active BOOLEAN NOT NULL, notes CLOB DEFAULT NULL);
-CREATE INDEX idx_service_type_asof ON nre_tables (service_type, asof);
-CREATE TABLE onboarding_packs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, portal_candidate_id INTEGER NOT NULL, status VARCHAR(50) NOT NULL, pack_contents CLOB DEFAULT NULL, created_at DATETIME NOT NULL, submitted_at DATETIME DEFAULT NULL, submitted_by VARCHAR(255) DEFAULT NULL, notes CLOB DEFAULT NULL, sha256_hash VARCHAR(64) DEFAULT NULL, CONSTRAINT FK_846C0DCB979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_846C0DCB91D286EE FOREIGN KEY (portal_candidate_id) REFERENCES portal_candidates (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_846C0DCB979B1AD6 ON onboarding_packs (company_id);
-CREATE INDEX IDX_846C0DCB91D286EE ON onboarding_packs (portal_candidate_id);
-CREATE INDEX idx_company_portal ON onboarding_packs (company_id, portal_candidate_id);
-CREATE TABLE packaging_factors (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, category VARCHAR(100) NOT NULL, kg_per_unit NUMERIC(10, 4) NOT NULL, dm3_per_unit NUMERIC(10, 4) NOT NULL, palletization_rule_json CLOB DEFAULT NULL --(DC2Type:json)
-, asof DATETIME NOT NULL, version_id VARCHAR(36) NOT NULL, is_active BOOLEAN NOT NULL, notes CLOB DEFAULT NULL, created_at DATETIME NOT NULL);
-CREATE INDEX idx_category ON packaging_factors (category);
-CREATE INDEX idx_asof ON packaging_factors (asof);
-CREATE TABLE pcb_curves (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, layers INTEGER NOT NULL, area_m2 NUMERIC(12, 2) NOT NULL, cost_per_m2 NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active BOOLEAN NOT NULL, notes CLOB DEFAULT NULL);
-CREATE INDEX idx_layers_asof ON pcb_curves (layers, asof);
-CREATE TABLE playbooks (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name VARCHAR(255) NOT NULL, description CLOB DEFAULT NULL, trigger_rules CLOB NOT NULL, actions CLOB NOT NULL, priority INTEGER NOT NULL, is_active BOOLEAN NOT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, notes CLOB DEFAULT NULL);
-CREATE TABLE playbook_runs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, playbook_id INTEGER NOT NULL, abm_hit_id INTEGER NOT NULL, triggered_at DATETIME NOT NULL, status VARCHAR(50) NOT NULL, completed_at DATETIME DEFAULT NULL, execution_log CLOB DEFAULT NULL, tasks_created INTEGER DEFAULT NULL, error_message CLOB DEFAULT NULL, CONSTRAINT FK_7C70D89C2DB77442 FOREIGN KEY (playbook_id) REFERENCES playbooks (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_7C70D89C3C9131CC FOREIGN KEY (abm_hit_id) REFERENCES abm_hits (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_7C70D89C2DB77442 ON playbook_runs (playbook_id);
-CREATE INDEX IDX_7C70D89C3C9131CC ON playbook_runs (abm_hit_id);
-CREATE INDEX idx_playbook_abm_hit ON playbook_runs (playbook_id, abm_hit_id);
-CREATE TABLE portal_candidates (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, portal_url CLOB NOT NULL, status VARCHAR(50) NOT NULL, discovered_at DATETIME NOT NULL, evidence_snapshot CLOB DEFAULT NULL, has_robots_txt BOOLEAN NOT NULL, requires_manual_submit BOOLEAN NOT NULL, tos_url CLOB DEFAULT NULL, tos_reviewed BOOLEAN NOT NULL, approved_at DATETIME DEFAULT NULL, approved_by VARCHAR(255) DEFAULT NULL, notes CLOB DEFAULT NULL, CONSTRAINT FK_DB6F19DA979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_DB6F19DA979B1AD6 ON portal_candidates (company_id);
-CREATE INDEX idx_company_status ON portal_candidates (company_id, status);
-CREATE TABLE procurement_exception (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, bom_line_id INTEGER NOT NULL, exception_type VARCHAR(50) NOT NULL, severity VARCHAR(20) NOT NULL, message CLOB DEFAULT NULL, recommendation CLOB DEFAULT NULL, metadata CLOB DEFAULT NULL --(DC2Type:json)
-, created_at DATETIME NOT NULL, CONSTRAINT FK_86428B89B2EEEC4D FOREIGN KEY (bom_line_id) REFERENCES bom_line (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX idx_proc_exc_bomline ON procurement_exception (bom_line_id);
-CREATE INDEX idx_proc_exc_severity ON procurement_exception (severity);
-CREATE TABLE quotes (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, quote_number VARCHAR(50) NOT NULL, status VARCHAR(50) NOT NULL, total_cost NUMERIC(15, 2) NOT NULL, currency VARCHAR(10) NOT NULL, coverage_percent NUMERIC(5, 2) DEFAULT NULL, alibaba_percent NUMERIC(5, 2) DEFAULT NULL, critical_dfm_count INTEGER DEFAULT NULL, max_imputed_lead_time_days INTEGER DEFAULT NULL, auto_published BOOLEAN NOT NULL, dataset_version_id VARCHAR(36) DEFAULT NULL, api_versions CLOB DEFAULT NULL, bom_data_json CLOB DEFAULT NULL, ship_to_country VARCHAR(100) DEFAULT NULL, incoterms VARCHAR(50) DEFAULT NULL, quantity INTEGER DEFAULT NULL, notes CLOB DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, CONSTRAINT FK_A1B588C5979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE UNIQUE INDEX UNIQ_A1B588C5AC28B117 ON quotes (quote_number);
-CREATE INDEX idx_company ON quotes (company_id);
-CREATE INDEX idx_quote_number ON quotes (quote_number);
-CREATE INDEX idx_status ON quotes (status);
-CREATE TABLE quote_part_breakdowns (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, quote_id INTEGER NOT NULL, mpn VARCHAR(255) NOT NULL, manufacturer VARCHAR(255) DEFAULT NULL, quantity INTEGER NOT NULL, unit_price NUMERIC(15, 4) NOT NULL, extended_price NUMERIC(15, 2) NOT NULL, data_source VARCHAR(100) DEFAULT NULL, lead_time_days INTEGER DEFAULT NULL, is_imputed BOOLEAN NOT NULL, category VARCHAR(100) DEFAULT NULL, CONSTRAINT FK_88D90569DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_88D90569DB805178 ON quote_part_breakdowns (quote_id);
-CREATE TABLE report_audits (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, report_type VARCHAR(100) NOT NULL, entity_type VARCHAR(100) NOT NULL, entity_id INTEGER NOT NULL, sha256_hash VARCHAR(64) NOT NULL, version_id VARCHAR(100) DEFAULT NULL, dataset_versions CLOB DEFAULT NULL --(DC2Type:json)
-, api_versions CLOB DEFAULT NULL --(DC2Type:json)
-, metadata CLOB DEFAULT NULL --(DC2Type:json)
-, file_name VARCHAR(255) DEFAULT NULL, file_size INTEGER DEFAULT NULL, generated_by VARCHAR(100) DEFAULT NULL, generated_at DATETIME NOT NULL, notes CLOB DEFAULT NULL);
-CREATE INDEX idx_report_type ON report_audits (report_type);
-CREATE INDEX idx_entity_type_id ON report_audits (entity_type, entity_id);
-CREATE TABLE route_preferences (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, destination_country VARCHAR(2) NOT NULL, lane_code VARCHAR(100) NOT NULL, rank INTEGER NOT NULL, origin_port VARCHAR(100) DEFAULT NULL, destination_port VARCHAR(100) DEFAULT NULL, mode VARCHAR(50) NOT NULL, weight_threshold_kg NUMERIC(10, 2) DEFAULT NULL, volume_threshold_m3 NUMERIC(10, 2) DEFAULT NULL, notes CLOB DEFAULT NULL, is_active BOOLEAN NOT NULL);
-CREATE INDEX idx_destination_country ON route_preferences (destination_country);
-CREATE TABLE supplier_portals (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, company_id INTEGER NOT NULL, registered BOOLEAN DEFAULT 0 NOT NULL, registration_date DATE DEFAULT NULL, portal_username VARCHAR(255) DEFAULT NULL, profile_completed BOOLEAN DEFAULT 0 NOT NULL, notes CLOB DEFAULT NULL, portal_url VARCHAR(500) DEFAULT NULL, portal_id VARCHAR(255) DEFAULT NULL, submitted_date DATE DEFAULT NULL, approval_date DATE DEFAULT NULL, buyer_name VARCHAR(255) DEFAULT NULL, buyer_email VARCHAR(255) DEFAULT NULL, buyer_contacted BOOLEAN DEFAULT 0 NOT NULL, CONSTRAINT FK_27DDE79B979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE UNIQUE INDEX UNIQ_27DDE79B979B1AD6 ON supplier_portals (company_id);
-CREATE TABLE tariff_rates (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, hs_code VARCHAR(20) NOT NULL, origin_country VARCHAR(100) NOT NULL, destination_country VARCHAR(100) NOT NULL, duty_rate NUMERIC(5, 2) NOT NULL, mfn_rate NUMERIC(5, 2) DEFAULT NULL, fta_rate NUMERIC(5, 2) DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, notes CLOB DEFAULT NULL, fta_agreement VARCHAR(100) DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL);
-CREATE INDEX idx_hs_code ON tariff_rates (hs_code);
-CREATE INDEX idx_effective_date ON tariff_rates (effective_date);
-CREATE TABLE web_events (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, timestamp DATETIME NOT NULL, ip_address VARCHAR(45) NOT NULL, url CLOB NOT NULL, method VARCHAR(10) NOT NULL, status_code INTEGER DEFAULT NULL, user_agent CLOB DEFAULT NULL, referer CLOB DEFAULT NULL, is_processed BOOLEAN NOT NULL, processed_at DATETIME DEFAULT NULL);
-CREATE INDEX idx_timestamp_ip ON web_events (timestamp, ip_address);
-CREATE TABLE webinar_attendees (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, webinar_id INTEGER NOT NULL, contact_id INTEGER DEFAULT NULL, company_id INTEGER DEFAULT NULL, email VARCHAR(255) DEFAULT NULL, name VARCHAR(255) DEFAULT NULL, registered_at DATETIME NOT NULL, attended BOOLEAN DEFAULT 0 NOT NULL, follow_up_sent BOOLEAN DEFAULT 0 NOT NULL, CONSTRAINT FK_819128FAA391D86E FOREIGN KEY (webinar_id) REFERENCES webinars (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_819128FAE7A1254A FOREIGN KEY (contact_id) REFERENCES contacts (id) NOT DEFERRABLE INITIALLY IMMEDIATE, CONSTRAINT FK_819128FA979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id) NOT DEFERRABLE INITIALLY IMMEDIATE);
-CREATE INDEX IDX_819128FAA391D86E ON webinar_attendees (webinar_id);
-CREATE INDEX IDX_819128FAE7A1254A ON webinar_attendees (contact_id);
-CREATE INDEX IDX_819128FA979B1AD6 ON webinar_attendees (company_id);
+/*M!999999\- enable the sandbox mode */ 
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `abm_account` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int DEFAULT NULL,
+  `account_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `domain` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `icp_tier` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `engagement_score` int DEFAULT NULL,
+  `total_visits` int DEFAULT NULL,
+  `total_page_views` int DEFAULT NULL,
+  `first_seen_at` datetime DEFAULT NULL,
+  `last_activity_at` datetime DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UNIQ_EEBF221AA7A91E0B` (`domain`),
+  KEY `IDX_EEBF221A979B1AD6` (`company_id`),
+  KEY `idx_abm_domain` (`domain`),
+  KEY `idx_abm_icp_tier` (`icp_tier`),
+  KEY `idx_abm_engagement` (`engagement_score`),
+  CONSTRAINT `FK_EEBF221A979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `abm_hits` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int DEFAULT NULL,
+  `abm_account_id` int DEFAULT NULL,
+  `timestamp` datetime NOT NULL,
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `organization_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `url_visited` longtext COLLATE utf8mb4_unicode_ci,
+  `session_duration` int DEFAULT NULL,
+  `page_views` int DEFAULT NULL,
+  `firmographic_data` json DEFAULT NULL,
+  `is_identified` tinyint(1) NOT NULL,
+  `playbook_triggered` tinyint(1) NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `IDX_50A8D529979B1AD6` (`company_id`),
+  KEY `IDX_50A8D5298B9C0B45` (`abm_account_id`),
+  KEY `idx_company_timestamp` (`company_id`,`timestamp`),
+  CONSTRAINT `FK_50A8D5298B9C0B45` FOREIGN KEY (`abm_account_id`) REFERENCES `abm_account` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_50A8D529979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `activities` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `user_id` int NOT NULL,
+  `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `outcome` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `outcome_detail` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `duration_minutes` int DEFAULT NULL,
+  `activity_date` datetime NOT NULL,
+  `follow_up_date` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_B5F1AFE5E7A1254A` (`contact_id`),
+  KEY `IDX_B5F1AFE5A76ED395` (`user_id`),
+  KEY `idx_activities_user_date` (`user_id`,`activity_date`),
+  KEY `idx_activities_company` (`company_id`),
+  CONSTRAINT `FK_B5F1AFE5979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_B5F1AFE5A76ED395` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_B5F1AFE5E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `asm_curves` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `component_count_min` int NOT NULL,
+  `component_count_max` int DEFAULT NULL,
+  `cost_per_unit` decimal(15,4) NOT NULL,
+  `currency` varchar(3) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `asof` datetime NOT NULL,
+  `version_id` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `idx_component_count_asof` (`component_count_min`,`asof`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `audit_logs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int DEFAULT NULL,
+  `entity_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_id` int NOT NULL,
+  `action` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `old_values` json DEFAULT NULL,
+  `new_values` json DEFAULT NULL,
+  `changed_fields` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `user_agent` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `idx_entity` (`entity_type`,`entity_id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_action` (`action`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `FK_D62F2858A76ED395` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bandit_arms` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `arm_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `arm_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `arm_value` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `alpha` double NOT NULL DEFAULT '1',
+  `beta` double NOT NULL DEFAULT '1',
+  `icp_cluster` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'global',
+  `recent_negative_rate` double NOT NULL DEFAULT '0',
+  `quarantined` tinyint(1) NOT NULL DEFAULT '0',
+  `is_control` tinyint(1) NOT NULL DEFAULT '0',
+  `total_trials` int NOT NULL DEFAULT '0',
+  `total_successes` int NOT NULL DEFAULT '0',
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `last_used_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_bandit_arm_type` (`arm_type`),
+  KEY `idx_bandit_active` (`active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bom_lines` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `quote_id` int NOT NULL,
+  `line_number` int NOT NULL,
+  `mpn` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `original_mpn` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `manufacturer` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `matched_mpn` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `bom_description` longtext COLLATE utf8mb4_unicode_ci,
+  `quantity` int NOT NULL,
+  `unit_price` decimal(10,4) DEFAULT NULL,
+  `extended_price` decimal(12,2) DEFAULT NULL,
+  `procurement_source` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `has_exception` tinyint(1) DEFAULT NULL,
+  `exception_reason` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `lead_time_days` int DEFAULT NULL,
+  `availability` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `confidence_score` smallint DEFAULT NULL,
+  `confidence_level` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `confidence_reasons` json DEFAULT NULL,
+  `confidence_warnings` json DEFAULT NULL,
+  `requires_review` tinyint(1) DEFAULT NULL,
+  `manually_verified` tinyint(1) DEFAULT NULL,
+  `manual_unit_price` decimal(10,4) DEFAULT NULL,
+  `manual_notes` longtext COLLATE utf8mb4_unicode_ci,
+  `verified_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `verified_at` datetime DEFAULT NULL,
+  `lifecycle_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `lifecycle_warning` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `price_source_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `alternative_parts` json DEFAULT NULL,
+  `distributor_search_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `supplier_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `supplier_product_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sourcing_data` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_bom_quote` (`quote_id`),
+  KEY `idx_bom_mpn` (`mpn`),
+  KEY `idx_bom_review` (`requires_review`),
+  CONSTRAINT `FK_3CDE317DB805178` FOREIGN KEY (`quote_id`) REFERENCES `quotes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `calendar_event_attendees` (
+  `user_id` int NOT NULL,
+  `calendar_event_id` int NOT NULL,
+  PRIMARY KEY (`user_id`,`calendar_event_id`),
+  KEY `IDX_258586B3A76ED395` (`user_id`),
+  KEY `IDX_258586B37495C8E3` (`calendar_event_id`),
+  CONSTRAINT `FK_258586B37495C8E3` FOREIGN KEY (`calendar_event_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_258586B3A76ED395` FOREIGN KEY (`user_id`) REFERENCES `calendar_events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `calendar_events` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `parent_event_id` int DEFAULT NULL,
+  `organizer_id` int NOT NULL,
+  `company_id` int DEFAULT NULL,
+  `contact_id` int DEFAULT NULL,
+  `lead_id` int DEFAULT NULL,
+  `rfq_id` int DEFAULT NULL,
+  `task_id` int DEFAULT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `event_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `start_at` datetime NOT NULL,
+  `end_at` datetime NOT NULL,
+  `all_day` tinyint(1) NOT NULL,
+  `location` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meeting_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `visibility` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `color` varchar(7) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_recurring` tinyint(1) NOT NULL,
+  `recurring_frequency` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `recurring_until` date DEFAULT NULL,
+  `recurring_count` int DEFAULT NULL,
+  `recurring_days` json DEFAULT NULL,
+  `reminder_minutes` int DEFAULT NULL,
+  `reminder_sent` tinyint(1) NOT NULL,
+  `external_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `external_provider` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_synced_at` datetime DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UNIQ_F9E14F168DB60186` (`task_id`),
+  KEY `IDX_F9E14F16EE3A445A` (`parent_event_id`),
+  KEY `IDX_F9E14F16979B1AD6` (`company_id`),
+  KEY `IDX_F9E14F16E7A1254A` (`contact_id`),
+  KEY `IDX_F9E14F1655458D` (`lead_id`),
+  KEY `IDX_F9E14F16ABD9545F` (`rfq_id`),
+  KEY `idx_calendar_start` (`start_at`),
+  KEY `idx_calendar_end` (`end_at`),
+  KEY `idx_calendar_type` (`event_type`),
+  KEY `idx_calendar_organizer` (`organizer_id`),
+  CONSTRAINT `FK_F9E14F1655458D` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_F9E14F16876C4DDA` FOREIGN KEY (`organizer_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_F9E14F168DB60186` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_F9E14F16979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_F9E14F16ABD9545F` FOREIGN KEY (`rfq_id`) REFERENCES `rfqs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_F9E14F16E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_F9E14F16EE3A445A` FOREIGN KEY (`parent_event_id`) REFERENCES `calendar_events` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `capacity_calendars` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `production_date` date NOT NULL,
+  `available_slots` int NOT NULL,
+  `booked_slots` int NOT NULL,
+  `is_holiday` tinyint(1) NOT NULL,
+  `holiday_name` longtext COLLATE utf8mb4_unicode_ci,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `idx_production_date` (`production_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `case_studies` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int DEFAULT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sector` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `challenge` longtext COLLATE utf8mb4_unicode_ci,
+  `solution` longtext COLLATE utf8mb4_unicode_ci,
+  `results` longtext COLLATE utf8mb4_unicode_ci,
+  `published` tinyint(1) NOT NULL DEFAULT '0',
+  `anonymized` tinyint(1) NOT NULL DEFAULT '0',
+  `language` varchar(5) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `pdf_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `published_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_6C0AEF34979B1AD6` (`company_id`),
+  CONSTRAINT `FK_6C0AEF34979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `companies` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sector` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `account_tier` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `region` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pipeline_stage` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `company_status` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'approved',
+  `website` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `city` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `country` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `linked_in_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `physical_site` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `linkedin_company_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source_notes` longtext COLLATE utf8mb4_unicode_ci,
+  `legal_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `google_drive_link` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_company_name` (`name`),
+  KEY `idx_company_sector` (`sector`),
+  KEY `idx_company_pipeline` (`pipeline_stage`),
+  KEY `idx_company_status` (`company_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `company_canonicals` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int NOT NULL,
+  `domain` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `alias` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_primary` tinyint(1) NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_domain` (`domain`),
+  KEY `idx_company_id` (`company_id`),
+  CONSTRAINT `FK_514DA330979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `competitor_detection` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `lead_id` int NOT NULL,
+  `competitor_domain` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `competitor_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `competitor_tier` smallint NOT NULL,
+  `detected_in` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `detection_confidence` smallint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_18EA4AA355458D` (`lead_id`),
+  KEY `idx_competitor_domain` (`competitor_domain`),
+  CONSTRAINT `FK_18EA4AA355458D` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `compliance_document_versions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `document_id` int NOT NULL,
+  `version_number` int NOT NULL,
+  `file_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `file_size` int DEFAULT NULL,
+  `mime_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `status` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `uploaded_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `uploaded_at` datetime NOT NULL,
+  `approved_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `approved_at` datetime DEFAULT NULL,
+  `rejection_reason` longtext COLLATE utf8mb4_unicode_ci,
+  `is_current` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `IDX_A53B08EFC33F7837` (`document_id`),
+  CONSTRAINT `FK_A53B08EFC33F7837` FOREIGN KEY (`document_id`) REFERENCES `compliance_documents` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `compliance_documents` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `required` tinyint(1) NOT NULL,
+  `provided` tinyint(1) NOT NULL,
+  `status` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `file_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `file_size` int DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `uploaded_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `snoozed_until` date DEFAULT NULL,
+  `snooze_reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `snoozed_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_EABE6873979B1AD6` (`company_id`),
+  CONSTRAINT `FK_EABE6873979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `contact_email_campaigns` (
+  `contact_id` int NOT NULL,
+  `email_campaign_id` int NOT NULL,
+  PRIMARY KEY (`contact_id`,`email_campaign_id`),
+  KEY `IDX_776FD465E7A1254A` (`contact_id`),
+  KEY `IDX_776FD465E0F98BC3` (`email_campaign_id`),
+  CONSTRAINT `FK_776FD465E0F98BC3` FOREIGN KEY (`email_campaign_id`) REFERENCES `email_campaigns` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_776FD465E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `contacts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int NOT NULL,
+  `first_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `job_title` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `linked_in_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `primary_contact` tinyint(1) NOT NULL DEFAULT '0',
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `role` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_33401573979B1AD6` (`company_id`),
+  KEY `idx_contact_email` (`email`),
+  CONSTRAINT `FK_33401573979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `coo_supplier_decls` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `supplier_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `mpn` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `country_of_origin` varchar(2) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hts_code` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `evidence_url` longtext COLLATE utf8mb4_unicode_ci,
+  `declared_at` datetime NOT NULL,
+  `expires_at` datetime DEFAULT NULL,
+  `certificate_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `is_verified` tinyint(1) NOT NULL,
+  `verified_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_supplier_mpn` (`supplier_name`,`mpn`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `custom_field_definitions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `created_by_id` int DEFAULT NULL,
+  `field_key` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `field_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `placeholder` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `default_value` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_required` tinyint(1) NOT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `is_searchable` tinyint(1) NOT NULL,
+  `show_in_list` tinyint(1) NOT NULL,
+  `show_in_detail` tinyint(1) NOT NULL,
+  `sort_order` int NOT NULL,
+  `field_group` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `validation_rules` json DEFAULT NULL,
+  `options` json DEFAULT NULL,
+  `config` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_field_entity` (`field_key`,`entity_type`),
+  KEY `IDX_A4967298B03A8386` (`created_by_id`),
+  KEY `idx_custom_field_entity` (`entity_type`),
+  CONSTRAINT `FK_A4967298B03A8386` FOREIGN KEY (`created_by_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `custom_field_values` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `field_definition_id` int NOT NULL,
+  `entity_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_id` int NOT NULL,
+  `text_value` longtext COLLATE utf8mb4_unicode_ci,
+  `number_value` decimal(20,6) DEFAULT NULL,
+  `date_value` date DEFAULT NULL,
+  `datetime_value` datetime DEFAULT NULL,
+  `boolean_value` tinyint(1) DEFAULT NULL,
+  `json_value` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_field_value` (`field_definition_id`,`entity_type`,`entity_id`),
+  KEY `IDX_6B64D7FF4D0FDD48` (`field_definition_id`),
+  KEY `idx_custom_value_entity` (`entity_type`,`entity_id`),
+  CONSTRAINT `FK_6B64D7FF4D0FDD48` FOREIGN KEY (`field_definition_id`) REFERENCES `custom_field_definitions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `dataset_version` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `dataset_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sha256_hash` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `record_count` int DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `imported_at` datetime NOT NULL,
+  `imported_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UNIQ_94CEFF85606F4CA2` (`version_uuid`),
+  KEY `idx_dataset_type` (`dataset_type`),
+  KEY `idx_dataset_active` (`is_active`),
+  KEY `idx_dataset_uuid` (`version_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `dfm_finding` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `quote_id` int NOT NULL,
+  `dfm_rule_id` int DEFAULT NULL,
+  `finding_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `severity` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `remediation` longtext COLLATE utf8mb4_unicode_ci,
+  `cost_impact` decimal(10,2) DEFAULT NULL,
+  `lead_time_impact` int DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_4C2C6BB09F7B7BD7` (`dfm_rule_id`),
+  KEY `idx_dfm_quote` (`quote_id`),
+  KEY `idx_dfm_severity` (`severity`),
+  CONSTRAINT `FK_4C2C6BB09F7B7BD7` FOREIGN KEY (`dfm_rule_id`) REFERENCES `dfm_rules` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_4C2C6BB0DB805178` FOREIGN KEY (`quote_id`) REFERENCES `quotes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `dfm_rules` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `rule_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `rule_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `severity` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `remediation_text` longtext COLLATE utf8mb4_unicode_ci,
+  `check_logic` longtext COLLATE utf8mb4_unicode_ci,
+  `is_active` tinyint(1) NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_rule_type_severity` (`rule_type`,`severity`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_campaigns` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `template_id` int DEFAULT NULL,
+  `segment_id` int DEFAULT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `language` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `touch_count` int NOT NULL,
+  `touch_templates` json NOT NULL,
+  `ab_test_variants` json DEFAULT NULL,
+  `active` tinyint(1) NOT NULL,
+  `subject` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `from_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `from_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `body_html` longtext COLLATE utf8mb4_unicode_ci,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `trigger_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `trigger_conditions` json DEFAULT NULL,
+  `send_time_optimization` tinyint(1) NOT NULL DEFAULT '0',
+  `sent_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `scheduled_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_EC78EB5B5DA0FB8` (`template_id`),
+  KEY `IDX_EC78EB5BDB296AAD` (`segment_id`),
+  CONSTRAINT `FK_EC78EB5B5DA0FB8` FOREIGN KEY (`template_id`) REFERENCES `email_template` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_EC78EB5BDB296AAD` FOREIGN KEY (`segment_id`) REFERENCES `email_segment` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_segment` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `filter_rules_json` json NOT NULL,
+  `contact_count` int NOT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `last_calculated_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `created_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_segment_name` (`name`),
+  KEY `idx_segment_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_sends` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `campaign_id` int NOT NULL,
+  `contact_id` int NOT NULL,
+  `touch_number` int NOT NULL,
+  `sent_at` datetime DEFAULT NULL,
+  `opened` tinyint(1) NOT NULL DEFAULT '0',
+  `clicked` tinyint(1) NOT NULL DEFAULT '0',
+  `replied` tinyint(1) NOT NULL DEFAULT '0',
+  `bounced` tinyint(1) NOT NULL DEFAULT '0',
+  `variant` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email_address` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'queued',
+  `scheduled_at` datetime DEFAULT NULL,
+  `opened_at` datetime DEFAULT NULL,
+  `clicked_at` datetime DEFAULT NULL,
+  `retry_count` int NOT NULL DEFAULT '0',
+  `failure_reason` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `idx_email_sends_campaign` (`campaign_id`),
+  KEY `idx_email_sends_contact` (`contact_id`),
+  CONSTRAINT `FK_633143B3E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_633143B3F639F774` FOREIGN KEY (`campaign_id`) REFERENCES `email_campaigns` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_template` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_line` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `preview_text` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `body_html` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `body_text` longtext COLLATE utf8mb4_unicode_ci,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `category` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `personalization_tokens` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `created_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_template_name` (`name`),
+  KEY `idx_template_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_unsubscribe` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `contact_id` int DEFAULT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reason` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `feedback_text` longtext COLLATE utf8mb4_unicode_ci,
+  `unsubscribed_at` datetime NOT NULL,
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_unsubscribe_contact` (`contact_id`),
+  KEY `idx_unsubscribe_email` (`email`),
+  CONSTRAINT `FK_B3AC4CB9E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `freight_tables` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `origin_port` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `destination_port` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `transport_mode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `container_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cost_per_unit` decimal(10,2) NOT NULL,
+  `currency` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `transit_days` int DEFAULT NULL,
+  `effective_date` date NOT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `carrier` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `version_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_route` (`origin_port`,`destination_port`),
+  KEY `idx_effective_date` (`effective_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fta_rules` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `hs_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `fta_agreement` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `roo_requirement` longtext COLLATE utf8mb4_unicode_ci,
+  `roo_language` longtext COLLATE utf8mb4_unicode_ci,
+  `minimum_value_content` decimal(5,2) DEFAULT NULL,
+  `requires_certificate` tinyint(1) NOT NULL,
+  `certificate_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `required_documents` longtext COLLATE utf8mb4_unicode_ci,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `effective_date` date NOT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_hs_code` (`hs_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fx_rates` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `from_currency` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `to_currency` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `rate` decimal(12,6) NOT NULL,
+  `asof` datetime NOT NULL,
+  `version_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_currencies` (`from_currency`,`to_currency`),
+  KEY `idx_asof` (`asof`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `hts_map_rules` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `category` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `keywords` json DEFAULT NULL,
+  `hts_code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `confidence` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `heuristic_logic` longtext COLLATE utf8mb4_unicode_ci,
+  `priority` int NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `is_active` tinyint(1) NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_category_keywords` (`category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `inbox_messages` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `in_reply_to_id` int DEFAULT NULL,
+  `contact_id` int DEFAULT NULL,
+  `from_email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject` longtext COLLATE utf8mb4_unicode_ci,
+  `body_text` longtext COLLATE utf8mb4_unicode_ci,
+  `classification` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `classification_confidence` decimal(5,2) DEFAULT NULL,
+  `classification_method` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `requires_human_review` tinyint(1) NOT NULL DEFAULT '0',
+  `human_reviewed_at` datetime DEFAULT NULL,
+  `reviewed_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `received_at` datetime NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_F635C51DDD92DAB8` (`in_reply_to_id`),
+  KEY `IDX_F635C51DE7A1254A` (`contact_id`),
+  KEY `idx_inbox_classification` (`classification`),
+  KEY `idx_inbox_review` (`requires_human_review`),
+  KEY `idx_inbox_from` (`from_email`),
+  CONSTRAINT `FK_F635C51DDD92DAB8` FOREIGN KEY (`in_reply_to_id`) REFERENCES `outbound_messages` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_F635C51DE7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ip_maps` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `organization_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `domain` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `city` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `region` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `country` varchar(2) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `firmographic_data` json DEFAULT NULL,
+  `asof` datetime NOT NULL,
+  `expires_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_ip_asof` (`ip_address`,`asof`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `leads` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int DEFAULT NULL,
+  `company_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `legal_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `website_root` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `lead_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `site_location` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `us_state` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `us_city_metro` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `region_tag` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sector_tags` json DEFAULT NULL,
+  `fit_signals` json DEFAULT NULL,
+  `morocco_signal` tinyint(1) DEFAULT NULL,
+  `quality_stack` json DEFAULT NULL,
+  `contact_emails_public` json DEFAULT NULL,
+  `contact_form_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `has_contact_form` tinyint(1) NOT NULL DEFAULT '0',
+  `supplier_portal_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rfq_rfp_page_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `supplier_portal_complexity` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `defense_flag` tinyint(1) DEFAULT NULL,
+  `last_seen` datetime DEFAULT NULL,
+  `content_last_modified` datetime DEFAULT NULL,
+  `lead_score` int DEFAULT NULL,
+  `notes_auto` longtext COLLATE utf8mb4_unicode_ci,
+  `dupe_key` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `already_in_crm` tinyint(1) DEFAULT NULL,
+  `review_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `deny_reason` longtext COLLATE utf8mb4_unicode_ci,
+  `crm_record_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `external_crm_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `owner_rep` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `source` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scraping_method` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nurturing_stage` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pages_scraped` int DEFAULT NULL,
+  `last_scraped_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_17904552979B1AD6` (`company_id`),
+  KEY `idx_leads_dupe` (`dupe_key`),
+  KEY `idx_leads_region` (`region_tag`),
+  KEY `idx_leads_score` (`lead_score`),
+  KEY `idx_leads_website` (`website_root`),
+  KEY `idx_leads_status` (`review_status`),
+  KEY `idx_leads_created` (`created_at`),
+  KEY `idx_leads_scraped` (`last_scraped_at`),
+  KEY `idx_leads_nurturing` (`nurturing_stage`),
+  CONSTRAINT `FK_17904552979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `learned_competitors` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `domain` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `full_name` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tier` smallint NOT NULL,
+  `industry` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `discovery_source` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `discovery_context` longtext COLLATE utf8mb4_unicode_ci,
+  `detection_count` int NOT NULL,
+  `confidence_score` int NOT NULL,
+  `verified` tinyint(1) NOT NULL,
+  `active` tinyint(1) NOT NULL,
+  `aliases` json DEFAULT NULL,
+  `keywords` json DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `first_detected_at` datetime NOT NULL,
+  `last_detected_at` datetime NOT NULL,
+  `verified_at` datetime DEFAULT NULL,
+  `verified_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_learned_comp_domain` (`domain`),
+  KEY `idx_learned_comp_tier` (`tier`),
+  KEY `idx_learned_comp_active` (`active`),
+  KEY `idx_learned_comp_verified` (`verified`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `meeting_slots` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `owner_id` int NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `company_id` int DEFAULT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `meeting_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `duration_minutes` int NOT NULL,
+  `start_time` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `end_time` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `location` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meeting_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meeting_provider` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meeting_credentials` json DEFAULT NULL,
+  `booked_by_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `booked_by_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `booked_by_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `booked_by_company` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `booking_notes` longtext COLLATE utf8mb4_unicode_ci,
+  `booked_at` datetime DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `booking_token` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cancellation_token` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reminder_sent` tinyint(1) NOT NULL,
+  `reminder_sent_at` datetime DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `confirmation_sent` tinyint(1) NOT NULL,
+  `confirmation_sent_at` datetime DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `timezone` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `updated_at` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UNIQ_A04577D0CE4B5C8E` (`booking_token`),
+  KEY `IDX_A04577D07E3C61F9` (`owner_id`),
+  KEY `IDX_A04577D0E7A1254A` (`contact_id`),
+  KEY `IDX_A04577D0979B1AD6` (`company_id`),
+  CONSTRAINT `FK_A04577D07E3C61F9` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_A04577D0979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_A04577D0E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `messenger_messages` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `body` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `headers` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `queue_name` varchar(190) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `available_at` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `delivered_at` datetime DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)',
+  PRIMARY KEY (`id`),
+  KEY `IDX_75EA56E0FB7336F0E3BD61CE16BA31DBBF396750` (`queue_name`,`available_at`,`delivered_at`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `notification` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_id` int NOT NULL,
+  `message` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `data` json DEFAULT NULL,
+  `read_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_BF5476CAA76ED395` (`user_id`),
+  KEY `idx_notification_user_read` (`user_id`,`read_at`),
+  KEY `idx_notification_created` (`created_at`),
+  CONSTRAINT `FK_BF5476CAA76ED395` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `nre_tables` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `service_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `flat_fee` decimal(15,4) NOT NULL,
+  `currency` varchar(3) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `asof` datetime NOT NULL,
+  `version_id` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `idx_service_type_asof` (`service_type`,`asof`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `onboarding_packs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int NOT NULL,
+  `portal_candidate_id` int NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `pack_contents` longtext COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime NOT NULL,
+  `submitted_at` datetime DEFAULT NULL,
+  `submitted_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `sha256_hash` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_846C0DCB979B1AD6` (`company_id`),
+  KEY `IDX_846C0DCB91D286EE` (`portal_candidate_id`),
+  KEY `idx_company_portal` (`company_id`,`portal_candidate_id`),
+  CONSTRAINT `FK_846C0DCB91D286EE` FOREIGN KEY (`portal_candidate_id`) REFERENCES `portal_candidates` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_846C0DCB979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `outbound_messages` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `contact_id` int NOT NULL,
+  `rfq_id` int DEFAULT NULL,
+  `subject_arm_id` int DEFAULT NULL,
+  `template_id` int DEFAULT NULL,
+  `subject` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `body_text` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `body_html` longtext COLLATE utf8mb4_unicode_ci,
+  `variation_hash` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `sent_at` datetime DEFAULT NULL,
+  `delivered_at` datetime DEFAULT NULL,
+  `opened_at` datetime DEFAULT NULL,
+  `clicked_at` datetime DEFAULT NULL,
+  `replied_at` datetime DEFAULT NULL,
+  `message_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `provider` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `outcome_recorded` tinyint(1) NOT NULL DEFAULT '0',
+  `recorded_event_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reply_classification` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reply_content` longtext COLLATE utf8mb4_unicode_ci,
+  `value_prop_arm_id` int DEFAULT NULL,
+  `tone_applied` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `send_time_policy` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `icp_cluster` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_control_group` tinyint(1) NOT NULL DEFAULT '0',
+  `decision_trace` json DEFAULT NULL,
+  `funnel_stage` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `reply_window_expiry` datetime DEFAULT NULL,
+  `soft_failure_applied` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_642BA0C1ABD9545F` (`rfq_id`),
+  KEY `IDX_642BA0C15DA0FB8` (`template_id`),
+  KEY `idx_outbound_contact` (`contact_id`),
+  KEY `idx_outbound_arm` (`subject_arm_id`),
+  KEY `idx_outbound_status` (`status`),
+  KEY `idx_outbound_sent` (`sent_at`),
+  CONSTRAINT `FK_642BA0C1292D3428` FOREIGN KEY (`subject_arm_id`) REFERENCES `bandit_arms` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_642BA0C15DA0FB8` FOREIGN KEY (`template_id`) REFERENCES `spintax_templates` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_642BA0C1ABD9545F` FOREIGN KEY (`rfq_id`) REFERENCES `rfqs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_642BA0C1E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `packaging_factors` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `category` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kg_per_unit` decimal(10,4) NOT NULL,
+  `dm3_per_unit` decimal(10,4) NOT NULL,
+  `palletization_rule_json` json DEFAULT NULL,
+  `asof` datetime NOT NULL,
+  `version_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_category` (`category`),
+  KEY `idx_asof` (`asof`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pcb_curves` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `layers` int NOT NULL,
+  `area_m2` decimal(12,2) NOT NULL,
+  `cost_per_m2` decimal(15,4) NOT NULL,
+  `currency` varchar(3) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `asof` datetime NOT NULL,
+  `version_id` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `idx_layers_asof` (`layers`,`asof`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `personalization_archetypes` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `archetype_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `target_industry` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_role` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `preferred_tone` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `preferred_content` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `preferred_style` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `feature_embedding` json NOT NULL,
+  `synthetic_engagement_score` int NOT NULL DEFAULT '75',
+  `topic_interests` json DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_archetype_name` (`archetype_name`),
+  KEY `idx_archetype_industry` (`target_industry`),
+  KEY `idx_archetype_role` (`target_role`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `personalization_profiles` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `contact_id` int DEFAULT NULL,
+  `company_id` int DEFAULT NULL,
+  `preferred_tone` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `preferred_content` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `preferred_style` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `topic_interests` json DEFAULT NULL,
+  `avoid_topics` json DEFAULT NULL,
+  `feature_embedding` json DEFAULT NULL,
+  `interaction_history` json DEFAULT NULL,
+  `emails_opened` int NOT NULL,
+  `emails_replied` int NOT NULL,
+  `emails_bounced` int NOT NULL,
+  `links_clicked` int NOT NULL,
+  `best_send_time` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `best_send_day` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `successful_subject_patterns` json DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_pers_contact` (`contact_id`),
+  KEY `idx_pers_company` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `playbook_runs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `playbook_id` int NOT NULL,
+  `abm_hit_id` int DEFAULT NULL,
+  `triggered_at` datetime NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  `execution_log` longtext COLLATE utf8mb4_unicode_ci,
+  `tasks_created` int DEFAULT NULL,
+  `error_message` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `IDX_7C70D89C2DB77442` (`playbook_id`),
+  KEY `IDX_7C70D89C3C9131CC` (`abm_hit_id`),
+  KEY `idx_playbook_abm_hit` (`playbook_id`,`abm_hit_id`),
+  CONSTRAINT `FK_7C70D89C2DB77442` FOREIGN KEY (`playbook_id`) REFERENCES `playbooks` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_7C70D89C3C9131CC` FOREIGN KEY (`abm_hit_id`) REFERENCES `abm_hits` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `playbooks` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `trigger_rules` longtext COLLATE utf8mb4_unicode_ci,
+  `actions` longtext COLLATE utf8mb4_unicode_ci,
+  `priority` int NOT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `cooldown_hours` int DEFAULT '24',
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `portal_candidates` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int NOT NULL,
+  `portal_url` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `discovered_at` datetime NOT NULL,
+  `evidence_snapshot` longtext COLLATE utf8mb4_unicode_ci,
+  `has_robots_txt` tinyint(1) NOT NULL,
+  `requires_manual_submit` tinyint(1) NOT NULL,
+  `tos_url` longtext COLLATE utf8mb4_unicode_ci,
+  `tos_reviewed` tinyint(1) NOT NULL,
+  `approved_at` datetime DEFAULT NULL,
+  `approved_by` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `IDX_DB6F19DA979B1AD6` (`company_id`),
+  KEY `idx_company_status` (`company_id`,`status`),
+  CONSTRAINT `FK_DB6F19DA979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `price_history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `quote_id` int DEFAULT NULL,
+  `bom_line_id` int DEFAULT NULL,
+  `mpn` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `matched_mpn` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `manufacturer` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit_price` decimal(10,4) NOT NULL,
+  `price_breaks` json NOT NULL,
+  `currency` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit_price_usd` decimal(10,4) DEFAULT NULL,
+  `stock_available` int DEFAULT NULL,
+  `lead_time_days` int DEFAULT NULL,
+  `lifecycle_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `confidence_score` smallint DEFAULT NULL,
+  `confidence_level` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `moq` int DEFAULT NULL,
+  `pack_quantity` int DEFAULT NULL,
+  `recorded_at` datetime NOT NULL,
+  `raw_api_response` json DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_4C9CB817DB805178` (`quote_id`),
+  KEY `IDX_4C9CB817B2EEEC4D` (`bom_line_id`),
+  KEY `idx_ph_mpn` (`mpn`),
+  KEY `idx_ph_source` (`source`),
+  KEY `idx_ph_date` (`recorded_at`),
+  KEY `idx_ph_mpn_source` (`mpn`,`source`),
+  CONSTRAINT `FK_4C9CB817B2EEEC4D` FOREIGN KEY (`bom_line_id`) REFERENCES `bom_lines` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_4C9CB817DB805178` FOREIGN KEY (`quote_id`) REFERENCES `quotes` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `procurement_exception` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `bom_line_id` int NOT NULL,
+  `exception_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `severity` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `message` longtext COLLATE utf8mb4_unicode_ci,
+  `recommendation` longtext COLLATE utf8mb4_unicode_ci,
+  `metadata` json DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_proc_exc_bomline` (`bom_line_id`),
+  KEY `idx_proc_exc_severity` (`severity`),
+  CONSTRAINT `FK_86428B89B2EEEC4D` FOREIGN KEY (`bom_line_id`) REFERENCES `bom_lines` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `quote_part_breakdowns` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `quote_id` int NOT NULL,
+  `mpn` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `manufacturer` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `quantity` int NOT NULL,
+  `unit_price` decimal(15,4) NOT NULL,
+  `extended_price` decimal(15,2) NOT NULL,
+  `data_source` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `lead_time_days` int DEFAULT NULL,
+  `is_imputed` tinyint(1) NOT NULL,
+  `category` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_88D90569DB805178` (`quote_id`),
+  CONSTRAINT `FK_88D90569DB805178` FOREIGN KEY (`quote_id`) REFERENCES `quotes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `quotes` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `rfq_id` int DEFAULT NULL,
+  `quote_number` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `total_cost` decimal(15,2) NOT NULL,
+  `currency` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `public_token` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `token_expires_at` datetime DEFAULT NULL,
+  `interactive_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `quantity_options` json DEFAULT NULL,
+  `view_count` int DEFAULT NULL,
+  `last_viewed_at` datetime DEFAULT NULL,
+  `coverage_percent` decimal(5,2) DEFAULT NULL,
+  `alibaba_percent` decimal(5,2) DEFAULT NULL,
+  `critical_dfm_count` int DEFAULT NULL,
+  `max_imputed_lead_time_days` int DEFAULT NULL,
+  `auto_published` tinyint(1) NOT NULL,
+  `dataset_version_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `api_versions` json DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `bom_data_json` longtext COLLATE utf8mb4_unicode_ci,
+  `ship_to_country` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `incoterms` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `quantity` int DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `issuing_company` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UNIQ_A1B588C5AC28B117` (`quote_number`),
+  UNIQUE KEY `UNIQ_A1B588C5AE981E3B` (`public_token`),
+  KEY `idx_company` (`company_id`),
+  KEY `idx_quote_number` (`quote_number`),
+  KEY `idx_status` (`status`),
+  KEY `idx_public_token` (`public_token`),
+  KEY `idx_quotes_contact` (`contact_id`),
+  KEY `idx_quotes_rfq` (`rfq_id`),
+  CONSTRAINT `FK_A1B588C5979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_A1B588C5ABD9545F` FOREIGN KEY (`rfq_id`) REFERENCES `rfqs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_A1B588C5E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `report_audits` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `report_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_id` int NOT NULL,
+  `sha256_hash` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dataset_versions` json DEFAULT NULL,
+  `api_versions` json DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `file_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `file_size` int DEFAULT NULL,
+  `generated_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `generated_at` datetime NOT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `idx_report_type` (`report_type`),
+  KEY `idx_entity_type_id` (`entity_type`,`entity_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `report_definitions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `created_by_id` int NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `report_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `data_source` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `columns` json NOT NULL,
+  `filters` json NOT NULL,
+  `group_by` json NOT NULL,
+  `order_by` json NOT NULL,
+  `chart_config` json DEFAULT NULL,
+  `date_range_preset` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `date_field` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `custom_date_start` datetime DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `custom_date_end` datetime DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `record_limit` int DEFAULT NULL,
+  `is_public` tinyint(1) NOT NULL,
+  `is_favorite` tinyint(1) NOT NULL,
+  `category` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `access_roles` json DEFAULT NULL,
+  `scheduled_delivery` json DEFAULT NULL,
+  `created_at` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `updated_at` datetime NOT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `last_run_at` datetime DEFAULT NULL COMMENT '(DC2Type:datetime_immutable)',
+  `run_count` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_22760ECAB03A8386` (`created_by_id`),
+  CONSTRAINT `FK_22760ECAB03A8386` FOREIGN KEY (`created_by_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `rfq_line_items` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `rfq_id` int NOT NULL,
+  `line_number` int NOT NULL,
+  `part_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_part_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `quantity_annual` int DEFAULT NULL,
+  `quantity_per_batch` int DEFAULT NULL,
+  `unit_price` decimal(15,4) DEFAULT NULL,
+  `nre_price` decimal(15,4) DEFAULT NULL,
+  `currency` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `lead_time_days` int DEFAULT NULL,
+  `technology` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `component_count` int DEFAULT NULL,
+  `requires_xray` tinyint(1) NOT NULL DEFAULT '0',
+  `requires_aoi` tinyint(1) NOT NULL DEFAULT '0',
+  `requires_functional_test` tinyint(1) NOT NULL DEFAULT '0',
+  `requires_conformal_coating` tinyint(1) NOT NULL DEFAULT '0',
+  `specifications` longtext COLLATE utf8mb4_unicode_ci,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_DD15496DABD9545F` (`rfq_id`),
+  CONSTRAINT `FK_DD15496DABD9545F` FOREIGN KEY (`rfq_id`) REFERENCES `rfqs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `rfq_versions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `rfq_id` int NOT NULL,
+  `version_number` int NOT NULL,
+  `revision_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `revision_reason` longtext COLLATE utf8mb4_unicode_ci,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `estimated_value` decimal(15,2) DEFAULT NULL,
+  `line_items_snapshot` json DEFAULT NULL,
+  `technical_scope` longtext COLLATE utf8mb4_unicode_ci,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `valid_until` date DEFAULT NULL,
+  `created_by` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `submitted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_C35B7AC5ABD9545F` (`rfq_id`),
+  CONSTRAINT `FK_C35B7AC5ABD9545F` FOREIGN KEY (`rfq_id`) REFERENCES `rfqs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `rfqs` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `lead_id` int DEFAULT NULL,
+  `rfq_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rfq_date` date DEFAULT NULL,
+  `type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nda_sent` tinyint(1) NOT NULL DEFAULT '0',
+  `nda_date` date DEFAULT NULL,
+  `nda_executed` tinyint(1) NOT NULL DEFAULT '0',
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `estimated_value` decimal(15,2) DEFAULT NULL,
+  `currency` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `volume_annual` int DEFAULT NULL,
+  `sop_date` date DEFAULT NULL,
+  `technical_scope` longtext COLLATE utf8mb4_unicode_ci,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `loss_reason` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `loss_reason_detail` longtext COLLATE utf8mb4_unicode_ci,
+  `competitor_won` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `winning_bid_amount` decimal(15,2) DEFAULT NULL,
+  `lessons_learned` longtext COLLATE utf8mb4_unicode_ci,
+  `win_factors` longtext COLLATE utf8mb4_unicode_ci,
+  `decision_date` date DEFAULT NULL,
+  `award_date` date DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_530068A8979B1AD6` (`company_id`),
+  KEY `IDX_530068A8E7A1254A` (`contact_id`),
+  KEY `IDX_530068A855458D` (`lead_id`),
+  CONSTRAINT `FK_530068A855458D` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_530068A8979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_530068A8E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `route_preferences` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `destination_country` varchar(2) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `lane_code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `rank` int NOT NULL,
+  `origin_port` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `destination_port` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mode` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `weight_threshold_kg` decimal(10,2) DEFAULT NULL,
+  `volume_threshold_m3` decimal(10,2) DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `is_active` tinyint(1) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_destination_country` (`destination_country`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sa_bayes_training` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `word` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `classification` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `frequency` int NOT NULL DEFAULT '1',
+  `last_updated` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_word_class` (`word`,`classification`),
+  KEY `idx_bayes_classification` (`classification`),
+  KEY `idx_bayes_word` (`word`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `spintax_templates` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `template_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'email',
+  `subject_spintax` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `body_spintax` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `available_variables` json NOT NULL,
+  `times_used` int NOT NULL DEFAULT '0',
+  `total_opens` int NOT NULL DEFAULT '0',
+  `total_replies` int NOT NULL DEFAULT '0',
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_spintax_type` (`template_type`),
+  KEY `idx_spintax_active` (`active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `supplier_portals` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `company_id` int DEFAULT NULL,
+  `registered` tinyint(1) NOT NULL DEFAULT '0',
+  `registration_date` date DEFAULT NULL,
+  `portal_username` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `profile_completed` tinyint(1) NOT NULL DEFAULT '0',
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `portal_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `portal_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `submitted_date` date DEFAULT NULL,
+  `approval_date` date DEFAULT NULL,
+  `buyer_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `buyer_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `buyer_contacted` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UNIQ_27DDE79B979B1AD6` (`company_id`),
+  CONSTRAINT `FK_27DDE79B979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tariff_rates` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `hs_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `origin_country` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `destination_country` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `duty_rate` decimal(5,2) NOT NULL,
+  `mfn_rate` decimal(5,2) DEFAULT NULL,
+  `fta_rate` decimal(5,2) DEFAULT NULL,
+  `effective_date` date NOT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `notes` longtext COLLATE utf8mb4_unicode_ci,
+  `fta_agreement` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `version_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_hs_code` (`hs_code`),
+  KEY `idx_effective_date` (`effective_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tasks` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `assigned_to_id` int DEFAULT NULL,
+  `created_by_id` int NOT NULL,
+  `company_id` int DEFAULT NULL,
+  `contact_id` int DEFAULT NULL,
+  `rfq_id` int DEFAULT NULL,
+  `lead_id` int DEFAULT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `priority` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `due_date` date DEFAULT NULL,
+  `due_time` time DEFAULT NULL,
+  `estimated_minutes` int DEFAULT NULL,
+  `actual_minutes` int DEFAULT NULL,
+  `reminder_at` datetime DEFAULT NULL,
+  `reminder_sent` tinyint(1) NOT NULL,
+  `is_recurring` tinyint(1) NOT NULL,
+  `recurring_frequency` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tags` json DEFAULT NULL,
+  `sort_order` int NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_50586597B03A8386` (`created_by_id`),
+  KEY `IDX_50586597979B1AD6` (`company_id`),
+  KEY `IDX_50586597E7A1254A` (`contact_id`),
+  KEY `IDX_50586597ABD9545F` (`rfq_id`),
+  KEY `IDX_5058659755458D` (`lead_id`),
+  KEY `idx_task_status` (`status`),
+  KEY `idx_task_due_date` (`due_date`),
+  KEY `idx_task_assigned` (`assigned_to_id`),
+  KEY `idx_task_priority` (`priority`),
+  CONSTRAINT `FK_5058659755458D` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_50586597979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_50586597ABD9545F` FOREIGN KEY (`rfq_id`) REFERENCES `rfqs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_50586597B03A8386` FOREIGN KEY (`created_by_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_50586597E7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_50586597F4BD7827` FOREIGN KEY (`assigned_to_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `email` varchar(180) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `roles` json NOT NULL,
+  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `first_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `territory` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `active` tinyint(1) NOT NULL,
+  `is_verified` tinyint(1) NOT NULL DEFAULT '0',
+  `reset_token` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reset_token_expires_at` datetime DEFAULT NULL,
+  `display_currency` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `preferred_locale` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `preferred_timezone` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `preferred_theme` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `accent_color` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `font_size` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `density` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reduced_motion` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UNIQ_1483A5E9E7927C74` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `web_events` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `timestamp` datetime NOT NULL,
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `url` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `method` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status_code` int DEFAULT NULL,
+  `user_agent` longtext COLLATE utf8mb4_unicode_ci,
+  `referer` longtext COLLATE utf8mb4_unicode_ci,
+  `is_processed` tinyint(1) NOT NULL,
+  `processed_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_timestamp_ip` (`timestamp`,`ip_address`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `webinar_attendees` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `webinar_id` int NOT NULL,
+  `contact_id` int DEFAULT NULL,
+  `company_id` int DEFAULT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `registered_at` datetime NOT NULL,
+  `attended` tinyint(1) NOT NULL DEFAULT '0',
+  `follow_up_sent` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `IDX_819128FAA391D86E` (`webinar_id`),
+  KEY `IDX_819128FAE7A1254A` (`contact_id`),
+  KEY `IDX_819128FA979B1AD6` (`company_id`),
+  CONSTRAINT `FK_819128FA979B1AD6` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `FK_819128FAA391D86E` FOREIGN KEY (`webinar_id`) REFERENCES `webinars` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_819128FAE7A1254A` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `webinars` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `language` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `scheduled_date` datetime NOT NULL,
+  `duration` int NOT NULL,
+  `description` longtext COLLATE utf8mb4_unicode_ci,
+  `registration_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `recording_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meeting_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `registered_count` int NOT NULL DEFAULT '0',
+  `attended_count` int NOT NULL DEFAULT '0',
+  `max_attendees` int DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;

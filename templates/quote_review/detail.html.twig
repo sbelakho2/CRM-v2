@@ -74,38 +74,38 @@
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <a href="{{ path('quote_review_index') }}">{{ 'nav.quote_review'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <span>{{ quote.quoteNumber }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'quote.review.review'|trans }}: {{ quote.quoteNumber }}</h1>
             <p class="rams-page__subtitle">{{ company_name ?? ('common.n_a'|trans) }} · {{ quote.createdAt|date('M j, Y g:i A') }}</p>
         </div>
         <div class="rams-page__actions mobile-stack">
-            <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" class="rams-btn uppercase" title="{{ 'quote.copilot.download_pdf'|trans }}">
+            <a href="{{ path('quote_copilot_pdf', {id: quote.id}) }}" class="rams-btn rams-uppercase"  title="{{ 'quote.copilot.download_pdf'|trans }}">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 12V2M4 6L8 2L12 6"/>
                 </svg>
                 PDF
             </a>
-            <a href="{{ path('quote_copilot_full_excel', {id: quote.id}) }}" class="rams-btn uppercase rams-btn--accent-outline">
+            <a href="{{ path('quote_copilot_full_excel', {id: quote.id}) }}" class="rams-btn rams-uppercase rams-btn--accent-outline">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="3" y="3" width="10" height="10" rx="1"/>
                     <path d="M3 6H13M3 9H13M6 3V13M10 3V13"/>
                 </svg>
                 {{ 'quote.copilot.download_full_excel'|trans({}, 'messages')|default('Full Sourcing') }}
             </a>
-            <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn uppercase">
+            <a href="{{ path('export_quote_bom', {id: quote.id}) }}" class="rams-btn rams-uppercase"> 
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 12V2M4 6L8 2L12 6"/>
                 </svg>
                 {{ 'common.export_csv'|trans }}
             </a>
-            <button id="verify-all-high-btn" class="rams-btn uppercase">
+            <button id="verify-all-high-btn" class="rams-btn rams-uppercase"> 
                 {{ 'quote.review.verify_all_high'|trans }}
             </button>
-            <button id="approve-quote-btn" class="rams-btn rams-btn--primary uppercase"
+            <button id="approve-quote-btn" class="rams-btn rams-btn--primary rams-uppercase" 
                 {% if not stats.ready_for_approval %}disabled{% endif %}>
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M3 8L6 11L13 4"/>
@@ -120,48 +120,48 @@
         <div class="rams-module rams-p-4">
             <div class="rams-flex rams-justify-between rams-items-center">
                 <div class="rams-metric">
-                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.total_lines'|trans }}</div>
+                    <div class="rams-metric__label rams-text--muted">{{  'quote.review.total_lines'|trans }}</div>
                     <div class="rams-metric__value tabular-nums">{{ stats.total_lines }}</div>
                 </div>
                 <div class="rams-metric rams-text--right">
-                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.verified'|trans }}</div>
-                    <div class="rams-metric__value tabular-nums text-rams-green">{{ stats.verified_count }}</div>
+                    <div class="rams-metric__label rams-text--muted">{{  'quote.review.verified'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums rams-text--green">{{  stats.verified_count }}</div>
                 </div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-flex rams-justify-between rams-items-center">
                 <div class="rams-metric">
-                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.needs_review'|trans }}</div>
-                    <div class="rams-metric__value tabular-nums text-rams-red">{{ stats.requires_review_count }}</div>
+                    <div class="rams-metric__label rams-text--muted">{{  'quote.review.needs_review'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums rams-text--red">{{  stats.requires_review_count }}</div>
                 </div>
                 <div class="rams-metric rams-text--right">
-                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.no_price'|trans }}</div>
-                    <div class="rams-metric__value tabular-nums text-rams-orange">{{ stats.no_price_count }}</div>
+                    <div class="rams-metric__label rams-text--muted">{{  'quote.review.no_price'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums rams-text--warning">{{  stats.no_price_count }}</div>
                 </div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-flex rams-justify-between rams-items-center">
                 <div class="rams-metric">
-                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.sourced_value'|trans }}</div>
-                    <div class="rams-metric__value tabular-nums text-base">{{ stats.sourced_value|format_currency(quote.currency, null, 2) }}</div>
+                    <div class="rams-metric__label rams-text--muted">{{  'quote.review.sourced_value'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums rams-text-base">{{  stats.sourced_value|format_currency(quote.currency, null, 2) }}</div>
                 </div>
                 <div class="rams-metric rams-text--right">
-                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.progress'|trans }}</div>
-                    <div class="rams-metric__value tabular-nums text-base text-rams-steel">{{ stats.verification_percent }}%</div>
+                    <div class="rams-metric__label rams-text--muted">{{  'quote.review.progress'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums rams-text-base rams-text--info">{{   stats.verification_percent }}%</div>
                 </div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-flex rams-justify-between rams-items-center">
                 <div class="rams-metric">
-                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.obsolete_eol'|trans }}</div>
-                    <div class="rams-metric__value tabular-nums text-rams-red">{{ stats.lifecycle_critical|default(0) }}</div>
+                    <div class="rams-metric__label rams-text--muted">{{  'quote.review.obsolete_eol'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums rams-text--red">{{  stats.lifecycle_critical|default(0) }}</div>
                 </div>
                 <div class="rams-metric rams-text--right">
-                    <div class="rams-metric__label text-rams-muted">{{ 'quote.review.nrnd_parts'|trans }}</div>
-                    <div class="rams-metric__value tabular-nums text-rams-orange">{{ stats.lifecycle_warning|default(0) }}</div>
+                    <div class="rams-metric__label rams-text--muted">{{  'quote.review.nrnd_parts'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums rams-text--warning">{{  stats.lifecycle_warning|default(0) }}</div>
                 </div>
             </div>
         </div>
@@ -171,11 +171,11 @@
     <div class="rams-module rams-mb-6">
         <div class="rams-module__content">
             <div class="rams-flex rams-flex-wrap rams-items-center rams-gap-4">
-                <span class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'quote.review.confidence_levels'|trans }}:</span>
-                <span class="rams-badge rams-confidence--high uppercase">{{ 'quote.review.high'|trans }} (90-100)</span>
-                <span class="rams-badge rams-confidence--medium uppercase">{{ 'quote.review.medium'|trans }} (70-89)</span>
-                <span class="rams-badge rams-confidence--low uppercase">{{ 'quote.review.low'|trans }} (50-69)</span>
-                <span class="rams-badge rams-confidence--very-low uppercase">{{ 'quote.review.very_low'|trans }} (&lt;50)</span>
+                <span class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'quote.review.confidence_levels'|trans }}:</span>
+                <span class="rams-badge rams-confidence--high rams-uppercase">{{  'quote.review.high'|trans }} (90-100)</span>
+                <span class="rams-badge rams-confidence--medium rams-uppercase">{{  'quote.review.medium'|trans }} (70-89)</span>
+                <span class="rams-badge rams-confidence--low rams-uppercase">{{  'quote.review.low'|trans }} (50-69)</span>
+                <span class="rams-badge rams-confidence--very-low rams-uppercase">{{  'quote.review.very_low'|trans }} (&lt;50)</span>
             </div>
         </div>
     </div>
@@ -184,39 +184,37 @@
     <div class="rams-module">
         <div class="rams-table-container">
             <table class="rams-table" id="bom-lines-table">
+                <caption class="rams-sr-only">{{ 'quote.copilot.bill_of_materials'|trans }}</caption>
                 <thead>
                     <tr>
-                        <th class="font-mono text-2xs uppercase tracking-widest">#</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.review.mpn'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.review.matched'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.review.manufacturer'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.description'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'common.quantity'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'quote.live.unit_price'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'quote.review.extended'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--center">{{ 'quote.review.confidence'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest rams-text--center">{{ 'common.status'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.actions'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">#</th>    
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'quote.review.mpn'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'quote.review.matched'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'quote.review.manufacturer'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'common.description'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--right">{{ 'common.quantity'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--right">{{ 'quote.live.unit_price'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--right">{{ 'quote.review.extended'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--center">{{ 'quote.review.confidence'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--center">{{ 'common.status'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'common.actions'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for line in bomLines %}
-                        <tr id="line-{{ line.id }}" class="
-                            {% if line.lifecycleWarning == 'critical' %}rams-lifecycle--critical{% elseif line.lifecycleWarning == 'warning' %}rams-lifecycle--warning{% endif %}
-                            {% if line.requiresReview and not line.manuallyVerified %}rams-line--needs-review{% endif %}
-                            {% if line.manuallyVerified %}rams-line--verified{% endif %}">
-                            <td class="tabular-nums text-xs text-rams-muted font-mono">{{ line.lineNumber }}</td>
+                        <tr id="line-{{ line.id }}" class=" {% if line.lifecycleWarning == 'critical' %}rams-lifecycle--critical{% elseif line.lifecycleWarning == 'warning' %}rams-lifecycle--warning{% endif %} {% if line.requiresReview and not line.manuallyVerified %}rams-line--needs-review{% endif %} {% if line.manuallyVerified %}rams-line--verified{% endif %}">
+                            <td class="tabular-nums rams-text--xs rams-text--muted rams-font-mono">{{    line.lineNumber }}</td>
                             <td>
                                 <div class="rams-flex rams-flex-col rams-gap-1">
                                     {% if line.distributorSearchUrl %}
-                                        <a href="{{ line.distributorSearchUrl }}" target="_blank" class="rams-link text-xs uppercase font-mono" title="{{ 'quote.review.search_distributor'|trans }}">
+                                        <a href="{{ line.distributorSearchUrl }}" target="_blank" class="rams-link rams-text--xs rams-uppercase rams-font-mono"    title="{{ 'quote.review.search_distributor'|trans }}">
                                             {{ line.mpn ?: 'common.n_a'|trans }} ↗
                                         </a>
                                     {% else %}
-                                        <span class="font-mono text-xs uppercase">{{ line.mpn ?: 'common.n_a'|trans }}</span>
+                                        <span class="rams-font-mono rams-text--xs rams-uppercase">{{    line.mpn ?: 'common.n_a'|trans }}</span>
                                     {% endif %}
                                     {% if line.originalMpn and line.originalMpn != line.mpn %}
-                                        <div class="font-mono text-3xs uppercase text-rams-muted">{{ 'quote.review.original'|trans }}: {{ line.originalMpn }}</div>
+                                        <div class="rams-font-mono rams-text--3xs rams-uppercase rams-text--muted">{{     'quote.review.original'|trans }}: {{ line.originalMpn }}</div>
                                     {% endif %}
                                     <div class="rams-flex rams-gap-1">
                                         {% if line.lifecycleWarning == 'critical' %}
@@ -231,40 +229,40 @@
                                 {% if line.matchedMpn %}
                                     {% if line.matchedMpn != line.mpn and line.confidenceLevel == 'MEDIUM' %}
                                         <div class="rams-diff-container" data-original="{{ line.mpn|e('html_attr') }}" data-matched="{{ line.matchedMpn|e('html_attr') }}">
-                                            <span class="diff-view font-mono text-xs text-rams-orange"></span>
+                                            <span class="diff-view rams-font-mono rams-text--xs rams-text--warning"></span>   
                                         </div>
                                     {% else %}
-                                        <div class="font-mono text-xs {% if line.matchedMpn != line.mpn %}text-rams-orange{% else %}text-rams-green{% endif %}">
+                                        <div class="rams-font-mono rams-text--xs {% if line.matchedMpn != line.mpn %}rams-text--warning{% else %}rams-text--green{% endif %}">
                                             {{ line.matchedMpn }}
                                         </div>
                                     {% endif %}
                                     
                                     {% if line.alternativeParts|default([])|length > 0 %}
                                         <div class="rams-alternatives-dropdown rams-mt-1">
-                                            <span class="font-mono text-3xs uppercase rams-link text-rams-muted" >
+                                            <span class="rams-font-mono rams-text--3xs rams-uppercase rams-link rams-text--muted"  >
                                                 +{{ line.alternativeParts|length }} {{ 'quote.review.alternatives'|trans }} ▾
                                             </span>
                                             <div class="rams-alternatives-menu">
-                                                <div class="rams-px-3 rams-py-2 rams-border-b border-rams-line rams-bg-panel">
-                                                    <span class="font-mono text-2xs font-bold uppercase text-rams-muted">{{ 'quote.review.alternative_parts'|trans }}</span>
+                                                <div class="rams-px-md rams-py-sm rams-border-b rams-bg-panel">
+                                                    <span class="rams-font-mono rams-text--2xs rams-text--bold rams-uppercase rams-text--muted">{{      'quote.review.alternative_parts'|trans }}</span>
                                                 </div>
                                                 {% for alt in line.alternativeParts %}
                                                     <div class="rams-alt-item" onclick="selectAlternative({{ line.id }}, '{{ alt.mpn|e('js') }}', '{{ (alt.source ?? 'mouser')|e('js') }}')">
                                                         <div class="rams-flex rams-justify-between rams-items-center">
                                                             <div>
-                                                                <span class="font-mono text-xs font-bold">{{ alt.mpn }}</span>
-                                                                <span class="text-3xs uppercase text-rams-muted rams-block">{{ alt.manufacturer ?? '' }}</span>
+                                                                <span class="rams-font-mono rams-text--xs rams-text--bold">{{    alt.mpn }}</span>
+                                                                <span class="rams-text--3xs rams-uppercase rams-text--muted rams-block">{{ alt.manufacturer ?? '' }}</span>
                                                             </div>
                                                             <div class="rams-text--right">
-                                                                <span class="font-mono text-xs font-bold">{{ alt.price|default(0)|format_currency(quote.currency, null, 4) }}</span>
-                                                                <span class="text-3xs text-rams-muted rams-block">
+                                                                <span class="rams-font-mono rams-text--xs rams-text--bold">{{    alt.price|default(0)|format_currency(quote.currency, null, 4) }}</span>
+                                                                <span class="rams-text--3xs rams-text--muted rams-block">
                                                                     {% if alt.score is defined %}{{ alt.score }}%{% endif %}
                                                                     {% if alt.stock is defined %}· {{ alt.stock }} {{ 'quote.review.in_stock'|trans }}{% endif %}
                                                                 </span>
                                                             </div>
                                                         </div>
                                                         {% if alt.lifecycle_warning %}
-                                                            <span class="text-3xs rams-mt-1 rams-block {% if alt.lifecycle_warning == 'critical' %}text-rams-red{% else %}text-rams-orange{% endif %} uppercase font-mono">
+                                                            <span class="rams-text--3xs rams-mt-1 rams-block {% if alt.lifecycle_warning == 'critical' %}rams-text--red{% else %}rams-text--warning{% endif %} rams-uppercase rams-font-mono">  
                                                                 ⚠ {{ alt.lifecycle_status|default(alt.lifecycle_warning) }}
                                                             </span>
                                                         {% endif %}
@@ -277,24 +275,24 @@
                                     <span class="rams-text--muted">—</span>
                                 {% endif %}
                             </td>
-                            <td class="text-xs text-rams-muted">{{ line.manufacturer ?: 'common.n_a'|trans }}</td>
-                            <td class="text-xs text-rams-muted" title="{{ line.description }}">
+                            <td class="rams-text--xs rams-text--muted">{{   line.manufacturer ?: 'common.n_a'|trans }}</td>
+                            <td class="rams-text--xs rams-text--muted"   title="{{ line.description }}">
                                 {% set desc = line.description ?: 'common.n_a'|trans %}
                                 {{ desc|length > 40 ? desc|slice(0, 37) ~ '...' : desc }}
                             </td>
-                            <td class="rams-text--right tabular-nums font-mono text-xs">{{ line.quantity }}</td>
-                            <td class="rams-text--right tabular-nums font-mono text-xs">
+                            <td class="rams-text--right tabular-nums rams-font-mono rams-text--xs">{{   line.quantity }}</td>
+                            <td class="rams-text--right tabular-nums rams-font-mono rams-text--xs">  
                                 {% if line.manualUnitPrice %}
-                                    <div class="font-bold text-rams-steel">{{ line.manualUnitPrice|format_currency(quote.currency, null, 4) }}</div>
-                                    <div class="text-3xs uppercase text-rams-muted">{{ 'quote.review.manual'|trans }}</div>
+                                    <div class="rams-text--bold rams-text--info">{{   line.manualUnitPrice|format_currency(quote.currency, null, 4) }}</div>
+                                    <div class="rams-text--3xs rams-uppercase rams-text--muted">{{    'quote.review.manual'|trans }}</div>
                                 {% elseif line.unitPrice %}
                                     <div>{{ line.unitPrice|format_currency(quote.currency, null, 4) }}</div>
-                                    <div class="text-3xs uppercase text-rams-muted">{{ line.procurementSource }}</div>
+                                    <div class="rams-text--3xs rams-uppercase rams-text--muted">{{    line.procurementSource }}</div>
                                 {% else %}
-                                    <div class="font-bold uppercase text-xs text-rams-red">{{ 'quote.review.no_price'|trans }}</div>
+                                    <div class="rams-text--bold rams-uppercase rams-text--xs rams-text--red">{{     'quote.review.no_price'|trans }}</div>
                                 {% endif %}
                             </td>
-                            <td class="rams-text--right tabular-nums font-mono text-xs font-bold">
+                            <td class="rams-text--right tabular-nums rams-font-mono rams-text--xs rams-text--bold">   
                                 {% set effectivePrice = line.effectiveExtendedPrice %}
                                 {% if effectivePrice is not null %}
                                     {{ effectivePrice|format_currency(quote.currency, null, 2) }}
@@ -304,45 +302,45 @@
                             </td>
                             <td class="rams-text--center">
                                 {% set confLevel = line.confidenceLevel ?? 'VERY_LOW' %}
-                                <span class="rams-badge rams-confidence--{{ confLevel|lower|replace({'_': '-'}) }} uppercase" title="{{ line.confidenceReasons|default([])|join(', ') }}">
+                                <span class="rams-badge rams-confidence--{{ confLevel|lower|replace({'_': '-'}) }} rams-uppercase"  title="{{ line.confidenceReasons|default([])|join(', ') }}">
                                     {{ line.confidenceScore|default(0) }}%
                                 </span>
                             </td>
                             <td class="rams-text--center">
                                 {% if line.manuallyVerified %}
                                     <div class="rams-flex rams-items-center rams-justify-center rams-gap-2">
-                                        <div class="w-2 h-2 rounded-full bg-rams-green"></div>
-                                        <span class="font-mono text-3xs uppercase text-rams-green">{{ 'quote.review.verified'|trans }}</span>
+                                        <div class="rams-andon__light rams-andon__light--green"></div>    
+                                        <span class="rams-font-mono rams-text--3xs rams-uppercase rams-text--green">{{     'quote.review.verified'|trans }}</span>
                                     </div>
                                 {% elseif line.requiresReview %}
                                     <div class="rams-flex rams-items-center rams-justify-center rams-gap-2">
-                                        <div class="w-2 h-2 rounded-full bg-rams-orange"></div>
-                                        <span class="font-mono text-3xs uppercase text-rams-orange">{{ 'quote.review.needs_review'|trans }}</span>
+                                        <div class="rams-andon__light rams-andon__light--yellow"></div>    
+                                        <span class="rams-font-mono rams-text--3xs rams-uppercase rams-text--warning">{{     'quote.review.needs_review'|trans }}</span>
                                     </div>
                                 {% else %}
-                                    <span class="rams-badge rams-badge--ghost uppercase text-3xs">{{ 'quote.review.auto_ok'|trans }}</span>
+                                    <span class="rams-badge rams-badge--gray rams-uppercase rams-text--3xs">{{   'quote.review.auto_ok'|trans }}</span>
                                 {% endif %}
                             </td>
                             <td>
                                 <div class="rams-actions rams-actions--sm">
                                     {% if not line.manuallyVerified %}
-                                        <button onclick="verifyLine({{ line.id }})" class="rams-btn rams-btn--ghost text-rams-green uppercase" title="{{ 'quote.review.verify_match'|trans }}">
+                                        <button onclick="verifyLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--green rams-uppercase"   title="{{ 'quote.review.verify_match'|trans }}" aria-label="{{ 'quote.review.verify_match'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 8L6 11L13 4"/>
                                             </svg>
                                         </button>
                                     {% endif %}
-                                    <button onclick="openOverrideModal({{ line.id }}, '{{ (line.mpn ?? '')|e('js') }}', {{ line.unitPrice ?? 0 }})" class="rams-btn rams-btn--ghost uppercase" title="{{ 'quote.review.enter_manual_price'|trans }}">
-                                        <span class="font-mono text-2xs">{{ quote.currency ?? display_currency() }}</span>
+                                    <button onclick="openOverrideModal({{ line.id }}, '{{ (line.mpn ?? '')|e('js') }}', {{ line.unitPrice ?? 0 }})" class="rams-btn rams-btn--ghost rams-uppercase"  title="{{ 'quote.review.enter_manual_price'|trans }}">
+                                        <span class="rams-font-mono rams-text--2xs">{{   quote.currency ?? display_currency() }}</span>
                                     </button>
-                                    <button onclick="repriceLine({{ line.id }})" class="rams-btn rams-btn--ghost text-rams-orange uppercase" title="{{ 'quote.review.reprice'|trans }}">
+                                    <button onclick="repriceLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--warning rams-uppercase"   title="{{ 'quote.review.reprice'|trans }}" aria-label="{{ 'quote.review.reprice'|trans }}">
                                         <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M1 8a7 7 0 0111.95-5M15 8a7 7 0 01-11.95 5"/>
                                             <path d="M15 1v7h-7M1 15v-7h7"/>
                                         </svg>
                                     </button>
                                     {% if line.unitPrice and not line.manuallyVerified %}
-                                        <button onclick="rejectLine({{ line.id }})" class="rams-btn rams-btn--ghost text-rams-red uppercase" title="{{ 'quote.review.reject_match'|trans }}">
+                                        <button onclick="rejectLine({{ line.id }})" class="rams-btn rams-btn--ghost rams-text--red rams-uppercase"   title="{{ 'quote.review.reject_match'|trans }}" aria-label="{{ 'quote.review.reject_match'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M4 4l8 8M12 4l-8 8"/>
                                             </svg>
@@ -359,39 +357,39 @@
 </div>
 
 {# Price Override Modal #}
-<div id="override-modal" class="rams-modal rams-modal--hidden">
+<div id="override-modal" class="rams-modal rams-modal--hidden" role="dialog" aria-modal="true" aria-labelledby="override-modal-title">
     <div class="rams-modal__backdrop" onclick="closeOverrideModal()"></div>
     <div class="rams-modal__content">
         <div class="rams-modal__header">
-            <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'quote.review.manual_price_override'|trans }}</h3>
+            <h3 id="override-modal-title" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'quote.review.manual_price_override'|trans }}</h3>
         </div>
         <div class="rams-modal__body">
             <form id="override-form" class="rams-form">
                 <input type="hidden" id="override-line-id">
                 <div class="rams-form__group">
-                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'quote.review.part_number'|trans }}</label>
+                    <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'quote.review.part_number'|trans }}</label>
                     <input type="text" id="override-mpn" class="rams-form__input" readonly>
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'quote.review.unit_price'|trans }} ({{ quote.currency ?? display_currency() }}) *</label>
+                    <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'quote.review.unit_price'|trans }} ({{ quote.currency ?? display_currency() }}) *</label>
                     <input type="number" id="override-price" step="0.0001" min="0" required class="rams-form__input">
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">
+                    <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">     
                         {{ 'quote.review.price_source_url'|trans }}
                     </label>
-                    <input type="url" id="override-source-url" placeholder="https://distributor.com/product/..." class="rams-form__input">
-                    <div class="text-3xs text-rams-muted rams-mt-1">{{ 'quote.review.link_to_quote'|trans }}</div>
+                    <input type="url" id="override-source-url" placeholder="{{ 'quote.review.price_source_placeholder'|trans }}" class="rams-form__input">
+                    <div class="rams-text--3xs rams-text--muted rams-mt-1">{{ 'quote.review.link_to_quote'|trans }}</div>
                 </div>
                 <div class="rams-form__group">
-                    <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'common.notes'|trans }}</label>
+                    <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'common.notes'|trans }}</label>
                     <textarea id="override-notes" rows="2" class="rams-form__input" placeholder="{{ 'quote.review.notes_placeholder'|trans }}"></textarea>
                 </div>
             </form>
         </div>
         <div class="rams-modal__footer rams-flex rams-justify-end rams-gap-2">
-            <button type="button" onclick="closeOverrideModal()" class="rams-btn uppercase">{{ 'common.cancel'|trans }}</button>
-            <button type="submit" form="override-form" class="rams-btn rams-btn--primary uppercase">{{ 'quote.review.apply_override'|trans }}</button>
+            <button type="button" onclick="closeOverrideModal()" class="rams-btn rams-uppercase">{{  'common.cancel'|trans }}</button>
+            <button type="submit" form="override-form" class="rams-btn rams-btn--primary rams-uppercase">{{  'quote.review.apply_override'|trans }}</button>
         </div>
     </div>
 </div>
@@ -402,7 +400,7 @@
 <script>
 const quoteId = {{ quote.id }};
 
-function computeCharDiff(original, matched) {
+const csrfToken = '{{ csrf_token('quote_review') }}'; function computeCharDiff(original, matched) {
     if (!original || !matched) return escapeHtml(matched || '');
     const origNorm = original.toUpperCase().replace(/[\s\-]/g, '');
     const matchNorm = matched.toUpperCase().replace(/[\s\-]/g, '');
@@ -450,7 +448,7 @@ async function verifyLine(lineId) {
     try {
         const response = await fetch(`/quote-review/line/${lineId}/verify`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  }
         });
         const data = await response.json();
         if (data.success) {
@@ -465,13 +463,16 @@ async function verifyLine(lineId) {
 }
 
 async function rejectLine(lineId) {
-    const reason = prompt('{{ 'quote.review.reason_rejection'|trans }}');
-    if (reason === null) return;
-    
+    ramsPrompt('{{ 'quote.review.reason_rejection'|trans }}', function(reason) {
+        doRejectLine(lineId, reason);
+    }, {title: '{{ 'quote.review.reject_match'|trans }}', inputLabel: '{{ 'quote.review.reason_rejection'|trans }}', required: true});
+}
+
+async function doRejectLine(lineId, reason) {
     try {
         const response = await fetch(`/quote-review/line/${lineId}/reject`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  },
             body: JSON.stringify({ reason })
         });
         const data = await response.json();
@@ -490,7 +491,7 @@ async function repriceLine(lineId) {
     try {
         const response = await fetch(`/quote-review/line/${lineId}/reprice`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  }
         });
         const data = await response.json();
         if (data.success) {
@@ -527,7 +528,7 @@ document.getElementById('override-form').addEventListener('submit', async (e) =>
     try {
         const response = await fetch(`/quote-review/line/${lineId}/override`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  },
             body: JSON.stringify({ unit_price: price, notes, source_url: sourceUrl })
         });
         const data = await response.json();
@@ -548,7 +549,7 @@ document.getElementById('verify-all-high-btn').addEventListener('click', async (
         try {
             const response = await fetch(`/quote-review/${quoteId}/verify-all-high`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  }
             });
             const data = await response.json();
             if (data.success) {
@@ -568,7 +569,7 @@ document.getElementById('approve-quote-btn').addEventListener('click', async () 
         try {
             const response = await fetch(`/quote-review/${quoteId}/approve`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  }
             });
             const data = await response.json();
             if (data.success) {
@@ -592,7 +593,7 @@ async function selectAlternative(lineId, altMpn, source) {
         try {
             const response = await fetch(`/quote-review/line/${lineId}/select-alternative`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  },
                 body: JSON.stringify({ mpn: altMpn, source: source })
             });
             const data = await response.json();

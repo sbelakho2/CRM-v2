@@ -702,7 +702,6 @@ class CommandCenterService
         $pipelineQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
-            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
 

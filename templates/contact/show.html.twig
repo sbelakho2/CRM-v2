@@ -5,7 +5,7 @@
 {% block body %}
 <div class="rams-stack rams-gap-6">
     {# Breadcrumb #}
-    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+    <nav class="rams-breadcrumb" aria-label="{{ 'common.breadcrumb'|trans }}"> 
         <ol class="rams-breadcrumb__list">
             <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
             <li class="rams-breadcrumb__separator">/</li>
@@ -18,7 +18,7 @@
     {# Page Header #}
     <div class="rams-page-header">
         <div class="rams-flex rams-items-center rams-gap-4 mobile-stack">
-            <div class="rams-badge rams-badge--xl rams-badge--circle rams-badge--primary">
+            <div class="rams-avatar">    
                 {{ contact.firstName|slice(0, 1) }}{{ contact.lastName|slice(0, 1) }}
             </div>
             <div>
@@ -151,8 +151,7 @@
                         <div class="rams-stack rams-gap-4">
                             {% for activity in contact.activities|slice(0, 8) %}
                                 <div class="rams-flex rams-items-start rams-gap-3">
-                                    <div class="rams-andon rams-mt-1">
-                                        <span class="rams-andon__light rams-andon__light--{{ activity.type == 'Call' ? 'info' : (activity.type == 'Email' ? 'yellow' : (activity.type == 'Meeting' ? 'green' : '')) }}"></span>
+                                    <div class="rams-andon rams-andon--{{ activity.type == 'Call' ? 'info' : (activity.type == 'Email' ? 'warning' : (activity.type == 'Meeting' ? 'success' : '')) }} rams-mt-1"> <span class="rams-andon__light"></span> 
                                     </div>
                                     <div class="rams-flex-1">
                                         <div class="rams-flex rams-justify-between rams-items-center rams-mb-1">

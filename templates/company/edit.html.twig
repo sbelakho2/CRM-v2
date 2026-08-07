@@ -5,7 +5,7 @@
 {% block body %}
 <div class="rams-stack rams-gap-6">
     {# Breadcrumb #}
-    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+    <nav class="rams-breadcrumb" aria-label="{{ 'common.breadcrumb'|trans }}"> 
         <ol class="rams-breadcrumb__list">
             <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
             <li class="rams-breadcrumb__separator">/</li>
@@ -69,14 +69,14 @@
                     </div>
                 </div>
 
-                <div class="rams-divider rams-my-4"></div>
+                <div class="rams-border-t rams-my-md"></div>  
 
                 {# Website #}
                 <div class="rams-form__group">
                     {{ form_label(form.website, 'company.website'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                     <div class="rams-flex rams-items-center rams-gap-2">
                         <span class="rams-text--xl">🌐</span>
-                        {{ form_widget(form.website, {'attr': {'class': 'rams-form__input', 'placeholder': 'https://example.com'}}) }}
+                        {{ form_widget(form.website, {'attr': {'class': 'rams-form__input', 'placeholder': 'company.form.website_placeholder'|trans}})  }}
                     </div>
                     {{ form_errors(form.website) }}
                 </div>
@@ -86,7 +86,7 @@
                     {{ form_label(form.googleDriveLink, 'company.google_drive_link'|trans, {'label_attr': {'class': 'rams-form__label rams-dymo'}}) }}
                     <div class="rams-flex rams-items-center rams-gap-2">
                         <span class="rams-text--xl">📁</span>
-                        {{ form_widget(form.googleDriveLink, {'attr': {'class': 'rams-form__input', 'placeholder': 'https://drive.google.com/...'}}) }}
+                        {{ form_widget(form.googleDriveLink, {'attr': {'class': 'rams-form__input', 'placeholder': 'company.form.google_drive_placeholder'|trans}})  }}
                     </div>
                     {{ form_errors(form.googleDriveLink) }}
                 </div>

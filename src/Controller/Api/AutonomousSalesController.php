@@ -21,9 +21,11 @@ use App\Service\SpintaxEngineService;
 use App\Service\ThompsonSamplerService;
 use App\Service\CompetitorDetectionService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -54,8 +56,79 @@ class AutonomousSalesController extends AbstractController
         private InboxMessageRepository $inboxRepository,
         private OutboundMessageRepository $outboundRepository,
         private ?LearnedCompetitorRepository $learnedCompetitorRepository,
-        private ?PersonalizationProfileRepository $personalizationRepository
+        private ?PersonalizationProfileRepository $personalizationRepository,
+        private RateLimiterFactory $apiGeneralLimiter,
+        private LoggerInterface $logger
     ) {}
+
+    /**
+     * Validate the CSRF token sent via the X-CSRF-Token header (or _token body field)
+     * and apply the api_general rate limit (except for webhook routes, which must
+     * not be throttled in a way that could break mail delivery).
+     * Returns a 403/429 JsonResponse when rejected, null when accepted.
+     */
+    private function requireCsrf(Request $request): ?JsonResponse
+    {
+        $token = $request->headers->get('X-CSRF-Token')
+            ?? $request->request->get('_token')
+            ?? $this->getRequestBodyValue($request, '_token');
+
+        if (!$this->isCsrfTokenValid('autonomous_sales', $token ?? '')) {
+            return $this->json(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
+        }
+
+        $route = $request->attributes->get('_route');
+        if (!in_array($route, ['api_autonomous_webhook_email', 'api_autonomous_webhook_sendgrid'], true)) {
+            $limiter = $this->apiGeneralLimiter->create($this->getUser()?->getUserIdentifier() ?? (string) $request->getClientIp());
+            $limit = $limiter->consume();
+            if (!$limit->isAccepted()) {
+                $retryAfter = $limit->getRetryAfter()->getTimestamp() - time();
+                return $this->json(['success' => false, 'error' => 'Too many requests. Please try again later.'], 429, [
+                    'Retry-After' => (string) max(1, $retryAfter),
+                ]);
+            }
+        }
+
+        return null;
+    }
+
+    private function getRequestBodyValue(Request $request, string $key): mixed
+    {
+        $data = json_decode($request->getContent(), true);
+        return is_array($data) ? ($data[$key] ?? null) : null;
+    }
+
+    /**
+     * Authenticate inbound provider webhook callbacks (Mailgun/SendGrid).
+     *
+     * Providers cannot carry a browser CSRF token, so the webhook routes are
+     * CSRF-exempt and instead authenticate via the shared webhook secret
+     * (EMAIL_WEBHOOK_SECRET) presented in the X-Webhook-Secret header. The
+     * comparison is timing-safe (hash_equals) and fails closed: when the
+     * secret is not configured, the request is rejected rather than processed.
+     * This mirrors EmailWebhookController::enforceWebhookSecret().
+     * Returns a 401/403 JsonResponse when rejected, null when accepted.
+     */
+    private function authenticateWebhook(Request $request): ?JsonResponse
+    {
+        $configuredSecret = $_SERVER['EMAIL_WEBHOOK_SECRET']
+            ?? $_ENV['EMAIL_WEBHOOK_SECRET']
+            ?? getenv('EMAIL_WEBHOOK_SECRET')
+            ?: null;
+
+        if (!$configuredSecret) {
+            // Fail closed: never process webhook events without a configured secret
+            $this->logger->critical('EMAIL_WEBHOOK_SECRET not configured — rejecting autonomous sales webhook request');
+            return $this->json(['success' => false, 'error' => 'Webhook secret not configured'], 403);
+        }
+
+        $provided = $request->headers->get('X-Webhook-Secret');
+        if (!$provided || !hash_equals((string) $configuredSecret, (string) $provided)) {
+            return $this->json(['success' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        return null;
+    }
 
     /**
      * Health check endpoint
@@ -95,8 +168,12 @@ class AutonomousSalesController extends AbstractController
      * Initialize default data (templates, arms)
      */
     #[Route('/initialize', name: 'api_autonomous_initialize', methods: ['POST'])]
-    public function initialize(): JsonResponse
+    public function initialize(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $result = $this->orchestrator->initialize();
             
@@ -148,6 +225,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/templates', name: 'api_autonomous_templates_create', methods: ['POST'])]
     public function createTemplate(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -180,6 +261,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/templates/preview', name: 'api_autonomous_templates_preview', methods: ['POST'])]
     public function previewTemplate(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -238,6 +323,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/arms', name: 'api_autonomous_arms_create', methods: ['POST'])]
     public function createArm(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -265,6 +354,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/feedback', name: 'api_autonomous_feedback', methods: ['POST'])]
     public function recordFeedback(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -312,6 +405,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/compose', name: 'api_autonomous_compose', methods: ['POST'])]
     public function compose(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -362,6 +459,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/score', name: 'api_autonomous_score', methods: ['POST'])]
     public function score(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -424,6 +525,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/classify', name: 'api_autonomous_classify', methods: ['POST'])]
     public function classify(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -451,6 +556,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/inbox/review', name: 'api_autonomous_inbox_review', methods: ['POST'])]
     public function submitReview(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -556,8 +665,12 @@ class AutonomousSalesController extends AbstractController
      * Seed baseline competitors
      */
     #[Route('/competitors/seed', name: 'api_autonomous_seed_competitors', methods: ['POST'])]
-    public function seedCompetitors(): JsonResponse
+    public function seedCompetitors(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         if (!$this->competitorLearner) {
             return $this->json(['success' => false, 'error' => 'Competitor learning not available'], 501);
         }
@@ -580,6 +693,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/competitors/learn', name: 'api_autonomous_learn_competitors', methods: ['POST'])]
     public function learnCompetitors(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         if (!$this->competitorLearner) {
             return $this->json(['success' => false, 'error' => 'Competitor learning not available'], 501);
         }
@@ -616,6 +733,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/competitors/{id}/verify', name: 'api_autonomous_verify_competitor', methods: ['POST'])]
     public function verifyCompetitor(int $id, Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         if (!$this->competitorLearner) {
             return $this->json(['success' => false, 'error' => 'Competitor learning not available'], 501);
         }
@@ -670,6 +791,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/personalize', name: 'api_autonomous_personalize', methods: ['POST'])]
     public function personalizeEmail(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         if (!$this->personalizationService) {
             return $this->json(['success' => false, 'error' => 'Personalization service not available'], 501);
         }
@@ -750,6 +875,10 @@ class AutonomousSalesController extends AbstractController
     #[Route('/personalization/interaction', name: 'api_autonomous_record_interaction', methods: ['POST'])]
     public function recordInteraction(Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         if (!$this->personalizationService) {
             return $this->json(['success' => false, 'error' => 'Personalization service not available'], 501);
         }
@@ -810,8 +939,13 @@ class AutonomousSalesController extends AbstractController
      * Webhook for email events (generic)
      */
     #[Route('/webhook/email-events', name: 'api_autonomous_webhook_email', methods: ['POST'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function webhookEmailEvents(Request $request): JsonResponse
     {
+        if ($response = $this->authenticateWebhook($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             
@@ -840,8 +974,13 @@ class AutonomousSalesController extends AbstractController
      * Webhook for inbound email (SendGrid-like format)
      */
     #[Route('/webhook/sendgrid', name: 'api_autonomous_webhook_sendgrid', methods: ['POST'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function webhookSendgrid(Request $request): JsonResponse
     {
+        if ($response = $this->authenticateWebhook($request)) {
+            return $response;
+        }
+
         try {
             $data = json_decode($request->getContent(), true);
             

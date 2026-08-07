@@ -5,9 +5,9 @@
 {% block body %}
 <div class="rams-module">
     <div class="rams-module__header">
-        <div class="rams-module__header-content">
+        <div class="rams-module__header">
             <h1 class="rams-module__title">{{ 'webinar.title'|trans }}</h1>
-            <p class="rams-module__subtitle">{{ 'webinar.subtitle'|trans }}</p>
+            <p class="rams-text--sm rams-text--muted">{{ 'webinar.subtitle'|trans }}</p>
         </div>
         <div class="rams-module__header-actions">
             <a href="{{ path('app_webinar_new') }}" class="rams-btn rams-btn--primary">
@@ -23,15 +23,15 @@
         <!-- Filter Tabs -->
         <div class="rams-tabs">
             <a href="{{ path('app_webinar_index', {status: 'all'}) }}" 
-               class="rams-tabs__item {{ current_status == 'all' ? 'rams-tabs__item--active' : '' }}">
+               class="rams-tab {{ current_status == 'all' ? 'rams-tab--active' : '' }}">
                 {{ 'common.all'|trans }}
             </a>
             <a href="{{ path('app_webinar_index', {status: 'upcoming'}) }}" 
-               class="rams-tabs__item {{ current_status == 'upcoming' ? 'rams-tabs__item--active' : '' }}">
+               class="rams-tab {{ current_status == 'upcoming' ? 'rams-tab--active' : '' }}">
                 {{ 'webinar.upcoming'|trans }}
             </a>
             <a href="{{ path('app_webinar_index', {status: 'past'}) }}" 
-               class="rams-tabs__item {{ current_status == 'past' ? 'rams-tabs__item--active' : '' }}">
+               class="rams-tab {{ current_status == 'past' ? 'rams-tab--active' : '' }}">
                 {{ 'webinar.past'|trans }}
             </a>
         </div>
@@ -44,16 +44,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                     </svg>
                 </div>
-                <p class="rams-empty-state__message">{{ 'webinar.no_webinars'|trans }}</p>
+                <p class="rams-empty-state__text">{{ 'webinar.no_webinars'|trans }}</p>
                 <a href="{{ path('app_webinar_new') }}" class="rams-btn rams-btn--ghost">{{ 'webinar.create_first'|trans }}</a>
             </div>
         {% else %}
             <div class="rams-list">
                 {% for webinar in webinars %}
                     <div class="rams-list__item">
-                        <div class="rams-list__item-content">
-                            <div class="rams-list__item-header">
-                                <h3 class="rams-list__item-title">
+                        <div class="rams-list__content">
+                            <div class="rams-list__header">
+                                <h3 class="rams-list__title">
                                     <a href="{{ path('app_webinar_show', {id: webinar.id}) }}">
                                         {{ webinar.title }}
                                     </a>
@@ -64,18 +64,18 @@
                             </div>
                             
                             {% if webinar.description %}
-                                <p class="rams-list__item-description">{{ webinar.description|slice(0, 150) }}{% if webinar.description|length > 150 %}...{% endif %}</p>
+                                <p class="rams-list__description">{{ webinar.description|slice(0, 150) }}{% if webinar.description|length > 150 %}...{% endif %}</p>
                             {% endif %}
 
-                            <div class="rams-list__item-meta">
+                            <div class="rams-list__meta">
                                 <span class="rams-dymo">
-                                    <svg class="rams-dymo__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                     </svg>
                                     {{ webinar.scheduledDate|date('M d, Y - H:i') }}
                                 </span>
                                 <span class="rams-dymo">
-                                    <svg class="rams-dymo__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                     </svg>
                                     {{ webinar.registeredCount }} {{ 'webinar.registration.registered'|trans|lower }}
@@ -86,7 +86,7 @@
                             </div>
                         </div>
 
-                        <div class="rams-list__item-actions">
+                        <div class="rams-list__actions">
                             <a href="{{ path('app_webinar_edit', {id: webinar.id}) }}" 
                                class="rams-btn rams-btn--ghost rams-btn--icon" title="{{ 'common.edit'|trans }}">
                                 <svg class="rams-icon--md" fill="none" stroke="currentColor" viewBox="0 0 24 24">

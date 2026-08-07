@@ -109,7 +109,7 @@ class CustomFieldDefinition
     private ?\DateTimeInterface $updatedAt = null;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(name: 'created_by_id', nullable: true)]
+    #[ORM\JoinColumn(name: 'created_by_id', nullable: true, onDelete: 'SET NULL')]
     private ?User $createdBy = null;
 
     #[ORM\OneToMany(mappedBy: 'fieldDefinition', targetEntity: CustomFieldValue::class, cascade: ['persist', 'remove'], orphanRemoval: true)]

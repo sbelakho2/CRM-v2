@@ -40,7 +40,7 @@ class WebinarRepository extends ServiceEntityRepository
                ->setParameter('language', $language);
         }
 
-        return $qb->getQuery()->setMaxResults(500)->getResult();
+        return $qb->getQuery()->getResult();
     }
 
     public function findPast(?string $language = null): array
@@ -55,6 +55,6 @@ class WebinarRepository extends ServiceEntityRepository
                ->setParameter('language', $language);
         }
 
-        return $qb->getQuery()->setMaxResults(500)->getResult();
+        return $qb->getQuery()->getResult();
     }
 }

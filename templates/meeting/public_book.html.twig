@@ -9,7 +9,7 @@
         <p class="rams-page__subtitle">{{ 'meeting.schedule_with'|trans }}{{ owner.firstName|default(owner.email) }}</p>
     </div>
     
-    <div class="rams-grid rams-grid--1" style="max-width: 800px; margin: 0 auto;">
+    <div class="rams-grid"   style="max-width: 800px; margin: 0 auto;">
         <div class="rams-module">
             <div class="rams-module__header">
                 <h3>{{ 'meeting.available_times'|trans }}</h3>
@@ -18,12 +18,12 @@
                 {% if slotsByDate|length > 0 %}
                     {% for dateKey, slots in slotsByDate %}
                     <div class="rams-mb-6">
-                        <div class="rams-border-b rams-border-rams-border rams-text--bold rams-pb-2 rams-mb-3">
+                        <div class="rams-border-b rams-text--bold rams-mb-3">
                             {{ dateKey|date('l, F j, Y') }}
                         </div>
-                        <div class="rams-grid rams-grid--auto-fill-120 rams-gap-3">
+                        <div class="rams-flex rams-flex-wrap rams-gap-3">
                             {% for slot in slots %}
-                            <a href="{{ path('meeting_book_slot', {token: slot.bookingToken}) }}" class="rams-btn rams-btn--outline rams-btn--sm rams-flex-col rams-h-auto rams-py-3">
+                            <a href="{{ path('meeting_book_slot', {token: slot.bookingToken}) }}" class="rams-btn rams-btn--ghost rams-btn--sm rams-flex-col rams-py-md">  
                                 <span class="rams-text--lg rams-text--bold">{{ slot.startTime|date('H:i') }}</span>
                                 <span class="rams-text--xs rams-text--muted">{{ slot.formattedDuration }}</span>
                             </a>

@@ -91,8 +91,8 @@
         <div class="rams-module__content rams-module__content--flush">
             <div class="rams-list">
                 {% for document in documents %}
-                    <div class="rams-list-item rams-p-4 rams-border-b last:rams-border-b-0">
-                        <div class="rams-list-item__content">
+                    <div class="rams-list__item rams-p-4 rams-border-b">
+                        <div class="rams-list__content">
                             <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
                                 <h3 class="rams-heading rams-heading--4">{{ document.name }}</h3>
                                 
@@ -155,7 +155,7 @@
                             {% endif %}
                         </div>
 
-                        <div class="rams-list-item__actions">
+                        <div class="rams-list__actions">
                             {% if document.fileName %}
                                 <a href="{{ path('app_compliance_download', {id: document.id}) }}" 
                                    class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'common.download'|trans }}">
@@ -175,7 +175,7 @@
                                 </form>
                             {% else %}
                                 <form method="post" action="{{ path('app_compliance_upload', {id: document.id}) }}" enctype="multipart/form-data" class="rams-inline-block">
-                                    <input type="file" name="file" class="rams-sr-only" id="file-{{ document.id }}" onchange="this.form.submit()">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('upload' ~ document.id) }}"> <input type="file" name="file" class="rams-sr-only" id="file-{{ document.id }}" onchange="this.form.submit()">
                                     <label for="file-{{ document.id }}" class="rams-btn rams-btn--primary rams-btn--sm" >
                                         <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4m0 0L8 8m4-4v12"/>

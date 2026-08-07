@@ -110,13 +110,64 @@ class UnifiedPdfGeneratorService
      */
     public function generateDfmReportPdf(Quote $quote): ComplianceDocument
     {
-        // 1. Render DFM report template
+        // 1. Load real DFM findings for this quote
+        $findings = $this->entityManager->getRepository(\App\Entity\DfmFinding::class)
+            ->findByQuote((int) $quote->getId());
+
+        $severityCounts = ['CRITICAL' => 0, 'HIGH' => 0, 'MEDIUM' => 0, 'LOW' => 0];
+        $issues = [];
+        $sectionChecks = ['placement' => [], 'solder' => [], 'bom' => []];
+
+        $score = 100;
+        foreach ($findings as $finding) {
+            $severity = strtoupper((string) $finding->getSeverity());
+            $severityCounts[$severity] = ($severityCounts[$severity] ?? 0) + 1;
+
+            $type = strtoupper((string) $finding->getFindingType());
+            $section = 'placement';
+            if (str_contains($type, 'SOLDER') || str_contains($type, 'MASK') || str_contains($type, 'STENCIL')) {
+                $section = 'solder';
+            } elseif (str_contains($type, 'LIFE') || str_contains($type, 'BOM') || str_contains($type, 'SOURCE')) {
+                $section = 'bom';
+            }
+
+            $status = in_array($severity, ['CRITICAL', 'HIGH'], true) ? 'fail' : ('MEDIUM' === $severity ? 'warn' : 'info');
+            $sectionChecks[$section][] = [
+                'status' => $status,
+                'name' => $finding->getFindingType() ?? 'Finding',
+                'description' => $finding->getDescription() ?? '',
+            ];
+
+            $issues[] = [
+                'severity' => $severity,
+                'category' => $finding->getFindingType() ?? 'General',
+                'description' => $finding->getDescription() ?? '',
+                'recommendation' => $finding->getRemediation() ?? '',
+            ];
+
+            // Penalty scoring: CRITICAL -25, HIGH -15, MEDIUM -5, LOW -1
+            $score -= 'CRITICAL' === $severity ? 25 : ('HIGH' === $severity ? 15 : ('MEDIUM' === $severity ? 5 : 1));
+        }
+        $score = max(0, min(100, $score));
+
+        // 2. Render DFM report template
         $issuingProfile = $this->issuingCompanyService->getCompanyProfile(
             $quote->getIssuingCompany()
         );
         $html = $this->twig->render('pdf/dfm_report.html.twig', [
             'quote' => $quote,
             'issuer' => $issuingProfile,
+            'dfmData' => [
+                'overallScore' => $score,
+                'criticalCount' => ($severityCounts['CRITICAL'] ?? 0) + ($severityCounts['HIGH'] ?? 0),
+                'warningCount' => $severityCounts['MEDIUM'] ?? 0,
+                'infoCount' => $severityCounts['LOW'] ?? 0,
+                'findingCount' => count($findings),
+                'issues' => $issues,
+                'placementChecks' => $sectionChecks['placement'],
+                'solderChecks' => $sectionChecks['solder'],
+                'bomChecks' => $sectionChecks['bom'],
+            ],
         ]);
         
         // 2. Generate PDF
@@ -220,13 +271,85 @@ class UnifiedPdfGeneratorService
      */
     public function generateExceptionsReportPdf(Quote $quote): ComplianceDocument
     {
-        // 1. Render exceptions report template
+        // 1. Load real procurement exceptions for this quote
+        $exceptions = $this->entityManager->getRepository(\App\Entity\ProcurementException::class)
+            ->createQueryBuilder('e')
+            ->join('e.bomLine', 'b')
+            ->andWhere('b.quote = :quoteId')
+            ->setParameter('quoteId', (int) $quote->getId())
+            ->getQuery()
+            ->getResult();
+
+        $exceptionList = [];
+        $categories = [];
+        $criticalCount = 0;
+        $warningCount = 0;
+        $totalImpact = 0.0;
+        $maxLeadImpact = 0;
+
+        foreach ($exceptions as $exception) {
+            $severity = strtoupper((string) $exception->getSeverity());
+            $type = (string) $exception->getExceptionType();
+            $bomLine = $exception->getBomLine();
+
+            $criticalCount += in_array($severity, ['CRITICAL', 'HIGH'], true) ? 1 : 0;
+            $warningCount += 'MEDIUM' === $severity ? 1 : 0;
+
+            $lineCost = (float) ($bomLine?->getExtendedPrice() ?? 0);
+            $totalImpact += $lineCost;
+
+            $leadDays = $bomLine?->getLeadTimeDays();
+            if ($leadDays !== null) {
+                $maxLeadImpact = max($maxLeadImpact, $leadDays);
+            }
+
+            $categoryType = $this->mapExceptionType($type);
+            if (!isset($categories[$type])) {
+                $categories[$type] = [
+                    'type' => $categoryType,
+                    'name' => str_replace('_', ' ', ucwords(mb_strtolower($type))),
+                    'count' => 0,
+                    'impact' => in_array($severity, ['CRITICAL', 'HIGH'], true) ? 'high' : ('MEDIUM' === $severity ? 'medium' : 'low'),
+                    'costImpact' => 0.0,
+                    'leadImpact' => 0,
+                ];
+            }
+            ++$categories[$type]['count'];
+            $categories[$type]['costImpact'] += $lineCost;
+            $categories[$type]['leadImpact'] = max($categories[$type]['leadImpact'], $leadDays ?? 0);
+
+            $exceptionList[] = [
+                'lineNumber' => $bomLine?->getLineNumber(),
+                'mpn' => $bomLine?->getMpn() ?? '',
+                'type' => $categoryType,
+                'typeName' => str_replace('_', ' ', ucwords(mb_strtolower($type))),
+                'manufacturer' => $bomLine?->getManufacturer() ?? '',
+                'requiredQty' => $bomLine?->getQuantity() ?? 0,
+                'description' => (string) $exception->getMessage(),
+                'severity' => mb_strtolower($severity),
+                'issue' => (string) $exception->getMessage(),
+            ];
+        }
+
+        // 2. Render exceptions report template
         $issuingProfile = $this->issuingCompanyService->getCompanyProfile(
             $quote->getIssuingCompany()
         );
         $html = $this->twig->render('pdf/exceptions_report.html.twig', [
             'quote' => $quote,
             'issuer' => $issuingProfile,
+            'exceptions' => $exceptionList,
+            'exceptionData' => [
+                'criticalCount' => $criticalCount,
+                'warningCount' => $warningCount,
+                'totalExceptions' => count($exceptionList),
+                'impactValue' => $totalImpact,
+                'actionRequired' => $criticalCount > 0,
+                'actionSummary' => $criticalCount > 0
+                    ? sprintf('%d critical exception(s) require immediate sourcing action.', $criticalCount)
+                    : '',
+                'categories' => array_values($categories),
+            ],
         ]);
         
         // 2. Generate PDF
@@ -274,13 +397,159 @@ class UnifiedPdfGeneratorService
      */
     public function generateSourcingRiskPdf(Quote $quote): ComplianceDocument
     {
-        // 1. Render sourcing risk template
+        // 1. Build real risk data from the quote's BOM lines
+        $availabilityRisks = [];
+        $suppliers = [];
+        $supplierMap = [];
+        $singleSourceParts = 0;
+        $longLeadParts = 0;
+        $eolParts = 0;
+        $factoryStockParts = 0;
+        $totalBomValue = 0.0;
+
+        foreach ($quote->getBomLines() as $line) {
+            $mpn = (string) ($line->getMpn() ?? $line->getOriginalMpn() ?? '');
+            $manufacturer = (string) ($line->getManufacturer() ?? '');
+            $availability = (string) ($line->getAvailability() ?? '');
+            $leadTime = $line->getLeadTimeDays();
+            $lifecycle = mb_strtolower((string) ($line->getLifecycleStatus() ?? ''));
+            $source = (string) ($line->getProcurementSource() ?? '');
+            $extended = (float) ($line->getExtendedPrice() ?? 0);
+            $totalBomValue += $extended;
+
+            if ('' === $source || 'manual' === mb_strtolower($source) || 'not found' === mb_strtolower($source)) {
+                ++$singleSourceParts;
+            }
+            if ($leadTime !== null && $leadTime > 28) {
+                ++$longLeadParts;
+            }
+            if (in_array($lifecycle, ['obsolete', 'nrnd', 'eol'], true)) {
+                ++$eolParts;
+            }
+            if ('factory' === mb_strtolower($availability)) {
+                ++$factoryStockParts;
+            }
+
+            $riskNotes = [];
+            $level = 'low';
+            if (in_array($lifecycle, ['obsolete', 'nrnd', 'eol'], true)) {
+                $level = 'critical';
+                $riskNotes[] = 'EOL/NRND lifecycle';
+            }
+            if ('factory' === mb_strtolower($availability)) {
+                $level = 'medium' === $level ? 'high' : ('critical' === $level ? $level : 'medium');
+                $riskNotes[] = 'Factory stock only';
+            } elseif ('' === $availability) {
+                $level = 'high' === $level ? $level : 'medium';
+                $riskNotes[] = 'Availability unknown';
+            }
+            if ($leadTime !== null && $leadTime > 28) {
+                $level = 'medium' === $level ? 'high' : ('low' === $level ? 'medium' : $level);
+                $riskNotes[] = sprintf('%d day lead time', $leadTime);
+            }
+            if ($line->hasException()) {
+                $level = 'high' === $level || 'critical' === $level ? $level : 'high';
+                $riskNotes[] = (string) ($line->getExceptionReason() ?? 'Procurement exception');
+            }
+
+            if ('low' !== $level) {
+                $availabilityRisks[] = [
+                    'mpn' => $mpn ?: 'common.n_a',
+                    'manufacturer' => $manufacturer ?: 'common.n_a',
+                    'stock' => $availability ?: 'common.n_a',
+                    'leadTime' => $leadTime !== null ? $leadTime . 'd' : 'common.n_a',
+                    'sourceCount' => '' === $source ? 0 : 1,
+                    'level' => $level,
+                    'notes' => implode('; ', $riskNotes),
+                ];
+            }
+
+            // Supplier concentration by manufacturer
+            $supplierKey = $manufacturer ?: 'common.unknown';
+            if (!isset($supplierMap[$supplierKey])) {
+                $supplierMap[$supplierKey] = ['partCount' => 0, 'value' => 0.0];
+            }
+            ++$supplierMap[$supplierKey]['partCount'];
+            $supplierMap[$supplierKey]['value'] += $extended;
+        }
+
+        foreach ($supplierMap as $name => $data) {
+            $share = $totalBomValue > 0 ? (int) round($data['value'] / $totalBomValue * 100) : 0;
+            $suppliers[] = [
+                'name' => $name,
+                'partCount' => $data['partCount'],
+                'percentage' => $share,
+                'region' => 'common.unknown',
+                'riskLevel' => $share >= 50 ? 'high' : ($share >= 25 ? 'medium' : 'low'),
+            ];
+        }
+        usort($suppliers, static fn (array $a, array $b): int => $b['percentage'] <=> $a['percentage']);
+
+        // Data-driven mitigations
+        $mitigations = [];
+        if ($eolParts > 0) {
+            $mitigations[] = [
+                'title' => 'Dual-source EOL/NRND components',
+                'description' => sprintf('%d part(s) are end-of-life or NRND. Source drop-in alternatives before stock runs out.', $eolParts),
+                'impact' => 'high',
+                'impactLabel' => 'High impact',
+            ];
+        }
+        if ($singleSourceParts > 0) {
+            $mitigations[] = [
+                'title' => 'Add second sources for single-sourced parts',
+                'description' => sprintf('%d part(s) have no confirmed automated source. Qualify alternative manufacturers.', $singleSourceParts),
+                'impact' => 'high',
+                'impactLabel' => 'High impact',
+            ];
+        }
+        if ($longLeadParts > 0) {
+            $mitigations[] = [
+                'title' => 'Place long-lead orders early',
+                'description' => sprintf('%d part(s) exceed 28-day lead times. Trigger purchase orders ahead of production.', $longLeadParts),
+                'impact' => 'medium',
+                'impactLabel' => 'Medium impact',
+            ];
+        }
+        if ($factoryStockParts > 0) {
+            $mitigations[] = [
+                'title' => 'Secure buffer stock for factory-only parts',
+                'description' => sprintf('%d part(s) are factory-stock only and carry allocation risk. Consider buffer inventory.', $factoryStockParts),
+                'impact' => 'medium',
+                'impactLabel' => 'Medium impact',
+            ];
+        }
+
+        // Risk score: start at 100, subtract weighted penalties
+        $riskScore = 100
+            - min(50, $eolParts * 10)
+            - min(40, $singleSourceParts * 2)
+            - min(30, $longLeadParts * 2)
+            - min(20, $factoryStockParts * 3);
+        $riskScore = max(0, min(100, $riskScore));
+
+        // 2. Render sourcing risk template
         $issuingProfile = $this->issuingCompanyService->getCompanyProfile(
             $quote->getIssuingCompany()
         );
         $html = $this->twig->render('pdf/sourcing_risk.html.twig', [
             'quote' => $quote,
             'issuer' => $issuingProfile,
+            'riskData' => [
+                'overallScore' => $riskScore,
+                'singleSourceParts' => $singleSourceParts,
+                'longLeadParts' => $longLeadParts,
+                'eolParts' => $eolParts,
+                'allocationParts' => $factoryStockParts,
+                'availabilityRisks' => $availabilityRisks,
+                'topSuppliers' => $suppliers,
+                'geoRisks' => [],
+                'mitigations' => $mitigations,
+                'availabilityScore' => $riskScore,
+                'availabilityLevel' => $riskScore < 25 ? 'low' : ($riskScore < 50 ? 'medium' : ($riskScore < 75 ? 'high' : 'critical')),
+                'concentrationScore' => $suppliers[0]['percentage'] ?? 0,
+                'concentrationLevel' => ($suppliers[0]['percentage'] ?? 0) >= 50 ? 'high' : (($suppliers[0]['percentage'] ?? 0) >= 25 ? 'medium' : 'low'),
+            ],
         ]);
         
         // 2. Generate PDF
@@ -337,14 +606,44 @@ class UnifiedPdfGeneratorService
             $companyName = 'N/A';
         }
 
-        // 1. Render audit trail template
+        // 1. Build audit data from real AuditLog entries for this entity
+        $entityType = (new \ReflectionClass($entity))->getShortName();
+        $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
+
+        $logs = $entityId !== null
+            ? $this->entityManager->getRepository(\App\Entity\AuditLog::class)->findByEntity($entityType, (int) $entityId)
+            : [];
+
+        $events = array_map(fn (\App\Entity\AuditLog $log): array => $this->auditEventToArray($log), array_reverse($logs));
+
+        $users = array_values(array_unique(array_filter(array_map(
+            fn (\App\Entity\AuditLog $log): ?string => $log->getUser()?->getFullName() ?? $log->getUser()?->getEmail(),
+            $logs
+        ))));
+
+        $auditData = [
+            'events' => $events,
+            'totalEvents' => count($logs),
+            'revisions' => count(array_filter($logs, fn (\App\Entity\AuditLog $log): bool => $log->getAction() === 'update')),
+            'approvals' => count(array_filter($logs, fn (\App\Entity\AuditLog $log): bool => stripos((string) $log->getAction(), 'approv') !== false)),
+            'users' => count($users),
+            'documentHash' => hash('sha256', json_encode([
+                'entity' => $entityType,
+                'entityId' => $entityId,
+                'events' => $events,
+            ])),
+            'auditHash' => hash('sha256', json_encode($events)),
+        ];
+
+        // 2. Render audit trail template
         $html = $this->twig->render('pdf/audit_trail.html.twig', [
             'entity' => $entity,
             'quote' => $entity,
             'company_name' => $companyName,
+            'auditData' => $auditData,
         ]);
         
-        // 2. Generate PDF
+        // 3. Generate PDF
         $mpdf = new \Mpdf\Mpdf([
             'mode' => 'utf-8',
             'format' => 'A4',
@@ -357,10 +656,8 @@ class UnifiedPdfGeneratorService
         $mpdf->WriteHTML($html);
         $pdfContent = $mpdf->Output('', 'S');
         
-        // 3. Create document
-        $entityType = (new \ReflectionClass($entity))->getShortName();
-        $entityId = method_exists($entity, 'getId') ? $entity->getId() : 'unknown';
-        $filename = sprintf('audit_trail_%s_%s_%s.pdf', strtolower($entityType), $entityId, date('Ymd'));
+        // 4. Create document
+        $filename = sprintf('audit_trail_%s_%s_%s.pdf', strtolower($entityType), $entityId ?? 'unknown', date('Ymd'));
         
         try {
             $auditCompany = method_exists($entity, 'getCompany') ? $entity->getCompany() : null;
@@ -374,6 +671,52 @@ class UnifiedPdfGeneratorService
             $pdfContent,
             $filename
         );
+    }
+
+    /**
+     * Convert an AuditLog entry into the template's event shape.
+     *
+     * @return array<string, mixed>
+     */
+    private function auditEventToArray(\App\Entity\AuditLog $log): array
+    {
+        $fields = $log->getChangedFields() ?? [];
+        $oldValues = $log->getOldValues() ?? [];
+        $newValues = $log->getNewValues() ?? [];
+
+        $changes = [];
+        foreach ($fields as $field) {
+            $changes[] = [
+                'field' => $field,
+                'oldValue' => is_array($oldValues) && array_key_exists($field, $oldValues) ? $this->stringifyAuditValue($oldValues[$field]) : '-',
+                'newValue' => is_array($newValues) && array_key_exists($field, $newValues) ? $this->stringifyAuditValue($newValues[$field]) : '-',
+            ];
+        }
+
+        $user = $log->getUser();
+
+        return [
+            'type' => $log->getAction() ?? 'modified',
+            'title' => ucfirst($log->getAction() ?? 'Event'),
+            'user' => $user?->getFullName() ?? $user?->getEmail() ?? 'System',
+            'timestamp' => $log->getCreatedAt()?->format('Y-m-d H:i') ?? 'N/A',
+            'description' => $log->getNotes(),
+            'changes' => $changes,
+        ];
+    }
+
+    private function stringifyAuditValue(mixed $value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d H:i');
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_array($value) || is_object($value)) {
+            return (string) json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+        return (string) $value;
     }
 
     /**
@@ -552,5 +895,21 @@ class UnifiedPdfGeneratorService
         // $audit->setGeneratedAt(new \DateTime());
         // $this->entityManager->persist($audit);
         // $this->entityManager->flush();
+    }
+
+    /**
+     * Map a procurement exception type to a CSS class suffix for the exceptions report.
+     */
+    private function mapExceptionType(string $type): string
+    {
+        return match (mb_strtoupper($type)) {
+            'NOT_FOUND', 'ALT_REQUIRED', 'NO_API' => 'alt-required',
+            'NO_STOCK' => 'no-stock',
+            'OBSOLETE', 'EOL', 'NRND' => 'eol',
+            'LONG_LEAD', 'LEAD_TIME' => 'long-lead',
+            'MOQ' => 'moq',
+            'PRICE_SPIKE', 'PRICE' => 'price',
+            default => 'custom',
+        };
     }
 }

@@ -384,14 +384,14 @@ class AbmResolverService
             throw new \RuntimeException("Cannot open CSV file: {$csvPath}");
         }
         
-        $header = fgetcsv($handle);
+        $header = fgetcsv($handle, 0, ',', '"', '\\');
         if (!$header) {
             fclose($handle);
             throw new \RuntimeException("Empty CSV file");
         }
         
         $count = 0;
-        while (($row = fgetcsv($handle)) !== false) {
+        while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
             if (empty(array_filter($row))) {
                 continue; // Skip empty rows
             }

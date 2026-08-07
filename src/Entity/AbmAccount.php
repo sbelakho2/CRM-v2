@@ -54,7 +54,7 @@ class AbmAccount
     private ?\DateTimeInterface $updatedAt = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Company $company = null;
 
     #[ORM\OneToMany(mappedBy: 'abmAccount', targetEntity: AbmHit::class, cascade: ['persist', 'remove'], orphanRemoval: true)]

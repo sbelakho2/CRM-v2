@@ -18,7 +18,7 @@
                 {% if errors is defined and errors %}
                     <div class="rams-alert rams-alert--error rams-mb-4">
                         <h3 class="rams-alert__title">{{ 'administration.datasets.import_errors'|trans }}:</h3>
-                        <ul class="rams-alert__list">
+                        <ul class="rams-list">
                             {% for error in errors %}
                                 <li>{{ error }}</li>
                             {% endfor %}
@@ -86,19 +86,19 @@
                 <div class="rams-module__content">
                     <h3 class="rams-module__title rams-mb-3">{{ 'administration.datasets.import_options'|trans }}</h3>
                     <div class="rams-stack rams-gap-2">
-                        <label class="rams-form__checkbox-container">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="replace_existing" class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label">{{ 'administration.datasets.replace_existing'|trans }}</span>
                         </label>
-                        <label class="rams-form__checkbox-container">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="validate_data" checked class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label">{{ 'administration.datasets.validate_data'|trans }}</span>
                         </label>
-                        <label class="rams-form__checkbox-container">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="backup_existing" checked class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label">{{ 'administration.datasets.backup_existing'|trans }}</span>
                         </label>
-                        <label class="rams-form__checkbox-container">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="notify_team" class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label">{{ 'administration.datasets.notify_team'|trans }}</span>
                         </label>
@@ -112,7 +112,7 @@
                         <div class="rams-andon rams-andon--info"><span class="rams-andon__light"></span></div>
                         <h2 class="rams-module__title rams-mb-0">{{ 'administration.datasets.import_instructions'|trans }}</h2>
                     </div>
-                    <ol class="rams-list rams-list--ordered rams-stack rams-gap-2 rams-text--sm">
+                    <ol class="rams-list rams-list rams-stack rams-gap-2 rams-text--sm">
                         <li>{{ 'administration.datasets.instruction_1'|trans }}</li>
                         <li>{{ 'administration.datasets.instruction_2'|trans }}</li>
                         <li>{{ 'administration.datasets.instruction_3'|trans }}</li>

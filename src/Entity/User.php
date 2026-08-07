@@ -42,6 +42,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'boolean')]
     private bool $active = true;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $isVerified = false;
+
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $resetToken = null;
 
@@ -72,12 +75,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $reducedMotion = false;
 
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Activity::class)]
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Activity::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $activities;
 
     public function __construct()
     {
         $this->activities = new ArrayCollection();
+        // Users created outside the self-registration flow (commands, admin panel)
+        // are trusted and therefore verified by default; registration explicitly
+        // marks new accounts as unverified.
+        $this->isVerified = true;
     }
 
     public function getId(): ?int
@@ -291,6 +298,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setActive(bool $active): self
     {
         $this->active = $active;
+        return $this;
+    }
+
+    public function isVerified(): bool
+    {
+        return $this->isVerified;
+    }
+
+    public function setIsVerified(bool $isVerified): self
+    {
+        $this->isVerified = $isVerified;
         return $this;
     }
 

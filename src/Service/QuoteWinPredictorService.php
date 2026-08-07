@@ -57,6 +57,32 @@ class QuoteWinPredictorService
         'unknown' => 1.00,
     ];
 
+    // Map Company account tiers to customer segments (Tier A = top/large accounts,
+    // Tier C = smallest — see PipelineForecastingService for the same ordering)
+    private const TIER_SEGMENT_MAP = [
+        Company::TIER_A => 'enterprise',
+        Company::TIER_B => 'mid_market',
+        Company::TIER_C => 'smb',
+    ];
+
+    // Map Company sectors to industry vertical modifier keys
+    private const SECTOR_INDUSTRY_MAP = [
+        Company::SECTOR_AUTOMOTIVE => 'automotive',
+        Company::SECTOR_AEROSPACE => 'aerospace',
+        Company::SECTOR_DEFENSE => 'defense',
+        Company::SECTOR_MEDICAL => 'medical',
+        Company::SECTOR_TELECOM => 'telecom',
+        Company::SECTOR_INDUSTRIAL => 'industrial',
+        Company::SECTOR_RAIL => 'industrial',
+        Company::SECTOR_RENEWABLES => 'industrial',
+        Company::SECTOR_HVAC => 'industrial',
+        Company::SECTOR_MARINE => 'industrial',
+        Company::SECTOR_ENERGY_STORAGE => 'industrial',
+        Company::SECTOR_POWER_ELECTRONICS => 'iot',
+        Company::SECTOR_CONSUMER_ELECTRONICS => 'consumer',
+        Company::SECTOR_DATA_CENTER => 'telecom',
+    ];
+
     public function __construct(
         private readonly QuoteRepository $quoteRepository,
         private readonly LoggerInterface $logger
@@ -351,21 +377,8 @@ class QuoteWinPredictorService
         if (!$company) {
             return 'unknown';
         }
-        
-        $revenue = null;
-        $employees = null;
-        
-        if ($revenue > 100000000 || $employees > 1000) {
-            return 'enterprise';
-        } elseif ($revenue > 10000000 || $employees > 100) {
-            return 'mid_market';
-        } elseif ($revenue > 1000000 || $employees > 10) {
-            return 'smb';
-        } elseif ($employees > 0 || $revenue > 0) {
-            return 'startup';
-        }
-        
-        return 'unknown';
+
+        return self::TIER_SEGMENT_MAP[$company->getAccountTier() ?? ''] ?? 'unknown';
     }
 
     /**
@@ -376,10 +389,8 @@ class QuoteWinPredictorService
         if (!$company) {
             return 'unknown';
         }
-        
-        // Industry tracking not yet implemented; see Company entity for sector field
-        // $company->getSector() can be used as a substitute once detection logic is updated
-        return 'unknown';
+
+        return self::SECTOR_INDUSTRY_MAP[$company->getSector() ?? ''] ?? 'unknown';
     }
 
     /**

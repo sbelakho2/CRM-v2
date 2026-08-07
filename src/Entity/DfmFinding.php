@@ -18,11 +18,11 @@ class DfmFinding
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Quote::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Quote $quote = null;
 
     #[ORM\ManyToOne(targetEntity: DfmRule::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?DfmRule $dfmRule = null;
 
     #[ORM\Column(length: 100)]

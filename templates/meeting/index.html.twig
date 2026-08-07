@@ -19,7 +19,7 @@
             <p class="rams-page__subtitle">{{ 'meeting.subtitle'|trans }}</p>
         </div>
         <div class="rams-page__actions mobile-stack">
-            <a href="{{ path('meeting_my_link') }}" class="rams-btn uppercase">
+            <a href="{{ path('meeting_my_link') }}" class="rams-btn rams-uppercase"> 
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 8.5C8.27614 8.5 8.5 8.27614 8.5 8L8.5 3.5C8.5 3.22386 8.27614 3 8 3C7.72386 3 7.5 3.22386 7.5 3.5L7.5 8C7.5 8.27614 7.72386 8.5 8 8.5Z"/>
                     <path d="M8 13C10.7614 13 13 10.7614 13 8C13 5.23858 10.7614 3 8 3C5.23858 3 3 5.23858 3 8C3 10.7614 5.23858 13 8 13Z"/>
@@ -27,13 +27,13 @@
                 </svg>
                 {{ 'meeting.booking_link'|trans }}
             </a>
-            <a href="{{ path('meeting_generate') }}" class="rams-btn uppercase">
+            <a href="{{ path('meeting_generate') }}" class="rams-btn rams-uppercase"> 
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 2L10 6L14 8L10 10L8 14L6 10L2 8L6 6L8 2Z"/>
                 </svg>
                 {{ 'meeting.generate_slots'|trans }}
             </a>
-            <a href="{{ path('meeting_new') }}" class="rams-btn rams-btn--primary uppercase">
+            <a href="{{ path('meeting_new') }}" class="rams-btn rams-btn--primary rams-uppercase"> 
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 4V12M4 8H12"/>
                 </svg>
@@ -46,25 +46,25 @@
     <div class="rams-grid rams-grid--4 rams-mb-6">
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'meeting.available_slots'|trans }}</div>
+                <div class="rams-metric__label rams-text--muted">{{  'meeting.available_slots'|trans }}</div>
                 <div class="rams-metric__value tabular-nums">{{ statistics.available|default(0) }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'meeting.upcoming_bookings'|trans }}</div>
+                <div class="rams-metric__label rams-text--muted">{{  'meeting.upcoming_bookings'|trans }}</div>
                 <div class="rams-metric__value tabular-nums">{{ statistics.bookedUpcoming|default(0) }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'meeting.this_week'|trans }}</div>
+                <div class="rams-metric__label rams-text--muted">{{  'meeting.this_week'|trans }}</div>
                 <div class="rams-metric__value tabular-nums">{{ statistics.thisWeek|default(0) }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'meeting.total_booked'|trans }}</div>
+                <div class="rams-metric__label rams-text--muted">{{  'meeting.total_booked'|trans }}</div>
                 <div class="rams-metric__value tabular-nums">{{ statistics.totalBooked|default(0) }}</div>
             </div>
         </div>
@@ -74,8 +74,8 @@
         <!-- Today's Schedule -->
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.todays_schedule'|trans }}</h3>
-                <a href="{{ path('meeting_calendar') }}" class="rams-btn rams-btn--sm rams-btn--ghost uppercase">
+                <h3 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'meeting.todays_schedule'|trans }}</h3>
+                <a href="{{ path('meeting_calendar') }}" class="rams-btn rams-btn--sm rams-btn--ghost rams-uppercase"> 
                     {{ 'meeting.view_calendar'|trans }}
                 </a>
             </div>
@@ -126,7 +126,7 @@
         <!-- Upcoming Bookings -->
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.upcoming_bookings'|trans }}</h3>
+                <h3 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'meeting.upcoming_bookings'|trans }}</h3>
             </div>
             <div class="rams-module__content rams-p-0">
                 {% if upcoming|length > 0 %}
@@ -166,20 +166,20 @@
     <!-- Available Slots -->
     <div class="rams-module rams-mt-6">
         <div class="rams-module__header">
-            <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.available_slots'|trans }} ({{ available|length }})</h3>
+            <h3 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'meeting.available_slots'|trans }} ({{ available|length }})</h3>
         </div>
         <div class="rams-module__content rams-p-0">
             {% if available|length > 0 %}
             <div class="rams-table-container">
-                <table class="rams-table">
+                <table class="rams-table" aria-label="{{ 'meeting.available_slots'|trans }}">
                     <thead>
                         <tr>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'meeting.date_time'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.name'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.type'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'meeting.duration'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'meeting.location'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'common.actions'|trans }}</th>
+                            <th scope="col" class="rams-table__cell--header">{{     'meeting.date_time'|trans }}</th>
+                            <th scope="col" class="rams-table__cell--header">{{     'common.name'|trans }}</th>
+                            <th scope="col" class="rams-table__cell--header">{{     'common.type'|trans }}</th>
+                            <th scope="col" class="rams-table__cell--header">{{     'meeting.duration'|trans }}</th>
+                            <th scope="col" class="rams-table__cell--header">{{     'meeting.location'|trans }}</th>
+                            <th scope="col" class="rams-table__cell--header rams-text--right">{{ 'common.actions'|trans }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -196,7 +196,7 @@
                             <td>{{ slot.formattedDuration }}</td>
                             <td>{{ slot.location ?: '-' }}</td>
                             <td class="rams-text--right">
-                                <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn rams-btn--icon rams-btn--ghost">
+                                <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn rams-btn--icon rams-btn--ghost" aria-label="{{ 'common.edit'|trans }}" title="{{ 'common.edit'|trans }}"> 
                                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                                     </svg>
@@ -213,7 +213,7 @@
                     <path d="M8 4V12M4 8H12"/>
                 </svg>
                 <p class="rams-text--muted">{{ 'meeting.no_available_slots'|trans }}</p>
-                <a href="{{ path('meeting_generate') }}" class="rams-btn rams-btn--primary uppercase rams-mt-3">
+                <a href="{{ path('meeting_generate') }}" class="rams-btn rams-btn--primary rams-uppercase rams-mt-3">
                     {{ 'meeting.generate_slots'|trans }}
                 </a>
             </div>

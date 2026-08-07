@@ -61,6 +61,10 @@ class LiveFxRateFetcher
     /**
      * Fetch and store latest FX rates from all sources
      * 
+     * The whole batch (fetch + persist + flush of all rates) runs inside a
+     * single Doctrine transaction so all rates commit atomically: a mid-batch
+     * failure rolls back everything instead of leaving a partial write.
+     * 
      * @return array Summary of fetched rates
      */
     public function fetchAllRates(): array
@@ -71,76 +75,79 @@ class LiveFxRateFetcher
             'source' => null,
             'timestamp' => new \DateTime(),
         ];
-        
-        // Try ECB/Frankfurter first (official data, EUR-based)
-        $frankfurterRates = $this->fetchFromFrankfurter();
-        if (!empty($frankfurterRates)) {
-            $results['source'] = 'frankfurter_ecb';
-            foreach ($frankfurterRates as $currency => $rate) {
-                try {
-                    $this->storeRate('EUR', $currency, $rate, 'ecb_frankfurter');
-                    // Also store inverse for USD base
-                    if ($currency === 'USD') {
-                        $this->storeRate('USD', 'EUR', 1 / $rate, 'ecb_frankfurter_inverse');
-                    }
-                    $results['success'][] = "EUR/{$currency}";
-                } catch (\Exception $e) {
-                    $results['failed'][] = "EUR/{$currency}: " . $e->getMessage();
-                }
-            }
-        }
 
-        // Fetch TND rates from Banque Centrale de Tunisie (TND base)
-        $bctRates = $this->fetchFromBCT();
-        if (!empty($bctRates)) {
-            foreach ($bctRates as $currency => $rate) {
-                try {
-                    $this->storeRate($currency, 'TND', $rate, 'bct');
-                    $this->storeRate('TND', $currency, 1 / $rate, 'bct_inverse');
-                    $results['success'][] = "{$currency}/TND (BCT)";
-                } catch (\Exception $e) {
-                    $results['failed'][] = "{$currency}/TND: " . $e->getMessage();
+        $entityManager = $this->getEntityManager();
+        $entityManager->wrapInTransaction(function () use (&$results) {
+            // Try ECB/Frankfurter first (official data, EUR-based)
+            $frankfurterRates = $this->fetchFromFrankfurter();
+            if (!empty($frankfurterRates)) {
+                $results['source'] = 'frankfurter_ecb';
+                foreach ($frankfurterRates as $currency => $rate) {
+                    try {
+                        $this->storeRate('EUR', $currency, $rate, 'ecb_frankfurter');
+                        // Also store inverse for USD base
+                        if ($currency === 'USD') {
+                            $this->storeRate('USD', 'EUR', 1 / $rate, 'ecb_frankfurter_inverse');
+                        }
+                        $results['success'][] = "EUR/{$currency}";
+                    } catch (\Exception $e) {
+                        $results['failed'][] = "EUR/{$currency}: " . $e->getMessage();
+                    }
                 }
             }
-        }
-        
-        // Fetch USD-based rates from ExchangeRate-API for additional coverage
-        $usdRates = $this->fetchFromExchangeRateApi('USD');
-        if (!empty($usdRates)) {
-            $results['source'] = $results['source'] ? $results['source'] . '+exchangerate' : 'exchangerate';
-            foreach ($usdRates as $currency => $rate) {
-                // Only add if we don't have it from ECB
-                if (!in_array("EUR/{$currency}", $results['success'], true) && $currency !== 'USD') {
+
+            // Fetch TND rates from Banque Centrale de Tunisie (TND base)
+            $bctRates = $this->fetchFromBCT();
+            if (!empty($bctRates)) {
+                foreach ($bctRates as $currency => $rate) {
                     try {
-                        $this->storeRate('USD', $currency, $rate, 'exchangerate_api');
-                        $results['success'][] = "USD/{$currency}";
+                        $this->storeRate($currency, 'TND', $rate, 'bct');
+                        $this->storeRate('TND', $currency, 1 / $rate, 'bct_inverse');
+                        $results['success'][] = "{$currency}/TND (BCT)";
                     } catch (\Exception $e) {
-                        $results['failed'][] = "USD/{$currency}: " . $e->getMessage();
+                        $results['failed'][] = "{$currency}/TND: " . $e->getMessage();
                     }
                 }
             }
             
-            // Store MAD rate specifically (important for this CRM)
-            if (isset($usdRates['MAD'])) {
-                $this->storeRate('USD', 'MAD', $usdRates['MAD'], 'exchangerate_api');
-                // Store inverse
-                $this->storeRate('MAD', 'USD', 1 / $usdRates['MAD'], 'exchangerate_api_inverse');
-            }
-        }
-        
-        // Try BOE for GBP-specific rates
-        $boeRates = $this->fetchFromBOE();
-        if (!empty($boeRates)) {
-            foreach ($boeRates as $currency => $rate) {
-                try {
-                    $this->storeRate('GBP', $currency, $rate, 'boe');
-                    $results['success'][] = "GBP/{$currency} (BOE)";
-                } catch (\Exception $e) {
-                    $results['failed'][] = "GBP/{$currency}: " . $e->getMessage();
+            // Fetch USD-based rates from ExchangeRate-API for additional coverage
+            $usdRates = $this->fetchFromExchangeRateApi('USD');
+            if (!empty($usdRates)) {
+                $results['source'] = $results['source'] ? $results['source'] . '+exchangerate' : 'exchangerate';
+                foreach ($usdRates as $currency => $rate) {
+                    // Only add if we don't have it from ECB
+                    if (!in_array("EUR/{$currency}", $results['success'], true) && $currency !== 'USD') {
+                        try {
+                            $this->storeRate('USD', $currency, $rate, 'exchangerate_api');
+                            $results['success'][] = "USD/{$currency}";
+                        } catch (\Exception $e) {
+                            $results['failed'][] = "USD/{$currency}: " . $e->getMessage();
+                        }
+                    }
+                }
+                
+                // Store MAD rate specifically (important for this CRM)
+                if (isset($usdRates['MAD'])) {
+                    $this->storeRate('USD', 'MAD', $usdRates['MAD'], 'exchangerate_api');
+                    // Store inverse
+                    $this->storeRate('MAD', 'USD', 1 / $usdRates['MAD'], 'exchangerate_api_inverse');
                 }
             }
-        }
-        
+            
+            // Try BOE for GBP-specific rates
+            $boeRates = $this->fetchFromBOE();
+            if (!empty($boeRates)) {
+                foreach ($boeRates as $currency => $rate) {
+                    try {
+                        $this->storeRate('GBP', $currency, $rate, 'boe');
+                        $results['success'][] = "GBP/{$currency} (BOE)";
+                    } catch (\Exception $e) {
+                        $results['failed'][] = "GBP/{$currency}: " . $e->getMessage();
+                    }
+                }
+            }
+        });
+
         if (empty($results['success'])) {
             $this->logger->critical('All FX rate sources failed — no rates retrieved', [
                 'source' => $results['source'] ?? 'none',
@@ -558,7 +565,12 @@ class LiveFxRateFetcher
     }
 
     /**
-     * Store a rate in the database
+     * Stage a rate in the database.
+     *
+     * The entity is persisted (and stale rates deactivated) without flushing:
+     * when called from fetchAllRates() the whole batch is flushed and committed
+     * atomically inside a single transaction. Callers that store a single rate
+     * outside a batch must flush afterwards (see persistLiveRate()).
      */
     private function storeRate(string $from, string $to, float $rate, string $source): void
     {
@@ -586,7 +598,6 @@ class LiveFxRateFetcher
         $fxRate->setVersionId($source . '_' . time());
         
         $entityManager->persist($fxRate);
-        $entityManager->flush();
     }
 
     private function getEntityManager(): EntityManagerInterface
@@ -609,6 +620,7 @@ class LiveFxRateFetcher
     {
         try {
             $this->storeRate($from, $to, $rateResult['rate'], 'live_' . $rateResult['source']);
+            $this->getEntityManager()->flush();
             $this->logger->info('Auto-persisted live FX rate to database', [
                 'pair' => "{$from}/{$to}",
                 'rate' => $rateResult['rate'],

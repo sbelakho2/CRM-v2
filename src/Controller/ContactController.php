@@ -69,12 +69,21 @@ class ContactController extends AbstractController
         // Get filter options
         $roles = ['CEO', 'Procurement Manager', 'Engineering Manager', 'Quality Manager', 'Operations Manager', 'Supply Chain Manager'];
         
-        // Get companies for dropdown
+        // Get companies for dropdown (bounded; the currently-filtered
+        // company is always included so the filter keeps working)
         $companies = $this->entityManager->getRepository(\App\Entity\Company::class)
             ->createQueryBuilder('c')
             ->orderBy('c.name', 'ASC')
+            ->setMaxResults(300)
             ->getQuery()
             ->getResult();
+
+        if ($company !== null && !in_array((int) $company, array_map(static fn($c) => $c->getId(), $companies), true)) {
+            $selected = $this->entityManager->getRepository(\App\Entity\Company::class)->find((int) $company);
+            if ($selected) {
+                $companies[] = $selected;
+            }
+        }
 
         return $this->render('contact/index.html.twig', [
             'contacts' => $contacts,

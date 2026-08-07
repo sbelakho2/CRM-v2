@@ -13,6 +13,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_quote_number', columns: ['quote_number'])]
 #[ORM\Index(name: 'idx_status', columns: ['status'])]
 #[ORM\Index(name: 'idx_public_token', columns: ['public_token'])]
+#[ORM\Index(name: 'idx_quotes_contact', columns: ['contact_id'])]
+#[ORM\Index(name: 'idx_quotes_rfq', columns: ['rfq_id'])]
 #[ORM\HasLifecycleCallbacks]
 class Quote
 {
@@ -29,15 +31,15 @@ class Quote
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Company $company = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Contact $contact = null;
 
     #[ORM\ManyToOne(targetEntity: RFQ::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?RFQ $rfq = null;
 
     #[ORM\Column(length: 50, unique: true)]
@@ -114,10 +116,10 @@ class Quote
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $issuingCompany = null; // 'starz_morocco', 'starz_electronics', 'starz_energies'
 
-    #[ORM\OneToMany(mappedBy: 'quote', targetEntity: QuotePartBreakdown::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'quote', targetEntity: QuotePartBreakdown::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $partBreakdowns;
 
-    #[ORM\OneToMany(mappedBy: 'quote', targetEntity: BomLine::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'quote', targetEntity: BomLine::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $bomLines;
 
     #[ORM\Column(type: 'datetime')]
@@ -130,6 +132,8 @@ class Quote
     {
         $this->partBreakdowns = new ArrayCollection();
         $this->bomLines = new ArrayCollection();
+        $this->createdAt = new \DateTime();
+        $this->generateQuoteNumber();
     }
 
     #[ORM\PrePersist]
@@ -145,9 +149,8 @@ class Quote
 
     private function generateQuoteNumber(): void
     {
-        // Replaced uniqid() with cryptographically secure random bytes + date prefix.
-        // Format: Q-20260613-a1b2c3d4 — unique, ordered by date, not predictable.
-        $this->quoteNumber = 'Q-' . date('Ymd') . '-' . bin2hex(random_bytes(4));
+        // Format: QTE-YYYY-XXXXXX (6 uppercase hex chars) — unique, ordered by date, not predictable.
+        $this->quoteNumber = 'QTE-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(3)));
     }
 
     public function getId(): ?int

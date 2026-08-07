@@ -291,6 +291,15 @@ HELP
         $lock = $this->lockFactory->createLock('test_lead_quality', 3600);
         $lock->acquire();
 
+        try {
+            return $this->doExecute($input, $output, $io);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function doExecute(InputInterface $input, OutputInterface $output, SymfonyStyle $io): int
+    {
         $countries = self::TEST_COUNTRIES;
         $sectors = self::TEST_SECTORS;
         $requiredPasses = (int) $input->getOption('passes');

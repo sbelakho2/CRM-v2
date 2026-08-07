@@ -139,14 +139,30 @@ class ActivityController extends AbstractController
         
         $companies = $this->companyRepository->createQueryBuilder('c')
             ->orderBy('c.name', 'ASC')
+            ->setMaxResults(300)
             ->getQuery()
             ->getResult();
+
+        if ($company !== null && !in_array($company, array_map(static fn($c) => $c->getId(), $companies), true)) {
+            $selectedCompany = $this->companyRepository->find($company);
+            if ($selectedCompany) {
+                $companies[] = $selectedCompany;
+            }
+        }
 
         $users = $this->entityManager->getRepository(\App\Entity\User::class)
             ->createQueryBuilder('u')
             ->orderBy('u.lastName', 'ASC')
+            ->setMaxResults(300)
             ->getQuery()
             ->getResult();
+
+        if ($user !== null && !in_array($user, array_map(static fn($u) => $u->getId(), $users), true)) {
+            $selectedUser = $this->entityManager->getRepository(\App\Entity\User::class)->find($user);
+            if ($selectedUser) {
+                $users[] = $selectedUser;
+            }
+        }
 
         return $this->render('activity/index.html.twig', [
             'activities' => $activities,

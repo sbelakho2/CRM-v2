@@ -53,7 +53,7 @@ class RFQ
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'rfqs')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Company $company = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
@@ -527,20 +527,20 @@ class RFQ
 
     public function markLost(string $reason, ?string $competitor = null, ?string $detail = null): self
     {
-        $this->status = self::STATUS_LOST;
-        $this->lossReason = $reason;
-        $this->competitorWon = $competitor;
-        $this->lossReasonDetail = $detail;
-        $this->decisionDate = new \DateTime();
+        $this->setStatus(self::STATUS_LOST);
+        $this->setLossReason($reason);
+        $this->setCompetitorWon($competitor);
+        $this->setLossReasonDetail($detail);
+        $this->setDecisionDate(new \DateTime());
         return $this;
     }
 
     public function markWon(?string $factors = null, ?\DateTimeInterface $awardDate = null): self
     {
-        $this->status = self::STATUS_WON;
-        $this->winFactors = $factors;
-        $this->awardDate = $awardDate ?? new \DateTime();
-        $this->decisionDate = new \DateTime();
+        $this->setStatus(self::STATUS_WON);
+        $this->setWinFactors($factors);
+        $this->setAwardDate($awardDate ?? new \DateTime());
+        $this->setDecisionDate(new \DateTime());
         return $this;
     }
     

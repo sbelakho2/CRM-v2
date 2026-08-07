@@ -21,7 +21,7 @@ class Contact
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'contacts')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Company $company = null;
 
     #[ORM\Column(length: 255)]
@@ -71,6 +71,7 @@ class Contact
     {
         $this->activities = new ArrayCollection();
         $this->emailCampaigns = new ArrayCollection();
+        $this->createdAt = new \DateTime();
     }
 
     #[ORM\PrePersist]

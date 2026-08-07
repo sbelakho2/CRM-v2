@@ -99,6 +99,10 @@ class WebCrawlerController extends AbstractController
     #[Route('/discover', name: 'app_webcrawler_discover', methods: ['POST'])]
     public function discover(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('webcrawler_discover', $request->request->get('_token'))) {
+            return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
+        }
+
         $sector = $request->request->get('sector');
         $location = $request->request->get('location');
         $locationLabel = $this->resolveLocationLabel($location);
@@ -246,8 +250,12 @@ class WebCrawlerController extends AbstractController
     }
 
     #[Route('/discover-stop', name: 'app_webcrawler_discover_stop', methods: ['POST'])]
-    public function discoverStop(): JsonResponse
+    public function discoverStop(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('webcrawler_discover_stop', $request->request->get('_token'))) {
+            return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
+        }
+
         $statusDir = $this->projectDir . '/' . self::DISCOVERY_STATUS_DIR;
         $pidFile = $statusDir . '/discovery.pid';
 
@@ -274,6 +282,10 @@ class WebCrawlerController extends AbstractController
     #[Route('/search-google', name: 'app_webcrawler_search_google', methods: ['POST'])]
     public function searchGoogle(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('webcrawler_search_google', $request->request->get('_token'))) {
+            return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
+        }
+
         set_time_limit(120);
 
         $sector = $request->request->get('sector');
@@ -309,6 +321,10 @@ class WebCrawlerController extends AbstractController
     public function keywordExpansion(Request $request): Response
     {
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('webcrawler_keyword_expansion', $request->request->get('_token'))) {
+                return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
+            }
+
             $baseSector = $request->request->get('sector');
             $baseKeywords = $request->request->get('keywords', '');
 
@@ -356,6 +372,10 @@ class WebCrawlerController extends AbstractController
     #[Route('/enrich-contacts', name: 'app_webcrawler_enrich_contacts', methods: ['POST'])]
     public function enrichContacts(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('webcrawler_enrich_contacts', $request->request->get('_token'))) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         $companyId = $request->request->get('company_id');
 
         if (!$companyId) {
@@ -402,6 +422,10 @@ class WebCrawlerController extends AbstractController
     #[Route('/enrich-batch', name: 'app_webcrawler_enrich_batch', methods: ['POST'])]
     public function enrichBatch(Request $request): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('webcrawler_enrich_batch', $request->request->get('_token'))) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
+
         $companyIds = $request->request->all('company_ids');
         $sector = $request->request->get('sector');
         $limit = (int) $request->request->get('limit', 10);

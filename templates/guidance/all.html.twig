@@ -33,7 +33,7 @@
     {% if notifications|length == 0 %}
         {# Empty State #}
         <div class="rams-module">
-            <div class="rams-module__content rams-text--center rams-py-8">
+            <div class="rams-module__content rams-text--center rams-py-xl">
                 <div class="rams-andon rams-andon--success rams-mb-4">
                     <span class="rams-andon__light rams-andon__light--green"></span>
                 </div>
@@ -50,11 +50,7 @@
                         <div class="rams-notification guidance-notification rams-notification--{{ notification.type ?? 'info' }}" data-notification-index="{{ loop.index0 }}">
                             {# Icon with Andon indicator #}
                             <div class="rams-notification__indicator">
-                                <span class="rams-andon__light 
-                                    {% if notification.type == 'success' %}rams-andon__light--green
-                                    {% elseif notification.type == 'warning' %}rams-andon__light--yellow
-                                    {% elseif notification.type == 'tip' %}rams-andon__light--blue
-                                    {% else %}rams-andon__light--off{% endif %}">
+                                <span class="rams-andon__light {% if notification.type == 'success' %}rams-andon__light--green {% elseif notification.type == 'warning' %}rams-andon__light--yellow {% elseif notification.type == 'tip' %}rams-andon__light--blue {% else %}rams-andon__light--off{% endif %}">
                                 </span>
                             </div>
 
@@ -129,4 +125,15 @@ function clearAllGuidanceNotifications() {
     }, {title: '{{ 'guidance.clear_all'|trans }}', variant: 'warning'});
 }
 </script>
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .rams-notification { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3); background: var(--rams-surface); border: 1px solid var(--rams-border); border-radius: var(--radius-md); }
+    .rams-notification__indicator { flex-shrink: 0; padding-top: 2px; }
+    .rams-notification__indicator .rams-andon__light { width: 12px; height: 12px; }
+    .rams-notification__content { flex: 1; min-width: 0; }
+    .rams-notification__actions { flex-shrink: 0; display: flex; gap: var(--space-1); }
+</style>
+{% endblock %}
 {% endblock %}

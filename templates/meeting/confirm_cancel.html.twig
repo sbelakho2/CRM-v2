@@ -4,20 +4,20 @@
 
 {% block body %}
 <div class="rams-page">
-    <div class="rams-grid rams-grid--1 rams-place-items-center" style="min-height: 60vh;">
+    <div class="rams-flex rams-items-center rams-justify-center"    style="min-height: 60vh;">
         <div class="rams-module" style="max-width: 500px; width: 100%;">
-            <div class="rams-module__header rams-bg-warning-bg rams-text--warning rams-border-b-warning">
+            <div class="rams-module__header rams-bg-warning-subtle rams-text--warning rams-border-b rams-border-warning"> 
                 <div class="rams-flex rams-items-center rams-gap-2">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M8 2L2 14H14L8 2Z"/><path d="M8 6V10M8 12V12.01"/>
                     </svg>
-                    <h3 class="rams-m-0">{{ 'meeting.cancel_meeting'|trans }}</h3>
+                    <h1 class="rams-m-0 rams-text--xl">{{   'meeting.cancel_meeting'|trans }}</h1> 
                 </div>
             </div>
             <div class="rams-module__content rams-p-6">
                 <p class="rams-text--center rams-mb-6">{{ 'meeting.confirm_cancel_message'|trans }}</p>
                 
-                <div class="rams-bg-surface-alt rams-p-4 rams-rounded-lg rams-mb-6">
+                <div class="rams-bg-panel rams-p-4 rams-rounded-lg rams-mb-6">
                     <strong class="rams-block rams-mb-1">{{ slot.title }}</strong>
                     <span class="rams-text--muted rams-text--sm">
                         {{ slot.startTime|date('l, F j, Y') }}<br>
@@ -26,7 +26,7 @@
                 </div>
                 
                 <form method="post" class="rams-actions rams-justify-center">
-                    <button type="submit" class="rams-btn rams-btn--danger">
+                    <input type="hidden" name="_token" value="{{ csrf_token('meeting_public_cancel') }}"> <button type="submit" class="rams-btn rams-btn--danger">
                         {{ 'meeting.yes_cancel'|trans }}
                     </button>
                     <a href="javascript:history.back()" class="rams-btn rams-btn--ghost">

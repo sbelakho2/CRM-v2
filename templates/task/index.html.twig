@@ -8,7 +8,7 @@
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <span>{{ 'task.title'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'task.title'|trans }}</h1>
@@ -46,62 +46,62 @@
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-red">{{ 'task.overdue'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-red">{{ stats.overdue|default(0) }}</div>
+                <div class="rams-metric__label rams-text--danger">{{  'task.overdue'|trans }}</div>
+                <div class="rams-metric__value tabular-nums rams-text--danger">{{  stats.overdue|default(0) }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-orange">{{ 'task.due_today'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-orange">{{ stats.due_today|default(0) }}</div>
+                <div class="rams-metric__label rams-text--warning">{{  'task.due_today'|trans }}</div>
+                <div class="rams-metric__value tabular-nums rams-text--warning">{{  stats.due_today|default(0) }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-green">{{ 'task.completed'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-green">{{ stats.by_status.done|default(0) }}</div>
+                <div class="rams-metric__label rams-text--success">{{  'task.completed'|trans }}</div>
+                <div class="rams-metric__value tabular-nums rams-text--success">{{  stats.by_status.done|default(0) }}</div>
             </div>
         </div>
     </div>
 
-    <div class="rams-card mb-6">
-        <div class="rams-card-body">
-            <form method="GET" action="{{ path('app_task_index') }}" class="space-y-3">
-                <div class="flex flex-wrap items-end gap-3">
-                    <div class="flex-1 min-w-[180px]">
-                        <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'common.search'|trans }}</label>
-                        <input type="text" name="search" placeholder="{{ 'task.search_tasks'|trans }}" value="{{ current_search }}" class="rams-input text-sm py-1.5 w-full">
+    <div class="rams-module rams-mb-6">  
+        <div class="rams-module__content"> 
+            <form method="GET" action="{{ path('app_task_index') }}" class="rams-stack rams-gap-3"> 
+                <div class="rams-flex rams-flex-wrap rams-items-end rams-gap-3">    
+                    <div class="rams-flex-1">  
+                        <label for="task-search" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'common.search'|trans }}</label>
+                        <input type="text" name="search" id="task-search" placeholder="{{ 'task.search_tasks'|trans }}" value="{{ current_search }}" class="rams-input rams-text--sm rams-w-full">   
                     </div>
-                    <div class="w-36">
-                        <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'common.status'|trans }}</label>
-                        <select name="status" class="rams-input text-sm py-1.5 w-full">
+                    <div class="rams-w-auto"> 
+                        <label for="task-status" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'common.status'|trans }}</label>
+                        <select name="status" id="task-status" class="rams-input rams-text--sm rams-w-full">   
                             <option value="">{{ 'task.all_statuses'|trans }}</option>
                             {% for value, label in statuses %}
                                 <option value="{{ value }}" {{ current_status == value ? 'selected' : '' }}>{{ label }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="w-36">
-                        <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'task.priority'|trans }}</label>
-                        <select name="priority" class="rams-input text-sm py-1.5 w-full">
+                    <div class="rams-w-auto"> 
+                        <label for="task-priority" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'task.priority'|trans }}</label>
+                        <select name="priority" id="task-priority" class="rams-input rams-text--sm rams-w-full">   
                             <option value="">{{ 'task.all_priorities'|trans }}</option>
                             {% for value, label in priorities %}
                                 <option value="{{ value }}" {{ current_priority == value ? 'selected' : '' }}>{{ label }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="w-44">
-                        <label class="text-xs font-medium text-rams-neutral-400 mb-1 block">{{ 'task.assignee'|trans }}</label>
-                        <select name="assignee" class="rams-input text-sm py-1.5 w-full">
+                    <div class="rams-w-auto"> 
+                        <label for="task-assignee" class="rams-text--xs rams-text--muted rams-mb-1 rams-block">{{      'task.assignee'|trans }}</label>
+                        <select name="assignee" id="task-assignee" class="rams-input rams-text--sm rams-w-full">   
                             <option value="">{{ 'task.all_assignees'|trans }}</option>
                             {% for user in users %}
                                 <option value="{{ user.id }}" {{ current_assignee == user.id ? 'selected' : '' }}>{{ user.fullName }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="flex items-end gap-2">
-                        <button type="submit" class="rams-btn rams-btn--primary text-sm py-1.5 px-3">{{ 'common.filter'|trans }}</button>
-                        <a href="{{ path('app_task_index') }}" class="rams-btn rams-btn--ghost text-sm py-1.5 px-3">{{ 'common.reset'|trans }}</a>
+                    <div class="rams-flex rams-items-end rams-gap-2">   
+                        <button type="submit" class="rams-btn rams-btn--primary rams-text--sm">{{    'common.filter'|trans }}</button>
+                        <a href="{{ path('app_task_index') }}" class="rams-btn rams-btn--ghost rams-text--sm">{{    'common.reset'|trans }}</a>
                     </div>
                 </div>
             </form>
@@ -110,22 +110,23 @@
     
     <div class="rams-module">
         <div class="rams-table-container">
-            <table class="rams-table data-table">
+            <table class="rams-table data-table" aria-label="{{ 'task.title'|trans }}">
+                <caption class="rams-sr-only">{{ 'task.title'|trans }}</caption>
                 <thead>
                     <tr>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.status'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'task.title_header'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'task.priority'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'task.due_date'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'task.assigned_to'|trans }}</th>
-                        <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.actions'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'common.status'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'task.title_header'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'task.priority'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'task.due_date'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'task.assigned_to'|trans }}</th>
+                        <th scope="col" class="rams-font-mono rams-text-2xs rams-uppercase" style="letter-spacing: 0.05em;">{{     'common.actions'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for task in tasks %}
                     <tr>
                         <td>
-                            <span class="rams-badge rams-badge--{{ task.status == 'done' ? 'success' : (task.status == 'in_progress' ? 'warning' : 'neutral') }} rams-badge--sm">
+                            <span class="rams-badge rams-badge--{{ task.status == 'done' ? 'success' : (task.status == 'in_progress' ? 'warning' : 'neutral') }} rams-badge--small">
                                 {{ task.status|replace({'_': ' '})|title }}
                             </span>
                         </td>
@@ -136,7 +137,7 @@
                             {% endif %}
                         </td>
                         <td>
-                             <span class="rams-badge rams-badge--{{ task.priority == 'high' ? 'danger' : (task.priority == 'medium' ? 'warning' : 'neutral') }} rams-badge--sm">
+                             <span class="rams-badge rams-badge--{{ task.priority == 'high' ? 'danger' : (task.priority == 'medium' ? 'warning' : 'neutral') }} rams-badge--small">
                                 {{ task.priority|title }}
                             </span>
                         </td>
@@ -151,7 +152,7 @@
                         </td>
                         <td>
                             {% if task.assignedTo %}
-                                <span class="rams-avatar rams-avatar--sm rams-bg-primary rams-text-white" title="{{ task.assignedTo.fullName }}">
+                                <span class="rams-avatar rams-avatar--sm"    title="{{ task.assignedTo.fullName }}">
                                     {{ task.assignedTo.firstName|first }}{{ task.assignedTo.lastName|first }}
                                 </span>
                             {% else %}

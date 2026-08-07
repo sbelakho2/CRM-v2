@@ -193,8 +193,13 @@ class DiscoveryPipelineController extends AbstractController
             ];
             
             if ($autoImport) {
+                // Build an in-memory dedupe index (dupeKey / website / name /
+                // domain buckets) once, so duplicate detection is O(1) instead
+                // of O(n) similar_text against every stored lead.
+                $dupeIndex = $this->buildDupeIndex();
+
                 foreach ($searchResults as $result) {
-                    $importResult = $this->importAsLead($result, $sector, $location);
+                    $importResult = $this->importAsLead($result, $sector, $location, $dupeIndex);
                     
                     if ($importResult['status'] === 'imported') {
                         $importStats['imported']++;
@@ -254,6 +259,11 @@ class DiscoveryPipelineController extends AbstractController
     public function previewPipeline(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
+        $csrfToken = is_array($data) ? ($data['_csrf_token'] ?? null) : null;
+        $csrfToken = $csrfToken ?? $request->headers->get('X-CSRF-Token');
+        if (!$this->isCsrfTokenValid('discovery_pipeline_preview', (string) $csrfToken)) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], 403);
+        }
         
         $sector = $data['sector'] ?? null;
         $location = $data['location'] ?? null;
@@ -355,7 +365,7 @@ class DiscoveryPipelineController extends AbstractController
     /**
      * Import a search result as a Lead
      */
-    private function importAsLead(array $result, string $sector, ?string $location): array
+    private function importAsLead(array $result, string $sector, ?string $location, array &$dupeIndex): array
     {
         $website = $result['website'] ?? null;
         $name = $result['name'] ?? $this->extractCompanyNameFromTitle(
@@ -366,56 +376,40 @@ class DiscoveryPipelineController extends AbstractController
         if (!$name) {
             return ['status' => 'skipped', 'reason' => 'No company name'];
         }
-        
-        // Check for duplicate by website
-        $existing = null;
-        if ($website) {
-            $existing = $this->entityManager->getRepository(Lead::class)
-                ->findOneBy(['websiteRoot' => $website]);
-            
-            if ($existing) {
-                return ['status' => 'duplicate', 'lead' => $existing];
-            }
+
+        $dupeKey = $this->generateDupeKey($name, $website);
+        $domainKey = $website ? $this->domainKeyFromWebsite($website) : '';
+
+        // O(1) duplicate detection via the in-memory index
+        if ($website && isset($dupeIndex['website'][$website])) {
+            return ['status' => 'duplicate', 'lead' => $dupeIndex['website'][$website]];
+        }
+        if ($dupeKey && isset($dupeIndex['dupeKey'][$dupeKey])) {
+            return ['status' => 'duplicate', 'lead' => $dupeIndex['dupeKey'][$dupeKey]];
         }
         
-        // Fuzzy name match — catch variants like "Acme Corp" vs "Acme Corporation"
-        // Only run if website-based check found nothing
-        $fuzzyMatch = null;
-        $allLeads = $this->entityManager->getRepository(Lead::class)
-            ->createQueryBuilder('l')
-            ->where('LOWER(l.companyName) LIKE :namePrefix')
-            ->setParameter('namePrefix', strtolower(substr($name, 0, 3)) . '%')
-            ->setMaxResults(5000)
-            ->getQuery()
-            ->getResult();
-        foreach ($allLeads as $existingLead) {
-            $existingName = strtolower(trim($existingLead->getCompanyName()));
+        // Fuzzy name match — catch variants like "Acme Corp" vs "Acme Corporation".
+        // Only run against the few candidates sharing the same domain, instead
+        // of scanning every stored lead.
+        if ($domainKey !== '' && isset($dupeIndex['domain'][$domainKey])) {
             $newName = strtolower(trim($name));
-            if ($existingName && $newName) {
+            foreach ($dupeIndex['domain'][$domainKey] as $existingRow) {
+                $existingName = strtolower(trim((string) ($existingRow['companyName'] ?? '')));
+                if ($existingName === '' || $newName === '') {
+                    continue;
+                }
                 $similarity = similar_text($existingName, $newName);
                 $maxLen = max(strlen($existingName), strlen($newName));
                 if ($maxLen > 0 && ($similarity / $maxLen) >= 0.85) {
-                    $fuzzyMatch = $existingLead;
-                    break;
+                    return ['status' => 'duplicate', 'lead' => $existingRow];
                 }
             }
         }
         
-        if ($fuzzyMatch) {
-            return ['status' => 'duplicate', 'lead' => $fuzzyMatch];
-        }
-        
         // Check for duplicate by name (exact)
-        $existingByName = $this->entityManager->getRepository(Lead::class)
-            ->createQueryBuilder('l')
-            ->where('LOWER(l.companyName) = :name')
-            ->setParameter('name', strtolower($name))
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
-        
-        if ($existingByName) {
-            return ['status' => 'duplicate', 'lead' => $existingByName];
+        $nameKey = strtolower(trim($name));
+        if ($nameKey !== '' && isset($dupeIndex['name'][$nameKey])) {
+            return ['status' => 'duplicate', 'lead' => $dupeIndex['name'][$nameKey]];
         }
         
         // Create new lead
@@ -477,11 +471,75 @@ class DiscoveryPipelineController extends AbstractController
         $lead->setCreatedAt(new \DateTimeImmutable());
         
         // Generate dupe key for future deduplication
-        $lead->setDupeKey($this->generateDupeKey($name, $website));
+        $lead->setDupeKey($dupeKey);
         
         $this->entityManager->persist($lead);
+
+        // Register the new lead in the in-batch index so subsequent results in
+        // the same run are deduplicated against it without DB round-trips.
+        $indexRow = ['id' => null, 'companyName' => $name, 'websiteRoot' => $website, 'dupeKey' => $dupeKey];
+        if ($website) {
+            $dupeIndex['website'][$website] = $indexRow;
+            if ($domainKey !== '') {
+                $dupeIndex['domain'][$domainKey][] = $indexRow;
+            }
+        }
+        if ($dupeKey) {
+            $dupeIndex['dupeKey'][$dupeKey] = $indexRow;
+        }
+        $nameKey = strtolower(trim($name));
+        if ($nameKey !== '') {
+            $dupeIndex['name'][$nameKey] = $indexRow;
+        }
         
         return ['status' => 'imported', 'lead' => $lead];
+    }
+
+    /**
+     * Build an in-memory dedupe index over all stored leads:
+     *   website  => exact websiteRoot match
+     *   dupeKey  => normalized name + domain key match
+     *   name     => exact (lowercased) company name match
+     *   domain   => list of leads sharing a domain (candidates for fuzzy check)
+     */
+    private function buildDupeIndex(): array
+    {
+        $rows = $this->entityManager->getRepository(Lead::class)
+            ->createQueryBuilder('l')
+            ->select('l.id, l.companyName, l.websiteRoot, l.dupeKey')
+            ->getQuery()
+            ->getResult();
+
+        $index = ['website' => [], 'dupeKey' => [], 'name' => [], 'domain' => []];
+        foreach ($rows as $row) {
+            $website = $row['websiteRoot'] ?? null;
+            if ($website) {
+                $index['website'][$website] = $row;
+                $domain = $this->domainKeyFromWebsite($website);
+                if ($domain !== '') {
+                    $index['domain'][$domain][] = $row;
+                }
+            }
+            $dupeKey = $row['dupeKey'] ?? null;
+            if ($dupeKey) {
+                $index['dupeKey'][$dupeKey] = $row;
+            }
+            $nameKey = strtolower(trim((string) ($row['companyName'] ?? '')));
+            if ($nameKey !== '') {
+                $index['name'][$nameKey] = $row;
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * Extract the bare domain (no scheme, port, or www prefix) from a website
+     */
+    private function domainKeyFromWebsite(string $website): string
+    {
+        $host = parse_url($website, PHP_URL_HOST);
+        return (string) preg_replace('/^www\./', '', $host ?? '');
     }
 
     /**

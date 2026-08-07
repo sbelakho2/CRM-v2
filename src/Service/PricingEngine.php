@@ -38,6 +38,17 @@ use Psr\Log\LoggerInterface;
  */
 class PricingEngine
 {
+    /**
+     * Per-instance memo for price lookups, keyed by input hash only.
+     * The engine holds no request-scoped state, so caching the resolved
+     * result for identical inputs is a safe pure-function memo (identical
+     * inputs always produce the identical result; PHP array values are
+     * copy-on-write, so caller mutations never corrupt the memo).
+     *
+     * @var array<string, array|null>
+     */
+    private array $priceMemo = [];
+
     public function __construct(
         private AlibabaApiClient $alibabaClient,
         private MouserApiClient $mouserClient,
@@ -66,6 +77,29 @@ class PricingEngine
      *                     'waterfall_info']
      */
     public function getPricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
+    {
+        $key = $this->priceMemoKey([$mpn, $manufacturer, $description, $options]);
+        if (array_key_exists($key, $this->priceMemo)) {
+            return $this->priceMemo[$key];
+        }
+
+        return $this->priceMemo[$key] = $this->resolvePricing($mpn, $manufacturer, $description, $options);
+    }
+
+    /**
+     * Build a memo key covering every input that can affect the pricing result.
+     */
+    private function priceMemoKey(array $inputs): string
+    {
+        return serialize($inputs);
+    }
+
+    /**
+     * @return array|null ['mpn', 'manufacturer', 'description', 'pricing', 'stock', 'source',
+     *                     'confidence', 'alternatives', 'lifecycle_warning', 'search_url',
+     *                     'waterfall_info']
+     */
+    private function resolvePricing(string $mpn, ?string $manufacturer = null, ?string $description = null, array $options = []): ?array
     {
         $allowedProviders = $options['providers'] ?? [];
         // Nexar disabled by default — Mouser-only mode
@@ -218,6 +252,11 @@ class PricingEngine
      */
     public function getPricingFromSource(string $mpn, string $source, ?string $manufacturer = null): ?array
     {
+        $key = $this->priceMemoKey([$mpn, $source, $manufacturer]);
+        if (array_key_exists($key, $this->priceMemo)) {
+            return $this->priceMemo[$key];
+        }
+
         $result = match($source) {
             'alibaba' => $this->alibabaClient->searchByPartNumber($mpn, $manufacturer),
             'mouser' => $this->mouserClient->searchByPartNumber($mpn, $manufacturer),
@@ -230,7 +269,7 @@ class PricingEngine
             $result['source'] = $source;
         }
         
-        return $result;
+        return $this->priceMemo[$key] = $result;
     }
 
     /**

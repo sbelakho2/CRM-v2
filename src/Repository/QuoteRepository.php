@@ -25,7 +25,6 @@ class QuoteRepository extends ServiceEntityRepository
             ->where('q.company = :companyId')
             ->setParameter('companyId', $companyId)
             ->orderBy('q.createdAt', 'DESC')
-            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }

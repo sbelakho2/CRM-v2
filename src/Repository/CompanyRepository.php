@@ -38,7 +38,6 @@ class CompanyRepository extends ServiceEntityRepository
             ->setParameter('sector', $sector)
             ->setParameter('tier', $tier)
             ->orderBy('c.name', 'ASC')
-            ->setMaxResults(500)
             ->getQuery()
             ->getResult();
     }
@@ -77,7 +76,6 @@ class CompanyRepository extends ServiceEntityRepository
         $rows = $this->createQueryBuilder('c')
             ->select('c.website')
             ->where('c.website IS NOT NULL')
-            ->setMaxResults(500)
             ->getQuery()
             ->getScalarResult();
 
@@ -132,6 +130,27 @@ class CompanyRepository extends ServiceEntityRepository
             ->getScalarResult();
 
         return array_column($rows, 'name');
+    }
+
+    /**
+     * Get a company with its contacts, activities and RFQs eagerly loaded.
+     *
+     * The company detail page renders all three collections, so a single
+     * JOIN FETCH query replaces three lazy-load queries (N+1).
+     */
+    public function findWithDetails(int $id): ?Company
+    {
+        return $this->createQueryBuilder('c')
+            ->leftJoin('c.contacts', 'contacts')
+            ->addSelect('contacts')
+            ->leftJoin('c.activities', 'activities')
+            ->addSelect('activities')
+            ->leftJoin('c.rfqs', 'rfqs')
+            ->addSelect('rfqs')
+            ->where('c.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**

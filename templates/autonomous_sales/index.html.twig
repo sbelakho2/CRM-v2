@@ -122,39 +122,39 @@
             {# ── Summary Stats Row ── #}
             <div class="rams-grid rams-grid--6 rams-gap-4 rams-mb-6">
                 <div class="rams-card rams-p-4">
-                    <div class="rams-stat">
-                        <span class="rams-stat__label">Total Leads</span>
-                        <span class="rams-stat__value">{{ total_leads|number_format }}</span>
+                    <div class="rams-metric"> 
+                        <span class="rams-metric__label">Total  Leads</span>
+                        <span class="rams-metric__value">{{  total_leads|number_format }}</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
-                    <div class="rams-stat">
-                        <span class="rams-stat__label">Emails Sent (7d)</span>
-                        <span class="rams-stat__value">{{ weekly_emails|number_format }}</span>
+                    <div class="rams-metric"> 
+                        <span class="rams-metric__label">Emails  Sent (7d)</span>
+                        <span class="rams-metric__value">{{  weekly_emails|number_format }}</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
-                    <div class="rams-stat">
-                        <span class="rams-stat__label">Open Rate</span>
-                        <span class="rams-stat__value">{{ email_open_rate }}%</span>
+                    <div class="rams-metric"> 
+                        <span class="rams-metric__label">Open  Rate</span>
+                        <span class="rams-metric__value">{{  email_open_rate }}%</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
-                    <div class="rams-stat">
-                        <span class="rams-stat__label">Reply Rate</span>
-                        <span class="rams-stat__value">{{ email_reply_rate }}%</span>
+                    <div class="rams-metric"> 
+                        <span class="rams-metric__label">Reply  Rate</span>
+                        <span class="rams-metric__value">{{  email_reply_rate }}%</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
-                    <div class="rams-stat">
-                        <span class="rams-stat__label">Active Campaigns</span>
-                        <span class="rams-stat__value">{{ active_campaigns }}</span>
+                    <div class="rams-metric"> 
+                        <span class="rams-metric__label">Active  Campaigns</span>
+                        <span class="rams-metric__value">{{  active_campaigns }}</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
-                    <div class="rams-stat">
-                        <span class="rams-stat__label">Pipeline Value</span>
-                        <span class="rams-stat__value">{{ pipeline_value|number_format }}</span>
+                    <div class="rams-metric"> 
+                        <span class="rams-metric__label">Pipeline  Value</span>
+                        <span class="rams-metric__value">{{  pipeline_value|number_format }}</span>
                     </div>
                 </div>
             </div>
@@ -183,7 +183,7 @@
 
                         {% if next_step %}
                             <div class="rams-flex rams-gap-3 rams-items-center rams-mb-4">
-                                <span class="rams-badge rams-badge--info rams-badge--xs">{{ 'autonomous_sales.wizard_next'|trans }}</span>
+                                <span class="rams-badge rams-badge--info rams-badge--small">{{  'autonomous_sales.wizard_next'|trans }}</span>
                                 <div>
                                     <div class="rams-text--bold">{{ next_step.label }}</div>
                                     <div class="rams-text--xs rams-text--muted">{{ next_step.help }}</div>
@@ -225,10 +225,10 @@
                                 {% for step in setup.steps %}
                                     <div class="rams-flex rams-gap-2 rams-items-center rams-text--sm">
                                         {% if step.done %}
-                                            <span class="rams-badge rams-badge--success rams-badge--xs" style="min-width:20px;text-align:center">✓</span>
+                                            <span class="rams-badge rams-badge--success rams-badge--small"  style="min-width:20px;text-align:center">✓</span>
                                             <span class="rams-text--muted" style="text-decoration:line-through">{{ step.label }}</span>
                                         {% else %}
-                                            <span class="rams-badge rams-badge--xs" style="min-width:20px;text-align:center">{{ loop.index }}</span>
+                                            <span class="rams-badge rams-badge--small"  style="min-width:20px;text-align:center">{{ loop.index }}</span>
                                             <span>{{ step.label }}</span>
                                         {% endif %}
                                     </div>
@@ -243,7 +243,7 @@
             {% if lead_stage_counts|length > 0 %}
                 <div class="rams-module rams-mb-6">
                     <div class="rams-module__header">
-                        <h3>Sales Funnel</h3>
+                        <h3>{{ 'autonomous_sales.funnel_title'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
                         <div class="rams-grid rams-grid--4 rams-gap-4">
@@ -271,9 +271,9 @@
                                 {% set stage_name = stage_labels[stage.stage]|default(stage.stage|capitalize) %}
                                 {% set stage_color = stage_colors[stage.stage]|default('info') %}
                                 <div class="rams-card rams-p-4 rams-text--center">
-                                    <div class="rams-stat">
-                                        <span class="rams-stat__value">{{ stage.count }}</span>
-                                        <span class="rams-stat__label">{{ stage_name }}</span>
+                                    <div class="rams-metric"> 
+                                        <span class="rams-metric__value">{{  stage.count }}</span>
+                                        <span class="rams-metric__label">{{  stage_name }}</span>
                                     </div>
                                     <div class="rams-progress rams-mt-2">
                                         <div class="rams-progress__bar rams-progress__bar--{{ stage_color }}" style="width: {{ (stage.count / total_leads * 100)|round }}%"></div>
@@ -322,17 +322,17 @@
             {% if recent_email_events|length > 0 %}
                 <div class="rams-module rams-mb-6">
                     <div class="rams-module__header">
-                        <h3>Recent Email Activity</h3>
+                        <h3>{{ 'autonomous_sales.recent_email_activity'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
                         <div class="rams-table-container">
-                            <table class="rams-table">
+                            <table class="rams-table" aria-label="{{ 'autonomous_sales.recent_email_activity'|trans }}">
                                 <thead>
                                     <tr>
-                                        <th>Date</th>
-                                        <th>Recipient</th>
-                                        <th>Variant</th>
-                                        <th>Events</th>
+                                        <th scope="col">{{ 'autonomous_sales.table_date'|trans }}</th>
+                                        <th scope="col">{{ 'autonomous_sales.table_recipient'|trans }}</th>
+                                        <th scope="col">{{ 'autonomous_sales.table_variant'|trans }}</th>
+                                        <th scope="col">{{ 'autonomous_sales.table_events'|trans }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -343,9 +343,9 @@
                                             <td class="rams-text--xs">{{ event.variant|default('—') }}</td>
                                             <td>
                                                 <div class="rams-flex rams-gap-1">
-                                                    {% if event.opened %}<span class="rams-badge rams-badge--success rams-badge--xs">Opened</span>{% endif %}
-                                                    {% if event.clicked %}<span class="rams-badge rams-badge--info rams-badge--xs">Clicked</span>{% endif %}
-                                                    {% if event.replied %}<span class="rams-badge rams-badge--primary rams-badge--xs">Replied</span>{% endif %}
+                                                    {% if event.opened %}<span class="rams-badge rams-badge--success rams-badge--small">Opened</span>{%  endif %}
+                                                    {% if event.clicked %}<span class="rams-badge rams-badge--info rams-badge--small">Clicked</span>{%  endif %}
+                                                    {% if event.replied %}<span class="rams-badge rams-badge--primary rams-badge--small">Replied</span>{%  endif %}
                                                     {% if not event.opened and not event.clicked and not event.replied %}
                                                         <span class="rams-text--xs rams-text--muted">Sent</span>
                                                     {% endif %}
@@ -372,18 +372,18 @@
             {% if top_variations|length > 0 %}
                 <div class="rams-module rams-mb-6">
                     <div class="rams-module__header">
-                        <h3>Top Performing Variations</h3>
+                        <h3>{{ 'autonomous_sales.top_performing_variations'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
                         <div class="rams-table-container">
-                            <table class="rams-table">
+                            <table class="rams-table" aria-label="{{ 'autonomous_sales.top_performing_variations'|trans }}">
                                 <thead>
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Value</th>
-                                        <th class="rams-text--right">Sent</th>
-                                        <th class="rams-text--right">Open Rate</th>
-                                        <th>Status</th>
+                                        <th scope="col">{{ 'autonomous_sales.table_name'|trans }}</th>
+                                        <th scope="col">{{ 'autonomous_sales.table_value'|trans }}</th>
+                                        <th scope="col" class="rams-text--right">{{ 'autonomous_sales.table_sent'|trans }}</th>
+                                        <th scope="col" class="rams-text--right">{{ 'autonomous_sales.table_open_rate'|trans }}</th>
+                                        <th scope="col">{{ 'autonomous_sales.table_status'|trans }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -398,7 +398,7 @@
                                                     <span style="color: var(--rams-success)">↑{{ item.vsBaseline }}%</span>
                                                 {% endif %}
                                             </td>
-                                            <td><span class="rams-badge rams-badge--success rams-badge--xs">Top Performer</span></td>
+                                            <td><span class="rams-badge rams-badge--success rams-badge--small">Top  Performer</span></td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -412,7 +412,7 @@
             {% if setup.allDone %}
                 <div class="rams-module rams-mb-6">
                     <div class="rams-module__header">
-                        <h3>Quick Actions</h3>
+                        <h3>{{ 'autonomous_sales.quick_actions'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
                         <div class="rams-grid rams-grid--4 rams-gap-4">
@@ -490,7 +490,7 @@
             {# ── Thompson Sampling Arm Statistics ── #}
             <div class="rams-module rams-mb-6">
                 <div class="rams-module__header">
-                    <h3>Thompson Sampling Statistics</h3>
+                    <h3>{{ 'autonomous_sales.thompson_stats'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <p class="rams-text--sm rams-text--muted rams-mb-4">The system uses Thompson Sampling (a Bayesian bandit algorithm) to automatically find the best email variations. Below are the raw arm statistics.</p>
@@ -499,13 +499,13 @@
                             <div class="rams-card rams-p-4">
                                 <h4 class="rams-text--bold rams-mb-3">{{ section.label }}</h4>
                                 <div class="rams-table-container">
-                                    <table class="rams-table">
+                                    <table class="rams-table" aria-label="{{ section.label }}">
                                         <thead>
                                             <tr>
-                                                <th>Arm</th>
-                                                <th class="rams-text--right">Pulls</th>
-                                                <th class="rams-text--right">Wins</th>
-                                                <th class="rams-text--right">Win Rate</th>
+                                                <th scope="col">{{ 'autonomous_sales.table_arm'|trans }}</th>
+                                                <th scope="col" class="rams-text--right">{{ 'autonomous_sales.table_pulls'|trans }}</th>
+                                                <th scope="col" class="rams-text--right">{{ 'autonomous_sales.table_wins'|trans }}</th>
+                                                <th scope="col" class="rams-text--right">{{ 'autonomous_sales.table_win_rate'|trans }}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -530,9 +530,9 @@
             {% for section in variations %}
                 {% if section.type == 'subject_line' and section.items|length > 0 %}
                     <div class="rams-module rams-mb-6">
-                        <div class="rams-module__header">
-                            <h3>Subject Line Performance Comparison</h3>
-                        </div>
+                    <div class="rams-module__header">
+                        <h3>{{ 'autonomous_sales.subject_line_comparison'|trans }}</h3>
+                    </div>
                         <div class="rams-module__content">
                             <div class="rams-stack rams-gap-3">
                                 {% set max_pct = 0 %}
@@ -551,7 +551,7 @@
                                                 <span class="rams-text--xs" style="padding: 0 6px;">{{ item.successPct }}%</span>
                                             </div>
                                         </div>
-                                        <span class="rams-badge rams-badge--xs rams-badge--{{ item.badge == 'winning' ? 'success' : (item.badge == 'losing' ? 'danger' : (item.badge == 'baseline' ? 'info' : 'neutral')) }}">
+                                        <span class="rams-badge rams-badge--small rams-badge--{{ item.badge == 'winning' ? 'success' : (item.badge == 'losing' ? 'danger' : (item.badge == 'baseline' ? 'info' : 'neutral')) }}">
                                             {{ item.badgeLabel }}
                                         </span>
                                     </div>
@@ -565,7 +565,7 @@
             {# ── A/B Test Results Visualization ── #}
             <div class="rams-module rams-mb-6">
                 <div class="rams-module__header">
-                    <h3>A/B Test Results</h3>
+                    <h3>{{ 'autonomous_sales.ab_test_results'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <p class="rams-text--sm rams-text--muted rams-mb-4">Comparison of how each variation type is performing against its baseline.</p>
@@ -675,13 +675,13 @@
                             {% set has_more = section.items|length > 5 and not expand_variations %}
 
                             <div class="rams-table-container">
-                                <table class="rams-table">
+                                <table class="rams-table" aria-label="{{ section.label }}">
                                     <thead>
                                         <tr>
-                                            <th>{{ 'autonomous_sales.table_variation'|trans }}</th>
-                                            <th class="rams-text--right">{{ 'autonomous_sales.table_emails_sent'|trans }}</th>
-                                            <th class="rams-text--right">{{ 'autonomous_sales.table_performance'|trans }}</th>
-                                            <th>{{ 'autonomous_sales.table_status'|trans }}</th>
+                                            <th scope="col">{{ 'autonomous_sales.table_variation'|trans }}</th>
+                                            <th scope="col" class="rams-text--right">{{ 'autonomous_sales.table_emails_sent'|trans }}</th>
+                                            <th scope="col" class="rams-text--right">{{ 'autonomous_sales.table_performance'|trans }}</th>
+                                            <th scope="col">{{ 'autonomous_sales.table_status'|trans }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -708,17 +708,17 @@
                                                 </td>
                                                 <td>
                                                     {% if item.badge == 'baseline' %}
-                                                        <span class="rams-badge rams-badge--info rams-badge--xs">{{ 'autonomous_sales.badge_baseline'|trans }}</span>
+                                                        <span class="rams-badge rams-badge--info rams-badge--small">{{  'autonomous_sales.badge_baseline'|trans }}</span>
                                                     {% elseif item.badge == 'winning' %}
-                                                        <span class="rams-badge rams-badge--success rams-badge--xs">{{ 'autonomous_sales.badge_top_performer'|trans }}</span>
+                                                        <span class="rams-badge rams-badge--success rams-badge--small">{{  'autonomous_sales.badge_top_performer'|trans }}</span>
                                                     {% elseif item.badge == 'testing' %}
-                                                        <span class="rams-badge rams-badge--xs">{{ 'autonomous_sales.badge_testing'|trans }}</span>
+                                                        <span class="rams-badge rams-badge--small">{{  'autonomous_sales.badge_testing'|trans }}</span>
                                                     {% elseif item.badge == 'active' %}
-                                                        <span class="rams-badge rams-badge--xs">{{ 'autonomous_sales.badge_active'|trans }}</span>
+                                                        <span class="rams-badge rams-badge--small">{{  'autonomous_sales.badge_active'|trans }}</span>
                                                     {% elseif item.badge == 'losing' %}
-                                                        <span class="rams-badge rams-badge--warning rams-badge--xs">{{ 'autonomous_sales.badge_underperforming'|trans }}</span>
+                                                        <span class="rams-badge rams-badge--warning rams-badge--small">{{  'autonomous_sales.badge_underperforming'|trans }}</span>
                                                     {% elseif item.badge == 'disabled' %}
-                                                        <span class="rams-badge rams-badge--danger rams-badge--xs">{{ 'autonomous_sales.badge_disabled'|trans }}</span>
+                                                        <span class="rams-badge rams-badge--danger rams-badge--small">{{  'autonomous_sales.badge_disabled'|trans }}</span>
                                                     {% endif %}
                                                 </td>
                                             </tr>
@@ -739,7 +739,7 @@
 
                         {# Add custom variation — subject lines only #}
                         {% if section.type == 'subject_line' %}
-                            <div class="rams-divider rams-my-4"></div>
+                            <div class="rams-border-t rams-my-md"></div>
                             <details>
                                 <summary class="rams-text--sm rams-text--bold" style="cursor: pointer; user-select: none;">{{ 'autonomous_sales.custom_variation_summary'|trans }}</summary>
                                 <p class="rams-text--xs rams-text--muted rams-mt-2 rams-mb-3">{{ 'autonomous_sales.custom_variation_desc'|trans }}</p>
@@ -772,34 +772,34 @@
             {# ── Safety Status Indicator ── #}
             <div class="rams-module rams-mb-6">
                 <div class="rams-module__header">
-                    <h3>🛡️ Safety Status</h3>
+                    <h3>🛡️ {{ 'autonomous_sales.safety_status'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-grid rams-grid--3 rams-gap-4">
                         <div class="rams-card rams-p-4">
-                            <div class="rams-stat">
-                                <span class="rams-stat__label">System Mode</span>
-                                <span class="rams-stat__value">
+                            <div class="rams-metric"> 
+                                <span class="rams-metric__label">System  Mode</span>
+                                <span class="rams-metric__value"> 
                                     {% if health.safeMode %}
                                         <span class="rams-badge rams-badge--warning">Safe Mode Active</span>
                                     {% elseif enabled %}
                                         <span class="rams-badge rams-badge--success">Normal</span>
                                     {% else %}
-                                        <span class="rams-badge rams-badge--neutral">Disabled</span>
+                                        <span class="rams-badge">Disabled</span>  
                                     {% endif %}
                                 </span>
                             </div>
                         </div>
                         <div class="rams-card rams-p-4">
-                            <div class="rams-stat">
-                                <span class="rams-stat__label">Active Safety Features</span>
-                                <span class="rams-stat__value">{{ safety_count }}</span>
+                            <div class="rams-metric"> 
+                                <span class="rams-metric__label">Active  Safety Features</span>
+                                <span class="rams-metric__value">{{  safety_count }}</span>
                             </div>
                         </div>
                         <div class="rams-card rams-p-4">
-                            <div class="rams-stat">
-                                <span class="rams-stat__label">Quarantined Variations</span>
-                                <span class="rams-stat__value">{{ health.quarantined }}</span>
+                            <div class="rams-metric"> 
+                                <span class="rams-metric__label">Quarantined  Variations</span>
+                                <span class="rams-metric__value">{{  health.quarantined }}</span>
                             </div>
                         </div>
                     </div>
@@ -894,9 +894,9 @@
                         {% for step in setup.steps %}
                             <div class="rams-flex rams-gap-3 rams-items-center" style="padding: 8px 0;">
                                 {% if step.done %}
-                                    <span class="rams-badge rams-badge--success rams-badge--xs" style="min-width: 24px; text-align: center">{{ 'autonomous_sales.setup_done_badge'|trans }}</span>
+                                    <span class="rams-badge rams-badge--success rams-badge--small"  style="min-width: 24px; text-align: center">{{ 'autonomous_sales.setup_done_badge'|trans }}</span>
                                 {% else %}
-                                    <span class="rams-badge rams-badge--xs" style="min-width: 24px; text-align: center">{{ loop.index }}</span>
+                                    <span class="rams-badge rams-badge--small"  style="min-width: 24px; text-align: center">{{ loop.index }}</span>
                                 {% endif %}
                                 <div>
                                     <div class="rams-text--sm {% if step.done %}rams-text--muted{% else %}rams-text--bold{% endif %}" style="{% if step.done %}text-decoration: line-through{% endif %}">{{ step.label }}</div>

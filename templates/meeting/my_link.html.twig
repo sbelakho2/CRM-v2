@@ -8,16 +8,16 @@
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <a href="{{ path('meeting_index') }}">{{ 'meeting.title'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <span>{{ 'meeting.my_link'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'meeting.my_booking_link'|trans }}</h1>
         </div>
     </div>
 
-    <div class="rams-grid rams-grid--1" style="max-width: 700px; margin: 0 auto;">
+    <div class="rams-grid rams-grid" style="max-width: 700px; margin: 0 auto;">
         <div class="rams-module">
             <div class="rams-module__header">
                 <h3>{{ 'meeting.my_booking_link'|trans }}</h3>
@@ -27,7 +27,7 @@
                     {{ 'meeting.personal_link_desc'|trans }}
                 </p>
                 
-                <div class="rams-form__input-group rams-mb-6">
+                <div class="rams-form__group rams-mb-6">
                     <input type="text" class="rams-form__input" value="{{ bookingUrl }}" readonly id="booking-link">
                     <button type="button" class="rams-btn" onclick="copyLink()">
                         <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -74,7 +74,7 @@ function copyLink() {
     const input = document.getElementById('booking-link');
     input.select();
     document.execCommand('copy');
-    alert('{{ 'meeting.link_copied'|trans }}');
+    ramsAlert('{{ 'meeting.link_copied'|trans }}', {title: '{{ 'meeting.copy'|trans }}'});
 }
 
 function shareLink() {

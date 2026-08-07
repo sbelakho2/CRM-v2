@@ -1,6 +1,6 @@
 {{ form_start(form, {'attr': {'class': 'rams-form', 'id': 'custom-field-form'}}) }}
     <div class="rams-grid">
-        <div class="rams-grid-col-2">
+        <div class="rams-grid rams-grid--2">
             <!-- Field Definition -->
              <div class="rams-module">
                 <div class="rams-module__header">
@@ -17,13 +17,13 @@
                         <div class="rams-form__group">
                              {{ form_label(form.fieldKey, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                              {{ form_widget(form.fieldKey, {'attr': {'class': 'rams-form__input'}}) }}
-                             <div class="rams-form-help">{{ 'custom_field.key_help'|trans }}</div>
+                             <div class="rams-form__hint">{{ 'custom_field.key_help'|trans }}</div>
                              {{ form_errors(form.fieldKey) }}
                         </div>
                          <div class="rams-form__group">
                              {{ form_label(form.fieldGroup, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                              {{ form_widget(form.fieldGroup, {'attr': {'class': 'rams-form__input'}}) }}
-                             <div class="rams-form-help">{{ 'custom_field.group_help'|trans }}</div>
+                             <div class="rams-form__hint">{{ 'custom_field.group_help'|trans }}</div>
                              {{ form_errors(form.fieldGroup) }}
                         </div>
                     </div>
@@ -39,7 +39,7 @@
                         <div class="rams-form__group">
                             {{ form_label(form.options, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                             {{ form_widget(form.options, {'attr': {'class': 'rams-form__textarea', 'rows': '4'}}) }}
-                            <div class="rams-form-help">{{ 'custom_field.options_help'|trans }}</div>
+                            <div class="rams-form__hint">{{ 'custom_field.options_help'|trans }}</div>
                             {{ form_errors(form.options) }}
                         </div>
                      </div>
@@ -58,7 +58,7 @@
              </div>
         </div>
 
-        <div class="rams-grid-col-1">
+        <div class="rams-grid">
              <!-- Configuration -->
             <div class="rams-module">
                 <div class="rams-module__header">
@@ -78,22 +78,22 @@
                     </div>
 
                     <div class="rams-form__group">
-                        <label class="rams-checkbox-label">
+                        <label class="rams-form__checkbox">
                             {{ form_widget(form.isRequired) }}
-                            <span class="rams-checkbox-text">{{ 'custom_field.required_field'|trans }}</span>
+                            <span class="rams-form__checkbox-label">{{ 'custom_field.required_field'|trans }}</span>
                         </label>
                     </div>
                      <div class="rams-form__group">
-                        <label class="rams-checkbox-label">
+                        <label class="rams-form__checkbox">
                             {{ form_widget(form.isSearchable) }}
-                            <span class="rams-checkbox-text">{{ 'custom_field.searchable'|trans }}</span>
+                            <span class="rams-form__checkbox-label">{{ 'custom_field.searchable'|trans }}</span>
                         </label>
                     </div>
                     
                     <div class="rams-form__group">
                          {{ form_label(form.description, null, {'label_attr': {'class': 'rams-form__label'}}) }}
                          {{ form_widget(form.description, {'attr': {'class': 'rams-form__textarea', 'rows': '3'}}) }}
-                         <div class="rams-form-help">{{ 'custom_field.help_text_help'|trans }}</div>
+                         <div class="rams-form__hint">{{ 'custom_field.help_text_help'|trans }}</div>
                     </div>
                 </div>
                 <div class="rams-module__footer">

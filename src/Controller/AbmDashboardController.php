@@ -156,10 +156,40 @@ class AbmDashboardController extends AbstractController
                 'engagement_score' => $account->getEngagementScore() ?? 0,
             ];
         }
+
+        $q = trim((string) $request->query->get('q', ''));
+        $region = trim((string) $request->query->get('region', ''));
+        $status = trim((string) $request->query->get('status', ''));
+
+        if ('' !== $q || '' !== $region || '' !== $status) {
+            $accountData = array_values(array_filter($accountData, static function (array $account) use ($q, $region, $status): bool {
+                if ('' !== $region && ($account['location'] ?? '') !== $region) {
+                    return false;
+                }
+                if ('' !== $status && ($account['status'] ?? '') !== $status) {
+                    return false;
+                }
+                if ('' !== $q) {
+                    $haystack = mb_strtolower(implode(' ', array_filter([
+                        (string) ($account['name'] ?? ''),
+                        (string) ($account['industry'] ?? ''),
+                        (string) ($account['location'] ?? ''),
+                    ])));
+                    if (!str_contains($haystack, mb_strtolower($q))) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }));
+        }
         
         return $this->render('abm_dashboard/accounts.html.twig', [
             'pageTitle' => 'abm_dashboard.accounts',
-            'accounts' => $accountData
+            'accounts' => $accountData,
+            'q' => $q,
+            'region' => $region,
+            'status' => $status,
         ]);
     }
 
@@ -304,6 +334,30 @@ class AbmDashboardController extends AbstractController
     }
 
     /**
+     * Delete ABM account
+     */
+    #[Route('/account/{id}/delete', name: 'abm_dashboard_account_delete', methods: ['POST'])]
+    public function deleteAccount(Request $request, int $id): Response
+    {
+        if (!$this->isCsrfTokenValid('abm_account_delete', $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token');
+        }
+
+        $account = $this->entityManager->getRepository(AbmAccount::class)->find($id);
+
+        if (!$account) {
+            throw $this->createNotFoundException('ABM account not found');
+        }
+
+        $this->entityManager->remove($account);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', 'abm_dashboard.flash.account_deleted');
+
+        return $this->redirectToRoute('abm_dashboard_accounts');
+    }
+
+    /**
      * Playbook management page
      */
     #[Route('/playbooks', name: 'abm_dashboard_playbooks', methods: ['GET'])]
@@ -312,24 +366,45 @@ class AbmDashboardController extends AbstractController
         // Get all playbooks
         $playbooks = $this->entityManager->getRepository(Playbook::class)
             ->findBy([], ['priority' => 'DESC']);
-        
+
+        $runRepository = $this->entityManager->getRepository(PlaybookRun::class);
+
         // Get execution statistics for each playbook
         $stats = [];
+        $activePlaybooks = 0;
+        $totalRuns = 0;
+        $successfulRuns = 0;
+
         foreach ($playbooks as $playbook) {
+            $playbookRuns = $runRepository->count(['playbook' => $playbook]);
+            $playbookSuccesses = $runRepository->count(['playbook' => $playbook, 'status' => PlaybookRun::STATUS_COMPLETED]);
+
+            $totalRuns += $playbookRuns;
+            $successfulRuns += $playbookSuccesses;
+
+            if ($playbook->isActive()) {
+                ++$activePlaybooks;
+            }
+
             $stats[$playbook->getId()] = [
-                'totalRuns' => $this->entityManager->getRepository(PlaybookRun::class)
-                    ->count(['playbook' => $playbook]),
-                'successfulRuns' => $this->entityManager->getRepository(PlaybookRun::class)
-                    ->count(['playbook' => $playbook, 'success' => true]),
-                'lastRun' => $this->entityManager->getRepository(PlaybookRun::class)
-                    ->findOneBy(['playbook' => $playbook], ['executedAt' => 'DESC'])
+                'totalRuns' => $playbookRuns,
+                'successfulRuns' => $playbookSuccesses,
+                'lastRun' => $runRepository->findOneBy(['playbook' => $playbook], ['triggeredAt' => 'DESC']),
             ];
         }
-        
+
+        $totalAccounts = $this->entityManager->getRepository(AbmAccount::class)->count([]);
+
         return $this->render('abm_dashboard/playbooks.html.twig', [
             'pageTitle' => 'abm_dashboard.playbooks',
             'playbooks' => $playbooks,
-            'stats' => $stats
+            'stats' => $stats,
+            'overview' => [
+                'total_accounts' => $totalAccounts,
+                'active_playbooks' => $activePlaybooks,
+                'success_rate' => $totalRuns > 0 ? (int) round($successfulRuns / $totalRuns * 100) : null,
+                'total_runs' => $totalRuns,
+            ],
         ]);
     }
 

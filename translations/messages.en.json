@@ -37,7 +37,7 @@
         "create_account": "Create Account",
         "created_weeks_ago": "Created %count% weeks ago",
         "domain": "Domain",
-        "domain_hint": "Company website domain (without http:\/\/)",
+        "domain_hint": "Company website domain (without http://)",
         "edit_account": "Edit Account",
         "email_engagement": "Email Engagement",
         "email_opens": "Email Opens",
@@ -46,6 +46,11 @@
         "engagement": "Engagement",
         "engagement_history": "Engagement History",
         "engagement_score": "Engagement Score",
+        "flash": {
+            "account_created": "Account created successfully",
+            "account_deleted": "Account removed successfully",
+            "account_updated": "Account updated successfully"
+        },
         "form_submissions": "Form Submissions",
         "heat_map_error": "Heat Map Error",
         "heatmap_missing": "Engagement heat map data is unavailable.",
@@ -173,13 +178,13 @@
         "outcome": "Outcome",
         "outcomes": {
             "follow_up_required": "Follow-up Required",
-            "negative": "Negative \/ Not Interested",
-            "neutral": "Neutral \/ Info Sent",
+            "negative": "Negative / Not Interested",
+            "neutral": "Neutral / Info Sent",
             "no_answer": "No Answer",
-            "no_response": "No Response \/ Bounced",
+            "no_response": "No Response / Bounced",
             "not_interested": "Not Interested",
             "pending": "Pending",
-            "positive": "Positive \/ Meeting Scheduled",
+            "positive": "Positive / Meeting Scheduled",
             "rescheduled": "Rescheduled",
             "successful": "Successful",
             "unsuccessful": "Unsuccessful",
@@ -277,8 +282,6 @@
             "replace_existing": "Replace existing data with this version",
             "replace_hint": "If unchecked, this will be saved as a new version",
             "restore": "Restore",
-            "sample_last_updated": "Oct 22, 2025",
-            "sample_storage_used": "2.4 GB",
             "select_type": "Select Type",
             "status": "Status",
             "storage_used": "Storage Used",
@@ -507,7 +510,7 @@
         "quick_score_desc": "Re-rank your leads by purchase likelihood so the system contacts the best prospects first.",
         "quick_score_title": "Refresh lead scores",
         "run_scoring": "Run scoring",
-        "safety_auto_mode_desc": "If the overall bounce\/unsubscribe rate exceeds 35%, the system automatically stops all experimental sends and only uses proven variations until performance recovers.",
+        "safety_auto_mode_desc": "If the overall bounce/unsubscribe rate exceeds 35%, the system automatically stops all experimental sends and only uses proven variations until performance recovers.",
         "safety_auto_mode_title": "Automatic safety mode",
         "safety_business_hours_desc": "Emails are only sent during business hours (9 AM – 4 PM) in the recipient's local timezone, inferred from their company location. Weekends are excluded.",
         "safety_business_hours_title": "Business hours & timezone",
@@ -569,7 +572,27 @@
         "variations_empty_title": "No variations yet",
         "wizard_next": "Next",
         "wizard_show_all_steps": "Show all setup steps",
-        "wizard_title": "Get started"
+        "wizard_title": "Get started",
+        "funnel_title": "Sales Funnel",
+        "recent_email_activity": "Recent Email Activity",
+        "top_performing_variations": "Top Performing Variations",
+        "quick_actions": "Quick Actions",
+        "thompson_stats": "Thompson Sampling Statistics",
+        "subject_line_comparison": "Subject Line Performance Comparison",
+        "ab_test_results": "A/B Test Results",
+        "safety_status": "Safety Status",
+        "table_date": "Date",
+        "table_recipient": "Recipient",
+        "table_variant": "Variant",
+        "table_events": "Events",
+        "table_name": "Name",
+        "table_value": "Value",
+        "table_sent": "Sent",
+        "table_open_rate": "Open Rate",
+        "table_arm": "Arm",
+        "table_pulls": "Pulls",
+        "table_wins": "Wins",
+        "table_win_rate": "Win Rate"
     },
     "calendar": {
         "add_event": "Add Event",
@@ -613,7 +636,14 @@
         "update_event": "Update Event",
         "views": "Views",
         "week_of": "Week of ",
-        "week_view": "Week View"
+        "week_view": "Week View",
+        "location": "Location",
+        "prev_day": "Previous day",
+        "next_day": "Next day",
+        "prev_week": "Previous week",
+        "next_week": "Next week",
+        "event": "Event",
+        "confirm_delete": "Are you sure you want to delete this event? This action cannot be undone."
     },
     "command": {
         "create_admin": {
@@ -730,7 +760,7 @@
         "medium": "Medium",
         "million_short": "M",
         "more": "more",
-        "n_a": "N\/A",
+        "n_a": "N/A",
         "name": "Name",
         "never": "Never",
         "new": "New",
@@ -800,7 +830,10 @@
         "visit": "Visit",
         "warning": "Warning",
         "year": "Year",
-        "yes": "Yes"
+        "yes": "Yes",
+        "breadcrumb": "Breadcrumb",
+        "enter_value": "Enter value",
+        "reason": "Reason"
     },
     "company": {
         "account_tier": "Account Tier",
@@ -859,7 +892,7 @@
         "email": "Email",
         "explanation": {
             "body": "This page lists all approved and active companies in your pipeline. Use the filters to narrow by sector, tier, pipeline stage, or region. Each card shows key info at a glance — click any card to see full details, contacts, activities, and RFQs.",
-            "discovered_button": "The <strong>Companies Found<\/strong> button opens a separate page listing new companies discovered automatically by the webcrawler. These are leads found via Google Search based on your target sectors and regions. Review them there, approve the ones that look promising, and they will appear on this main page.",
+            "discovered_button": "The <strong>Companies Found</strong> button opens a separate page listing new companies discovered automatically by the webcrawler. These are leads found via Google Search based on your target sectors and regions. Review them there, approve the ones that look promising, and they will appear on this main page.",
             "title": "How This Page Works"
         },
         "fields": "Fields",
@@ -869,14 +902,14 @@
             "updated": "Company updated successfully!"
         },
         "form": {
-            "google_drive_placeholder": "https:\/\/drive.google.com\/...",
-            "linkedin_placeholder": "https:\/\/linkedin.com\/company\/example",
+            "google_drive_placeholder": "https://drive.google.com/...",
+            "linkedin_placeholder": "https://linkedin.com/company/example",
             "name_placeholder": "Enter company name",
             "region_placeholder": "e.g., Morocco - TAC, EU - Germany",
             "select_sector": "Select sector",
             "select_stage": "Select stage",
             "select_tier": "Select tier",
-            "website_placeholder": "https:\/\/example.com"
+            "website_placeholder": "https://example.com"
         },
         "google_drive_link": "Google Drive Link",
         "industry": "Industry",
@@ -1215,7 +1248,7 @@
             "first_name_placeholder": "First name",
             "job_title_placeholder": "e.g., Procurement Manager",
             "last_name_placeholder": "Last name",
-            "linkedin_placeholder": "https:\/\/linkedin.com\/in\/username",
+            "linkedin_placeholder": "https://linkedin.com/in/username",
             "phone_placeholder": "+212 XXX XXX XXX",
             "select_company": "Select company",
             "select_role": "Select role"
@@ -1355,7 +1388,7 @@
         "help_text_help": "Help text shown to users.",
         "info_suffix": " Information",
         "key_help": "Unique key (e.g. 'budget_q4')",
-        "label_key": "Label \/ Key",
+        "label_key": "Label / Key",
         "new_field": "New Field",
         "new_title": "New Custom Field",
         "no_fields": "No custom fields found. Select an entity above or create a new one.",
@@ -1527,7 +1560,7 @@
             "configure": "Configure",
             "content": "Content",
             "content_desc": "Content desc",
-            "create": "Create A\/B Test",
+            "create": "Create A/B Test",
             "ctor": "Ctor",
             "declare_winner": "Declare winner",
             "duration": "Duration",
@@ -1540,7 +1573,7 @@
             "not_significant": "Not significant",
             "not_significant_msg": "Not significant msg",
             "recommendations": "Recommendations",
-            "results": "A\/B Test Results",
+            "results": "A/B Test Results",
             "select_winner": "Select winner",
             "send_time": "Send time",
             "send_time_desc": "Send time desc",
@@ -1559,7 +1592,7 @@
             "tip_3": "Tip 3",
             "tip_4": "Tip 4",
             "tip_5": "Tip 5",
-            "title": "A\/B Test",
+            "title": "A/B Test",
             "variant": "Variant",
             "variant_a": "Variant A",
             "variant_b": "Variant B",
@@ -1923,7 +1956,7 @@
             "footer_email_label": "quotes@starzelectronics.site",
             "footer_location": "Casablanca, Morocco",
             "footer_site_label": "starzelectronics.site",
-            "footer_site_url": "https:\/\/starzelectronics.site",
+            "footer_site_url": "https://starzelectronics.site",
             "greeting": "Hello",
             "important_notes": "Important Notes",
             "intro": "We're pleased to provide you with a detailed quote for your electronic components requirements.",
@@ -2076,7 +2109,7 @@
     "language": {
         "arabic": "Arabic",
         "bilingual": "Bilingual",
-        "bilingual_en_fr": "Bilingual (EN\/FR)",
+        "bilingual_en_fr": "Bilingual (EN/FR)",
         "english": "English",
         "french": "French",
         "short": {
@@ -2204,7 +2237,33 @@
         "what_are_leads": "What are leads",
         "what_are_leads_desc": "What are leads desc",
         "workflow_desc": "Workflow desc",
-        "workflow_label": "Workflow label"
+        "workflow_label": "Workflow label",
+        "analytics_title": "Lead Analytics",
+        "quality_overview": "Lead Quality Overview",
+        "quality_breakdown": "Lead Quality Discovery Breakdown",
+        "quality_low": "Low",
+        "quality_fair": "Fair",
+        "quality_good": "Good",
+        "quality_excellent": "Excellent",
+        "count_leads": "%count% leads",
+        "approval_percent": "%rate%% approval",
+        "no_quality_data": "No lead quality data available",
+        "source_effectiveness": "Source Effectiveness",
+        "source_performance": "Source Performance",
+        "analytics_avg": "avg",
+        "analytics_avg_score": "avg score",
+        "analytics_approval": "approval",
+        "analytics_score": "score",
+        "no_source_effectiveness": "No source effectiveness data",
+        "no_source_performance": "No source performance data",
+        "funnel_analytics": "Funnel Analytics",
+        "no_funnel_data": "No funnel data available",
+        "geographic_distribution": "Geographic Distribution",
+        "geographic_detail": "Geographic Distribution Detail",
+        "no_geographic_data": "No geographic distribution data",
+        "actionable_insights": "Actionable Insights",
+        "no_actionable_insights": "No actionable insights available",
+        "deny_reason": "Deny reason"
     },
     "lead_discovery": {
         "about_api": "About api",
@@ -2289,7 +2348,19 @@
         "title": "Lead Discovery",
         "total_leads": "Total Leads",
         "unknown": "Unknown",
-        "view_lead": "View Lead"
+        "view_lead": "View Lead",
+        "analytics": "Analytics",
+        "quality_distribution": "Lead Quality Distribution",
+        "source_effectiveness": "Source Effectiveness",
+        "no_source_data": "No source effectiveness data available",
+        "geographic_distribution": "Geographic Distribution",
+        "no_geographic_data": "No geographic data available",
+        "sector_breakdown": "Sector Breakdown",
+        "no_sector_breakdown": "No sector breakdown data available",
+        "actionable_insights": "Actionable Insights",
+        "no_actionable_insights": "No actionable insights available",
+        "select_result": "Select result",
+        "enrich_prompt_label": "Number of leads"
     },
     "meeting": {
         "available_slots": "Available Slots",
@@ -2428,12 +2499,13 @@
         "until": "Until",
         "upcoming_bookings": "Upcoming Bookings",
         "update_slot": "Update Slot",
-        "url_placeholder": "https:\/\/zoom.us\/j\/...",
+        "url_placeholder": "https://zoom.us/j/...",
         "video_links_auto": "Video links are auto-generated",
         "view_calendar": "View Calendar",
         "when": "When",
         "yes_cancel": "Yes, Cancel Meeting",
-        "your_details": "Your Details"
+        "your_details": "Your Details",
+        "at": "at"
     },
     "messages": {
         "create_error": "Error creating item. Please try again.",
@@ -2580,6 +2652,7 @@
             "executive_summary": "Executive Summary",
             "ext_cost": "Ext. Cost",
             "ext_total": "Ext. Total",
+            "grand_total": "Grand Total",
             "hand_insertions": "Hand Insertions",
             "item": "Item",
             "labor": "Labor",
@@ -2724,7 +2797,7 @@
             "total_landed_cost": "TOTAL LANDED COST",
             "trade_agreement": "Trade Agreement",
             "transit_time": "Estimated transit time",
-            "vat_tax": "VAT \/ Sales Tax",
+            "vat_tax": "VAT / Sales Tax",
             "volume": "Volume",
             "weight": "Weight"
         },
@@ -2741,7 +2814,7 @@
             "current_impact": "Current Impact",
             "description": "Description",
             "detailed": "Detailed Exception List",
-            "eol_nrnd": "EOL\/NRND",
+            "eol_nrnd": "EOL/NRND",
             "exception": "Exception",
             "footer": "Exceptions require resolution before production.",
             "impact": "Cost Impact",
@@ -2853,7 +2926,7 @@
             "by_category": "Risk by Category",
             "critical_desc": "Critical supply chain exposure. Emergency mitigation required. Executive review recommended.",
             "engine": "Risk Analysis Engine v3.2",
-            "eol_nrnd": "EOL\/NRND",
+            "eol_nrnd": "EOL/NRND",
             "footer": "Supply Chain Risk Analysis",
             "geo_concentration": "Asia-Pacific",
             "geographic": "Geographic Risk Distribution",
@@ -2990,7 +3063,23 @@
         "triggered_at": "Triggered At",
         "triggers": "Triggers",
         "view_playbook": "View Playbook",
-        "what_are_playbooks": "What are ABM Playbooks?"
+        "what_are_playbooks": "What are ABM Playbooks?",
+        "email": {
+            "alert_title": "PLAYBOOK ALERT",
+            "triggered": "A playbook automation has been triggered.",
+            "account": "Account:",
+            "domain": "Domain:",
+            "engagement_score": "Engagement Score:",
+            "triggered_at": "Triggered:",
+            "page_visited": "Page Visited:",
+            "review_action": "Please review and take appropriate action.",
+            "automated_message": "This is an automated message from your CRM system.",
+            "follow_up_title": "FOLLOW-UP REMINDER",
+            "reminder_due": "A follow-up action is due for the following account:",
+            "timely_follow_up": "Please ensure timely follow-up to maintain engagement momentum.",
+            "unsubscribe": "Unsubscribe from all emails",
+            "unsubscribe_desc": "You are receiving this email because you are a contact in our CRM system. If you no longer wish to receive emails,"
+        }
     },
     "profile": {
         "accent_color": "Accent color",
@@ -3158,7 +3247,8 @@
             "unit_price": "Unit Price",
             "units_to_produce": "Units to produce",
             "upload_bom": "Upload BOM",
-            "upload_spec_intro": "Use the template for a clean starting point or open the full upload specification before preparing larger BOMs."
+            "upload_spec_intro": "Use the template for a clean starting point or open the full upload specification before preparing larger BOMs.",
+            "link": "Link"
         },
         "created_at": "Created At",
         "currency": "Currency",
@@ -3280,7 +3370,7 @@
             "nrnd_parts": "NRND Parts",
             "nrnd_short": "NRND",
             "obsolete": "Obsolete",
-            "obsolete_eol": "Obsolete\/EOL",
+            "obsolete_eol": "Obsolete/EOL",
             "original": "Original",
             "part_number": "Part number",
             "part_obsolete": "Part obsolete",
@@ -3313,7 +3403,8 @@
             "verify_match": "Verify match",
             "very_low": "Very low",
             "views": "Views",
-            "where_found": "Where found"
+            "where_found": "Where found",
+            "price_source_placeholder": "https://distributor.com/product/..."
         },
         "status": "Status",
         "title": "Quotes",
@@ -3373,7 +3464,8 @@
         "value": "Value",
         "visible_to_all": "Visible to all users",
         "visualization": "Visualization",
-        "visualization_help": "Choose how to visualize the data."
+        "visualization_help": "Choose how to visualize the data.",
+        "remove": "Remove"
     },
     "rfq": {
         "actions": {
@@ -3571,7 +3663,7 @@
         "updated_at": "Updated At",
         "view_rfq": "View RFQ",
         "win_factors": "Win Factors",
-        "win_loss_analytics": "Win\/Loss Analytics",
+        "win_loss_analytics": "Win/Loss Analytics",
         "win_rate": "Win Rate",
         "wins_against_us": "Wins Against Us",
         "won": {
@@ -3696,7 +3788,13 @@
         "select_all": "Select all",
         "selected": "selected",
         "sort_asc": "Sort ascending",
-        "sort_desc": "Sort descending"
+        "sort_desc": "Sort descending",
+        "datatables_search": "Search:",
+        "datatables_length_menu": "_MENU_ per page",
+        "datatables_info": "Showing _START_ to _END_ of _TOTAL_ entries",
+        "datatables_info_empty": "No entries",
+        "datatables_info_filtered": "(filtered from _MAX_ total)",
+        "datatables_zero_records": "No matching records found"
     },
     "task": {
         "add": "Add",
@@ -3759,7 +3857,16 @@
         "total_tasks": "Total Tasks",
         "unassigned": "Unassigned",
         "update_task": "Update Task",
-        "updated": "Updated"
+        "updated": "Updated",
+        "status.todo": "To Do",
+        "status.in_progress": "In Progress",
+        "status.review": "Review",
+        "status.done": "Done",
+        "status.cancelled": "Cancelled",
+        "priority.low": "Low",
+        "priority.medium": "Medium",
+        "priority.high": "High",
+        "priority.urgent": "Urgent"
     },
     "time": {
         "days_ago": "{count} days ago",
@@ -3810,7 +3917,7 @@
         "base_sector": "Base Sector",
         "comma_separated": "comma-separated",
         "common_keywords_by_sector": "Common Keywords by Sector",
-        "company_domain": "Company\/Domain",
+        "company_domain": "Company/Domain",
         "copy_all_keywords": "Copy All Keywords",
         "depth": "Crawl Depth",
         "discovered": "Discovered",
@@ -3818,7 +3925,7 @@
         "discovery_failed": "Failed to start discovery:",
         "domain_placeholder": "example.com",
         "dork_domain_contact_procurement": "site:%domain% contact procurement",
-        "dork_domain_linkedin": "site:linkedin.com\/company \"%company%\"",
+        "dork_domain_linkedin": "site:linkedin.com/company \"%company%\"",
         "dork_domain_sector_contact": "\"%domain%\" \"%sector%\" contact",
         "dork_domain_supplier_portal": "site:%domain% \"supplier portal\"",
         "dork_domain_vendor_registration": "site:%domain% \"vendor registration\"",
@@ -3896,7 +4003,10 @@
         "tip_or_example": "OR",
         "tip_site": "Search within a specific domain",
         "title": "LeadBot WebCrawler",
-        "url": "URL"
+        "url": "URL",
+        "stop_discovery": "Stop Discovery",
+        "stop_discovery_confirm": "Stop the running discovery?",
+        "stop_failed": "Failed to stop: %error%"
     },
     "webinar": {
         "attendance_rate": "Attendance Rate",
@@ -3913,8 +4023,8 @@
         "form": {
             "description_placeholder": "Describe the webinar content, topics covered, and target audience...",
             "max_attendees_placeholder": "Leave empty for unlimited",
-            "meeting_url": "Meeting URL (Zoom\/Teams)",
-            "meeting_url_placeholder": "https:\/\/zoom.us\/j\/...",
+            "meeting_url": "Meeting URL (Zoom/Teams)",
+            "meeting_url_placeholder": "https://zoom.us/j/...",
             "recording_url_placeholder": "Will be added after the webinar",
             "scheduled_date": "Scheduled Date & Time",
             "title_placeholder": "e.g., EMS Excellence: ISO 9001 & IPC-A-610"
@@ -3961,5 +4071,45 @@
         "upcoming": "Upcoming",
         "view_webinar": "View Webinar",
         "webinar_title": "Webinar Title"
+    },
+    "audit_log": {
+        "back": "Back to Audit Log",
+        "changed_fields": "Changed Fields",
+        "col_action": "Action",
+        "col_changed_fields": "Changed Fields",
+        "col_entity_id": "Entity ID",
+        "col_entity_type": "Entity Type",
+        "col_ip": "IP Address",
+        "col_timestamp": "Timestamp",
+        "col_user": "User",
+        "entity_id": "Entity ID",
+        "entity_type": "Entity Type",
+        "enter_id": "Enter ID",
+        "entry_details": "Entry Details",
+        "entry_title": "Audit Log Entry #%id%",
+        "history_title": "Audit History",
+        "log_count": "Activity Log (%count% records)",
+        "history_count": "Activity History (%count% records)",
+        "more_count": "+%count% more",
+        "no_entries": "No audit log entries found",
+        "no_entity_history": "No audit history for this entity",
+        "no_field_changes": "No specific field changes recorded",
+        "no_new_values": "No new values recorded",
+        "no_old_values": "No old values recorded",
+        "new_values": "New Values",
+        "old_values": "Old Values",
+        "on_entity": "%action% on %entity%",
+        "subtitle": "System activity and change history",
+        "title": "Audit Log",
+        "user_agent": "User Agent",
+        "all_types": "All Types",
+        "all_actions": "All Actions"
+    },
+    "email_unsubscribe": {
+        "missing_token": "Missing unsubscribe token",
+        "success_title": "Unsubscribed",
+        "error_title": "Unsubscribe failed",
+        "success": "You have been unsubscribed successfully",
+        "footer_note": "If this was a mistake, you can resubscribe from your profile settings."
     }
 }

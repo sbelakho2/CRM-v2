@@ -64,9 +64,9 @@
                     {% if account.contacts | default([]) %}
                         <div class="rams-list">
                             {% for contact in account.contacts %}
-                                <div class="rams-list-item rams-p-4 rams-border-b last:rams-border-b-0">
+                                <div class="rams-list__item rams-p-4 rams-border-b">
                                     <div class="rams-flex rams-items-center rams-gap-4 rams-flex-1">
-                                        <div class="rams-badge rams-badge--lg rams-badge--circle rams-badge--primary">
+                                        <div class="rams-badge rams-badge--primary rams-badge--primary">
                                             {{ contact.name|slice(0, 1) }}
                                         </div>
                                         <div class="rams-flex-1">
@@ -185,7 +185,7 @@
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-2">
-                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id | default(1)}) }}" class="rams-btn rams-btn--primary rams-w-full">
+                        <a href="{{ path('abm_dashboard_account_edit', {'id': account.id})    }}" class="rams-btn rams-btn--primary rams-w-full">
                             {{ 'abm_dashboard.edit_account'|trans }}
                         </a>
                         <a href="{{ path('app_contact_new') }}?account_name={{ account.name|url_encode }}" class="rams-btn rams-w-full">
@@ -194,10 +194,10 @@
                         <a href="{{ path('abm_dashboard_playbooks') }}" class="rams-btn rams-w-full">
                             {{ 'abm_dashboard.launch_playbook'|trans }}
                         </a>
-                        <button type="button" onclick="ramsConfirm('{{ 'abm_dashboard.remove_confirm'|trans }}', function() { window.location.href='{{ path('abm_dashboard_accounts') }}'; }, {variant: 'danger'})" class="rams-btn rams-btn--danger rams-btn--ghost rams-w-full rams-mt-2">
+                        <form method="post" action="{{ path('abm_dashboard_account_delete', {'id': account.id}) }}" id="remove-account-form" class="rams-mt-2"> <input type="hidden" name="_token" value="{{ csrf_token('abm_account_delete') }}"> <button type="button" onclick="ramsConfirm('{{ 'abm_dashboard.remove_confirm'|trans|e('js')  }}', function() { document.getElementById('remove-account-form').submit();    }, {variant: 'danger'})" class="rams-btn rams-btn--danger rams-btn--ghost rams-w-full">  
                             {{ 'abm_dashboard.remove_account'|trans }}
                         </button>
-                    </div>
+                    </form> </div>
                 </div>
             </div>
         </div>

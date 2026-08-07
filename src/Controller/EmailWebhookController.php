@@ -12,6 +12,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -39,7 +40,9 @@ class EmailWebhookController extends AbstractController
         private EntityManagerInterface $entityManager,
         private EmailCampaignService $campaignService,
         private ?AutonomousSalesOrchestratorService $orchestrator,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private RateLimiterFactory $webhookEmailLimiter,
+        private RateLimiterFactory $webhookEmailIpLimiter
     ) {
     }
 
@@ -626,14 +629,24 @@ class EmailWebhookController extends AbstractController
             ?: null;
 
         if (!$configuredSecret) {
-            // No secret configured — allow but log warning in non-production
-            $this->logger->warning('EMAIL_WEBHOOK_SECRET not configured — webhook endpoint is unprotected');
-            return null;
+            // Fail closed: never process webhook events without a configured secret
+            $this->logger->critical('EMAIL_WEBHOOK_SECRET not configured — rejecting webhook request');
+            return new Response('Webhook secret not configured', 403);
         }
 
         $provided = $request->headers->get('X-Webhook-Secret');
         if (!$provided || !hash_equals((string)$configuredSecret, (string)$provided)) {
             return new Response('Unauthorized', 401);
+        }
+
+        // Throttle webhook floods (global per-provider budget + per-IP
+        // budget) after the secret gate passes, so legitimate providers are
+        // never blocked while abuse is still bounded.
+        $ip = $request->getClientIp() ?? 'unknown';
+        if (!$this->webhookEmailLimiter->create('global')->consume(1)->isAccepted()
+            || !$this->webhookEmailIpLimiter->create($ip)->consume(1)->isAccepted()) {
+            $this->logger->warning('Webhook rate limit exceeded', ['ip' => $ip]);
+            return new Response('Too Many Requests', 429);
         }
 
         return null;

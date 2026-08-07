@@ -1,0 +1,9 @@
+<form method="post" action="{{ path('calendar_delete', {id: event.id}) }}" class="rams-inline-form" onsubmit="return ramsConfirmSubmit(event, '{{ 'calendar.confirm_delete'|trans }}', {variant: 'danger'})">
+    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
+    <button type="submit" class="rams-btn rams-btn--danger">
+        <svg class="rams-btn__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 4H14M5 4V2H11V4M6 7V11M10 7V11M3 4L4 14H12L13 4"/>
+        </svg>
+        {{ 'common.delete'|trans }}
+    </button>
+</form>

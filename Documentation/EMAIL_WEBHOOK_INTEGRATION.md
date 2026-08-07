@@ -41,14 +41,14 @@ This guide shows you how to integrate automatic reply and bounce tracking using 
 #### 2. Configure SMTP in `.env`
 
 ```env
-MAILER_DSN=smtp://postmaster@YOUR_DOMAIN:YOUR_API_KEY@smtp.mailgun.org:587
+MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 MAILER_FROM_ADDRESS=noreply@YOUR_DOMAIN
 ```
 
 Example with sandbox domain:
 
 ```env
-MAILER_DSN=smtp://postmaster@sandboxXXXXX.mailgun.org:your-api-key@smtp.mailgun.org:587
+MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 MAILER_FROM_ADDRESS=noreply@sandboxXXXXX.mailgun.org
 ```
 
@@ -95,7 +95,7 @@ tail -f var/log/dev.log
 #### 2. Configure SMTP in `.env`
 
 ```env
-MAILER_DSN=smtp://apikey:YOUR_API_KEY@smtp.sendgrid.net:587
+MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 MAILER_FROM_ADDRESS=noreply@yourdomain.com
 ```
 
@@ -137,7 +137,7 @@ SendGrid requires you to add custom arguments in the email. This is already done
 #### 2. Configure SMTP in `.env`
 
 ```env
-MAILER_DSN=smtp://YOUR_SERVER_TOKEN:YOUR_SERVER_TOKEN@smtp.postmarkapp.com:587
+MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 MAILER_FROM_ADDRESS=noreply@yourdomain.com
 ```
 

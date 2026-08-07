@@ -72,7 +72,7 @@
                 <div class="rams-module__content">
                     <form method="post" action="{{ path('lead_discovery_import') }}" id="importForm" class="rams-form rams-flex rams-justify-between rams-items-center mobile-stack">
                         <div class="rams-flex rams-items-center rams-gap-4">
-                            <label class="rams-form__checkbox-container">
+                            <label>  
                                 <input type="checkbox" id="selectAll" class="rams-form__checkbox-input">
                                 <span class="rams-form__checkbox-label">{{ 'lead_discovery.select_all'|trans }}</span>
                             </label>
@@ -108,19 +108,19 @@
             <form method="post" action="{{ path('lead_discovery_import_all') }}" id="importAllForm" class="rams-hidden"></form>
 
             {# Results List #}
-            <div class="rams-grid rams-grid--1">
+            <div class="rams-grid">  
                 {% for index, result in results %}
                     <div class="rams-module rams-module--hoverable">
                         <div class="rams-module__content">
                             <div class="rams-flex rams-gap-4">
-                                <div class="rams-pt-1">
+                                <div class="rams-pt-xs"> 
                                     <input 
                                         type="checkbox" 
                                         name="selected[]" 
                                         value="{{ index }}" 
                                         form="importForm"
                                         class="result-checkbox rams-form__checkbox-input"
-                                    >
+                                    aria-label="{{ 'lead_discovery.select_result'|trans }}: {{ result.title }}" >
                                 </div>
                                 <div class="rams-flex-1">
                                     <div class="rams-flex rams-justify-between rams-items-start rams-mb-2">
@@ -130,7 +130,7 @@
                                         <a 
                                             href="{{ result.link }}" 
                                             target="_blank" 
-                                            class="rams-link rams-link--with-icon rams-text--xs"
+                                            class="rams-link rams-text--xs"
                                         >
                                             {{ result.displayLink }}
                                             <svg class="rams-icon rams-icon--3xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">

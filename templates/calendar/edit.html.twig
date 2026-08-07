@@ -5,8 +5,8 @@
 {% block body %}
 <div class="rams-page">
     <div class="rams-page-header">
-        <div class="rams-page-header__content">
-            <h1 class="rams-page-header__title">
+        <div class="rams-page__header-content"> 
+            <h1 class="rams-page-title"> 
                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rams-mr-3"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><line x1="12" x2="12" y1="15" y2="15"/></svg>
                  {{ 'calendar.edit_event_title'|trans }}
             </h1>
@@ -17,7 +17,7 @@
                 <span class="rams-breadcrumb__separator">/</span>
                 <a href="{{ path('calendar_show', {id: event.id}) }}" class="rams-breadcrumb__item">{{ event.title }}</a>
                 <span class="rams-breadcrumb__separator">/</span>
-                <span class="rams-breadcrumb__item active">{{ 'common.edit'|trans }}</span>
+                <span class="rams-breadcrumb__item rams-breadcrumb__item--current">{{  'common.edit'|trans }}</span>
             </nav>
         </div>
         <div class="rams-page-header__actions">
@@ -27,7 +27,7 @@
         </div>
     </div>
 
-    <div class="rams-page-content">
+    <div class="rams-page__container"> 
         {{ include('calendar/_form.html.twig', {button_label: 'calendar.update_event'|trans}) }}
     </div>
 </div>

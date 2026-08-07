@@ -15,7 +15,7 @@
         .cost-section h4 {
             margin: 0 0 8pt 0;
             color: var(--rams-foreground);
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.05em;
             font-size: 10pt;
         }
@@ -60,7 +60,7 @@
         .highlight-label {
             font-size: 8pt;
             color: var(--rams-muted);
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.05em;
         }
         .summary-grid {
@@ -98,19 +98,19 @@
     
     <div class="summary-grid">
         <div class="summary-card">
-            <div class="highlight-value">${{ (costData.materialCost ?? 0)|number_format(2, '.', ',') }}</div>
+            <div class="highlight-value">{{ (costData.materialCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</div>
             <div class="highlight-label">{{ 'pdf.cost_breakdown.material_cost'|trans }}</div>
         </div>
         <div class="summary-card">
-            <div class="highlight-value">${{ (costData.assemblyCost ?? 0)|number_format(2, '.', ',') }}</div>
+            <div class="highlight-value">{{ (costData.assemblyCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</div>
             <div class="highlight-label">{{ 'pdf.cost_breakdown.assembly_cost'|trans }}</div>
         </div>
         <div class="summary-card">
-            <div class="highlight-value">${{ (costData.nreCost ?? 0)|number_format(2, '.', ',') }}</div>
+            <div class="highlight-value">{{ (costData.nreCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</div>
             <div class="highlight-label">{{ 'pdf.cost_breakdown.nre_cost'|trans }}</div>
         </div>
         <div class="summary-card">
-            <div class="highlight-value">${{ (costData.totalCost ?? 0)|number_format(2, '.', ',') }}</div>
+            <div class="highlight-value">{{ (costData.totalCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</div>
             <div class="highlight-label">{{ 'pdf.cost_breakdown.total_estimated'|trans }}</div>
         </div>
     </div>
@@ -153,17 +153,17 @@
 
     {# Material Cost Breakdown #}
     <h3>{{ 'pdf.cost_breakdown.material_breakdown'|trans }}</h3>
-    <table>
+    <table aria-label="{{ 'pdf.cost_breakdown.material_breakdown'|trans }}">
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 18%;">{{ 'pdf.quote.mpn'|trans }}</th>
-                <th style="width: 15%;">{{ 'pdf.cost_breakdown.manufacturer'|trans }}</th>
-                <th style="width: 25%;">{{ 'pdf.cost_breakdown.description'|trans }}</th>
-                <th class="rams-text--right" style="width: 8%;">{{ 'pdf.cost_breakdown.qty'|trans }}</th>
-                <th class="rams-text--right" style="width: 12%;">{{ 'pdf.cost_breakdown.unit_cost'|trans }}</th>
-                <th class="rams-text--right" style="width: 12%;">{{ 'pdf.cost_breakdown.ext_cost'|trans }}</th>
-                <th class="rams-text--center" style="width: 5%;">%</th>
+                <th scope="col" style="width: 5%;">#</th>
+                <th scope="col" style="width: 18%;">{{ 'pdf.quote.mpn'|trans }}</th>
+                <th scope="col" style="width: 15%;">{{ 'pdf.cost_breakdown.manufacturer'|trans }}</th>
+                <th scope="col" style="width: 25%;">{{ 'pdf.cost_breakdown.description'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 8%;">{{ 'pdf.cost_breakdown.qty'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 12%;">{{ 'pdf.cost_breakdown.unit_cost'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 12%;">{{ 'pdf.cost_breakdown.ext_cost'|trans }}</th>
+                <th scope="col" class="rams-text--center" style="width: 5%;">%</th>
             </tr>
         </thead>
         <tbody>
@@ -177,15 +177,15 @@
                 <td>{{ line.manufacturer ?? 'common.n_a'|trans }}</td>
                 <td>{{ line.description ?? 'common.n_a'|trans }}</td>
                 <td class="rams-text--right">{{ line.quantity|number_format(0) }}</td>
-                <td class="rams-text--right">${{ (line.unitPrice ?? 0)|number_format(4) }}</td>
-                <td class="rams-text--right">${{ extCost|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (line.unitPrice ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 4) }}</td>
+                <td class="rams-text--right">{{ extCost|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
                 <td class="rams-text--center">{{ pctOfTotal|number_format(1) }}%</td>
             </tr>
             {% endfor %}
             <tr class="subtotal-row">
                 <td colspan="5"></td>
                 <td class="rams-text--right">{{ 'pdf.cost_breakdown.subtotal'|trans }}</td>
-                <td class="rams-text--right">${{ materialTotal|number_format(2) }}</td>
+                <td class="rams-text--right">{{ materialTotal|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
                 <td class="rams-text--center">100%</td>
             </tr>
         </tbody>
@@ -193,13 +193,13 @@
 
     {# Assembly & NRE Costs #}
     <h3>{{ 'pdf.cost_breakdown.manufacturing'|trans }}</h3>
-    <table>
+    <table aria-label="{{ 'pdf.cost_breakdown.manufacturing'|trans }}">
         <thead>
             <tr>
-                <th style="width: 35%;">{{ 'pdf.cost_breakdown.category'|trans }}</th>
-                <th style="width: 35%;">{{ 'pdf.cost_breakdown.description'|trans }}</th>
-                <th class="rams-text--right" style="width: 15%;">{{ 'pdf.cost_breakdown.quantity'|trans }}</th>
-                <th class="rams-text--right" style="width: 15%;">{{ 'pdf.cost_breakdown.amount'|trans }}</th>
+                <th scope="col" style="width: 35%;">{{ 'pdf.cost_breakdown.category'|trans }}</th>
+                <th scope="col" style="width: 35%;">{{ 'pdf.cost_breakdown.description'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 15%;">{{ 'pdf.cost_breakdown.quantity'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 15%;">{{ 'pdf.cost_breakdown.amount'|trans }}</th>
             </tr>
         </thead>
         <tbody>
@@ -207,107 +207,108 @@
                 <td><strong>{{ 'pdf.cost_breakdown.pcb_fabrication'|trans }}</strong></td>
                 <td>{{ costData.pcbSpec ?? 'pdf.cost_breakdown.standard_pcb'|trans }}</td>
                 <td class="rams-text--right">{{ quote.quantity ?? 1 }} {{ 'common.pcs'|trans|default('pcs') }}</td>
-                <td class="rams-text--right">${{ (costData.pcbCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (costData.pcbCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr>
                 <td><strong>{{ 'pdf.cost_breakdown.smt_assembly'|trans }}</strong></td>
                 <td>{{ costData.smtPlacements ?? 0 }} {{ 'pdf.cost_breakdown.placements'|trans|default('placements') }} × {{ quote.quantity ?? 1 }} {{ 'common.units'|trans|default('units') }}</td>
                 <td class="rams-text--right">{{ (costData.smtPlacements ?? 0) * (quote.quantity ?? 1) }}</td>
-                <td class="rams-text--right">${{ (costData.smtCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (costData.smtCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr>
                 <td><strong>{{ 'pdf.cost_breakdown.tht_assembly'|trans }}</strong></td>
                 <td>{{ costData.thtPlacements ?? 0 }} {{ 'pdf.cost_breakdown.hand_insertions'|trans|default('hand insertions') }} × {{ quote.quantity ?? 1 }} {{ 'common.units'|trans|default('units') }}</td>
                 <td class="rams-text--right">{{ (costData.thtPlacements ?? 0) * (quote.quantity ?? 1) }}</td>
-                <td class="rams-text--right">${{ (costData.thtCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (costData.thtCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr>
                 <td><strong>{{ 'pdf.cost_breakdown.test_inspection'|trans }}</strong></td>
                 <td>{{ costData.testType ?? 'ICT + AOI' }}</td>
                 <td class="rams-text--right">{{ quote.quantity ?? 1 }} {{ 'common.pcs'|trans|default('pcs') }}</td>
-                <td class="rams-text--right">${{ (costData.testCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (costData.testCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr class="subtotal-row">
                 <td colspan="3">{{ 'pdf.cost_breakdown.assembly_subtotal'|trans }}</td>
-                <td class="rams-text--right">${{ (costData.assemblyCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (costData.assemblyCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
         </tbody>
     </table>
 
     {# NRE Breakdown #}
     <h3>{{ 'pdf.cost_breakdown.nre'|trans }}</h3>
-    <table>
+    <table aria-label="{{ 'pdf.cost_breakdown.nre'|trans }}">
         <thead>
             <tr>
-                <th style="width: 40%;">{{ 'pdf.cost_breakdown.item'|trans }}</th>
-                <th style="width: 40%;">{{ 'pdf.cost_breakdown.notes'|trans }}</th>
-                <th class="rams-text--right" style="width: 20%;">{{ 'pdf.cost_breakdown.amount'|trans }}</th>
+                <th scope="col" style="width: 40%;">{{ 'pdf.cost_breakdown.item'|trans }}</th>
+                <th scope="col" style="width: 40%;">{{ 'pdf.cost_breakdown.notes'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 20%;">{{ 'pdf.cost_breakdown.amount'|trans }}</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td><strong>{{ 'pdf.cost_breakdown.stencil'|trans }}</strong></td>
                 <td>{{ costData.stencilType ?? 'pdf.cost_breakdown.standard_stencil'|trans }}</td>
-                <td class="rams-text--right">${{ (costData.stencilCost ?? 180)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (costData.stencilCost ?? 180)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr>
                 <td><strong>{{ 'pdf.cost_breakdown.programming'|trans }}</strong></td>
                 <td>{{ costData.programmingNote ?? 'pdf.cost_breakdown.standard_programming'|trans }}</td>
-                <td class="rams-text--right">${{ (costData.programmingCost ?? 350)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (costData.programmingCost ?? 350)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             {% if costData.testFixtureCost is defined and costData.testFixtureCost > 0 %}
             <tr>
                 <td><strong>{{ 'pdf.cost_breakdown.test_fixture'|trans }}</strong></td>
                 <td>{{ costData.testFixtureNote ?? 'pdf.cost_breakdown.standard_test_fixture'|trans }}</td>
-                <td class="rams-text--right">${{ costData.testFixtureCost|number_format(2) }}</td>
+                <td class="rams-text--right">{{ costData.testFixtureCost|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             {% endif %}
             <tr class="subtotal-row">
                 <td colspan="2">{{ 'pdf.cost_breakdown.nre_total'|trans }}</td>
-                <td class="rams-text--right">${{ (costData.nreCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ (costData.nreCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
         </tbody>
     </table>
 
     {# Grand Total #}
     <table style="margin-top: 20pt;">
+        <caption>{{ 'pdf.cost_breakdown.grand_total'|trans }}</caption>
         <thead>
             <tr>
-                <th style="width: 50%;">{{ 'pdf.cost_breakdown.summary'|trans }}</th>
-                <th class="rams-text--right" style="width: 25%;">{{ 'pdf.cost_breakdown.per_unit'|trans }}</th>
-                <th class="rams-text--right" style="width: 25%;">{{ 'pdf.cost_breakdown.total'|trans }}</th>
+                <th scope="col" style="width: 50%;">{{ 'pdf.cost_breakdown.summary'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 25%;">{{ 'pdf.cost_breakdown.per_unit'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 25%;">{{ 'pdf.cost_breakdown.total'|trans }}</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td>{{ 'pdf.cost_breakdown.material_cost'|trans }}</td>
-                <td class="rams-text--right">${{ ((costData.materialCost ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
-                <td class="rams-text--right">${{ (costData.materialCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ ((costData.materialCost ?? 0) / (quote.quantity ?? 1))|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 4) }}</td>
+                <td class="rams-text--right">{{ (costData.materialCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr>
                 <td>{{ 'pdf.cost_breakdown.assembly_cost'|trans }}</td>
-                <td class="rams-text--right">${{ ((costData.assemblyCost ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
-                <td class="rams-text--right">${{ (costData.assemblyCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ ((costData.assemblyCost ?? 0) / (quote.quantity ?? 1))|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 4) }}</td>
+                <td class="rams-text--right">{{ (costData.assemblyCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr>
                 <td>{{ 'pdf.cost_breakdown.nre_amortized'|trans }}</td>
-                <td class="rams-text--right">${{ ((costData.nreCost ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
-                <td class="rams-text--right">${{ (costData.nreCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ ((costData.nreCost ?? 0) / (quote.quantity ?? 1))|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 4) }}</td>
+                <td class="rams-text--right">{{ (costData.nreCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr class="subtotal-row">
                 <td>{{ 'pdf.cost_breakdown.cost_subtotal'|trans }}</td>
-                <td class="rams-text--right">${{ ((costData.costSubtotal ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
-                <td class="rams-text--right">${{ (costData.costSubtotal ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ ((costData.costSubtotal ?? 0) / (quote.quantity ?? 1))|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 4) }}</td>
+                <td class="rams-text--right">{{ (costData.costSubtotal ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr>
                 <td>{{ 'pdf.cost_breakdown.margin'|trans }} ({{ (costData.marginPercent ?? 15)|number_format(1) }}%)</td>
-                <td class="rams-text--right">${{ ((costData.marginAmount ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
-                <td class="rams-text--right">${{ (costData.marginAmount ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ ((costData.marginAmount ?? 0) / (quote.quantity ?? 1))|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 4) }}</td>
+                <td class="rams-text--right">{{ (costData.marginAmount ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
             <tr class="total-row">
                 <td>{{ 'pdf.cost_breakdown.sell_price'|trans }}</td>
-                <td class="rams-text--right">${{ ((costData.totalCost ?? 0) / (quote.quantity ?? 1))|number_format(4) }}</td>
-                <td class="rams-text--right">${{ (costData.totalCost ?? 0)|number_format(2) }}</td>
+                <td class="rams-text--right">{{ ((costData.totalCost ?? 0) / (quote.quantity ?? 1))|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 4) }}</td>
+                <td class="rams-text--right">{{ (costData.totalCost ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</td>
             </tr>
         </tbody>
     </table>

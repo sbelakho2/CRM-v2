@@ -48,7 +48,7 @@
         
         <div class="rams-module__content">
             <form id="discovery-form" class="rams-form">
-                <div class="rams-grid rams-grid--2">
+                <input type="hidden" name="_token" value="{{ csrf_token('webcrawler_discover') }}"> <div class="rams-grid rams-grid--2">
                     <div class="rams-form__group">
                         <label class="rams-form__label rams-dymo">{{ 'company.sector'|trans }}</label>
                         <select name="sector" class="rams-form__select">
@@ -83,7 +83,7 @@
                         {{ 'webcrawler.start_discovery'|trans }}
                     </button>
                     <button type="button" id="btn-stop" class="rams-btn rams-btn--danger rams-hidden" onclick="stopDiscovery()">
-                        Stop Discovery
+                        {{ 'webcrawler.stop_discovery'|trans }}
                     </button>
                     <a href="{{ path('app_webcrawler_keyword_expansion') }}" class="rams-btn">{{ 'webcrawler.keyword_expansion'|trans }}</a>
                     <a href="{{ path('app_webcrawler_dork_generator') }}" class="rams-btn">{{ 'webcrawler.dork_generator'|trans }}</a>
@@ -129,19 +129,19 @@
         <div class="rams-module__content rams-module__content--flush">
             {% if recent_companies|length > 0 %}
                 <div class="rams-table-container">
-                    <table class="rams-table">
-                        <thead class="rams-table__header">
+                    <table class="rams-table" aria-label="{{ 'webcrawler.recent_discoveries'|trans }}">
+                        <thead>
                             <tr>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.company_name'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.website'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.region'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'webcrawler.discovered'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.company_name'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.website'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.region'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'webcrawler.discovered'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                             </tr>
                         </thead>
-                        <tbody class="rams-table__body">
+                        <tbody>
                             {% for company in recent_companies %}
                                 <tr class="rams-table__row">
                                     <td class="rams-table__cell rams-text--bold">{{ company.name }}</td>
@@ -331,8 +331,8 @@ async function checkStatus() {
             resultsContent.innerHTML = `
                 <div class="rams-alert rams-alert--success">
                     <p class="rams-alert__title">Discovery Complete</p>
-                    <p class="rams-alert__message">${escapeHtml(String(saved))} companies saved. Total discovered: ${escapeHtml(String(discTotal))}.</p>
-                    <p class="rams-alert__message"><a class="rams-link" href="{{ path('app_company_discovered') }}">Review discovered companies</a></p>
+                    <p class="rams-alert__text">${escapeHtml(String(saved))} companies saved. Total discovered: ${escapeHtml(String(discTotal))}.</p>
+                    <p class="rams-alert__text"><a class="rams-link" href="{{ path('app_company_discovered') }}">Review discovered companies</a></p>
                 </div>`;
         } else {
             // Nothing running, reset UI
@@ -348,19 +348,20 @@ async function checkStatus() {
 }
 
 async function stopDiscovery() {
-    if (!confirm('Stop the running discovery?')) return;
-    try {
-        await fetch('{{ path('app_webcrawler_discover_stop') }}', { method: 'POST' });
-        document.getElementById('status-label').textContent = 'Discovery Stopped';
-        document.getElementById('status-indicator').className = 'rams-andon__light rams-andon__light--red';
-        document.getElementById('btn-stop').classList.add('rams-hidden');
-        document.getElementById('btn-start').classList.remove('rams-hidden');
-        document.getElementById('btn-start').disabled = false;
-        document.getElementById('btn-start').textContent = '{{ 'webcrawler.start_discovery'|trans }}';
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    } catch (e) {
-        alert('Failed to stop: ' + e.message);
-    }
+    ramsConfirm('{{ 'webcrawler.stop_discovery_confirm'|trans }}', async function() {
+        try {
+            await fetch('{{ path('app_webcrawler_discover_stop') }}', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: '_token=' + encodeURIComponent('{{ csrf_token('webcrawler_discover_stop') }}')  });
+            document.getElementById('status-label').textContent = 'Discovery Stopped';
+            document.getElementById('status-indicator').className = 'rams-andon__light rams-andon__light--red';
+            document.getElementById('btn-stop').classList.add('rams-hidden');
+            document.getElementById('btn-start').classList.remove('rams-hidden');
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-start').textContent = '{{ 'webcrawler.start_discovery'|trans }}';
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        } catch (e) {
+            ramsAlert('{{ 'webcrawler.stop_failed'|trans }}'.replace('%error%', e.message), {title: '{{ 'common.error'|trans }}'});
+        }
+    }, {title: '{{ 'webcrawler.stop_discovery'|trans }}', variant: 'danger'});
 }
 
 function escapeHtml(str) {
@@ -374,9 +375,9 @@ function showError(message) {
     const resultsContent = document.getElementById('results-content');
     resultsDiv.classList.remove('rams-hidden');
     resultsContent.innerHTML = `
-        <div class="rams-alert rams-alert--danger">
+        <div class="rams-alert rams-alert--error">
             <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
-            <p class="rams-alert__message">${escapeHtml(message)}</p>
+            <p class="rams-alert__text">${escapeHtml(message)}</p>
         </div>`;
 }
 </script>

@@ -154,8 +154,7 @@ class CalendarEventType extends AbstractType
                     return $er->createQueryBuilder('u')
                         ->where('u.active = :active')
                         ->setParameter('active', true)
-                        ->orderBy('u.firstName', 'ASC')
-                        ->setMaxResults(500);
+                        ->orderBy('u.firstName', 'ASC');
                 },
                 'attr' => [
                     'class' => 'rams-select',

@@ -9,7 +9,7 @@
         <div class="rams-module__header">
             <div>
                 <h1 class="rams-module__title">
-                    <svg class="rams-icon rams-icon--info" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: text-bottom; margin-right: 8px;">
+                    <svg class="rams-icon rams-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: text-bottom; margin-right: 8px;">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
@@ -29,7 +29,7 @@
                     <span class="rams-metric__value">
                         {% if pipeline_status == 'running' %}
                             <span class="rams-text--success">
-                                <span class="rams-andon rams-andon--success" style="display: inline-block; vertical-align: middle; margin-right: 4px;"><span class="rams-andon__light rams-andon__light--pulse"></span></span>
+                                <span class="rams-andon rams-andon--success" style="display: inline-block; vertical-align: middle; margin-right: 4px;"><span class="rams-andon__light rams-pulse"></span></span>
                                 {{ 'discovery_pipeline.status_running'|trans }}
                             </span>
                         {% else %}
@@ -132,7 +132,7 @@
             <div class="rams-module__content">
                 <div class="rams-module__header">
                     <h3 class="rams-module__title">
-                        <svg class="rams-icon rams-icon--info rams-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                        <svg class="rams-icon rams-icon rams-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
                             <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
                         </svg>
                         {{ 'discovery_pipeline.enrichment_progress'|trans }}
@@ -178,7 +178,7 @@
 
                 {# Detail Cards #}
                 <div class="rams-grid rams-grid--3 rams-mt-4" id="progress-details">
-                    <div class="rams-module rams-module--nested">
+                    <div class="rams-module rams-module--inset"> 
                         <div class="rams-module__content rams-text--center">
                             <div class="rams-andon rams-andon--success rams-justify-center">
                                 <span class="rams-andon__light"></span>
@@ -186,7 +186,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="rams-module rams-module--nested">
+                    <div class="rams-module rams-module--inset"> 
                         <div class="rams-module__content rams-text--center">
                             <div class="rams-andon rams-andon--info rams-justify-center">
                                 <span class="rams-andon__light"></span>
@@ -194,7 +194,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="rams-module rams-module--nested">
+                    <div class="rams-module rams-module--inset"> 
                         <div class="rams-module__content rams-text--center">
                             <div class="rams-andon rams-andon--warning rams-justify-center">
                                 <span class="rams-andon__light"></span>
@@ -245,16 +245,16 @@
                         </div>
                     </div>
                     
-                    <div class="rams-flex rams-flex-wrap rams-gap-4 rams-items-center rams-my-3">
-                        <label class="rams-form__checkbox-container">
+                    <div class="rams-flex rams-flex-wrap rams-gap-4 rams-items-center rams-my-md">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="auto_import" checked class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label rams-text--sm">{{ 'discovery_pipeline.auto_import'|trans }}</span>
                         </label>
-                        <label class="rams-form__checkbox-container">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="enable_deep_scrape" checked class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label rams-text--sm">{{ 'discovery_pipeline.enable_deep_scrape'|trans }}</span>
                         </label>
-                        <label class="rams-form__checkbox-container">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="enable_llm" class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label rams-text--sm">{{ 'discovery_pipeline.use_llm'|trans }}</span>
                         </label>
@@ -274,7 +274,7 @@
                 
                 {# Run Results #}
                 <div id="pipeline-results" class="rams-hidden rams-mt-4">
-                    <div class="rams-module rams-module--nested">
+                    <div class="rams-module rams-module--inset"> 
                         <div class="rams-module__header">
                             <h4 class="rams-module__title">{{ 'discovery_pipeline.results'|trans }}</h4>
                         </div>
@@ -300,12 +300,12 @@
                 {% if pipeline_history|length > 0 %}
                     <div class="rams-stack rams-gap-3">
                         {% for run in pipeline_history %}
-                            <div class="rams-module rams-module--nested {% if loop.first %}rams-module--highlight{% endif %}">
+                            <div class="rams-module rams-module--inset {% if loop.first %}rams-module--highlight{% endif %}">
                                 <div class="rams-module__content rams-p-3">
                                     <div class="rams-flex rams-justify-between rams-items-center rams-mb-2">
                                         <div class="rams-flex rams-gap-2 rams-items-center">
                                             <span class="rams-badge rams-badge--green">{{ run.status|capitalize }}</span>
-                                            <span class="rams-font--medium">{{ run.run_date }}</span>
+                                            <span class="rams-text--strong">{{  run.run_date }}</span>
                                         </div>
                                         <span class="rams-text--xs rams-text--muted">{{ run.time_taken }}s</span>
                                     </div>
@@ -322,7 +322,7 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="rams-text--center rams-text--muted rams-py-4">
+                    <div class="rams-text--center rams-text--muted rams-py-md">
                         <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 8px; display: block; opacity: 0.4;">
                             <circle cx="12" cy="12" r="10"></circle>
                             <polyline points="12 6 12 12 16 14"></polyline>
@@ -361,7 +361,7 @@
                             <input type="number" name="limit" value="50" min="1" max="100" class="rams-form__input" style="width: 100px;">
                         </div>
                         <div class="rams-form__group">
-                            <label class="rams-form__checkbox-container">
+                            <label class="rams-form__checkbox">
                                 <input type="checkbox" name="enable_llm" class="rams-form__checkbox-input">
                                 <span class="rams-form__checkbox-label">{{ 'discovery_pipeline.use_llm'|trans }}</span>
                             </label>
@@ -388,7 +388,7 @@
             </div>
             <div class="rams-module__content rams-overflow-x-auto">
                 <table class="rams-table rams-w-full data-table" data-no-datatable>
-                    <thead class="rams-table__header">
+                    <thead>
                         <tr>
                             <th class="rams-table__cell">{{ 'company.title_singular'|trans }}</th>
                             <th class="rams-table__cell">{{ 'company.website'|trans }}</th>
@@ -449,34 +449,34 @@
         <div class="rams-module__content">
             {# Pipeline Funnel Analytics #}
             <div class="rams-mb-6">
-                <h3 class="rams-text--sm rams-font--medium rams-mb-3">📊 Pipeline Funnel</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">📊 Pipeline Funnel</h3>
                 {% if funnel_analytics is defined and funnel_analytics is not empty %}
                 {% set funnel_max = funnel_analytics|reduce((carry, s) => carry > s.count ? carry : s.count, 0) %}
                 <div class="rams-stack rams-gap-3">
                     {% for stage in funnel_analytics %}
                     <div class="flex items-center rams-gap-3">
-                        <div class="rams-text--sm rams-font--medium" style="min-width: 120px;">{{ stage.stage|capitalize }}</div>
+                        <div class="rams-text--sm rams-text--strong"  style="min-width: 120px;">{{ stage.stage|capitalize }}</div>
                         <div class="flex-1">
-                            <div class="w-full bg-gray-200 rounded-full h-5">
-                                <div class="bg-blue-500 h-5 rounded-full text-xs text-white text-center leading-5" style="width: {{ funnel_max > 0 ? (stage.count / funnel_max * 100)|round : 0 }}%">
+                            <div class="rams-progress rams-mb-1">    
+                                <div class="rams-progress__bar rams-progress__bar--info rams-text--xs rams-text--white rams-text--center"        style="width: {{ funnel_max > 0 ? (stage.count / funnel_max * 100)|round : 0 }}%">
                                     {{ stage.count }}
                                 </div>
                             </div>
                         </div>
                         <div class="rams-text--sm rams-text--right" style="min-width: 50px;">
-                            <span class="rams-badge rams-badge--{% if stage.avg_score >= 70 %}success{% elseif stage.avg_score >= 50 %}warning{% else %}neutral{% endif %}">{{ stage.avg_score }}</span>
+                            <span class="rams-badge {% if stage.avg_score >= 70 %}rams-badge--success{% elseif stage.avg_score >= 50 %}rams-badge--warning{% endif %}">{{ stage.avg_score }}</span>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="rams-text--muted rams-text--sm rams-py-2">No pipeline funnel data available</div>
+                <div class="rams-text--muted rams-text--sm rams-py-sm">No pipeline funnel data available</div>
                 {% endif %}
             </div>
 
             {# Quality Trend #}
             <div class="rams-mb-6">
-                <h3 class="rams-text--sm rams-font--medium rams-mb-3">📈 Quality Trend (Last 30 Days)</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">📈 Quality Trend (Last 30 Days)</h3>
                 {% if quality_trend is defined and quality_trend is not empty %}
                 {% set trend_max = quality_trend|reduce((carry, t) => carry > t.count ? carry : t.count, 0) %}
                 <div class="rams-grid rams-grid--6 rams-gap-3">
@@ -484,49 +484,49 @@
                     <div class="rams-module rams-module--compact">
                         <div class="rams-module__content rams-text--center">
                             <div class="rams-text--xs rams-text--muted rams-mb-1">{{ item.week }}</div>
-                            <div class="rams-font--medium rams-text--lg">{{ item.count }}</div>
+                            <div class="rams-text--strong rams-text--lg">{{ item.count }}</div>
                             <div class="rams-text--xs rams-mb-1">
                                 <span class="rams-badge rams-badge--{% if item.avg_score >= 70 %}success{% elseif item.avg_score >= 50 %}warning{% else %}danger{% endif %}">{{ item.avg_score }}</span>
                             </div>
                             <div class="rams-text--xs">
                                 <span class="{% if item.approval_rate >= 75 %}rams-text--success{% elseif item.approval_rate >= 50 %}rams-text--warning{% else %}rams-text--danger{% endif %}">{{ item.approval_rate }}%</span>
                             </div>
-                            <div class="w-full bg-gray-200 rounded-full h-1 rams-mt-1">
-                                <div class="bg-blue-500 h-1 rounded-full" style="width: {{ trend_max > 0 ? (item.count / trend_max * 100)|round : 0 }}%"></div>
+                            <div class="rams-progress rams-progress--compact rams-mt-1">
+                                <div class="rams-progress__bar rams-progress__bar--info"    style="width: {{ trend_max > 0 ? (item.count / trend_max * 100)|round : 0 }}%"></div>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="rams-text--muted rams-text--sm rams-py-2">No quality trend data available</div>
+                <div class="rams-text--muted rams-text--sm rams-py-sm">No quality trend data available</div>
                 {% endif %}
             </div>
 
             {# Actionable Insights #}
             <div>
-                <h3 class="rams-text--sm rams-font--medium rams-mb-3">💡 Actionable Insights</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">💡 Actionable Insights</h3>
                 {% if actionable_insights is defined and actionable_insights is not empty %}
                 <div class="rams-stack rams-gap-2">
                     {% for insight in actionable_insights %}
-                    <div class="rams-module rams-module--nested rams-p-3">
+                    <div class="rams-module rams-module--inset rams-p-3">
                         <div class="rams-flex rams-justify-between rams-items-start rams-gap-2">
                             <div class="rams-flex-1">
                                 <div class="rams-flex rams-items-center rams-gap-2 rams-mb-1">
                                     <span class="rams-badge rams-badge--{% if insight.priority == 'high' %}danger{% elseif insight.priority == 'medium' %}warning{% else %}info{% endif %} rams-text--xs">{{ insight.priority|upper }}</span>
-                                    <span class="rams-font--medium rams-text--sm">{{ insight.lead.companyName }}</span>
+                                    <span class="rams-text--strong rams-text--sm">{{ insight.lead.companyName }}</span>
                                 </div>
                                 <p class="rams-text--sm rams-text--muted">{{ insight.message }}</p>
                             </div>
                             <div class="rams-flex rams-items-center rams-gap-1">
-                                <span class="rams-badge rams-badge--{% if insight.score >= 70 %}success{% elseif insight.score >= 50 %}warning{% else %}neutral{% endif %}">{{ insight.score }}</span>
+                                <span class="rams-badge {% if insight.score >= 70 %}rams-badge--success{% elseif insight.score >= 50 %}rams-badge--warning{% endif %}">{{ insight.score }}</span>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="rams-text--muted rams-text--sm rams-py-2">No actionable insights available</div>
+                <div class="rams-text--muted rams-text--sm rams-py-sm">No actionable insights available</div>
                 {% endif %}
             </div>
         </div>
@@ -600,7 +600,7 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
-const i18n = {
+const csrfRunToken = '{{ csrf_token('discovery_pipeline_run') }}'; const csrfPreviewToken = '{{ csrf_token('discovery_pipeline_preview') }}'; const csrfEnrichToken = '{{ csrf_token('discovery_pipeline_enrich') }}'; const i18n = {
     running: '{{ 'discovery_pipeline.running'|trans|e('js') }}',
     runPipeline: '{{ 'discovery_pipeline.run_pipeline_btn'|trans|e('js') }}',
     loading: '{{ 'common.loading'|trans|e('js') }}',
@@ -758,7 +758,7 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
         location: form.location.value || null,
         auto_import: form.auto_import.checked,
         enable_deep_scrape: form.enable_deep_scrape.checked,
-        enable_llm: form.enable_llm.checked
+        enable_llm: form.enable_llm.checked, _csrf_token: csrfRunToken 
     };
     
     try {
@@ -818,7 +818,7 @@ document.getElementById('preview-btn').addEventListener('click', async () => {
     
     const data = {
         sector: form.sector.value,
-        location: form.location.value || null
+        location: form.location.value || null, _csrf_token: csrfPreviewToken 
     };
     
     if (!data.sector) {
@@ -855,7 +855,7 @@ document.getElementById('preview-btn').addEventListener('click', async () => {
                     <td class="rams-table__cell rams-text--muted">${escapeHtml(r.snippet || '—')}</td>
                     <td class="rams-table__cell rams-text--center">
                         ${r.is_duplicate 
-                            ? `<span class="rams-badge rams-badge--muted">${i18n.statusDuplicate}</span>`
+                            ? `<span class="rams-badge rams-badge">${i18n.statusDuplicate}</span>`
                             : `<span class="rams-badge rams-badge--green">${i18n.statusNew}</span>`}
                     </td>
                 </tr>
@@ -884,7 +884,7 @@ document.getElementById('enrich-form').addEventListener('submit', async (e) => {
     
     const data = {
         limit: parseInt(form.limit.value),
-        enable_llm: form.enable_llm.checked
+        enable_llm: form.enable_llm.checked, _csrf_token: csrfEnrichToken 
     };
     
     try {
@@ -918,7 +918,7 @@ document.getElementById('enrich-form').addEventListener('submit', async (e) => {
 // Custom Export Modal
 function exportCustomLeads() {
     const modal = document.createElement('div');
-    modal.className = 'rams-modal-overlay';
+    modal.className = 'rams-modal__backdrop';
     modal.id = 'export-modal';
     
     modal.innerHTML = `
@@ -966,11 +966,11 @@ function exportCustomLeads() {
                 <div class="rams-form__group">
                     <label class="rams-form__label rams-dymo">${i18n.dataFilters}</label>
                     <div class="rams-stack rams-gap-2">
-                        <label class="rams-form__checkbox-container">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="hasEmails" class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label">${i18n.onlyWithEmails}</span>
                         </label>
-                        <label class="rams-form__checkbox-container">
+                        <label class="rams-form__checkbox">
                             <input type="checkbox" name="hasContactForm" class="rams-form__checkbox-input">
                             <span class="rams-form__checkbox-label">${i18n.onlyWithContactForms}</span>
                         </label>

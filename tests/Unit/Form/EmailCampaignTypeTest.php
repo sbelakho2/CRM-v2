@@ -5,9 +5,14 @@ namespace App\Tests\Unit\Form;
 use App\Entity\EmailCampaign;
 use App\Form\EmailCampaignType;
 use Symfony\Component\Form\Test\TypeTestCase;
+use Symfony\Component\Form\Test\Traits\ValidatorExtensionTrait;
 
 class EmailCampaignTypeTest extends TypeTestCase
 {
+    // The form type uses the 'constraints' option, which is only registered
+    // when the validator extension is present (Symfony's documented setup for
+    // TypeTestCase tests of forms that declare constraints).
+    use ValidatorExtensionTrait;
     public function testSubmitValidDataCreatesEmailCampaign(): void
     {
         $formData = [

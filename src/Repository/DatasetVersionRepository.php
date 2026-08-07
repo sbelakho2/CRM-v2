@@ -43,7 +43,7 @@ class DatasetVersionRepository extends ServiceEntityRepository
             ->andWhere('d.datasetType = :type')
             ->setParameter('type', $datasetType)
             ->orderBy('d.importedAt', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

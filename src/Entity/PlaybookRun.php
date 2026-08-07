@@ -21,12 +21,12 @@ class PlaybookRun
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Playbook::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(targetEntity: Playbook::class, inversedBy: 'playbookRuns')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Playbook $playbook = null;
 
     #[ORM\ManyToOne(targetEntity: AbmHit::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?AbmHit $abmHit = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]

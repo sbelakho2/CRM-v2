@@ -27,4 +27,23 @@ class EmailSendRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /**
+     * All sends of a campaign with the recipient contact joined, so the
+     * show page does not lazy-load one query per send.
+     *
+     * @return EmailSend[]
+     */
+    public function findByCampaignWithContact(int $campaignId): array
+    {
+        return $this->createQueryBuilder('e')
+            ->leftJoin('e.contact', 'c')
+            ->addSelect('c')
+            ->where('e.campaign = :campaignId')
+            ->setParameter('campaignId', $campaignId)
+            ->orderBy('e.touchNumber', 'ASC')
+            ->addOrderBy('e.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

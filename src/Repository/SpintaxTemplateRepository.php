@@ -26,7 +26,7 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
             ->andWhere('t.active = true')
             ->setParameter('type', $templateType)
             ->orderBy('t.timesUsed', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

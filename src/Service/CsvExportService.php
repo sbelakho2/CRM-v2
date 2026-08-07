@@ -125,7 +125,7 @@ class CsvExportService
             
             foreach ($leads as $lead) {
                 $row = $this->leadToRow($lead, $exportFields);
-                fputcsv($handle, $row);
+                fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row));
             }
             
             fclose($handle);
@@ -232,7 +232,7 @@ class CsvExportService
                 $row[] = $line->getPriceSourceUrl();
                 $row[] = $line->getManualNotes();
                 
-                fputcsv($handle, $row);
+                fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row));
             }
             
             // Add summary rows
@@ -289,7 +289,7 @@ class CsvExportService
                         $line->hasAlternatives() ? 'Yes' : 'No',
                         $line->getAlternativeCount(),
                     ];
-                    fputcsv($handle, $row);
+                    fputcsv($handle, array_map([self::class, 'sanitizeCsvCell'], $row));
                 }
             }
             
@@ -341,10 +341,28 @@ class CsvExportService
                 default => '',
             };
             
-            $row[] = $value;
+            $row[] = self::sanitizeCsvCell($value);
         }
         
         return $row;
+    }
+
+    /**
+     * OWASP CSV formula injection guard: prefix string cells starting with
+     * =, +, -, @ or a tab with a tab character. Numeric values are preserved.
+     */
+    public static function sanitizeCsvCell(mixed $value): mixed
+    {
+        if (!is_string($value) || $value === '') {
+            return $value;
+        }
+        if ($value[0] === "\t") {
+            return $value;
+        }
+        if (in_array($value[0], ['=', '+', '-', '@'], true)) {
+            return "\t" . $value;
+        }
+        return $value;
     }
 
     /**

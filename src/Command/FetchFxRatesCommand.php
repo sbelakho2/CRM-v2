@@ -64,6 +64,15 @@ HELP
         $lock = $this->lockFactory->createLock('fetch_fx_rates', 1800);
         $lock->acquire();
 
+        try {
+            return $this->doExecute($input, $output, $io);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function doExecute(InputInterface $input, OutputInterface $output, SymfonyStyle $io): int
+    {
         // Check-only mode
         if ($input->getOption('check')) {
             return $this->checkFreshness($io);

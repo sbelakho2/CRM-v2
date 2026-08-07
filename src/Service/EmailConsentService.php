@@ -422,10 +422,17 @@ class EmailConsentService
     }
 
     /**
-     * Get the signing secret for token HMAC
+     * Get the signing secret for token HMAC.
+     * Fails closed: without APP_SECRET no token can be signed or verified.
      */
     private function getSigningSecret(): string
     {
-        return $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? 'email-consent-fallback-secret';
+        $secret = $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? getenv('APP_SECRET');
+
+        if (!$secret) {
+            throw new \RuntimeException('APP_SECRET is not configured — consent tokens cannot be signed or verified.');
+        }
+
+        return (string) $secret;
     }
 }

@@ -5,8 +5,8 @@
 {% block body %}
 <div class="rams-page">
     <div class="rams-page-header">
-        <div class="rams-page-header__content">
-            <h1 class="rams-page-header__title">
+        <div class="rams-page__header-content">
+            <h1 class="rams-page__title">
                  <svg class="rams-icon rams-icon--lg rams-mr-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M3 13V7M7 13V4M11 13V9M15 13V2"/>
                  </svg>
@@ -33,7 +33,7 @@
         </div>
     </div>
 
-    <div class="rams-page-content">
+    <div class="rams-page__container">
         <!-- Summary Stats (if available) -->
         {% if summary is defined and summary|length > 0 %}
         <div class="rams-grid rams-grid--4 rams-mb-6">
@@ -71,16 +71,16 @@
             <div class="rams-module__header">
                 <h3>{{ 'report.data_records'|trans }} ({{ results|length }})</h3>
                 <div class="rams-module__header__actions">
-                     <button class="rams-btn-sm">{{ 'report.export_csv'|trans }}</button>
+                     <a href="{{ path('report_export', {'id': report.id, 'format': 'csv'}) }}" class="rams-btn rams-btn--sm"> <svg class="rams-icon rams-mr-2" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"> <path d="M8 2v10M4 6l4-4 4 4M2 14h12"/> </svg> {{   'report.export_csv'|trans }} </a> 
                 </div>
             </div>
             <div class="rams-table-container">
-                <table class="rams-table">
+                <table class="rams-table" aria-label="{{ 'report.data_records'|trans }}">
                     {% if columns is defined and columns|length > 0 %}
                         <thead>
                             <tr>
                                 {% for col in columns %}
-                                    <th>{{ col.label }}</th>
+                                    <th scope="col">{{ col.label }}</th>
                                 {% endfor %}
                             </tr>
                         </thead>
@@ -93,17 +93,17 @@
                                 </tr>
                             {% else %}
                                 <tr>
-                                    <td colspan="{{ columns|length }}" class="rams-text--center rams-py-8 rams-text--muted">{{ 'report.no_results'|trans }}</td>
+                                    <td colspan="{{ columns|length }}" class="rams-text--center rams-py-xl rams-text--muted">{{ 'report.no_results'|trans }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     {% else %}
                         <!-- Fallback if specific columns not defined or unconfigured -->
                         <thead>
-                            <tr><th>{{ 'report.result'|trans }}</th></tr>
+                            <tr><th scope="col">{{ 'report.result'|trans }}</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td class="rams-text--center rams-py-4 rams-text--muted">{{ 'report.use_builder_desc'|trans }}</td></tr>
+                            <tr><td class="rams-text--center rams-py-md rams-text--muted">{{ 'report.use_builder_desc'|trans }}</td></tr>
                         </tbody>
                     {% endif %}
                 </table>
@@ -117,7 +117,7 @@
 {% block javascripts %}
 {{ parent() }}
 {% if chartData is defined and chartData %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script> 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('reportChart');

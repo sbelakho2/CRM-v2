@@ -68,7 +68,31 @@ class CalendarController extends AbstractController
             $this->getUser()
         );
 
-        return $this->json($events);
+        $payload = array_map(static function (CalendarEvent $event): array {
+            $eventData = [
+                'id' => $event->getId(),
+                'title' => $event->getTitle() ?? '',
+                'start' => $event->getStartAt()?->format(\DateTimeInterface::ATOM),
+                'allDay' => $event->isAllDay(),
+                'url' => null,
+                'extendedProps' => [
+                    'description' => $event->getDescription(),
+                    'location' => $event->getLocation(),
+                ],
+            ];
+
+            if (!$event->isAllDay() && $event->getEndAt()) {
+                $eventData['end'] = $event->getEndAt()->format(\DateTimeInterface::ATOM);
+            }
+
+            if ($event->getColor()) {
+                $eventData['backgroundColor'] = $event->getColor();
+            }
+
+            return $eventData;
+        }, $events);
+
+        return $this->json($payload);
     }
 
     #[Route('/new', name: 'calendar_new', methods: ['GET', 'POST'])]

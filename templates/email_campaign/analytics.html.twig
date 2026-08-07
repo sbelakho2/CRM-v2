@@ -53,7 +53,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'email_campaign.reply_rate'|trans }}</span>
-                    <span class="rams-metric__value rams-text-primary">{{ metrics.reply_rate|number_format(1) }}%</span>
+                    <span class="rams-metric__value rams-text--info">{{ metrics.reply_rate|number_format(1) }}%</span>
                 </div>
             </div>
         </div>
@@ -89,12 +89,12 @@
                         
                         {% for item in sendsByDate %}
                             <div class="rams-flex rams-items-center rams-gap-3">
-                                <span class="rams-text-2xs rams-text--muted rams-w-16 rams-font-mono">{{ item.date|date('M d') }}</span>
+                                <span class="rams-text-2xs rams-text--muted rams-font-mono">{{ item.date|date('M d') }}</span>
                                 <div class="rams-flex-1 rams-progress rams-progress--compact">
                                     {% set width = maxCount > 0 ? ((item.count / maxCount * 100)|round) : 0 %}
                                     <div class="rams-progress__bar" style="width: {{ width }}%"></div>
                                 </div>
-                                <span class="rams-text-2xs rams-font-mono rams-w-8 rams-text--right">{{ item.count }}</span>
+                                <span class="rams-text-2xs rams-font-mono rams-text--right">{{ item.count }}</span>
                             </div>
                         {% endfor %}
                     </div>
@@ -138,7 +138,7 @@
                     </div>
                     <div>
                         <div class="rams-flex rams-justify-between rams-mb-1">
-                            <span class="rams-text-2xs rams-text-primary rams-uppercase">{{ 'email_campaign.replied'|trans }}</span>
+                            <span class="rams-text-2xs rams-text--info rams-uppercase">{{ 'email_campaign.replied'|trans }}</span>
                             <span class="rams-text-2xs rams-font-mono">{{ metrics.replied }} ({{ metrics.reply_rate|number_format(1) }}%)</span>
                         </div>
                         <div class="rams-progress">
@@ -163,7 +163,7 @@
             {% else %}
                 <div class="rams-table-container">
                     <table class="rams-table">
-                        <thead class="rams-table__header">
+                        <thead>
                             <tr>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'contact.title_singular'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header rams-text--center">{{ 'email_campaign.opens'|trans }}</th>
@@ -172,7 +172,7 @@
                                 <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'email_campaign.analytics.engagement'|trans }}</th>
                             </tr>
                         </thead>
-                        <tbody class="rams-table__body">
+                        <tbody>
                             {% for contact in topContacts %}
                                 {% set totalEngagement = contact.opens + contact.clicks + contact.replies %}
                                 <tr class="rams-table__row">

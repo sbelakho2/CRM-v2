@@ -152,7 +152,7 @@
                     </dl>
 
                     {% if rfq.technicalScope %}
-                        <div class="rams-divider rams-my-4"></div>
+                        <div class="rams-border-t rams-my-md"></div>  
                         <div class="rams-stack rams-gap-1">
                             <span class="rams-definition-list__term">{{ 'rfq.fields.technical_scope'|trans }}</span>
                             <div class="rams-text--sm rams-text--muted rams-bg-panel rams-p-3 rams-border rams-rounded">{{ rfq.technicalScope|nl2br }}</div>
@@ -160,7 +160,7 @@
                     {% endif %}
 
                     {% if rfq.notes %}
-                        <div class="rams-divider rams-my-4"></div>
+                        <div class="rams-border-t rams-my-md"></div>  
                         <div class="rams-stack rams-gap-1">
                             <span class="rams-definition-list__term">{{ 'common.notes'|trans }}</span>
                             <div class="rams-text--sm rams-text--muted rams-bg-panel rams-p-3 rams-border rams-rounded">{{ rfq.notes|nl2br }}</div>
@@ -180,7 +180,7 @@
                         <div class="rams-module rams-module--inset rams-p-4">
                             <div class="rams-flex rams-items-start rams-gap-3">
                                 <div class="rams-andon">
-                                    <span class="rams-andon__light rams-andon__light--{{ rfq.ndaSent ? 'green' : '' }}"></span>
+                                    <span class="rams-andon__light rams-andon__light--{{ rfq.ndaSent ? 'green' : 'off' }}"></span>
                                 </div>
                                 <div class="rams-flex-1">
                                     <h3 class="rams-text--sm rams-text--bold rams-uppercase rams-mb-1">{{ 'rfq.nda.sent'|trans }}</h3>
@@ -206,7 +206,7 @@
                         <div class="rams-module rams-module--inset rams-p-4">
                             <div class="rams-flex rams-items-start rams-gap-3">
                                 <div class="rams-andon">
-                                    <span class="rams-andon__light rams-andon__light--{{ rfq.ndaExecuted ? 'green' : '' }}"></span>
+                                    <span class="rams-andon__light rams-andon__light--{{ rfq.ndaExecuted ? 'green' : 'off' }}"></span>
                                 </div>
                                 <div class="rams-flex-1">
                                     <h3 class="rams-text--sm rams-text--bold rams-uppercase rams-mb-1">{{ 'rfq.nda.executed'|trans }}</h3>
@@ -244,7 +244,7 @@
                 <div class="rams-module__content">
                     <form method="post" action="{{ path('app_rfq_update_status', {id: rfq.id}) }}" class="rams-form">
                         <div class="rams-form__group">
-                            <select name="status" class="rams-form__select">
+                            <label for="rfq-status-select" class="rams-sr-only">{{ 'rfq.fields.status'|trans }}</label> <select id="rfq-status-select" name="status" class="rams-form__select">
                                 <option value="Pending" {% if rfq.status == 'Pending' %}selected{% endif %}>{{ 'rfq.status.pending'|trans }}</option>
                                 <option value="In Review" {% if rfq.status == 'In Review' %}selected{% endif %}>{{ 'rfq.status.in_review'|trans }}</option>
                                 <option value="Submitted" {% if rfq.status == 'Submitted' %}selected{% endif %}>{{ 'rfq.status.submitted'|trans }}</option>
@@ -295,7 +295,7 @@
                 <div class="rams-module rams-bg-success-subtle rams-border-success">
                     <div class="rams-module__content">
                         <div class="rams-flex rams-flex-col rams-items-center rams-text--center rams-p-4">
-                            <div class="rams-andon rams-andon--large rams-mb-3">
+                            <div class="rams-andon rams-mb-3">
                                 <span class="rams-andon__light rams-andon__light--green rams-pulse"></span>
                             </div>
                             <h3 class="rams-text--lg rams-text--success rams-text--bold rams-uppercase rams-font-mono">{{ 'rfq.won.title'|trans }}</h3>

@@ -21,6 +21,10 @@ framework:
     routing:
       'Symfony\Component\Mailer\Messenger\SendEmailMessage': async
       'App\Message\EmailCampaignMessage': mailer
+      # Deep website scraping must never run inside an HTTP request:
+      # route it to the worker queue so PHP-FPM workers are not held
+      # for multi-page crawls.
+      'App\Message\LeadDeepScrapeMessage': async
 
 when@dev:
   framework:

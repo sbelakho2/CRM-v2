@@ -6,7 +6,6 @@ use App\Entity\TariffRate;
 use App\Entity\FreightTable;
 use App\Entity\FxRate;
 use App\Service\DatasetImportService;
-use App\Service\TrackerDataService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -41,8 +40,7 @@ class AdminDatasetController extends AbstractController
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private DatasetImportService $datasetImport,
-        private TrackerDataService $trackerData
+        private DatasetImportService $datasetImport
     ) {}
 
     /**
@@ -51,17 +49,71 @@ class AdminDatasetController extends AbstractController
     #[Route('', name: 'admin_dataset_index', methods: ['GET'])]
     public function index(): Response
     {
-        $datasets = $this->trackerData->getDatasets();
-        $stats = $this->trackerData->getStatistics();
-        
+        $datasets = $this->buildDatasetRows();
+
+        $totalRecords = 0;
+        $lastUpdated = null;
+        foreach ($datasets as $dataset) {
+            $totalRecords += (int) $dataset['records'];
+            $updatedAt = $dataset['updated_at'];
+            if ($updatedAt instanceof \DateTimeInterface && ($lastUpdated === null || $updatedAt > $lastUpdated)) {
+                $lastUpdated = $updatedAt;
+            }
+        }
+
         return $this->render('admin_dataset/index.html.twig', [
             'datasets' => $datasets,
-            'stats' => $stats,
             'total_datasets' => count($datasets),
             'active_versions' => count($datasets),
-            'last_updated' => $stats['last_updated'],
-            'storage_used' => $stats['storage_used']
+            'last_updated' => $lastUpdated?->format('Y-m-d H:i'),
+            'total_records' => $totalRecords,
         ]);
+    }
+
+    /**
+     * Aggregate current dataset versions from the dataset entities.
+     *
+     * @return array<int, array{name: string, type: string, version: string, records: int, updated_at: \DateTimeInterface|null, status: string}>
+     */
+    private function buildDatasetRows(): array
+    {
+        $tables = [
+            ['class' => TariffRate::class, 'name' => 'Tariff Rates', 'type' => 'Tariff Data'],
+            ['class' => FreightTable::class, 'name' => 'Freight Tables', 'type' => 'Freight Data'],
+            ['class' => FxRate::class, 'name' => 'FX Rates', 'type' => 'FX Data'],
+        ];
+
+        $datasets = [];
+        foreach ($tables as $table) {
+            $class = $table['class'];
+            $rows = $this->entityManager->getRepository($class)
+                ->createQueryBuilder('t')
+                ->select('t.versionId', 'MAX(t.createdAt) AS lastUpdated', 'COUNT(t.id) AS rowCount')
+                ->groupBy('t.versionId')
+                ->orderBy('lastUpdated', 'DESC')
+                ->getQuery()
+                ->getResult();
+
+            foreach ($rows as $row) {
+                $updatedAt = $row['lastUpdated'] ?? null;
+                if ($updatedAt !== null && !$updatedAt instanceof \DateTimeInterface) {
+                    $updatedAt = new \DateTimeImmutable((string) $updatedAt);
+                }
+
+                $datasets[] = [
+                    'name' => $table['name'],
+                    'type' => $table['type'],
+                    'version' => (string) ($row['versionId'] ?? 'current'),
+                    'records' => (int) $row['rowCount'],
+                    'updated_at' => $updatedAt,
+                    'status' => 'Active',
+                ];
+            }
+        }
+
+        usort($datasets, fn (array $a, array $b) => $b['updated_at'] <=> $a['updated_at']);
+
+        return $datasets;
     }
 
     /**

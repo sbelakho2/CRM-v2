@@ -149,6 +149,7 @@ class Lead
         $this->moroccoSignal = false;
         $this->defenseFlag = false;
         $this->alreadyInCrm = false;
+        $this->createdAt = new \DateTime();
     }
 
     #[ORM\PrePersist]

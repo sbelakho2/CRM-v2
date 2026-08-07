@@ -48,6 +48,24 @@ class InteractiveLiveQuoteController extends AbstractController
     ) {}
 
     /**
+     * Validate CSRF token for a JSON POST (header or body). Returns 403 response when invalid.
+     */
+    private function requireCsrf(Request $request): ?JsonResponse
+    {
+        $token = $request->headers->get('X-CSRF-Token');
+        if (!$token) {
+            $data = json_decode($request->getContent(), true);
+            $token = is_array($data) ? ($data['_token'] ?? null) : null;
+        }
+
+        if (!$this->isCsrfTokenValid('quote_live', (string) $token)) {
+            return new JsonResponse(['error' => 'Invalid CSRF token.'], Response::HTTP_FORBIDDEN);
+        }
+
+        return null;
+    }
+
+    /**
      * View interactive quote (public access via token)
      */
     #[Route('/live/{token}', name: 'quote_live_view', methods: ['GET'])]
@@ -104,6 +122,10 @@ class InteractiveLiveQuoteController extends AbstractController
     #[Route('/live/{token}/calculate', name: 'quote_live_calculate', methods: ['POST'])]
     public function calculateForQuantity(Request $request, string $token): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         $quote = $this->liveQuoteService->getQuoteByToken($token);
         
         if (!$quote) {
@@ -162,6 +184,10 @@ class InteractiveLiveQuoteController extends AbstractController
     #[Route('/live/{token}/request', name: 'quote_live_request', methods: ['POST'])]
     public function requestQuote(Request $request, string $token): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         $quote = $this->liveQuoteService->getQuoteByToken($token);
         
         if (!$quote) {
@@ -191,6 +217,10 @@ class InteractiveLiveQuoteController extends AbstractController
     #[Route('/live/{token}/accept', name: 'quote_live_accept', methods: ['POST'])]
     public function acceptQuote(Request $request, string $token): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         $quote = $this->liveQuoteService->getQuoteByToken($token);
         
         if (!$quote) {
@@ -223,6 +253,9 @@ class InteractiveLiveQuoteController extends AbstractController
     public function enableInteractive(Request $request, int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
         
         $quote = $this->entityManager->getRepository(Quote::class)->find($id);
         
@@ -249,9 +282,12 @@ class InteractiveLiveQuoteController extends AbstractController
      * Disable interactive mode for a quote
      */
     #[Route('/{id}/disable-interactive', name: 'quote_disable_interactive', methods: ['POST'])]
-    public function disableInteractive(int $id): JsonResponse
+    public function disableInteractive(Request $request, int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
         
         $quote = $this->entityManager->getRepository(Quote::class)->find($id);
         
@@ -289,6 +325,9 @@ class InteractiveLiveQuoteController extends AbstractController
     public function regenerateToken(Request $request, int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
         
         $quote = $this->entityManager->getRepository(Quote::class)->find($id);
         

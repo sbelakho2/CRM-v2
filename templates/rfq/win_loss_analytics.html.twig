@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ 'rfq.win_loss_analytics'|trans|default('Win/Loss Analytics') }} - {{ 'app.name'|trans }}{% endblock %}
+{% block title %}{{ 'rfq.win_loss_analytics'|trans   }} - {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
 <div class="rams-stack rams-gap-6">
@@ -11,50 +11,50 @@
                 <ol class="rams-breadcrumb__list">
                     <li class="rams-breadcrumb__item"><a href="{{ path('app_rfq_index') }}" class="rams-breadcrumb__link">{{ 'rfq.title'|trans }}</a></li>
                     <li class="rams-breadcrumb__separator">/</li>
-                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'rfq.win_loss_analytics'|trans|default('Win/Loss Analytics') }}</li>
+                    <li class="rams-breadcrumb__item rams-breadcrumb__item--current">{{ 'rfq.win_loss_analytics'|trans   }}</li>
                 </ol>
             </nav>
-            <h1 class="rams-page-title">{{ 'rfq.win_loss_analytics'|trans|default('Win/Loss Analytics') }}</h1>
-            <p class="rams-page-subtitle">{{ 'rfq.competitive_intelligence'|trans|default('Competitive Intelligence & Performance Insights') }}</p>
+            <h1 class="rams-page-title">{{ 'rfq.win_loss_analytics'|trans   }}</h1>
+            <p class="rams-page-subtitle">{{ 'rfq.competitive_intelligence'|trans      }}</p>
         </div>
         <div class="rams-flex rams-gap-2 rams-items-center rams-flex-wrap mobile-stack">
             <form method="GET" class="rams-flex rams-gap-2 rams-items-center rams-flex-wrap mobile-stack" id="analytics-filter-form">
                 {# Preset Period Select #}
-                <select name="period" class="rams-form__select rams-form__select--sm" id="period-select">
-                    <option value="30" {{ period == '30' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_30_days'|trans|default('Last 30 Days') }}</option>
-                    <option value="90" {{ period == '90' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_90_days'|trans|default('Last 90 Days') }}</option>
-                    <option value="180" {{ period == '180' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_180_days'|trans|default('Last 180 Days') }}</option>
-                    <option value="365" {{ period == '365' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_year'|trans|default('Last Year') }}</option>
-                    <option value="ytd" {{ period == 'ytd' ? 'selected' : '' }}>{{ 'filters.year_to_date'|trans|default('Year to Date') }}</option>
-                    <option value="all" {{ period == 'all' ? 'selected' : '' }}>{{ 'filters.all_time'|trans|default('All Time') }}</option>
-                    <option value="custom" {{ custom_range ? 'selected' : '' }}>{{ 'filters.custom_range'|trans|default('Custom Range') }}</option>
+                <label for="period-select" class="rams-sr-only">{{ 'filters.date_range'|trans }}</label> <select name="period" class="rams-form__select"   id="period-select">
+                    <option value="30" {{ period == '30' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_30_days'|trans    }}</option>
+                    <option value="90" {{ period == '90' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_90_days'|trans    }}</option>
+                    <option value="180" {{ period == '180' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_180_days'|trans    }}</option>
+                    <option value="365" {{ period == '365' and not custom_range ? 'selected' : '' }}>{{ 'filters.last_year'|trans   }}</option>
+                    <option value="ytd" {{ period == 'ytd' ? 'selected' : '' }}>{{ 'filters.year_to_date'|trans    }}</option>
+                    <option value="all" {{ period == 'all' ? 'selected' : '' }}>{{ 'filters.all_time'|trans   }}</option>
+                    <option value="custom" {{ custom_range ? 'selected' : '' }}>{{ 'filters.custom_range'|trans   }}</option>
                 </select>
                 
                 {# Custom Date Range Inputs (shown when Custom is selected) #}
                 <div id="custom-date-range" class="rams-flex rams-gap-2 rams-items-center mobile-stack" style="{{ custom_range ? '' : 'display: none;' }}">
-                    <label class="rams-text-3xs rams-text--muted">{{ 'filters.from'|trans|default('From') }}</label>
-                    <input type="date" name="start_date" value="{{ start_date|default('')|date('Y-m-d') }}" 
-                           class="rams-form__input rams-form__input--sm" style="width: 140px;"
+                    <label for="start_date" class="rams-text-3xs rams-text--muted">{{ 'filters.from'|trans  }}</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ start_date|default('')|date('Y-m-d') }}" 
+                           class="rams-form__input"   style="width: 140px;"
                            max="{{ "now"|date('Y-m-d') }}">
-                    <label class="rams-text-3xs rams-text--muted">{{ 'filters.to'|trans|default('To') }}</label>
-                    <input type="date" name="end_date" value="{{ end_date|default('')|date('Y-m-d') }}" 
-                           class="rams-form__input rams-form__input--sm" style="width: 140px;"
+                    <label for="end_date" class="rams-text-3xs rams-text--muted">{{ 'filters.to'|trans  }}</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ end_date|default('')|date('Y-m-d') }}" 
+                           class="rams-form__input"   style="width: 140px;"
                            max="{{ "now"|date('Y-m-d') }}">
                     <button type="submit" class="rams-btn rams-btn--primary rams-btn--sm">
-                        {{ 'filters.apply'|trans|default('Apply') }}
+                        {{ 'filters.apply'|trans  }}
                     </button>
                 </div>
                 
                 {# Quick Comparison Button #}
                 {% if not compare_mode %}
                 <a href="{{ path('app_rfq_win_loss_analytics', {period: period, compare: 'previous'}) }}" 
-                   class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'filters.compare_previous'|trans|default('Compare to Previous Period') }}">
-                    📊 {{ 'filters.compare'|trans|default('Compare') }}
+                   class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'filters.compare_previous'|trans }}">
+                    📊 {{ 'filters.compare'|trans  }}
                 </a>
                 {% else %}
                 <a href="{{ path('app_rfq_win_loss_analytics', {period: period}) }}" 
-                   class="rams-btn rams-btn--outline rams-btn--sm rams-btn--active">
-                    ✕ {{ 'filters.hide_comparison'|trans|default('Hide Comparison') }}
+                   class="rams-btn rams-btn--ghost rams-btn--sm">   
+                    ✕ {{ 'filters.hide_comparison'|trans   }}
                 </a>
                 {% endif %}
             </form>
@@ -73,7 +73,7 @@
             <div class="rams-module__content">
                 <div class="rams-flex rams-justify-between rams-items-start rams-mb-2">
                     <div class="rams-metric">
-                        <span class="rams-metric__label rams-uppercase rams-text-3xs rams-font-mono">{{ 'rfq.win_rate'|trans|default('Win Rate') }}</span>
+                        <span class="rams-metric__label rams-uppercase rams-text-3xs rams-font-mono">{{ 'rfq.win_rate'|trans   }}</span>
                         <span class="rams-metric__value rams-text--xl {% if win_rate >= 50 %}rams-text--success{% elseif win_rate >= 30 %}rams-text--warning{% else %}rams-text--danger{% endif %}">
                             {{ win_rate }}%
                         </span>
@@ -82,7 +82,7 @@
                         <span class="rams-andon__light {% if win_rate >= 50 %}rams-andon__light--green{% elseif win_rate >= 30 %}rams-andon__light--yellow{% else %}rams-andon__light--red{% endif %}"></span>
                     </div>
                 </div>
-                <span class="rams-text-3xs rams-text--muted">{{ total_decided }} {{ 'rfq.decisions'|trans|default('decisions') }}</span>
+                <span class="rams-text-3xs rams-text--muted">{{ total_decided }} {{ 'rfq.decisions'|trans  }}</span>
             </div>
         </div>
 
@@ -103,7 +103,7 @@
         <div class="rams-module rams-module--inset">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label rams-uppercase rams-text-3xs rams-font-mono rams-text--danger">{{ 'rfq.lost'|trans|default('Lost') }}</span>
+                    <span class="rams-metric__label rams-uppercase rams-text-3xs rams-font-mono rams-text--danger">{{ 'rfq.lost'|trans  }}</span>
                     <span class="rams-metric__value rams-text--xl">{{ lost_count }}</span>
                 </div>
                 <span class="rams-text-3xs rams-text--muted rams-font-mono">
@@ -116,12 +116,12 @@
         <div class="rams-module rams-module--inset">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label rams-uppercase rams-text-3xs rams-font-mono">{{ 'rfq.total_decided'|trans|default('Total Decided') }}</span>
+                    <span class="rams-metric__label rams-uppercase rams-text-3xs rams-font-mono">{{ 'rfq.total_decided'|trans   }}</span>
                     <span class="rams-metric__value rams-text--xl">
                         {{ ((won_value + lost_value) / 1000)|number_format(0) }}<span class="rams-metric__unit">K</span>
                     </span>
                 </div>
-                <span class="rams-text-3xs rams-text--muted">{{ 'rfq.in_period'|trans|default('in period') }}</span>
+                <span class="rams-text-3xs rams-text--muted">{{ 'rfq.in_period'|trans   }}</span>
             </div>
         </div>
     </div>
@@ -131,8 +131,8 @@
         {# Loss Reason Breakdown #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'rfq.loss_reasons'|trans|default('Loss Reason Breakdown') }}</h2>
-                <span class="rams-badge">{{ lost_count }} {{ 'rfq.losses'|trans|default('losses') }}</span>
+                <h2 class="rams-module__title">{{ 'rfq.loss_reasons'|trans    }}</h2>
+                <span class="rams-badge">{{ lost_count }} {{ 'rfq.losses'|trans  }}</span>
             </div>
             <div class="rams-module__content">
                 {% if loss_reasons|length > 0 %}
@@ -143,25 +143,25 @@
                             <span class="rams-text--sm rams-font-mono rams-uppercase rams-flex rams-items-center rams-gap-2">
                                 {% if reason == 'price' %}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                                    {{ 'rfq.reason_price'|trans|default('Price') }}
+                                    {{ 'rfq.reason_price'|trans  }}
                                 {% elseif reason == 'lead_time' %}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                    {{ 'rfq.reason_lead_time'|trans|default('Lead Time') }}
+                                    {{ 'rfq.reason_lead_time'|trans   }}
                                 {% elseif reason == 'technical' %}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-                                    {{ 'rfq.reason_technical'|trans|default('Technical Fit') }}
+                                    {{ 'rfq.reason_technical'|trans   }}
                                 {% elseif reason == 'relationship' %}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                    {{ 'rfq.reason_relationship'|trans|default('Relationship') }}
+                                    {{ 'rfq.reason_relationship'|trans  }}
                                 {% elseif reason == 'quality' %}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                    {{ 'rfq.reason_quality'|trans|default('Quality') }}
+                                    {{ 'rfq.reason_quality'|trans  }}
                                 {% elseif reason == 'no_response' %}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"></path></svg>
-                                    {{ 'rfq.reason_no_response'|trans|default('No Response') }}
+                                    {{ 'rfq.reason_no_response'|trans   }}
                                 {% elseif reason == 'project_cancelled' %}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                                    {{ 'rfq.reason_cancelled'|trans|default('Cancelled') }}
+                                    {{ 'rfq.reason_cancelled'|trans  }}
                                 {% else %}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                                     {{ reason|capitalize }}
@@ -177,7 +177,7 @@
                 </div>
                 {% else %}
                 <div class="rams-empty-state rams-p-4">
-                    <p class="rams-text--muted rams-text--xs">{{ 'rfq.no_loss_data'|trans|default('No loss data recorded for this period') }}</p>
+                    <p class="rams-text--muted rams-text--xs">{{ 'rfq.no_loss_data'|trans        }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -186,8 +186,8 @@
         {# Competitor Analysis #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="rams-module__title">{{ 'rfq.competitor_analysis'|trans|default('Competitor Analysis') }}</h2>
-                <span class="rams-badge">{{ competitors|length }} {{ 'rfq.competitors'|trans|default('competitors') }}</span>
+                <h2 class="rams-module__title">{{ 'rfq.competitor_analysis'|trans   }}</h2>
+                <span class="rams-badge">{{ competitors|length }} {{ 'rfq.competitors'|trans  }}</span>
             </div>
             <div class="rams-module__content">
                 {% if competitors|length > 0 %}
@@ -196,7 +196,7 @@
                     <div class="rams-flex rams-justify-between rams-items-center rams-p-2 rams-bg-panel rams-border rams-rounded">
                         <div>
                             <span class="rams-text--sm rams-text--bold">{{ competitor }}</span>
-                            <span class="rams-text-3xs rams-text--muted rams-ml-2">{{ data.count }} {{ 'rfq.wins_against_us'|trans|default('wins against us') }}</span>
+                            <span class="rams-text-3xs rams-text--muted rams-ml-2">{{ data.count }} {{ 'rfq.wins_against_us'|trans    }}</span>
                         </div>
                         <span class="rams-badge rams-badge--danger rams-font-mono">
                             {{ data.value|format_currency(display_currency(), null, 0) }}
@@ -206,7 +206,7 @@
                 </div>
                 {% else %}
                 <div class="rams-empty-state rams-p-4">
-                    <p class="rams-text--muted rams-text--xs">{{ 'rfq.no_competitor_data'|trans|default('No competitor data recorded') }}</p>
+                    <p class="rams-text--muted rams-text--xs">{{ 'rfq.no_competitor_data'|trans     }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -219,11 +219,11 @@
         <div class="rams-module">
             <div class="rams-module__header">
                 <h2 class="rams-module__title">
-                    <svg class="rams-icon rams-icon--info" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <svg class="rams-icon"   width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
                         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                     </svg>
-                    {{ 'rfq.lessons_learned'|trans|default('Lessons Learned') }}
+                    {{ 'rfq.lessons_learned'|trans   }}
                 </h2>
             </div>
             <div class="rams-module__content">
@@ -233,7 +233,7 @@
                     <div class="rams-p-3 rams-bg-panel rams-border rams-rounded">
                         <div class="rams-flex rams-justify-between rams-items-start rams-mb-2">
                             <span class="rams-text--xs rams-text--bold">
-                                {{ safe_company_name(item.rfq, 'Unknown') }}
+                                {{ safe_company_name(item.rfq, 'common.unknown'|trans)  }}
                             </span>
                             <span class="rams-text-3xs rams-text--muted rams-font-mono">
                                 {{ item.rfq.decisionDate ? item.rfq.decisionDate|date('M Y') : item.rfq.createdAt|date('M Y') }}
@@ -241,15 +241,15 @@
                         </div>
                         <p class="rams-text--xs rams-text--muted rams-mb-0">{{ item.lessons }}</p>
                         {% if item.rfq.lossReason %}
-                        <span class="rams-badge rams-badge--xs rams-mt-2">{{ item.rfq.lossReason }}</span>
+                        <span class="rams-badge rams-badge--small rams-mt-2">{{ item.rfq.lossReason }}</span>
                         {% endif %}
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
                 <div class="rams-empty-state rams-p-4">
-                    <p class="rams-text--muted rams-text--xs">{{ 'rfq.no_lessons'|trans|default('No lessons learned recorded yet') }}</p>
-                    <p class="rams-text-3xs rams-text--muted">{{ 'rfq.add_lessons_tip'|trans|default('Add lessons to lost RFQs to build institutional knowledge') }}</p>
+                    <p class="rams-text--muted rams-text--xs">{{ 'rfq.no_lessons'|trans      }}</p>
+                    <p class="rams-text-3xs rams-text--muted">{{ 'rfq.add_lessons_tip'|trans          }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -259,7 +259,7 @@
         <div class="rams-module">
             <div class="rams-module__header">
                 <h2 class="rams-module__title">
-                    <svg class="rams-icon rams-icon--success" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <svg class="rams-icon"   width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
                         <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
                         <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
                         <path d="M4 22h16"></path>
@@ -267,17 +267,17 @@
                         <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
                         <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
                     </svg>
-                    {{ 'rfq.win_factors'|trans|default('Win Factors') }}
+                    {{ 'rfq.win_factors'|trans   }}
                 </h2>
             </div>
             <div class="rams-module__content">
                 {% if win_factors|length > 0 %}
                 <div class="rams-stack rams-gap-3">
                     {% for item in win_factors %}
-                    <div class="rams-p-3 rams-bg-panel rams-border rams-border--success rams-rounded">
+                    <div class="rams-p-3 rams-bg-panel rams-border rams-border-success rams-rounded">
                         <div class="rams-flex rams-justify-between rams-items-start rams-mb-2">
                             <span class="rams-text--xs rams-text--bold rams-text--success">
-                                {{ safe_company_name(item.rfq, 'Unknown') }}
+                                {{ safe_company_name(item.rfq, 'common.unknown'|trans)  }}
                             </span>
                             <span class="rams-text-3xs rams-text--muted rams-font-mono">
                                 {{ item.rfq.awardDate ? item.rfq.awardDate|date('M Y') : item.rfq.createdAt|date('M Y') }}
@@ -285,7 +285,7 @@
                         </div>
                         <p class="rams-text--xs rams-text--muted rams-mb-0">{{ item.factors }}</p>
                         {% if item.rfq.estimatedValue %}
-                        <span class="rams-badge rams-badge--success rams-badge--xs rams-mt-2">
+                        <span class="rams-badge rams-badge--success rams-badge--small rams-mt-2">
                             {{ item.rfq.estimatedValue|format_currency(item.rfq.currency|default(display_currency()), null, 0) }}
                         </span>
                         {% endif %}
@@ -294,8 +294,8 @@
                 </div>
                 {% else %}
                 <div class="rams-empty-state rams-p-4">
-                    <p class="rams-text--muted rams-text--xs">{{ 'rfq.no_win_factors'|trans|default('No win factors recorded yet') }}</p>
-                    <p class="rams-text-3xs rams-text--muted">{{ 'rfq.add_win_factors_tip'|trans|default('Document what made you win to replicate success') }}</p>
+                    <p class="rams-text--muted rams-text--xs">{{ 'rfq.no_win_factors'|trans      }}</p>
+                    <p class="rams-text-3xs rams-text--muted">{{ 'rfq.add_win_factors_tip'|trans         }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -305,61 +305,61 @@
     {# Recent Decisions Table #}
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">{{ 'rfq.recent_decisions'|trans|default('Recent Decisions') }}</h2>
-            <span class="rams-badge">{{ completed_rfqs|length }} {{ 'rfq.records'|trans|default('records') }}</span>
+            <h2 class="rams-module__title">{{ 'rfq.recent_decisions'|trans   }}</h2>
+            <span class="rams-badge">{{ completed_rfqs|length }} {{ 'rfq.records'|trans  }}</span>
         </div>
         <div class="rams-module__content rams-module__content--flush">
             {% if completed_rfqs|length > 0 %}
             <div class="rams-table-container">
-            <table class="rams-table">
+            <table class="rams-table" aria-label="{{ 'rfq.recent_decisions'|trans }}">
                 <thead>
                     <tr>
-                        <th class="rams-table__th">{{ 'common.status'|trans }}</th>
-                        <th class="rams-table__th">{{ 'company.title'|trans }}</th>
-                        <th class="rams-table__th">{{ 'rfq.type_label'|trans }}</th>
-                        <th class="rams-table__th">{{ 'rfq.estimated_value'|trans }}</th>
-                        <th class="rams-table__th">{{ 'rfq.loss_reason'|trans|default('Reason') }}</th>
-                        <th class="rams-table__th">{{ 'rfq.competitor'|trans|default('Competitor') }}</th>
-                        <th class="rams-table__th">{{ 'rfq.decision_date'|trans|default('Decision') }}</th>
-                        <th class="rams-table__th"></th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{  'common.status'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{  'company.title'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{  'rfq.type_label'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{  'rfq.estimated_value'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'rfq.loss_reason'|trans   }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'rfq.competitor'|trans   }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'rfq.decision_date'|trans   }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header"></th> 
                     </tr>
                 </thead>
                 <tbody>
                     {% for rfq in completed_rfqs|slice(0, 20) %}
                     <tr>
-                        <td class="rams-table__td">
+                        <td class="rams-table__cell"> 
                             {% if rfq.status == 'Won' %}
                                 <span class="rams-badge rams-badge--success">{{ 'rfq.won_label'|trans }}</span>
                             {% else %}
-                                <span class="rams-badge rams-badge--danger">{{ 'rfq.lost'|trans|default('Lost') }}</span>
+                                <span class="rams-badge rams-badge--danger">{{ 'rfq.lost'|trans  }}</span>
                             {% endif %}
                         </td>
-                        <td class="rams-table__td">
+                        <td class="rams-table__cell"> 
                             {{ safe_company_name(rfq, '-') }}
                         </td>
-                        <td class="rams-table__td rams-font-mono rams-text--xs">
+                        <td class="rams-table__cell rams-font-mono rams-text--xs">
                             {{ rfq.type ?? '-' }}
                         </td>
-                        <td class="rams-table__td rams-font-mono">
+                        <td class="rams-table__cell rams-font-mono">
                             {{ rfq.estimatedValue ? rfq.estimatedValue|format_currency(rfq.currency|default(display_currency()), null, 0) : '-' }}
                         </td>
-                        <td class="rams-table__td rams-text--xs">
+                        <td class="rams-table__cell rams-text--xs">
                             {% if rfq.status == 'Lost' and rfq.lossReason %}
                                 {{ rfq.lossReason|capitalize }}
                             {% elseif rfq.status == 'Won' %}
                                 <span class="rams-text--success">-</span>
                             {% else %}
-                                <span class="rams-text--muted">{{ 'rfq.not_specified'|trans|default('Not specified') }}</span>
+                                <span class="rams-text--muted">{{ 'rfq.not_specified'|trans   }}</span>
                             {% endif %}
                         </td>
-                        <td class="rams-table__td rams-text--xs">
+                        <td class="rams-table__cell rams-text--xs">
                             {{ rfq.competitorWon ?? '-' }}
                         </td>
-                        <td class="rams-table__td rams-font-mono rams-text-3xs">
+                        <td class="rams-table__cell rams-font-mono rams-text-3xs">
                             {{ rfq.decisionDate ? rfq.decisionDate|date('Y-m-d') : '-' }}
                         </td>
-                        <td class="rams-table__td">
-                            <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--xs">
+                        <td class="rams-table__cell"> 
+                            <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm"> 
                                 {{ 'common.view'|trans }}
                             </a>
                         </td>
@@ -370,7 +370,7 @@
             </div>
             {% else %}
             <div class="rams-empty-state rams-p-6">
-                <p class="rams-text--muted">{{ 'rfq.no_decisions'|trans|default('No completed RFQs in this period') }}</p>
+                <p class="rams-text--muted">{{ 'rfq.no_decisions'|trans       }}</p>
             </div>
             {% endif %}
         </div>

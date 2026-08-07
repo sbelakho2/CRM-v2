@@ -163,11 +163,11 @@ This file lives at `/var/www/starzcrm/.env.local` on the VPS and is **never comm
 ```dotenv
 APP_ENV=prod
 APP_DEBUG=0
-APP_SECRET=244d17a4c3d68e3d1def8e87a42b90e9
+APP_SECRET=CHANGE_ME_generate_a_fresh_secret
 
 DATABASE_URL="mysql://crm_user:StarzCRM2026Secure@127.0.0.1:3306/starz_crm?serverVersion=8.0&charset=utf8mb4"
 
-MAILER_DSN=***REMOVED***
+MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 MAILER_FROM_ADDRESS=contact@starzelectronics.site
 MAILER_FROM_NAME="Starz Electronics"
 

@@ -4,7 +4,7 @@
 
 {% block stylesheets %}
 {{ parent() }}
-<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' integrity="sha384-a+uEN0SA9NPmaoLnc5WsmxDS2SgEiUlzTisgqmWvaOsxzPREhiatn8EIBuY/Zsl2" crossorigin="anonymous" />
 <style>
     /* Custom overrides for FullCalendar to match Rams theme */
     .fc {
@@ -42,9 +42,9 @@
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <a href="{{ path('meeting_index') }}">{{ 'meeting.title'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <span>{{ 'meeting.calendar'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'meeting.meeting_calendar'|trans }}</h1>
@@ -69,7 +69,7 @@
 
 {% block javascripts %}
 {{ parent() }}
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js' integrity="sha384-WfE/vOHqht3KDj6FvpwQUf3UxEPUHoGJ3w1yZ8rhpLWnVigt8HjXL2zXqtcfS7mf" crossorigin="anonymous"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');

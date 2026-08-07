@@ -35,7 +35,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->setParameter('tier', $tier)
             ->orderBy('c.detectionCount', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -50,7 +50,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->orderBy('c.tier', 'ASC')
             ->addOrderBy('c.detectionCount', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -66,7 +66,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->setParameter('verified', true)
             ->orderBy('c.tier', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -82,7 +82,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->setParameter('minConfidence', $minConfidence)
             ->orderBy('c.confidenceScore', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -100,7 +100,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('verified', false)
             ->setParameter('minDetections', $minDetections)
             ->orderBy('c.detectionCount', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -117,7 +117,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('industry', $industry)
             ->orderBy('c.tier', 'ASC')
             ->addOrderBy('c.detectionCount', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -135,7 +135,7 @@ class LearnedCompetitorRepository extends ServiceEntityRepository
             ->setParameter('active', true)
             ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('c.tier', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

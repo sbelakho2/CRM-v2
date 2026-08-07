@@ -107,7 +107,7 @@ Create `.env.local` for production with:
 ```env
 ###> symfony/framework-bundle ###
 APP_ENV=prod
-APP_SECRET=<generate-new-secret-key>
+APP_SECRET=CHANGE_ME_generate_a_fresh_secret
 ###< symfony/framework-bundle ###
 
 ###> doctrine/doctrine-bundle ###
@@ -115,13 +115,13 @@ DATABASE_URL="mysql://username:password@127.0.0.1:3306/crm_production?serverVers
 ###< doctrine/doctrine-bundle ###
 
 ###> symfony/mailer ###
-MAILER_DSN=smtp://username:password@smtp.example.com:587
+MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 MAILER_FROM_ADDRESS=noreply@starz.ma
 MAILER_FROM_NAME="Starz Morocco CRM"
 ###< symfony/mailer ###
 
 ###> Google Custom Search API ###
-GOOGLE_API_KEY=your_actual_google_api_key_here
+GOOGLE_API_KEY=CHANGE_ME_google_api_key
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_cx_id_here
 ###< Google Custom Search API ###
 ```

@@ -98,9 +98,9 @@ nano .env.local
 
 # Required changes:
 # - APP_ENV=prod
-# - APP_SECRET=<generate 32-char random string>
+# - APP_SECRET=CHANGE_ME_generate_a_fresh_secret 32-char random string>
 # - DATABASE_URL=mysql://user:pass@localhost:3306/starz_crm
-# - MAILER_DSN=smtp://user:pass@smtp.provider.com:587
+# - MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 ```
 
 ### 5. Set Up Database

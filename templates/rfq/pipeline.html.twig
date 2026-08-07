@@ -86,32 +86,32 @@
                             </div>
                             
                             <div class="rams-kanban__card-meta">
-                                {{ rfq.rfqNumber|default('NO-NUMBER') }}
+                                {{ rfq.rfqNumber|default('common.n_a'|trans)  }}
                             </div>
 
-                            <div class="rams-grid rams-grid--1 rams-gap-2 rams-mt-2">
+                            <div class="rams-stack rams-gap-2 rams-mt-2">
                                 <div class="rams-metric">
                                     <span class="rams-metric__label">{{ 'rfq.estimated_value'|trans }}</span>
-                                    <span class="rams-metric__value rams-metric__value--sm">
+                                    <span class="rams-metric__value">  
                                         {{ rfq.estimatedValue ? rfq.estimatedValue|format_currency(rfq.currency, null, 0) : '--' }}
                                     </span>
                                 </div>
                                 
                                 <div class="rams-flex rams-flex-wrap rams-gap-1 rams-mt-1">
                                     {% if rfq.type == 'NPI' %}
-                                        <span class="rams-badge rams-badge--npi rams-badge--xs">NPI</span>
+                                        <span class="rams-badge rams-badge--npi rams-badge--small">NPI</span> 
                                     {% elseif rfq.type == 'Framework Agreement' %}
-                                        <span class="rams-badge rams-badge--framework rams-badge--xs">FWA</span>
+                                        <span class="rams-badge rams-badge--framework rams-badge--small">FWA</span> 
                                     {% endif %}
 
                                     {% if rfq.ndaExecuted %}
-                                        <span class="rams-badge rams-badge--success rams-badge--xs">NDA</span>
+                                        <span class="rams-badge rams-badge--success rams-badge--small">NDA</span> 
                                     {% elseif rfq.ndaSent %}
-                                        <span class="rams-badge rams-badge--warning rams-badge--xs">NDA SENT</span>
+                                        <span class="rams-badge rams-badge--warning rams-badge--small">{{ 'rfq.nda.sent'|trans|upper }}</span>  
                                     {% endif %}
                                     
                                     {% if rfq.sopDate and stage.key == 'Won' %}
-                                        <span class="rams-badge rams-badge--info rams-badge--xs">SOP: {{ rfq.sopDate|date('M Y') }}</span>
+                                        <span class="rams-badge rams-badge--info rams-badge--small">{{ 'rfq.fields.sop'|trans }}:  {{ rfq.sopDate|date('M Y') }}</span>
                                     {% endif %}
                                 </div>
                             </div>

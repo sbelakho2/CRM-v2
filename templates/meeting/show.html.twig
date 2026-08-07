@@ -8,9 +8,9 @@
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <a href="{{ path('meeting_index') }}">{{ 'meeting.title'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <span>{{ slot.title }}</span>
             </div>
             <h1 class="rams-page__title rams-mt-2">
@@ -22,16 +22,16 @@
             {% endif %}
         </div>
         <div class="rams-page__actions mobile-stack">
-            <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn uppercase">
+            <a href="{{ path('meeting_edit', {id: slot.id}) }}" class="rams-btn rams-uppercase"> 
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                 </svg>
                 {{ 'common.edit'|trans }}
             </a>
             {% if slot.isBooked %}
-            <form action="{{ path('meeting_cancel', {id: slot.id}) }}" method="post" class="rams-inline-block">
+            <form action="{{ path('meeting_cancel', {id: slot.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'meeting.cancel_this_meeting'|trans|e('js') }}', {variant: 'warning'});">
                 <input type="hidden" name="_token" value="{{ csrf_token('cancel' ~ slot.id) }}">
-                <button type="submit" class="rams-btn rams-btn--warning uppercase" onclick="return confirm('{{ 'meeting.cancel_this_meeting'|trans }}');">
+                <button type="submit" class="rams-btn rams-btn--warning rams-uppercase">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <circle cx="8" cy="8" r="6"/><path d="M11 5L5 11M5 5L11 11"/>
                     </svg>
@@ -39,9 +39,9 @@
                 </button>
             </form>
             {% endif %}
-            <form action="{{ path('meeting_delete', {id: slot.id}) }}" method="post" class="rams-inline-block">
+            <form action="{{ path('meeting_delete', {id: slot.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'meeting.delete_this_slot'|trans|e('js') }}', {variant: 'danger'});">
                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ slot.id) }}">
-                <button type="submit" class="rams-btn rams-btn--danger uppercase" onclick="return confirm('{{ 'meeting.delete_this_slot'|trans }}');">
+                <button type="submit" class="rams-btn rams-btn--danger rams-uppercase">
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                          <path d="M2 4H14M5 4V2H11V4M6 4V13H10V4"/>
                     </svg>
@@ -56,7 +56,7 @@
         <div class="rams-grid-span-2 mobile-w-full">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.details'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'meeting.details'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <dl class="rams-definition-list">
@@ -113,7 +113,7 @@
             {% if slot.isBooked %}
             <div class="rams-module rams-mt-6">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.booking_information'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'meeting.booking_information'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <dl class="rams-definition-list">
@@ -166,7 +166,7 @@
         <div class="mobile-w-full">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.status_heading'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'meeting.status_heading'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-text--center rams-p-4">
@@ -194,11 +194,11 @@
                     </div>
                     
                     {% if slot.isAvailable and not slot.isPast %}
-                    <hr class="rams-hr">
+                    <hr class="rams-border-b rams-m-0 rams-mb-3"> 
                     <p class="rams-text--sm rams-text--muted rams-mb-2">{{ 'meeting.share_booking_link'|trans }}</p>
-                    <div class="rams-form__input-group">
-                        <input type="text" class="rams-form__input" value="{{ url('meeting_book_slot', {token: slot.bookingToken}) }}" readonly id="booking-link">
-                        <button type="button" class="rams-btn uppercase" onclick="copyBookingLink()">
+                    <div class="rams-flex rams-gap-2"> 
+                        <input type="text" class="rams-form__input rams-flex-1"  value="{{ url('meeting_book_slot', {token: slot.bookingToken}) }}" readonly id="booking-link" aria-label="{{ 'meeting.share_booking_link'|trans }}"> 
+                        <button type="button" class="rams-btn rams-uppercase"  onclick="copyBookingLink()">
                             <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <rect x="4" y="4" width="8" height="8" rx="1"/><path d="M12 4V2H2V12H4"/>
                             </svg>
@@ -211,19 +211,19 @@
             
             <div class="rams-module rams-mt-4">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.notifications'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted">{{      'meeting.notifications'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <ul class="rams-list">
                         <li class="rams-list__item">
-                            <span class="rams-status-indicator rams-status-indicator--{{ slot.confirmationSent ? 'success' : 'neutral' }}"></span>
+                            {% if slot.confirmationSent %} <span class="rams-andon rams-andon--success"><span class="rams-andon__light"></span></span> {% else %} <span class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></span> {% endif %}        
                             <span>{{ 'meeting.confirmation_sent'|trans }}</span>
                             {% if slot.confirmationSentAt %}
                             <span class="rams-text--muted rams-text--xs">({{ slot.confirmationSentAt|date('M d') }})</span>
                             {% endif %}
                         </li>
                         <li class="rams-list__item">
-                            <span class="rams-status-indicator rams-status-indicator--{{ slot.reminderSent ? 'success' : 'neutral' }}"></span>
+                            {% if slot.reminderSent %} <span class="rams-andon rams-andon--success"><span class="rams-andon__light"></span></span> {% else %} <span class="rams-andon"><span class="rams-andon__light rams-andon__light--off"></span></span> {% endif %}        
                             <span>{{ 'meeting.reminder_sent'|trans }}</span>
                             {% if slot.reminderSentAt %}
                             <span class="rams-text--muted rams-text--xs">({{ slot.reminderSentAt|date('M d') }})</span>
@@ -241,7 +241,7 @@ function copyBookingLink() {
     const input = document.getElementById('booking-link');
     input.select();
     document.execCommand('copy');
-    alert('{{ 'meeting.link_copied'|trans }}');
+    ramsAlert('{{ 'meeting.link_copied'|trans }}', {title: '{{ 'meeting.copy'|trans }}'});
 }
 </script>
 {% endblock %}

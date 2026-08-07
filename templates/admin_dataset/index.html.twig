@@ -9,7 +9,7 @@
             <h1 class="rams-page-title">{{ 'administration.datasets.title_full'|trans }}</h1>
             <p class="rams-page-subtitle">{{ 'administration.datasets.subtitle'|trans }}</p>
         </div>
-        <a href="{{ path('admin_dataset_import_form') }}" class="rams-btn rams-btn--primary uppercase">
+        <a href="{{ path('admin_dataset_import_form') }}" class="rams-btn rams-btn--primary rams-uppercase"> 
             <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M8 2v12M2 8h12"/>
             </svg>
@@ -29,7 +29,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'administration.datasets.total_datasets'|trans }}</span>
-                    <span class="rams-metric__value">12</span>
+                    <span class="rams-metric__value">{{ total_datasets|default(0) }}</span> 
                 </div>
             </div>
         </div>
@@ -37,7 +37,7 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'administration.datasets.active_versions'|trans }}</span>
-                    <span class="rams-metric__value">8</span>
+                    <span class="rams-metric__value">{{ active_versions|default(0) }}</span> 
                 </div>
             </div>
         </div>
@@ -45,15 +45,15 @@
             <div class="rams-module__content">
                 <div class="rams-metric">
                     <span class="rams-metric__label">{{ 'administration.datasets.last_updated'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg">{{ 'administration.datasets.sample_last_updated'|trans }}</span>
+                    <span class="rams-metric__value rams-text--lg">{{ last_updated|default('administration.datasets.unknown_date'|trans)  }}</span>
                 </div>
             </div>
         </div>
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-metric">
-                    <span class="rams-metric__label">{{ 'administration.datasets.storage_used'|trans }}</span>
-                    <span class="rams-metric__value rams-text--lg">{{ 'administration.datasets.sample_storage_used'|trans }}</span>
+                    <span class="rams-metric__label">{{ 'administration.datasets.records'|trans  }}</span>
+                    <span class="rams-metric__value rams-text--lg">{{ total_records|default(0) | number_format  }}</span>
                 </div>
             </div>
         </div>
@@ -67,7 +67,7 @@
 
         <div class="rams-table-container">
             <table class="rams-table">
-                <thead class="rams-table__header">
+                <thead>
                     <tr>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.dataset_name'|trans }}</th>
                         <th class="rams-table__cell rams-table__cell--header">{{ 'administration.datasets.version'|trans }}</th>
@@ -77,7 +77,7 @@
                         <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
-                <tbody class="rams-table__body">
+                <tbody>
                     {% if datasets | default([]) %}
                         {% for dataset in datasets %}
                             <tr class="rams-table__row">
@@ -86,7 +86,7 @@
                                 <td class="rams-table__cell">
                                     <span class="rams-metric__value rams-text--sm">{{ dataset.records | number_format }}</span>
                                 </td>
-                                <td class="rams-table__cell rams-text--muted rams-text--xs">{{ dataset.updated_at }}</td>
+                                <td class="rams-table__cell rams-text--muted rams-text--xs">{{ dataset.updated_at ? dataset.updated_at|date('Y-m-d H:i') : 'administration.datasets.unknown_date'|trans }}</td>
                                 <td class="rams-table__cell">
                                     <span class="rams-badge rams-badge--info">
                                         {{ dataset.status }}

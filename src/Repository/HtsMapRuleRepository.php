@@ -43,7 +43,7 @@ class HtsMapRuleRepository extends ServiceEntityRepository
             ->andWhere('hmr.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('hmr.priority', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

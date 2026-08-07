@@ -34,7 +34,7 @@
             border-radius: 2pt;
             font-size: 8pt;
             font-weight: bold;
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
         }
         .type-no-stock { background: #D62D2D; color: white; }
         .type-long-lead { background: #FFBE00; color: #1A1A1A; }
@@ -52,7 +52,7 @@
         .alt-section h5 {
             margin: 0 0 8pt 0;
             font-size: 9pt;
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.05em;
             color: var(--rams-foreground);
         }
@@ -85,7 +85,7 @@
         .summary-label {
             font-size: 8pt;
             color: var(--rams-muted);
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.05em;
         }
         .impact-high { color: #D62D2D; }
@@ -154,7 +154,7 @@
             <div class="summary-label">{{ 'pdf.exceptions.total'|trans }}</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">${{ (exceptionData.impactValue ?? 0)|number_format(2) }}</div>
+            <div class="summary-value">{{ (exceptionData.impactValue ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}</div>
             <div class="summary-label">{{ 'pdf.exceptions.impact'|trans }}</div>
         </div>
     </div>
@@ -168,53 +168,53 @@
 
     {# Exception Categories Summary #}
     <h3>{{ 'pdf.exceptions.by_category'|trans }}</h3>
-    <table>
+    <table aria-label="{{ 'pdf.exceptions.by_category'|trans }}">
         <thead>
             <tr>
-                <th style="width: 25%;">{{ 'pdf.exceptions.category'|trans }}</th>
-                <th class="rams-text--center" style="width: 10%;">{{ 'pdf.exceptions.count'|trans }}</th>
-                <th style="width: 25%;">{{ 'pdf.exceptions.impact_level'|trans }}</th>
-                <th class="rams-text--right" style="width: 20%;">{{ 'pdf.exceptions.cost_impact'|trans }}</th>
-                <th class="rams-text--right" style="width: 20%;">{{ 'pdf.exceptions.lead_impact'|trans }}</th>
+                <th scope="col" style="width: 25%;">{{ 'pdf.exceptions.category'|trans }}</th>
+                <th scope="col" class="rams-text--center" style="width: 10%;">{{ 'pdf.exceptions.count'|trans }}</th>
+                <th scope="col" style="width: 25%;">{{ 'pdf.exceptions.impact_level'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 20%;">{{ 'pdf.exceptions.cost_impact'|trans }}</th>
+                <th scope="col" class="rams-text--right" style="width: 20%;">{{ 'pdf.exceptions.lead_impact'|trans }}</th>
             </tr>
         </thead>
         <tbody>
-            {% for category in exceptionData.categories ?? [] %}
+            {% for category in exceptionData.categories   %}
             <tr>
-                <td><span class="exception-type type-{{ category.type ?? 'custom' }}">{{ category.name ?? 'pdf.exceptions.other'|trans }}</span></td>
-                <td class="rams-text--center">{{ category.count ?? 0 }}</td>
-                <td><span class="impact-{{ category.impact ?? 'low' }}">{{ category.impact|default('low')|capitalize }}</span></td>
-                <td class="rams-text--right">{% if category.costImpact is defined %}${{ category.costImpact|number_format(2) }}{% else %}—{% endif %}</td>
-                <td class="rams-text--right">{% if category.leadImpact is defined %}+{{ category.leadImpact }} {{ 'common.days'|trans }}{% else %}—{% endif %}</td>
+                <td><span class="exception-type type-{{ category.type }}">{{ category.name   }}</span></td>
+                <td class="rams-text--center">{{ category.count   }}</td>
+                <td><span class="impact-{{ category.impact }}">{{ category.impact|capitalize  }}</span></td>
+                <td class="rams-text--right">{% if category.costImpact > 0   %}{{ category.costImpact|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }}{% else %}—{% endif %}</td>
+                <td class="rams-text--right">{% if category.leadImpact > 0   %}+{{ category.leadImpact }} {{ 'common.days'|trans }}{% else %}—{% endif %}</td>
             </tr>
             {% else %}
             <tr>
-                <td><span class="exception-type type-no-stock">{{ 'pdf.exceptions.no_stock'|trans }}</span></td>
-                <td class="rams-text--center">3</td>
-                <td><span class="impact-high">{{ 'common.high'|trans }}</span></td>
-                <td class="rams-text--right">$245.00</td>
-                <td class="rams-text--right">+14 {{ 'common.days'|trans }}</td>
-            </tr>
-            <tr>
-                <td><span class="exception-type type-long-lead">{{ 'pdf.exceptions.long_lead'|trans }}</span></td>
-                <td class="rams-text--center">5</td>
-                <td><span class="impact-medium">{{ 'common.medium'|trans }}</span></td>
-                <td class="rams-text--right">—</td>
-                <td class="rams-text--right">+21 {{ 'common.days'|trans }}</td>
-            </tr>
-            <tr>
-                <td><span class="exception-type type-eol">{{ 'pdf.exceptions.eol_nrnd'|trans }}</span></td>
-                <td class="rams-text--center">2</td>
-                <td><span class="impact-high">{{ 'common.high'|trans }}</span></td>
-                <td class="rams-text--right">$180.00</td>
-                <td class="rams-text--right">+7 {{ 'common.days'|trans }}</td>
-            </tr>
-            <tr>
-                <td><span class="exception-type type-moq">{{ 'pdf.exceptions.moq_issue'|trans }}</span></td>
-                <td class="rams-text--center">4</td>
-                <td><span class="impact-low">{{ 'common.low'|trans }}</span></td>
-                <td class="rams-text--right">$125.00</td>
-                <td class="rams-text--right">—</td>
+                    
+                <td colspan="5" class="rams-text--center" style="padding: 15pt; color: var(--rams-muted);"> 
+                   
+                 
+                  {{ 'pdf.exceptions.no_exceptions'|trans }} </td>  
+            
+            
+                    
+                 
+                   
+                 
+                    
+            
+            
+                    
+                 
+                   
+                 
+                    
+            
+            
+                    
+                 
+                   
+                 
+                 
             </tr>
             {% endfor %}
         </tbody>
@@ -255,7 +255,7 @@
                 <div class="resolution-option">
                     <div class="option-label">{{ loop.index }}. {{ option.name ?? 'pdf.exceptions.option'|trans }}</div>
                     <div class="option-impact">
-                        {% if option.costDelta is defined %}{{ 'common.price'|trans }}: {% if option.costDelta >= 0 %}+{% endif %}${{ option.costDelta|number_format(2) }} | {% endif %}
+                        {% if option.costDelta is defined %}{{ 'common.price'|trans }}: {% if option.costDelta >= 0 %}+{% endif %}{{ option.costDelta|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 2) }} | {% endif %}
                         {% if option.leadDelta is defined %}{{ 'pdf.exceptions.lead_impact'|trans }}: {% if option.leadDelta >= 0 %}+{% endif %}{{ option.leadDelta }} {{ 'common.days'|trans }} | {% endif %}
                         {{ option.notes ?? '' }}
                     </div>
@@ -276,7 +276,7 @@
                     </div>
                     <div style="flex: 2; font-size: 9pt;">{{ alt.description ?? 'common.n_a'|trans }}</div>
                     <div style="width: 80pt; text-align: right;">
-                        ${{ (alt.unitPrice ?? 0)|number_format(4) }}<br>
+                        {{ (alt.unitPrice ?? 0)|format_currency(quote.currency|default('USD'), quote.currency|default('USD'), 4) }}<br>
                         <span style="font-size: 8pt; color: var(--rams-muted);">{{ alt.stock ?? 0 }} {{ 'pdf.exceptions.in_stock'|trans }}</span>
                     </div>
                 </div>

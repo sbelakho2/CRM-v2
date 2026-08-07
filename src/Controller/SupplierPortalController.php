@@ -57,14 +57,40 @@ class SupplierPortalController extends AbstractController
      * Portal list with discovery status
      */
     #[Route('', name: 'supplier_portal_index', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $suppliers = $this->trackerData->getSuppliers(10);
+        $suppliers = $this->trackerData->getSuppliers();
         $stats = $this->trackerData->getStatistics();
-        
+
+        $q = trim((string) $request->query->get('q', ''));
+        $status = mb_strtolower(trim((string) $request->query->get('status', '')));
+
+        if ('' !== $q || '' !== $status) {
+            $suppliers = array_values(array_filter($suppliers, static function (array $supplier) use ($q, $status): bool {
+                if ('' !== $status && mb_strtolower((string) ($supplier['status'] ?? '')) !== $status) {
+                    return false;
+                }
+                if ('' !== $q) {
+                    $haystack = mb_strtolower(implode(' ', array_filter([
+                        (string) ($supplier['name'] ?? ''),
+                        (string) ($supplier['region'] ?? ''),
+                        (string) ($supplier['contact_name'] ?? ''),
+                        (string) ($supplier['email'] ?? ''),
+                    ])));
+                    if (!str_contains($haystack, mb_strtolower($q))) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }));
+        }
+
         return $this->render('supplier_portal/index.html.twig', [
-            'suppliers' => $suppliers,
-            'stats' => $stats
+            'suppliers' => array_slice($suppliers, 0, 50),
+            'stats' => $stats,
+            'q' => $q,
+            'status' => $status,
         ]);
     }
 
@@ -201,7 +227,9 @@ class SupplierPortalController extends AbstractController
         }
         
         // 2. Get credentials if provided
-        // TODO: Credentials should be stored encrypted, not plaintext
+        // Credentials are used ONLY for the transient portal form submission below
+        // (HTTP POST to the vendor's login URL). They are never persisted,
+        // logged, or echoed back to the client.
         $credentials = [
             'username' => $request->request->get('username'),
             'password' => $request->request->get('password')

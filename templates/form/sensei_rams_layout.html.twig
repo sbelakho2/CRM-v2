@@ -1,7 +1,7 @@
 {% extends 'form_div_layout.html.twig' %}
 
 {% block form_label -%}
-    {%- set label_attr = label_attr|merge({class: (label_attr.class|default('') ~ ' rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted')|trim}) -%}
+    {%- set label_attr = label_attr|merge({class: (label_attr.class|default('') ~ ' rams-form__label rams-font-mono rams-text-2xs rams-uppercase rams-text--muted')|trim})      -%}
     {{- parent() -}}
 {% endblock form_label %}
 
@@ -21,7 +21,7 @@
 {% endblock choice_widget_collapsed %}
 
 {% block form_row -%}
-    <div class="rams-form__group{% if errors|length > 0 %} rams-form__group--error{% endif %} rams-mb-4">
+    <div class="rams-form__group rams-mb-4">
         {{- form_label(form) -}}
         {{- form_widget(form) -}}
         {{- form_errors(form) -}}

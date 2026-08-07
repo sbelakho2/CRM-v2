@@ -48,7 +48,6 @@ class WebScrapingRegionTest extends TestCase
     {
         // Use reflection to access private buildGoogleDorkQueries
         $ref = new \ReflectionMethod($this->dorkService, 'buildGoogleDorkQueries');
-        $ref->setAccessible(true);
         $queries = $ref->invoke($this->dorkService, $sector, $location);
         $this->assertNotEmpty($queries, "Should build dork queries for {$sector} in {$location}");
 
@@ -86,7 +85,6 @@ class WebScrapingRegionTest extends TestCase
     public function testDetectRegionFromLocation(string $location, string $expectedRegion): void
     {
         $ref = new \ReflectionMethod($this->dorkService, 'detectRegionFromLocation');
-        $ref->setAccessible(true);
         $region = $ref->invoke($this->dorkService, $location);
         $this->assertSame($expectedRegion, $region, "Location '{$location}' should map to region '{$expectedRegion}'");
     }
@@ -143,7 +141,6 @@ class WebScrapingRegionTest extends TestCase
     {
         $locations = CompanyDiscoveryService::getTargetLocations();
         $ref = new \ReflectionMethod($this->dorkService, 'detectRegionFromLocation');
-        $ref->setAccessible(true);
 
         // EU country codes that should be grouped under 'EU' region
         $euCodes = ['DE', 'FR', 'SE', 'DK', 'FI', 'NO', 'NL', 'BE', 'AT', 'CH', 'IT', 'ES', 'PL', 'CZ', 'RO', 'HU', 'PT', 'IE', 'BG', 'HR', 'SK', 'SI', 'LT', 'LV', 'EE'];

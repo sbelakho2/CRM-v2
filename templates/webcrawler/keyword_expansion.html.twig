@@ -2,6 +2,21 @@
 
 {% block title %}{{ 'webcrawler.keyword_expansion'|trans }}{% endblock %}
 
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .rams-keyword-group { padding: var(--space-3); background: var(--rams-panel); border: 1px solid var(--rams-line); border-radius: var(--radius-sm); }
+    .rams-keyword-group__title { margin: 0 0 var(--space-2); font-size: var(--text-sm); font-weight: 600; }
+    .rams-keyword-group__keywords { margin: 0; font-size: var(--text-xs); color: var(--rams-muted); line-height: 1.6; }
+    .rams-results { margin-top: var(--space-4); }
+    .rams-results__title { margin: 0 0 var(--space-3); }
+    .rams-results__actions { margin-top: var(--space-3); }
+    .rams-keyword-cloud { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .rams-keyword-tag { display: inline-block; padding: 4px 10px; background: var(--rams-surface); border: 1px solid var(--rams-border); border-radius: 999px; font-size: var(--text-xs); }
+</style>
+{% endblock %}
+
 {% block body %}
 <div class="rams-module">
     <div class="rams-module__header">
@@ -11,17 +26,17 @@
             <span class="rams-breadcrumb__current">{{ 'webcrawler.keyword_expansion'|trans }}</span>
         </div>
         
-        <div class="rams-module__header-content">
+        <div class="rams-module__header">
             <h1 class="rams-module__title">{{ 'webcrawler.keyword_expansion'|trans }}</h1>
-            <p class="rams-module__subtitle">{{ 'webcrawler.keyword_expansion_subtitle'|trans }}</p>
+            <p class="rams-text--sm rams-text--muted">{{ 'webcrawler.keyword_expansion_subtitle'|trans }}</p>
         </div>
     </div>
 
     <div class="rams-module__content">
-        <div class="rams-module rams-module--nested">
+        <div class="rams-module rams-module--inset"> 
             <div class="rams-module__content">
                 <form id="expansion-form" class="rams-form">
-                    <div class="rams-form__group">
+                    <input type="hidden" name="_token" value="{{ csrf_token('webcrawler_keyword_expansion') }}"> <div class="rams-form__group">
                         <label class="rams-form__label">{{ 'webcrawler.base_sector'|trans }}</label>
                         <select name="sector" required class="rams-form__select">
                             {% for sector in sectors %}
@@ -52,7 +67,7 @@
         </div>
 
         <!-- Keyword Suggestions -->
-        <div class="rams-module rams-module--nested">
+        <div class="rams-module rams-module--inset"> 
             <div class="rams-module__header">
                 <h2 class="rams-module__title">{{ 'webcrawler.common_keywords_by_sector'|trans }}</h2>
             </div>

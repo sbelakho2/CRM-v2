@@ -67,6 +67,15 @@ HELP
         $lock = $this->lockFactory->createLock('discover_companies', 1800);
         $lock->acquire();
 
+        try {
+            return $this->doExecute($input, $output, $io);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function doExecute(InputInterface $input, OutputInterface $output, SymfonyStyle $io): int
+    {
         $io->title('Company Discovery Webcrawler');
 
         $sector = $input->getOption('sector');

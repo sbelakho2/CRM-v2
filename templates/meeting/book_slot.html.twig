@@ -13,10 +13,10 @@
         <div>
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.meeting_summary'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'meeting.meeting_summary'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <h2 class="text-xl font-bold rams-mb-6">{{ slot.title }}</h2>
+                    <h2 class="rams-text--xl rams-text--bold rams-mb-6">{{ slot.title }}</h2>
                     
                     <dl class="rams-definition-list">
                         <div class="rams-definition-list__item">
@@ -49,37 +49,37 @@
         <div>
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.your_details'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'meeting.your_details'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <form method="post" class="rams-form">
                         <div class="rams-form__group">
-                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.full_name'|trans }}</label>
-                            <input type="text" name="name" class="rams-form__input" required placeholder="{{ 'meeting.placeholder_name'|trans }}">
+                            <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted" for="booking-name">{{      'meeting.full_name'|trans }}</label>
+                            <input type="text" name="name" id="booking-name" class="rams-form__input" required placeholder="{{ 'meeting.placeholder_name'|trans }}">
                         </div>
                         
                         <div class="rams-form__group">
-                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.email_address'|trans }}</label>
-                            <input type="email" name="email" class="rams-form__input" required placeholder="{{ 'meeting.placeholder_email'|trans }}">
+                            <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted" for="booking-email">{{      'meeting.email_address'|trans }}</label>
+                            <input type="email" name="email" id="booking-email" class="rams-form__input" required placeholder="{{ 'meeting.placeholder_email'|trans }}">
                         </div>
                         
                         <div class="rams-form__group">
-                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.phone_optional'|trans }}</label>
-                            <input type="tel" name="phone" class="rams-form__input" placeholder="{{ 'meeting.placeholder_phone'|trans }}">
+                            <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted" for="booking-phone">{{      'meeting.phone_optional'|trans }}</label>
+                            <input type="tel" name="phone" id="booking-phone" class="rams-form__input" placeholder="{{ 'meeting.placeholder_phone'|trans }}">
                         </div>
                         
                         <div class="rams-form__group">
-                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.company_optional'|trans }}</label>
-                            <input type="text" name="company" class="rams-form__input" placeholder="{{ 'meeting.placeholder_company'|trans }}">
+                            <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted" for="booking-company">{{      'meeting.company_optional'|trans }}</label>
+                            <input type="text" name="company" id="booking-company" class="rams-form__input" placeholder="{{ 'meeting.placeholder_company'|trans }}">
                         </div>
                         
                         <div class="rams-form__group">
-                            <label class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'meeting.notes_optional'|trans }}</label>
-                            <textarea name="notes" class="rams-form__input" rows="3" placeholder="{{ 'meeting.placeholder_notes'|trans }}"></textarea>
+                            <label class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted" for="booking-notes">{{      'meeting.notes_optional'|trans }}</label>
+                            <textarea name="notes" id="booking-notes" class="rams-form__input" rows="3" placeholder="{{ 'meeting.placeholder_notes'|trans }}"></textarea>
                         </div>
                         
                         <div class="rams-actions rams-mt-6">
-                            <button type="submit" class="rams-btn rams-btn--primary uppercase rams-w-full">
+                            <button type="submit" class="rams-btn rams-btn--primary rams-uppercase rams-w-full">
                                 {{ 'meeting.confirm_booking'|trans }}
                             </button>
                         </div>

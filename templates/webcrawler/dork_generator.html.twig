@@ -2,6 +2,16 @@
 
 {% block title %}{{ 'webcrawler.dork_generator'|trans }}{% endblock %}
 
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .rams-dork-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--rams-surface); border: 1px solid var(--rams-line); border-radius: var(--radius-sm); margin-bottom: var(--space-2); }
+    .rams-dork-item__code { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+    .rams-dork-item__actions { flex-shrink: 0; display: flex; gap: var(--space-1); }
+</style>
+{% endblock %}
+
 {% block body %}
 <div class="rams-stack rams-gap-6">
     {# Page Header #}
@@ -81,31 +91,31 @@
             </div>
             <ul class="rams-stack rams-gap-2 rams-text--xs rams-text--muted" style="list-style: none; padding-left: 0;">
                 <li class="rams-flex rams-gap-3">
-                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_site'|trans }}</code>
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rams-rounded"  style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_site'|trans }}</code>
                     <span>{{ 'webcrawler.tip_site'|trans }}</span>
                 </li>
                 <li class="rams-flex rams-gap-3">
-                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_inurl'|trans }}</code>
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rams-rounded"  style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_inurl'|trans }}</code>
                     <span>{{ 'webcrawler.tip_inurl'|trans }}</span>
                 </li>
                 <li class="rams-flex rams-gap-3">
-                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_intitle'|trans }}</code>
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rams-rounded"  style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_intitle'|trans }}</code>
                     <span>{{ 'webcrawler.tip_intitle'|trans }}</span>
                 </li>
                 <li class="rams-flex rams-gap-3">
-                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">"{{ 'webcrawler.tip_exact_example'|trans }}"</code>
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rams-rounded"  style="min-width: 120px; text-align: center;">"{{ 'webcrawler.tip_exact_example'|trans }}"</code>
                     <span>{{ 'webcrawler.tip_exact'|trans }}</span>
                 </li>
                 <li class="rams-flex rams-gap-3">
-                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_or_example'|trans }}</code>
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rams-rounded"  style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_or_example'|trans }}</code>
                     <span>{{ 'webcrawler.tip_or'|trans }}</span>
                 </li>
                 <li class="rams-flex rams-gap-3">
-                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_exclude'|trans }}</code>
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rams-rounded"  style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_exclude'|trans }}</code>
                     <span>{{ 'webcrawler.tip_exclude'|trans }}</span>
                 </li>
                 <li class="rams-flex rams-gap-3">
-                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rounded-rams-sm" style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_filetype_pdf'|trans }}</code>
+                    <code class="rams-text--2xs rams-bg-panel rams-p-1 rams-border rams-rounded"  style="min-width: 120px; text-align: center;">{{ 'webcrawler.tip_code_filetype_pdf'|trans }}</code>
                     <span>{{ 'webcrawler.tip_filetype'|trans }}</span>
                 </li>
             </ul>

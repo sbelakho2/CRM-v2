@@ -76,7 +76,7 @@ class MeetingSlot
     
     // Owner of this slot (the sales rep offering the meeting)
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?User $owner = null;
     
     // Booking information
@@ -106,12 +106,12 @@ class MeetingSlot
     
     // Link to contact if exists
     #[ORM\ManyToOne(targetEntity: Contact::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Contact $contact = null;
     
     // Link to company if exists
     #[ORM\ManyToOne(targetEntity: Company::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Company $company = null;
     
     // Reminders

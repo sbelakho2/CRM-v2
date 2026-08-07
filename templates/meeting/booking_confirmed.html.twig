@@ -4,7 +4,7 @@
 
 {% block body %}
 <div class="rams-page">
-    <div class="rams-grid rams-grid--1 rams-place-items-center" style="min-height: 60vh;">
+    <div class="rams-flex rams-items-center rams-justify-center"    style="min-height: 60vh;">
         <div class="rams-module" style="max-width: 600px; width: 100%;">
             <div class="rams-module__content rams-text--center rams-p-8">
                 <div class="rams-mb-6">
@@ -16,24 +16,24 @@
                 <h1 class="rams-text-2xl rams-text--bold rams-mb-4">{{ 'meeting.booking_confirmed'|trans }}</h1>
                 <p class="rams-text--muted rams-mb-8">{{ 'meeting.booking_confirmed_desc'|trans }}</p>
                 
-                <div class="rams-bg-surface-alt rams-p-6 rams-rounded-lg rams-text--left rams-mb-8">
-                    <dl class="rams-dl rams-dl--compact">
-                        <dt>{{ 'meeting.title'|trans }}</dt>
-                        <dd><strong>{{ slot.title }}</strong></dd>
+                <div class="rams-bg-panel rams-p-6 rams-rounded-lg rams-text--left rams-mb-8">
+                    <div class="rams-stack rams-gap-3"> <div> <span class="rams-text--muted rams-text--xs rams-block">{{   
+                         'meeting.title'|trans }}</span> <strong>{{ 
+                         slot.title }}</strong> </div> <div> <span class="rams-text--muted rams-text--xs rams-block">{{ 
                         
-                        <dt>{{ 'meeting.when'|trans }}</dt>
-                        <dd>{{ slot.startTime|date('l, F j, Y') }}<br>{{ slot.startTime|date('H:i') }} - {{ slot.endTime|date('H:i') }}</dd>
+                         'meeting.when'|trans }}</span> <span>{{ 
+                         slot.startTime|date('l, F j, Y') }}<br>{{ slot.startTime|date('H:i') }} - {{ slot.endTime|date('H:i') }}</span> </div> 
                         
                         {% if slot.location %}
-                        <dt>{{ 'meeting.location'|trans }}</dt>
-                        <dd>{{ slot.location }}</dd>
+                        <div> <span class="rams-text--muted rams-text--xs rams-block">{{  'meeting.location'|trans }}</span> <span>{{ 
+                         slot.location }}</span> </div> 
                         {% endif %}
                         
                         {% if slot.meetingUrl %}
-                        <dt>{{ 'meeting.join_url'|trans }}</dt>
-                        <dd><a href="{{ slot.meetingUrl }}" target="_blank" class="rams-link">{{ slot.meetingUrl }}</a></dd>
+                        <div> <span class="rams-text--muted rams-text--xs rams-block">{{  'meeting.join_url'|trans }}</span> <a 
+                         href="{{ slot.meetingUrl }}" target="_blank" class="rams-link">{{ slot.meetingUrl }}</a> </div> 
                         {% endif %}
-                    </dl>
+                    </div> 
                 </div>
                 
                 <div class="rams-actions rams-justify-center">

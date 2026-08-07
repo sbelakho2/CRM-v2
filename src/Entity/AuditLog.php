@@ -30,7 +30,7 @@ class AuditLog
     private ?string $action = null; // create, update, delete
 
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $user = null;
 
     #[ORM\Column(length: 45, nullable: true)]

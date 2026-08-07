@@ -13,13 +13,13 @@
                 <p class="rams-page__subtitle">{{ 'lead.review_subtitle'|trans }}</p>
             </div>
             <div class="rams-page__actions mobile-stack">
-                <a href="{{ path('app_lead_dashboard') }}" class="rams-btn uppercase">
+                <a href="{{ path('app_lead_dashboard') }}" class="rams-btn rams-uppercase"> 
                     <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M2 14V6l6-4 6 4v8M6 14V9h4v5"/>
                     </svg>
                     {{ 'lead.dashboard'|trans }}
                 </a>
-                <a href="{{ path('app_lead_export', {region: region_filter, status: status_filter}) }}" class="rams-btn rams-btn--primary uppercase">
+                <a href="{{ path('app_lead_export', {region: region_filter, status: status_filter}) }}" class="rams-btn rams-btn--primary rams-uppercase"> 
                     <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M8 12V2M4 6l4-4 4 4M2 14h12"/>
                     </svg>
@@ -31,10 +31,10 @@
         {# Filters #}
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content">
-                <form method="get" class="rams-form rams-form--inline mobile-stack">
+                <form method="get" class="rams-form mobile-stack">
                     <div class="rams-form__group">
-                        <label class="rams-dymo">{{ 'lead.region'|trans }}</label>
-                        <select name="region" class="rams-form__select">
+                        <label for="region" class="rams-dymo">{{ 'lead.region'|trans }}</label>
+                        <select name="region" id="region" class="rams-form__select">
                             <option value="all" {% if region_filter == 'all' %}selected{% endif %}>{{ 'lead.all_regions'|trans }}</option>
                             {% for code, label in region_options %}
                                 <option value="{{ code }}" {% if region_filter == code %}selected{% endif %}>{{ label }}</option>
@@ -43,8 +43,8 @@
                     </div>
 
                     <div class="rams-form__group">
-                        <label class="rams-dymo">{{ 'common.status'|trans }}</label>
-                        <select name="status" class="rams-form__select">
+                        <label for="status" class="rams-dymo">{{ 'common.status'|trans }}</label>
+                        <select name="status" id="status" class="rams-form__select">
                             <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{{ 'lead.all_statuses'|trans }}</option>
                             <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>{{ 'lead.pending_review'|trans }}</option>
                             <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>{{ 'lead.approved_leads'|trans }}</option>
@@ -53,12 +53,12 @@
                     </div>
 
                     <div class="rams-form__group">
-                        <label class="rams-dymo">{{ 'lead.min_score'|trans }}</label>
-                        <input type="number" name="score_min" class="rams-form__input" value="{{ score_min }}" min="0" max="100">
+                        <label for="score_min" class="rams-dymo">{{ 'lead.min_score'|trans }}</label>
+                        <input type="number" name="score_min" id="score_min" class="rams-form__input" value="{{ score_min }}" min="0" max="100">
                     </div>
 
-                    <div class="rams-form__group rams-form__group--action">
-                        <button type="submit" class="rams-btn rams-btn--primary uppercase">
+                    <div class="rams-form__group">  
+                        <button type="submit" class="rams-btn rams-btn--primary rams-uppercase"> 
                             <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M2 4h12M4 8h8M6 12h4"/>
                             </svg>
@@ -89,30 +89,31 @@
             <div class="rams-module__content rams-module__content--flush">
                 <div class="rams-table-container">
                     <table class="rams-table">
-                        <thead class="rams-table__header">
+                        <caption class="rams-sr-only">{{ 'lead.review'|trans }}</caption>
+                        <thead>
                             <tr>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.title_singular'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.region'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.location'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.sectors'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'lead.contact_info'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'lead.score'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.title_singular'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'lead.region'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'lead.location'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'lead.sectors'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'lead.contact_info'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'common.actions'|trans }}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for lead in leads %}
                             <tr class="rams-table__row" id="lead-{{ lead.id }}">
                                 <td class="rams-table__cell">
-                                    <span class="rams-badge rams-badge--{% if lead.leadScore >= 70 %}success{% elseif lead.leadScore >= 55 %}warning{% else %}neutral{% endif %}">
+                                    <span class="rams-badge {% if lead.leadScore >= 70 %}rams-badge--success{% elseif lead.leadScore >= 55 %}rams-badge--warning{% endif %}">
                                         {{ lead.leadScore }}
                                     </span>
                                 </td>
                                 <td class="rams-table__cell">
                                     <strong>{{ lead.companyName }}</strong>
                                     {% if lead.websiteRoot %}
-                                    <br><a href="{{ lead.websiteRoot }}" target="_blank" class="rams-link rams-link--sm">{{ lead.websiteRoot }}</a>
+                                    <br><a href="{{ lead.websiteRoot }}" target="_blank" class="rams-link">{{   lead.websiteRoot }}</a>
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell">
@@ -124,20 +125,20 @@
                                 <td class="rams-table__cell">
                                     {% if lead.sectorTags %}
                                         {% for sector in lead.sectorTags|slice(0, 2) %}
-                                            <span class="rams-badge rams-badge rams-badge--sm">{{ sector }}</span>
+                                            <span class="rams-badge rams-badge--small">{{   sector }}</span>
                                         {% endfor %}
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell">
                                     {% if lead.supplierPortalUrl %}
-                                        <a href="{{ lead.supplierPortalUrl }}" target="_blank" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.supplier_portal'|trans }}">
+                                        <a href="{{ lead.supplierPortalUrl }}" target="_blank" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.supplier_portal'|trans }}" aria-label="{{ 'lead.supplier_portal'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                             </svg>
                                         </a>
                                     {% endif %}
                                     {% if lead.contactEmailsPublic %}
-                                        <span class="rams-badge rams-badge--success rams-badge--sm" title="{{ lead.contactEmailsPublic|join(', ') }}">
+                                        <span class="rams-badge rams-badge--success rams-badge--small"  title="{{ lead.contactEmailsPublic|join(', ') }}">
                                             <svg class="rams-icon rams-icon--xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                             </svg>
@@ -147,21 +148,21 @@
                                 </td>
                                 <td class="rams-table__cell">
                                     {% if lead.reviewStatus == 'approved' %}
-                                        <span class="rams-andon rams-andon--success rams-andon--inline">{{ 'lead.approved_leads'|trans }}</span>
+                                        <span class="rams-andon rams-andon--success">{{   'lead.approved_leads'|trans }}</span>
                                     {% elseif lead.reviewStatus == 'denied' %}
-                                        <span class="rams-andon rams-andon--danger rams-andon--inline">{{ 'lead.denied_leads'|trans }}</span>
+                                        <span class="rams-andon rams-andon--error">{{   'lead.denied_leads'|trans }}</span>
                                     {% else %}
-                                        <span class="rams-andon rams-andon--warning rams-andon--inline">{{ 'common.pending'|trans }}</span>
+                                        <span class="rams-andon rams-andon--warning">{{   'common.pending'|trans }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="rams-table__cell">
                                     {% if lead.reviewStatus == 'pending' %}
-                                        <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="approveLead({{ lead.id }})" title="{{ 'lead.approve'|trans }}">
+                                        <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="approveLead({{ lead.id }})" title="{{ 'lead.approve'|trans }}" aria-label="{{ 'lead.approve'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                             </svg>
                                         </button>
-                                        <button class="rams-btn rams-btn--danger rams-btn--sm" onclick="denyLead({{ lead.id }})" title="{{ 'lead.deny'|trans }}">
+                                        <button class="rams-btn rams-btn--danger rams-btn--sm" onclick="denyLead({{ lead.id }})" title="{{ 'lead.deny'|trans }}" aria-label="{{ 'lead.deny'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                             </svg>
@@ -181,7 +182,7 @@
                                             </svg>
                                             {{ 'lead.in_crm'|trans }}
                                         </span>
-                                        <a href="{{ path('app_company_show', {id: safe_company_id(lead)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.view_company'|trans }}">
+                                        <a href="{{ path('app_company_show', {id: safe_company_id(lead)}) }}" class="rams-btn rams-btn--ghost rams-btn--sm" title="{{ 'lead.view_company'|trans }}" aria-label="{{ 'lead.view_company'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                             </svg>
@@ -191,7 +192,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="8" class="rams-table__cell rams-table__cell--empty">
+                                <td colspan="8" class="rams-table__cell">  
                                     {{ 'lead.no_leads'|trans }}
                                 </td>
                             </tr>
@@ -223,12 +224,19 @@ function approveLead(leadId) {
 }
 
 function denyLead(leadId) {
-    const reason = prompt('{{ 'lead.deny_reason_prompt'|trans }}');
-    
+    ramsPrompt('{{ 'lead.deny_reason_prompt'|trans }}', function(reason) {
+        submitDenyLead(leadId, reason || '{{ 'lead.not_good_fit'|trans }}');
+    }, {
+        title: '{{ 'lead.deny'|trans }}',
+        inputLabel: '{{ 'lead.deny_reason'|trans }}'
+    });
+}
+
+function submitDenyLead(leadId, reason) {
     fetch(`/leads/deny/${leadId}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({reason: reason || '{{ 'lead.not_good_fit'|trans }}'})
+        body: JSON.stringify({reason: reason})
     })
     .then(response => response.json())
     .then(data => {

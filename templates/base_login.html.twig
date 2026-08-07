@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ 'auth.login.title'|trans }}{% endblock %} - {{ 'app.company'|trans }}</title>
     
-    {# Sensei-Rams Design System CSS #}
-    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}?v={{ 'now'|date('U') }}">
+    {# Sensei-Rams Design System CSS (versioned; bumped only when the stylesheet changes) #}
+    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}?v=2.1">   
     
     {# Font preloading for performance #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +26,7 @@
     <a href="#main-content" class="rams-skip-link">{{ 'accessibility.skip_to_content'|trans }}</a>
     
     <main id="main-content" class="rams-auth-container" role="main">
-        {% block body %}{% endblock %}
+        {# Flash Messages #} {% for label, messages in app.flashes %} {% for message in messages %} <div class="rams-alert rams-alert--{{ label == 'error' ? 'error' : (label == 'success' ? 'success' : (label == 'warning' ? 'warning' : 'info')) }} rams-mb-4" role="alert"> <div class="rams-alert__content">{{ message|trans }}</div> </div> {% endfor %} {% endfor %} {% block body %}{% endblock %}
     </main>
     
     {% block javascripts %}{% endblock %}

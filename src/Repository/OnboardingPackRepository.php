@@ -29,7 +29,7 @@ class OnboardingPackRepository extends ServiceEntityRepository
             ->andWhere('op.company = :company')
             ->setParameter('company', $company)
             ->orderBy('op.createdAt', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -45,7 +45,7 @@ class OnboardingPackRepository extends ServiceEntityRepository
             ->andWhere('op.portalCandidate = :portal')
             ->setParameter('portal', $portalCandidate)
             ->orderBy('op.createdAt', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -61,7 +61,7 @@ class OnboardingPackRepository extends ServiceEntityRepository
             ->andWhere('op.status = :status')
             ->setParameter('status', $status)
             ->orderBy('op.createdAt', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }
@@ -77,7 +77,7 @@ class OnboardingPackRepository extends ServiceEntityRepository
             ->andWhere('op.status = :status')
             ->setParameter('status', 'ready')
             ->orderBy('op.createdAt', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

@@ -8,11 +8,11 @@
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <a href="{{ path('meeting_index') }}">{{ 'meeting.title'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <a href="{{ path('meeting_show', {id: slot.id}) }}">{{ slot.title }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <span>{{ 'common.edit'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'meeting.edit_slot'|trans }}</h1>

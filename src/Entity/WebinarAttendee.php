@@ -16,15 +16,15 @@ class WebinarAttendee
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Webinar::class, inversedBy: 'attendees')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Webinar $webinar = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Contact $contact = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Company $company = null;
 
     #[ORM\Column(length: 255, nullable: true)]

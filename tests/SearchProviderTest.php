@@ -43,7 +43,6 @@ class SearchProviderTest extends KernelTestCase
         // Use reflection to verify the search provider was injected
         $ref = new \ReflectionClass($dorkService);
         $prop = $ref->getProperty('searchProvider');
-        $prop->setAccessible(true);
         $value = $prop->getValue($dorkService);
 
         $this->assertInstanceOf(SearchProviderInterface::class, $value);

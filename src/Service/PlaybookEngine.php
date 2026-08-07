@@ -523,7 +523,7 @@ class PlaybookEngine
         
         try {
             // Build template context
-            $templateContext = $this->buildEmailTemplateContext($context, $event, $actionData);
+            $templateContext = $this->buildEmailTemplateContext($context, $event, $actionData, $recipient);
             
             // Render email body
             $templatePath = self::EMAIL_TEMPLATES[$templateKey] ?? self::EMAIL_TEMPLATES['default'];
@@ -576,11 +576,13 @@ class PlaybookEngine
     /**
      * Build template context from context and event objects
      */
-    private function buildEmailTemplateContext($context, $event, array $actionData): array
+    private function buildEmailTemplateContext($context, $event, array $actionData, ?string $recipient = null): array
     {
         $templateContext = [
             'action_data' => $actionData,
             'timestamp' => new \DateTime(),
+            'recipient' => $recipient,
+            'unsubscribe_url' => $recipient ? $this->buildUnsubscribeUrl($recipient) : null,
         ];
         
         // Add context data
@@ -614,6 +616,25 @@ class PlaybookEngine
         return $templateContext;
     }
     
+    /**
+     * Build the one-click unsubscribe URL for a recipient, using the same
+     * HMAC-signed token scheme as EmailConsentService::generateUnsubscribeLink()
+     * so the /email/unsubscribe endpoint can process it.
+     */
+    private function buildUnsubscribeUrl(string $email): string
+    {
+        $baseUrl = rtrim($_ENV['APP_BASE_URL'] ?? 'https://crm.starz-morocco.com', '/');
+        $secret = $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? getenv('APP_SECRET');
+        $secret = (string) $secret;
+
+        $timestamp = time();
+        $payload = $email . '|' . $timestamp;
+        $hmac = hash_hmac('sha256', $payload, $secret);
+        $token = base64_encode($payload . '|' . $hmac);
+
+        return sprintf('%s/email/unsubscribe?token=%s', $baseUrl, urlencode($token));
+    }
+
     /**
      * Render email template, with fallback for missing templates
      */

@@ -167,7 +167,7 @@
         // Store callback
         closeCallback = options.onClose || null;
         
-        // Show modal
+        // Remember the element that opened the modal for focus restore modal._previousFocus = document.activeElement; // Show modal
         modal.classList.remove('rams-hidden');
         alertBtn.focus();
         
@@ -192,12 +192,23 @@
         modal.classList.add('rams-hidden');
         document.removeEventListener('keydown', handleAlertKeydown);
         
-        if (closeCallback) {
+        restoreFocus(modal); if (closeCallback) {
             closeCallback();
             closeCallback = null;
         }
     };
     
+    /**
+     * Return focus to the element that opened the modal
+     */
+    function restoreFocus(modal) {
+        const previous = modal._previousFocus;
+        modal._previousFocus = null;
+        if (previous && typeof previous.focus === 'function') {
+            previous.focus();
+        }
+    }
+
     /**
      * Handle keyboard events in modal
      */
@@ -205,6 +216,21 @@
         if (e.key === 'Escape' || e.key === 'Enter') {
             e.preventDefault();
             ramsAlertClose();
+            return;
+        }
+        if (e.key === 'Tab') {
+            const modal = document.getElementById('rams-alert-modal');
+            const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (focusables.length === 0) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
         }
     }
     

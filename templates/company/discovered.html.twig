@@ -31,8 +31,8 @@
             <form method="get" action="{{ path('app_company_discovered') }}" class="rams-form">
                 <div class="rams-form__row rams-form__row--3">
                     <div class="rams-form__group rams-mb-0">
-                        <label class="rams-dymo">{{ 'company.discovered.filter_sector'|trans }}</label>
-                        <select name="sector" class="rams-form__select">
+                        <label for="sector" class="rams-dymo">{{ 'company.discovered.filter_sector'|trans }}</label>
+                        <select name="sector" id="sector" class="rams-form__select">
                             <option value="">{{ 'company.discovered.filter_all_sectors'|trans }}</option>
                             {% for sector in sectors %}
                                 <option value="{{ sector.value }}" {% if current_sector == sector.value %}selected{% endif %}>{{ sector.label }}</option>
@@ -40,8 +40,8 @@
                         </select>
                     </div>
                     <div class="rams-form__group rams-mb-0">
-                        <label class="rams-dymo">{{ 'company.discovered.filter_region'|trans }}</label>
-                        <select name="region" class="rams-form__select">
+                        <label for="region" class="rams-dymo">{{ 'company.discovered.filter_region'|trans }}</label>
+                        <select name="region" id="region" class="rams-form__select">
                             <option value="">{{ 'company.discovered.filter_all_regions'|trans }}</option>
                             {% for region_code, region_label in regions %}
                                 <option value="{{ region_code }}" {% if current_region == region_code %}selected{% endif %}>{{ region_label }}</option>
@@ -49,8 +49,8 @@
                         </select>
                     </div>
                     <div class="rams-form__group rams-mb-0">
-                        <label class="rams-dymo">{{ 'company.discovered.filter_search'|trans }}</label>
-                        <input type="text" name="search" value="{{ current_search }}" class="rams-form__input" placeholder="{{ 'company.discovered.filter_search_placeholder'|trans }}" />
+                        <label for="search" class="rams-dymo">{{ 'company.discovered.filter_search'|trans }}</label>
+                        <input type="text" name="search" id="search" value="{{ current_search }}" class="rams-form__input" placeholder="{{ 'company.discovered.filter_search_placeholder'|trans }}" />
                     </div>
                 </div>
                 <div class="rams-flex rams-gap-2 mobile-stack">
@@ -76,19 +76,19 @@
         <div class="rams-module__content rams-module__content--flush">
             {% if companies|length > 0 %}
                 <div class="rams-table-container">
-                    <table class="rams-table">
-                        <thead class="rams-table__header">
+                    <table class="rams-table" aria-label="{{ 'company.discovered.pending_review'|trans }}">
+                        <thead>
                             <tr>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_company'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_website'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_sector'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_region'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_contacts'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_discovered'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'company.discovered.table_actions'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_company'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_website'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_sector'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_region'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_contacts'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'company.discovered.table_discovered'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'company.discovered.table_actions'|trans }}</th>
                             </tr>
                         </thead>
-                        <tbody class="rams-table__body">
+                        <tbody>
                             {% for company in companies %}
                                 <tr class="rams-table__row">
                                     <td class="rams-table__cell rams-text--bold">
@@ -133,7 +133,7 @@
             {% else %}
                 <div class="rams-empty-state">
                     <h3 class="rams-empty-state__title">{{ 'company.discovered.empty_title'|trans }}</h3>
-                    <p class="rams-empty-state__subtitle">{{ 'company.discovered.empty_subtitle'|trans }}</p>
+                    <p class="rams-empty-state__description">{{  'company.discovered.empty_subtitle'|trans }}</p>
                 </div>
             {% endif %}
         </div>

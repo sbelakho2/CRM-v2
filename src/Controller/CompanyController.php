@@ -139,8 +139,16 @@ class CompanyController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_company_show', requirements: ['id' => '\d+'], methods: ['GET'])]
-    public function show(Company $company): Response
+    public function show(int $id): Response
     {
+        // Load company with contacts/activities/rfqs in one query — the
+        // detail template iterates all three collections (avoids N+1 lazy loads)
+        $company = $this->companyRepository->findWithDetails($id);
+
+        if (!$company) {
+            throw $this->createNotFoundException('Company not found');
+        }
+
         // Check for incomplete profile and provide guidance
         $this->guidanceService->checkIncompleteCompanyProfile($company);
         [, $sectorLabels] = $this->buildSectorOptions();

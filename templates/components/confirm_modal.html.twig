@@ -30,6 +30,10 @@
             </div>
             <div class="rams-module__content">
                 <p id="rams-confirm-message" class="rams-text--muted">{{ 'common.confirm_message'|trans }}</p>
+                <div id="rams-confirm-input-row" class="rams-hidden rams-mt-3">
+                    <label for="rams-confirm-input" id="rams-confirm-input-label" class="rams-form__label">{{ 'common.reason'|trans }}</label>
+                    <input type="text" id="rams-confirm-input" class="rams-form__input" autocomplete="off">
+                </div>
             </div>
             <div class="rams-module__footer rams-flex rams-gap-2 rams-justify-end">
                 <button type="button" id="rams-confirm-cancel-btn" class="rams-btn" onclick="ramsConfirmCancel()">
@@ -108,7 +112,20 @@
 (function() {
     let confirmCallback = null;
     let cancelCallback = null;
-    
+    let promptMode = false;
+
+    function getModal() {
+        return document.getElementById('rams-confirm-modal');
+    }
+
+    function resetPromptState() {
+        const row = document.getElementById('rams-confirm-input-row');
+        const input = document.getElementById('rams-confirm-input');
+        promptMode = false;
+        if (row) row.classList.add('rams-hidden');
+        if (input) input.value = '';
+    }
+
     /**
      * Show confirmation modal
      * @param {string} message - The confirmation message
@@ -116,7 +133,7 @@
      * @param {Object} options - Optional configuration
      */
     window.ramsConfirm = function(message, onConfirm, options = {}) {
-        const modal = document.getElementById('rams-confirm-modal');
+        const modal = getModal();
         const titleText = document.getElementById('rams-confirm-title-text');
         const messageEl = document.getElementById('rams-confirm-message');
         const confirmBtn = document.getElementById('rams-confirm-btn');
@@ -128,17 +145,18 @@
         titleText.textContent = options.title || '{{ 'common.confirm_action'|trans }}';
         confirmBtn.textContent = options.confirmText || '{{ 'common.confirm'|trans }}';
         cancelBtn.textContent = options.cancelText || '{{ 'common.cancel'|trans }}';
+        resetPromptState();
         
         // Set variant
         modal.classList.remove('rams-confirm--danger', 'rams-confirm--warning');
         confirmBtn.classList.remove('rams-btn--danger', 'rams-btn--warning', 'rams-btn--primary');
-        andonEl.classList.remove('rams-andon--danger', 'rams-andon--warning', 'rams-andon--info');
+        andonEl.classList.remove('rams-andon--error', 'rams-andon--warning', 'rams-andon--info');
         
         switch (options.variant) {
             case 'danger':
                 modal.classList.add('rams-confirm--danger');
                 confirmBtn.classList.add('rams-btn--danger');
-                andonEl.classList.add('rams-andon--danger');
+                andonEl.classList.add('rams-andon--error');
                 break;
             case 'warning':
                 modal.classList.add('rams-confirm--warning');
@@ -154,6 +172,9 @@
         confirmCallback = onConfirm;
         cancelCallback = options.onCancel || null;
         
+        // Remember the element that opened the modal for focus restore
+        modal._previousFocus = document.activeElement;
+        
         // Show modal
         modal.classList.remove('rams-hidden');
         confirmBtn.focus();
@@ -161,18 +182,96 @@
         // Trap focus and handle escape
         document.addEventListener('keydown', handleModalKeydown);
     };
-    
+
+    /**
+     * Show prompt modal (replaces native prompt()).
+     * The confirm callback receives the entered value as its argument.
+     * @param {string} message - The prompt message
+     * @param {Function} onConfirm - Callback receiving the entered value
+     * @param {Object} options - {title, confirmText, cancelText, required, placeholder}
+     */
+    window.ramsPrompt = function(message, onConfirm, options = {}) {
+        const modal = getModal();
+        const titleText = document.getElementById('rams-confirm-title-text');
+        const messageEl = document.getElementById('rams-confirm-message');
+        const confirmBtn = document.getElementById('rams-confirm-btn');
+        const cancelBtn = document.getElementById('rams-confirm-cancel-btn');
+        const andonEl = document.getElementById('rams-confirm-andon');
+        const row = document.getElementById('rams-confirm-input-row');
+        const input = document.getElementById('rams-confirm-input');
+        const inputLabel = document.getElementById('rams-confirm-input-label');
+        
+        messageEl.textContent = message;
+        titleText.textContent = options.title || '{{ 'common.enter_value'|trans }}';
+        confirmBtn.textContent = options.confirmText || '{{ 'common.confirm'|trans }}';
+        cancelBtn.textContent = options.cancelText || '{{ 'common.cancel'|trans }}';
+        if (inputLabel && options.inputLabel) {
+            inputLabel.textContent = options.inputLabel;
+        }
+        if (input) {
+            input.placeholder = options.placeholder || '';
+            input.value = options.value !== undefined ? options.value : '';
+        }
+        
+        // Variant: primary
+        modal.classList.remove('rams-confirm--danger', 'rams-confirm--warning');
+        confirmBtn.classList.remove('rams-btn--danger', 'rams-btn--warning', 'rams-btn--primary');
+        andonEl.classList.remove('rams-andon--error', 'rams-andon--warning', 'rams-andon--info');
+        confirmBtn.classList.add('rams-btn--primary');
+        andonEl.classList.add('rams-andon--info');
+        
+        promptMode = true;
+        confirmCallback = onConfirm;
+        cancelCallback = options.onCancel || null;
+        promptRequired = options.required !== false;
+        
+        row.classList.remove('rams-hidden');
+        modal._previousFocus = document.activeElement;
+        modal.classList.remove('rams-hidden');
+        input.focus();
+        
+        // Enter inside the input confirms the prompt
+        input.onkeydown = function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                ramsConfirmAction();
+            }
+        };
+        
+        document.addEventListener('keydown', handleModalKeydown);
+    };
+
+    let promptRequired = true;
+
     /**
      * Execute confirm action
      */
     window.ramsConfirmAction = function() {
-        const modal = document.getElementById('rams-confirm-modal');
+        const modal = getModal();
+        let value = null;
+        
+        if (promptMode) {
+            const input = document.getElementById('rams-confirm-input');
+            value = input.value.trim();
+            if (promptRequired && value === '') {
+                input.setAttribute('aria-invalid', 'true');
+                input.classList.add('rams-form__input--error');
+                input.focus();
+                return;
+            }
+            input.removeAttribute('aria-invalid');
+            input.classList.remove('rams-form__input--error');
+        }
+        
         modal.classList.add('rams-hidden');
         document.removeEventListener('keydown', handleModalKeydown);
+        restoreFocus(modal);
+        resetPromptState();
         
         if (confirmCallback) {
-            confirmCallback();
+            const cb = confirmCallback;
             confirmCallback = null;
+            cb(promptMode ? value : undefined);
         }
     };
     
@@ -180,16 +279,30 @@
      * Cancel and close modal
      */
     window.ramsConfirmCancel = function() {
-        const modal = document.getElementById('rams-confirm-modal');
+        const modal = getModal();
         modal.classList.add('rams-hidden');
         document.removeEventListener('keydown', handleModalKeydown);
+        restoreFocus(modal);
+        resetPromptState();
         
         if (cancelCallback) {
-            cancelCallback();
+            const cb = cancelCallback;
             cancelCallback = null;
+            cb();
         }
         confirmCallback = null;
     };
+    
+    /**
+     * Return focus to the element that opened the modal
+     */
+    function restoreFocus(modal) {
+        const previous = modal._previousFocus;
+        modal._previousFocus = null;
+        if (previous && typeof previous.focus === 'function') {
+            previous.focus();
+        }
+    }
     
     /**
      * Handle keyboard events in modal
@@ -197,6 +310,21 @@
     function handleModalKeydown(e) {
         if (e.key === 'Escape') {
             ramsConfirmCancel();
+            return;
+        }
+        if (e.key === 'Tab') {
+            const modal = getModal();
+            const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (focusables.length === 0) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
         }
     }
     

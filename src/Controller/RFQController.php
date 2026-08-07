@@ -28,7 +28,7 @@ class RFQController extends AbstractController
     ) {}
 
     #[Route('/', name: 'app_rfq_index', methods: ['GET'])]
-    public function index(Request $request, RFQRepository $rfqRepository): Response
+    public function index(Request $request, RFQRepository $rfqRepository, CompanyRepository $companyRepository): Response
     {
         // Filters
         $type = $request->query->get('type');
@@ -70,8 +70,14 @@ class RFQController extends AbstractController
 
         $rfqs = $qb->getQuery()->getResult();
 
+        $companies = $companyRepository->createQueryBuilder('c')
+            ->orderBy('c.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
         return $this->render('rfq/index.html.twig', [
             'rfqs' => $rfqs,
+            'companies' => $companies,
         ]);
     }
 

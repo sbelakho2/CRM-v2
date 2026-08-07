@@ -71,16 +71,17 @@
     <div class="rams-module">
         <div class="rams-table-container">
             <table class="rams-table">
-                <thead class="rams-table__header">
+                <caption class="rams-sr-only">{{ 'administration.users.title'|trans }}</caption>
+                <thead>
                     <tr>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'common.name'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.users.email'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.users.role'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header">{{ 'administration.users.status'|trans }}</th>
-                        <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'common.name'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'administration.users.email'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'administration.users.role'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'administration.users.status'|trans }}</th>
+                        <th scope="col" class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                     </tr>
                 </thead>
-                <tbody class="rams-table__body">
+                <tbody>
                     {% for user in users %}
                         <tr class="rams-table__row">
                             <td class="rams-table__cell">

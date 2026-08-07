@@ -53,7 +53,7 @@ class InboxMessageRepository extends ServiceEntityRepository
             ->where('m.fromEmail = :email')
             ->setParameter('email', $email)
             ->orderBy('m.receivedAt', 'DESC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

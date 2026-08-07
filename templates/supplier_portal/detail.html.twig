@@ -26,7 +26,7 @@
                     : (status_raw == 'Inactive'
                         ? 'supplier.portal.status_inactive'|trans
                         : (status_raw ? status_raw : 'common.n_a'|trans))) %}
-            <span class="rams-badge rams-badge--lg">{{ status_label }}</span>
+            <span class="rams-badge">{{   status_label }}</span>
         </div>
     </div>
 
@@ -125,29 +125,29 @@
                     <h2 class="rams-module__title">{{ 'supplier.portal.performance'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-stack rams-gap-4">
-                        <div>
-                            <div class="rams-flex rams-justify-between rams-mb-1">
-                                <span class="rams-text--xs rams-text--muted rams-uppercase">{{ 'supplier.portal.on_time_delivery'|trans }}</span>
-                                <span class="rams-text--xs rams-text--bold">{{ supplier.on_time_rate | default(95) }}%</span>
-                            </div>
-                            <div class="rams-progress rams-progress--compact">
-                                <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ supplier.on_time_rate | default(95) }}%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="rams-flex rams-justify-between rams-mb-1">
-                                <span class="rams-text--xs rams-text--muted rams-uppercase">{{ 'supplier.portal.quality_score'|trans }}</span>
-                                <span class="rams-text--xs rams-text--bold">{{ supplier.quality_score | default(88) }}/100</span>
-                            </div>
-                            <div class="rams-progress rams-progress--compact">
-                                <div class="rams-progress__bar" style="width: {{ supplier.quality_score | default(88) }}%"></div>
-                            </div>
-                        </div>
-                        <div class="rams-flex rams-justify-between">
-                            <span class="rams-text--xs rams-text--muted rams-uppercase">{{ 'supplier.portal.response_time'|trans }}</span>
-                            <span class="rams-text--xs rams-text--bold">{{ supplier.response_time | default('2h') }}</span>
-                        </div>
+                    <div class="rams-empty-state"> <svg class="rams-empty-state__icon" width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor"> <path d="M2 4L8 2L14 4V12L8 14L2 12V4Z" stroke-width="1.5"/> <path d="M2 4L8 6L14 4" stroke-width="1.5"/> <path d="M8 6V14" stroke-width="1.5"/> </svg> <p class="rams-empty-state__title rams-text--muted">{{ 'table.no_data'|trans }}</p>  
+                        
+                               
+                                     
+                                      
+                            
+                              
+                                        
+                            
+                        
+                        
+                               
+                                     
+                                      
+                            
+                              
+                                       
+                            
+                        
+                          
+                                 
+                                  
+                        
                     </div>
                 </div>
             </div>
@@ -158,19 +158,19 @@
                     <h2 class="rams-module__title">{{ 'supplier.portal.statistics'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-stack rams-gap-2">
-                        <div class="rams-module rams-module--inset rams-p-3 rams-bg-info-subtle">
-                            <span class="rams-text-2xs rams-text--info rams-uppercase rams-mb-1 rams-block">{{ 'supplier.portal.total_orders'|trans }}</span>
-                            <span class="rams-metric__value rams-text--info rams-text-2xl">{{ supplier.total_orders | default(0) }}</span>
-                        </div>
-                        <div class="rams-module rams-module--inset rams-p-3 rams-bg-success-subtle">
-                            <span class="rams-text-2xs rams-text--success rams-uppercase rams-mb-1 rams-block">{{ 'supplier.portal.total_spent'|trans }}</span>
-                            <span class="rams-metric__value rams-text--success rams-text-2xl">{{ supplier.total_spent|default(0)|format_currency(supplier.total_spent_currency|default(supplier.currency|default(display_currency())), null, 0) }}</span>
-                        </div>
-                        <div class="rams-module rams-module--inset rams-p-3 rams-bg-warning-subtle">
-                            <span class="rams-text-2xs rams-text--warning rams-uppercase rams-mb-1 rams-block">{{ 'supplier.portal.avg_order_value'|trans }}</span>
-                            <span class="rams-metric__value rams-text--warning rams-text-2xl">{{ supplier.avg_order_value|default(0)|format_currency(supplier.avg_order_value_currency|default(supplier.currency|default(display_currency())), null, 0) }}</span>
-                        </div>
+                    <div class="rams-empty-state"> <svg class="rams-empty-state__icon" width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor"> <path d="M2 4L8 2L14 4V12L8 14L2 12V4Z" stroke-width="1.5"/> <path d="M2 4L8 6L14 4" stroke-width="1.5"/> <path d="M8 6V14" stroke-width="1.5"/> </svg> <p class="rams-empty-state__title rams-text--muted">{{ 'table.no_data'|trans }}</p>  
+                            
+                                   
+                                   
+                        
+                            
+                                   
+                                   
+                        
+                            
+                                   
+                                   
+                        
                     </div>
                 </div>
             </div>
@@ -182,18 +182,18 @@
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-2">
-                        <button class="rams-btn rams-btn--primary rams-w-full">
+                        {% if supplier.portal_url %} <a href="{{ supplier.portal_url }}" target="_blank" rel="noopener noreferrer"  class="rams-btn rams-btn--primary rams-w-full rams-no-underline rams-text--center"> 
                             {{ 'supplier.portal.view_portal'|trans }}
-                        </button>
-                        <button class="rams-btn rams-w-full">
+                        </a> {% endif %} {% if supplier.email %} <a href="mailto:{{ supplier.email }}" 
+                         class="rams-btn rams-w-full rams-no-underline rams-text--center"> 
                             {{ 'supplier.portal.send_message'|trans }}
-                        </button>
-                        <button class="rams-btn rams-w-full">
-                            {{ 'supplier.portal.edit_details'|trans }}
-                        </button>
-                        <button class="rams-btn rams-btn--danger rams-btn--ghost rams-w-full">
-                            {{ 'supplier.portal.deactivate'|trans }}
-                        </button>
+                        </a> {% endif %} 
+                          
+                              
+                        
+                            
+                              
+                        
                     </div>
                 </div>
             </div>

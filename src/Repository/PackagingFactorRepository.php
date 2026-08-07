@@ -41,7 +41,7 @@ class PackagingFactorRepository extends ServiceEntityRepository
             ->where('p.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('p.category', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

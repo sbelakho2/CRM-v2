@@ -61,7 +61,7 @@
                                                 <div class="rams-timeline__item-header">
                                                     <span class="rams-timeline__item-type">{{ ('activity.types.' ~ activity.type|lower|replace({' ': '_', '-': '_'}) )|trans }}</span>
                                                     {% if activity.outcome %}
-                                                        <span class="rams-badge rams-badge--sm rams-badge--{{ activity.outcome|lower|replace({' ': '-'}) }}">
+                                                        <span class="rams-badge rams-badge--small rams-badge--{{ activity.outcome|lower|replace({' ': '-'}) }}">
                                                             {{ ('activity.outcomes.' ~ activity.outcome|lower|replace({' ': '_', '-': '_'}) )|trans }}
                                                         </span>
                                                     {% endif %}
@@ -80,7 +80,7 @@
                                                 {% endif %}
                                                 <div class="rams-timeline__item-footer">
                                                     <span class="rams-timeline__item-user">{{ activity.user.firstName }} {{ activity.user.lastName }}</span>
-                                                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-link rams-link--sm">{{ 'common.view'|trans }} {{ 'common.details'|trans|lower }}</a>
+                                                    <a href="{{ path('app_activity_show', {id: activity.id}) }}" class="rams-link rams-link">{{ 'common.view'|trans }} {{ 'common.details'|trans|lower }}</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -106,4 +106,28 @@
 
     </div>
 </div>
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .rams-timeline { position: relative; }
+    .rams-timeline__line { position: absolute; left: 15px; top: 8px; bottom: 8px; width: 2px; background: var(--rams-line); }
+    .rams-timeline__content { position: relative; }
+    .rams-timeline__section { margin-bottom: var(--space-6); }
+    .rams-timeline__date { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+    .rams-timeline__date-marker { width: 32px; height: 32px; border-radius: 50%; background: var(--rams-panel); border: 2px solid var(--rams-line); display: flex; align-items: center; justify-content: center; color: var(--rams-muted); }
+    .rams-timeline__date-label { margin: 0; font-size: var(--text-sm); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--rams-muted); }
+    .rams-timeline__items { display: flex; flex-direction: column; gap: var(--space-3); }
+    .rams-timeline__item { display: flex; gap: var(--space-3); }
+    .rams-timeline__item-icon { flex-shrink: 0; width: 28px; height: 28px; border-radius: 4px; background: var(--rams-panel); border: 1px solid var(--rams-line); display: flex; align-items: center; justify-content: center; color: var(--rams-muted); }
+    .rams-timeline__item-content { flex: 1; min-width: 0; }
+    .rams-timeline__item-header { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+    .rams-timeline__item-type { font-weight: 600; }
+    .rams-timeline__item-detail { margin: var(--space-1) 0 0; font-size: var(--text-sm); }
+    .rams-timeline__separator { margin: 0 var(--space-1); color: var(--rams-muted); }
+    .rams-timeline__item-notes { margin: var(--space-1) 0 0; font-size: var(--text-xs); color: var(--rams-muted); }
+    .rams-timeline__item-footer { margin-top: var(--space-1); display: flex; justify-content: space-between; align-items: center; font-size: var(--text-xs); color: var(--rams-muted); }
+    .rams-timeline__item-user { font-weight: 600; }
+</style>
+{% endblock %}
 {% endblock %}

@@ -43,6 +43,25 @@ class QuoteReviewController extends AbstractController
     ) {}
 
     /**
+     * Validate the CSRF token (X-CSRF-Token header, or _token/_csrf_token body field).
+     * Returns a 403 JsonResponse when invalid, null when valid.
+     */
+    private function requireCsrf(Request $request): ?JsonResponse
+    {
+        $token = $request->headers->get('X-CSRF-Token');
+        if (!$token) {
+            $data = json_decode($request->getContent(), true);
+            $token = is_array($data) ? ($data['_token'] ?? $data['_csrf_token'] ?? null) : null;
+        }
+
+        if (!$this->isCsrfTokenValid('quote_review', (string) $token)) {
+            return new JsonResponse(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
+        }
+
+        return null;
+    }
+
+    /**
      * List quotes pending review
      */
     #[Route('', name: 'quote_review_index', methods: ['GET'])]
@@ -413,6 +432,10 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/reprice', name: 'quote_review_reprice_line', methods: ['POST'])]
     public function repriceLine(int $id, Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
             return $this->doRepriceLine($id, $request);
         } catch (\Doctrine\ORM\EntityNotFoundException $e) {
@@ -493,6 +516,10 @@ class QuoteReviewController extends AbstractController
     #[Route('/line/{id}/select-alternative', name: 'quote_review_select_alternative', methods: ['POST'])]
     public function selectAlternative(int $id, Request $request): JsonResponse
     {
+        if ($response = $this->requireCsrf($request)) {
+            return $response;
+        }
+
         try {
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {

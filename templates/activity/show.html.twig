@@ -5,7 +5,7 @@
 {% block body %}
 <div class="rams-stack rams-gap-6">
     {# Breadcrumb #}
-    <nav class="rams-breadcrumb" aria-label="Breadcrumb">
+    <nav class="rams-breadcrumb" aria-label="{{ 'common.breadcrumb'|trans }}"> 
         <ol class="rams-breadcrumb__list">
             <li class="rams-breadcrumb__item"><a href="{{ path('app_dashboard') }}" class="rams-breadcrumb__link">{{ 'nav.dashboard'|trans }}</a></li>
             <li class="rams-breadcrumb__separator">/</li>
@@ -18,7 +18,7 @@
     {# Page Header #}
     <div class="rams-page-header">
         <div class="rams-flex rams-items-center rams-gap-4 mobile-stack">
-            <div class="rams-badge rams-badge--lg rams-badge--circle rams-badge--info">
+            <div class="rams-avatar">    
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
@@ -108,7 +108,7 @@
             </dl>
 
             {% if activity.notes %}
-                <div class="rams-divider rams-my-4"></div>
+                <div class="rams-border-t rams-my-md"></div>  
                 <div class="rams-stack rams-gap-1">
                     <span class="rams-definition-list__term">{{ 'common.notes'|trans }}</span>
                     <div class="rams-text--sm rams-text--muted rams-bg-panel rams-p-3 rams-border rams-rounded">

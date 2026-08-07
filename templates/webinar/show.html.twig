@@ -11,12 +11,12 @@
             <span class="rams-breadcrumb__current">{{ webinar.title }}</span>
         </div>
 
-        <div class="rams-module__header-content">
-            <div class="rams-module__header-info">
+        <div class="rams-module__header">
+            <div class="rams-text--muted">
                 <h1 class="rams-module__title">{{ webinar.title }}</h1>
-                <div class="rams-module__meta">
+                <div class="rams-text--xs rams-text--muted">
                     <span class="rams-dymo">
-                        <svg class="rams-dymo__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
                         {{ webinar.scheduledDate|date('F d, Y - H:i') }}
@@ -60,7 +60,7 @@
 
         <!-- Description -->
         {% if webinar.description %}
-            <div class="rams-module rams-module--nested">
+            <div class="rams-module rams-module--inset"> 
                 <div class="rams-module__header">
                     <h2 class="rams-module__title">{{ 'common.description'|trans }}</h2>
                 </div>
@@ -73,12 +73,12 @@
         <!-- Links -->
         <div class="rams-grid rams-grid--2">
             {% if webinar.meetingUrl %}
-                <div class="rams-module rams-module--nested">
+                <div class="rams-module rams-module--inset"> 
                     <div class="rams-module__header">
                         <h3 class="rams-module__title">{{ 'webinar.link'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
-                        <a href="{{ webinar.meetingUrl }}" target="_blank" class="rams-link rams-link--external">
+                        <a href="{{ webinar.meetingUrl }}" target="_blank" class="rams-link rams-link--plain">
                             {{ webinar.meetingUrl }}
                         </a>
                     </div>
@@ -86,12 +86,12 @@
             {% endif %}
             
             {% if webinar.recordingUrl %}
-                <div class="rams-module rams-module--nested">
+                <div class="rams-module rams-module--inset"> 
                     <div class="rams-module__header">
                         <h3 class="rams-module__title">{{ 'webinar.recording'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
-                        <a href="{{ webinar.recordingUrl }}" target="_blank" class="rams-link rams-link--external">
+                        <a href="{{ webinar.recordingUrl }}" target="_blank" class="rams-link rams-link--plain">
                             {{ webinar.recordingUrl }}
                         </a>
                     </div>
@@ -100,7 +100,7 @@
         </div>
 
         <!-- Attendees Section -->
-        <div class="rams-module rams-module--nested">
+        <div class="rams-module rams-module--inset"> 
             <div class="rams-module__header">
                 <h2 class="rams-module__title">{{ 'webinar.registration.attendees'|trans }}</h2>
                 <div class="rams-module__header-actions mobile-stack">
@@ -125,12 +125,12 @@
             <div class="rams-module__content">
                 {% if attendees is empty %}
                     <div class="rams-empty-state">
-                        <p class="rams-empty-state__message">{{ 'webinar.no_attendees'|trans }}</p>
+                        <p class="rams-empty-state__text">{{ 'webinar.no_attendees'|trans }}</p>
                     </div>
                 {% else %}
                     <div class="rams-table-container">
                     <table class="rams-table">
-                        <thead class="rams-table__header">
+                        <thead>
                             <tr>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'common.name'|trans }}</th>
                                 <th class="rams-table__cell rams-table__cell--header">{{ 'common.email'|trans }}</th>
@@ -144,18 +144,18 @@
                             {% for attendee in attendees %}
                                 <tr class="rams-table__row">
                                     <td class="rams-table__cell">{{ attendee.name }}</td>
-                                    <td class="rams-table__cell rams-table__cell--muted">{{ attendee.email }}</td>
-                                    <td class="rams-table__cell rams-table__cell--muted">
+                                    <td class="rams-table__cell rams-table__cell rams-text--muted">{{ attendee.email }}</td>
+                                    <td class="rams-table__cell rams-table__cell rams-text--muted">
                                         {{ safe_company_name(attendee, 'common.n_a'|trans) }}
                                     </td>
-                                    <td class="rams-table__cell rams-table__cell--muted">{{ attendee.registeredAt|date('M d, Y') }}</td>
+                                    <td class="rams-table__cell rams-table__cell rams-text--muted">{{ attendee.registeredAt|date('M d, Y') }}</td>
                                     <td class="rams-table__cell">
                                         {% if attendee.attended %}
                                             <span class="rams-andon rams-andon--success">
                                                 {{ 'webinar.attended'|trans }}
                                             </span>
                                         {% else %}
-                                            <span class="rams-andon rams-andon--neutral">
+                                            <span class="rams-andon rams-andon">
                                                 {{ 'webinar.registration.registered'|trans }}
                                             </span>
                                         {% endif %}

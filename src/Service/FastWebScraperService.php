@@ -604,7 +604,108 @@ class FastWebScraperService
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             return null;
         }
+        // Only http(s) schemes (SSRF guard)
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            return null;
+        }
+        // Reject internal/private hosts (SSRF guard: cloud metadata, RFC1918, loopback, link-local)
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!$host || !$this->isPublicHost($host)) {
+            return null;
+        }
         return $url;
+    }
+
+    /**
+     * SSRF guard: returns true only when the hostname resolves exclusively to
+     * public (non-private, non-reserved) IP addresses.
+     */
+    private function isPublicHost(string $host): bool
+    {
+        $host = rtrim($host, '.');
+
+        $resolved = [];
+        $hostIp = gethostbyname($host);
+        if ($hostIp !== $host && filter_var($hostIp, FILTER_VALIDATE_IP)) {
+            $resolved[] = $hostIp;
+        }
+        foreach ((array) @dns_get_record($host, DNS_A | DNS_AAAA) as $record) {
+            if (!empty($record['ip'])) {
+                $resolved[] = $record['ip'];
+            }
+            if (!empty($record['ipv6'])) {
+                $resolved[] = $record['ipv6'];
+            }
+        }
+
+        $resolved = array_values(array_unique(array_filter($resolved)));
+        if (empty($resolved)) {
+            // Unresolvable host — refuse to fetch rather than risk a DNS-rebinding target
+            return false;
+        }
+
+        foreach ($resolved as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                if ($this->isPrivateIpv4($ip)) {
+                    return false;
+                }
+            } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                if ($this->isPrivateIpv6($ip)) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isPrivateIpv4(string $ip): bool
+    {
+        if ($ip === '0.0.0.0') {
+            return true;
+        }
+        $ipLong = ip2long($ip);
+        if ($ipLong === false) {
+            return true;
+        }
+        $ranges = [
+            ['10.0.0.0', 8],
+            ['172.16.0.0', 12],
+            ['192.168.0.0', 16],
+            ['127.0.0.0', 8],
+            ['169.254.0.0', 16],
+        ];
+        foreach ($ranges as [$base, $prefix]) {
+            $baseLong = ip2long($base);
+            $mask = ($prefix === 0) ? 0 : (~0 << (32 - $prefix)) & 0xFFFFFFFF;
+            if (($ipLong & $mask) === ($baseLong & $mask)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function isPrivateIpv6(string $ip): bool
+    {
+        if (in_array($ip, ['::', '::1'], true)) {
+            return true;
+        }
+        $packed = inet_pton($ip);
+        if ($packed === false) {
+            return true;
+        }
+        // fc00::/7 — unique local addresses (incl. IPv4-mapped private ranges)
+        if ((ord($packed[0]) & 0xFE) === 0xFC) {
+            return true;
+        }
+        // fe80::/10 — link-local
+        if (ord($packed[0]) === 0xFE && (ord($packed[1] ?? "\0") & 0xC0) === 0x80) {
+            return true;
+        }
+        return false;
     }
 
     private function getBaseUrl(string $url): ?string

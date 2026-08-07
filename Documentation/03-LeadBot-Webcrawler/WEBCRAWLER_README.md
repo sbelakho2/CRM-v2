@@ -352,7 +352,7 @@ APOLLO_API_KEY=your_key
 
 **Setup:**
 ```
-GOOGLE_API_KEY=your_key
+GOOGLE_API_KEY=CHANGE_ME_google_api_key
 GOOGLE_SEARCH_ENGINE_ID=your_id
 ```
 

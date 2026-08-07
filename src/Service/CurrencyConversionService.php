@@ -240,8 +240,12 @@ class CurrencyConversionService
         
         // 4. Try via USD (multi-hop) with any available rates
         if ($fromCurrency !== 'USD' && $toCurrency !== 'USD') {
-            $fromToUsd = $this->getRate($fromCurrency, 'USD', $visitedCurrencies);
-            $usdToTarget = $this->getRate('USD', $toCurrency, $visitedCurrencies);
+            // Each leg resolves with its own visited set: re-entering this
+            // call's entry currency through the first leg is legitimate,
+            // while the set still guards against genuine cross-pair cycles.
+            $legVisited = [];
+            $fromToUsd = $this->getRate($fromCurrency, 'USD', $legVisited);
+            $usdToTarget = $this->getRate('USD', $toCurrency, $legVisited);
             
             if ($fromToUsd['source'] !== 'unknown' && $usdToTarget['source'] !== 'unknown') {
                 $combinedRate = $fromToUsd['rate'] * $usdToTarget['rate'];

@@ -2,6 +2,18 @@
 
 {% block title %}{{ 'email_campaign.new_campaign'|trans }}{% endblock %}
 
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .rams-info-panel { display: flex; gap: var(--space-3); padding: var(--space-3); background: var(--rams-bg-info-subtle); border: 1px solid var(--rams-border); border-radius: var(--radius-sm); }
+    .rams-info-panel__icon { flex-shrink: 0; width: 20px; height: 20px; color: var(--rams-steel); margin-top: 2px; }
+    .rams-info-panel__content { flex: 1; min-width: 0; }
+    .rams-info-panel__title { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+    .rams-info-panel__list { margin: 0; padding-left: var(--space-4); font-size: var(--text-xs); color: var(--rams-muted); }
+</style>
+{% endblock %}
+
 {% block body %}
 <div class="rams-page">
     <div class="rams-page__container rams-page__container--narrow">
@@ -58,9 +70,9 @@
                         {{ form_errors(form.description) }}
                     </div>
 
-                    <div class="rams-form__group rams-form__group--checkbox">
+                    <div class="rams-form__group rams-form__group">
                         {{ form_widget(form.active, {'attr': {'class': 'rams-form__checkbox'}}) }}
-                        <label class="rams-form__label rams-form__label--inline">{{ 'common.active'|trans }}</label>
+                        <label class="rams-form__label rams-form__label">{{ 'common.active'|trans }}</label>
                     </div>
                 </div>
 
@@ -83,7 +95,7 @@
         </div>
 
         {# Info Panel #}
-        <div class="rams-module rams-module--info">
+        <div class="rams-module rams-module">
             <div class="rams-module__content">
                 <div class="rams-info-panel">
                     <svg class="rams-info-panel__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

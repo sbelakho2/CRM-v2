@@ -8,14 +8,14 @@
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <span>{{ 'currency_converter.title'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'currency_converter.title'|trans }}</h1>
             <p class="rams-page__subtitle">{{ 'currency_converter.subtitle'|trans }}</p>
         </div>
         <div class="rams-page__actions mobile-stack">
-            <button type="button" id="btn-refresh-rates" class="rams-btn rams-btn--primary uppercase" title="{{ 'currency_converter.refresh_all_tooltip'|trans }}">
+            <button type="button" id="btn-refresh-rates" class="rams-btn rams-btn--primary rams-uppercase"  title="{{ 'currency_converter.refresh_all_tooltip'|trans }}">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M2 8a6 6 0 0110.472-4M14 8a6 6 0 01-10.472 4"/>
                     <path d="M14 2v4h-4M2 14v-4h4"/>
@@ -29,28 +29,28 @@
     <div class="rams-grid rams-grid--4 rams-mb-6" id="status-cards">
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'currency_converter.status.total_pairs'|trans }}</div>
+                <div class="rams-metric__label rams-text--muted">{{  'currency_converter.status.total_pairs'|trans }}</div>
                 <div class="rams-metric__value tabular-nums" id="stat-total">{{ freshness|length }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'currency_converter.status.fresh_rates'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-green" id="stat-fresh">—</div>
+                <div class="rams-metric__label rams-text--muted">{{  'currency_converter.status.fresh_rates'|trans }}</div>
+                <div class="rams-metric__value tabular-nums rams-text--green"  id="stat-fresh">—</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'currency_converter.status.stale_rates'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-orange" id="stat-stale">—</div>
+                <div class="rams-metric__label rams-text--muted">{{  'currency_converter.status.stale_rates'|trans }}</div>
+                <div class="rams-metric__value tabular-nums rams-text--warning"  id="stat-stale">—</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'currency_converter.status.data_source'|trans }}</div>
+                <div class="rams-metric__label rams-text--muted">{{  'currency_converter.status.data_source'|trans }}</div>
                 <div class="rams-flex rams-items-center rams-gap-2 rams-mt-1">
-                    <div class="w-2 h-2 rounded-full bg-rams-green"></div>
-                    <span class="font-mono text-3xs uppercase text-rams-green">{{ 'currency_converter.status.live'|trans }}</span>
+                    <div class="rams-andon__light rams-andon__light--green"></div>    
+                    <span class="rams-font-mono rams-text--3xs rams-uppercase rams-text--green">{{     'currency_converter.status.live'|trans }}</span>
                 </div>
             </div>
         </div>
@@ -60,14 +60,14 @@
         {# ── Converter Module ─────────────────────────────── #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'currency_converter.convert_heading'|trans }}</h2>
-                <span class="rams-badge rams-badge--steel uppercase">{{ 'currency_converter.badge_live'|trans }}</span>
+                <h2 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'currency_converter.convert_heading'|trans }}</h2>
+                <span class="rams-badge rams-badge--info rams-uppercase">{{  'currency_converter.badge_live'|trans }}</span>
             </div>
             <div class="rams-module__content">
                 <form id="converter-form" class="rams-form" autocomplete="off">
                     {# Amount Input #}
                     <div class="rams-form__group">
-                        <label for="convert-amount" class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'currency_converter.amount_label'|trans }}</label>
+                        <label for="convert-amount" class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'currency_converter.amount_label'|trans }}</label>
                         <input
                             type="number"
                             id="convert-amount"
@@ -83,7 +83,7 @@
 
                     {# From Currency #}
                     <div class="rams-form__group">
-                        <label for="convert-from" class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'currency_converter.from_label'|trans }}</label>
+                        <label for="convert-from" class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'currency_converter.from_label'|trans }}</label>
                         <select id="convert-from" name="from" class="rams-form__select">
                             {% for code, label in currencies %}
                                 <option value="{{ code }}" {{ code == 'USD' ? 'selected' : '' }}>
@@ -94,8 +94,8 @@
                     </div>
 
                     {# Swap Button #}
-                    <div class="rams-flex rams-justify-center rams-my-2">
-                        <button type="button" id="btn-swap" class="rams-btn" title="{{ 'currency_converter.swap_tooltip'|trans }}">
+                    <div class="rams-flex rams-justify-center rams-my-md">
+                        <button type="button" id="btn-swap" class="rams-btn" title="{{ 'currency_converter.swap_tooltip'|trans }}" aria-label="{{ 'currency_converter.swap_tooltip'|trans }}">
                             <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M4 10h8M12 10l-3-3M12 10l-3 3M12 6H4M4 6l3-3M4 6l3 3"/>
                             </svg>
@@ -104,7 +104,7 @@
 
                     {# To Currency #}
                     <div class="rams-form__group">
-                        <label for="convert-to" class="rams-form__label font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'currency_converter.to_label'|trans }}</label>
+                        <label for="convert-to" class="rams-form__label rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'currency_converter.to_label'|trans }}</label>
                         <select id="convert-to" name="to" class="rams-form__select">
                             {% for code, label in currencies %}
                                 <option value="{{ code }}" {{ code == displayCurrency ? 'selected' : '' }}>
@@ -116,30 +116,30 @@
 
                     {# Convert Button #}
                     <div class="rams-actions rams-mt-6 mobile-stack">
-                        <button type="submit" id="btn-convert" class="rams-btn rams-btn--primary uppercase rams-w-full">
+                        <button type="submit" id="btn-convert" class="rams-btn rams-btn--primary rams-uppercase rams-w-full">
                             {{ 'currency_converter.convert_btn'|trans }}
                         </button>
                     </div>
                 </form>
 
                 {# ── Result Display ─────────────────────────── #}
-                <div id="result-panel" class="rams-mt-6 rams-p-6 rams-bg-panel border border-rams-line rounded-rams-sm rams-text--center" style="display: none;">
-                    <div class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-2">{{ 'currency_converter.result_label'|trans }}</div>
-                    <div class="rams-metric__value tabular-nums text-2xl rams-mb-1" id="result-amount">—</div>
-                    <div class="text-sm text-rams-muted" id="result-detail"></div>
+                <div id="result-panel" class="rams-mt-6 rams-p-6 rams-bg-panel rams-border rams-rounded rams-text--center" style="display: none;">
+                    <div class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted rams-mb-2">{{ 'currency_converter.result_label'|trans }}</div>
+                    <div class="rams-metric__value tabular-nums rams-text--2xl rams-mb-1" id="result-amount">—</div>
+                    <div class="rams-text--sm rams-text--muted"   id="result-detail"></div>
                     
-                    <div class="rams-grid rams-grid--3 rams-gap-4 rams-mt-6 pt-6 border-t border-rams-line">
+                    <div class="rams-grid rams-grid--3 rams-gap-4 rams-mt-6 rams-pt-lg rams-border-t">   
                         <div>
-                            <div class="font-mono text-3xs uppercase text-rams-muted">{{ 'currency_converter.rate_label'|trans }}</div>
-                            <div class="font-mono text-xs tabular-nums" id="result-rate">—</div>
+                            <div class="rams-font-mono rams-text--3xs rams-uppercase rams-text--muted">{{     'currency_converter.rate_label'|trans }}</div>
+                            <div class="rams-font-mono rams-text--xs tabular-nums" id="result-rate">—</div>
                         </div>
                         <div>
-                            <div class="font-mono text-3xs uppercase text-rams-muted">{{ 'currency_converter.source_label'|trans }}</div>
-                            <div class="font-mono text-xs" id="result-source">—</div>
+                            <div class="rams-font-mono rams-text--3xs rams-uppercase rams-text--muted">{{     'currency_converter.source_label'|trans }}</div>
+                            <div class="rams-font-mono rams-text--xs"   id="result-source">—</div>
                         </div>
                         <div>
-                            <div class="font-mono text-3xs uppercase text-rams-muted">{{ 'currency_converter.timestamp_label'|trans }}</div>
-                            <div class="font-mono text-xs tabular-nums" id="result-timestamp">—</div>
+                            <div class="rams-font-mono rams-text--3xs rams-uppercase rams-text--muted">{{     'currency_converter.timestamp_label'|trans }}</div>
+                            <div class="rams-font-mono rams-text--xs tabular-nums" id="result-timestamp">—</div>
                         </div>
                     </div>
                     
@@ -153,35 +153,35 @@
         {# ── Active Rates Module ──────────────────────────── #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h2 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'currency_converter.active_rates_heading'|trans }}</h2>
-                <span class="rams-badge rams-badge--neutral uppercase" id="rates-count-badge">{{ freshness|length }} {{ 'currency_converter.pairs'|trans }}</span>
+                <h2 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'currency_converter.active_rates_heading'|trans }}</h2>
+                <span class="rams-badge rams-uppercase"   id="rates-count-badge">{{ freshness|length }} {{ 'currency_converter.pairs'|trans }}</span>
             </div>
             <div class="rams-table-container" style="max-height: 560px;">
-                <table class="rams-table" id="rates-table">
+                <table class="rams-table" id="rates-table" aria-label="{{ 'currency_converter.active_rates_heading'|trans }}">
                     <thead>
                         <tr>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'currency_converter.col_pair'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'currency_converter.col_rate'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'currency_converter.col_age'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'currency_converter.col_status'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase">{{     'currency_converter.col_pair'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase">{{     'currency_converter.col_rate'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase">{{     'currency_converter.col_age'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase">{{     'currency_converter.col_status'|trans }}</th>
                         </tr>
                     </thead>
                     <tbody id="rates-tbody">
                         {% for pair, info in freshness %}
                             <tr>
-                                <td class="font-mono text-xs uppercase">{{ pair }}</td>
-                                <td class="font-mono text-xs tabular-nums">{{ info.rate|number_format(6) }}</td>
-                                <td class="text-xs text-rams-muted tabular-nums">{{ info.age_hours|number_format(1) }}h</td>
+                                <td class="rams-font-mono rams-text--xs rams-uppercase">{{    pair }}</td>
+                                <td class="rams-font-mono rams-text--xs tabular-nums">{{ info.rate|number_format(6) }}</td>
+                                <td class="rams-text--xs rams-text--muted tabular-nums">{{ info.age_hours|number_format(1) }}h</td>
                                 <td>
                                     {% if info.stale %}
                                         <div class="rams-flex rams-items-center rams-gap-2">
-                                            <div class="w-2 h-2 rounded-full bg-rams-orange"></div>
-                                            <span class="font-mono text-3xs uppercase text-rams-orange">{{ 'currency_converter.stale'|trans }}</span>
+                                            <div class="rams-andon__light rams-andon__light--yellow"></div>    
+                                            <span class="rams-font-mono rams-text--3xs rams-uppercase rams-text--warning">{{     'currency_converter.stale'|trans }}</span>
                                         </div>
                                     {% else %}
                                         <div class="rams-flex rams-items-center rams-gap-2">
-                                            <div class="w-2 h-2 rounded-full bg-rams-green"></div>
-                                            <span class="font-mono text-3xs uppercase text-rams-green">{{ 'currency_converter.fresh'|trans }}</span>
+                                            <div class="rams-andon__light rams-andon__light--green"></div>    
+                                            <span class="rams-font-mono rams-text--3xs rams-uppercase rams-text--green">{{     'currency_converter.fresh'|trans }}</span>
                                         </div>
                                     {% endif %}
                                 </td>
@@ -202,12 +202,12 @@
     {# ── Info Module ──────────────────────────────────────── #}
     <div class="rams-module rams-mt-6">
         <div class="rams-module__header">
-            <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'currency_converter.info_heading'|trans }}</h3>
+            <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'currency_converter.info_heading'|trans }}</h3>
         </div>
         <div class="rams-module__content">
             <div class="rams-grid rams-grid--3 rams-gap-6">
                 <div>
-                    <div class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-3">{{ 'currency_converter.info_sources_title'|trans }}</div>
+                    <div class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted rams-mb-3">{{ 'currency_converter.info_sources_title'|trans }}</div>
                     <ul class="rams-list">
                         <li class="rams-list__item">ECB / Frankfurter.app</li>
                         <li class="rams-list__item">ExchangeRate-API</li>
@@ -216,7 +216,7 @@
                     </ul>
                 </div>
                 <div>
-                    <div class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-3">{{ 'currency_converter.info_how_title'|trans }}</div>
+                    <div class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted rams-mb-3">{{ 'currency_converter.info_how_title'|trans }}</div>
                     <ul class="rams-list">
                         <li class="rams-list__item">{{ 'currency_converter.info_how_1'|trans }}</li>
                         <li class="rams-list__item">{{ 'currency_converter.info_how_2'|trans }}</li>
@@ -224,7 +224,7 @@
                     </ul>
                 </div>
                 <div>
-                    <div class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-3">{{ 'currency_converter.info_system_title'|trans }}</div>
+                    <div class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted rams-mb-3">{{ 'currency_converter.info_system_title'|trans }}</div>
                     <ul class="rams-list">
                         <li class="rams-list__item">{{ 'currency_converter.info_system_1'|trans }}</li>
                         <li class="rams-list__item">{{ 'currency_converter.info_system_2'|trans }}</li>
@@ -305,11 +305,11 @@
                 // Refresh status cards since conversion auto-persists rates
                 updateStatusCards();
             } else {
-                alert(data.error || '{{ 'currency_converter.error_generic'|trans }}');
+                ramsAlert(data.error || '{{ 'currency_converter.error_generic'|trans }}', {title: '{{ 'common.error'|trans }}'});
             }
         } catch (err) {
             console.error(err);
-            alert('{{ 'currency_converter.error_network'|trans }}');
+            ramsAlert('{{ 'currency_converter.error_network'|trans }}', {title: '{{ 'common.error'|trans }}');
         } finally {
             btnConvert.disabled = false;
             btnConvert.textContent = '{{ 'currency_converter.convert_btn'|trans }}';
@@ -341,11 +341,11 @@
                 rebuildRatesTable(data.rates);
                 updateStatusFromData(data.rates);
             } else {
-                alert(data.error || '{{ 'currency_converter.error_refresh'|trans }}');
+                ramsAlert(data.error || '{{ 'currency_converter.error_refresh'|trans }}', {title: '{{ 'common.error'|trans }}'});
             }
         } catch (err) {
             console.error(err);
-            alert('{{ 'currency_converter.error_network'|trans }}');
+            ramsAlert('{{ 'currency_converter.error_network'|trans }}', {title: '{{ 'common.error'|trans }}');
         } finally {
             btnRefresh.disabled = false;
             btnRefresh.innerHTML = origHtml;
@@ -400,17 +400,17 @@
             const info = rates[pair];
             count++;
             const statusHtml = info.stale
-                ? '<span class="rams-andon"><span class="rams-andon__light rams-andon__light--amber"></span><span class="rams-andon__text rams-andon__text--amber">{{ 'currency_converter.stale'|trans }}</span></span>'
+                ? '<span class="rams-andon"><span class="rams-andon__light rams-andon__light--yellow"></span><span class="rams-andon__text rams-andon__text--yellow">{{ 'currency_converter.stale'|trans }}</span></span>'
                 : '<span class="rams-andon"><span class="rams-andon__light rams-andon__light--green"></span><span class="rams-andon__text rams-andon__text--green">{{ 'currency_converter.fresh'|trans }}</span></span>';
             html += `<tr>
-                <td class="rams-table__td rams-text--mono">${escapeHtml(pair)}</td>
-                <td class="rams-table__td rams-text--mono">${parseFloat(info.rate).toFixed(6)}</td>
-                <td class="rams-table__td rams-text--muted">${parseFloat(info.age_hours).toFixed(1)}h</td>
-                <td class="rams-table__td">${statusHtml}</td>
+                <td class="rams-table__cell rams-font-mono">${escapeHtml(pair)}</td>  
+                <td class="rams-table__cell rams-font-mono">${parseFloat(info.rate).toFixed(6)}</td>  
+                <td class="rams-table__cell rams-text--muted">${parseFloat(info.age_hours).toFixed(1)}h</td>
+                <td class="rams-table__cell">${statusHtml}</td> 
             </tr>`;
         }
 
-        tbody.innerHTML = html || '<tr><td class="rams-table__td" colspan="4" style="text-align:center;">{{ 'currency_converter.no_rates'|trans }}</td></tr>';
+        tbody.innerHTML = html || '<tr><td class="rams-table__cell"  colspan="4" style="text-align:center;">{{ 'currency_converter.no_rates'|trans }}</td></tr>';
         badge.textContent = count + ' {{ 'currency_converter.pairs'|trans }}';
     }
 

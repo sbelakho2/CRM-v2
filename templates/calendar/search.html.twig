@@ -8,22 +8,22 @@
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <a href="{{ path('calendar_index') }}">{{ 'calendar.title'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <span>{{ 'calendar.search'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'calendar.search'|trans }}</h1>
-            <p class="rams-page__subtitle">{{ 'calendar.search_subtitle'|trans|default('Find events by title or notes.') }}</p>
+            <p class="rams-page__subtitle">{{ 'calendar.search_subtitle'|trans       }}</p>
         </div>
     </div>
 
     <div class="rams-module rams-mb-6">
         <div class="rams-module__content">
             <form method="get" action="{{ path('calendar_search') }}" class="rams-flex rams-gap-2 mobile-stack">
-                <input type="text" name="q" value="{{ query }}" class="rams-form__input" placeholder="{{ 'calendar.search_placeholder'|trans|default('Search events...') }}" />
-                <button type="submit" class="rams-btn rams-btn--orange uppercase">
-                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <label for="calendar-search-input" class="rams-sr-only">{{ 'calendar.search'|trans }}</label> <input type="text" id="calendar-search-input" name="q" value="{{ query }}" class="rams-form__input" placeholder="{{ 'calendar.search_placeholder'|trans }}" />
+                <button type="submit" class="rams-btn rams-btn--primary rams-uppercase">  
+                    <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"> 
                         <circle cx="7" cy="7" r="5" />
                         <path d="M11 11l3 3" />
                     </svg>
@@ -35,23 +35,23 @@
 
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">{{ 'calendar.search_results'|trans|default('Search results') }}</h2>
+            <h2 class="rams-module__title">{{ 'calendar.search_results'|trans   }}</h2>
         </div>
         <div class="rams-module__content">
             {% if events is not empty %}
                 <div class="rams-table-container">
-                <table class="rams-table">
-                    <thead class="rams-table__header">
+                <table class="rams-table" aria-label="{{ 'calendar.search_results'|trans }}">
+                    <thead>  
                         <tr>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.name'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.date'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header">{{ 'common.type'|trans }}</th>
-                            <th class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
+                            <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'common.name'|trans }}</th>
+                            <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'common.date'|trans }}</th>
+                            <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'common.type'|trans }}</th>
+                            <th scope="col" class="rams-table__cell rams-table__cell--header rams-table__cell--actions">{{ 'common.actions'|trans }}</th>
                         </tr>
                     </thead>
-                    <tbody class="rams-table__body">
+                    <tbody>  
                         {% for event in events %}
-                            <tr class="rams-table__row">
+                            <tr>  
                                 <td class="rams-table__cell rams-text--bold">{{ event.title }}</td>
                                 <td class="rams-table__cell rams-text--muted">
                                     {% if event.start %}
@@ -75,7 +75,7 @@
                 </div>
             {% else %}
                 <div class="rams-empty-state">
-                    {{ query ? ('calendar.no_results'|trans|default('No events match your search.')) : ('calendar.search_hint'|trans|default('Search for events to see results.')) }}
+                    {{ query ? 'calendar.no_results'|trans      : 'calendar.search_hint'|trans       }}
                 </div>
             {% endif %}
         </div>

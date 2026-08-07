@@ -8,7 +8,7 @@
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span>
                 <span>{{ 'quote.review.title'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'quote.review.title'|trans }}</h1>
@@ -20,26 +20,26 @@
     <div class="rams-grid rams-grid--4 rams-mb-6">
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-muted">{{ 'quote.review.total_pending'|trans }}</div>
+                <div class="rams-metric__label rams-text--muted">{{  'quote.review.total_pending'|trans }}</div>
                 <div class="rams-metric__value tabular-nums">{{ quotes|length }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-red">{{ 'quote.review.high_priority'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-red">{{ quotes|filter(q => q.review_count > 5)|length }}</div>
+                <div class="rams-metric__label rams-text--red">{{  'quote.review.high_priority'|trans }}</div>
+                <div class="rams-metric__value tabular-nums rams-text--red">{{  quotes|filter(q => q.review_count > 5)|length }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-green">{{ 'quote.review.ready_approve'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-green">{{ quotes|filter(q => q.review_count == 0)|length }}</div>
+                <div class="rams-metric__label rams-text--green">{{  'quote.review.ready_approve'|trans }}</div>
+                <div class="rams-metric__value tabular-nums rams-text--green">{{  quotes|filter(q => q.review_count == 0)|length }}</div>
             </div>
         </div>
         <div class="rams-module rams-p-4">
             <div class="rams-metric">
-                <div class="rams-metric__label text-rams-orange">{{ 'quote.review.in_progress'|trans }}</div>
-                <div class="rams-metric__value tabular-nums text-rams-orange">{{ quotes|filter(q => q.review_count > 0 and q.review_count <= 5)|length }}</div>
+                <div class="rams-metric__label rams-text--warning">{{  'quote.review.in_progress'|trans }}</div>
+                <div class="rams-metric__value tabular-nums rams-text--warning">{{  quotes|filter(q => q.review_count > 0 and q.review_count <= 5)|length }}</div>
             </div>
         </div>
     </div>
@@ -47,15 +47,15 @@
     {# Quotes List #}
     {% if quotes is empty %}
         <div class="rams-module">
-            <div class="rams-module__content rams-p-12 rams-text--center">
-                <div class="text-rams-green text-4xl rams-mb-4">
+            <div class="rams-module__content rams-p-8 rams-text--center">
+                <div class="rams-text--green rams-text--4xl rams-mb-4">
                     <svg class="rams-icon rams-icon--xl" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 8L6 11L13 4"/>
                     </svg>
                 </div>
-                <h3 class="font-mono text-xs uppercase tracking-widest text-rams-muted rams-mb-2">{{ 'quote.review.all_caught_up'|trans }}</h3>
+                <h3 class="rams-font-mono rams-text--xs rams-uppercase rams-text--muted rams-mb-2">{{ 'quote.review.all_caught_up'|trans }}</h3>
                 <p class="rams-text--sm rams-text--muted rams-mb-6">{{ 'quote.review.no_pending'|trans }}</p>
-                <a href="{{ path('quote_copilot_index') }}" class="rams-btn rams-btn--primary uppercase">
+                <a href="{{ path('quote_copilot_index') }}" class="rams-btn rams-btn--primary rams-uppercase"> 
                     {{ 'quote.copilot.new_quote'|trans }}
                 </a>
             </div>
@@ -64,15 +64,16 @@
         <div class="rams-module">
             <div class="rams-table-container">
                 <table class="rams-table">
+                    <caption class="rams-sr-only">{{ 'quote.review.title'|trans }}</caption>
                     <thead>
                         <tr>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.quote'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.company'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.copilot.bom_lines'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'quote.review.needs_review'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.status'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest">{{ 'common.created'|trans }}</th>
-                            <th class="font-mono text-2xs uppercase tracking-widest rams-text--right">{{ 'common.actions'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'quote.quote'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'common.company'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'quote.copilot.bom_lines'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'quote.review.needs_review'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'common.status'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase ">{{     'common.created'|trans }}</th>
+                            <th scope="col" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--right">{{ 'common.actions'|trans }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -82,31 +83,31 @@
                             {% set reviewCount = quote.review_count %}
                             <tr>
                                 <td>
-                                    <div class="font-bold">{{ q.quoteNumber }}</div>
-                                    <div class="text-xs text-rams-muted tabular-nums">{{ q.totalCost|format_currency(q.currency, null, 2) }}</div>
+                                    <div class="rams-text--bold">{{  q.quoteNumber }}</div>
+                                    <div class="rams-text--xs rams-text--muted tabular-nums">{{ q.totalCost|format_currency(q.currency, null, 2) }}</div>
                                 </td>
                                 <td>{{ quote.company_name ?? ('common.n_a'|trans) }}</td>
                                 <td class="tabular-nums">{{ totalLines }} {{ 'quote.lines'|trans }}</td>
                                 <td>
                                     {% if reviewCount == 0 %}
                                         <div class="rams-flex rams-items-center rams-gap-2">
-                                            <div class="w-2 h-2 rounded-full bg-rams-green"></div>
-                                            <span class="font-mono text-3xs uppercase text-rams-green">{{ 'quote.review.ready'|trans }}</span>
+                                            <div class="rams-andon__light rams-andon__light--green"></div>    
+                                            <span class="rams-font-mono rams-text--3xs rams-uppercase rams-text--green">{{     'quote.review.ready'|trans }}</span>
                                         </div>
                                     {% elseif reviewCount <= 5 %}
-                                        <span class="rams-badge rams-badge--warning uppercase">{{ reviewCount }} {{ 'quote.review.items'|trans }}</span>
+                                        <span class="rams-badge rams-badge--warning rams-uppercase">{{  reviewCount }} {{ 'quote.review.items'|trans }}</span>
                                     {% else %}
-                                        <span class="rams-badge rams-badge--danger uppercase">{{ reviewCount }} {{ 'quote.review.items'|trans }}</span>
+                                        <span class="rams-badge rams-badge--danger rams-uppercase">{{  reviewCount }} {{ 'quote.review.items'|trans }}</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="rams-badge rams-badge--{{ q.status == 'approved' ? 'success' : (q.status == 'pending_review' ? 'neutral' : 'neutral') }} uppercase">
+                                    <span class="rams-badge rams-badge--{{ q.status == 'approved' ? 'success' : (q.status == 'pending_review' ? 'neutral' : 'neutral') }} rams-uppercase"> 
                                         {{ q.status|replace({'_': ' '}) }}
                                     </span>
                                 </td>
-                                <td class="tabular-nums text-rams-muted">{{ q.createdAt|date('M j, Y') }}</td>
+                                <td class="tabular-nums rams-text--muted">{{  q.createdAt|date('M j, Y') }}</td>
                                 <td class="rams-text--right">
-                                    <a href="{{ path('quote_review_detail', {id: q.id}) }}" class="rams-btn rams-btn--ghost uppercase">
+                                    <a href="{{ path('quote_review_detail', {id: q.id}) }}" class="rams-btn rams-btn--ghost rams-uppercase"> 
                                         <svg class="rams-icon rams-icon--sm" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M1 8s3-6 7-6 7 6 7 6-3 6-7 6-7-6-7-6zM8 11a3 3 0 100-6 3 3 0 000 6z"/>
                                         </svg>

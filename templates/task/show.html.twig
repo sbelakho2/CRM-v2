@@ -8,18 +8,18 @@
         <div class="rams-page__header-content">
             <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <a href="{{ path('app_task_index') }}">{{ 'task.title'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <span>{{ task.title }}</span>
             </div>
             <div class="rams-flex rams-items-center rams-gap-2 rams-mt-2">
                 <h1 class="rams-page__title">{{ task.title }}</h1>
-                <span class="rams-badge rams-badge--{{ task.status == 'done' ? 'success' : (task.status == 'in_progress' ? 'warning' : 'neutral') }}">
-                    {{ task.status|replace({'_': ' '})|upper }}
+                {% set status_variant =    task.status == 'done' ? 'success' : (task.status == 'in_progress' ? 'warning' : '') %} <span class="{{ status_variant ? 'rams-badge rams-badge--' ~ status_variant : 'rams-badge' }}">
+                    {{ ('task.status.' ~ task.status)|trans|upper    }}
                 </span>
-                <span class="rams-badge rams-badge--{{ task.priority == 'high' ? 'danger' : (task.priority == 'medium' ? 'warning' : 'neutral') }}">
-                    {{ task.priority|upper }}
+                {% set priority_variant =    task.priority == 'high' ? 'danger' : (task.priority == 'medium' ? 'warning' : '') %} <span class="{{ priority_variant ? 'rams-badge rams-badge--' ~ priority_variant : 'rams-badge' }}">
+                    {{ ('task.priority.' ~ task.priority)|trans|upper  }}
                 </span>
             </div>
         </div>
@@ -27,7 +27,7 @@
             {% if task.status != 'done' %}
             <form method="post" action="{{ path('app_task_complete', {id: task.id}) }}" style="display:inline;">
                 <input type="hidden" name="_token" value="{{ csrf_token('complete' ~ task.id) }}">
-                <button class="rams-btn rams-btn--success uppercase">
+                <button class="rams-btn rams-btn--success rams-uppercase"> 
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M3 8L6 11L13 4"/>
                     </svg>
@@ -35,15 +35,15 @@
                 </button>
             </form>
             {% endif %}
-            <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn uppercase">
+            <a href="{{ path('app_task_edit', {id: task.id}) }}" class="rams-btn rams-uppercase"> 
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M12 2L14 4L4 14H2V12L12 2Z"/>
                 </svg>
                 {{ 'common.edit'|trans }}
             </a>
-            <form method="post" action="{{ path('app_task_delete', {id: task.id}) }}" onsubmit="return confirm('{{ 'task.confirm_delete'|trans }}');" style="display:inline;">
+            <form method="post" action="{{ path('app_task_delete', {id: task.id}) }}" onsubmit="return ramsConfirmSubmit(event, '{{ 'task.confirm_delete'|trans|e('js') }}', {variant: 'danger'});" style="display:inline;">
                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ task.id) }}">
-                <button class="rams-btn rams-btn--danger uppercase">
+                <button class="rams-btn rams-btn--danger rams-uppercase"> 
                     <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M2 4H14M5 4V2H11V4M6 4V13H10V4"/>
                     </svg>
@@ -57,10 +57,10 @@
         <div class="rams-grid-span-2 mobile-w-full">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.description'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'task.description'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <div class="rams-bg-surface-alt rams-p-4 rounded-rams-sm rams-border rams-border-rams-line">
+                    <div class="rams-bg-panel rams-p-4 rams-rounded rams-border">   
                         {{ task.description|default('task.no_description'|trans)|nl2br }}
                     </div>
                 </div>
@@ -69,7 +69,7 @@
             {% if task.company %}
             <div class="rams-module rams-mt-6">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.related_records'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'task.related_records'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                      <dl class="rams-definition-list">
@@ -88,18 +88,18 @@
         <div class="mobile-w-full">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.details'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'task.details'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <dl class="rams-definition-list">
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'common.status'|trans }}</dt>
-                            <dd class="rams-definition-list__desc">{{ (task.status|replace({'_': ' '}))|upper }}</dd>
+                            <dd class="rams-definition-list__desc">{{ ('task.status.' ~ task.status)|trans|upper    }}</dd>
                         </div>
                         
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'task.priority'|trans }}</dt>
-                            <dd class="rams-definition-list__desc">{{ task.priority|upper }}</dd>
+                            <dd class="rams-definition-list__desc">{{ ('task.priority.' ~ task.priority)|trans|upper  }}</dd>
                         </div>
                         
                         <div class="rams-definition-list__item">
@@ -147,7 +147,7 @@
             
             <div class="rams-module rams-mt-4">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.meta'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'task.meta'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <dl class="rams-definition-list">

@@ -119,11 +119,14 @@ class CalendarEvent
 
     // Relationships
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(name: 'organizer_id', nullable: false)]
+    #[ORM\JoinColumn(name: 'organizer_id', nullable: false, onDelete: 'CASCADE')]
     private ?User $organizer = null;
 
     #[ORM\ManyToMany(targetEntity: User::class)]
-    #[ORM\JoinTable(name: 'calendar_event_attendees')]
+    #[ORM\JoinTable(name: 'calendar_event_attendees',
+        joinColumns: [new ORM\JoinColumn(name: 'user_id', onDelete: 'CASCADE')],
+        inverseJoinColumns: [new ORM\JoinColumn(name: 'calendar_event_id', onDelete: 'CASCADE')]
+    )]
     private Collection $attendees;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]

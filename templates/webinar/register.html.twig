@@ -4,15 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ 'webinar.registration.register'|trans }} - {{ webinar.title }}</title>
-    <link rel="stylesheet" href="{{ asset('css/rams.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css')  }}">
+
+    <style>
+        .rams-public-container { max-width: 640px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
+        .rams-public-header { margin-bottom: var(--space-6); }
+        .rams-public-header__title { margin: 0 0 var(--space-2); }
+        .rams-public-header__meta { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+        .rams-public-description { padding: var(--space-3); background: var(--rams-panel); border-left: 3px solid var(--rams-orange); border-radius: var(--radius-sm); margin-bottom: var(--space-6); color: var(--rams-muted); font-size: var(--text-sm); }
+    </style>
+
 </head>
-<body class="rams-page rams-page--public">
+<body class="rams-page rams-page">
     <div class="rams-public-container">
         <div class="rams-public-header">
             <h1 class="rams-public-header__title">{{ webinar.title }}</h1>
             <div class="rams-public-header__meta">
                 <span class="rams-dymo">
-                    <svg class="rams-dymo__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
                     {{ webinar.scheduledDate|date('F d, Y - H:i') }}
@@ -57,13 +66,13 @@
                         <input type="text" id="company" name="company" class="rams-form__input">
                     </div>
 
-                    <div class="rams-form__actions rams-form__actions--full">
+                    <div class="rams-form__actions rams-form__actions">
                         <button type="submit" class="rams-btn rams-btn--primary rams-btn--full">
                             {{ 'webinar.registration.register'|trans }}
                         </button>
                     </div>
 
-                    <p class="rams-form__help-text rams-form__help-text--center">
+                    <p class="rams-form__hint rams-form__hint rams-text--center">
                         {{ 'webinar.registration_notice'|trans|default("By registering, you'll receive a confirmation email with the meeting link.") }}
                     </p>
                 </form>

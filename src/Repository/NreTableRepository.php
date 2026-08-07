@@ -43,7 +43,7 @@ class NreTableRepository extends ServiceEntityRepository
             ->andWhere('nt.isActive = :active')
             ->setParameter('active', true)
             ->orderBy('nt.serviceType', 'ASC')
-            ->setMaxResults(500)
+
             ->getQuery()
             ->getResult();
     }

@@ -32,7 +32,7 @@
         }
         .risk-label {
             font-size: 9pt;
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.05em;
             color: var(--rams-muted);
         }
@@ -74,7 +74,7 @@
             border-radius: 10pt;
             font-size: 8pt;
             font-weight: bold;
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
         }
         .risk-badge.low { background: #e8f5ea; color: #2D8C3C; }
         .risk-badge.medium { background: #fff8e5; color: #b38600; }
@@ -169,7 +169,7 @@
         .stat-label {
             font-size: 8pt;
             color: var(--rams-muted);
-            text-transform: rams-uppercase;
+            text-transform: uppercase; 
             letter-spacing: 0.05em;
         }
     </style>
@@ -190,7 +190,7 @@
     </div>
 
     {# Overall Risk Score #}
-    {% set overallRisk = riskData.overallScore ?? 35 %}
+    {% set overallRisk = riskData.overallScore   %}
     {% set riskLevel = overallRisk < 25 ? 'low' : (overallRisk < 50 ? 'medium' : (overallRisk < 75 ? 'high' : 'critical')) %}
     
     <h3>{{ 'pdf.sourcing_risk.overall'|trans }}</h3>
@@ -225,24 +225,24 @@
     {# Risk Summary Stats #}
     <div class="stats-grid">
         <div class="stat-box">
-            <div class="stat-value">{{ riskData.singleSourceParts ?? 4 }}</div>
+            <div class="stat-value">{{ riskData.singleSourceParts   }}</div>
             <div class="stat-label">{{ 'pdf.sourcing_risk.single_source'|trans }}</div>
         </div>
         <div class="stat-box">
-            <div class="stat-value">{{ riskData.longLeadParts ?? 7 }}</div>
+            <div class="stat-value">{{ riskData.longLeadParts   }}</div>
             <div class="stat-label">{{ 'pdf.sourcing_risk.long_lead'|trans }}</div>
         </div>
         <div class="stat-box">
-            <div class="stat-value">{{ riskData.eolParts ?? 2 }}</div>
+            <div class="stat-value">{{ riskData.eolParts   }}</div>
             <div class="stat-label">{{ 'pdf.sourcing_risk.eol_nrnd'|trans }}</div>
         </div>
         <div class="stat-box">
-            <div class="stat-value">{{ riskData.allocationParts ?? 3 }}</div>
-            <div class="stat-label">{{ 'pdf.sourcing_risk.allocation'|trans }}</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-value">{{ (riskData.geoConcentration ?? 68)|number_format(0) }}%</div>
-            <div class="stat-label">{{ 'pdf.sourcing_risk.geo_concentration'|trans }}</div>
+            <div class="stat-value">{{ riskData.allocationParts   }}</div>
+            <div class="stat-label">{{ 'pdf.sourcing_risk.allocation'|trans 
+        
+         
+                 
+               }}</div>
         </div>
     </div>
 
@@ -253,31 +253,31 @@
     <div class="risk-category">
         <div class="risk-category-header">
             <h4>{{ 'pdf.sourcing_risk.availability'|trans }}</h4>
-            <span class="risk-badge {{ (riskData.availabilityLevel ?? 'medium') }}">{{ riskData.availabilityScore ?? 42 }}/100</span>
+            <span class="risk-badge {{ riskData.availabilityLevel }}">{{ riskData.availabilityScore   }}/100</span>
         </div>
         <div class="risk-category-body">
-            <table>
+            <table aria-label="{{ 'pdf.sourcing_risk.availability'|trans }}">
                 <thead>
                     <tr>
-                        <th style="width: 20%;">{{ 'pdf.quote.mpn'|trans }}</th>
-                        <th style="width: 15%;">{{ 'pdf.sourcing_risk.manufacturer'|trans }}</th>
-                        <th class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.stock'|trans }}</th>
-                        <th class="rams-text--center" style="width: 12%;">{{ 'pdf.sourcing_risk.lead_time'|trans }}</th>
-                        <th class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.sources'|trans }}</th>
-                        <th class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.risk'|trans }}</th>
-                        <th style="width: 23%;">{{ 'pdf.sourcing_risk.notes'|trans }}</th>
+                        <th scope="col" style="width: 20%;">{{ 'pdf.quote.mpn'|trans }}</th>
+                        <th scope="col" style="width: 15%;">{{ 'pdf.sourcing_risk.manufacturer'|trans }}</th>
+                        <th scope="col" class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.stock'|trans }}</th>
+                        <th scope="col" class="rams-text--center" style="width: 12%;">{{ 'pdf.sourcing_risk.lead_time'|trans }}</th>
+                        <th scope="col" class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.sources'|trans }}</th>
+                        <th scope="col" class="rams-text--center" style="width: 10%;">{{ 'pdf.sourcing_risk.risk'|trans }}</th>
+                        <th scope="col" style="width: 23%;">{{ 'pdf.sourcing_risk.notes'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for part in riskData.availabilityRisks ?? [] %}
-                    <tr class="heat-map risk-{{ part.level ?? 'low' }}">
-                        <td><strong>{{ part.mpn ?? 'common.n_a'|trans }}</strong></td>
-                        <td>{{ part.manufacturer ?? 'common.n_a'|trans }}</td>
-                        <td class="rams-text--center">{{ part.stock ?? 0 }}</td>
-                        <td class="rams-text--center">{{ part.leadTime ?? 'common.n_a'|trans }}</td>
-                        <td class="rams-text--center">{{ part.sourceCount ?? 1 }}</td>
-                        <td class="rams-text--center"><span class="risk-badge {{ part.level ?? 'low' }}">{{ (part.level ?? 'Low')|upper }}</span></td>
-                        <td>{{ part.notes ?? '-' }}</td>
+                    {% for part in riskData.availabilityRisks   %}
+                    <tr class="heat-map risk-{{ part.level }}">
+                        <td><strong>{{ part.mpn == 'common.n_a' ?  'common.n_a'|trans : part.mpn }}</strong></td>
+                        <td>{{ part.manufacturer == 'common.n_a' ?  'common.n_a'|trans : part.manufacturer }}</td>
+                        <td class="rams-text--center">{{ part.stock == 'common.n_a' ? 'common.n_a'|trans : part.stock   }}</td>
+                        <td class="rams-text--center">{{ part.leadTime == 'common.n_a' ?  'common.n_a'|trans : part.leadTime }}</td>
+                        <td class="rams-text--center">{{ part.sourceCount   }}</td>
+                        <td class="rams-text--center"><span class="risk-badge {{ part.level }}">{{ part.level|upper    }}</span></td>
+                        <td>{{ part.notes   }}</td>
                     </tr>
                     {% else %}
                     <tr>
@@ -295,21 +295,21 @@
     <div class="risk-category">
         <div class="risk-category-header">
             <h4>{{ 'pdf.sourcing_risk.supplier_concentration'|trans }}</h4>
-            <span class="risk-badge {{ (riskData.concentrationLevel ?? 'medium') }}">{{ riskData.concentrationScore ?? 38 }}/100</span>
+            <span class="risk-badge {{ riskData.concentrationLevel }}">{{ riskData.concentrationScore   }}/100</span>
         </div>
         <div class="risk-category-body">
-            {% for supplier in riskData.topSuppliers ?? [] %}
+            {% for supplier in riskData.topSuppliers   %}
             <div class="supplier-card">
-                <div class="supplier-logo">{{ supplier.initials ?? 'XX' }}</div>
+                <div class="supplier-logo">{{ supplier.name|slice(0, 2)|upper    }}</div>
                 <div class="supplier-info">
-                    <div class="supplier-name">{{ supplier.name ?? 'pdf.sourcing_risk.unknown_supplier'|trans }}</div>
+                    <div class="supplier-name">{{ supplier.name == 'common.unknown' ?  'pdf.sourcing_risk.unknown_supplier'|trans : supplier.name }}</div>
                     <div class="supplier-details">
-                        {{ supplier.partCount ?? 0 }} {{ 'pdf.sourcing_risk.parts'|trans|lower }} ({{ supplier.percentage ?? 0 }}% of BOM value) • 
-                        {{ supplier.region ?? 'common.unknown'|trans }}
+                        {{ supplier.partCount   }} {{ 'pdf.sourcing_risk.parts'|trans|lower }} ({{ supplier.percentage   }}% of BOM value) • 
+                        {{ supplier.region == 'common.unknown' ?  'common.unknown'|trans : supplier.region }}
                     </div>
                 </div>
                 <div class="supplier-metrics">
-                    <span class="risk-badge {{ supplier.riskLevel ?? 'low' }}">{{ (supplier.riskLevel|default('Low'))|upper }}</span>
+                    <span class="risk-badge {{ supplier.riskLevel }}">{{ supplier.riskLevel|upper  }}</span>
                 </div>
             </div>
             {% else %}
@@ -322,14 +322,14 @@
 
     {# Geographic Risk Heat Map #}
     <h3>{{ 'pdf.sourcing_risk.geographic'|trans }}</h3>
-    <table class="heat-map">
+    <table class="heat-map" aria-label="{{ 'pdf.sourcing_risk.geographic'|trans }}">
         <thead>
             <tr>
-                <th style="width: 25%;">{{ 'pdf.sourcing_risk.region'|trans }}</th>
-                <th class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.parts'|trans }}</th>
-                <th class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.value_pct'|trans }}</th>
-                <th class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.risk_score'|trans }}</th>
-                <th style="width: 30%;">{{ 'pdf.sourcing_risk.primary_concern'|trans }}</th>
+                <th scope="col" style="width: 25%;">{{ 'pdf.sourcing_risk.region'|trans }}</th>
+                <th scope="col" class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.parts'|trans }}</th>
+                <th scope="col" class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.value_pct'|trans }}</th>
+                <th scope="col" class="rams-text--center" style="width: 15%;">{{ 'pdf.sourcing_risk.risk_score'|trans }}</th>
+                <th scope="col" style="width: 30%;">{{ 'pdf.sourcing_risk.primary_concern'|trans }}</th>
             </tr>
         </thead>
         <tbody>

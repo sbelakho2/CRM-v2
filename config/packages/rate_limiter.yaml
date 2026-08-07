@@ -12,11 +12,6 @@ framework:
             limit: 5
             interval: '15 minutes'
 
-        forgot_password_form:
-            policy: 'sliding_window'
-            limit: 3
-            interval: '15 minutes'
-
         registration:
             policy: 'sliding_window'
             limit: 3
@@ -26,11 +21,6 @@ framework:
             policy: 'fixed_window'
             limit: 5
             interval: '1 hour'
-
-        login:
-            policy: 'sliding_window'
-            limit: 5
-            interval: '15 minutes'
 
         webhook_email:
             policy: 'sliding_window'
@@ -46,13 +36,3 @@ framework:
             policy: 'token_bucket'
             limit: 100
             rate: { interval: '1 minute', amount: 60 }
-
-        api_key:
-            policy: 'token_bucket'
-            limit: 30
-            rate: { interval: '1 minute', amount: 10 }
-
-        api_user:
-            policy: 'sliding_window'
-            limit: 200
-            interval: '1 minute'

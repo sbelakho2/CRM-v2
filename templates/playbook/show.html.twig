@@ -162,7 +162,7 @@
                             container.innerHTML = '<div class="rams-stack rams-gap-2">' + actions.map(action => {
                                 let paramsHtml = '';
                                 if (action.params && Object.keys(action.params).length > 0) {
-                                    paramsHtml = '<div class="rams-grid rams-grid--2 rams-gap-2 rams-mt-2 rams-pt-2 rams-border-t rams-border-line">';
+                                    paramsHtml = '<div class="rams-grid rams-grid--2 rams-gap-2 rams-mt-2 rams-pt-sm rams-border-t rams-border">';
                                     for (const [key, value] of Object.entries(action.params)) {
                                         paramsHtml += `
                                             <div>
@@ -203,25 +203,21 @@
         <div class="rams-module__content rams-module__content--flush">
             {% if runs|length > 0 %}
                 <div class="rams-table-container">
-                    <table class="rams-table">
-                        <thead class="rams-table__header">
+                    <table class="rams-table" aria-label="{{ 'playbook.recent_executions'|trans }}">
+                        <thead>
                             <tr>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'playbook.triggered_at'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'playbook.actions_executed'|trans }}</th>
-                                <th class="rams-table__cell rams-table__cell--header">{{ 'playbook.outcome'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'playbook.triggered_at'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'common.status'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'playbook.actions_executed'|trans }}</th>
+                                <th scope="col" class="rams-table__cell rams-table__cell--header">{{ 'playbook.outcome'|trans }}</th>
                             </tr>
                         </thead>
-                        <tbody class="rams-table__body">
+                        <tbody>
                             {% for run in runs %}
                                 <tr class="rams-table__row">
                                     <td class="rams-table__cell rams-text--xs rams-font-mono">{{ run.triggeredAt|date('M d, Y H:i:s') }}</td>
                                     <td class="rams-table__cell">
-                                        <span class="rams-badge
-                                            {% if run.status == 'completed' %}rams-badge--success
-                                            {% elseif run.status == 'failed' %}rams-badge--danger
-                                            {% elseif run.status == 'pending' %}rams-badge--warning
-                                            {% endif %}">
+                                        <span class="rams-badge {% if run.status == 'completed' %}rams-badge--success {% elseif run.status == 'failed' %}rams-badge--danger {% elseif run.status == 'pending' %}rams-badge--warning {% endif %}">
                                             {{ run.status }}
                                         </span>
                                     </td>

@@ -57,6 +57,7 @@ class PlaybookController extends AbstractController
     }
 
     #[Route('/new', name: 'app_playbook_new', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function new(Request $request): Response
     {
         if ($request->isMethod('POST')) {
@@ -116,6 +117,7 @@ class PlaybookController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_playbook_edit', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function edit(Request $request, Playbook $playbook): Response
     {
         if ($request->isMethod('POST')) {
@@ -153,16 +155,14 @@ class PlaybookController extends AbstractController
     }
 
     #[Route('/{id}/delete', name: 'app_playbook_delete', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function delete(Request $request, Playbook $playbook): Response
     {
         if (!$this->isCsrfTokenValid('playbook_delete_' . $playbook->getId(), $request->request->get('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
-        if ($playbook->getCreatedBy() !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-
+        // PlaybookRun rows reference playbook with ON DELETE CASCADE (FK-safe delete)
         $this->entityManager->remove($playbook);
         $this->entityManager->flush();
         
@@ -171,6 +171,7 @@ class PlaybookController extends AbstractController
     }
 
     #[Route('/{id}/toggle', name: 'app_playbook_toggle', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function toggle(Request $request, Playbook $playbook): JsonResponse
     {
         if (!$this->isCsrfTokenValid('playbook_toggle_' . $playbook->getId(), $request->request->get('_csrf_token'))) {
@@ -189,6 +190,7 @@ class PlaybookController extends AbstractController
     }
 
     #[Route('/builder/triggers/{id}', name: 'app_playbook_builder_triggers', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function builderTriggers(Request $request, Playbook $playbook): Response
     {
         if ($request->isMethod('POST')) {
@@ -218,6 +220,7 @@ class PlaybookController extends AbstractController
     }
 
     #[Route('/builder/actions/{id}', name: 'app_playbook_builder_actions', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function builderActions(Request $request, Playbook $playbook): Response
     {
         if ($request->isMethod('POST')) {

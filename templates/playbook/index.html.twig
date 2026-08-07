@@ -24,16 +24,17 @@
 
     <div class="rams-module">
         <div class="rams-table-container">
-        <table class="rams-table rams-table--data">
-            <thead class="rams-table__header">
+        <table class="rams-table rams-table">
+            <caption class="rams-sr-only">{{ 'playbook.title'|trans }}</caption>
+            <thead>
                 <tr>
-                    <th class="rams-table__cell">{{ 'common.name'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'playbook.priority'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'common.status'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'playbook.runs'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'playbook.success_rate'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'playbook.last_run'|trans }}</th>
-                    <th class="rams-table__cell">{{ 'common.actions'|trans }}</th>
+                    <th scope="col" class="rams-table__cell">{{ 'common.name'|trans }}</th>
+                    <th scope="col" class="rams-table__cell">{{ 'playbook.priority'|trans }}</th>
+                    <th scope="col" class="rams-table__cell">{{ 'common.status'|trans }}</th>
+                    <th scope="col" class="rams-table__cell">{{ 'playbook.runs'|trans }}</th>
+                    <th scope="col" class="rams-table__cell">{{ 'playbook.success_rate'|trans }}</th>
+                    <th scope="col" class="rams-table__cell">{{ 'playbook.last_run'|trans }}</th>
+                    <th scope="col" class="rams-table__cell">{{ 'common.actions'|trans }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -41,7 +42,7 @@
                     {% set stats = playbookStats[playbook.id] %}
                     <tr class="rams-table__row">
                         <td class="rams-table__cell">
-                            <div class="rams-list-item__title">{{ playbook.name }}</div>
+                            <div class="rams-list__title">{{ playbook.name }}</div>
                             <div class="rams-text--muted rams-text--xs">{{ playbook.description|slice(0, 60) }}...</div>
                         </td>
                         <td class="rams-table__cell">
@@ -110,12 +111,12 @@
                 {{ 'playbook.playbooks_description'|trans }}
             </p>
             <div class="rams-grid rams-grid--2 rams-gap-6">
-                <div class="rams-module rams-module--nested">
+                <div class="rams-module rams-module--inset"> 
                     <div class="rams-module__header">
                         <h3 class="rams-dymo rams-mb-0">{{ 'playbook.example_triggers'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
-                        <ul class="rams-list rams-list--bullet rams-stack rams-gap-1">
+                        <ul class="rams-list rams-stack rams-gap-1">
                             <li>{{ 'playbook.example_trigger_1'|trans }}</li>
                             <li>{{ 'playbook.example_trigger_2'|trans }}</li>
                             <li>{{ 'playbook.example_trigger_3'|trans }}</li>
@@ -123,12 +124,12 @@
                         </ul>
                     </div>
                 </div>
-                <div class="rams-module rams-module--nested">
+                <div class="rams-module rams-module--inset"> 
                     <div class="rams-module__header">
                         <h3 class="rams-dymo rams-mb-0">{{ 'playbook.example_actions'|trans }}</h3>
                     </div>
                     <div class="rams-module__content">
-                        <ul class="rams-list rams-list--bullet rams-stack rams-gap-1">
+                        <ul class="rams-list rams-stack rams-gap-1">
                             <li>{{ 'playbook.example_action_1'|trans }}</li>
                             <li>{{ 'playbook.example_action_2'|trans }}</li>
                             <li>{{ 'playbook.example_action_3'|trans }}</li>

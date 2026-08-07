@@ -193,16 +193,16 @@
             </h2>
             <div class="rams-flex rams-gap-2 rams-flex-wrap">
                 {% if compliance_alert_counts.expired > 0 %}
-                    <span class="rams-badge rams-badge--danger rams-badge--sm">{{ compliance_alert_counts.expired }} {{ 'compliance.expired'|trans }}</span>
+                    <span class="rams-badge rams-badge--danger rams-badge--small">{{ compliance_alert_counts.expired }} {{ 'compliance.expired'|trans }}</span>
                 {% endif %}
                 {% if compliance_alert_counts.expiring_soon > 0 %}
-                    <span class="rams-badge rams-badge--warning rams-badge--sm">{{ compliance_alert_counts.expiring_soon }} {{ 'compliance.expiring_soon'|trans }}</span>
+                    <span class="rams-badge rams-badge--warning rams-badge--small">{{ compliance_alert_counts.expiring_soon }} {{ 'compliance.expiring_soon'|trans }}</span>
                 {% endif %}
                 {% if compliance_alert_counts.missing > 0 %}
-                    <span class="rams-badge rams-badge--info rams-badge--sm">{{ compliance_alert_counts.missing }} {{ 'compliance.missing'|trans }}</span>
+                    <span class="rams-badge rams-badge--info rams-badge--small">{{ compliance_alert_counts.missing }} {{ 'compliance.missing'|trans }}</span>
                 {% endif %}
                 {% if compliance_alert_counts.snoozed > 0 %}
-                    <span class="rams-badge rams-badge--muted rams-badge--sm" title="{{ 'compliance.snoozed_tooltip'|trans }}">
+                    <span class="rams-badge rams-badge--gray rams-badge--small"   title="{{ 'compliance.snoozed_tooltip'|trans }}">
                         😴 {{ compliance_alert_counts.snoozed }} {{ 'compliance.snoozed'|trans }}
                     </span>
                 {% endif %}
@@ -220,7 +220,7 @@
                             {% elseif doc.isExpiringSoon %}
                                 <span class="rams-andon__light rams-andon__light--yellow"></span>
                             {% else %}
-                                <span class="rams-andon__light rams-andon__light--blue"></span>
+                                <span class="rams-andon rams-andon--info"><span class="rams-andon__light"></span></span>  
                             {% endif %}
                         </div>
                         <div>
@@ -237,14 +237,14 @@
                                     {{ doc.expiryMessage }}
                                 </span>
                             {% elseif not doc.provided %}
-                                <span class="rams-badge rams-badge--info rams-badge--xs">{{ 'compliance.not_provided'|trans }}</span>
+                                <span class="rams-badge rams-badge--info rams-badge--small">{{  'compliance.not_provided'|trans }}</span>
                             {% endif %}
                         </div>
                         {# Snooze Button #}
                         <form method="POST" action="{{ path('app_compliance_snooze', {id: doc.id}) }}" class="rams-inline-form">
                             <input type="hidden" name="_token" value="{{ csrf_token('snooze' ~ doc.id) }}">
                             <input type="hidden" name="days" value="7">
-                            <button type="submit" class="rams-btn rams-btn--ghost rams-btn--xs" title="{{ 'compliance.snooze_7_days'|trans }}">
+                            <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm"  title="{{ 'compliance.snooze_7_days'|trans }}" aria-label="{{ 'compliance.snooze_7_days'|trans }}">
                                 😴
                             </button>
                         </form>
@@ -258,7 +258,7 @@
 </div>
 
 {# Chart.js must load before inline script - no defer needed since it's at end of body #}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script> 
 <script>
 {# Industrial-inspired chart styling using CSS custom properties for consistency #}
 const computedStyle = getComputedStyle(document.documentElement);

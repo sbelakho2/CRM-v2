@@ -6,7 +6,7 @@ use App\Repository\BomLineRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: BomLineRepository::class)]
-#[ORM\Table(name: 'bom_line')]
+#[ORM\Table(name: 'bom_lines')]
 #[ORM\Index(name: 'idx_bom_quote', columns: ['quote_id'])]
 #[ORM\Index(name: 'idx_bom_mpn', columns: ['mpn'])]
 #[ORM\Index(name: 'idx_bom_review', columns: ['requires_review'])]
@@ -19,7 +19,7 @@ class BomLine
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Quote::class, inversedBy: 'bomLines')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private ?Quote $quote = null;
 
     #[ORM\Column]

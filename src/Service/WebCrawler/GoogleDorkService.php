@@ -803,7 +803,11 @@ class GoogleDorkService
         }
 
         // Remove leading prefixes like "MAKING - ", "Visit of plants Morocco - "
-        $name = preg_replace('/^(MAKING|Visit of plants?|List of all|Contacts and locations|About\s+us|About|Overview of|Homepage)\s*[-–—:\s]\s*/iu', '', $name);
+        $name = preg_replace('/^(MAKING|Visit of plants?|List of all|Contacts and locations|Overview of|Homepage)\s*[-–—:|»]\s*/iu', '', $name);
+        // "About us - X" / "About - X" — require a REAL separator so a bare
+        // "About Us" title stays intact (it falls through to the generic
+        // pattern below and resolves to the domain name)
+        $name = preg_replace('/^About(?:\s+us)?\s*[-–—:|»]\s*/iu', '', $name);
         // "Welcome to" / "We are" don't need a separator — strip directly
         $name = preg_replace('/^Welcome\s+to\s+/iu', '', $name);
         $name = preg_replace('/^We\s+are\s+/iu', '', $name);
@@ -4251,10 +4255,12 @@ class GoogleDorkService
             return true;
         }
 
-        // Strong company-name rescue reduces false negatives
-        if ($this->looksLikeStrongCompanyName($name)) {
-            return false;
-        }
+        // NOTE: the strong-company-name rescue (looksLikeStrongCompanyName) is
+        // deliberately evaluated at the END of this method, after every junk
+        // pattern.  Running it first would let placeholder/redirect/country/
+        // generic single-word names (e.g. "Parked Domain", "Togo", "Redirecting...")
+        // escape all junk detection.  A name only gets rescued if it survives
+        // every junk check below.
         
         // Empty or very short (< 3 chars, unless ALL-CAPS acronym like "ZF", "ABB")
         if (mb_strlen($name) < 2) {
@@ -6054,7 +6060,15 @@ class GoogleDorkService
                 return true;
             }
         }
-        
+
+        // ─── Strong company-name rescue ────────────────────────────
+        // Only reached when NOTHING above flagged the name as junk.
+        // Keeps legitimate capitalized brand names (Eaton, Safran, ZF Group…)
+        // from being rejected by overly aggressive structural heuristics.
+        if ($this->looksLikeStrongCompanyName($name)) {
+            return false;
+        }
+
         return false;
     }
 
@@ -8852,6 +8866,7 @@ class GoogleDorkService
         // component manufacturers may actually BUY EMS services)
         $componentSignals = [
             '(connector|terminal|contact)\s+(supplier|distribut)',
+            '(connector|terminal|contact)\s+manufactur(er|ing)',
             '(semiconductor|chip|ic|led|mosfet|transistor)\s+(supplier|distribut)',
             '(fpga|asic|cpld|soc|microcontroller|mcu|dsp)\s+(supplier|distribut)',
             '(resistor|capacitor|inductor|transformer)\s+(supplier|distribut)',
@@ -12463,23 +12478,22 @@ class GoogleDorkService
         // iter16: Validate job_title - reject if it's clearly not a job title
         if (!empty($contact['job_title'])) {
             $jt = $contact['job_title'];
-            $jtLower = mb_strtolower($jt);
 
-            // List of words that indicate it's NOT a job title
+            // List of words that indicate it's NOT a job title.
+            // Matched as whole words — short legal suffixes like "ag" must
+            // never substring-match inside real titles ("Sales Manager").
             $invalidJobTitleWords = [
                 'headquarters', 'head office', 'main office', 'office',
                 'gmbh', 'ag', 'ltd', 'llc', 'inc', 'corp', 'plc', 'se',
                 'cookie', 'einstellungen', 'settings', 'preferences',
-                'headquarters', 'building', 'factory', 'plant', 'facility',
+                'building', 'factory', 'plant', 'facility',
                 'address', 'location', 'street', 'avenue', 'road',
-                'phone', 'fax', 'email', 'mailto', 'tel:',
+                'phone', 'fax', 'email', 'mailto', 'tel',
             ];
 
-            foreach ($invalidJobTitleWords as $word) {
-                if (str_contains($jtLower, $word)) {
-                    $contact['job_title'] = null;
-                    break;
-                }
+            $invalidTitlePattern = '/\b(' . implode('|', array_map('preg_quote', $invalidJobTitleWords)) . ')\b/i';
+            if (preg_match($invalidTitlePattern, $jt)) {
+                $contact['job_title'] = null;
             }
 
             // Also reject if job title looks like a company name (starts with uppercase, ends with legal suffix)

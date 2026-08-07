@@ -106,13 +106,13 @@ class DatasetImportService
         }
         
         // Read header
-        $headers = fgetcsv($handle);
+        $headers = fgetcsv($handle, ',', '"', '\\');
         $recordsImported = 0;
         $errors = [];
         $effectiveDate = null;
         
         // Step 5: Import each row
-        while (($row = fgetcsv($handle)) !== false) {
+        while (($row = fgetcsv($handle, ',', '"', '\\')) !== false) {
             if (empty(array_filter($row))) {
                 continue; // Skip empty rows
             }
@@ -226,11 +226,11 @@ class DatasetImportService
             throw new \RuntimeException("Cannot open CSV file: $csvPath");
         }
         
-        $headers = fgetcsv($handle);
+        $headers = fgetcsv($handle, ',', '"', '\\');
         $recordsImported = 0;
         $errors = [];
         
-        while (($row = fgetcsv($handle)) !== false) {
+        while (($row = fgetcsv($handle, ',', '"', '\\')) !== false) {
             if (empty(array_filter($row))) {
                 continue;
             }
@@ -343,12 +343,12 @@ class DatasetImportService
         }
         
         // Skip header
-        fgetcsv($handle);
+        fgetcsv($handle, ',', '"', '\\');
         
         $imported = 0;
         $errors = [];
         
-        while (($row = fgetcsv($handle)) !== false) {
+        while (($row = fgetcsv($handle, ',', '"', '\\')) !== false) {
             try {
                 if (count($row) < 4) {
                     $errors[] = "Invalid row (expected 4 columns): " . implode(',', $row);

@@ -10,7 +10,7 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="rams-grid rams-grid--4col rams-mb-6">
+    <div class="rams-grid rams-metrics-grid--4col rams-mb-6">
         <div class="rams-module rams-module--compact">
             <div class="rams-module__content">
                 <div class="rams-metric">
@@ -46,7 +46,7 @@
     </div>
 
     <!-- Main Navigation -->
-    <div class="rams-grid rams-grid--3col rams-mb-6">
+    <div class="rams-grid rams-metrics-grid--3col rams-mb-6">
         <a href="{{ path('abm_dashboard_accounts') }}" class="rams-module rams-module--hoverable rams-no-underline">
             <div class="rams-module__content">
                 <h2 class="rams-module__title">👥 {{ 'abm_dashboard.accounts'|trans }}</h2>
@@ -111,9 +111,9 @@
             <div class="rams-stack">
                 {% if activities | default([]) %}
                     {% for activity in activities %}
-                        <div class="rams-list-item">
-                            <div class="rams-list-item__content">
-                                <p class="rams-list-item__title">{{ activity.title | default('abm_dashboard.activity_default'|trans) }}</p>
+                        <div class="rams-list__item">
+                            <div class="rams-list__content">
+                                <p class="rams-list__title">{{ activity.title | default('abm_dashboard.activity_default'|trans) }}</p>
                                 <p class="rams-text--muted">{{ activity.description | default('') }}</p>
                                 <p class="rams-dymo">{{ activity.timestamp is defined and activity.timestamp ? activity.timestamp | date('M d, Y H:i') : 'common.unknown'|trans }}</p>
                             </div>
@@ -133,7 +133,7 @@
     <div class="rams-module rams-module--inset">
         <div class="rams-module__content">
             <h2 class="rams-module__title">🚀 {{ 'abm_dashboard.quick_start'|trans }}</h2>
-            <ol class="rams-list rams-list--ordered">
+            <ol class="rams-list rams-list">
                 <li><a href="{{ path('abm_dashboard_accounts') }}">{{ 'abm_dashboard.accounts'|trans }}</a> {{ 'abm_dashboard.quick_start_step1'|trans|lower }}</li>
                 <li><a href="{{ path('abm_dashboard_playbooks') }}">{{ 'abm_dashboard.playbooks'|trans }}</a> {{ 'abm_dashboard.quick_start_step2'|trans|lower }}</li>
                 <li>{{ 'abm_dashboard.quick_start_step3'|trans }}</li>

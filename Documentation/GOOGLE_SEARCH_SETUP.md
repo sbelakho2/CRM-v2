@@ -43,7 +43,7 @@ This guide will help you set up Google Custom Search API for automated lead disc
 2. Add your credentials:
 
 ```env
-GOOGLE_API_KEY=your_api_key_here
+GOOGLE_API_KEY=CHANGE_ME_google_api_key
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 ```
 

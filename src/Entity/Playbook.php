@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\PlaybookRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -45,10 +47,14 @@ class Playbook
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $notes = null;
 
+    #[ORM\OneToMany(mappedBy: 'playbook', targetEntity: PlaybookRun::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $playbookRuns;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
         $this->updatedAt = new \DateTime();
+        $this->playbookRuns = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -152,6 +158,35 @@ class Playbook
     public function setNotes(?string $notes): self
     {
         $this->notes = $notes;
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, PlaybookRun>
+     */
+    public function getPlaybookRuns(): Collection
+    {
+        return $this->playbookRuns;
+    }
+
+    public function addPlaybookRun(PlaybookRun $playbookRun): self
+    {
+        if (!$this->playbookRuns->contains($playbookRun)) {
+            $this->playbookRuns->add($playbookRun);
+            $playbookRun->setPlaybook($this);
+        }
+
+        return $this;
+    }
+
+    public function removePlaybookRun(PlaybookRun $playbookRun): self
+    {
+        if ($this->playbookRuns->removeElement($playbookRun)) {
+            if ($playbookRun->getPlaybook() === $this) {
+                $playbookRun->setPlaybook(null);
+            }
+        }
+
         return $this;
     }
     

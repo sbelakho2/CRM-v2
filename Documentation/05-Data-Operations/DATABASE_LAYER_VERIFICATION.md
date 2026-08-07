@@ -260,24 +260,24 @@ All 27 new repositories include specialized query methods:
 ### .env (API Integration)
 ```bash
 # Mouser Electronics API
-MOUSER_API_KEY=your_mouser_key_here
+MOUSER_API_KEY=CHANGE_ME_mouser_api_key
 MOUSER_RATE_LIMIT=20
 
 # Digi-Key Electronics API
 DIGIKEY_API_KEY=your_digikey_key_here
 DIGIKEY_CLIENT_ID=your_client_id_here
-DIGIKEY_CLIENT_SECRET=your_client_secret_here
+DIGIKEY_CLIENT_SECRET=CHANGE_ME_digikey_client_secret
 DIGIKEY_RATE_LIMIT=20
 
 # Nexar/Octopart GraphQL API
-NEXAR_API_KEY=your_nexar_key_here
+NEXAR_API_KEY=CHANGE_ME_nexar_api_key
 NEXAR_CLIENT_ID=your_client_id_here
-NEXAR_CLIENT_SECRET=your_client_secret_here
+NEXAR_CLIENT_SECRET=CHANGE_ME_nexar_client_secret
 NEXAR_RATE_LIMIT=100
 
 # Alibaba.com Open Platform API
 ALIBABA_API_KEY=your_alibaba_key_here
-ALIBABA_APP_SECRET=your_app_secret_here
+ALIBABA_APP_SECRET=CHANGE_ME_generate_a_fresh_secret
 ALIBABA_RATE_LIMIT=10
 ```
 

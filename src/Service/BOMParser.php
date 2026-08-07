@@ -385,7 +385,7 @@ class BOMParser
         $handle = fopen('php://temp', 'r+');
         fwrite($handle, $raw);
         rewind($handle);
-        while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+        while (($row = fgetcsv($handle, 0, $delimiter, ',', '"', '\\')) !== false) {
             $rows[] = $row;
         }
         fclose($handle);

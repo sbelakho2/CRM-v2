@@ -66,6 +66,7 @@ class EmailTemplate
     public function __construct()
     {
         $this->personalizationTokens = [];
+        $this->createdAt = new \DateTime();
     }
 
     #[ORM\PrePersist]

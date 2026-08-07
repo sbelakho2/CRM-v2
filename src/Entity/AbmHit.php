@@ -17,11 +17,11 @@ class AbmHit
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Company $company = null;
 
     #[ORM\ManyToOne(targetEntity: AbmAccount::class, inversedBy: 'abmHits')]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?AbmAccount $abmAccount = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]

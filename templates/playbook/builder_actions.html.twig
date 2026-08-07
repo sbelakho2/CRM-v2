@@ -38,8 +38,8 @@
             <div class="rams-module__content">
                 <div class="rams-grid rams-grid--2 rams-gap-4">
                     {% for actionKey, action in availableActions %}
-                        <div class="rams-card">
-                            <div class="rams-card__content">
+                        <div class="rams-module rams-module--inset">
+                            <div class="rams-module__content">
                                 <div class="rams-text--bold rams-mb-2">{{ action.label }}</div>
                                 <p class="rams-text--muted rams-text--xs rams-mb-2">{{ action.description }}</p>
                                 <div class="rams-flex rams-justify-end">
@@ -98,8 +98,8 @@
             }).join('');
 
             return `
-                <div class="rams-card">
-                    <div class="rams-card__content rams-grid rams-grid--3 rams-gap-3">
+                <div class="rams-module rams-module--inset">
+                    <div class="rams-module__content rams-grid rams-grid--3 rams-gap-3">
                         <div>
                             <div class="rams-text--bold">${title}</div>
                             <div class="rams-text--xs rams-text--muted">${action.type || ''}</div>

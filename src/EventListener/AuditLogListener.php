@@ -14,7 +14,6 @@ use App\Entity\Quote;
 use App\Entity\RFQ;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Event\PostFlushEventArgs;
 use Doctrine\ORM\Event\PostPersistEventArgs;
 use Doctrine\ORM\Event\PreRemoveEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
@@ -41,10 +40,11 @@ class AuditLogListener
         'plainPassword',
         'salt',
         'resetToken',
+        'apiKey',
+        'clientSecret',
+        'credentials',
+        'token',
     ];
-
-    private array $queuedAuditLogs = [];
-    private bool $isPostFlushing = false;
 
     public function __construct(
         private EntityManagerInterface $em,
@@ -60,7 +60,7 @@ class AuditLogListener
             return;
         }
 
-        $this->createAuditLog('create', $entity);
+        $this->em->persist($this->createAuditLog('create', $entity));
     }
 
     public function preUpdate(PreUpdateEventArgs $args): void
@@ -77,7 +77,7 @@ class AuditLogListener
             return;
         }
 
-        $this->createAuditLog('update', $entity, $changeSet);
+        $this->em->persist($this->createAuditLog('update', $entity, $changeSet));
     }
 
     public function preRemove(PreRemoveEventArgs $args): void
@@ -88,26 +88,7 @@ class AuditLogListener
             return;
         }
 
-        $this->createAuditLog('delete', $entity);
-    }
-
-    public function postFlush(PostFlushEventArgs $args): void
-    {
-        if ($this->isPostFlushing) {
-            return;
-        }
-
-        if (empty($this->queuedAuditLogs)) {
-            return;
-        }
-
-        $this->isPostFlushing = true;
-        foreach ($this->queuedAuditLogs as $auditLog) {
-            $this->em->persist($auditLog);
-        }
-        $this->queuedAuditLogs = [];
-        $this->em->flush();
-        $this->isPostFlushing = false;
+        $this->em->persist($this->createAuditLog('delete', $entity));
     }
 
     private function shouldAudit(object $entity): bool
@@ -116,15 +97,21 @@ class AuditLogListener
             return false;
         }
 
-        return in_array(get_class($entity), $this->entitiesToAudit);
+        return in_array($this->getRealClassName($entity), $this->entitiesToAudit, true);
     }
 
-    private function createAuditLog(string $action, object $entity, array $changeSet = []): void
+    private function getRealClassName(object $entity): string
+    {
+        return $this->em->getClassMetadata(get_class($entity))->getName();
+    }
+
+    private function createAuditLog(string $action, object $entity, array $changeSet = []): AuditLog
     {
         $auditLog = new AuditLog();
-        $auditLog->setEntityType($this->getShortClassName($entity));
+        $className = $this->getRealClassName($entity);
+        $auditLog->setEntityType((new \ReflectionClass($className))->getShortName());
 
-        $metadata = $this->em->getClassMetadata(get_class($entity));
+        $metadata = $this->em->getClassMetadata($className);
         $identifierValues = $metadata->getIdentifierValues($entity);
         $entityId = reset($identifierValues);
 
@@ -175,13 +162,7 @@ class AuditLogListener
             $auditLog->setOldValues($oldValues);
         }
 
-        $this->queuedAuditLogs[] = $auditLog;
-    }
-
-    private function getShortClassName(object $entity): string
-    {
-        $reflection = new \ReflectionClass($entity);
-        return $reflection->getShortName();
+        return $auditLog;
     }
 
     private function serializeValue(mixed $value): mixed
@@ -195,10 +176,11 @@ class AuditLogListener
         }
 
         if (is_object($value)) {
+            $className = $this->getRealClassName($value);
             if (method_exists($value, 'getId')) {
-                return sprintf('%s#%d', $this->getShortClassName($value), $value->getId());
+                return sprintf('%s#%d', (new \ReflectionClass($className))->getShortName(), $value->getId());
             }
-            return get_class($value);
+            return $className;
         }
 
         if (is_array($value)) {
@@ -210,7 +192,7 @@ class AuditLogListener
 
     private function extractEntityValues(object $entity): array
     {
-        $metadata = $this->em->getClassMetadata(get_class($entity));
+        $metadata = $this->em->getClassMetadata($this->getRealClassName($entity));
         $values = [];
 
         foreach ($metadata->getFieldNames() as $fieldName) {

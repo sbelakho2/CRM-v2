@@ -4,7 +4,7 @@
 
 {% block stylesheets %}
 {{ parent() }}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" integrity="sha384-HZZ/fukV+9G8gwTNjN7zQDG0Sp7MsZy5DDN6VfY3Be7V9dvQpEpR2jF2HlyFUUjU" crossorigin="anonymous"></script> 
 <style>
     .rams-builder-ghost {
         opacity: 0.4;
@@ -13,7 +13,7 @@
     }
     .rams-builder-drag {
         cursor: move; 
-    }
+    } .rams-builder-dropzone { border: 2px dashed var(--rams-line); border-radius: var(--radius-sm); }
     .rams-field-item {
         padding: 0.5rem 1rem;
         background: var(--rams-surface);
@@ -23,24 +23,24 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 0.875rem;
+        gap: var(--space-2); font-size: 0.875rem;
     }
     .rams-field-item:hover {
         border-color: var(--rams-primary-light);
     }
     .rams-field-code {
-        font-family: monospace;
-        color: var(--rams-text--muted);
+        font-family: var(--font-mono); 
+        color: var(--rams-muted); 
         font-size: 0.75rem;
-    }
+    } .rams-field-item .rams-form__input, .rams-field-item .rams-form__select { padding: 2px 6px; font-size: var(--text-sm); }
 </style>
 {% endblock %}
 
 {% block body %}
 <div class="rams-page">
     <div class="rams-page-header">
-        <div class="rams-page-header__content">
-            <h1 class="rams-page-header__title">
+        <div class="rams-page__header-content">
+            <h1 class="rams-page__title">
                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rams-mr-3"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
                  {{ 'report.builder_title_prefix'|trans }}{{ report.name }}
             </h1>
@@ -60,17 +60,17 @@
         </div>
     </div>
 
-    <div class="rams-page-content">
+    <div class="rams-page__container">
         <form id="builder-form" method="post" action="{{ path('report_builder', {id: report.id}) }}">
-        <div class="rams-grid" style="grid-template-columns: 300px 1fr;">
+        <input type="hidden" name="_token" value="{{ csrf_token('report_builder') }}"> <div class="rams-grid" style="grid-template-columns: 300px 1fr;">
             <!-- Sidebar: Available Fields -->
             <div class="rams-module" style="height: fit-content;">
                 <div class="rams-module__header">
                     <h3>{{ 'report.available_fields'|trans }}</h3>
-                    <input type="text" id="field-search" class="rams-form__input rams-form__input-sm rams-mt-2" placeholder="{{ 'report.search_fields'|trans }}">
+                    <input type="text" id="field-search" class="rams-form__input rams-mt-2" placeholder="{{ 'report.search_fields'|trans }}">
                 </div>
                 <div class="rams-module__content rams-p-2 rams-bg-panel" style="max-height: 600px; overflow-y: auto;">
-                    <div id="available-fields" class="min-h-[200px]">
+                    <div id="available-fields" class="rams-builder-dropzone rams-p-2" style="min-height: 200px;"> 
                         {% for field in availableFields %}
                         <div class="rams-field-item rams-builder-drag" data-field="{{ field.property }}" data-label="{{ field.label }}" data-type="{{ field.type }}">
                             <span>{{ field.label }}</span>
@@ -82,7 +82,7 @@
             </div>
 
             <!-- Main: Configuration Areas -->
-            <div class="space-y-6">
+            <div class="rams-stack rams-stack--lg"> 
                 
                 <!-- Columns -->
                 <div class="rams-module">
@@ -91,12 +91,12 @@
                         <div class="rams-text--xs rams-text--muted">{{ 'report.drag_columns_desc'|trans }}</div>
                     </div>
                     <div class="rams-module__content rams-p-2">
-                        <div id="selected-columns" class="min-h-[100px] rams-border-2 rams-border-dashed rams-border rams-rounded rams-p-2">
+                        <div id="selected-columns" class="rams-builder-dropzone rams-p-2" style="min-height: 100px;">      
                              {% for col in report.columns %}
                                  <div class="rams-field-item rams-builder-drag" data-field="{{ col.property }}">
                                     <span>{{ col.label }}</span>
                                     <input type="hidden" name="columns[]" value="{{ col.property }}">
-                                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()">×</button>
+                                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()" aria-label="{{ 'report.remove'|trans }}">×</button> 
                                 </div>
                              {% endfor %}
                         </div>
@@ -110,20 +110,20 @@
                         <div class="rams-text--xs rams-text--muted">{{ 'report.drag_filters_desc'|trans }}</div>
                     </div>
                     <div class="rams-module__content rams-p-2">
-                         <div id="report-filters" class="min-h-[100px] rams-border-2 rams-border-dashed rams-border rams-rounded rams-p-2">
+                         <div id="report-filters" class="rams-builder-dropzone rams-p-2" style="min-height: 100px;">      
                             {% for filter in report.filters %}
                                 <div class="rams-field-item rams-builder-drag" data-field="{{ filter.property }}">
-                                    <div class="flex-1 grid grid-cols-3 rams-gap-2 rams-items-center">
-                                        <span class="rams-font-medium">{{ filter.label }}</span>
-                                        <select name="filters[{{ filter.property }}][operator]" class="rams-form__select rams-form__select-sm">
+                                    <div class="rams-flex-1 rams-grid rams-grid--3 rams-gap-2 rams-items-center">
+                                        <span class="rams-text--strong">{{  filter.label }}</span>
+                                        <select name="filters[{{ filter.property }}][operator]" class="rams-form__select">  
                                             <option value="equals" {{ filter.operator == 'equals' ? 'selected' : '' }}>{{ 'report.equals'|trans }}</option>
                                             <option value="contains" {{ filter.operator == 'contains' ? 'selected' : '' }}>{{ 'report.contains'|trans }}</option>
                                             <option value="gt" {{ filter.operator == 'gt' ? 'selected' : '' }}>{{ 'report.greater_than'|trans }}</option>
                                             <option value="lt" {{ filter.operator == 'lt' ? 'selected' : '' }}>{{ 'report.less_than'|trans }}</option>
                                         </select>
-                                        <input type="text" name="filters[{{ filter.property }}][value]" value="{{ filter.value }}" class="rams-form__input rams-form__input-sm" placeholder="{{ 'report.value'|trans }}">
+                                        <input type="text" name="filters[{{ filter.property }}][value]" value="{{ filter.value }}" class="rams-form__input"   placeholder="{{ 'report.value'|trans }}">
                                     </div>
-                                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()">×</button>
+                                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()" aria-label="{{ 'report.remove'|trans }}">×</button> 
                                 </div>
                             {% endfor %}
                         </div>
@@ -136,17 +136,17 @@
                         <h3>{{ 'report.sorting'|trans }}</h3>
                     </div>
                     <div class="rams-module__content rams-p-2">
-                        <div id="report-sorting" class="min-h-[80px] rams-border-2 rams-border-dashed rams-border rams-rounded rams-p-2">
+                        <div id="report-sorting" class="rams-builder-dropzone rams-p-2" style="min-height: 80px;">      
                              {% for sort in report.sorting %}
                                 <div class="rams-field-item rams-builder-drag" data-field="{{ sort.property }}">
-                                    <div class="flex-1 flex rams-items-center rams-justify-between">
+                                    <div class="rams-flex-1 rams-flex rams-items-center rams-justify-between rams-gap-2"> 
                                         <span>{{ sort.label }}</span>
-                                        <select name="sorting[{{ sort.property }}]" class="rams-form__select rams-form__select-sm w-32">
+                                        <select name="sorting[{{ sort.property }}]" class="rams-form__select">   
                                             <option value="asc" {{ sort.direction == 'asc' ? 'selected' : '' }}>{{ 'report.ascending'|trans }}</option>
                                             <option value="desc" {{ sort.direction == 'desc' ? 'selected' : '' }}>{{ 'report.descending'|trans }}</option>
                                         </select>
                                     </div>
-                                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()">×</button>
+                                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()" aria-label="{{ 'report.remove'|trans }}">×</button> 
                                 </div>
                              {% endfor %}
                         </div>
@@ -192,7 +192,7 @@
                 item.innerHTML = `
                     <span>${item.dataset.label}</span>
                     <input type="hidden" name="columns[]" value="${field}">
-                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()">×</button>
+                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()" aria-label="{{ 'report.remove'|trans }}">×</button> 
                 `;
             }
         });
@@ -206,17 +206,17 @@
                 const item = evt.item;
                 const field = item.dataset.field;
                 item.innerHTML = `
-                    <div class="flex-1 grid grid-cols-3 rams-gap-2 rams-items-center">
-                        <span class="rams-font-medium">${item.dataset.label}</span>
-                        <select name="filters[${field}][operator]" class="rams-form__select rams-form__select-sm">
+                    <div class="rams-flex-1 rams-grid rams-grid--3 rams-gap-2 rams-items-center">
+                        <span class="rams-text--strong">${item.dataset.label}</span> 
+                        <select name="filters[${field}][operator]" class="rams-form__select">  
                             <option value="equals">{{ 'report.equals'|trans }}</option>
                             <option value="contains">{{ 'report.contains'|trans }}</option>
                             <option value="gt">{{ 'report.greater_than'|trans }}</option>
                             <option value="lt">{{ 'report.less_than'|trans }}</option>
                         </select>
-                        <input type="text" name="filters[${field}][value]" class="rams-form__input rams-form__input-sm" placeholder="{{ 'report.value'|trans }}">
+                        <input type="text" name="filters[${field}][value]" class="rams-form__input"   placeholder="{{ 'report.value'|trans }}">
                     </div>
-                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()">×</button>
+                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()" aria-label="{{ 'report.remove'|trans }}">×</button> 
                 `;
             }
         });
@@ -229,17 +229,17 @@
             onAdd: function (evt) {
                 const item = evt.item;
                 const field = item.dataset.field;
-                // Check if already exists
-                // Note: simplified logic
+                    
+                   
                 item.innerHTML = `
-                    <div class="flex-1 flex rams-items-center rams-justify-between">
+                    <div class="rams-flex-1 rams-flex rams-items-center rams-justify-between rams-gap-2"> 
                         <span>${item.dataset.label}</span>
-                        <select name="sorting[${field}]" class="rams-form__select rams-form__select-sm w-32">
+                        <select name="sorting[${field}]" class="rams-form__select">   
                             <option value="asc">{{ 'report.ascending'|trans }}</option>
                             <option value="desc">{{ 'report.descending'|trans }}</option>
                         </select>
                     </div>
-                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()">×</button>
+                    <button type="button" class="rams-ml-2 rams-text--danger" onclick="this.parentElement.remove()" aria-label="{{ 'report.remove'|trans }}">×</button> 
                 `;
             }
         });

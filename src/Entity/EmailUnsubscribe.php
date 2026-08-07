@@ -39,7 +39,7 @@ class EmailUnsubscribe
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
-    #[ORM\JoinColumn(nullable: true)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Contact $contact = null;
 
     #[ORM\Column(length: 255)]
@@ -62,6 +62,7 @@ class EmailUnsubscribe
 
     public function __construct()
     {
+        $this->unsubscribedAt = new \DateTime();
     }
 
     #[ORM\PrePersist]

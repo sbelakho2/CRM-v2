@@ -10,9 +10,9 @@
         <div class="rams-page__header-content">
              <div class="rams-breadcrumb">
                 <a href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <a href="{{ path('app_task_index') }}">{{ 'task.title'|trans }}</a>
-                <span class="rams-breadcrumb-separator">/</span>
+                <span class="rams-breadcrumb__separator">/</span> 
                 <span>{{ 'task.my_day'|trans }}</span>
             </div>
             <h1 class="rams-page__title">{{ 'task.my_day'|trans }}</h1>
@@ -26,8 +26,8 @@
             <div class="rams-module rams-mb-6">
                 <div class="rams-module__content">
                      <form method="post" action="{{ path('app_task_quick_add') }}" class="rams-flex rams-gap-2 mobile-stack">
-                        <input type="text" name="title" class="rams-form__input" placeholder="{{ 'task.add_task_placeholder'|trans }}" required>
-                        <button type="submit" class="rams-btn rams-btn--primary uppercase">
+                        <label class="rams-sr-only" for="quick-add-title">{{ 'task.add_task_placeholder'|trans }}</label> <input type="text" id="quick-add-title" name="title" class="rams-form__input" placeholder="{{ 'task.add_task_placeholder'|trans }}" required>
+                        <button type="submit" class="rams-btn rams-btn--primary rams-uppercase"> 
                             <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M8 2V14M2 8H14"/>
                             </svg>
@@ -40,7 +40,7 @@
             <!-- Overdue -->
              {% if overdueTasks|length > 0 %}
             <div class="rams-mb-6">
-                <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-red rams-mb-3">{{ 'task.overdue'|trans }}</h3>
+                <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--red rams-mb-3">{{ 'task.overdue'|trans }}</h3>
                 <div class="rams-flex rams-flex-col rams-gap-2">
                     {% for task in overdueTasks %}
                         {{ include('task/_task_item_row.html.twig', {task: task, overdue: true}) }}
@@ -51,7 +51,7 @@
 
             <!-- Today -->
             <div class="rams-mb-6">
-                <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted rams-mb-3">{{ 'task.today'|trans }}</h3>
+                <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted rams-mb-3">{{ 'task.today'|trans }}</h3>
                 <div class="rams-flex rams-flex-col rams-gap-2">
                     {% for task in todayTasks %}
                         {{ include('task/_task_item_row.html.twig', {task: task}) }}
@@ -68,7 +68,7 @@
             <!-- Stats or Calendar side view? -->
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="font-mono text-2xs uppercase tracking-widest text-rams-muted">{{ 'task.focus'|trans }}</h3>
+                    <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'task.focus'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-flex rams-flex-col rams-gap-6">
@@ -77,8 +77,8 @@
                             <div class="rams-metric__value tabular-nums">{{ completed_today }}</div>
                         </div>
                         <div class="rams-metric">
-                            <div class="rams-metric__label text-rams-orange">{{ 'task.remaining'|trans }}</div>
-                            <div class="rams-metric__value tabular-nums text-rams-orange">{{ remaining_today }}</div>
+                            <div class="rams-metric__label rams-text--warning">{{  'task.remaining'|trans }}</div>
+                            <div class="rams-metric__value tabular-nums rams-text--warning">{{  remaining_today }}</div>
                         </div>
                     </div>
                 </div>

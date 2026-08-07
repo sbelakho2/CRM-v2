@@ -86,9 +86,25 @@ class TaskController extends AbstractController
         // Get statistics
         $stats = $this->taskRepository->getStatistics($showAll ? null : $user);
 
-        // Get users and companies for filters
-        $users = $this->userRepository->findBy(['active' => true], ['firstName' => 'ASC']);
-        $companies = $this->companyRepository->findBy([], ['name' => 'ASC']);
+        // Get users and companies for filters (bounded; the currently-selected
+        // filter values are always included so the filters keep working)
+        $users = $this->userRepository->findBy(['active' => true], ['firstName' => 'ASC'], 300);
+
+        if ($assignee !== null && !in_array((int) $assignee, array_map(static fn($u) => $u->getId(), $users), true)) {
+            $selectedUser = $this->userRepository->find((int) $assignee);
+            if ($selectedUser) {
+                $users[] = $selectedUser;
+            }
+        }
+
+        $companies = $this->companyRepository->findBy([], ['name' => 'ASC'], 300);
+
+        if ($company !== null && !in_array((int) $company, array_map(static fn($c) => $c->getId(), $companies), true)) {
+            $selectedCompany = $this->companyRepository->find((int) $company);
+            if ($selectedCompany) {
+                $companies[] = $selectedCompany;
+            }
+        }
 
         return $this->render('task/index.html.twig', [
             'tasks' => $tasks,
@@ -183,6 +199,10 @@ class TaskController extends AbstractController
     #[Route('/{id}/edit', name: 'app_task_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, Task $task): Response
     {
+        if (!$this->canModify($task)) {
+            throw $this->createAccessDeniedException('You cannot edit this task.');
+        }
+
         $form = $this->createForm(TaskType::class, $task);
         
         // Pre-fill tags field
@@ -219,6 +239,10 @@ class TaskController extends AbstractController
     #[Route('/{id}/delete', name: 'app_task_delete', methods: ['POST'])]
     public function delete(Request $request, Task $task): Response
     {
+        if (!$this->canModify($task)) {
+            throw $this->createAccessDeniedException('You cannot delete this task.');
+        }
+
         if ($this->isCsrfTokenValid('delete' . $task->getId(), $request->request->get('_token'))) {
             $this->entityManager->remove($task);
             $this->entityManager->flush();
@@ -232,6 +256,10 @@ class TaskController extends AbstractController
     #[Route('/{id}/complete', name: 'app_task_complete', methods: ['POST'])]
     public function complete(Request $request, Task $task): Response
     {
+        if (!$this->canModify($task)) {
+            throw $this->createAccessDeniedException('You cannot modify this task.');
+        }
+
         if ($this->isCsrfTokenValid('complete' . $task->getId(), $request->request->get('_token'))) {
             $task->setStatus(Task::STATUS_DONE);
             $task->setCompletedAt(new \DateTime());
@@ -260,6 +288,10 @@ class TaskController extends AbstractController
         $task = $this->taskRepository->find($data['taskId']);
         if (!$task) {
             return new JsonResponse(['error' => 'Task not found'], 404);
+        }
+
+        if (!$this->canModify($task)) {
+            return new JsonResponse(['error' => 'Not authorized to modify this task'], 403);
         }
 
         if (!in_array($data['status'], Task::STATUSES)) {
@@ -304,7 +336,7 @@ class TaskController extends AbstractController
 
         foreach ($data['tasks'] as $taskData) {
             $task = $this->taskRepository->find($taskData['id']);
-            if ($task) {
+            if ($task && $this->canModify($task)) {
                 $task->setSortOrder($taskData['sortOrder']);
                 if (isset($taskData['status'])) {
                     $task->setStatus($taskData['status']);
@@ -389,5 +421,17 @@ class TaskController extends AbstractController
                 'dueDate' => $task->getDueDate()?->format('Y-m-d'),
             ]
         ]);
+    }
+
+    private function canModify(Task $task): bool
+    {
+        $user = $this->getUser();
+
+        if ($this->isGranted('ROLE_ADMIN')) {
+            return true;
+        }
+
+        return $user !== null
+            && ($task->getCreatedBy() === $user || $task->getAssignedTo() === $user);
     }
 }

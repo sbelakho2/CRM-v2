@@ -1,16 +1,16 @@
-<div class="rams-module rams-flex rams-items-center rams-p-4 rams-border-l-4 {{ overdue|default(false) ? 'rams-border-l-danger' : 'rams-border-l-primary' }} rams-hover-shadow">
+<div class="rams-module rams-flex rams-items-center rams-p-4 rams-border-l" style="border-left-width: 4px; border-left-color:  {{ overdue|default(false) ? 'var(--rams-red)'  : 'var(--rams-orange)' }};">   
     <div class="rams-flex-shrink-0 rams-mr-4">
         <form method="post" action="{{ path('app_task_toggle', {id: task.id}) }}">
-            <input type="checkbox" class="rams-checkbox" onchange="this.form.submit()" {{ task.status == 'done' ? 'checked' : '' }}>
+            <label class="rams-sr-only" for="task-toggle-{{ task.id }}">{{ 'task.complete'|trans }}</label> <input type="checkbox" id="task-toggle-{{ task.id }}" class="rams-checkbox" onchange="this.form.submit()" {{ task.status == 'done' ? 'checked' : '' }}>
         </form>
     </div>
-    <div class="rams-flex-grow">
+    <div class="rams-flex-1"> 
         <div class="rams-flex rams-items-center rams-gap-2">
-            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-link {{ task.status == 'done' ? 'rams-text--muted rams-line-through' : 'rams-font-medium' }}">
+            <a href="{{ path('app_task_show', {id: task.id}) }}" class="rams-link {{ task.status == 'done' ? 'rams-text--muted' : 'rams-font-medium' }}">
                 {{ task.title }}
             </a>
             {% if task.priority == 'high' %}
-                <span class="rams-badge rams-badge--danger rams-badge--xs">{{ 'common.high'|trans }}</span>
+                <span class="rams-badge rams-badge--danger rams-badge--small">{{  'common.high'|trans }}</span>
             {% endif %}
         </div>
         {% if task.description %}

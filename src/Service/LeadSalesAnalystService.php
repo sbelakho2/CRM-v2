@@ -213,7 +213,21 @@ class LeadSalesAnalystService
         $unmatchedNeeds = [];
         $additionalOfferings = [];
         
+        // Normalize input shape: fitSignals may arrive either as a map
+        // (capability => bool) or as a plain list of capability strings
+        // (['pcba', 'smt', ...]). Handle both.
+        $needs = [];
         foreach ($fitSignals as $capability => $hasNeed) {
+            if (is_int($capability)) {
+                // List form: the value is the capability name and presence
+                // in the list means the prospect needs it.
+                $needs[(string) $hasNeed] = true;
+            } else {
+                $needs[(string) $capability] = (bool) $hasNeed;
+            }
+        }
+
+        foreach ($needs as $capability => $hasNeed) {
             if (!$hasNeed) {
                 continue;
             }
@@ -231,8 +245,8 @@ class LeadSalesAnalystService
         foreach ($this->ourCapabilities as $capability => $offered) {
             if ($offered) {
                 $found = false;
-                foreach ($fitSignals as $leadCap => $hasNeed) {
-                    if ($this->normalizeCapabilityName($leadCap) === $capability) {
+                foreach ($needs as $leadCap => $hasNeed) {
+                    if ($hasNeed && $this->normalizeCapabilityName($leadCap) === $capability) {
                         $found = true;
                         break;
                     }
@@ -243,7 +257,7 @@ class LeadSalesAnalystService
             }
         }
         
-        $totalNeeds = count(array_filter($fitSignals));
+        $totalNeeds = count(array_filter($needs));
         $score = $totalNeeds > 0 
             ? (count($matchedCapabilities) / $totalNeeds) * 100 
             : 50; // Default if no needs identified

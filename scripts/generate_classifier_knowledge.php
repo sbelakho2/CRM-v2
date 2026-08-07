@@ -9,7 +9,7 @@
  * Output:   external_data/classifier_knowledge.json
  */
 
-$apiKey = getenv('GOOGLE_API_KEY') ?: '***REMOVED***';
+$apiKey = getenv('GOOGLE_API_KEY') ?: 'CHANGE_ME_google_api_key';
 $outputFile = __DIR__ . '/../external_data/classifier_knowledge.json';
 
 echo "=== Generating Company Classifier Knowledge Base ===\n\n";

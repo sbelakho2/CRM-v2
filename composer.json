@@ -13,47 +13,46 @@
         "doctrine/doctrine-migrations-bundle": "^3.3",
         "doctrine/orm": "^2.17",
         "knplabs/knp-paginator-bundle": "^6.3",
-        "mpdf/mpdf": "*",
-        "phpoffice/phpspreadsheet": "^1.29",
-        "symfony/asset": "7.0.*",
-        "symfony/console": "7.0.*",
-        "symfony/css-selector": "7.0.*",
-        "symfony/doctrine-messenger": "7.0.*",
-        "symfony/dom-crawler": "7.0.*",
-        "symfony/dotenv": "7.0.*",
+        "mpdf/mpdf": "^8.3",
+        "phpoffice/phpspreadsheet": "^2.4",
+        "symfony/asset": "7.4.*",
+        "symfony/console": "7.4.*",
+        "symfony/css-selector": "7.4.*",
+        "symfony/doctrine-messenger": "7.4.*",
+        "symfony/dom-crawler": "7.4.*",
+        "symfony/dotenv": "7.4.*",
         "symfony/flex": "^2",
-        "symfony/form": "7.0.*",
-        "symfony/framework-bundle": "7.0.*",
-        "symfony/http-client": "7.0.*",
-        "symfony/intl": "7.0.*",
-        "symfony/lock": "7.0.*",
-        "symfony/mailer": "7.0.*",
-        "symfony/messenger": "7.0.*",
-        "symfony/monolog-bundle": "*",
-        "symfony/process": "7.0.*",
-        "symfony/rate-limiter": "7.0.*",
-        "symfony/runtime": "7.1.7",
-        "symfony/security-bundle": "7.0.*",
-        "symfony/translation": "7.0.*",
-        "symfony/twig-bundle": "7.0.*",
-        "symfony/uid": "7.0.*",
-        "symfony/validator": "7.1.4",
-        "symfony/webpack-encore-bundle": "^2.1",
-        "symfony/yaml": "7.0.*",
+        "symfony/form": "7.4.*",
+        "symfony/framework-bundle": "7.4.*",
+        "symfony/http-client": "7.4.*",
+        "symfony/intl": "7.4.*",
+        "symfony/lock": "7.4.*",
+        "symfony/mailer": "7.4.*",
+        "symfony/messenger": "7.4.*",
+        "symfony/monolog-bundle": "^4.0",
+        "symfony/process": "7.4.*",
+        "symfony/rate-limiter": "7.4.*",
+        "symfony/runtime": "7.4.*",
+        "symfony/security-bundle": "7.4.*",
+        "symfony/translation": "7.4.*",
+        "symfony/twig-bundle": "7.4.*",
+        "symfony/uid": "7.4.*",
+        "symfony/validator": "7.4.*",
+        "symfony/yaml": "7.4.*",
         "twig/cssinliner-extra": "^3.22",
         "twig/extra-bundle": "^2.12|^3.0",
         "twig/string-extra": "^3.23",
-        "twig/twig": "^2.12|^3.0",
+        "twig/twig": "^3.28",
         "vich/uploader-bundle": "^2.3"
     },
     "require-dev": {
         "dama/doctrine-test-bundle": "^8.2",
-        "phpunit/phpunit": "^9.6",
-        "symfony/browser-kit": "7.0.*",
+        "phpunit/phpunit": "^9.6.33",
+        "symfony/browser-kit": "7.4.*",
         "symfony/maker-bundle": "^1.52",
         "symfony/phpunit-bridge": "^7.0",
-        "symfony/stopwatch": "7.0.*",
-        "symfony/web-profiler-bundle": "7.0.*"
+        "symfony/stopwatch": "7.4.*",
+        "symfony/web-profiler-bundle": "7.4.*"
     },
     "config": {
         "allow-plugins": {
@@ -87,7 +86,7 @@
     },
     "scripts": {
         "auto-scripts": {
-            "cache:clear": "symfony-cmd",
+            "cache:clear": "php -d memory_limit=512M bin/console cache:clear",
             "assets:install %PUBLIC_DIR%": "symfony-cmd"
         },
         "post-install-cmd": [
@@ -103,7 +102,7 @@
     "extra": {
         "symfony": {
             "allow-contrib": false,
-            "require": "7.0.*"
+            "require": "7.4.*"
         }
     }
 }
