@@ -167,7 +167,9 @@
         // Store callback
         closeCallback = options.onClose || null;
         
-        // Remember the element that opened the modal for focus restore modal._previousFocus = document.activeElement; // Show modal
+        // Remember the element that opened the modal for focus restore
+        modal._previousFocus = document.activeElement;
+        // Show modal
         modal.classList.remove('rams-hidden');
         alertBtn.focus();
         

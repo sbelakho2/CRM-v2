@@ -203,7 +203,7 @@
                         <button type="button"  class="rams-sidebar__group-header" data-sidebar-group-toggle aria-expanded="false"> 
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
                             <span>{{ 'nav.group.quick_links'|trans|default('Quick Links') }}</span>
-                        </div>
+                        </button>
                         <ul class="rams-sidebar__nav-list--nested">
                             <li class="rams-sidebar__nav-item">
                                 <a href="{{ path('command_center_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'command_center' %}rams-sidebar__nav-link--active{% endif %}">
@@ -277,7 +277,7 @@
                         <button type="button"  class="rams-sidebar__group-header" data-sidebar-group-toggle aria-expanded="false"> 
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
                             <span>{{ 'nav.group.core'|trans|default('Core CRM') }}</span>
-                        </div>
+                        </button>
                         <ul class="rams-sidebar__nav-list--nested">
                             <li class="rams-sidebar__nav-item">
                         <a href="{{ path('app_dashboard') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') == 'app_dashboard' %}rams-sidebar__nav-link--active{% endif %}">
@@ -368,7 +368,7 @@
                         <button type="button"  class="rams-sidebar__group-header" data-sidebar-group-toggle aria-expanded="false"> 
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
                             <span>{{ 'nav.group.sales'|trans|default('Sales & Pipeline') }}</span>
-                        </div>
+                        </button>
                         <ul class="rams-sidebar__nav-list--nested">
                             <li class="rams-sidebar__nav-item">
                         <a href="{{ path('command_center_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'command_center' %}rams-sidebar__nav-link--active{% endif %}">
@@ -437,7 +437,7 @@
                         <button type="button"  class="rams-sidebar__group-header" data-sidebar-group-toggle aria-expanded="false"> 
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
                             <span>{{ 'nav.group.growth'|trans|default('Growth & Marketing') }}</span>
-                        </div>
+                        </button>
                         <ul class="rams-sidebar__nav-list--nested">
                             <li class="rams-sidebar__nav-item">
                         <a href="{{ path('abm_dashboard_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'abm_dashboard' %}rams-sidebar__nav-link--active{% endif %}">
@@ -497,7 +497,7 @@
                         <button type="button"  class="rams-sidebar__group-header" data-sidebar-group-toggle aria-expanded="false"> 
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
                             <span>{{ 'nav.group.quoting'|trans|default('Quoting Engine') }}</span>
-                        </div>
+                        </button>
                         <ul class="rams-sidebar__nav-list--nested">
                             <li class="rams-sidebar__nav-item">
                         <a href="{{ path('quote_copilot_list') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'quote_copilot' %}rams-sidebar__nav-link--active{% endif %}">
@@ -524,7 +524,7 @@
                         <button type="button"  class="rams-sidebar__group-header" data-sidebar-group-toggle aria-expanded="false"> 
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
                             <span>{{ 'nav.group.operations'|trans|default('Operations') }}</span>
-                        </div>
+                        </button>
                         <ul class="rams-sidebar__nav-list--nested">
                             <li class="rams-sidebar__nav-item">
                         <a href="{{ path('report_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'report_' %}rams-sidebar__nav-link--active{% endif %}">
@@ -568,7 +568,7 @@
                         <button type="button"  class="rams-sidebar__group-header" data-sidebar-group-toggle aria-expanded="false"> 
                             <svg class="rams-sidebar__group-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12L10 8L6 4"/></svg>
                             <span>{{ 'nav.group.admin'|trans|default('Administration') }}</span>
-                        </div>
+                        </button>
                         <ul class="rams-sidebar__nav-list--nested">
                             <li class="rams-sidebar__nav-item">
                         <a href="{{ path('admin_user_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'admin_user' %}rams-sidebar__nav-link--active{% endif %}">
@@ -700,7 +700,19 @@
             }
         }
 
-        // Sidebar group toggles: keyboard-accessible (native buttons), // keep aria-expanded in sync with the .is-open class. document.querySelectorAll('[data-sidebar-group-toggle]').forEach(function(toggle) { const sync = function() { toggle.setAttribute('aria-expanded', toggle.parentElement.classList.contains('is-open') ? 'true' : 'false'); }; sync(); toggle.addEventListener('click', function() { toggle.parentElement.classList.toggle('is-open'); sync(); }); }); const body = document.body;
+        // Sidebar group toggles: keyboard-accessible (native buttons).
+        // Keep aria-expanded in sync with the .is-open class.
+        document.querySelectorAll('[data-sidebar-group-toggle]').forEach(function(toggle) {
+            const sync = function() {
+                toggle.setAttribute('aria-expanded', toggle.parentElement.classList.contains('is-open') ? 'true' : 'false');
+            };
+            sync();
+            toggle.addEventListener('click', function() {
+                toggle.parentElement.classList.toggle('is-open');
+                sync();
+            });
+        });
+        const body = document.body;
         const toggleButton = document.querySelector('.rams-mobile-header__toggle');
         const overlay = document.querySelector('.rams-sidebar__overlay');
         const navLinks = document.querySelectorAll('.rams-sidebar__nav-link');
