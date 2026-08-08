@@ -386,6 +386,49 @@ body {
     display: block;
 }
 
+/* Nav items that carry a quick-add (+) button: lay out the link and the
+   add button on a single row so the button sits at the trailing edge. */
+.rams-sidebar__nav-item--with-add {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    padding-right: var(--space-2, 8px);
+}
+.rams-sidebar__nav-item--with-add > .rams-sidebar__nav-link {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+/* The quick-add button itself: small, muted, reveals on row hover. */
+.rams-sidebar__nav-item--with-add > .sidebar-quick-add {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: var(--radius-sm, 4px);
+    color: var(--rams-muted);
+    background: transparent;
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity var(--duration-fast, 0.15s);
+}
+.rams-sidebar__nav-item--with-add:hover > .sidebar-quick-add,
+.rams-sidebar__nav-item--with-add > .sidebar-quick-add:focus {
+    opacity: 1;
+    color: var(--rams-accent, var(--rams-orange));
+}
+.rams-sidebar__nav-item--with-add > .sidebar-quick-add:hover {
+    background: var(--rams-panel);
+}
+/* Force the inner SVG to the button's size, never its intrinsic default. */
+.rams-sidebar__nav-item--with-add > .sidebar-quick-add svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
 .rams-sidebar__nav-link {
     display: flex;
     align-items: center;
