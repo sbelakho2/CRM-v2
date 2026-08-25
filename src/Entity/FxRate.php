@@ -23,7 +23,7 @@ class FxRate
     #[ORM\Column(length: 10)]
     private ?string $toCurrency = null;
 
-    #[ORM\Column(type: 'decimal', precision: 12, scale: 6)]
+    #[ORM\Column(type: 'decimal', precision: 18, scale: 6)]
     private ?string $rate = null;
 
     #[ORM\Column(type: 'datetime')]
