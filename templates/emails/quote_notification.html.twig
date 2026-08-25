@@ -12,13 +12,16 @@
             <td align="center">
                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; overflow: hidden;">
                     <!-- Header -->
-                    <tr>
-                        <td style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.02em;">{{ 'emails.quote_notification.subject'|trans }}</h1>
-                            <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ issuer.name|default('app.company'|trans) }}</p>
-                        </td>
-                    </tr>
+                    <thead>
+                        <tr>
+                            <th scope="col" style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600; letter-spacing: -0.02em;">{{ 'emails.quote_notification.subject'|trans }}</h1>
+                                <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ issuer.name|default('app.company'|trans) }}</p>
+                            </th>
+                        </tr>
+                    </thead>
 
+                    <tbody>
                     <!-- Content -->
                     <tr>
                         <td style="padding: 40px;">
@@ -37,31 +40,31 @@
                                         <h2 style="margin: 0 0 20px; color: #1a1a1a; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #3a3a3a; padding-bottom: 10px;">{{ 'emails.quote_notification.quote_summary'|trans }}</h2>
                                         <table width="100%" cellpadding="0" cellspacing="0">
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; width: 40%;">{{ 'emails.quote_notification.quote_number'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; width: 40%; text-align: left; font-weight: 400;">{{ 'emails.quote_notification.quote_number'|trans }}:</th>
                                                 <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">{{ quote.quoteNumber ?? ('Q-' ~ quote.id) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.date'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0; text-align: left; font-weight: 400;">{{ 'common.date'|trans }}:</th>
                                                 <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.createdAt|date('F d, Y') }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.valid_until'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0; text-align: left; font-weight: 400;">{{ 'emails.quote_notification.valid_until'|trans }}:</th>
                                                 <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.createdAt ? quote.createdAt|date_modify('+30 days')|date('F d, Y') : ('common.n_a'|trans) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.quantity'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0; text-align: left; font-weight: 400;">{{ 'common.quantity'|trans }}:</th>
                                                 <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.quantity ?? ('common.n_a'|trans) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.ship_to'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0; text-align: left; font-weight: 400;">{{ 'emails.quote_notification.ship_to'|trans }}:</th>
                                                 <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.shipToCountry ?? ('common.n_a'|trans) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'common.total'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0; text-align: left; font-weight: 400;">{{ 'common.total'|trans }}:</th>
                                                 <td style="padding: 8px 0; color: #FFBE00; font-size: 20px; font-weight: 700; border-top: 1px solid #e0e0e0;">{{ quote.totalCost|default(0)|format_currency(quote.currency|default('USD')) }}</td>
                                             </tr>
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.quote_notification.coverage'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0; text-align: left; font-weight: 400;">{{ 'emails.quote_notification.coverage'|trans }}:</th>
                                                 <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; border-top: 1px solid #e0e0e0;">{{ quote.coveragePercent|default(0)|number_format(1) }}% {{ 'emails.quote_notification.components_sourced'|trans }}</td>
                                             </tr>
                                         </table>
@@ -134,6 +137,7 @@
                             </p>
                         </td>
                     </tr>
+                    </tbody>
                 </table>
             </td>
         </tr>

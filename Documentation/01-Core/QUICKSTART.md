@@ -67,11 +67,11 @@ php bin/console doctrine:migrations:migrate --env=dev
 
 ---
 
-## 3. Build Assets & Start Services
+## 3. Start Services
+
+> **Correction (2026-08):** The frontend build toolchain (Webpack Encore/Tailwind) was removed — there is no `npm install` / `npm run dev` / `npm run build` step. Twig templates render directly.
 
 ```powershell
-npm run dev        # or npm run watch during active UI work
-
 # Start Symfony dev server (HTTPS) in background
 symfony server:start -d
 
@@ -132,19 +132,12 @@ php bin/console debug:router | Select-String notifications
 php bin/console list app
 ```
 
-For asset rebuilds:
-
-```powershell
-npm run build      # production bundle
-npm run lint       # optional linting if configured
-```
-
 ---
 
 ## 6. Integration Notes
 
 - **Supplier Credentials**: stored in environment vars `NEXAR_API_KEY`, `MOUSER_API_KEY`, `DIGIKEY_CLIENT_ID/SECRET`. Use `.env.local` for local dev.
-- **Email Delivery**: configure `MAILER_DSN`; local testing can use `smtp://localhost:1025` (MailHog).
+- **Email Delivery**: configure `MAILER_DSN`; local testing can use `smtp://localhost:1025` (Mailpit via `docker compose up -d`).
 - **Cron Emulation**: use Windows Task Scheduler to run `php bin/console app:check-notifications` every 5 minutes and `app:heatmap:refresh` hourly.
 - **Analytics**: follow `Documentation/07-Deployment-Operations/ANALYTICS_AND_TRACKING_SYSADMIN_GUIDE.md` if validating Matomo/Grafana dashboards locally.
 
@@ -154,7 +147,7 @@ npm run lint       # optional linting if configured
 
 - **Symfony server fails to start**: run `symfony server:stop` then retry; ensure port 8000 free.
 - **Database errors**: check DSN inside `.env.local`; rerun migrations.
-- **Missing assets**: run `npm run dev`; clear cache `php bin/console cache:clear`.
+- **Missing assets**: no build step exists (Encore/Tailwind removed) — templates render directly; clear cache `php bin/console cache:clear`.
 - **Supplier API timeouts**: set mock mode `QUOTE_COPILOT_MOCK=1` in `.env.local` for deterministic outputs.
 - **Notifications not appearing**: ensure user has related entities; run CLI with `--force-demo` flag if available (see command help).
 

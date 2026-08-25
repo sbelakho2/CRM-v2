@@ -53,21 +53,22 @@
     </div>
 
     {# Modal Footer #}
-    <div class="rams-module__footer rams-flex rams-items-center rams-justify-between">
-        <button 
-            type="button"
-            id="notification-mark-all"
-            class="rams-btn rams-btn--ghost rams-btn--sm"
-        >
-            {{ 'notifications.mark_all_read'|trans }}
-        </button>
+    <div class="rams-module__footer rams-flex rams-items-center rams-justify-end">
         <a 
-            href="#" 
+            href="{{ path('command_center_index') }}"
             class="rams-btn rams-btn--ghost rams-btn--sm"
         >
             {{ 'common.view'|trans }} {{ 'common.all'|trans }}
         </a>
     </div>
 </div>
+
+<script>
+window.NOTIFICATION_ENDPOINTS = {
+    count: '{{ path('command_center_alert_count') }}',
+    alerts: '{{ path('command_center_alerts') }}',
+    emptyText: '{{ 'notifications.no_notifications'|trans|e('js') }}'
+};
+</script>
 
 {# Note: Notification component styles are now in sensei-rams.css (Section 50) #}

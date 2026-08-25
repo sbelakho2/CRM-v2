@@ -36,15 +36,25 @@ class SpintaxTemplateRepository extends ServiceEntityRepository
      */
     public function findBestPerforming(string $templateType = 'email'): ?SpintaxTemplate
     {
-        return $this->createQueryBuilder('t')
+        $templates = $this->createQueryBuilder('t')
             ->where('t.templateType = :type')
             ->andWhere('t.active = true')
             ->setParameter('type', $templateType)
-            ->orderBy('t.replyRate', 'DESC')
-            ->addOrderBy('t.openRate', 'DESC')
-            ->setMaxResults(1)
+            ->orderBy('t.timesUsed', 'DESC')
             ->getQuery()
-            ->getOneOrNullResult();
+            ->getResult();
+
+        if ($templates === []) {
+            return null;
+        }
+
+        usort(
+            $templates,
+            static fn (SpintaxTemplate $a, SpintaxTemplate $b): int => $b->getReplyRate() <=> $a->getReplyRate()
+                ?: $b->getOpenRate() <=> $a->getOpenRate()
+        );
+
+        return $templates[0];
     }
 
     /**

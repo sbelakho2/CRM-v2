@@ -60,6 +60,17 @@ class ThompsonSamplerService
 
     // Control group percentage
     public const CONTROL_GROUP_PCT     = 0.10;
+
+    /** Event types recognized by recordWeightedOutcome() */
+    public const KNOWN_EVENT_TYPES = [
+        'open',
+        'click',
+        'reply',
+        'bounce',
+        'unsubscribe',
+        'no_response',
+    ];
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private BanditArmRepository $armRepository,
@@ -333,6 +344,17 @@ class ThompsonSamplerService
             return;
         }
 
+        // Validate the event type against the known set so unknown events are
+        // never silently dropped with a 0.0 weight.
+        if (!in_array($eventType, self::KNOWN_EVENT_TYPES, true)) {
+            $this->logger->warning('Unknown event type — outcome not recorded', [
+                'armId' => $armId,
+                'eventType' => $eventType,
+                'knownEventTypes' => self::KNOWN_EVENT_TYPES,
+            ]);
+            return;
+        }
+
         $weight = match ($eventType) {
             'open'        => self::WEIGHT_OPEN,
             'click'       => self::WEIGHT_CLICK,
@@ -349,6 +371,11 @@ class ThompsonSamplerService
         };
 
         if ($weight === 0.0) {
+            $this->logger->warning('Weighted outcome resolved to zero — outcome not recorded', [
+                'armId' => $armId,
+                'eventType' => $eventType,
+                'replyPolarity' => $replyPolarity,
+            ]);
             return;
         }
 

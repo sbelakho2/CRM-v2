@@ -82,7 +82,7 @@
             <div class="rams-module rams-module--hoverable">
                 <div class="rams-module__header">
                     <div>
-                        <h3 class="rams-heading rams-heading--3 rams-mb-1">{{ playbook.name  }}</h3>
+                        <h2 class="rams-heading rams-heading--3 rams-mb-1">{{ playbook.name  }}</h2>
                         <p class="rams-text--muted rams-text--xs rams-font-mono rams-uppercase">{{ 'playbook.created'|trans }}: {{ playbook.createdAt ? playbook.createdAt|date('Y-m-d') : 'common.n_a'|trans   }}</p>
                     </div>
                     <span class="rams-badge {% if playbook.isActive %}rams-badge--success{% endif %}">

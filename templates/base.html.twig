@@ -7,10 +7,7 @@
     <title>{% block title %}{{ 'app.name'|trans }}{% endblock %} - {{ 'app.company'|trans }}</title>
     
     {# Sensei-Rams Design System CSS (versioned; bumped only when the stylesheet changes) #}
-    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}?v=2.2">
-    
-           
-      
+    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}?v=2.3">
     
     {# Font preloading for performance - preconnect early, load fonts async #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,137 +17,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
     
-    <style>
-        .rams-sidebar__nav-group { margin-bottom: 2px; }
-        .rams-sidebar__group-header {
-            display: flex;
-            align-items: center;
-            padding: 8px 16px;
-            color: var(--rams-muted);
-            cursor: pointer;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 700;
-            user-select: none;
-            transition: color 0.15s ease;
-        background: none; border: none; width: 100%; text-align: start; font-family: inherit; } .rams-sidebar__group-header:focus-visible { outline: 2px solid var(--rams-accent); outline-offset: -2px; }
-        .rams-sidebar__group-header:hover { color: var(--rams-foreground); }
-        .rams-sidebar__group-chevron {
-            width: 12px;
-            height: 12px;
-            margin-right: 8px;
-            transition: transform 0.2s ease;
-            opacity: 0.7;
-        }
-        .rams-sidebar__nav-group.is-open .rams-sidebar__group-chevron { transform: rotate(90deg); }
-        .rams-sidebar__nav-list--nested {
-            display: none;
-            padding-left: 0;
-            margin: 0;
-            list-style: none;
-            background: rgba(0,0,0,0.06);
-        }
-        .rams-sidebar__nav-group.is-open .rams-sidebar__nav-list--nested { display: block; }
-        .rams-sidebar__nav-list--nested .rams-sidebar__nav-link {
-            padding-left: 32px;
-            font-size: 0.85rem;
-            color: var(--rams-muted);
-        }
-        .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover {
-            color: var(--rams-foreground);
-        }
-        /* Dark mode overrides for nav groups */
-        .dark .rams-sidebar__group-header,
-        [data-theme="dark"] .rams-sidebar__group-header { color: var(--rams-muted); }
-        .dark .rams-sidebar__group-header:hover,
-        [data-theme="dark"] .rams-sidebar__group-header:hover { color: var(--rams-foreground); }
-        .dark .rams-sidebar__nav-list--nested,
-        [data-theme="dark"] .rams-sidebar__nav-list--nested { background: rgba(0,0,0,0.15); }
-        .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link,
-        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link { color: var(--rams-muted); }
-        .dark .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover,
-        [data-theme="dark"] .rams-sidebar__nav-list--nested .rams-sidebar__nav-link:hover { color: var(--rams-foreground); }
-
-        /* Fix top-level sidebar nav-link contrast in light mode */
-        .rams-sidebar__nav-link { color: var(--rams-muted); }
-        .rams-sidebar__nav-link:hover { color: var(--rams-foreground); }
-        .dark .rams-sidebar__nav-link,
-        [data-theme="dark"] .rams-sidebar__nav-link { color: var(--rams-muted); }
-        .dark .rams-sidebar__nav-link:hover,
-        [data-theme="dark"] .rams-sidebar__nav-link:hover { color: var(--rams-foreground); }
-
-        /* Utility for Page Layout */
-        .rams-page {
-            width: 100%;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: var(--space-6, 24px);
-        /* System Status Bar */
-        .rams-status-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-            padding: 4px 16px;
-            margin-bottom: 16px;
-            border: 1px solid var(--rams-line, rgba(0,0,0,0.12));
-            border-radius: 4px;
-            background: var(--rams-panel, #fff);
-            font-size: 0.72rem;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: var(--rams-muted);
-        }
-        .rams-status-bar__item {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .rams-status-bar__text {
-            font-weight: 600;
-            color: var(--rams-foreground);
-        }
-        .rams-status-bar__meta {
-            opacity: 0.8;
-        }
-        /* Quick-add "+" links in sidebar */
-        .rams-sidebar__nav-item--with-add {
-            display: flex;
-            align-items: center;
-        }
-        .rams-sidebar__nav-item--with-add .rams-sidebar__nav-link {
-            flex: 1;
-            min-width: 0;
-        }
-        .sidebar-quick-add {
-            opacity: 0;
-            transition: opacity 0.15s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2px;
-            border-radius: 4px;
-            color: var(--rams-muted);
-            text-decoration: none;
-            margin-left: 2px;
-        }
-        .rams-sidebar__nav-item--with-add:hover .sidebar-quick-add,
-        .sidebar-quick-add:focus {
-            opacity: 1;
-            color: var(--rams-accent);
-        }
-        .sidebar-quick-add:hover {
-            background: var(--rams-panel);
-        }
-        .sidebar-quick-add svg {
-            width: 14px;
-            height: 14px;
-            overflow: hidden;
-        }
-    </style>
-
     {% block stylesheets %}{% endblock %}
 </head>
 <body 
@@ -230,36 +96,6 @@
                                         <circle cx="8" cy="8" r="6"/><path d="M8 5V8L10 10"/>
                                     </svg>
                                     <span>{{ 'quote.title'|trans }}</span>
-                                </a>
-                            </li>
-                            <li class="rams-sidebar__nav-item rams-sidebar__nav-item--with-add">
-                                <a href="{{ path('app_company_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_company' %}rams-sidebar__nav-link--active{% endif %}">
-                                    <span class="rams-sidebar__nav-indicator"></span>
-                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <path d="M2 13V5L8 2L14 5V13"/><rect x="5" y="8" width="2" height="5"/><rect x="9" y="8" width="2" height="5"/>
-                                    </svg>
-                                    <span>{{ 'company.plural'|trans|default('Companies') }}</span>
-                                </a>
-                                <a href="{{ path('app_company_new') }}" class="sidebar-quick-add" title="Add Company">
-                                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-                                </a>
-                            </li>
-                            <li class="rams-sidebar__nav-item">
-                                <a href="{{ path('app_activity_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_activity' %}rams-sidebar__nav-link--active{% endif %}">
-                                    <span class="rams-sidebar__nav-indicator"></span>
-                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <circle cx="8" cy="8" r="6"/><path d="M8 4V8L11 11"/>
-                                    </svg>
-                                    <span>{{ 'activity.plural'|trans|default('Activities') }}</span>
-                                </a>
-                            </li>
-                            <li class="rams-sidebar__nav-item">
-                                <a href="{{ path('app_task_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'app_task_' %}rams-sidebar__nav-link--active{% endif %}">
-                                    <span class="rams-sidebar__nav-indicator"></span>
-                                    <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                                        <rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6 8L7 9L10 6"/>
-                                    </svg>
-                                    <span>{{ 'task.plural'|trans }}</span>
                                 </a>
                             </li>
                             <li class="rams-sidebar__nav-item">
@@ -606,6 +442,7 @@
             {# Sidebar Footer #}
             <div class="rams-sidebar__footer">
                 <div class="rams-sidebar__nav-list">
+                    {% include 'components/notification_bell.html.twig' ignore missing %}
                     <a href="{{ path('profile_index') }}" class="rams-sidebar__nav-link {% if app.request.get('_route') starts with 'profile' %}rams-sidebar__nav-link--active{% endif %}">
                         <span class="rams-sidebar__nav-indicator"></span>
                         <svg class="rams-sidebar__nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -679,6 +516,17 @@
     </main>
     
     {% block javascripts %}
+        <script>
+        window.showToast = function(message, type) {
+            type = type || 'success';
+            const toast = document.createElement('div');
+            toast.className = 'rams-alert ' + (type === 'success' ? 'rams-alert--success' : 'rams-alert--error') + ' rams-alert--toast';
+            toast.setAttribute('role', 'status');
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        };
+        </script>
         {% block scripts %}{% endblock %}
     {% endblock %}
     
@@ -686,6 +534,9 @@
     {% if not isAuthPage %}
         {% include 'components/confirm_modal.html.twig' ignore missing %}
         {% include 'components/alert_modal.html.twig' ignore missing %}
+        {% include 'components/shortcuts_help_modal.html.twig' ignore missing %}
+        {% include 'components/mobile_fab.html.twig' ignore missing %}
+        {% include 'components/keyboard_shortcuts.html.twig' ignore missing %}
     {% endif %}
     
 
@@ -751,96 +602,9 @@
     });
     </script>
 
-    <script>
-    (function() {
-        const root = document.documentElement;
-        const body = document.body;
-        const userTheme = body.getAttribute('data-user-theme') || 'system';
-        const accent = body.getAttribute('data-user-accent') || 'orange';
-        const fontSize = body.getAttribute('data-user-font-size') || 'medium';
-        const density = body.getAttribute('data-user-density') || 'comfortable';
-        const reducedMotion = body.getAttribute('data-user-reduced-motion') === 'true';
+    <script src="{{ asset('js/theme-applier.js') }}"></script>
 
-        // Accent color definitions (matching Management-Software)
-        const accentColors = {
-            orange: { hsl: '45 100% 50%', hex: '#FFBE00' },
-            blue: { hsl: '217 91% 60%', hex: '#3B82F6' },
-            green: { hsl: '142 71% 45%', hex: '#22C55E' },
-            purple: { hsl: '258 90% 66%', hex: '#8B5CF6' },
-            red: { hsl: '0 84% 60%', hex: '#EF4444' }
-        };
-
-        // Font size mapping
-        const fontSizes = {
-            small: '14px',
-            medium: '16px',
-            large: '18px'
-        };
-
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                root.setAttribute('data-theme', 'dark');
-                root.classList.add('dark');
-            } else if (theme === 'light') {
-                root.setAttribute('data-theme', 'light');
-                root.classList.remove('dark');
-            } else {
-                root.removeAttribute('data-theme');
-                root.classList.remove('dark');
-            }
-        }
-
-        function applySystemTheme() {
-            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            applyTheme(prefersDark ? 'dark' : 'light');
-        }
-
-        function applyAccentColor(colorName) {
-            const color = accentColors[colorName] || accentColors.orange;
-            root.style.setProperty('--rams-accent', color.hex);
-            root.style.setProperty('--accent', color.hsl);
-            root.style.setProperty('--primary', color.hsl);
-            root.style.setProperty('--ring', color.hsl);
-        }
-
-        function applyFontSize(size) {
-            const sizeValue = fontSizes[size] || fontSizes.medium;
-            root.style.setProperty('--base-font-size', sizeValue);
-            root.style.fontSize = sizeValue;
-        }
-
-        function applyDensity(densityValue) {
-            root.classList.remove('density-comfortable', 'density-compact');
-            root.classList.add(`density-${densityValue}`);
-        }
-
-        function applyReducedMotion(enabled) {
-            if (enabled) {
-                root.classList.add('reduce-motion');
-                root.style.setProperty('--transition-duration', '0ms');
-            } else {
-                root.classList.remove('reduce-motion');
-                root.style.removeProperty('--transition-duration');
-            }
-        }
-
-        // Apply theme
-        if (userTheme === 'system') {
-            applySystemTheme();
-            if (window.matchMedia) {
-                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySystemTheme);
-            }
-        } else {
-            applyTheme(userTheme);
-        }
-
-        // Apply all appearance settings
-        applyAccentColor(accent);
-        applyFontSize(fontSize);
-        applyDensity(density);
-        applyReducedMotion(reducedMotion);
-    })();
-    </script>
+    <script src="{{ asset('js/notification-system.js') }}"></script>
 
     {# DataTables: loaded lazily — jQuery + DataTables (~206KB) are only
        fetched on pages that actually contain a table.data-table. #}

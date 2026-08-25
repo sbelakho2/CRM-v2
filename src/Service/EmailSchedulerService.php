@@ -6,9 +6,11 @@ namespace App\Service;
 
 use App\Entity\EmailCampaign;
 use App\Entity\Contact;
+use App\Entity\EmailSend;
 use App\Entity\EmailUnsubscribe;
 use App\Entity\OutboundMessage;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
@@ -34,7 +36,8 @@ class EmailSchedulerService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
-        private EmailCampaignService $campaignService
+        private EmailCampaignService $campaignService,
+        private ?LoggerInterface $logger = null
     ) {}
 
     /**
@@ -83,8 +86,18 @@ class EmailSchedulerService
             }
 
             // Default to first touch when using scheduler-style processing.
-            $this->campaignService->sendToContact($campaign, $contact, 1);
-            $emailsSent++;
+            // A single contact's failure must not abort the batch.
+            try {
+                $this->campaignService->sendToContact($campaign, $contact, 1);
+                $emailsSent++;
+            } catch (\Throwable $e) {
+                $this->logger?->error('Campaign send failed for contact — continuing with batch', [
+                    'campaign_id' => $campaign->getId(),
+                    'contact_id' => $contact->getId(),
+                    'contact_email' => $contact->getEmail(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $emailsSent;
@@ -114,7 +127,9 @@ class EmailSchedulerService
             return false;
         }
 
-        // Cross-module cadence: count recent outbound emails from Autonomous Sales
+        // Cross-module cadence: count recent sends from BOTH modules
+        // (OutboundMessage from Autonomous Sales + EmailSend from campaigns)
+        // so a contact in both systems doesn't get over-emailed.
         $sevenDaysAgo = (new \DateTime())->modify('-7 days');
 
         $outboundCount = (int) $this->entityManager->createQueryBuilder()
@@ -128,7 +143,20 @@ class EmailSchedulerService
             ->getQuery()
             ->getSingleScalarResult();
 
-        if ($outboundCount >= self::CROSS_MODULE_MAX_7_DAYS) {
+        $campaignCount = (int) $this->entityManager->createQueryBuilder()
+            ->select('COUNT(es.id)')
+            ->from(EmailSend::class, 'es')
+            ->where('es.contact = :contact')
+            ->andWhere('es.status = :sent')
+            ->andWhere('es.sentAt IS NOT NULL')
+            ->andWhere('es.sentAt > :since')
+            ->setParameter('contact', $contact)
+            ->setParameter('sent', EmailSend::STATUS_SENT)
+            ->setParameter('since', $sevenDaysAgo)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        if ($outboundCount + $campaignCount >= self::CROSS_MODULE_MAX_7_DAYS) {
             return false;
         }
 

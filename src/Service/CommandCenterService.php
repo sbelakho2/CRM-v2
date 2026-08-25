@@ -202,54 +202,57 @@ class CommandCenterService
             ->getQuery()
             ->getResult();
         
-        // Total quote value in pipeline (converted to display currency)
+        // Total quote value in pipeline (converted to display currency).
+        // Scalar DQL (id, totalCost, currency, status) avoids hydrating all
+        // pipeline quotes; only high-value entities are loaded afterwards.
         $pipelineStatuses = ['draft', 'pending_review', 'approved', 'sent'];
-        $pipelineQuotes = $this->quoteRepository->createQueryBuilder('q')
+        $highValueThreshold = 50000;
+        $highValueStatuses = ['sent', 'pending_review', 'approved'];
+        $pipelineRows = $this->quoteRepository->createQueryBuilder('q')
+            ->select('q.id, q.totalCost, q.currency, q.status')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', $pipelineStatuses)
             ->getQuery()
             ->getResult();
 
         $pipelineValue = 0.0;
-        foreach ($pipelineQuotes as $quote) {
-            $amount = (float) $quote->getTotalCost();
+        $highValueCandidates = [];
+        foreach ($pipelineRows as $row) {
+            $amount = (float) $row['totalCost'];
             if ($amount <= 0) {
                 continue;
             }
-            $sourceCurrency = $quote->getCurrency() ?: $displayCurrency;
-            $pipelineValue += $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
+            $sourceCurrency = $row['currency'] ?: $displayCurrency;
+            $converted = $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
+            $pipelineValue += $converted;
+
+            if (in_array($row['status'], $highValueStatuses, true) && $converted >= $highValueThreshold) {
+                $highValueCandidates[$row['id']] = $converted;
+            }
         }
 
-        // High-value quotes (threshold in display currency)
-        $highValueThreshold = 50000;
-        $highValueStatuses = ['sent', 'pending_review', 'approved'];
-        $highValueCandidates = array_filter(
-            $pipelineQuotes,
-            fn(Quote $q) => in_array($q->getStatus(), $highValueStatuses, true)
-        );
+        // Sort by converted value descending and keep only the top 5
+        arsort($highValueCandidates);
+        $highValueIds = array_slice(array_keys($highValueCandidates), 0, 5);
 
         $highValueQuotes = [];
-        $convertedCache = [];
-        foreach ($highValueCandidates as $quote) {
-            $amount = (float) $quote->getTotalCost();
-            if ($amount <= 0) {
-                continue;
+        if (!empty($highValueIds)) {
+            $found = $this->quoteRepository->createQueryBuilder('q')
+                ->where('q.id IN (:ids)')
+                ->setParameter('ids', $highValueIds)
+                ->getQuery()
+                ->getResult();
+
+            $byId = [];
+            foreach ($found as $quote) {
+                $byId[$quote->getId()] = $quote;
             }
-            $sourceCurrency = $quote->getCurrency() ?: $displayCurrency;
-            $converted = $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
-            if ($converted >= $highValueThreshold) {
-                $highValueQuotes[] = $quote;
-                $convertedCache[$quote->getId()] = $converted;
+            foreach ($highValueIds as $id) {
+                if (isset($byId[$id])) {
+                    $highValueQuotes[] = $byId[$id];
+                }
             }
         }
-
-        usort($highValueQuotes, function (Quote $a, Quote $b) use ($convertedCache) {
-            $aValue = $convertedCache[$a->getId()] ?? 0.0;
-            $bValue = $convertedCache[$b->getId()] ?? 0.0;
-            return $bValue <=> $aValue;
-        });
-
-        $highValueQuotes = array_slice($highValueQuotes, 0, 5);
 
         // Safe company name resolver — company row may have been deleted
         $safeCompanyName = function (Quote $q): ?string {
@@ -455,10 +458,13 @@ class CommandCenterService
     {
         $alerts = [];
         
-        // Get active quotes with BOM data
+        // Get active quotes with BOM data — bounded to the most recent
+        // active quotes so the scan stays cheap.
         $activeQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['sent', 'approved', 'pending_review'])
+            ->orderBy('q.createdAt', 'DESC')
+            ->setMaxResults(200)
             ->getQuery()
             ->getResult();
         
@@ -493,6 +499,11 @@ class CommandCenterService
             }
         }
         
+        // Stop early once we have more than enough candidates
+        if (count($alerts) >= 100) {
+            $alerts = array_slice($alerts, 0, 100);
+        }
+        
         // Deduplicate by MPN
         $seen = [];
         $uniqueAlerts = [];
@@ -514,10 +525,13 @@ class CommandCenterService
     {
         $alerts = [];
         
-        // Get active quotes and check BOM lifecycle statuses
+        // Get active quotes and check BOM lifecycle statuses — bounded to
+        // the most recent active quotes so the scan stays cheap.
         $activeQuotes = $this->quoteRepository->createQueryBuilder('q')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['sent', 'approved', 'pending_review'])
+            ->orderBy('q.createdAt', 'DESC')
+            ->setMaxResults(200)
             ->getQuery()
             ->getResult();
         
@@ -614,7 +628,7 @@ class CommandCenterService
             'id' => $a->getId(),
             'type' => $a->getType(),
             'subject' => $a->getDescription(),
-            'notes' => substr($a->getNotes() ?? '', 0, 100),
+            'notes' => mb_substr($a->getNotes() ?? '', 0, 100),
             'company_id' => $a->getCompany()?->getId(),
             'company_name' => $safeActivityCompanyName($a),
             'created_at' => $a->getCreatedAt()?->format('Y-m-d H:i'),
@@ -698,20 +712,22 @@ class CommandCenterService
             $avgQuoteValue = 0.0;
         }
 
-        // Pipeline health (converted to display currency)
-        $pipelineQuotes = $this->quoteRepository->createQueryBuilder('q')
+        // Pipeline health (converted to display currency) — scalar DQL rows
+        // instead of hydrating every pipeline quote.
+        $pipelineRows = $this->quoteRepository->createQueryBuilder('q')
+            ->select('q.totalCost, q.currency')
             ->where('q.status IN (:statuses)')
             ->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
             ->getQuery()
             ->getResult();
 
         $pipelineTotal = 0.0;
-        foreach ($pipelineQuotes as $quote) {
-            $amount = (float) $quote->getTotalCost();
+        foreach ($pipelineRows as $row) {
+            $amount = (float) $row['totalCost'];
             if ($amount <= 0) {
                 continue;
             }
-            $sourceCurrency = $quote->getCurrency() ?: $displayCurrency;
+            $sourceCurrency = $row['currency'] ?: $displayCurrency;
             $pipelineTotal += $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
         }
         

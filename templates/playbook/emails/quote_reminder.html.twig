@@ -1,53 +1,50 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>{{ 'emails.playbook.quote_reminder.title'|trans }}</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #fffbeb; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header { border-bottom: 2px solid #f59e0b; padding-bottom: 15px; margin-bottom: 20px; }
-        .header h1 { color: #b45309; margin: 0; font-size: 24px; }
-        .content { color: #374151; line-height: 1.6; }
-        .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; }
-        .highlight { background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0; }
-        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
-        .btn { display: inline-block; background: #f59e0b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 15px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>{{ 'emails.playbook.quote_reminder.title'|trans }}</h1>
-        </div>
-        
-        <div class="content">
-            <div class="warning">
-                <strong>{{ 'common.action_required'|trans }}:</strong> {{ 'emails.playbook.quote_reminder.subject'|trans }}
-            </div>
-            
-            <div class="highlight">
-                <strong>{{ 'common.account'|trans }}:</strong> {{ account_name|default(company_name|default('common.unknown'|trans)) }}<br>
-                {% if domain is defined %}
-                <strong>{{ 'common.domain'|trans }}:</strong> {{ domain }}<br>
-                {% endif %}
-                {% if quote_value is defined %}
-                <strong>{{ 'common.value'|trans }}:</strong> {{ quote_value|number_format(2) }}<br>
-                {% endif %}
-            </div>
-            
-            <p>{{ 'emails.playbook.quote_reminder.next_steps'|trans }}:</p>
-            <ul>
-                <li>{{ 'emails.playbook.quote_reminder.address_questions'|trans }}</li>
-                <li>{{ 'emails.playbook.quote_reminder.confirm_receipt'|trans }}</li>
-                <li>{{ 'emails.playbook.quote_reminder.discuss_timeline'|trans }}</li>
-            </ul>
-        </div>
-        
-        <div class="footer">
-            <p>This is an automated reminder from your CRM system.</p>
-            <p>{{ timestamp|default('now')|date('Y-m-d H:i:s') }}</p>
-        </div>
+{# Playbook quote reminder email - extends base email layout #}
+{% extends 'emails/base.html.twig' %}
+
+{% block title %}{{ 'emails.playbook.quote_reminder.title'|trans }}{% endblock %}
+
+{% block header %}
+<thead>
+    <tr>
+        <th scope="col" style="padding: 30px 40px; text-align: center; background-color: #b45309; border-bottom: 2px solid #f59e0b;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">{{ 'emails.playbook.quote_reminder.title'|trans }}</h1>
+        </th>
+    </tr>
+</thead>
+{% endblock %}
+
+{% block content %}
+<div class="rams-email-content" style="font-family: Arial, sans-serif; color: #374151; line-height: 1.6;">
+    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0;">
+        <strong>{{ 'common.action_required'|trans }}:</strong> {{ 'emails.playbook.quote_reminder.subject'|trans }}
     </div>
-</body>
-</html>
+
+    <div style="background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0;">
+        <strong>{{ 'common.account'|trans }}:</strong> {{ account_name|default(company_name|default('common.unknown'|trans)) }}<br>
+        {% if domain is defined %}
+        <strong>{{ 'common.domain'|trans }}:</strong> {{ domain }}<br>
+        {% endif %}
+        {% if quote_value is defined %}
+        <strong>{{ 'common.value'|trans }}:</strong> {{ quote_value|number_format(2) }}<br>
+        {% endif %}
+    </div>
+
+    <p style="margin: 0 0 10px;">{{ 'emails.playbook.quote_reminder.next_steps'|trans }}:</p>
+    <ul style="margin: 0 0 15px; padding-left: 20px;">
+        <li>{{ 'emails.playbook.quote_reminder.address_questions'|trans }}</li>
+        <li>{{ 'emails.playbook.quote_reminder.confirm_receipt'|trans }}</li>
+        <li>{{ 'emails.playbook.quote_reminder.discuss_timeline'|trans }}</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block footer %}
+<p style="margin: 0 0 10px; color: #6b7280; font-size: 12px; text-align: center;">{{ 'emails.playbook.quote_reminder.automated_message'|trans }}</p>
+<p style="margin: 0; color: #6b7280; font-size: 12px; text-align: center;">{{ timestamp|default('now')|date('Y-m-d H:i:s') }}</p>
+{% if unsubscribe_url is defined and unsubscribe_url %}
+<p style="margin-top: 12px; border-top: 1px solid #e5e7eb; padding-top: 12px; color: #6b7280; font-size: 12px; text-align: center;">
+    {{ 'playbook.email.unsubscribe_desc'|trans }}
+    <a href="{{ unsubscribe_url }}" style="color: #6b7280; text-decoration: underline;">{{ 'playbook.email.unsubscribe'|trans }}</a>
+</p>
+{% endif %}
+{% endblock %}

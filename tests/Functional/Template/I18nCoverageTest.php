@@ -247,19 +247,8 @@ class I18nCoverageTest extends TestCase
      */
     public function testTemplateUsesTransFilter(string $templatePath): void
     {
-        // Skip certain template types
         $relativePath = str_replace($this->templatesPath . '/', '', $templatePath);
-        
-        // Skip emails (use inline text for compatibility)
-        if (str_contains($relativePath, 'emails/')) {
-            $this->markTestSkipped('Email templates use inline text for email client compatibility');
-        }
-        
-        // Skip PDF templates
-        if (strpos($relativePath, 'pdf/') === 0) {
-            $this->markTestSkipped('PDF templates may use inline text');
-        }
-        
+
         $content = file_get_contents($templatePath);
         
         // Always assert file is readable

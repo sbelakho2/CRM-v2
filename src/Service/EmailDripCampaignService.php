@@ -13,13 +13,18 @@ use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Service for managing drip campaigns (automated multi-touch sequences)
+ *
+ * Drip scheduling configuration (delay per touch, conditions) is stored in
+ * EmailCampaign.touchTemplates so it never collides with real A/B tests
+ * stored in EmailCampaign.abTestVariants.
  */
 class EmailDripCampaignService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
         private EmailSchedulerService $schedulerService,
-        private EmailSegmentService $segmentService
+        private EmailSegmentService $segmentService,
+        private EmailConsentService $consentService
     ) {}
 
     /**
@@ -56,6 +61,7 @@ class EmailDripCampaignService
         $campaign->setLanguage('EN');
         $campaign->setActive(true);
         $campaign->setStatus('draft');
+        $campaign->setType(EmailCampaign::TYPE_DRIP);
         $campaign->setCreatedAt(new \DateTimeImmutable());
         $campaign->setUpdatedAt(new \DateTimeImmutable());
 
@@ -63,7 +69,12 @@ class EmailDripCampaignService
             $campaign->setSegment($segment);
         }
 
-        // Build touch templates array
+        // Store trigger conditions in the campaign's own JSON field (does not
+        // collide with A/B test storage).
+        $campaign->setTriggerConditions($triggerConditions);
+
+        // Build touch templates array — this is the drip scheduling config:
+        // delay value/unit and branching conditions per touch.
         $touchTemplates = [];
         foreach ($sequence as $index => $touch) {
             $touchNum = $index + 1;
@@ -76,20 +87,6 @@ class EmailDripCampaignService
         }
 
         $campaign->setTouchTemplates($touchTemplates);
-
-        // Store drip configuration
-        $dripConfig = [
-            'is_drip' => true,
-            'trigger_conditions' => $triggerConditions,
-            'sequence' => $sequence,
-            'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-        ];
-
-        // Store in abTestVariants field (reusing existing JSON field for drip config)
-        // WARNING: abTestVariants is being repurposed for drip sequence storage.
-        // This may conflict with actual A/B test functionality if both features
-        // are used on the same campaign. Consider migrating to a dedicated column.
-        $campaign->setAbTestVariants([$dripConfig]);
 
         $this->entityManager->persist($campaign);
         $this->entityManager->flush();
@@ -111,8 +108,18 @@ class EmailDripCampaignService
             throw new \InvalidArgumentException("Campaign is not a drip campaign");
         }
 
-        // Check if contact is already enrolled
-        if ($this->isContactEnrolled($campaign, $contact)) {
+        // Suppression-list check at enroll time: never enroll someone who has
+        // unsubscribed (implicit consent model — absence of unsubscribe = consent).
+        if (!$this->consentService->hasConsent($contact)) {
+            return [
+                'success' => false,
+                'message' => 'Contact is on the global suppression list',
+            ];
+        }
+
+        // Re-enrollment rule: only block when there is an active (non-cancelled,
+        // non-completed) queued/sending send. Completed sequences may be re-enrolled.
+        if ($this->hasActiveEnrollment($campaign, $contact)) {
             return [
                 'success' => false,
                 'message' => 'Contact is already enrolled in this drip campaign',
@@ -429,6 +436,38 @@ class EmailDripCampaignService
 
         $analytics['total_enrolled'] = (int) $uniqueContacts;
 
+        // Contacts with an active (queued/sending) send are "active"
+        $activeContacts = $this->entityManager->createQueryBuilder()
+            ->select('COUNT(DISTINCT es.contact)')
+            ->from(EmailSend::class, 'es')
+            ->where('es.campaign = :campaign')
+            ->andWhere('es.status IN (:activeStatuses)')
+            ->setParameter('campaign', $campaign)
+            ->setParameter('activeStatuses', [
+                EmailSend::STATUS_QUEUED,
+                EmailSend::STATUS_SENDING,
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $analytics['active_contacts'] = (int) $activeContacts;
+
+        // Contacts with at least one send and no active send are "completed"
+        $completedContacts = $this->entityManager->createQueryBuilder()
+            ->select('COUNT(DISTINCT es.contact)')
+            ->from(EmailSend::class, 'es')
+            ->where('es.campaign = :campaign')
+            ->andWhere('es.contact NOT IN (SELECT es2.contact FROM App\Entity\EmailSend es2 WHERE es2.campaign = :campaign AND es2.status IN (:activeStatuses))')
+            ->setParameter('campaign', $campaign)
+            ->setParameter('activeStatuses', [
+                EmailSend::STATUS_QUEUED,
+                EmailSend::STATUS_SENDING,
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $analytics['completed_contacts'] = (int) $completedContacts;
+
         return $analytics;
     }
 
@@ -512,32 +551,47 @@ class EmailDripCampaignService
 
     /**
      * Check if a campaign is a drip campaign
+     *
+     * New campaigns are marked with EmailCampaign::TYPE_DRIP. Legacy campaigns
+     * stored their drip marker in abTestVariants[0]['is_drip'] — that format is
+     * still honored for backward compatibility.
      * 
      * @param EmailCampaign $campaign Campaign
      * @return bool True if drip campaign
      */
-    private function isDripCampaign(EmailCampaign $campaign): bool
+    public function isDripCampaign(EmailCampaign $campaign): bool
     {
+        if ($campaign->getType() === EmailCampaign::TYPE_DRIP) {
+            return true;
+        }
+
+        // Legacy format: abTestVariants = [['is_drip' => true, ...]]
         $config = $campaign->getAbTestVariants();
         return !empty($config) && isset($config[0]['is_drip']) && $config[0]['is_drip'] === true;
     }
 
     /**
-     * Check if a contact is already enrolled
+     * Check if a contact has an ACTIVE enrollment (queued or sending send).
+     * Completed or cancelled sequences do not block re-enrollment.
      * 
      * @param EmailCampaign $campaign Campaign
      * @param Contact $contact Contact
-     * @return bool True if enrolled
+     * @return bool True if contact has an active, non-cancelled queued/sending send
      */
-    private function isContactEnrolled(EmailCampaign $campaign, Contact $contact): bool
+    private function hasActiveEnrollment(EmailCampaign $campaign, Contact $contact): bool
     {
         $qb = $this->entityManager->createQueryBuilder();
         $count = $qb->select('COUNT(es.id)')
             ->from(EmailSend::class, 'es')
             ->where('es.campaign = :campaign')
             ->andWhere('es.contact = :contact')
+            ->andWhere('es.status IN (:activeStatuses)')
             ->setParameter('campaign', $campaign)
             ->setParameter('contact', $contact)
+            ->setParameter('activeStatuses', [
+                EmailSend::STATUS_QUEUED,
+                EmailSend::STATUS_SENDING,
+            ])
             ->getQuery()
             ->getSingleScalarResult();
 

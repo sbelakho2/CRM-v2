@@ -83,9 +83,21 @@ class CurrencyConverter
             return $amount;
         }
 
-        $result = $this->conversionService->convert((float) $amount, $from, $to);
-
-        return (float) ($result['amount'] ?? $amount);
+        try {
+            $result = $this->conversionService->convert((float) $amount, $from, $to);
+            return (float) ($result['amount'] ?? $amount);
+        } catch (\RuntimeException $e) {
+            // Unknown currency pair — never silently convert 1:1. Log loudly
+            // and return the original amount so display code degrades
+            // gracefully while the issue is surfaced in the logs.
+            $this->logger?->error('Currency conversion failed — returning unconverted amount', [
+                'from' => $from,
+                'to' => $to,
+                'amount' => $amount,
+                'error' => $e->getMessage(),
+            ]);
+            return $amount;
+        }
     }
 
     public function format(?float $amount, ?string $fromCurrency, ?string $toCurrency = null, int $decimals = 2): string

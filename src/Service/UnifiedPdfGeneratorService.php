@@ -92,7 +92,27 @@ class UnifiedPdfGeneratorService
             throw $e;
         }
         
-        return $mpdf->Output('', 'S'); // Return as string
+        $pdfContent = $mpdf->Output('', 'S'); // Return as string
+        
+        // Audit trail: one ReportAudit row per generated PDF (only for
+        // persisted quotes — a transient entity has no stable ID to audit).
+        $quoteId = $quote->getId();
+        if ($quoteId !== null) {
+            $this->logToAudit(
+                'quote',
+                'Quote',
+                $quoteId,
+                $this->calculateHash($pdfContent),
+                uniqid('q_', true),
+                null,
+                strlen($pdfContent),
+                [],
+                [],
+                ['quote_number' => $quote->getQuoteNumber()]
+            );
+        }
+        
+        return $pdfContent;
     }
 
     /**
@@ -191,6 +211,21 @@ class UnifiedPdfGeneratorService
         } catch (\Doctrine\ORM\EntityNotFoundException) {
             $company = null;
         }
+
+        // Audit trail: one ReportAudit row per generated PDF
+        $quoteId = $quote->getId();
+        if ($quoteId !== null) {
+            $this->logToAudit(
+                'dfm_report',
+                'Quote',
+                $quoteId,
+                $this->calculateHash($pdfContent),
+                uniqid('dfm_', true),
+                $filename,
+                strlen($pdfContent)
+            );
+        }
+
         return $this->createDocument(
             $company,
             'dfm_report',
@@ -659,6 +694,22 @@ class UnifiedPdfGeneratorService
         // 4. Create document
         $filename = sprintf('audit_trail_%s_%s_%s.pdf', strtolower($entityType), $entityId ?? 'unknown', date('Ymd'));
         
+        // Audit trail: one ReportAudit row per generated PDF
+        if ($entityId !== null) {
+            $this->logToAudit(
+                'audit_trail',
+                $entityType,
+                $entityId,
+                $this->calculateHash($pdfContent),
+                uniqid('at_', true),
+                $filename,
+                strlen($pdfContent),
+                [],
+                [],
+                ['audit_document_hash' => $auditData['auditHash'] ?? null]
+            );
+        }
+        
         try {
             $auditCompany = method_exists($entity, 'getCompany') ? $entity->getCompany() : null;
             $auditCompany?->getId(); // force proxy init
@@ -853,15 +904,11 @@ class UnifiedPdfGeneratorService
      * @param int $entityId Entity ID
      * @param string $sha256Hash SHA-256 hash of PDF
      * @param string $versionId Version ID (UUID or timestamp)
+     * @param string|null $fileName Generated file name
+     * @param int|null $fileSize Generated file size in bytes
      * @param array $datasetVersions Dataset versions used (e.g., ['tariff_rates' => 'v1.2.3'])
      * @param array $apiVersions API versions used (e.g., ['mouser' => '2024.10'])
      * @param array $metadata Additional metadata
-     * 
-     * TODO Implementation:
-     * 1. Create ReportAudit entity
-     * 2. Set all fields from parameters
-     * 3. Store metadata_json with user, IP, generation time
-     * 4. Persist and flush
      */
     private function logToAudit(
         string $reportType,
@@ -869,32 +916,40 @@ class UnifiedPdfGeneratorService
         int $entityId,
         string $sha256Hash,
         string $versionId,
-        array $datasetVersions,
-        array $apiVersions,
+        ?string $fileName = null,
+        ?int $fileSize = null,
+        array $datasetVersions = [],
+        array $apiVersions = [],
         array $metadata = []
     ): void {
-        // Prepare metadata with generation context
-        $auditMetadata = array_merge($metadata, [
-            'generated_at' => date('Y-m-d H:i:s'),
-            'server' => gethostname(),
-            'php_version' => PHP_VERSION
-        ]);
-        
-        // Note: ReportAudit entity creation would go here
-        // For now, just log the event
-        // In production, create and persist ReportAudit entity:
-        // $audit = new ReportAudit();
-        // $audit->setReportType($reportType);
-        // $audit->setEntityType($entityType);
-        // $audit->setEntityId($entityId);
-        // $audit->setSha256Hash($sha256Hash);
-        // $audit->setVersionId($versionId);
-        // $audit->setDatasetVersionsJson(json_encode($datasetVersions));
-        // $audit->setApiVersionsJson(json_encode($apiVersions));
-        // $audit->setMetadataJson(json_encode($auditMetadata));
-        // $audit->setGeneratedAt(new \DateTime());
-        // $this->entityManager->persist($audit);
-        // $this->entityManager->flush();
+        try {
+            $audit = new \App\Entity\ReportAudit();
+            $audit->setReportType($reportType);
+            $audit->setEntityType($entityType);
+            $audit->setEntityId($entityId);
+            $audit->setSha256Hash($sha256Hash);
+            $audit->setVersionId($versionId);
+            $audit->setFileName($fileName);
+            $audit->setFileSize($fileSize);
+            $audit->setDatasetVersions($datasetVersions ?: null);
+            $audit->setApiVersions($apiVersions ?: null);
+            $audit->setMetadata(array_merge($metadata, [
+                'generated_at' => date('Y-m-d H:i:s'),
+                'server' => gethostname(),
+                'php_version' => PHP_VERSION,
+            ]));
+
+            $this->entityManager->persist($audit);
+            $this->entityManager->flush();
+        } catch (\Throwable $e) {
+            // A failed audit row must never break PDF generation itself.
+            $this->logger?->error('Failed to persist ReportAudit entry', [
+                'report_type' => $reportType,
+                'entity_type' => $entityType,
+                'entity_id' => $entityId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -1,12 +1,12 @@
 {# Keyboard Shortcuts Help Modal - Sensei-Rams Industrial Design #}
 
-<div id="shortcuts-help-modal" class="rams-modal-backdrop rams-hidden">
-    <div class="rams-modal-backdrop__overlay" onclick="document.getElementById('shortcuts-help-modal').classList.add('rams-hidden')"></div>
+<div id="shortcuts-help-modal" class="rams-modal-backdrop rams-hidden" role="dialog" aria-modal="true" aria-labelledby="shortcuts-help-title">
+    <div class="rams-modal-backdrop__overlay" role="button" tabindex="0" aria-label="{{ 'common.close'|trans }}" onclick="document.getElementById('shortcuts-help-modal').classList.add('rams-hidden')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('shortcuts-help-modal').classList.add('rams-hidden'); }"></div>
     
     <div class="rams-module rams-shortcuts-modal">
         {# Modal Header #}
         <div class="rams-module__header rams-shortcuts-modal__header">
-            <h2 class="rams-module__title">{{ 'shortcuts.title'|trans }}</h2>
+            <h2 class="rams-module__title" id="shortcuts-help-title">{{ 'shortcuts.title'|trans }}</h2>
             <button 
                 type="button"
                 class="rams-btn rams-btn--ghost rams-shortcuts-modal__close"

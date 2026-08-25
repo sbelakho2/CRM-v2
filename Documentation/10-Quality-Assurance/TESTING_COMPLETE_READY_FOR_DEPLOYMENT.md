@@ -3,6 +3,8 @@
 **Date**: October 29, 2025  
 **Status**: ✅ **ALL SYSTEMS VERIFIED - READY FOR GO-LIVE**
 
+> **Correction (2026-08):** The `Estimate` entity was removed from the codebase; entity lists below have been updated. Symfony version at the time of writing: 7.3.5 (current: 7.4.15).
+
 ---
 
 ## What Has Been Tested
@@ -21,7 +23,7 @@ All entities for all 37 tasks are defined and ready:
 **Email** (5): EmailCampaign, EmailTemplate, EmailSegment, EmailSend, EmailUnsubscribe
 **Lead** (1): Lead
 **ABM** (4): Playbook, PlaybookRun, AbmAccount, AbmHit
-**Sales** (5): RFQ, Quote, Estimate, QuotePartBreakdown, Activity
+**Sales** (4): RFQ, Quote, QuotePartBreakdown, Activity
 **Tracking** (2): WebEvent, IpMap
 **Compliance** (2): ComplianceDocument, OnboardingPack
 **Reference** (20+): Supporting tables

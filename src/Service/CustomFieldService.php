@@ -87,6 +87,11 @@ class CustomFieldService
 
     /**
      * Save custom field values for an entity
+     *
+     * Upserts the provided values, then removes stored values for this entity
+     * whose field key is NOT present in the payload (fields removed from the
+     * form / deactivated definitions leave orphan rows otherwise). Only values
+     * belonging to this entity are touched.
      */
     public function saveValues(string $entityType, int $entityId, array $data): void
     {
@@ -110,6 +115,16 @@ class CustomFieldService
 
                 $fieldValue->setValue($value);
                 $this->entityManager->persist($fieldValue);
+            }
+        }
+
+        // Delete stale values: stored values whose field key is not part of
+        // this save payload belong to fields that were removed from the form
+        // or deactivated — remove them so they stop surfacing as "current".
+        foreach ($this->valueRepository->findByEntity($entityType, $entityId) as $existingValue) {
+            $existingKey = $existingValue->getFieldDefinition()?->getFieldKey();
+            if ($existingKey !== null && !array_key_exists($existingKey, $data)) {
+                $this->entityManager->remove($existingValue);
             }
         }
 

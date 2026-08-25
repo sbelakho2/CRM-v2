@@ -149,7 +149,10 @@ class SupplierPortalController extends AbstractController
             
             // 3. Create portal entities for discovered portals
             $createdCount = 0;
-            $companyId = $request->request->get('company_id', 1); // Default to 1 if not provided
+            $companyId = $this->requireValidCompanyId($request);
+            if ($companyId === null) {
+                return $this->redirectToRoute('supplier_portal_index');
+            }
             
             foreach ($discoveredPortals as $portalData) {
                 $portal = $this->portalCrawler->createPortal($portalData, $companyId);
@@ -179,10 +182,17 @@ class SupplierPortalController extends AbstractController
             throw $this->createAccessDeniedException('Invalid CSRF token');
         }
 
-        $companyId = $request->request->get('company_id', 1);
+        $companyId = $this->requireValidCompanyId($request);
+        if ($companyId === null) {
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+        }
         
         // 2. Get pack type
         $packType = $request->request->get('pack_type', 'FULL'); // FULL, QUICK, CUSTOM
+        if (!in_array($packType, ['FULL', 'QUICK', 'CUSTOM'], true)) {
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.invalid_pack_type'));
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
+        }
         $customFields = $request->request->all('custom_fields') ?? [];
         
         try {
@@ -245,15 +255,16 @@ class SupplierPortalController extends AbstractController
             
             // 4. Display result
             if ($result['success']) {
-                $this->addFlash('success', 'supplier_portal.flash.pack_submitted');
+                $this->addFlash('success', $this->translator->trans('supplier_portal.flash.pack_submitted'));
             } else {
-                $this->addFlash('warning', 'supplier_portal.flash.submission_pending');
+                $this->addFlash('warning', $this->translator->trans('supplier_portal.flash.submission_pending'));
             }
             
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
             
         } catch (\Exception $e) {
-            $this->addFlash('error', 'supplier_portal.flash.submission_failed');
+            $this->logger->error('Onboarding pack submission failed', ['portal_id' => $id, 'exception' => $e]);
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.submission_failed'));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $id]);
         }
     }
@@ -264,27 +275,60 @@ class SupplierPortalController extends AbstractController
     #[Route('/{portalId}/pack/{packId}/pdf', name: 'supplier_portal_pack_pdf', methods: ['GET'])]
     public function downloadPackPdf(int $portalId, int $packId): Response
     {
+        $portal = $this->entityManager->getRepository(SupplierPortal::class)->find($portalId);
+        if (!$portal) {
+            throw $this->createNotFoundException('Supplier portal not found');
+        }
+
+        $pack = $this->entityManager->getRepository(OnboardingPack::class)->find($packId);
+        if (!$pack) {
+            throw $this->createNotFoundException('Onboarding pack not found');
+        }
+
+        if ($pack->getStatus() === 'PENDING_PDF') {
+            $this->addFlash('warning', $this->translator->trans('supplier_portal.flash.pdf_pending'));
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $portalId]);
+        }
+
+        // (Re)generate the PDF from the pack entity so the served file is
+        // always the real generated artifact — never a guessed path.
         try {
-            // 1. Get pack status
-            $packStatus = $this->onboardingPack->getPackStatus($packId);
-            
-            // 2. Check if PDF exists (for demo, create a simple response)
-            $pdfPath = sprintf('public/uploads/onboarding/onboarding_pack_%d_%s.pdf', 
-                $packId, 
-                date('Ymd')
-            );
-            
-            if (!file_exists($pdfPath)) {
-                throw $this->createNotFoundException('PDF not yet generated');
-            }
-            
-            // 3. Return PDF response
-            return $this->file($pdfPath, sprintf('onboarding_pack_%d.pdf', $packId));
-            
+            $pdfPath = $this->pdfGenerator->generateOnboardingPackPdf($pack);
         } catch (\Exception $e) {
-            $this->logger->error('PDF download failed', ['exception' => $e]);
+            $this->logger->error('Onboarding pack PDF generation failed', ['pack_id' => $packId, 'exception' => $e]);
             $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pdf_failed', ['%message%' => 'Operation failed. Please try again.']));
             return $this->redirectToRoute('supplier_portal_detail', ['id' => $portalId]);
         }
+
+        if (!is_file($pdfPath)) {
+            $this->logger->error('Onboarding pack PDF missing after generation', ['pack_id' => $packId, 'path' => $pdfPath]);
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.pdf_failed', ['%message%' => 'Operation failed. Please try again.']));
+            return $this->redirectToRoute('supplier_portal_detail', ['id' => $portalId]);
+        }
+
+        return $this->file($pdfPath, sprintf('onboarding_pack_%d.pdf', $packId));
+    }
+
+    /**
+     * Validate the company_id POST parameter: it must be present, numeric and
+     * reference an existing company. Returns the validated id, or null after
+     * flashing an error (caller is responsible for the redirect).
+     */
+    private function requireValidCompanyId(Request $request): ?int
+    {
+        $companyId = $request->request->get('company_id');
+        if ($companyId === null || !is_numeric($companyId) || (int) $companyId < 1) {
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.company_required'));
+            return null;
+        }
+
+        $companyId = (int) $companyId;
+        $company = $this->entityManager->getRepository(\App\Entity\Company::class)->find($companyId);
+        if (!$company) {
+            $this->addFlash('error', $this->translator->trans('supplier_portal.flash.company_not_found'));
+            return null;
+        }
+
+        return $companyId;
     }
 }

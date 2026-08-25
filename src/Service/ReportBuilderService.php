@@ -9,6 +9,7 @@ use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use DateTimeImmutable;
+use Psr\Log\LoggerInterface;
 
 class ReportBuilderService
 {
@@ -133,7 +134,8 @@ class ReportBuilderService
     ];
     
     public function __construct(
-        private EntityManagerInterface $em
+        private EntityManagerInterface $em,
+        private ?LoggerInterface $logger = null
     ) {}
     
     /**
@@ -179,6 +181,7 @@ class ReportBuilderService
         
         $selectParts = [];
         $joinsMade = [];
+        $warnings = [];
         
         foreach ($columns as $column) {
             if (is_array($column)) {
@@ -189,6 +192,23 @@ class ReportBuilderService
                 $field = $column;
                 $alias = str_replace('.', '_', $field);
                 $aggregation = null;
+            }
+            
+            // ── Defense in depth: field names come from ReportDefinition
+            // (admin-created), but they are interpolated into raw DQL — reject
+            // anything not whitelisted in SOURCE_FIELDS for this data source.
+            if (!$this->isValidField($field, $report->getDataSource())) {
+                $warnings[] = "Skipped column '{$field}': not a valid field for data source '{$report->getDataSource()}'";
+                continue;
+            }
+            
+            // ── Aggregation functions are whitelisted to a known set ──
+            if ($aggregation !== null) {
+                $aggregation = strtolower((string) $aggregation);
+                if (!in_array($aggregation, ['count', 'sum', 'avg', 'min', 'max'], true)) {
+                    $warnings[] = "Skipped invalid aggregation '{$aggregation}' on field '{$field}'";
+                    continue;
+                }
             }
             
             // Handle relation fields
@@ -210,6 +230,15 @@ class ReportBuilderService
             }
         }
         
+        if (empty($selectParts)) {
+            return [
+                'success' => false,
+                'error' => 'Report defines no valid columns',
+                'data' => [],
+                'meta' => ['warnings' => $warnings],
+            ];
+        }
+        
         $qb->select(implode(', ', $selectParts));
         
         // Apply stored filters
@@ -227,6 +256,10 @@ class ReportBuilderService
         $groupBy = $report->getGroupBy();
         if (!empty($groupBy)) {
             foreach ($groupBy as $groupField) {
+                if (!$this->isValidField($groupField, $report->getDataSource())) {
+                    $warnings[] = "Skipped group-by field '{$groupField}': not valid for data source '{$report->getDataSource()}'";
+                    continue;
+                }
                 if (str_contains($groupField, '.')) {
                     [$relation, $relField] = explode('.', $groupField, 2);
                     if (!in_array($relation, $joinsMade)) {
@@ -246,6 +279,11 @@ class ReportBuilderService
             foreach ($orderBy as $order) {
                 $field = is_array($order) ? $order['field'] : $order;
                 $direction = is_array($order) ? ($order['direction'] ?? 'ASC') : 'ASC';
+                
+                if (!$this->isValidField($field, $report->getDataSource())) {
+                    $warnings[] = "Skipped order-by field '{$field}': not valid for data source '{$report->getDataSource()}'";
+                    continue;
+                }
                 
                 if (str_contains($field, '.')) {
                     [$relation, $relField] = explode('.', $field, 2);
@@ -278,16 +316,32 @@ class ReportBuilderService
                     'columns' => $columns,
                     'executedAt' => new DateTimeImmutable(),
                     'reportType' => $report->getReportType(),
+                    'warnings' => $warnings,
                 ],
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // Never leak raw exception details to the caller — log the detail
+            // and return a generic message.
+            $this->logger?->error('Report execution failed', [
+                'report_id' => $report->getId(),
+                'data_source' => $report->getDataSource(),
+                'error' => $e->getMessage(),
+            ]);
             return [
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Report execution failed. Please review the report definition.',
                 'data' => [],
-                'meta' => [],
+                'meta' => ['warnings' => $warnings],
             ];
         }
+    }
+
+    /**
+     * Whitelist check: is $field a declared source field for $dataSource?
+     */
+    private function isValidField(string $field, string $dataSource): bool
+    {
+        return isset(self::SOURCE_FIELDS[$dataSource][$field]);
     }
     
     /**

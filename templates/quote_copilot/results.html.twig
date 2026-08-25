@@ -95,7 +95,7 @@
                 <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                 </svg>
-                Review &amp; Verify Lines
+                {{ 'quote.copilot.review_verify_lines'|trans }}
             </a>
         </div>
         <div class="rams-table-container">
@@ -270,7 +270,7 @@
 
 {# Contact Selection Modal #}
 <div id="contactModal" class="rams-modal rams-modal--hidden" role="dialog" aria-modal="true" aria-labelledby="contact-modal-title">
-    <div class="rams-modal__backdrop" onclick="closeContactModal()"></div>
+    <div class="rams-modal__backdrop" role="button" tabindex="0" aria-label="{{ 'common.close'|trans }}" onclick="closeContactModal()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); closeContactModal(); }"></div>
     <div class="rams-modal__content">
         <div class="rams-modal__header">
             <h3 id="contact-modal-title" class="rams-heading rams-heading--3">{{ 'quote.copilot.select_contact'|trans }}</h3>
@@ -290,11 +290,14 @@
 <script>
 let currentQuoteId = null;
 
+const copilotContactsUrl = '{{ path('quote_copilot_contacts', {id: 0}) }}';
+const copilotPublishUrl = '{{ path('quote_copilot_publish', {id: 0}) }}';
+
 async function initiatePublish(quoteId) {
     currentQuoteId = quoteId;
     
     try {
-        const response = await fetch(`/quote-copilot/${quoteId}/contacts`);
+        const response = await fetch(copilotContactsUrl.replace('/0', '/' + quoteId));
         const data = await response.json();
         
         if (!data.success) {
@@ -369,7 +372,7 @@ function selectContact(contactId, contactName, contactEmail) {
 
 async function publishQuote(quoteId, contactId) {
     try {
-        const response = await fetch(`/quote-copilot/${quoteId}/publish`, {
+        const response = await fetch(copilotPublishUrl.replace('/0', '/' + quoteId), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

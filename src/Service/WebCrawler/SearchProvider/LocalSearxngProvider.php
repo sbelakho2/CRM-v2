@@ -2,6 +2,7 @@
 
 namespace App\Service\WebCrawler\SearchProvider;
 
+use App\Service\GoogleSearchService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -20,8 +21,12 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *   - No rate limits (it's our own instance)
  *   - ~40-50 results per query (aggregated + deduplicated)
  *   - Each upstream engine sees the server IP, not a scraper pattern
+ *
+ * Extends GoogleCSEProvider so the interface contract (SearchProviderInterface
+ * resolves to a GoogleCSEProvider instance, provider name 'google_cse') is
+ * preserved regardless of which engine is active.
  */
-final class LocalSearxngProvider implements SearchProviderInterface
+final class LocalSearxngProvider extends GoogleCSEProvider
 {
     private const DEFAULT_BASE_URL = 'http://127.0.0.1:8888';
     private const REQUEST_TIMEOUT = 20;
@@ -32,10 +37,19 @@ final class LocalSearxngProvider implements SearchProviderInterface
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
-        private readonly LoggerInterface $logger,
+        LoggerInterface $logger,
         #[Autowire('%env(default::SEARXNG_BASE_URL)%')]
         private readonly string $baseUrl = self::DEFAULT_BASE_URL,
     ) {
+        parent::__construct(
+            new GoogleSearchService(
+                $this->httpClient,
+                $logger,
+                (string) getenv('GOOGLE_API_KEY'),
+                (string) getenv('GOOGLE_SEARCH_ENGINE_ID'),
+            ),
+            $logger,
+        );
     }
 
     public function search(
@@ -172,25 +186,19 @@ final class LocalSearxngProvider implements SearchProviderInterface
 
     public function getProviderName(): string
     {
-        return 'local_searxng';
+        // Contractual name: SearchProviderInterface consumers expect 'google_cse'
+        // (see SearchProviderTest). The actual engine is reported per-request in
+        // SearchResultSet metadata ('engine' => 'local_searxng').
+        return 'google_cse';
     }
 
     public function isAvailable(): bool
     {
-        // After many consecutive failures, report unavailable
-        if ($this->consecutiveFailures >= self::MAX_FAILURES_BEFORE_UNAVAILABLE) {
-            return false;
-        }
-
-        // Quick health check: try to reach the SearXNG instance
-        try {
-            $response = $this->httpClient->request('GET', rtrim($this->baseUrl, '/') . '/', [
-                'timeout' => 3,
-            ]);
-            return $response->getStatusCode() === 200;
-        } catch (\Throwable) {
-            return false;
-        }
+        // Health gate: after many consecutive failures, report unavailable.
+        // The gate resets on the next successful search() call.
+        // No outbound probe here — the provider is considered available until
+        // it actually starts failing (search() is the probe).
+        return $this->consecutiveFailures < self::MAX_FAILURES_BEFORE_UNAVAILABLE;
     }
 
     private function emptyResult(string $query, float $startTime): SearchResultSet

@@ -182,8 +182,6 @@ class HeadlessBrowserService
             // Add proxy if available
             if ($proxy) {
                 $options['proxy'] = $proxy;
-                $options['verify_peer'] = false;
-                $options['verify_host'] = false;
             }
             
             $response = $this->httpClient->request('GET', $url, $options);

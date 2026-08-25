@@ -1,7 +1,7 @@
 # Starz Morocco CRM v2
 
-**Status**: 🚧 In Active Development (65-70% Complete)  
-**Last Updated**: December 1, 2025
+**Status**: ✅ Live in production (https://www.starzcrm.com)  
+**Last Updated**: August 24, 2026
 
 ---
 
@@ -16,6 +16,12 @@ Enterprise CRM platform for PCBA/EMS market with integrated Account-Based Market
 - 🏢 **Companies & Contacts** – Full relationship management
 - 💰 **RFQ Pipeline** – Quote requests, status tracking
 - 📧 **Email Campaigns** – Scheduling, templates, delivery tracking
+- 🗓️ **Meeting Scheduler** – Public booking/cancellation via signed token links (no login required)
+
+#### Security
+- 🔐 Login throttling, remember-me, full role hierarchy
+- 🔑 Signed public booking tokens; CSRF-protected state-changing routes
+- 🛡️ Hardened uploads (mime/extension whitelist), URL-length guard in duplicate detection
 
 #### ABM & Marketing Automation
 - 🎯 **Visitor Intelligence** – IP-to-company resolution, engagement tracking
@@ -30,10 +36,11 @@ Enterprise CRM platform for PCBA/EMS market with integrated Account-Based Market
 
 ### Technology Stack
 
-- **Framework**: Symfony 7.0.10
-- **Language**: PHP 8.3.28
+- **Framework**: Symfony 7.4.15
+- **Language**: PHP >= 8.2 (dev machine: 8.5)
 - **Database**: MySQL 8 (port 3308)
-- **Frontend**: Twig, Tailwind CSS 3.4.15, Chart.js
+- **Frontend**: Twig, Chart.js
+- **Search**: Self-hosted SearXNG (port 8888, primary) with Google CSE fallback
 - **APIs**: Mouser, DigiKey, Nexar (component pricing)
 - **Async Processing**: Symfony Messenger (ready)
 
@@ -46,7 +53,6 @@ Enterprise CRM platform for PCBA/EMS market with integrated Account-Based Market
 ```powershell
 # Install dependencies
 composer install
-npm install
 
 # Configure environment
 Copy-Item .env .env.local
@@ -55,9 +61,6 @@ Copy-Item .env .env.local
 # Setup database
 php bin/console doctrine:database:create
 php bin/console doctrine:migrations:migrate
-
-# Build frontend assets
-npm run dev
 
 # Start development server
 symfony server:start
@@ -89,7 +92,7 @@ crm-c2/
 ├── config/                 # Symfony configuration
 ├── src/
 │   ├── Controller/         # HTTP controllers
-│   ├── Entity/            # Doctrine entities (40+ models)
+│   ├── Entity/            # Doctrine entities (66)
 │   ├── Service/           # Business logic
 │   │   ├── AbmResolverService.php    # IP resolution
 │   │   ├── PlaybookEngine.php        # Marketing automation
@@ -134,7 +137,7 @@ crm-c2/
 
 ## Database Schema
 
-40+ entities including:
+66 entities including:
 - **Core**: Company, Contact, User, Activity
 - **Sales**: Quote, RFQ, BomLine, QuoteLineItem
 - **Marketing**: EmailCampaign, EmailTemplate, CampaignRecipient

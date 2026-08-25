@@ -33,6 +33,7 @@ class DiscoverCompaniesCommand extends Command
             ->addOption('location', 'l', InputOption::VALUE_OPTIONAL, 'Specific location to search')
             ->addOption('region', 'r', InputOption::VALUE_OPTIONAL, 'Region code for --all (MA, US, EU, GB). Omit for all regions.')
             ->addOption('all', 'a', InputOption::VALUE_NONE, 'Discover all sectors and locations')
+            ->addOption('yes', 'y', InputOption::VALUE_NONE, 'Skip confirmation prompts (cron-safe)')
             ->setHelp(<<<'HELP'
 This command discovers companies using web crawling techniques.
 
@@ -94,7 +95,10 @@ HELP
                 $region ? "Limiting to region: {$regionLabel}" : 'Covering ALL regions (MA, US, EU, GB).',
             ]);
 
-            if (!$input->getOption('no-interaction') && !$io->confirm('Continue?', false)) {
+            // Only prompt in an interactive terminal; --yes / --no-interaction
+            // (or a cron environment without a TTY) proceeds without asking.
+            if ($input->isInteractive() && !$input->getOption('yes') && !$io->confirm('Continue?', false)) {
+                $io->note('Aborted by user.');
                 return Command::SUCCESS;
             }
 

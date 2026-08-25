@@ -276,6 +276,8 @@ tr:nth-child(even) {
 
 ### 2. Estimate PDF
 
+> **Correction (2026-08):** The `Estimate` entity and `templates/pdf/estimate.html.twig` were removed during the 2026 refactoring. This section is retained for historical reference only; landed-cost estimates are now produced via `Quote`/`QuotePartBreakdown`.
+
 **Purpose:** Landed-cost estimate with duty, freight, FX breakdown
 
 **Template:** `templates/pdf/estimate.html.twig`

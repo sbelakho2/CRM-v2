@@ -26,6 +26,10 @@ class TrackerImportService
     /**
      * Import companies from Tracker.xlsx
      * Expects CSV format with headers in first row
+     *
+     * The whole import runs inside a single DB transaction: per-row errors are
+     * collected (the row is skipped), but a mid-import crash rolls everything
+     * back so no partial set of companies is ever committed.
      */
     public function importFromCsv(string $csvFilePath): array
     {
@@ -47,8 +51,9 @@ class TrackerImportService
         }
 
         // Read header row
-        $headers = fgetcsv($handle);
+        $headers = fgetcsv($handle, 0, ',', '"', '\\');
         if (!$headers) {
+            fclose($handle);
             throw new \RuntimeException("Could not read headers from CSV");
         }
 
@@ -57,49 +62,51 @@ class TrackerImportService
             'columns' => count($headers)
         ]);
 
-        // Process each row
-        $rowNumber = 1;
-        while (($data = fgetcsv($handle)) !== false) {
-            $rowNumber++;
-            $stats['processed']++;
+        $this->em->wrapInTransaction(function () use ($handle, $headers, &$stats) {
+            // Process each row
+            $rowNumber = 1;
+            while (($data = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
+                $rowNumber++;
+                $stats['processed']++;
 
-            try {
-                // Map CSV row to array with headers as keys
-                $row = array_combine($headers, $data);
-                
-                // Skip empty rows
-                if (empty($row['Company']) && empty($row['Company Name']) && empty($row['company_name'])) {
-                    $stats['skipped']++;
-                    continue;
+                try {
+                    // Ragged rows (width mismatch) throw \ValueError from
+                    // array_combine — validate first and record the row error.
+                    if (count($data) !== count($headers)) {
+                        throw new \RuntimeException(
+                            sprintf('Column count mismatch: expected %d, got %d', count($headers), count($data))
+                        );
+                    }
+                    // Map CSV row to array with headers as keys
+                    $row = array_combine($headers, $data);
+                    
+                    // Skip empty rows
+                    if (empty($row['Company']) && empty($row['Company Name']) && empty($row['company_name'])) {
+                        $stats['skipped']++;
+                        continue;
+                    }
+
+                    // Import company
+                    $result = $this->importCompanyRow($row);
+                    
+                    if ($result === 'imported') {
+                        $stats['imported']++;
+                    } elseif ($result === 'updated') {
+                        $stats['updated']++;
+                    }
+
+                } catch (\Throwable $e) {
+                    $error = "Row {$rowNumber}: " . $e->getMessage();
+                    $stats['errors'][] = $error;
+                    $this->logger->error($error);
                 }
-
-                // Import company
-                $result = $this->importCompanyRow($row);
-                
-                if ($result === 'imported') {
-                    $stats['imported']++;
-                } elseif ($result === 'updated') {
-                    $stats['updated']++;
-                }
-
-                // Flush every 50 records to avoid memory issues
-                if ($stats['processed'] % 50 === 0) {
-                    $this->em->flush();
-                    $this->em->clear();
-                    $this->logger->info("Progress update", $stats);
-                }
-
-            } catch (\Exception $e) {
-                $error = "Row {$rowNumber}: " . $e->getMessage();
-                $stats['errors'][] = $error;
-                $this->logger->error($error);
             }
-        }
+
+            // Final flush inside the transaction — commit happens at the end
+            $this->em->flush();
+        });
 
         fclose($handle);
-
-        // Final flush
-        $this->em->flush();
 
         $this->logger->info("Tracker import completed", $stats);
 

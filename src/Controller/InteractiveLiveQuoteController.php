@@ -38,7 +38,6 @@ use Psr\Log\LoggerInterface;
  * - POST /quote/{id}/disable-interactive  - Disable interactive mode
  */
 #[Route('/quote')]
-#[IsGranted('ROLE_USER')]
 class InteractiveLiveQuoteController extends AbstractController
 {
     public function __construct(
@@ -69,6 +68,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * View interactive quote (public access via token)
      */
     #[Route('/live/{token}', name: 'quote_live_view', methods: ['GET'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function viewLiveQuote(string $token): Response
     {
         $quote = $this->liveQuoteService->getQuoteByToken($token);
@@ -101,6 +101,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * Get pricing data for all tiers (AJAX endpoint)
      */
     #[Route('/live/{token}/pricing', name: 'quote_live_pricing', methods: ['GET'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function getPricing(string $token): JsonResponse
     {
         $quote = $this->liveQuoteService->getQuoteByToken($token);
@@ -120,6 +121,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * Calculate pricing for a specific quantity
      */
     #[Route('/live/{token}/calculate', name: 'quote_live_calculate', methods: ['POST'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function calculateForQuantity(Request $request, string $token): JsonResponse
     {
         if ($response = $this->requireCsrf($request)) {
@@ -182,6 +184,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * Customer requests quote at specific quantity
      */
     #[Route('/live/{token}/request', name: 'quote_live_request', methods: ['POST'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function requestQuote(Request $request, string $token): JsonResponse
     {
         if ($response = $this->requireCsrf($request)) {
@@ -215,6 +218,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * Customer accepts quote
      */
     #[Route('/live/{token}/accept', name: 'quote_live_accept', methods: ['POST'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function acceptQuote(Request $request, string $token): JsonResponse
     {
         if ($response = $this->requireCsrf($request)) {
@@ -250,6 +254,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * Enable interactive mode for a quote
      */
     #[Route('/{id}/enable-interactive', name: 'quote_enable_interactive', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function enableInteractive(Request $request, int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
@@ -282,6 +287,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * Disable interactive mode for a quote
      */
     #[Route('/{id}/disable-interactive', name: 'quote_disable_interactive', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function disableInteractive(Request $request, int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
@@ -309,6 +315,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * Get interactive quote statistics
      */
     #[Route('/interactive/stats', name: 'quote_interactive_stats', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
     public function getInteractiveStats(): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
@@ -322,6 +329,7 @@ class InteractiveLiveQuoteController extends AbstractController
      * Regenerate expired token
      */
     #[Route('/{id}/regenerate-token', name: 'quote_regenerate_token', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
     public function regenerateToken(Request $request, int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');

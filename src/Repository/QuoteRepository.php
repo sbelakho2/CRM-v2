@@ -57,4 +57,20 @@ class QuoteRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    /**
+     * Atomically increment the view count of a quote (avoids read-modify-write races).
+     */
+    public function incrementViewCount(int $id): void
+    {
+        $this->createQueryBuilder('q')
+            ->update()
+            ->set('q.viewCount', 'q.viewCount + 1')
+            ->set('q.lastViewedAt', ':now')
+            ->where('q.id = :id')
+            ->setParameter('now', new \DateTime())
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->execute();
+    }
 }

@@ -42,8 +42,12 @@ final class Version20260807010000 extends AbstractMigration
             return;
         }
 
-        $this->addSql(sprintf('ALTER TABLE `%s` ADD is_verified TINYINT(1) DEFAULT 0 NOT NULL', $tableName));
-        $this->addSql(sprintf('UPDATE `%s` SET is_verified = 1', $tableName));
+        // Baseline and migrated schemas already carry is_verified; only the
+        // legacy pre-migration shape needs the ADD (the UPDATE is idempotent).
+        if (!$this->columnExists($tableName, 'is_verified')) {
+            $this->addSql(sprintf('ALTER TABLE `%s` ADD is_verified TINYINT(1) DEFAULT 0 NOT NULL', $tableName));
+            $this->addSql(sprintf('UPDATE `%s` SET is_verified = 1', $tableName));
+        }
     }
 
     public function down(Schema $schema): void
@@ -58,5 +62,13 @@ final class Version20260807010000 extends AbstractMigration
         if ($tableName !== null) {
             $this->addSql(sprintf('ALTER TABLE `%s` DROP is_verified', $tableName));
         }
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        return (bool) $this->connection->executeQuery(
+            'SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?',
+            [$table, $column]
+        )->fetchOne();
     }
 }

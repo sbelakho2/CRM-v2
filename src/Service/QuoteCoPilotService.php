@@ -139,6 +139,23 @@ class QuoteCoPilotService
         $quote->setTotalCost((string) $totals['total']);
         
         // 6. Calculate AI win probability prediction
+        // Surface the lead-time context the predictor consumes: max lead time
+        // across sourced lines (and customer urgency if provided), so
+        // QuoteWinPredictorService::scoreLeadTimeMatch() isn't stuck on its
+        // default 30-day assumption.
+        $maxLeadTimeDays = 0;
+        foreach ($processedLines as $line) {
+            $leadTime = (int) ($line['leadtime_days'] ?? 0);
+            if ($leadTime > $maxLeadTimeDays) {
+                $maxLeadTimeDays = $leadTime;
+            }
+        }
+        $predictionMetadata = array_merge($quote->getMetadata() ?? [], [
+            'max_lead_time_days' => $maxLeadTimeDays > 0 ? $maxLeadTimeDays : 30,
+            'customer_urgency' => $metadata['customer_urgency'] ?? 'normal',
+        ]);
+        $quote->setMetadata($predictionMetadata);
+
         $winPrediction = $this->winPredictor->predictWinProbability($quote);
         $quote->setMetadata(array_merge($quote->getMetadata() ?? [], [
             'win_prediction' => [
@@ -165,17 +182,22 @@ class QuoteCoPilotService
         // C6: Database-level auto-publish validation — queries persisted BomLines and exceptions
         // to double-check coverage, lead times, and critical exceptions.
         $coveragePct = $stats['coverage_percent'] ?? 0;
+        $dbLevelPublished = false;
         if ($this->checkAutoPublishCriteria($quote->getId(), $coveragePct)) {
             $quote->setStatus('PUBLISHED');
             $quote->setAutoPublished(true);
             $quote->setUpdatedAt(new \DateTime());
             $this->entityManager->flush();
+            $dbLevelPublished = true;
         }
         
         return [
             'quoteId' => $quote->getId(),
             'coverage' => $stats['coverage_percent'],
-            'autoPublished' => $publishCheck['can_publish'],
+            // Return the authoritative DB-level re-check result: the in-memory
+            // check can disagree with persisted state (e.g. exceptions written
+            // by createAndPersistBomLine), and callers act on this flag.
+            'autoPublished' => $dbLevelPublished,
             'exceptionsCount' => $stats['unsourced'],
             'bomLineCount' => $stats['total_lines'],
             'stats' => $stats,
@@ -286,6 +308,18 @@ class QuoteCoPilotService
 
         // ── Win probability prediction ──
         try {
+            // Surface lead-time context for the predictor (see autogenerateQuote).
+            $maxLeadTimeDays = 0;
+            foreach ($processedLines as $line) {
+                $leadTime = (int) ($line['leadtime_days'] ?? 0);
+                if ($leadTime > $maxLeadTimeDays) {
+                    $maxLeadTimeDays = $leadTime;
+                }
+            }
+            $quote->setMetadata(array_merge($quote->getMetadata() ?? [], [
+                'max_lead_time_days' => $maxLeadTimeDays > 0 ? $maxLeadTimeDays : 30,
+            ]));
+
             $winPrediction = $this->winPredictor->predictWinProbability($quote);
             $quote->setMetadata(array_merge($quote->getMetadata() ?? [], [
                 'win_prediction' => [

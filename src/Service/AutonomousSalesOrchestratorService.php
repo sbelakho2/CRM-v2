@@ -16,6 +16,7 @@ use App\Repository\OutboundMessageRepository;
 use App\Repository\SpintaxTemplateRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 
@@ -59,6 +60,8 @@ class AutonomousSalesOrchestratorService
         private ?CopyLintService $copyLintService = null,
         private ?SalesPipelineOrchestratorService $pipelineOrchestrator = null,
         private ?EmailActivityLogger $activityLogger = null,
+        private ?string $mailerFromAddress = null,
+        private ?LockFactory $lockFactory = null,
     ) {}
 
     /**
@@ -267,12 +270,14 @@ class AutonomousSalesOrchestratorService
         }
 
         // ==================== COPY LINT GATE ====================
-        // Hard gate: reject if copy violates brand/deliverability rules
+        // Compose-time lint is ADVISORY: a violation is logged with severity and
+        // recorded in the decision trace, but the message is only hard-blocked
+        // at send time (sendEmail enforces the gate).
         $copyLintResult = null;
         if ($this->copyLintService) {
             $copyLintResult = $this->copyLintService->lint($result['subject'], $result['body'], $fullContext);
             if (!$copyLintResult['passed']) {
-                $this->logger->warning('Copy lint gate FAILED — message blocked', [
+                $this->logger->warning('Copy lint FAILED at compose time (advisory — send-time gate still applies)', [
                     'contactId' => $contact->getId(),
                     'violations' => $copyLintResult['violations'],
                 ]);
@@ -653,9 +658,24 @@ class AutonomousSalesOrchestratorService
             (new \DateTime())->modify("+{$replyWindowDays} days")
         );
 
+        // ==================== CONCURRENCY LOCK ====================
+        // Two concurrent hourly runs (or a webhook retry racing a cron) could
+        // otherwise double-send to the same message. Short lock (30 min) keyed
+        // by message id.
+        $lock = null;
+        if ($this->lockFactory) {
+            $lock = $this->lockFactory->createLock('autonomous_sales_send_' . $message->getId(), 1800, false);
+            if (!$lock->acquire()) {
+                $this->logger->warning('Send skipped: another process is already handling this message', [
+                    'messageId' => $message->getId(),
+                ]);
+                return false;
+            }
+        }
+
         try {
             $email = (new Email())
-                ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site')
+                ->from($this->resolveSenderAddress())
                 ->to($contact->getEmail())
                 ->subject($message->getSubject())
                 ->text($message->getBodyText());
@@ -708,7 +728,33 @@ class AutonomousSalesOrchestratorService
             ]);
 
             return false;
+        } finally {
+            $lock?->release();
         }
+    }
+
+    /**
+     * Resolve the "From" address for outbound autonomous emails.
+     *
+     * Uses the configured %env(MAILER_FROM_ADDRESS)%-based parameter first
+     * (bound as $mailerFromAddress), falls back to the raw environment
+     * variable, and only then to a documented fallback.
+     */
+    private function resolveSenderAddress(): string
+    {
+        $from = $this->mailerFromAddress
+            ?? ($_ENV['MAILER_FROM_ADDRESS'] ?? '')
+            ?? '';
+
+        if ($from !== '') {
+            return $from;
+        }
+
+        $this->logger->warning('MAILER_FROM_ADDRESS not configured — using fallback sender', [
+            'fallback' => 'noreply@starzelectronics.site',
+        ]);
+
+        return 'noreply@starzelectronics.site';
     }
 
     /**
@@ -718,12 +764,23 @@ class AutonomousSalesOrchestratorService
      * Open/click events are tracked separately from reply classification.
      * 
      * @param int|OutboundMessage $messageOrId Message ID or entity
-     * @param string $eventType Event type: 'open', 'click', 'reply', 'bounce', 'delivered'
+     * @param string $eventType Event type: 'open', 'click', 'reply', 'bounce', 'delivered', 'complaint'
      * @param string|null $replyContent Raw reply content for classification (optional)
      * @return array Result with classification and Thompson update info
      */
     public function recordEmailEvent(int|OutboundMessage $messageOrId, string $eventType, ?string $replyContent = null): array
     {
+        // Validate against the known event set — unknown types are logged and
+        // rejected instead of silently no-op'ing.
+        $validEventTypes = ['open', 'click', 'reply', 'bounce', 'delivered', 'complaint'];
+        if (!in_array($eventType, $validEventTypes, true)) {
+            $this->logger->warning('Ignoring unknown email event type', [
+                'messageId' => $messageOrId instanceof OutboundMessage ? $messageOrId->getId() : $messageOrId,
+                'eventType' => $eventType,
+            ]);
+            return ['status' => 'error', 'event_type' => $eventType, 'message' => "Unknown event type: {$eventType}"];
+        }
+
         // Support both ID and entity
         if ($messageOrId instanceof OutboundMessage) {
             $message = $messageOrId;
@@ -736,6 +793,30 @@ class AutonomousSalesOrchestratorService
             return ['status' => 'error', 'message' => 'Message not found'];
         }
 
+        // ==================== CONCURRENCY LOCK ====================
+        // Prevent duplicate webhook deliveries / concurrent runs from
+        // double-recording the same event on the same message.
+        $lock = null;
+        if ($this->lockFactory) {
+            $lock = $this->lockFactory->createLock('autonomous_sales_event_' . $message->getId(), 1800, false);
+            if (!$lock->acquire()) {
+                $this->logger->warning('Event skipped: another process is already recording this event', [
+                    'messageId' => $message->getId(),
+                    'eventType' => $eventType,
+                ]);
+                return ['status' => 'skipped', 'event_type' => $eventType, 'message' => 'Event already being processed'];
+            }
+        }
+
+        try {
+            return $this->doRecordEmailEvent($message, $eventType, $replyContent);
+        } finally {
+            $lock?->release();
+        }
+    }
+
+    private function doRecordEmailEvent(OutboundMessage $message, string $eventType, ?string $replyContent = null): array
+    {
         $result = [
             'status' => 'recorded',
             'event_type' => $eventType,
@@ -750,6 +831,7 @@ class AutonomousSalesOrchestratorService
             'click' => OutboundMessage::STATUS_CLICKED,
             'reply' => OutboundMessage::STATUS_REPLIED,
             'bounce' => OutboundMessage::STATUS_BOUNCED,
+            'complaint' => OutboundMessage::STATUS_BOUNCED, // Complaints are hard failures like bounces
         ];
 
         $newStatus = $statusMap[$eventType] ?? null;

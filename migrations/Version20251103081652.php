@@ -20,57 +20,152 @@ final class Version20251103081652 extends AbstractMigration
     public function up(Schema $schema): void
     {
         // this up() migration is auto-generated, please modify it to your needs
-        $this->addSql('CREATE TABLE abm_account (id INT AUTO_INCREMENT NOT NULL, account_name VARCHAR(255) NOT NULL, domain VARCHAR(255) NOT NULL, icp_tier VARCHAR(20) DEFAULT NULL, engagement_score INT DEFAULT NULL, total_visits INT DEFAULT NULL, total_page_views INT DEFAULT NULL, first_seen_at DATETIME DEFAULT NULL, last_activity_at DATETIME DEFAULT NULL, metadata JSON DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, UNIQUE INDEX UNIQ_EEBF221AA7A91E0B (domain), INDEX idx_abm_domain (domain), INDEX idx_abm_icp_tier (icp_tier), INDEX idx_abm_engagement (engagement_score), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE abm_hits (id INT AUTO_INCREMENT NOT NULL, company_id INT DEFAULT NULL, timestamp DATETIME NOT NULL, ip_address VARCHAR(45) NOT NULL, organization_name VARCHAR(255) DEFAULT NULL, url_visited LONGTEXT DEFAULT NULL, session_duration INT DEFAULT NULL, page_views INT DEFAULT NULL, firmographic_data LONGTEXT DEFAULT NULL, is_identified TINYINT(1) NOT NULL, playbook_triggered TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX IDX_50A8D529979B1AD6 (company_id), INDEX idx_company_timestamp (company_id, timestamp), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE asm_curves (id INT AUTO_INCREMENT NOT NULL, component_count_min INT NOT NULL, component_count_max INT DEFAULT NULL, cost_per_unit NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_component_count_asof (component_count_min, asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE bom_line (id INT AUTO_INCREMENT NOT NULL, quote_id INT NOT NULL, line_number INT NOT NULL, mpn VARCHAR(255) DEFAULT NULL, manufacturer VARCHAR(255) DEFAULT NULL, description LONGTEXT DEFAULT NULL, quantity INT NOT NULL, unit_price NUMERIC(10, 4) DEFAULT NULL, extended_price NUMERIC(12, 2) DEFAULT NULL, procurement_source VARCHAR(50) DEFAULT NULL, has_exception TINYINT(1) DEFAULT NULL, exception_reason VARCHAR(100) DEFAULT NULL, lead_time_days INT DEFAULT NULL, availability VARCHAR(20) DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_bom_quote (quote_id), INDEX idx_bom_mpn (mpn), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE capacity_calendars (id INT AUTO_INCREMENT NOT NULL, production_date DATE NOT NULL, available_slots INT NOT NULL, booked_slots INT NOT NULL, is_holiday TINYINT(1) NOT NULL, holiday_name LONGTEXT DEFAULT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_production_date (production_date), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE company_canonicals (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, domain VARCHAR(255) NOT NULL, alias VARCHAR(255) DEFAULT NULL, is_primary TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME DEFAULT NULL, INDEX IDX_514DA330979B1AD6 (company_id), INDEX idx_domain (domain), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE coo_supplier_decls (id INT AUTO_INCREMENT NOT NULL, supplier_name VARCHAR(255) NOT NULL, mpn VARCHAR(255) NOT NULL, country_of_origin VARCHAR(2) NOT NULL, hts_code VARCHAR(100) DEFAULT NULL, evidence_url LONGTEXT DEFAULT NULL, declared_at DATETIME NOT NULL, expires_at DATETIME DEFAULT NULL, certificate_number VARCHAR(100) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, is_verified TINYINT(1) NOT NULL, verified_by VARCHAR(255) DEFAULT NULL, INDEX idx_supplier_mpn (supplier_name, mpn), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE dataset_version (id INT AUTO_INCREMENT NOT NULL, dataset_type VARCHAR(100) NOT NULL, version_uuid VARCHAR(36) NOT NULL, sha256_hash VARCHAR(64) NOT NULL, record_count INT DEFAULT NULL, is_active TINYINT(1) DEFAULT NULL, metadata JSON DEFAULT NULL, imported_at DATETIME NOT NULL, imported_by VARCHAR(100) DEFAULT NULL, UNIQUE INDEX UNIQ_94CEFF85606F4CA2 (version_uuid), INDEX idx_dataset_type (dataset_type), INDEX idx_dataset_active (is_active), INDEX idx_dataset_uuid (version_uuid), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE dfm_finding (id INT AUTO_INCREMENT NOT NULL, quote_id INT NOT NULL, dfm_rule_id INT DEFAULT NULL, finding_type VARCHAR(100) NOT NULL, severity VARCHAR(20) NOT NULL, description LONGTEXT NOT NULL, remediation LONGTEXT DEFAULT NULL, cost_impact NUMERIC(10, 2) DEFAULT NULL, lead_time_impact INT DEFAULT NULL, metadata JSON DEFAULT NULL, created_at DATETIME NOT NULL, INDEX IDX_4C2C6BB09F7B7BD7 (dfm_rule_id), INDEX idx_dfm_quote (quote_id), INDEX idx_dfm_severity (severity), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE dfm_rules (id INT AUTO_INCREMENT NOT NULL, rule_type VARCHAR(100) NOT NULL, rule_name VARCHAR(255) NOT NULL, severity VARCHAR(50) NOT NULL, description LONGTEXT NOT NULL, remediation_text LONGTEXT DEFAULT NULL, check_logic LONGTEXT DEFAULT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_rule_type_severity (rule_type, severity), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE email_segment (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, description LONGTEXT DEFAULT NULL, filter_rules_json JSON NOT NULL, contact_count INT NOT NULL, is_active TINYINT(1) NOT NULL, last_calculated_at DATETIME DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, created_by VARCHAR(100) DEFAULT NULL, INDEX idx_segment_name (name), INDEX idx_segment_active (is_active), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE email_template (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, subject_line VARCHAR(255) NOT NULL, preview_text VARCHAR(255) DEFAULT NULL, body_html LONGTEXT NOT NULL, body_text LONGTEXT DEFAULT NULL, description LONGTEXT DEFAULT NULL, category VARCHAR(50) DEFAULT NULL, is_active TINYINT(1) NOT NULL, personalization_tokens JSON DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, created_by VARCHAR(100) DEFAULT NULL, INDEX idx_template_name (name), INDEX idx_template_active (is_active), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE email_unsubscribe (id INT AUTO_INCREMENT NOT NULL, contact_id INT DEFAULT NULL, email VARCHAR(255) NOT NULL, reason VARCHAR(100) DEFAULT NULL, feedback_text LONGTEXT DEFAULT NULL, unsubscribed_at DATETIME NOT NULL, ip_address VARCHAR(45) DEFAULT NULL, user_agent VARCHAR(255) DEFAULT NULL, INDEX idx_unsubscribe_contact (contact_id), INDEX idx_unsubscribe_email (email), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE estimates (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, rfq_id INT DEFAULT NULL, estimate_number VARCHAR(50) NOT NULL, origin_country VARCHAR(100) NOT NULL, destination_country VARCHAR(100) NOT NULL, origin_port VARCHAR(100) DEFAULT NULL, destination_port VARCHAR(100) DEFAULT NULL, material_cost NUMERIC(15, 2) NOT NULL, labor_cost NUMERIC(15, 2) NOT NULL, freight_cost NUMERIC(15, 2) NOT NULL, duty_cost NUMERIC(15, 2) NOT NULL, other_costs NUMERIC(15, 2) DEFAULT NULL, total_landed_cost NUMERIC(15, 2) NOT NULL, currency VARCHAR(10) NOT NULL, duty_rate NUMERIC(5, 2) DEFAULT NULL, fta_agreement VARCHAR(100) DEFAULT NULL, fta_qualified TINYINT(1) NOT NULL, bom_data LONGTEXT DEFAULT NULL, sha256_hash VARCHAR(64) DEFAULT NULL, version_id VARCHAR(100) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, UNIQUE INDEX UNIQ_85B8B0EE9D3C8144 (estimate_number), INDEX IDX_85B8B0EEABD9545F (rfq_id), INDEX idx_company (company_id), INDEX idx_estimate_number (estimate_number), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE freight_tables (id INT AUTO_INCREMENT NOT NULL, origin_port VARCHAR(100) NOT NULL, destination_port VARCHAR(100) NOT NULL, transport_mode VARCHAR(50) NOT NULL, container_type VARCHAR(20) NOT NULL, cost_per_unit NUMERIC(10, 2) NOT NULL, currency VARCHAR(10) NOT NULL, transit_days INT DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, carrier VARCHAR(255) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_route (origin_port, destination_port), INDEX idx_effective_date (effective_date), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE fta_rules (id INT AUTO_INCREMENT NOT NULL, hs_code VARCHAR(20) NOT NULL, fta_agreement VARCHAR(100) NOT NULL, roo_requirement LONGTEXT NOT NULL, roo_language LONGTEXT DEFAULT NULL, minimum_value_content NUMERIC(5, 2) DEFAULT NULL, requires_certificate TINYINT(1) NOT NULL, certificate_type VARCHAR(50) DEFAULT NULL, required_documents LONGTEXT DEFAULT NULL, notes LONGTEXT DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_hs_code (hs_code), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE fx_rates (id INT AUTO_INCREMENT NOT NULL, from_currency VARCHAR(10) NOT NULL, to_currency VARCHAR(10) NOT NULL, rate NUMERIC(12, 6) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(36) NOT NULL, is_active TINYINT(1) NOT NULL, created_at DATETIME NOT NULL, INDEX idx_currencies (from_currency, to_currency), INDEX idx_asof (asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE hts_map_rules (id INT AUTO_INCREMENT NOT NULL, category VARCHAR(100) NOT NULL, keywords LONGTEXT DEFAULT NULL, hts_code VARCHAR(100) NOT NULL, confidence VARCHAR(50) NOT NULL, heuristic_logic LONGTEXT DEFAULT NULL, priority INT NOT NULL, notes LONGTEXT DEFAULT NULL, is_active TINYINT(1) NOT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_category_keywords (category), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE ip_maps (id INT AUTO_INCREMENT NOT NULL, ip_address VARCHAR(45) NOT NULL, organization_name VARCHAR(255) DEFAULT NULL, domain VARCHAR(255) DEFAULT NULL, city VARCHAR(100) DEFAULT NULL, region VARCHAR(100) DEFAULT NULL, country VARCHAR(2) DEFAULT NULL, firmographic_data LONGTEXT DEFAULT NULL, asof DATETIME NOT NULL, expires_at DATETIME DEFAULT NULL, INDEX idx_ip_asof (ip_address, asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE notification (id INT AUTO_INCREMENT NOT NULL, user_id INT NOT NULL, type VARCHAR(50) NOT NULL, entity_type VARCHAR(50) NOT NULL, entity_id INT NOT NULL, message VARCHAR(255) NOT NULL, data JSON DEFAULT NULL, read_at DATETIME DEFAULT NULL, created_at DATETIME NOT NULL, INDEX IDX_BF5476CAA76ED395 (user_id), INDEX idx_notification_user_read (user_id, read_at), INDEX idx_notification_created (created_at), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE nre_tables (id INT AUTO_INCREMENT NOT NULL, service_type VARCHAR(100) NOT NULL, flat_fee NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_service_type_asof (service_type, asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE onboarding_packs (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, portal_candidate_id INT NOT NULL, status VARCHAR(50) NOT NULL, pack_contents LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, submitted_at DATETIME DEFAULT NULL, submitted_by VARCHAR(255) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, sha256_hash VARCHAR(64) DEFAULT NULL, INDEX IDX_846C0DCB979B1AD6 (company_id), INDEX IDX_846C0DCB91D286EE (portal_candidate_id), INDEX idx_company_portal (company_id, portal_candidate_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE packaging_factors (id INT AUTO_INCREMENT NOT NULL, category VARCHAR(100) NOT NULL, kg_per_unit NUMERIC(10, 4) NOT NULL, dm3_per_unit NUMERIC(10, 4) NOT NULL, palletization_rule_json JSON DEFAULT NULL, asof DATETIME NOT NULL, version_id VARCHAR(36) NOT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, INDEX idx_category (category), INDEX idx_asof (asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE pcb_curves (id INT AUTO_INCREMENT NOT NULL, layers INT NOT NULL, area_m2 NUMERIC(12, 2) NOT NULL, cost_per_m2 NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_layers_asof (layers, asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE playbook_runs (id INT AUTO_INCREMENT NOT NULL, playbook_id INT NOT NULL, abm_hit_id INT NOT NULL, triggered_at DATETIME NOT NULL, status VARCHAR(50) NOT NULL, completed_at DATETIME DEFAULT NULL, execution_log LONGTEXT DEFAULT NULL, tasks_created INT DEFAULT NULL, error_message LONGTEXT DEFAULT NULL, INDEX IDX_7C70D89C2DB77442 (playbook_id), INDEX IDX_7C70D89C3C9131CC (abm_hit_id), INDEX idx_playbook_abm_hit (playbook_id, abm_hit_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE playbooks (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, description LONGTEXT DEFAULT NULL, trigger_rules LONGTEXT NOT NULL, actions LONGTEXT NOT NULL, priority INT NOT NULL, is_active TINYINT(1) NOT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, notes LONGTEXT DEFAULT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE portal_candidates (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, portal_url LONGTEXT NOT NULL, status VARCHAR(50) NOT NULL, discovered_at DATETIME NOT NULL, evidence_snapshot LONGTEXT DEFAULT NULL, has_robots_txt TINYINT(1) NOT NULL, requires_manual_submit TINYINT(1) NOT NULL, tos_url LONGTEXT DEFAULT NULL, tos_reviewed TINYINT(1) NOT NULL, approved_at DATETIME DEFAULT NULL, approved_by VARCHAR(255) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, INDEX IDX_DB6F19DA979B1AD6 (company_id), INDEX idx_company_status (company_id, status), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE procurement_exception (id INT AUTO_INCREMENT NOT NULL, bom_line_id INT NOT NULL, exception_type VARCHAR(50) NOT NULL, severity VARCHAR(20) NOT NULL, message LONGTEXT DEFAULT NULL, recommendation LONGTEXT DEFAULT NULL, metadata JSON DEFAULT NULL, created_at DATETIME NOT NULL, INDEX idx_proc_exc_bomline (bom_line_id), INDEX idx_proc_exc_severity (severity), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE quote_part_breakdowns (id INT AUTO_INCREMENT NOT NULL, quote_id INT NOT NULL, mpn VARCHAR(255) NOT NULL, manufacturer VARCHAR(255) DEFAULT NULL, quantity INT NOT NULL, unit_price NUMERIC(15, 4) NOT NULL, extended_price NUMERIC(15, 2) NOT NULL, data_source VARCHAR(100) DEFAULT NULL, lead_time_days INT DEFAULT NULL, is_imputed TINYINT(1) NOT NULL, category VARCHAR(100) DEFAULT NULL, INDEX IDX_88D90569DB805178 (quote_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE quotes (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, quote_number VARCHAR(50) NOT NULL, status VARCHAR(50) NOT NULL, total_cost NUMERIC(15, 2) NOT NULL, currency VARCHAR(10) NOT NULL, coverage_percent NUMERIC(5, 2) DEFAULT NULL, alibaba_percent NUMERIC(5, 2) DEFAULT NULL, critical_dfm_count INT DEFAULT NULL, max_imputed_lead_time_days INT DEFAULT NULL, auto_published TINYINT(1) NOT NULL, dataset_version_id VARCHAR(36) DEFAULT NULL, api_versions LONGTEXT DEFAULT NULL, bom_data_json LONGTEXT DEFAULT NULL, ship_to_country VARCHAR(100) DEFAULT NULL, incoterms VARCHAR(50) DEFAULT NULL, quantity INT DEFAULT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, UNIQUE INDEX UNIQ_A1B588C5AC28B117 (quote_number), INDEX idx_company (company_id), INDEX idx_quote_number (quote_number), INDEX idx_status (status), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE report_audits (id INT AUTO_INCREMENT NOT NULL, report_type VARCHAR(100) NOT NULL, entity_type VARCHAR(100) NOT NULL, entity_id INT NOT NULL, sha256_hash VARCHAR(64) NOT NULL, version_id VARCHAR(100) DEFAULT NULL, dataset_versions JSON DEFAULT NULL, api_versions JSON DEFAULT NULL, metadata JSON DEFAULT NULL, file_name VARCHAR(255) DEFAULT NULL, file_size INT DEFAULT NULL, generated_by VARCHAR(100) DEFAULT NULL, generated_at DATETIME NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_report_type (report_type), INDEX idx_entity_type_id (entity_type, entity_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE route_preferences (id INT AUTO_INCREMENT NOT NULL, destination_country VARCHAR(2) NOT NULL, lane_code VARCHAR(100) NOT NULL, `rank` INT NOT NULL, origin_port VARCHAR(100) DEFAULT NULL, destination_port VARCHAR(100) DEFAULT NULL, mode VARCHAR(50) NOT NULL, weight_threshold_kg NUMERIC(10, 2) DEFAULT NULL, volume_threshold_m3 NUMERIC(10, 2) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, is_active TINYINT(1) NOT NULL, INDEX idx_destination_country (destination_country), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE tariff_rates (id INT AUTO_INCREMENT NOT NULL, hs_code VARCHAR(20) NOT NULL, origin_country VARCHAR(100) NOT NULL, destination_country VARCHAR(100) NOT NULL, duty_rate NUMERIC(5, 2) NOT NULL, mfn_rate NUMERIC(5, 2) DEFAULT NULL, fta_rate NUMERIC(5, 2) DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, notes LONGTEXT DEFAULT NULL, fta_agreement VARCHAR(100) DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_hs_code (hs_code), INDEX idx_effective_date (effective_date), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE TABLE web_events (id INT AUTO_INCREMENT NOT NULL, timestamp DATETIME NOT NULL, ip_address VARCHAR(45) NOT NULL, url LONGTEXT NOT NULL, method VARCHAR(10) NOT NULL, status_code INT DEFAULT NULL, user_agent LONGTEXT DEFAULT NULL, referer LONGTEXT DEFAULT NULL, is_processed TINYINT(1) NOT NULL, processed_at DATETIME DEFAULT NULL, INDEX idx_timestamp_ip (timestamp, ip_address), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('ALTER TABLE abm_hits ADD CONSTRAINT FK_50A8D529979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
-        $this->addSql('ALTER TABLE bom_line ADD CONSTRAINT FK_746B6BD7DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id)');
-        $this->addSql('ALTER TABLE company_canonicals ADD CONSTRAINT FK_514DA330979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
-        $this->addSql('ALTER TABLE dfm_finding ADD CONSTRAINT FK_4C2C6BB0DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id)');
-        $this->addSql('ALTER TABLE dfm_finding ADD CONSTRAINT FK_4C2C6BB09F7B7BD7 FOREIGN KEY (dfm_rule_id) REFERENCES dfm_rules (id)');
-        $this->addSql('ALTER TABLE email_unsubscribe ADD CONSTRAINT FK_B3AC4CB9E7A1254A FOREIGN KEY (contact_id) REFERENCES contacts (id)');
-        $this->addSql('ALTER TABLE estimates ADD CONSTRAINT FK_85B8B0EE979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
-        $this->addSql('ALTER TABLE estimates ADD CONSTRAINT FK_85B8B0EEABD9545F FOREIGN KEY (rfq_id) REFERENCES rfqs (id)');
-        $this->addSql('ALTER TABLE notification ADD CONSTRAINT FK_BF5476CAA76ED395 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE');
-        $this->addSql('ALTER TABLE onboarding_packs ADD CONSTRAINT FK_846C0DCB979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
-        $this->addSql('ALTER TABLE onboarding_packs ADD CONSTRAINT FK_846C0DCB91D286EE FOREIGN KEY (portal_candidate_id) REFERENCES portal_candidates (id)');
-        $this->addSql('ALTER TABLE playbook_runs ADD CONSTRAINT FK_7C70D89C2DB77442 FOREIGN KEY (playbook_id) REFERENCES playbooks (id)');
-        $this->addSql('ALTER TABLE playbook_runs ADD CONSTRAINT FK_7C70D89C3C9131CC FOREIGN KEY (abm_hit_id) REFERENCES abm_hits (id)');
-        $this->addSql('ALTER TABLE portal_candidates ADD CONSTRAINT FK_DB6F19DA979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
-        $this->addSql('ALTER TABLE procurement_exception ADD CONSTRAINT FK_86428B89B2EEEC4D FOREIGN KEY (bom_line_id) REFERENCES bom_line (id)');
-        $this->addSql('ALTER TABLE quote_part_breakdowns ADD CONSTRAINT FK_88D90569DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id)');
-        $this->addSql('ALTER TABLE quotes ADD CONSTRAINT FK_A1B588C5979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
+        $this->addSql('CREATE TABLE IF NOT EXISTS abm_account (id INT AUTO_INCREMENT NOT NULL, account_name VARCHAR(255) NOT NULL, domain VARCHAR(255) NOT NULL, icp_tier VARCHAR(20) DEFAULT NULL, engagement_score INT DEFAULT NULL, total_visits INT DEFAULT NULL, total_page_views INT DEFAULT NULL, first_seen_at DATETIME DEFAULT NULL, last_activity_at DATETIME DEFAULT NULL, metadata JSON DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, UNIQUE INDEX UNIQ_EEBF221AA7A91E0B (domain), INDEX idx_abm_domain (domain), INDEX idx_abm_icp_tier (icp_tier), INDEX idx_abm_engagement (engagement_score), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS abm_hits (id INT AUTO_INCREMENT NOT NULL, company_id INT DEFAULT NULL, timestamp DATETIME NOT NULL, ip_address VARCHAR(45) NOT NULL, organization_name VARCHAR(255) DEFAULT NULL, url_visited LONGTEXT DEFAULT NULL, session_duration INT DEFAULT NULL, page_views INT DEFAULT NULL, firmographic_data LONGTEXT DEFAULT NULL, is_identified TINYINT(1) NOT NULL, playbook_triggered TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX IDX_50A8D529979B1AD6 (company_id), INDEX idx_company_timestamp (company_id, timestamp), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS asm_curves (id INT AUTO_INCREMENT NOT NULL, component_count_min INT NOT NULL, component_count_max INT DEFAULT NULL, cost_per_unit NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_component_count_asof (component_count_min, asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        if (!$this->hasSchema()) {
+        $this->addSql('CREATE TABLE IF NOT EXISTS bom_line (id INT AUTO_INCREMENT NOT NULL, quote_id INT NOT NULL, line_number INT NOT NULL, mpn VARCHAR(255) DEFAULT NULL, manufacturer VARCHAR(255) DEFAULT NULL, description LONGTEXT DEFAULT NULL, quantity INT NOT NULL, unit_price NUMERIC(10, 4) DEFAULT NULL, extended_price NUMERIC(12, 2) DEFAULT NULL, procurement_source VARCHAR(50) DEFAULT NULL, has_exception TINYINT(1) DEFAULT NULL, exception_reason VARCHAR(100) DEFAULT NULL, lead_time_days INT DEFAULT NULL, availability VARCHAR(20) DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_bom_quote (quote_id), INDEX idx_bom_mpn (mpn), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+        }
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS capacity_calendars (id INT AUTO_INCREMENT NOT NULL, production_date DATE NOT NULL, available_slots INT NOT NULL, booked_slots INT NOT NULL, is_holiday TINYINT(1) NOT NULL, holiday_name LONGTEXT DEFAULT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_production_date (production_date), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS company_canonicals (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, domain VARCHAR(255) NOT NULL, alias VARCHAR(255) DEFAULT NULL, is_primary TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME DEFAULT NULL, INDEX IDX_514DA330979B1AD6 (company_id), INDEX idx_domain (domain), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS coo_supplier_decls (id INT AUTO_INCREMENT NOT NULL, supplier_name VARCHAR(255) NOT NULL, mpn VARCHAR(255) NOT NULL, country_of_origin VARCHAR(2) NOT NULL, hts_code VARCHAR(100) DEFAULT NULL, evidence_url LONGTEXT DEFAULT NULL, declared_at DATETIME NOT NULL, expires_at DATETIME DEFAULT NULL, certificate_number VARCHAR(100) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, is_verified TINYINT(1) NOT NULL, verified_by VARCHAR(255) DEFAULT NULL, INDEX idx_supplier_mpn (supplier_name, mpn), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS dataset_version (id INT AUTO_INCREMENT NOT NULL, dataset_type VARCHAR(100) NOT NULL, version_uuid VARCHAR(36) NOT NULL, sha256_hash VARCHAR(64) NOT NULL, record_count INT DEFAULT NULL, is_active TINYINT(1) DEFAULT NULL, metadata JSON DEFAULT NULL, imported_at DATETIME NOT NULL, imported_by VARCHAR(100) DEFAULT NULL, UNIQUE INDEX UNIQ_94CEFF85606F4CA2 (version_uuid), INDEX idx_dataset_type (dataset_type), INDEX idx_dataset_active (is_active), INDEX idx_dataset_uuid (version_uuid), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS dfm_finding (id INT AUTO_INCREMENT NOT NULL, quote_id INT NOT NULL, dfm_rule_id INT DEFAULT NULL, finding_type VARCHAR(100) NOT NULL, severity VARCHAR(20) NOT NULL, description LONGTEXT NOT NULL, remediation LONGTEXT DEFAULT NULL, cost_impact NUMERIC(10, 2) DEFAULT NULL, lead_time_impact INT DEFAULT NULL, metadata JSON DEFAULT NULL, created_at DATETIME NOT NULL, INDEX IDX_4C2C6BB09F7B7BD7 (dfm_rule_id), INDEX idx_dfm_quote (quote_id), INDEX idx_dfm_severity (severity), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS dfm_rules (id INT AUTO_INCREMENT NOT NULL, rule_type VARCHAR(100) NOT NULL, rule_name VARCHAR(255) NOT NULL, severity VARCHAR(50) NOT NULL, description LONGTEXT NOT NULL, remediation_text LONGTEXT DEFAULT NULL, check_logic LONGTEXT DEFAULT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_rule_type_severity (rule_type, severity), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS email_segment (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, description LONGTEXT DEFAULT NULL, filter_rules_json JSON NOT NULL, contact_count INT NOT NULL, is_active TINYINT(1) NOT NULL, last_calculated_at DATETIME DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, created_by VARCHAR(100) DEFAULT NULL, INDEX idx_segment_name (name), INDEX idx_segment_active (is_active), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS email_template (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, subject_line VARCHAR(255) NOT NULL, preview_text VARCHAR(255) DEFAULT NULL, body_html LONGTEXT NOT NULL, body_text LONGTEXT DEFAULT NULL, description LONGTEXT DEFAULT NULL, category VARCHAR(50) DEFAULT NULL, is_active TINYINT(1) NOT NULL, personalization_tokens JSON DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, created_by VARCHAR(100) DEFAULT NULL, INDEX idx_template_name (name), INDEX idx_template_active (is_active), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS email_unsubscribe (id INT AUTO_INCREMENT NOT NULL, contact_id INT DEFAULT NULL, email VARCHAR(255) NOT NULL, reason VARCHAR(100) DEFAULT NULL, feedback_text LONGTEXT DEFAULT NULL, unsubscribed_at DATETIME NOT NULL, ip_address VARCHAR(45) DEFAULT NULL, user_agent VARCHAR(255) DEFAULT NULL, INDEX idx_unsubscribe_contact (contact_id), INDEX idx_unsubscribe_email (email), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        if (!$this->hasSchema()) {
+        $this->addSql('CREATE TABLE IF NOT EXISTS estimates (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, rfq_id INT DEFAULT NULL, estimate_number VARCHAR(50) NOT NULL, origin_country VARCHAR(100) NOT NULL, destination_country VARCHAR(100) NOT NULL, origin_port VARCHAR(100) DEFAULT NULL, destination_port VARCHAR(100) DEFAULT NULL, material_cost NUMERIC(15, 2) NOT NULL, labor_cost NUMERIC(15, 2) NOT NULL, freight_cost NUMERIC(15, 2) NOT NULL, duty_cost NUMERIC(15, 2) NOT NULL, other_costs NUMERIC(15, 2) DEFAULT NULL, total_landed_cost NUMERIC(15, 2) NOT NULL, currency VARCHAR(10) NOT NULL, duty_rate NUMERIC(5, 2) DEFAULT NULL, fta_agreement VARCHAR(100) DEFAULT NULL, fta_qualified TINYINT(1) NOT NULL, bom_data LONGTEXT DEFAULT NULL, sha256_hash VARCHAR(64) DEFAULT NULL, version_id VARCHAR(100) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, UNIQUE INDEX UNIQ_85B8B0EE9D3C8144 (estimate_number), INDEX IDX_85B8B0EEABD9545F (rfq_id), INDEX idx_company (company_id), INDEX idx_estimate_number (estimate_number), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+        }
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS freight_tables (id INT AUTO_INCREMENT NOT NULL, origin_port VARCHAR(100) NOT NULL, destination_port VARCHAR(100) NOT NULL, transport_mode VARCHAR(50) NOT NULL, container_type VARCHAR(20) NOT NULL, cost_per_unit NUMERIC(10, 2) NOT NULL, currency VARCHAR(10) NOT NULL, transit_days INT DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, carrier VARCHAR(255) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_route (origin_port, destination_port), INDEX idx_effective_date (effective_date), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS fta_rules (id INT AUTO_INCREMENT NOT NULL, hs_code VARCHAR(20) NOT NULL, fta_agreement VARCHAR(100) NOT NULL, roo_requirement LONGTEXT NOT NULL, roo_language LONGTEXT DEFAULT NULL, minimum_value_content NUMERIC(5, 2) DEFAULT NULL, requires_certificate TINYINT(1) NOT NULL, certificate_type VARCHAR(50) DEFAULT NULL, required_documents LONGTEXT DEFAULT NULL, notes LONGTEXT DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_hs_code (hs_code), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS fx_rates (id INT AUTO_INCREMENT NOT NULL, from_currency VARCHAR(10) NOT NULL, to_currency VARCHAR(10) NOT NULL, rate NUMERIC(12, 6) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(36) NOT NULL, is_active TINYINT(1) NOT NULL, created_at DATETIME NOT NULL, INDEX idx_currencies (from_currency, to_currency), INDEX idx_asof (asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS hts_map_rules (id INT AUTO_INCREMENT NOT NULL, category VARCHAR(100) NOT NULL, keywords LONGTEXT DEFAULT NULL, hts_code VARCHAR(100) NOT NULL, confidence VARCHAR(50) NOT NULL, heuristic_logic LONGTEXT DEFAULT NULL, priority INT NOT NULL, notes LONGTEXT DEFAULT NULL, is_active TINYINT(1) NOT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_category_keywords (category), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS ip_maps (id INT AUTO_INCREMENT NOT NULL, ip_address VARCHAR(45) NOT NULL, organization_name VARCHAR(255) DEFAULT NULL, domain VARCHAR(255) DEFAULT NULL, city VARCHAR(100) DEFAULT NULL, region VARCHAR(100) DEFAULT NULL, country VARCHAR(2) DEFAULT NULL, firmographic_data LONGTEXT DEFAULT NULL, asof DATETIME NOT NULL, expires_at DATETIME DEFAULT NULL, INDEX idx_ip_asof (ip_address, asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS notification (id INT AUTO_INCREMENT NOT NULL, user_id INT NOT NULL, type VARCHAR(50) NOT NULL, entity_type VARCHAR(50) NOT NULL, entity_id INT NOT NULL, message VARCHAR(255) NOT NULL, data JSON DEFAULT NULL, read_at DATETIME DEFAULT NULL, created_at DATETIME NOT NULL, INDEX IDX_BF5476CAA76ED395 (user_id), INDEX idx_notification_user_read (user_id, read_at), INDEX idx_notification_created (created_at), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS nre_tables (id INT AUTO_INCREMENT NOT NULL, service_type VARCHAR(100) NOT NULL, flat_fee NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_service_type_asof (service_type, asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS onboarding_packs (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, portal_candidate_id INT NOT NULL, status VARCHAR(50) NOT NULL, pack_contents LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, submitted_at DATETIME DEFAULT NULL, submitted_by VARCHAR(255) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, sha256_hash VARCHAR(64) DEFAULT NULL, INDEX IDX_846C0DCB979B1AD6 (company_id), INDEX IDX_846C0DCB91D286EE (portal_candidate_id), INDEX idx_company_portal (company_id, portal_candidate_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS packaging_factors (id INT AUTO_INCREMENT NOT NULL, category VARCHAR(100) NOT NULL, kg_per_unit NUMERIC(10, 4) NOT NULL, dm3_per_unit NUMERIC(10, 4) NOT NULL, palletization_rule_json JSON DEFAULT NULL, asof DATETIME NOT NULL, version_id VARCHAR(36) NOT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, INDEX idx_category (category), INDEX idx_asof (asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS pcb_curves (id INT AUTO_INCREMENT NOT NULL, layers INT NOT NULL, area_m2 NUMERIC(12, 2) NOT NULL, cost_per_m2 NUMERIC(15, 4) NOT NULL, currency VARCHAR(3) NOT NULL, asof DATETIME NOT NULL, version_id VARCHAR(100) NOT NULL, is_active TINYINT(1) NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_layers_asof (layers, asof), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS playbook_runs (id INT AUTO_INCREMENT NOT NULL, playbook_id INT NOT NULL, abm_hit_id INT NOT NULL, triggered_at DATETIME NOT NULL, status VARCHAR(50) NOT NULL, completed_at DATETIME DEFAULT NULL, execution_log LONGTEXT DEFAULT NULL, tasks_created INT DEFAULT NULL, error_message LONGTEXT DEFAULT NULL, INDEX IDX_7C70D89C2DB77442 (playbook_id), INDEX IDX_7C70D89C3C9131CC (abm_hit_id), INDEX idx_playbook_abm_hit (playbook_id, abm_hit_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS playbooks (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, description LONGTEXT DEFAULT NULL, trigger_rules LONGTEXT NOT NULL, actions LONGTEXT NOT NULL, priority INT NOT NULL, is_active TINYINT(1) NOT NULL, created_at DATETIME DEFAULT NULL, updated_at DATETIME DEFAULT NULL, notes LONGTEXT DEFAULT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS portal_candidates (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, portal_url LONGTEXT NOT NULL, status VARCHAR(50) NOT NULL, discovered_at DATETIME NOT NULL, evidence_snapshot LONGTEXT DEFAULT NULL, has_robots_txt TINYINT(1) NOT NULL, requires_manual_submit TINYINT(1) NOT NULL, tos_url LONGTEXT DEFAULT NULL, tos_reviewed TINYINT(1) NOT NULL, approved_at DATETIME DEFAULT NULL, approved_by VARCHAR(255) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, INDEX IDX_DB6F19DA979B1AD6 (company_id), INDEX idx_company_status (company_id, status), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS procurement_exception (id INT AUTO_INCREMENT NOT NULL, bom_line_id INT NOT NULL, exception_type VARCHAR(50) NOT NULL, severity VARCHAR(20) NOT NULL, message LONGTEXT DEFAULT NULL, recommendation LONGTEXT DEFAULT NULL, metadata JSON DEFAULT NULL, created_at DATETIME NOT NULL, INDEX idx_proc_exc_bomline (bom_line_id), INDEX idx_proc_exc_severity (severity), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS quote_part_breakdowns (id INT AUTO_INCREMENT NOT NULL, quote_id INT NOT NULL, mpn VARCHAR(255) NOT NULL, manufacturer VARCHAR(255) DEFAULT NULL, quantity INT NOT NULL, unit_price NUMERIC(15, 4) NOT NULL, extended_price NUMERIC(15, 2) NOT NULL, data_source VARCHAR(100) DEFAULT NULL, lead_time_days INT DEFAULT NULL, is_imputed TINYINT(1) NOT NULL, category VARCHAR(100) DEFAULT NULL, INDEX IDX_88D90569DB805178 (quote_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS quotes (id INT AUTO_INCREMENT NOT NULL, company_id INT NOT NULL, quote_number VARCHAR(50) NOT NULL, status VARCHAR(50) NOT NULL, total_cost NUMERIC(15, 2) NOT NULL, currency VARCHAR(10) NOT NULL, coverage_percent NUMERIC(5, 2) DEFAULT NULL, alibaba_percent NUMERIC(5, 2) DEFAULT NULL, critical_dfm_count INT DEFAULT NULL, max_imputed_lead_time_days INT DEFAULT NULL, auto_published TINYINT(1) NOT NULL, dataset_version_id VARCHAR(36) DEFAULT NULL, api_versions LONGTEXT DEFAULT NULL, bom_data_json LONGTEXT DEFAULT NULL, ship_to_country VARCHAR(100) DEFAULT NULL, incoterms VARCHAR(50) DEFAULT NULL, quantity INT DEFAULT NULL, notes LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, UNIQUE INDEX UNIQ_A1B588C5AC28B117 (quote_number), INDEX idx_company (company_id), INDEX idx_quote_number (quote_number), INDEX idx_status (status), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS report_audits (id INT AUTO_INCREMENT NOT NULL, report_type VARCHAR(100) NOT NULL, entity_type VARCHAR(100) NOT NULL, entity_id INT NOT NULL, sha256_hash VARCHAR(64) NOT NULL, version_id VARCHAR(100) DEFAULT NULL, dataset_versions JSON DEFAULT NULL, api_versions JSON DEFAULT NULL, metadata JSON DEFAULT NULL, file_name VARCHAR(255) DEFAULT NULL, file_size INT DEFAULT NULL, generated_by VARCHAR(100) DEFAULT NULL, generated_at DATETIME NOT NULL, notes LONGTEXT DEFAULT NULL, INDEX idx_report_type (report_type), INDEX idx_entity_type_id (entity_type, entity_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS route_preferences (id INT AUTO_INCREMENT NOT NULL, destination_country VARCHAR(2) NOT NULL, lane_code VARCHAR(100) NOT NULL, `rank` INT NOT NULL, origin_port VARCHAR(100) DEFAULT NULL, destination_port VARCHAR(100) DEFAULT NULL, mode VARCHAR(50) NOT NULL, weight_threshold_kg NUMERIC(10, 2) DEFAULT NULL, volume_threshold_m3 NUMERIC(10, 2) DEFAULT NULL, notes LONGTEXT DEFAULT NULL, is_active TINYINT(1) NOT NULL, INDEX idx_destination_country (destination_country), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS tariff_rates (id INT AUTO_INCREMENT NOT NULL, hs_code VARCHAR(20) NOT NULL, origin_country VARCHAR(100) NOT NULL, destination_country VARCHAR(100) NOT NULL, duty_rate NUMERIC(5, 2) NOT NULL, mfn_rate NUMERIC(5, 2) DEFAULT NULL, fta_rate NUMERIC(5, 2) DEFAULT NULL, effective_date DATE NOT NULL, expiry_date DATE DEFAULT NULL, notes LONGTEXT DEFAULT NULL, fta_agreement VARCHAR(100) DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, INDEX idx_hs_code (hs_code), INDEX idx_effective_date (effective_date), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->addSql('CREATE TABLE IF NOT EXISTS web_events (id INT AUTO_INCREMENT NOT NULL, timestamp DATETIME NOT NULL, ip_address VARCHAR(45) NOT NULL, url LONGTEXT NOT NULL, method VARCHAR(10) NOT NULL, status_code INT DEFAULT NULL, user_agent LONGTEXT DEFAULT NULL, referer LONGTEXT DEFAULT NULL, is_processed TINYINT(1) NOT NULL, processed_at DATETIME DEFAULT NULL, INDEX idx_timestamp_ip (timestamp, ip_address), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
+        $this->ifConstraintMissing('abm_hits', 'FK_50A8D529979B1AD6', function (): void {
+    $this->addSql('ALTER TABLE abm_hits ADD CONSTRAINT FK_50A8D529979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
+});
+
+        if (!$this->hasSchema()) {
+        $this->ifConstraintMissing('bom_lines', 'FK_746B6BD7DB805178', function (): void {
+    $this->addSql('ALTER TABLE bom_lines ADD CONSTRAINT FK_746B6BD7DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id)');
+});
+        }
+
+        $this->ifConstraintMissing('company_canonicals', 'FK_514DA330979B1AD6', function (): void {
+    $this->addSql('ALTER TABLE company_canonicals ADD CONSTRAINT FK_514DA330979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
+});
+
+        $this->ifConstraintMissing('dfm_finding', 'FK_4C2C6BB0DB805178', function (): void {
+    $this->addSql('ALTER TABLE dfm_finding ADD CONSTRAINT FK_4C2C6BB0DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id)');
+});
+
+        $this->ifConstraintMissing('dfm_finding', 'FK_4C2C6BB09F7B7BD7', function (): void {
+    $this->addSql('ALTER TABLE dfm_finding ADD CONSTRAINT FK_4C2C6BB09F7B7BD7 FOREIGN KEY (dfm_rule_id) REFERENCES dfm_rules (id)');
+});
+
+        $this->ifConstraintMissing('email_unsubscribe', 'FK_B3AC4CB9E7A1254A', function (): void {
+    $this->addSql('ALTER TABLE email_unsubscribe ADD CONSTRAINT FK_B3AC4CB9E7A1254A FOREIGN KEY (contact_id) REFERENCES contacts (id)');
+});
+
+        if (!$this->hasSchema()) {
+        $this->ifConstraintMissing('estimates', 'FK_85B8B0EE979B1AD6', function (): void {
+    $this->addSql('ALTER TABLE estimates ADD CONSTRAINT FK_85B8B0EE979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
+});
+        }
+
+        if (!$this->hasSchema()) {
+        $this->ifConstraintMissing('estimates', 'FK_85B8B0EEABD9545F', function (): void {
+    $this->addSql('ALTER TABLE estimates ADD CONSTRAINT FK_85B8B0EEABD9545F FOREIGN KEY (rfq_id) REFERENCES rfqs (id)');
+});
+        }
+
+        $this->ifConstraintMissing('notification', 'FK_BF5476CAA76ED395', function (): void {
+    $this->addSql('ALTER TABLE notification ADD CONSTRAINT FK_BF5476CAA76ED395 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE');
+});
+
+        $this->ifConstraintMissing('onboarding_packs', 'FK_846C0DCB979B1AD6', function (): void {
+    $this->addSql('ALTER TABLE onboarding_packs ADD CONSTRAINT FK_846C0DCB979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
+});
+
+        $this->ifConstraintMissing('onboarding_packs', 'FK_846C0DCB91D286EE', function (): void {
+    $this->addSql('ALTER TABLE onboarding_packs ADD CONSTRAINT FK_846C0DCB91D286EE FOREIGN KEY (portal_candidate_id) REFERENCES portal_candidates (id)');
+});
+
+        $this->ifConstraintMissing('playbook_runs', 'FK_7C70D89C2DB77442', function (): void {
+    $this->addSql('ALTER TABLE playbook_runs ADD CONSTRAINT FK_7C70D89C2DB77442 FOREIGN KEY (playbook_id) REFERENCES playbooks (id)');
+});
+
+        $this->ifConstraintMissing('playbook_runs', 'FK_7C70D89C3C9131CC', function (): void {
+    $this->addSql('ALTER TABLE playbook_runs ADD CONSTRAINT FK_7C70D89C3C9131CC FOREIGN KEY (abm_hit_id) REFERENCES abm_hits (id)');
+});
+
+        $this->ifConstraintMissing('portal_candidates', 'FK_DB6F19DA979B1AD6', function (): void {
+    $this->addSql('ALTER TABLE portal_candidates ADD CONSTRAINT FK_DB6F19DA979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
+});
+
+        $this->ifConstraintMissing('procurement_exception', 'FK_86428B89B2EEEC4D', function (): void {
+    $this->addSql('ALTER TABLE procurement_exception ADD CONSTRAINT FK_86428B89B2EEEC4D FOREIGN KEY (bom_line_id) REFERENCES bom_lines (id)');
+});
+
+        $this->ifConstraintMissing('quote_part_breakdowns', 'FK_88D90569DB805178', function (): void {
+    $this->addSql('ALTER TABLE quote_part_breakdowns ADD CONSTRAINT FK_88D90569DB805178 FOREIGN KEY (quote_id) REFERENCES quotes (id)');
+});
+
+        $this->ifConstraintMissing('quotes', 'FK_A1B588C5979B1AD6', function (): void {
+    $this->addSql('ALTER TABLE quotes ADD CONSTRAINT FK_A1B588C5979B1AD6 FOREIGN KEY (company_id) REFERENCES companies (id)');
+});
+
     }
 
     public function down(Schema $schema): void
@@ -127,5 +222,87 @@ final class Version20251103081652 extends AbstractMigration
         $this->addSql('DROP TABLE route_preferences');
         $this->addSql('DROP TABLE tariff_rates');
         $this->addSql('DROP TABLE web_events');
+    }
+
+    private function tableExists(string $table): bool
+    {
+        return (bool) $this->connection->executeQuery(
+            'SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+            [$table]
+        )->fetchOne();
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        return (bool) $this->connection->executeQuery(
+            'SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?',
+            [$table, $column]
+        )->fetchOne();
+    }
+
+    private function indexExists(string $table, string $index): bool
+    {
+        return (bool) $this->connection->executeQuery(
+            'SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?',
+            [$table, $index]
+        )->fetchOne();
+    }
+
+    private function hasSchema(): bool
+    {
+        $count = (int) $this->connection->fetchOne(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name <> 'doctrine_migration_versions'"
+        );
+        return $count > 0;
+    }
+
+    private function constraintExists(string $table, string $constraint): bool
+    {
+        return (bool) $this->connection->executeQuery(
+            'SELECT 1 FROM information_schema.table_constraints WHERE table_schema = DATABASE() AND table_name = ? AND constraint_name = ?',
+            [$table, $constraint]
+        )->fetchOne();
+    }
+
+    private function ifConstraintMissing(string $table, string $constraint, callable $fn): void
+    {
+        if (!$this->tableExists($table) || $this->constraintExists($table, $constraint)) {
+            return;
+        }
+        $fn();
+    }
+
+    private function ifColumnMissing(string $table, string $column, callable $fn): void
+    {
+        if (!$this->tableExists($table) || $this->columnExists($table, $column)) {
+            return;
+        }
+        $fn();
+    }
+
+    private function ifIndexMissing(string $table, string $index, callable $fn): void
+    {
+        if (!$this->tableExists($table) || $this->indexExists($table, $index)) {
+            return;
+        }
+        $fn();
+    }
+
+    private function ifIndexExists(string $table, string $index, callable $fn): void
+    {
+        if ($this->tableExists($table) && $this->indexExists($table, $index)) {
+            $fn();
+        }
+    }
+
+    private function ifTableEmpty(string $table, callable $fn): void
+    {
+        if (!$this->tableExists($table)) {
+            return;
+        }
+        $count = (int) $this->connection->fetchOne("SELECT COUNT(*) FROM `{$table}`");
+        if ($count === 0) {
+            $fn();
+        }
     }
 }

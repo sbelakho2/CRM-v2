@@ -196,12 +196,10 @@ class FastWebScraperService
                         'Connection: keep-alive',
                     ],
                     CURLOPT_ENCODING => '', // auto-decode gzip
-                    // SSL verification is intentionally disabled for broad scraping
-                    // compatibility. WARNING: this accepts self-signed/expired certs and
-                    // disables MITM protection. Only scrape trusted or publicly-accessible
-                    // sources. DO NOT use this pattern for authenticated API calls.
-                    CURLOPT_SSL_VERIFYPEER => false,
-                    CURLOPT_SSL_VERIFYHOST => 0,
+                    // TLS verification is enabled: sites failing verification
+                    // are skipped by the existing failure handling below.
+                    CURLOPT_SSL_VERIFYPEER => true,
+                    CURLOPT_SSL_VERIFYHOST => 2,
                 ]);
                 curl_multi_add_handle($mh, $ch);
                 $handles[$url] = $ch;

@@ -292,7 +292,7 @@
 
 {# Lead Analysis Modal #}
 <div id="leadAnalysisModal" class="rams-modal rams-modal--hidden" role="dialog" aria-modal="true" aria-labelledby="leadAnalysisTitle"> 
-    <div class="rams-modal__backdrop" onclick="closeLeadModal()"></div>
+    <div class="rams-modal__backdrop" role="button" tabindex="0" aria-label="{{ 'common.close'|trans }}" onclick="closeLeadModal()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); closeLeadModal(); }"></div>
     <div class="rams-modal__content">
         <div class="rams-modal__header">
             <h3 class="rams-font-mono rams-text-2xs rams-uppercase rams-text--muted" id="leadAnalysisTitle">{{      'guidance.title'|trans }}</h3>
@@ -330,7 +330,7 @@ let leadModalFocus = null; function openLeadModal() { const modal = document.get
         </div>
     `;
     
-    fetch(`/command-center/lead/${leadId}/analysis`)
+    fetch('{{ path('command_center_lead_analysis', {id: 0}) }}'.replace('/0', '/' + leadId))
         .then(response => response.json())
         .then(data => {
             const container = document.getElementById('leadAnalysisContent');
@@ -476,7 +476,7 @@ let leadModalFocus = null; function openLeadModal() { const modal = document.get
             const linkDiv = document.createElement('div');
             linkDiv.className = 'rams-mt-6';
             const link = document.createElement('a');
-            link.href = '/lead/' + leadId;
+            link.href = '{{ path('app_lead_show', {id: 0}) }}'.replace('/0', '/' + leadId);
             link.className = 'rams-btn rams-btn--primary rams-uppercase'; 
             link.textContent = '{{ 'common.view'|trans }} {{ 'common.details'|trans }}';
             linkDiv.appendChild(link);

@@ -122,10 +122,11 @@ class DocumentManagerService
         ?string $documentType = null,
         bool $latestOnly = true
     ) {
-        // 1. Build query criteria
+        // 1. Build query criteria (soft-deleted excluded)
         $criteria = [
             'entityType' => $entityType,
-            'entityId' => $entityId
+            'entityId' => $entityId,
+            'deletedAt' => null,
         ];
         
         if ($documentType) {
@@ -156,10 +157,11 @@ class DocumentManagerService
      */
     public function getAllDocuments(string $entityType, int $entityId): array
     {
-        // 1. Get all documents
+        // 1. Get all documents (soft-deleted excluded)
         $documents = $this->complianceDocumentRepository->findBy([
             'entityType' => $entityType,
-            'entityId' => $entityId
+            'entityId' => $entityId,
+            'deletedAt' => null,
         ], ['generatedAt' => 'DESC']);
         
         // 2. Group by document type
@@ -289,11 +291,12 @@ class DocumentManagerService
      */
     public function getVersionHistory(string $entityType, int $entityId, string $documentType): array
     {
-        // Query all versions
+        // Query all versions (soft-deleted excluded)
         return $this->complianceDocumentRepository->findBy([
             'entityType' => $entityType,
             'entityId' => $entityId,
-            'documentType' => $documentType
+            'documentType' => $documentType,
+            'deletedAt' => null,
         ], ['versionNumber' => 'DESC']);
     }
 
@@ -310,42 +313,61 @@ class DocumentManagerService
      */
     public function getStatistics(): array
     {
-        // 1. Get all documents (paginated)
-        $documents = $this->complianceDocumentRepository->findBy([], null, 500);
-        
-        // 2. Calculate statistics
+        // 1. Get all documents (paginated, soft-deleted excluded)
         $stats = [
-            'totalDocuments' => count($documents),
+            'totalDocuments' => 0,
             'byType' => [],
             'totalSizeMb' => 0.0,
             'oldestDocument' => null,
             'newestDocument' => null
         ];
         
-        foreach ($documents as $doc) {
-            // Count by type
-            $type = $doc->getDocumentType();
-            $stats['byType'][$type] = ($stats['byType'][$type] ?? 0) + 1;
-            
-            // Sum file sizes
-            if (file_exists($doc->getFilePath())) {
-                $stats['totalSizeMb'] += filesize($doc->getFilePath()) / (1024 * 1024);
+        $offset = 0;
+        $batch = 500;
+        while (true) {
+            $documents = $this->complianceDocumentRepository->findBy(
+                ['deletedAt' => null],
+                ['id' => 'ASC'],
+                $batch,
+                $offset
+            );
+            if (empty($documents)) {
+                break;
             }
             
-            // Track oldest/newest
-            $generatedAt = $doc->getGeneratedAt();
-            if ($generatedAt === null) continue;
-            if (!$stats['oldestDocument'] || $generatedAt < $stats['oldestDocument']) {
-                $stats['oldestDocument'] = $generatedAt;
+            foreach ($documents as $doc) {
+                $stats['totalDocuments']++;
+                
+                // Count by type
+                $type = $doc->getDocumentType();
+                $stats['byType'][$type] = ($stats['byType'][$type] ?? 0) + 1;
+                
+                // Sum file sizes
+                $filePath = $doc->getFilePath();
+                if ($filePath !== null && file_exists($filePath)) {
+                    $stats['totalSizeMb'] += filesize($filePath) / (1024 * 1024);
+                }
+                
+                // Track oldest/newest
+                $generatedAt = $doc->getGeneratedAt();
+                if ($generatedAt === null) continue;
+                if (!$stats['oldestDocument'] || $generatedAt < $stats['oldestDocument']) {
+                    $stats['oldestDocument'] = $generatedAt;
+                }
+                if (!$stats['newestDocument'] || $generatedAt > $stats['newestDocument']) {
+                    $stats['newestDocument'] = $generatedAt;
+                }
             }
-            if (!$stats['newestDocument'] || $generatedAt > $stats['newestDocument']) {
-                $stats['newestDocument'] = $generatedAt;
+            
+            $offset += $batch;
+            if (count($documents) < $batch) {
+                break;
             }
         }
         
         $stats['totalSizeMb'] = round($stats['totalSizeMb'], 2);
         
-        // 3. Return statistics
+        // 2. Return statistics
         return $stats;
     }
 
@@ -358,16 +380,31 @@ class DocumentManagerService
      */
     public function cleanupOldVersions(int $keepVersions = 5): int
     {
-        // 1. Get all documents grouped by entity + type (paginated)
-        $allDocs = $this->complianceDocumentRepository->findBy([], null, 500);
-        
+        // 1. Get all documents grouped by entity + type (paginated — no hard cap)
         $grouped = [];
-        foreach ($allDocs as $doc) {
-            $key = "{$doc->getEntityType()}_{$doc->getEntityId()}_{$doc->getDocumentType()}";
-            if (!isset($grouped[$key])) {
-                $grouped[$key] = [];
+        $offset = 0;
+        $batch = 500;
+        while (true) {
+            $docs = $this->complianceDocumentRepository->findBy(
+                ['deletedAt' => null],
+                ['id' => 'ASC'],
+                $batch,
+                $offset
+            );
+            if (empty($docs)) {
+                break;
             }
-            $grouped[$key][] = $doc;
+            foreach ($docs as $doc) {
+                $key = "{$doc->getEntityType()}_{$doc->getEntityId()}_{$doc->getDocumentType()}";
+                if (!isset($grouped[$key])) {
+                    $grouped[$key] = [];
+                }
+                $grouped[$key][] = $doc;
+            }
+            $offset += $batch;
+            if (count($docs) < $batch) {
+                break;
+            }
         }
         
         // 2. For each group, delete old versions
@@ -380,11 +417,16 @@ class DocumentManagerService
             $toDelete = array_slice($docs, $keepVersions);
             
             foreach ($toDelete as $doc) {
-                $this->entityManager->remove($doc);
-                // Also delete physical file
-                if (file_exists($doc->getFilePath())) {
-                    @unlink($doc->getFilePath()); // @ suppresses warnings if file already gone
+                // Delete the physical file FIRST, without suppressing errors —
+                // the DB row is only removed when the file is gone (or was
+                // already missing), so a failed unlink can't orphan files.
+                $filePath = $doc->getFilePath();
+                if ($filePath !== null && file_exists($filePath)) {
+                    if (!unlink($filePath)) {
+                        continue; // File deletion failed — keep the row
+                    }
                 }
+                $this->entityManager->remove($doc);
                 $cleanedCount++;
             }
         }

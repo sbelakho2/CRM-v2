@@ -142,7 +142,8 @@ class CompanyType extends AbstractType
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Url(['message' => 'validation.url'])
+                    new Url(['message' => 'validation.url']),
+                    new Length(['max' => 2048]),
                 ]
             ])
             ->add('linkedinCompanyUrl', UrlType::class, [
@@ -153,7 +154,8 @@ class CompanyType extends AbstractType
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Url(['message' => 'validation.url'])
+                    new Url(['message' => 'validation.url']),
+                    new Length(['max' => 500]),
                 ]
             ])
             // @deprecated: linkedInUrl is a duplicate of linkedinCompanyUrl for Company entities.
@@ -167,6 +169,7 @@ class CompanyType extends AbstractType
                 'required' => false,
                 'constraints' => [
                     new Url(['message' => 'validation.url']),
+                    new Length(['max' => 2048]),
                 ],
             ])
             ->add('googleDriveLink', UrlType::class, [
@@ -177,7 +180,8 @@ class CompanyType extends AbstractType
                 ],
                 'required' => false,
                 'constraints' => [
-                    new Url(['message' => 'validation.url'])
+                    new Url(['message' => 'validation.url']),
+                    new Length(['max' => 500]),
                 ]
             ])
             ->add('notes', TextareaType::class, [

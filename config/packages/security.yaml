@@ -37,13 +37,20 @@ security:
     - { path: ^/reset-password, roles: PUBLIC_ACCESS }
     - { path: ^/email-campaigns/track, roles: PUBLIC_ACCESS }
     - { path: ^/webhook/email, roles: PUBLIC_ACCESS }
+    # Public token routes: live quote views and meeting booking/cancellation
+    # links are signed with app.booking_secret, so no session is required.
+    # Must stay BEFORE the generic ^/ ROLE_USER rule below.
+    - { path: ^/quote/live, roles: PUBLIC_ACCESS }
+    - { path: ^/meetings/book, roles: PUBLIC_ACCESS }
     - { path: ^/admin, roles: ROLE_ADMIN }
-    - { path: ^/quote-copilot, roles: [ROLE_USER, ROLE_ENGINEERING] }
-    - { path: ^/quote-review, roles: [ROLE_USER, ROLE_ENGINEERING] }
-    - { path: ^/reports, roles: [ROLE_USER, ROLE_ENGINEERING] }
-    - { path: ^/compliance, roles: [ROLE_USER, ROLE_ENGINEERING] }
-    - { path: ^/supplier-portal, roles: [ROLE_USER, ROLE_ENGINEERING] }
-    - { path: ^/currency-converter, roles: [ROLE_USER, ROLE_ENGINEERING] }
+    # ROLE_ENGINEERING implies ROLE_USER via role_hierarchy, so listing both
+    # is redundant; ROLE_USER alone is the minimal correct form.
+    - { path: ^/quote-copilot, roles: ROLE_USER }
+    - { path: ^/quote-review, roles: ROLE_USER }
+    - { path: ^/reports, roles: ROLE_USER }
+    - { path: ^/compliance, roles: ROLE_USER }
+    - { path: ^/supplier-portal, roles: ROLE_USER }
+    - { path: ^/currency-converter, roles: ROLE_USER }
     # Provider webhook callbacks authenticate via their own shared-secret
     # header (X-Webhook-Secret), so the firewall must not require a session.
     - { path: ^/api/autonomous/webhook, roles: PUBLIC_ACCESS }
@@ -51,6 +58,10 @@ security:
     - { path: ^/, roles: ROLE_USER }
 
   role_hierarchy:
+    # ROLE_SUPER_ADMIN implies ROLE_ADMIN, which in turn implies all lower
+    # roles; this also lets unverified ROLE_SUPER_ADMIN users authenticate
+    # (see App\Security\UserProvider).
+    ROLE_SUPER_ADMIN: [ROLE_ADMIN]
     ROLE_ADMIN: [ROLE_ENGINEERING, ROLE_MANAGER, ROLE_SALES, ROLE_SALES_OPS, ROLE_DIGITAL_REP, ROLE_FIELD_REP, ROLE_VIEWER, ROLE_USER]
     ROLE_ENGINEERING: [ROLE_MANAGER, ROLE_SALES, ROLE_SALES_OPS, ROLE_VIEWER, ROLE_USER]
     ROLE_MANAGER: [ROLE_SALES, ROLE_VIEWER, ROLE_USER]
@@ -59,12 +70,3 @@ security:
     ROLE_DIGITAL_REP: ROLE_USER
     ROLE_FIELD_REP: ROLE_USER
     ROLE_VIEWER: ROLE_USER
-
-when@test:
-  security:
-    password_hashers:
-      Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
-        algorithm: auto
-        cost: 4
-        time_cost: 3
-        memory_cost: 10

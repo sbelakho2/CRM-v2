@@ -17,6 +17,7 @@
     </div>
 
     <form method="post" action="{{ path('app_playbook_builder_actions', {id: playbook.id}) }}" class="rams-stack rams-gap-6">
+        <label for="actions-input" class="rams-sr-only">{{ 'playbook.builder_actions'|trans }}</label>
         <input type="hidden" name="actions" id="actions-input" value="" />
 
         <div class="rams-module">

@@ -4,6 +4,8 @@
 **Implementation Phase:** Database Layer (Option A - Core Infrastructure First)  
 **Status:** ✅ 100% COMPLETE
 
+> **Correction (2026-08):** The `Estimate` entity was removed during the 2026 refactoring (landed-cost estimation now uses `Quote`/`QuotePartBreakdown`). Entries mentioning `Estimate.php` below are historical.
+
 ---
 
 ## 📊 Quantitative Verification
@@ -20,7 +22,7 @@
 1. ✅ TariffRate.php + TariffRateRepository.php
 2. ✅ FreightTable.php + FreightTableRepository.php
 3. ✅ FtaRule.php + FtaRuleRepository.php
-4. ✅ Estimate.php + EstimateRepository.php
+4. ~~Estimate.php + EstimateRepository.php~~ (removed 2026)
 5. ✅ ReportAudit.php + ReportAuditRepository.php
 6. ✅ PackagingFactor.php + PackagingFactorRepository.php
 7. ✅ FxRate.php + FxRateRepository.php
@@ -165,7 +167,7 @@ Implemented on 8 dataset tables:
 
 ### 3. Company-Centric Relationships
 All 4 features link to Company entity:
-- Company → Estimates (Feature 1)
+- Company → Estimates (Feature 1; Estimate entity removed 2026)
 - Company → Quotes (Feature 2)
 - Company → AbmHits (Feature 3)
 - Company → PortalCandidates (Feature 4)
@@ -294,7 +296,7 @@ From New_features.txt requirements:
 - ✅ TariffRate table with HTS codes, duty rates, FTA support
 - ✅ FreightTable with routes, modes, container types
 - ✅ FtaRule with ROO requirements, declaration templates
-- ✅ Estimate table linking to Company & RFQ
+- ~~Estimate table linking to Company & RFQ~~ (removed 2026)
 - ✅ Effective-dating pattern (asof, version_id, is_active)
 - ✅ RoutePreference for ranked route selection
 - ✅ CooSupplierDecl for origin verification

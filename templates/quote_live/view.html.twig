@@ -1,13 +1,8 @@
-<!DOCTYPE html>
-<html lang="{{ app.request.locale }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ 'quote.live.title'|trans }} {{ quote.quoteNumber }}</title>
-    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css')  }}">
+{% extends 'base_login.html.twig' %}
 
-</head>
-<body>
+{% block title %}{{ 'quote.live.title'|trans }} {{ quote.quoteNumber }}{% endblock %}
+
+{% block body %}
     <div class="rams-page">
         <div class="rams-module">
             {# Header #}
@@ -42,7 +37,7 @@
                 </div>
 
                 {# Quantity Tier Selection #}
-                <h5 class="rams-heading rams-heading--4 rams-mb-sm">{{ 'quote.live.select_quantity'|trans }}</h5>
+                <h3 class="rams-heading rams-heading--4 rams-mb-sm">{{ 'quote.live.select_quantity'|trans }}</h3>
                 <p class=" rams-text--sm rams-text--muted rams-mb-md">{{ 'quote.live.select_quantity_hint'|trans }}</p>
 
                 <div class="rams-grid rams-grid--4 rams-gap-2 rams-mb-lg" id="tierCards">
@@ -73,7 +68,7 @@
                     <div class="rams-module__content">
                         <div class="rams-grid rams-grid--2 rams-gap-6">
                             <div>
-                                <h5 class="rams-heading rams-heading--4">{{ 'quote.live.selected'|trans }}: <span id="selectedQty">{{ tierPricing.tiers[0].quantity|number_format }}</span> {{ 'quote.live.units'|trans }}</h5>
+                                <h4 class="rams-heading rams-heading--4">{{ 'quote.live.selected'|trans }}: <span id="selectedQty">{{ tierPricing.tiers[0].quantity|number_format }}</span> {{ 'quote.live.units'|trans }}</h4>
                                 <dl class="rams-definition-list rams-definition-list">
                                     <div class="rams-definition-list__item">
                                         <dt class="rams-definition-list__term">{{ 'quote.live.unit_price'|trans }}:</dt>
@@ -219,8 +214,13 @@
 
     {% include 'components/alert_modal.html.twig' %}
 
+{% endblock %}
+
+{% block javascripts %}
     <script>
         const token = '{{ token }}'; const csrfToken = '{{ csrf_token('quote_live') }}';
+        const liveRequestUrl = '{{ path('quote_live_request', {token: '__TOKEN__'}) }}'.replace('__TOKEN__', token);
+        const liveAcceptUrl = '{{ path('quote_live_accept', {token: '__TOKEN__'}) }}'.replace('__TOKEN__', token);
         const tierData = {{ tierPricing.tiers|json_encode|raw }};
         const currencySymbol = '{{ currency_symbol(tierPricing.currency)|e('js') }}';
         const currencyNeedsSpace = {{ tierPricing.currency in ['MAD', 'TND'] ? 'true' : 'false' }};
@@ -338,7 +338,7 @@
             const form = document.getElementById('requestForm'); if (!form.reportValidity()) return; const quantity = document.getElementById('requestQty').value;
             const notes = document.getElementById('requestNotes').value;
             
-            fetch(`/quote/live/${token}/request`, {
+            fetch(liveRequestUrl, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken}, 
                 body: JSON.stringify({quantity: parseInt(quantity), notes: notes})
@@ -360,7 +360,7 @@
                 po_number: document.getElementById('acceptPO').value
             };
             
-            fetch(`/quote/live/${token}/accept`, {
+            fetch(liveAcceptUrl, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken}, 
                 body: JSON.stringify(data)
@@ -406,5 +406,4 @@
             .catch(error => ramsAlert(`${i18n.errorLabel}: ${error.message}`, {variant: 'error'}));
         }
     </script>
-</body>
-</html>
+{% endblock %}

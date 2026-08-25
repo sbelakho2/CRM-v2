@@ -69,8 +69,7 @@ class EmailCampaignTriggerService
             }
 
             // Check if campaign is a drip campaign
-            $config = $campaign->getAbTestVariants();
-            if ($config && isset($config['is_drip']) && $config['is_drip']) {
+            if ($this->dripService->isDripCampaign($campaign)) {
                 // Enroll in drip campaign
                 $this->dripService->enrollContact($campaign, $contact);
                 $this->logger->info("Enrolled contact {$contact->getEmail()} in drip campaign {$campaign->getName()} due to stage change: {$oldStage} → {$newStage}");
@@ -127,8 +126,7 @@ class EmailCampaignTriggerService
             }
 
             // Schedule follow-up email
-            $config = $campaign->getAbTestVariants();
-            if ($config && isset($config['is_drip']) && $config['is_drip']) {
+            if ($this->dripService->isDripCampaign($campaign)) {
                 $this->dripService->enrollContact($campaign, $contact);
                 $this->logger->info("Enrolled contact {$contact->getEmail()} in RFQ follow-up drip campaign");
             } else {
@@ -172,8 +170,7 @@ class EmailCampaignTriggerService
             ->getResult();
 
         foreach ($campaigns as $campaign) {
-            $config = $campaign->getAbTestVariants();
-            if ($config && isset($config['is_drip']) && $config['is_drip']) {
+            if ($this->dripService->isDripCampaign($campaign)) {
                 // Enroll in quote follow-up sequence
                 $this->dripService->enrollContact($campaign, $contact);
                 $this->logger->info("Enrolled contact {$contact->getEmail()} in quote follow-up drip campaign");
@@ -237,8 +234,7 @@ class EmailCampaignTriggerService
                 }
             }
 
-            $config = $campaign->getAbTestVariants();
-            if ($config && isset($config['is_drip']) && $config['is_drip']) {
+            if ($this->dripService->isDripCampaign($campaign)) {
                 $this->dripService->enrollContact($campaign, $contact);
                 $this->logger->info("Enrolled high-scoring contact {$contact->getEmail()} in nurture campaign");
             } else {
@@ -293,8 +289,7 @@ class EmailCampaignTriggerService
                 }
             }
 
-            $config = $campaign->getAbTestVariants();
-            if ($config && isset($config['is_drip']) && $config['is_drip']) {
+            if ($this->dripService->isDripCampaign($campaign)) {
                 $this->dripService->enrollContact($campaign, $contact);
                 $this->logger->info("Enrolled contact {$contact->getEmail()} in ABM engagement campaign");
             } else {

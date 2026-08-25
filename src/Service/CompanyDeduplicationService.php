@@ -272,7 +272,8 @@ class CompanyDeduplicationService
      * Detect all duplicate groups in the database
      * 
      * Uses blocking key strategy to efficiently group potential duplicates
-     * without O(n²) comparison.
+     * without O(n²) comparison. The scan is paginated so every company is
+     * considered, regardless of database size.
      * 
      * @return array<array{companies: Company[], matchType: string, confidence: int}>
      */
@@ -281,61 +282,79 @@ class CompanyDeduplicationService
         $groups = [];
         $processed = [];
 
-        // Get all companies sorted by ID for consistent processing
         $companyCount = $this->companyRepository->count([]);
         if ($companyCount === 0) {
             return [];
         }
-        $allCompanies = $this->companyRepository->findBy([], ['id' => 'ASC'], 500);
-        $companyCount = count($allCompanies);
-        
+
         $this->logger->info('Dedup: Starting duplicate detection', ['company_count' => $companyCount]);
-        
-        foreach ($allCompanies as $company) {
-            if (in_array($company->getId(), $processed)) {
-                continue;
+
+        $batchSize = 500;
+        $offset = 0;
+
+        while (true) {
+            $batchCompanies = $this->companyRepository->findBy([], ['id' => 'ASC'], $batchSize, $offset);
+            if (empty($batchCompanies)) {
+                break;
             }
-            
-            $duplicates = $this->findDuplicates($company);
-            
-            if (!empty($duplicates)) {
-                $groupCompanies = [$company];
-                $bestMatchType = '';
-                $bestConfidence = 0;
-                
-                foreach ($duplicates as $dup) {
-                    $dupId = $dup['company']->getId();
-                    if (!in_array($dupId, $processed)) {
-                        $groupCompanies[] = $dup['company'];
-                        $processed[] = $dupId;
-                    }
-                    
-                    if ($dup['confidence'] > $bestConfidence) {
-                        $bestConfidence = $dup['confidence'];
-                        $bestMatchType = $dup['matchType'];
-                    }
+
+            foreach ($batchCompanies as $company) {
+                if (in_array($company->getId(), $processed)) {
+                    continue;
                 }
-                
-                $groups[] = [
-                    'companies' => $groupCompanies,
-                    'matchType' => $bestMatchType,
-                    'confidence' => $bestConfidence,
-                ];
-                
-                $processed[] = $company->getId();
+
+                $duplicates = $this->findDuplicates($company);
+
+                if (!empty($duplicates)) {
+                    $groupCompanies = [$company];
+                    $bestMatchType = '';
+                    $bestConfidence = 0;
+
+                    foreach ($duplicates as $dup) {
+                        $dupId = $dup['company']->getId();
+                        if (!in_array($dupId, $processed)) {
+                            $groupCompanies[] = $dup['company'];
+                            $processed[] = $dupId;
+                        }
+
+                        if ($dup['confidence'] > $bestConfidence) {
+                            $bestConfidence = $dup['confidence'];
+                            $bestMatchType = $dup['matchType'];
+                        }
+                    }
+
+                    $groups[] = [
+                        'companies' => $groupCompanies,
+                        'matchType' => $bestMatchType,
+                        'confidence' => $bestConfidence,
+                    ];
+
+                    $processed[] = $company->getId();
+                }
             }
+
+            // Release the identity map between batches to keep memory bounded
+            $this->em->clear();
+            $offset += $batchSize;
         }
-        
+
         $this->logger->info('Dedup: Duplicate detection complete', [
             'groups_found' => count($groups),
             'companies_processed' => count($processed),
         ]);
-        
+
         return $groups;
     }
     
     /**
      * Merge duplicate companies into one
+     * 
+     * Runs inside a transaction and only moves pointers: every entity that
+     * referenced a duplicate (contacts, activities, RFQs, leads, quotes,
+     * compliance documents, portal candidates, onboarding packs, canonical
+     * records, tasks, events, ...) is re-pointed to the primary company via
+     * bulk DQL updates, and custom field values are transferred. The
+     * duplicate row is then deleted. No related data is ever deleted.
      * 
      * @param Company $primary Company to keep
      * @param Company[] $duplicates Companies to merge into primary
@@ -343,61 +362,139 @@ class CompanyDeduplicationService
      */
     public function mergeCompanies(Company $primary, array $duplicates): int
     {
-        $merged = 0;
-        
-        foreach ($duplicates as $duplicate) {
-            if ($duplicate->getId() === $primary->getId()) {
-                continue;
-            }
-            
-            // Transfer contacts to primary
-            foreach ($duplicate->getContacts() as $contact) {
-                $contact->setCompany($primary);
-            }
-            
-            // Transfer activities to primary
-            foreach ($duplicate->getActivities() as $activity) {
-                $activity->setCompany($primary);
-            }
-            
-            // Transfer RFQs to primary
-            foreach ($duplicate->getRfqs() as $rfq) {
-                $rfq->setCompany($primary);
-            }
-            
-            // Merge notes
-            $dupNotes = $duplicate->getNotes();
-            if ($dupNotes) {
-                $existingNotes = $primary->getNotes() ?? '';
-                $primary->setNotes($existingNotes . "\n\n[Merged from {$duplicate->getName()}]\n" . $dupNotes);
-            }
-            
-            // Fill in missing fields on primary
-            if (!$primary->getWebsite() && $duplicate->getWebsite()) {
-                $primary->setWebsite($duplicate->getWebsite());
-            }
-            if (!$primary->getSector() && $duplicate->getSector()) {
-                $primary->setSector($duplicate->getSector());
-            }
-            if (!$primary->getRegion() && $duplicate->getRegion()) {
-                $primary->setRegion($duplicate->getRegion());
-            }
-            
-            // Delete duplicate
-            $this->em->remove($duplicate);
-            $merged++;
-            
-            $this->logger->info("Merged company", [
-                'primaryId' => $primary->getId(),
-                'primaryName' => $primary->getName(),
-                'duplicateId' => $duplicate->getId(),
-                'duplicateName' => $duplicate->getName(),
-            ]);
+        $primaryId = $primary->getId();
+        if (!$primaryId) {
+            throw new \InvalidArgumentException('Primary company must be persisted before merging');
         }
-        
-        $this->em->flush();
-        
+
+        $merged = 0;
+
+        $this->em->wrapInTransaction(function () use ($primary, $duplicates, $primaryId, &$merged) {
+            foreach ($duplicates as $duplicate) {
+                if ($duplicate->getId() === $primaryId) {
+                    continue;
+                }
+
+                $duplicateId = $duplicate->getId();
+
+                // Re-point every entity that referenced the duplicate —
+                // pointers only, never data movement that could cascade-delete.
+                foreach (self::MERGED_ENTITY_CLASSES as $entityClass) {
+                    $this->repointCompanyReferences($entityClass, $duplicateId, $primaryId);
+                }
+
+                // Transfer custom field values for the company entity
+                $this->mergeCustomFieldValues($duplicateId, $primaryId);
+
+                // Merge notes
+                $dupNotes = $duplicate->getNotes();
+                if ($dupNotes) {
+                    $existingNotes = $primary->getNotes() ?? '';
+                    $primary->setNotes($existingNotes . "\n\n[Merged from {$duplicate->getName()}]\n" . $dupNotes);
+                }
+
+                // Fill in missing fields on primary
+                if (!$primary->getWebsite() && $duplicate->getWebsite()) {
+                    $primary->setWebsite($duplicate->getWebsite());
+                }
+                if (!$primary->getSector() && $duplicate->getSector()) {
+                    $primary->setSector($duplicate->getSector());
+                }
+                if (!$primary->getRegion() && $duplicate->getRegion()) {
+                    $primary->setRegion($duplicate->getRegion());
+                }
+
+                // Delete the duplicate row. DQL delete is used deliberately:
+                // the orphanRemoval/cascade collections on Company would
+                // otherwise delete the very entities we just re-pointed.
+                $this->em->createQuery('DELETE ' . Company::class . ' c WHERE c.id = :id')
+                    ->setParameter('id', $duplicateId)
+                    ->execute();
+
+                $merged++;
+
+                $this->logger->info("Merged company", [
+                    'primaryId' => $primaryId,
+                    'primaryName' => $primary->getName(),
+                    'duplicateId' => $duplicateId,
+                    'duplicateName' => $duplicate->getName(),
+                ]);
+            }
+
+            $this->em->flush();
+        });
+
+        // Drop stale identity-map entries (the removed duplicates are still
+        // managed objects whose associations no longer match the database).
+        $this->em->clear();
+
         return $merged;
+    }
+
+    /**
+     * Entity classes with a `company` association that must be re-pointed
+     * when a duplicate company is merged into the primary.
+     */
+    private const MERGED_ENTITY_CLASSES = [
+        \App\Entity\Contact::class,
+        \App\Entity\Activity::class,
+        \App\Entity\RFQ::class,
+        \App\Entity\Lead::class,
+        \App\Entity\Quote::class,
+        \App\Entity\ComplianceDocument::class,
+        \App\Entity\PortalCandidate::class,
+        \App\Entity\OnboardingPack::class,
+        \App\Entity\CompanyCanonical::class,
+        \App\Entity\AbmAccount::class,
+        \App\Entity\AbmHit::class,
+        \App\Entity\CalendarEvent::class,
+        \App\Entity\CaseStudy::class,
+        \App\Entity\MeetingSlot::class,
+        \App\Entity\Task::class,
+        \App\Entity\WebinarAttendee::class,
+    ];
+
+    /**
+     * Re-point all rows of $entityClass from $fromCompanyId to $toCompanyId.
+     */
+    private function repointCompanyReferences(string $entityClass, int $fromCompanyId, int $toCompanyId): void
+    {
+        $this->em->createQuery(sprintf(
+            'UPDATE %s e SET e.company = :to WHERE e.company = :from',
+            $entityClass
+        ))
+            ->setParameter('to', $toCompanyId)
+            ->setParameter('from', $fromCompanyId)
+            ->execute();
+    }
+
+    /**
+     * Move company custom field values from the duplicate to the primary.
+     * Values for definitions already present on the primary are dropped
+     * (the primary's value wins); everything else is re-pointed.
+     */
+    private function mergeCustomFieldValues(int $fromCompanyId, int $toCompanyId): void
+    {
+        $valueRepository = $this->em->getRepository(\App\Entity\CustomFieldValue::class);
+
+        $values = $valueRepository->findBy([
+            'entityType' => \App\Entity\CustomFieldDefinition::ENTITY_COMPANY,
+            'entityId' => $fromCompanyId,
+        ]);
+
+        foreach ($values as $value) {
+            $existing = $valueRepository->findOneBy([
+                'fieldDefinition' => $value->getFieldDefinition(),
+                'entityType' => \App\Entity\CustomFieldDefinition::ENTITY_COMPANY,
+                'entityId' => $toCompanyId,
+            ]);
+
+            if ($existing !== null) {
+                $this->em->remove($value);
+            } else {
+                $value->setEntityId($toCompanyId);
+            }
+        }
     }
     
     /**

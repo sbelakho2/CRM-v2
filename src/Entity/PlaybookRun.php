@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: PlaybookRunRepository::class)]
 #[ORM\Table(name: 'playbook_runs')]
 #[ORM\Index(name: 'idx_playbook_abm_hit', columns: ['playbook_id', 'abm_hit_id'])]
+#[ORM\Index(name: 'idx_playbook_runs_status', columns: ['status'])]
 class PlaybookRun
 {
     public const STATUS_PENDING = 'pending';

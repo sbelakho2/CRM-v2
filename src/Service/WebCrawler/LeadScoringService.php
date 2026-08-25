@@ -446,8 +446,10 @@ class LeadScoringService
             $now = new \DateTime();
             $monthsAgo = $now->diff($modifiedDate)->m + ($now->diff($modifiedDate)->y * 12);
 
-            // Full 7 points if updated in last 18 months
-            if ($monthsAgo <= 18) {
+            // Full 7 points if updated in the last 24 months.
+            // B2B contact pages stay relevant well beyond a year; the wider
+            // window keeps scoring stable as crawl timestamps age.
+            if ($monthsAgo <= 24) {
                 return 7;
             }
 

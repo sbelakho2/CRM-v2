@@ -4,6 +4,8 @@
 **Project**: Starz Morocco CRM  
 **Status**: ✅ **PRODUCTION READY - GO-LIVE APPROVED**
 
+> **Correction (2026-08):** The `Estimate` entity no longer exists in the codebase (removed during 2026 refactoring). Entity lists below have been updated accordingly; the "37 tasks" scope predates the removal.
+
 ---
 
 ## 🎯 QUICK START - Testing Reports
@@ -59,8 +61,8 @@
 **Lead & ABM Entities** (5):
 - ✅ Lead, Playbook, PlaybookRun, AbmAccount, AbmHit
 
-**Sales Pipeline Entities** (5):
-- ✅ RFQ, Quote, Estimate, QuotePartBreakdown, Activity
+**Sales Pipeline Entities** (4):
+- ✅ RFQ, Quote, QuotePartBreakdown, Activity
 
 **Tracking Entities** (2):
 - ✅ WebEvent, IpMap

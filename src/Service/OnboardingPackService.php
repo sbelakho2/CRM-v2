@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Company;
 use App\Entity\OnboardingPack;
 use App\Entity\PortalCandidate;
 use App\Entity\SupplierPortal;
@@ -24,20 +25,11 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * 3. Submit registration to portal (HTTP POST or file upload)
  * 4. Track submission status and follow-up
  * 
- * Onboarding pack contents:
- * - Company profile (name, address, year established, employee count)
- * - Capabilities (PCB fab, SMT/THT assembly, testing, design services)
- * - Certifications (ISO 9001, ISO 14001, IPC-A-610)
- * - Bank details (IBAN, SWIFT, bank name, account name)
- * - Tax IDs (VAT number, DUNS, etc.)
- * - Contact information (sales, engineering, finance)
- * - Sample products/past projects
- * 
- * Portal submission methods:
- * - Web form POST (username/password auth, form field mapping)
- * - File upload (PDF upload via multipart/form-data)
- * - Email submission (send pack to procurement email)
- * - Manual (generate pack for manual submission)
+ * Company profile data (tax IDs, bank details, contacts) is sourced from the
+ * Company entity and from environment variables (COMPANY_VAT, COMPANY_DUNS,
+ * COMPANY_BANK_IBAN, ...). Sensitive data is NEVER fabricated: any field that
+ * is not configured is left empty in the pack and the pack is flagged as
+ * requiring manual completion.
  * 
  * Used by:
  * - SupplierPortalController for portal onboarding
@@ -46,41 +38,18 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class OnboardingPackService
 {
-    private const DEFAULT_CANDIDATE = [
-        'companyName' => 'CRM Starz Morocco',
-        'address' => 'Industrial Zone, Tangier Free Zone',
-        'city' => 'Tangier',
-        'country' => 'Morocco',
-        'postalCode' => '90000',
-        'yearEstablished' => 2018,
-        'employeeCount' => 50,
-        'website' => 'https://crmstarz.ma',
-        'vatNumber' => 'MA123456789',
-        'dunsNumber' => '987654321',
-        'bankIban' => 'MA12345678901234567890123456',
-        'bankSwift' => 'BCMAMAMC',
-        'bankName' => 'Bank of Africa',
-        'bankAccountName' => 'CRM Starz Morocco SARL',
-        'contactSalesName' => 'Sales Department',
-        'contactSalesEmail' => 'sales@crmstarz.ma',
-        'contactSalesPhone' => '+212 5 39 XX XX XX',
-        'contactFinanceName' => 'Finance Department',
-        'contactFinanceEmail' => 'finance@crmstarz.ma',
-        'contactFinancePhone' => '+212 5 39 XX XX XX',
-    ];
+    public const STATUS_MANUAL_COMPLETION_REQUIRED = 'MANUAL_COMPLETION_REQUIRED';
 
-    private const DEFAULT_CAPABILITIES = [
-        'PCB Fabrication (2-16 layers)',
-        'SMT Assembly (0201-BGA)',
-        'THT Assembly',
-        'Testing (ICT, FCT, AOI)',
-        'Design Services (DFM, layout)',
-    ];
-
-    private const DEFAULT_CERTIFICATIONS = [
-        'ISO 9001:2015',
-        'ISO 14001:2015',
-        'IPC-A-610 Class 3',
+    /**
+     * Sensitive / financial fields that must never be fabricated.
+     */
+    private const SENSITIVE_FIELDS = [
+        'vatNumber',
+        'dunsNumber',
+        'bankIban',
+        'bankSwift',
+        'bankName',
+        'bankAccountName',
     ];
 
     public function __construct(
@@ -91,6 +60,68 @@ class OnboardingPackService
         private HttpClientInterface $httpClient,
         private UnifiedPdfGeneratorService $pdfGenerator
     ) {}
+
+    /**
+     * Company profile sourced from env vars only. Every value defaults to
+     * NULL: unconfigured fields are left empty instead of being fabricated.
+     *
+     * @return array<string, string|int|null>
+     */
+    private function companyProfileConfig(): array
+    {
+        $env = static function (string $name): ?string {
+            $value = getenv($name);
+            return $value === false || $value === '' ? null : $value;
+        };
+
+        $year = $env('COMPANY_YEAR_ESTABLISHED');
+        $employees = $env('COMPANY_EMPLOYEE_COUNT');
+
+        return [
+            'companyName' => $env('COMPANY_NAME'),
+            'address' => $env('COMPANY_ADDRESS'),
+            'city' => $env('COMPANY_CITY'),
+            'country' => $env('COMPANY_COUNTRY'),
+            'postalCode' => $env('COMPANY_POSTAL_CODE'),
+            'yearEstablished' => $year !== null && is_numeric($year) ? (int) $year : null,
+            'employeeCount' => $employees !== null && is_numeric($employees) ? (int) $employees : null,
+            'website' => $env('COMPANY_WEBSITE'),
+            'vatNumber' => $env('COMPANY_VAT'),
+            'dunsNumber' => $env('COMPANY_DUNS'),
+            'bankIban' => $env('COMPANY_BANK_IBAN'),
+            'bankSwift' => $env('COMPANY_BANK_SWIFT'),
+            'bankName' => $env('COMPANY_BANK_NAME'),
+            'bankAccountName' => $env('COMPANY_BANK_ACCOUNT_NAME'),
+            'contactSalesName' => $env('COMPANY_CONTACT_SALES_NAME'),
+            'contactSalesEmail' => $env('COMPANY_CONTACT_SALES_EMAIL'),
+            'contactSalesPhone' => $env('COMPANY_CONTACT_SALES_PHONE'),
+            'contactFinanceName' => $env('COMPANY_CONTACT_FINANCE_NAME'),
+            'contactFinanceEmail' => $env('COMPANY_CONTACT_FINANCE_EMAIL'),
+            'contactFinancePhone' => $env('COMPANY_CONTACT_FINANCE_PHONE'),
+            'capabilities' => $this->jsonListFromEnv('COMPANY_CAPABILITIES_JSON'),
+            'certifications' => $this->jsonListFromEnv('COMPANY_CERTIFICATIONS_JSON'),
+        ];
+    }
+
+    /**
+     * Parse a JSON list of strings from an env var; NULL when unset/invalid.
+     *
+     * @return string[]|null
+     */
+    private function jsonListFromEnv(string $name): ?array
+    {
+        $value = getenv($name);
+        if ($value === false || $value === '') {
+            return null;
+        }
+
+        $decoded = json_decode($value, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        return array_values(array_map('strval', $decoded));
+    }
 
     /**
      * Generate onboarding pack
@@ -119,8 +150,14 @@ class OnboardingPackService
         // 2. Extract fields from PortalCandidate
         $fieldsExtracted = $this->autoFillFields($companyId, $packType, $customFields);
         $pack->setFieldsJson(json_encode($fieldsExtracted));
+
+        // 3. Never submit packs with missing sensitive data: flag them so a
+        //    human must complete the profile before any portal submission.
+        if (in_array($packType, ['FULL', 'CUSTOM'], true) && $this->hasMissingSensitiveFields($fieldsExtracted)) {
+            $pack->setStatus(self::STATUS_MANUAL_COMPLETION_REQUIRED);
+        }
         
-        // 3. Generate PDF using UnifiedPdfGeneratorService
+        // 4. Generate PDF using UnifiedPdfGeneratorService
         try {
             $pdfPath = $this->pdfGenerator->generateOnboardingPackPdf($pack);
             $pack->setPdfPath($pdfPath);
@@ -130,10 +167,10 @@ class OnboardingPackService
             $pack->setStatus('PENDING_PDF');
         }
         
-        // 4. Update pack
+        // 5. Update pack
         $this->entityManager->flush();
         
-        // 5. Return pack data
+        // 6. Return pack data
         return [
             'packId' => $pack->getId(),
             'pdfPath' => $pack->getPdfPath(),
@@ -142,7 +179,24 @@ class OnboardingPackService
     }
 
     /**
-     * Auto-fill form fields from PortalCandidate data
+     * True when any of the sensitive financial fields is missing or empty.
+     *
+     * @param array<string, mixed> $fields
+     */
+    private function hasMissingSensitiveFields(array $fields): bool
+    {
+        foreach (self::SENSITIVE_FIELDS as $field) {
+            $value = $fields[$field] ?? null;
+            if ($value === null || $value === '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Auto-fill form fields from the Company entity and env-configured profile
      * 
      * @param int $companyId - Company ID
      * @param string $packType - Pack type
@@ -152,48 +206,52 @@ class OnboardingPackService
      */
     public function autoFillFields(int $companyId, string $packType, array $customFields = []): array
     {
-        // 1. Get PortalCandidate data
-        $candidate = $this->portalCandidateRepository->findOneBy(['companyId' => $companyId]);
-        
-        if (!$candidate) {
-            // Create default candidate with CRM Starz Morocco data
-            $candidate = $this->createDefaultCandidate($companyId);
+        // 1. Load the Company entity: it is the authoritative source for
+        //    profile data (name, address, contacts).
+        $company = $this->entityManager->getRepository(Company::class)->find($companyId);
+
+        // 2. Get (or create) the PortalCandidate record for this company
+        $candidate = $this->portalCandidateRepository->findOneBy(['company' => $company]);
+        if ($candidate === null) {
+            $candidate = $this->createDefaultCandidate($company);
         }
-        
-        // 2. Extract fields based on pack type
+
+        $config = $this->companyProfileConfig();
+
+        // 3. Extract fields based on pack type
         $fields = [];
-        
+
         if ($packType === 'FULL' || $packType === 'CUSTOM') {
-            $fields['companyName'] = $candidate->getCompanyName();
-            $fields['address'] = $candidate->getAddress();
-            $fields['city'] = $candidate->getCity();
-            $fields['country'] = $candidate->getCountry();
-            $fields['postalCode'] = $candidate->getPostalCode();
-            $fields['yearEstablished'] = $candidate->getYearEstablished();
-            $fields['employeeCount'] = $candidate->getEmployeeCount();
-            $fields['website'] = $candidate->getWebsite();
-            $fields['vatNumber'] = $candidate->getVatNumber();
-            $fields['dunsNumber'] = $candidate->getDunsNumber();
-            $fields['bankIban'] = $candidate->getBankIban();
-            $fields['bankSwift'] = $candidate->getBankSwift();
-            $fields['bankName'] = $candidate->getBankName();
-            $fields['bankAccountName'] = $candidate->getBankAccountName();
-            $fields['contactSalesName'] = $candidate->getContactSalesName();
-            $fields['contactSalesEmail'] = $candidate->getContactSalesEmail();
-            $fields['contactSalesPhone'] = $candidate->getContactSalesPhone();
-            $fields['contactFinanceName'] = $candidate->getContactFinanceName();
-            $fields['contactFinanceEmail'] = $candidate->getContactFinanceEmail();
-            $fields['contactFinancePhone'] = $candidate->getContactFinancePhone();
-            $fields['capabilities'] = json_decode($candidate->getCapabilitiesJson() ?? '[]', true);
-            $fields['certifications'] = json_decode($candidate->getCertificationsJson() ?? '[]', true);
+            $fields['companyName'] = $company?->getName() ?? $config['companyName'] ?? '';
+            $fields['address'] = $company?->getAddress() ?? $config['address'] ?? '';
+            $fields['city'] = $company?->getCity() ?? $config['city'] ?? '';
+            $fields['country'] = $company?->getCountry() ?? $config['country'] ?? '';
+            $fields['postalCode'] = $config['postalCode'] ?? '';
+            $fields['yearEstablished'] = $config['yearEstablished'];
+            $fields['employeeCount'] = $config['employeeCount'];
+            $fields['website'] = $company?->getWebsite() ?? $config['website'] ?? '';
+            $fields['vatNumber'] = $config['vatNumber'] ?? '';
+            $fields['dunsNumber'] = $config['dunsNumber'] ?? '';
+            $fields['bankIban'] = $config['bankIban'] ?? '';
+            $fields['bankSwift'] = $config['bankSwift'] ?? '';
+            $fields['bankName'] = $config['bankName'] ?? '';
+            $fields['bankAccountName'] = $config['bankAccountName'] ?? '';
+            $fields['contactSalesName'] = $config['contactSalesName'] ?? '';
+            $fields['contactSalesEmail'] = $config['contactSalesEmail'] ?? '';
+            $fields['contactSalesPhone'] = $config['contactSalesPhone'] ?? '';
+            $fields['contactFinanceName'] = $config['contactFinanceName'] ?? '';
+            $fields['contactFinanceEmail'] = $config['contactFinanceEmail'] ?? '';
+            $fields['contactFinancePhone'] = $config['contactFinancePhone'] ?? '';
+            $fields['capabilities'] = $config['capabilities'] ?? [];
+            $fields['certifications'] = $config['certifications'] ?? [];
         }
         
         if ($packType === 'QUICK') {
             // Minimal fields for quick onboarding
-            $fields['companyName'] = $candidate->getCompanyName();
-            $fields['address'] = $candidate->getAddress();
-            $fields['contactSalesEmail'] = $candidate->getContactSalesEmail();
-            $fields['contactSalesPhone'] = $candidate->getContactSalesPhone();
+            $fields['companyName'] = $company?->getName() ?? $config['companyName'] ?? '';
+            $fields['address'] = $company?->getAddress() ?? $config['address'] ?? '';
+            $fields['contactSalesEmail'] = $config['contactSalesEmail'] ?? '';
+            $fields['contactSalesPhone'] = $config['contactSalesPhone'] ?? '';
         }
         
         if ($packType === 'CUSTOM' && !empty($customFields)) {
@@ -228,8 +286,19 @@ class OnboardingPackService
         if (!$pack || !$portal) {
             throw new \RuntimeException("Pack or portal not found");
         }
+
+        // 2. A pack with missing sensitive data must never be auto-submitted:
+        //    it would either send empty values or require fabricated ones.
+        if ($pack->getStatus() === self::STATUS_MANUAL_COMPLETION_REQUIRED) {
+            return [
+                'success' => false,
+                'method' => 'MANUAL',
+                'response' => null,
+                'errorMessage' => 'Pack requires manual completion of company profile data before submission',
+            ];
+        }
         
-        // 2. Determine submission method based on portal vendor
+        // 3. Determine submission method based on portal vendor
         $vendor = $portal->getPortalVendor();
         $method = 'MANUAL'; // Default
         
@@ -241,7 +310,7 @@ class OnboardingPackService
             $method = 'WEB_FORM'; // Generic web form submission
         }
         
-        // 3. Submit based on method
+        // 4. Submit based on method
         if ($method === 'WEB_FORM') {
             return $this->submitViaWebForm($pack, $portal, $credentials);
         } elseif ($method === 'ARIBA_API' || $method === 'COUPA_API') {
@@ -305,14 +374,18 @@ class OnboardingPackService
             $formFields = json_decode($portal->getFormFieldsJson() ?? '{}', true);
             $packData = json_decode($pack->getFieldsJson() ?? '{}', true);
             
-            // 3. Map pack data to form fields
+            // 3. Map pack data to form fields; null/empty pack values are
+            //    skipped entirely rather than submitted as empty strings.
             $formData = [];
             foreach ($formFields as $fieldName => $packField) {
-                $formData[$fieldName] = $packData[$packField] ?? '';
+                $value = $packData[$packField] ?? null;
+                if ($value !== null && $value !== '') {
+                    $formData[$fieldName] = $value;
+                }
             }
             
             // 4. Upload PDF if required
-            if ($portal->getRequiresFileUpload() && file_exists($pack->getPdfPath())) {
+            if ($portal->getRequiresFileUpload() && $pack->getPdfPath() && file_exists($pack->getPdfPath())) {
                 $formData['file'] = fopen($pack->getPdfPath(), 'r');
             }
             
@@ -363,45 +436,21 @@ class OnboardingPackService
     }
 
     /**
-     * Create default PortalCandidate with CRM Starz Morocco data
-     * 
-     * @param int $companyId - Company ID
-     * 
-     * @return PortalCandidate
+     * Create default PortalCandidate record for a company. No fabricated
+     * profile data is stored: the Company entity is the source of truth.
      */
-    private function createDefaultCandidate(int $companyId): PortalCandidate
+    private function createDefaultCandidate(?Company $company): PortalCandidate
     {
-        // 1. Create PortalCandidate with CRM Starz Morocco info
         $candidate = new PortalCandidate();
-        $candidate->setCompanyId($companyId);
-        $candidate->setCompanyName(self::DEFAULT_CANDIDATE['companyName']);
-        $candidate->setAddress(self::DEFAULT_CANDIDATE['address']);
-        $candidate->setCity(self::DEFAULT_CANDIDATE['city']);
-        $candidate->setCountry(self::DEFAULT_CANDIDATE['country']);
-        $candidate->setPostalCode(self::DEFAULT_CANDIDATE['postalCode']);
-        $candidate->setYearEstablished(self::DEFAULT_CANDIDATE['yearEstablished']);
-        $candidate->setEmployeeCount(self::DEFAULT_CANDIDATE['employeeCount']);
-        $candidate->setWebsite(self::DEFAULT_CANDIDATE['website']);
-        $candidate->setVatNumber(self::DEFAULT_CANDIDATE['vatNumber']);
-        $candidate->setDunsNumber(self::DEFAULT_CANDIDATE['dunsNumber']);
-        $candidate->setBankIban(self::DEFAULT_CANDIDATE['bankIban']);
-        $candidate->setBankSwift(self::DEFAULT_CANDIDATE['bankSwift']);
-        $candidate->setBankName(self::DEFAULT_CANDIDATE['bankName']);
-        $candidate->setBankAccountName(self::DEFAULT_CANDIDATE['bankAccountName']);
-        $candidate->setContactSalesName(self::DEFAULT_CANDIDATE['contactSalesName']);
-        $candidate->setContactSalesEmail(self::DEFAULT_CANDIDATE['contactSalesEmail']);
-        $candidate->setContactSalesPhone(self::DEFAULT_CANDIDATE['contactSalesPhone']);
-        $candidate->setContactFinanceName(self::DEFAULT_CANDIDATE['contactFinanceName']);
-        $candidate->setContactFinanceEmail(self::DEFAULT_CANDIDATE['contactFinanceEmail']);
-        $candidate->setContactFinancePhone(self::DEFAULT_CANDIDATE['contactFinancePhone']);
-        
-        $candidate->setCapabilitiesJson(json_encode(self::DEFAULT_CAPABILITIES));
-        $candidate->setCertificationsJson(json_encode(self::DEFAULT_CERTIFICATIONS));
+        $candidate->setCompany($company);
+        $candidate->setStatus('discovered');
+        $candidate->setDiscoveredAt(new \DateTime());
+        $candidate->setRequiresManualSubmit(true); // Never auto-submit without review
+        $candidate->setHasRobotsTxt(true);
         
         $this->entityManager->persist($candidate);
         $this->entityManager->flush();
         
-        // 2. Return candidate
         return $candidate;
     }
 

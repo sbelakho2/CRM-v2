@@ -18,7 +18,6 @@ class EmailComplianceService
     private const DEFAULT_COMPANY_NAME = 'STARZ Morocco';
     private const DEFAULT_PHYSICAL_ADDRESS = '123 Business Avenue, Tangier, Morocco';
     private const DEFAULT_COMPANY_PHONE = '+212 539 123 456';
-    private const DEFAULT_APP_BASE_URL = 'https://crm.starz-morocco.com';
     
     private EntityManagerInterface $em;
     private EmailConsentService $consentService;
@@ -49,9 +48,20 @@ class EmailComplianceService
     ) {
         $this->em = $em;
         $this->consentService = $consentService;
-        $this->companyName = self::DEFAULT_COMPANY_NAME;
-        $this->physicalAddress = self::DEFAULT_PHYSICAL_ADDRESS;
-        $this->companyPhone = self::DEFAULT_COMPANY_PHONE;
+        // Company identity is read from the environment when configured so
+        // the compliance footer never carries fabricated contact details.
+        $this->companyName = $this->envValue('COMPANY_NAME') ?? self::DEFAULT_COMPANY_NAME;
+        $this->physicalAddress = $this->envValue('COMPANY_ADDRESS') ?? self::DEFAULT_PHYSICAL_ADDRESS;
+        $this->companyPhone = $this->envValue('COMPANY_PHONE') ?? self::DEFAULT_COMPANY_PHONE;
+    }
+
+    /**
+     * Read a non-empty env var (prefers real env over the $_ENV superglobal).
+     */
+    private function envValue(string $name): ?string
+    {
+        $value = $_ENV[$name] ?? $_SERVER[$name] ?? getenv($name);
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     /**
@@ -111,7 +121,23 @@ class EmailComplianceService
     public function addComplianceFooter(string $htmlContent, Contact $contact, EmailCampaign $campaign): string
     {
         $unsubscribeLink = $this->consentService->generateUnsubscribeLink($contact, $campaign->getId());
-        
+
+        // Base URL for the "manage preferences" link. Never fabricate a
+        // domain: use the configured DEFAULT_URI (or legacy APP_BASE_URL);
+        // when none is configured the link is omitted entirely.
+        $baseUrl = rtrim(
+            (string) ($_ENV['DEFAULT_URI'] ?? $_SERVER['DEFAULT_URI'] ?? getenv('DEFAULT_URI')
+                ?? $_ENV['APP_BASE_URL'] ?? $_SERVER['APP_BASE_URL'] ?? getenv('APP_BASE_URL') ?? ''),
+            '/'
+        );
+        $managePreferencesLink = $baseUrl !== ''
+            ? sprintf(
+                ' | <a href="%s/email/manage-preferences/%s" style="color: #0066cc; text-decoration: underline;">Manage email preferences</a>',
+                htmlspecialchars($baseUrl),
+                base64_encode($contact->getEmail())
+            )
+            : '';
+
         $footer = sprintf('
             <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #555; font-family: Arial, sans-serif;">
                 <table width="100%%" cellpadding="0" cellspacing="0" style="font-size: 12px; color: #555;">
@@ -129,8 +155,7 @@ class EmailComplianceService
                     </tr>
                     <tr>
                         <td style="padding: 10px 0;">
-                            <a href="%s" style="color: #0066cc; text-decoration: underline;">Unsubscribe from all emails</a> | 
-                            <a href="%s/email/manage-preferences/%s" style="color: #0066cc; text-decoration: underline;">Manage email preferences</a>
+                            <a href="%s" style="color: #0066cc; text-decoration: underline;">Unsubscribe from all emails</a>%s
                         </td>
                     </tr>
                     <tr>
@@ -145,8 +170,7 @@ class EmailComplianceService
             nl2br(htmlspecialchars($this->physicalAddress)),
             htmlspecialchars($this->companyPhone),
             htmlspecialchars($unsubscribeLink),
-            rtrim($_ENV['APP_BASE_URL'] ?? self::DEFAULT_APP_BASE_URL, '/'),
-            base64_encode($contact->getEmail()),
+            $managePreferencesLink,
             htmlspecialchars($contact->getEmail())
         );
 

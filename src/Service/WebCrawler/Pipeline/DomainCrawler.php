@@ -272,6 +272,13 @@ final class DomainCrawler
     /**
      * Fetch and parse robots.txt for each domain.
      *
+     * Fail-closed policy: on a transport failure (timeout, connection error,
+     * 5xx/403/429) the robots fetch is retried ONCE. If it fails again the
+     * domain is treated as DISALLOWED and skipped politely — a site that
+     * cannot serve robots.txt must not be hammered, and assuming "allowed"
+     * on failure would violate the crawl policy. A clean 404 means "no
+     * robots.txt" and is treated as allowed (RFC 9309).
+     *
      * @param string[] $domains
      * @return array<string, array{allowed: bool, disallowed_paths: string[]}>
      */
@@ -283,31 +290,99 @@ final class DomainCrawler
         foreach ($domains as $domain) {
             $robotsUrl = 'https://' . $domain . '/robots.txt';
 
-            try {
-                $responses[$domain] = $this->httpClient->request('GET', $robotsUrl, [
-                    'timeout' => self::ROBOTS_TIMEOUT,
-                    'max_redirects' => 2,
-                    'headers' => [
-                        'User-Agent' => self::USER_AGENT,
-                        'Accept' => 'text/plain,*/*;q=0.1',
-                    ],
-                ]);
-            } catch (\Throwable) {
-                $policies[$domain] = ['allowed' => true, 'disallowed_paths' => []];
-            }
-        }
+            $response = null;
+            $failure = null;
 
-        foreach ($responses as $domain => $response) {
+            for ($attempt = 1; $attempt <= 2; $attempt++) {
+                try {
+                    $response = $this->httpClient->request('GET', $robotsUrl, [
+                        'timeout' => self::ROBOTS_TIMEOUT,
+                        'max_redirects' => 2,
+                        'headers' => [
+                            'User-Agent' => self::USER_AGENT,
+                            'Accept' => 'text/plain,*/*;q=0.1',
+                        ],
+                    ]);
+                    $failure = null;
+                    break;
+                } catch (\Throwable $e) {
+                    $failure = $e;
+                    if ($attempt === 1) {
+                        $this->logger->warning(
+                            '[DomainCrawler] robots.txt fetch failed for {domain} (attempt {attempt}), retrying once: {error}',
+                            ['domain' => $domain, 'attempt' => $attempt, 'error' => $e->getMessage()],
+                        );
+                    }
+                }
+            }
+
+            if ($failure !== null) {
+                // Transport failure after retry → fail closed, skip domain politely.
+                $this->logger->warning(
+                    '[DomainCrawler] robots.txt unreachable for {domain} after retry — treating as disallowed, skipping',
+                    ['domain' => $domain, 'error' => $failure->getMessage()],
+                );
+                $policies[$domain] = ['allowed' => false, 'disallowed_paths' => ['/']];
+                continue;
+            }
+
+            if ($response === null) {
+                $policies[$domain] = ['allowed' => false, 'disallowed_paths' => ['/']];
+                continue;
+            }
+
             try {
                 $statusCode = $response->getStatusCode();
-                if ($statusCode >= 400) {
+                if ($statusCode === 404) {
+                    // No robots.txt → nothing disallowed.
                     $policies[$domain] = ['allowed' => true, 'disallowed_paths' => []];
+                    continue;
+                }
+                if ($statusCode >= 400) {
+                    // 401/403/429/5xx etc. — robots.txt is being refused.
+                    // Retry once, then fail closed.
+                    $retry = null;
+                    for ($attempt = 1; $attempt <= 2; $attempt++) {
+                        try {
+                            $retry = $this->httpClient->request('GET', $robotsUrl, [
+                                'timeout' => self::ROBOTS_TIMEOUT,
+                                'max_redirects' => 2,
+                                'headers' => [
+                                    'User-Agent' => self::USER_AGENT,
+                                    'Accept' => 'text/plain,*/*;q=0.1',
+                                ],
+                            ]);
+                            break;
+                        } catch (\Throwable $e) {
+                            $retry = null;
+                            if ($attempt === 1) {
+                                $this->logger->warning(
+                                    '[DomainCrawler] robots.txt HTTP {status} for {domain}, retrying once: {error}',
+                                    ['domain' => $domain, 'status' => $statusCode, 'error' => $e->getMessage()],
+                                );
+                            }
+                        }
+                    }
+                    if ($retry !== null && $retry->getStatusCode() === 200) {
+                        $policies[$domain] = $this->parseRobotsPolicy($retry->getContent(false));
+                        continue;
+                    }
+                    $this->logger->warning(
+                        '[DomainCrawler] robots.txt refused for {domain} (HTTP {status}) — treating as disallowed, skipping',
+                        ['domain' => $domain, 'status' => $statusCode],
+                    );
+                    $policies[$domain] = ['allowed' => false, 'disallowed_paths' => ['/']];
                     continue;
                 }
 
                 $policies[$domain] = $this->parseRobotsPolicy($response->getContent(false));
-            } catch (\Throwable) {
-                $policies[$domain] = ['allowed' => true, 'disallowed_paths' => []];
+            } catch (\Throwable $e) {
+                // Parsing/transport failure after a response was received → fail closed.
+                $this->logger->warning(
+                    '[DomainCrawler] robots.txt processing failed for {domain} — treating as disallowed, skipping: {error}',
+                    ['domain' => $domain, 'error' => $e->getMessage()],
+                );
+                $policies[$domain] = ['allowed' => false, 'disallowed_paths' => ['/']];
             }
         }
 

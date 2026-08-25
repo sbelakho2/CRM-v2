@@ -109,7 +109,13 @@
         "total_accounts": "Total des comptes",
         "update_account": "Mettre à jour le compte",
         "view_reports": "Voir les rapports",
-        "web_visits": "Visites web"
+        "web_visits": "Visites web",
+        "name_placeholder": "p. ex., Acme Corporation",
+        "domain_placeholder": "p. ex., acme.com",
+        "sector_placeholder": "p. ex., Technologies, Industrie manufacturière",
+        "regions_placeholder": "p. ex., Maroc, États-Unis",
+        "company_size_placeholder": "p. ex., 50-200, 1000+",
+        "revenue_placeholder": "p. ex., 1M-10M"
     },
     "accessibility": {
         "close_menu": "Fermer le menu",
@@ -166,7 +172,7 @@
         "log_first_activity_with": "⚡ Enregistrez votre première activité avec %name% pour suivre l'engagement",
         "log_first_interaction": "📞 Enregistrez votre première interaction avec %name% pour commencer le suivi de l'engagement",
         "logged_by": "Consigné par",
-        "new": "Nouvelle Activit\\u00e9",
+        "new": "Nouvelle Activité",
         "new_activity": "Nouvelle activité",
         "new_subtitle": "Consignez une nouvelle activité",
         "no_activities": "Aucune activité trouvée.",
@@ -282,6 +288,7 @@
             "replace_existing": "Remplacer les données existantes",
             "replace_hint": "Si décoché, cette version sera enregistrée comme nouvelle",
             "restore": "Restaurer",
+            "restore_confirm": "Restaurer cette version ? Un instantané avant restauration sera créé.",
             "select_type": "Sélectionner un type",
             "status": "Statut",
             "storage_used": "Stockage utilisé",
@@ -503,11 +510,11 @@
         "performance_description": "Ces chiffres se mettent à jour automatiquement au fil des envois et des résultats.",
         "performance_title": "Performance en un coup d’œil",
         "quick_actions_title": "Actions rapides",
-        "quick_optimize_desc": "Lancez un aperçu pour évaluer vos variations d\\u0027e-mail. Aucun e-mail n\\u0027est envoyé — il vérifie juste ce qui se passerait.",
-        "quick_optimize_hint": "Pour les options avancées comme les envois réels et les tailles de lot, utilisez l\\u0027onglet Optimisation.",
+        "quick_optimize_desc": "Lancez un aperçu pour évaluer vos variations d'e-mail. Aucun e-mail n'est envoyé — il vérifie juste ce qui se passerait.",
+        "quick_optimize_hint": "Pour les options avancées comme les envois réels et les tailles de lot, utilisez l'onglet Optimisation.",
         "quick_optimize_title": "Optimiser les e-mails",
         "quick_score_button": "Actualiser les scores",
-        "quick_score_desc": "Reclassez vos prospects par probabilité d\\u0027achat pour que le système contacte les meilleurs en priorité.",
+        "quick_score_desc": "Reclassez vos prospects par probabilité d'achat pour que le système contacte les meilleurs en priorité.",
         "quick_score_title": "Actualiser les scores",
         "run_scoring": "Lancer le scoring",
         "safety_auto_mode_desc": "Si le taux global de rebond/désabonnement dépasse 35 %, le système stoppe les envois expérimentaux et n’utilise que les variations éprouvées jusqu’à amélioration.",
@@ -518,7 +525,7 @@
         "safety_campaign_bridge_title": "Pont de campagne",
         "safety_cross_module_limits_desc": "Les limites d'envoi comptent les emails des campagnes et de l'automatisation des ventes ensemble. Un prospect dans une séquence et l'outreach automatique ne recevra pas plus de 2 emails par semaine ou 5 par mois au total.",
         "safety_cross_module_limits_title": "Limites d'envoi inter-modules",
-        "safety_full_desc": "Ces protections fonctionnent automatiquement pour préserver votre réputation d\\u0027expéditeur et éviter de sur-contacter les prospects.",
+        "safety_full_desc": "Ces protections fonctionnent automatiquement pour préserver votre réputation d'expéditeur et éviter de sur-contacter les prospects.",
         "safety_full_title": "Garde-fous de sécurité",
         "safety_instant_kill_desc": "Toute variation avec un taux de réponse négatif supérieur à 50 % est immédiatement désactivée et ne sera plus utilisée.",
         "safety_instant_kill_title": "Coupure immédiate",
@@ -545,15 +552,15 @@
         "status_disabled": "Désactivé",
         "status_enabled": "Activé",
         "subtitle": "Performance Thompson Sampling en temps réel pour les e-mails.",
-        "subtitle_off": "Activez pour démarrer l\\u0027approche automatisée",
+        "subtitle_off": "Activez pour démarrer l'approche automatisée",
         "subtitle_paused": "Système en pause — performances sous le seuil de sécurité",
-        "subtitle_ready": "Prêt à lancer votre premier cycle d\\u0027optimisation",
+        "subtitle_ready": "Prêt à lancer votre premier cycle d'optimisation",
         "subtitle_running": "%emails% e-mails envoyés · %rate%% taux de succès",
         "subtitle_setup": "%remaining% étapes restantes pour terminer la configuration",
         "successes": "Succès",
         "system_overview": "Vue d’ensemble du système",
         "tab_optimization": "Optimisation",
-        "tab_overview": "Vue d\\u0027ensemble",
+        "tab_overview": "Vue d'ensemble",
         "tab_settings": "Paramètres",
         "table_content": "Contenu",
         "table_emails_sent": "E-mails envoyés",
@@ -592,7 +599,32 @@
         "table_arm": "Bras",
         "table_pulls": "Tirages",
         "table_wins": "Victoires",
-        "table_win_rate": "Taux de victoire"
+        "table_win_rate": "Taux de victoire",
+        "metric_total_leads": "Leads totaux",
+        "metric_emails_sent_7d": "Emails envoyés (7j)",
+        "metric_open_rate": "Taux d'ouverture",
+        "metric_reply_rate": "Taux de réponse",
+        "metric_active_campaigns": "Campagnes actives",
+        "metric_pipeline_value": "Valeur du pipeline",
+        "compose_send": "Rédiger et envoyer",
+        "process_inbox": "Traiter la boîte de réception",
+        "view_full_dashboard": "Voir le tableau de bord complet",
+        "thompson_stats_desc": "Le système utilise l'échantillonnage de Thompson (algorithme de bandit bayésien) pour trouver automatiquement les meilleures variantes d'e-mails. Voici les statistiques brutes des bras.",
+        "ab_test_results_desc": "Comparaison de la performance de chaque type de variante par rapport à sa référence.",
+        "metric_total_variations": "Variantes totales",
+        "metric_top_performer": "Meilleure performance",
+        "metric_best_open_rate": "Meilleur taux d'ouverture",
+        "badge_opened": "Ouvert",
+        "badge_clicked": "Cliqué",
+        "badge_replied": "Répondu",
+        "badge_sent": "Envoyé",
+        "system_mode": "Mode système",
+        "safe_mode_active": "Mode sécurisé actif",
+        "mode_normal": "Normal",
+        "mode_disabled": "Désactivé",
+        "active_safety_features": "Fonctionnalités de sécurité actives",
+        "quarantined_variations": "Variantes en quarantaine",
+        "status_label": "Statut"
     },
     "calendar": {
         "add_event": "Ajouter un événement",
@@ -670,7 +702,7 @@
     "command_center": {
         "action_items": "Éléments d'action",
         "alerts": "Alertes",
-        "alerts_description": "Alertes r\\u00e9centes et notifications syst\\u00e8me",
+        "alerts_description": "Alertes récentes et notifications système",
         "key_metrics": "Indicateurs clés",
         "lead_inflow": "Entrée de prospects",
         "overview": "Aperçu du système",
@@ -812,7 +844,7 @@
         "submit": "Soumettre",
         "success": "Succès",
         "supply": "Approvisionnement",
-        "system": "Syst\\u00e8me",
+        "system": "Système",
         "time": "Heure",
         "time_range": "Plage horaire",
         "tip": "Astuce",
@@ -833,7 +865,8 @@
         "yes": "Oui",
         "breadcrumb": "Fil d'Ariane",
         "enter_value": "Saisir une valeur",
-        "reason": "Motif"
+        "reason": "Motif",
+        "no_company": "Aucune entreprise"
     },
     "company": {
         "account_tier": "Niveau de compte",
@@ -1415,33 +1448,33 @@
     "dashboard": {
         "active": "Actif",
         "active_campaigns": "Campagnes actives",
-        "activity_summary": "R\\u00e9sum\\u00e9 des Activit\\u00e9s",
+        "activity_summary": "Résumé des Activités",
         "click": "Clic",
         "click_rate": "Taux de Clic",
         "conversion_rate": "Taux de conversion",
         "days": "jours",
-        "email_metrics": "M\\u00e9triques Email",
+        "email_metrics": "Métriques Email",
         "emails": "E-mails",
-        "emails_today": "Emails Aujourd\\u2019hui",
+        "emails_today": "Emails Aujourd’hui",
         "engagement": "Engagement",
         "engagement_heat_map": "Carte thermique d'engagement",
         "engagement_score": "Score d'engagement",
         "framework_agreements": "Accords-cadres",
-        "last_24h": "Derni\\u00e8res 24h",
+        "last_24h": "Dernières 24h",
         "last_7d": "Derniers 7 Jours",
         "last_activity": "Dernière activité",
         "metrics": "Indicateurs clés",
         "no_recent_activity": "Aucune activité récente",
         "npi_awards": "Attributions NPI",
         "open": "Ouvert",
-        "open_rate": "Taux d\\u2019Ouverture",
+        "open_rate": "Taux d’Ouverture",
         "open_rfqs": "Demandes ouvertes",
         "overview": "Aperçu",
         "pending_approvals": "Approbations en attente",
         "performance": "Performance",
         "quick_actions": "Actions rapides",
         "recent_activity": "Activité récente",
-        "reply_rate": "Taux de R\\u00e9ponse",
+        "reply_rate": "Taux de Réponse",
         "response_rate": "Taux de réponse",
         "score": "Score",
         "statistics": "Statistiques",
@@ -1449,7 +1482,7 @@
         "this_week": "Cette semaine",
         "this_year": "Cette année",
         "title": "Tableau de bord",
-        "to": "\\u00e0",
+        "to": "à",
         "today": "Aujourd'hui",
         "total_companies": "Total des entreprises",
         "total_contacts": "Total des contacts",
@@ -1549,7 +1582,14 @@
         "today": "Aujourd’hui",
         "total_leads": "Total des leads",
         "use_llm": "Utiliser l’enrichissement par IA",
-        "with_emails": "Avec e-mails"
+        "with_emails": "Avec e-mails",
+        "analytics_title": "Analyse du pipeline",
+        "analytics_funnel": "Entonnoir du pipeline",
+        "analytics_quality_trend": "Tendance qualité (30 derniers jours)",
+        "analytics_insights": "Informations exploitables",
+        "no_funnel_data": "Aucune donnée d'entonnoir disponible",
+        "no_quality_trend_data": "Aucune donnée de tendance qualité disponible",
+        "no_insights_data": "Aucune information exploitable disponible"
     },
     "email": {
         "opens": "Ouvertures"
@@ -1929,7 +1969,8 @@
             "all_rights_reserved": "Tous droits réservés.",
             "best_regards": "Cordialement",
             "email_sent_to": "Cet e-mail a été envoyé à",
-            "hello": "Bonjour"
+            "hello": "Bonjour",
+            "automated_message": "Ceci est un message automatisé de Starz Morocco CRM."
         },
         "playbook": {
             "abm_hot_lead": {
@@ -1938,7 +1979,9 @@
                 "action_team": "Coordonner avec l'équipe commerciale",
                 "message": "Un compte cible montre des signaux d'engagement élevés. Action immédiate recommandée.",
                 "priority_high": "HAUTE PRIORITÉ",
-                "title": "Alerte lead chaud"
+                "title": "Alerte lead chaud",
+                "automated_message": "Ceci est une alerte ABM automatisée de votre système CRM.",
+                "alert_triggered": "Alerte déclenchée :"
             },
             "quote_reminder": {
                 "address_questions": "Traiter toute question ou préoccupation",
@@ -1948,7 +1991,8 @@
                 "discuss_timeline": "Discuter du calendrier et des prochaines étapes",
                 "next_steps": "Prochaines étapes",
                 "subject": "Rappel : ton devis de Starz Morocco",
-                "title": "Rappel de devis"
+                "title": "Rappel de devis",
+                "automated_message": "Ceci est un rappel automatisé de votre système CRM."
             }
         },
         "quote_notification": {
@@ -2026,6 +2070,14 @@
             "meeting_link": "Lien de réunion",
             "subject": "Confirmation d'inscription au webinaire",
             "team": "L'équipe %org%"
+        },
+        "verification": {
+            "subject": "Vérifiez votre e-mail",
+            "welcome": "Bienvenue sur %company% ! Veuillez confirmer votre adresse e-mail pour activer votre compte.",
+            "verify_button": "Vérifier l'e-mail",
+            "copy_link": "Si le bouton ne fonctionne pas, copiez ce lien",
+            "expires": "Ce lien expire dans 7 jours.",
+            "arabic_note": "Veuillez confirmer votre adresse e-mail pour activer votre compte. Le lien est valable 7 jours."
         }
     },
     "fab": {
@@ -2768,7 +2820,9 @@
             "title": "Conception pour la fabricabilité",
             "tombstone_pass": "Aucun risque de tombe détecté",
             "tombstone_risk": "Risque de tombe",
-            "warnings": "Avertissements"
+            "warnings": "Avertissements",
+            "no_data": "Aucun résultat DFM n'est disponible pour ce devis. Exécutez l'analyse DFM pour générer les résultats de fabricabilité.",
+            "no_findings": "Aucun problème détecté pour cette catégorie."
         },
         "estimate": {
             "amount": "Montant",
@@ -2992,7 +3046,8 @@
     },
     "playbook": {
         "action": {
-            "select_action": "Sélectionner une action..."
+            "select_action": "Sélectionner une action...",
+            "parameter_placeholder": "Saisir une valeur"
         },
         "actions": "Actions",
         "actions_executed": "Actions exécutées",
@@ -3035,8 +3090,8 @@
         "flash": {
             "created": "Playbook créé avec succès",
             "deleted": "Playbook supprimé avec succès",
-            "invalid_actions": "Configuration d\\u2019actions invalide pour le playbook.",
-            "invalid_rules": "Configuration de r\\u00e8gles invalide pour le playbook.",
+            "invalid_actions": "Configuration d’actions invalide pour le playbook.",
+            "invalid_rules": "Configuration de règles invalide pour le playbook.",
             "updated": "Playbook mis à jour avec succès"
         },
         "inactive": "Inactif",
@@ -3271,7 +3326,8 @@
             "units_to_produce": "Unités à produire",
             "upload_bom": "Téléverser la BOM",
             "upload_spec_intro": "Utilisez le modèle pour partir d’un format propre ou ouvrez la spécification complète avant de préparer des BOM plus volumineuses.",
-            "link": "Lien"
+            "link": "Lien",
+            "review_verify_lines": "Réviser et vérifier les lignes"
         },
         "created_at": "Créé le",
         "currency": "Devise",
@@ -3363,6 +3419,7 @@
             "confirm_approve": "Confirmer l'approbation",
             "confirm_verify_all": "Confirmer la vérification globale",
             "detail": "Détail du devis",
+            "download_pdf": "PDF",
             "enter_manual_price": "Entrer un prix manuel",
             "extended": "Étendu",
             "failed_override": "Échec du dépassement",
@@ -3695,7 +3752,12 @@
             "description": "Cette demande est marquée comme gagnée.",
             "title": "Demande gagnée"
         },
-        "won_label": "Gagn\\u00e9"
+        "won_label": "Gagné",
+        "badges": {
+            "npi": "NPI",
+            "fwa": "FWA",
+            "nda": "NDA"
+        }
     },
     "shortcuts": {
         "add_company": "Ajouter une entreprise",
@@ -3860,7 +3922,7 @@
         "mins": "min",
         "my_day": "Ma journée",
         "my_day_title": "Ma journée - Tâches - CRM",
-        "new": "Nouvelle T\\u00e2che",
+        "new": "Nouvelle Tâche",
         "new_task": "Nouvelle tâche",
         "new_title": "Nouvelle tâche - CRM",
         "no_description": "Aucune description fournie.",
@@ -4031,7 +4093,29 @@
         "url": "URL",
         "stop_discovery": "Arrêter la découverte",
         "stop_discovery_confirm": "Arrêter la découverte en cours ?",
-        "stop_failed": "Échec de l'arrêt : %error%"
+        "stop_failed": "Échec de l'arrêt : %error%",
+        "status_discovery_running": "Découverte en cours",
+        "status_discovery_started": "Découverte démarrée",
+        "status_discovery_already_running": "Découverte déjà en cours",
+        "status_discovery_completed": "Découverte terminée",
+        "status_discovery_complete": "Découverte terminée",
+        "status_discovery_stopped": "Découverte arrêtée",
+        "starting": "Démarrage...",
+        "failed_start_discovery": "Échec du démarrage de la découverte",
+        "status_running_min": "En cours depuis %min% min",
+        "status_finished": "Terminé",
+        "status_complete_summary": "%saved% entreprises enregistrées. Total découvert : %total%.",
+        "review_discovered_companies": "Examiner les entreprises découvertes",
+        "stat_searches": "Recherches",
+        "stat_llm_accept": "Acceptation LLM",
+        "stat_llm_reject": "Rejet LLM",
+        "stat_loc_reject": "Rejet localisation",
+        "stat_saved": "Enregistrées",
+        "stat_log_lines": "Lignes de journal",
+        "stat_total_discovered": "Total découvert",
+        "session_expired": "Session expirée.",
+        "login_again": "connectez-vous à nouveau",
+        "invalid_response": "Le serveur a renvoyé une réponse invalide. Veuillez actualiser la page."
     },
     "webinar": {
         "attendance_rate": "Taux de participation",
@@ -4136,5 +4220,19 @@
         "error_title": "Échec du désabonnement",
         "success": "Vous avez été désabonné avec succès",
         "footer_note": "Si c'était une erreur, vous pouvez vous réabonner depuis les paramètres de votre profil."
-    }
+    },
+    "emails.meeting_confirmation.subject": "Rendez-vous confirmé",
+    "emails.meeting_confirmation.dear": "Bonjour",
+    "emails.meeting_confirmation.body": "Votre rendez-vous a été confirmé avec succès. Voici les détails :",
+    "emails.meeting_confirmation.title": "Rendez-vous",
+    "emails.meeting_confirmation.date": "Date et heure",
+    "emails.meeting_confirmation.location": "Lieu",
+    "emails.meeting_confirmation.link": "Lien de réunion",
+    "emails.meeting_confirmation.footer": "Si vous devez reporter ce rendez-vous, contactez-nous directement. Merci.",
+    "emails.meeting_cancellation.subject": "Rendez-vous annulé",
+    "emails.meeting_cancellation.dear": "Bonjour",
+    "emails.meeting_cancellation.body": "Nous sommes désolés de vous informer que le rendez-vous suivant a été annulé :",
+    "emails.meeting_cancellation.title": "Rendez-vous",
+    "emails.meeting_cancellation.date": "Date et heure",
+    "emails.meeting_cancellation.footer": "Merci de votre compréhension. Nous restons à votre disposition."
 }

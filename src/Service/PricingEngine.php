@@ -49,6 +49,12 @@ class PricingEngine
      */
     private array $priceMemo = [];
 
+    /**
+     * Assumed unit value for unsourced lines in canAutoPublish() — used only
+     * to estimate whether a missing part could represent a high-value gap.
+     */
+    private const UNSOURCED_LINE_ESTIMATED_VALUE = 50.0;
+
     public function __construct(
         private AlibabaApiClient $alibabaClient,
         private MouserApiClient $mouserClient,
@@ -179,67 +185,18 @@ class PricingEngine
             }
         }
         
-        // Last resort: AI-powered price imputation
-        // ─── DISABLED ───────────────────────────────────────────────────
-        // AI imputation inflates BOM totals with unreliable ceiling prices.
-        // All parts must be sourced from live distributor APIs (Alibaba first).
-        // If Alibaba fails, the part should surface as "not found" so the
-        // operator can investigate, rather than silently accepting a 3x-cap guess.
-        // To re-enable, remove the early-return below.
+        // ─── Last resort: AI price imputation — DISABLED ────────────────
+        // AI imputation inflates BOM totals with unreliable ceiling prices,
+        // so it was deliberately disabled: all parts must be sourced from live
+        // distributor APIs (Alibaba first). If all APIs fail, the part surfaces
+        // as "not found" for operator investigation instead of silently
+        // accepting an ML guess. PriceImputationService remains wired for its
+        // batch use; do NOT re-enable this path.
         // ─────────────────────────────────────────────────────────────────
         $this->logger->info('AI imputation SKIPPED (disabled) — returning null', [
             'mpn' => $mpn,
         ]);
-        
-        // Return null so the BOM report shows this part as unsourced.
-        // Previously this block would call $this->priceImputation->imputePrice()
-        // and accept any result with confidence >= 0.5.
-        /*
-        $imputation = $this->priceImputation->imputePrice([
-        /*
-            'mpn' => $mpn,
-            'manufacturer' => $manufacturer ?? '',
-            'description' => $description ?? '',
-            'quantity' => 1,
-        ]);
-        
-        if ($imputation['confidence'] >= 0.5) {
-            $this->logger->info('AI price imputation used', [
-                'mpn' => $mpn,
-                'imputed_price' => $imputation['price'],
-                'confidence' => $imputation['confidence'],
-                'method' => $imputation['method'],
-            ]);
-            
-            return [
-                'mpn' => $mpn,
-                'manufacturer' => $manufacturer,
-                'description' => $description,
-                'pricing' => [
-                    ['quantity' => 1, 'price' => $imputation['price']],
-                ],
-                'stock' => 0,
-                'source' => 'ai_imputation',
-                'confidence' => [
-                    'score' => (int) ($imputation['confidence'] * 100),
-                    'level' => $imputation['confidence'] >= 0.7 ? 'MEDIUM' : 'LOW',
-                    'requiresReview' => true,
-                    'reasons' => ['AI-estimated price based on component category and package'],
-                    'warnings' => ['Price is ML-estimated, not from distributor API'],
-                ],
-                'alternatives' => [],
-                'lifecycle_warning' => null,
-                'search_url' => null,
-                'waterfall_info' => [
-                    'triggered' => true,
-                    'reason' => 'All API sources failed - using ML-based price estimation',
-                    'sources_checked' => ['alibaba', 'mouser', 'digikey', 'nexar', 'ai_imputation'],
-                ],
-                'imputation_factors' => $imputation['factors'],
-            ];
-        }
-        */
-        
+
         $this->logger->warning('No pricing found in any API', ['mpn' => $mpn]);
         
         return null;
@@ -1334,13 +1291,15 @@ class PricingEngine
         // Uses a log-linear learning curve: each doubling of qty reduces price ~15%.
         // Fix H4: Use array_key_last() instead of end() to avoid mutating internal array pointer.
         $highestBreak = $priceBreaks[array_key_last($priceBreaks)];
-        $highestQty = (int)($highestBreak['quantity'] ?? 1);
-        $highestPrice = (float)($highestBreak['price'] ?? 0);
+        // Guard against zero/negative break quantities: a 0-qty tier would otherwise
+        // divide by zero in the log-extrapolation below (PHP 8 throws DivisionByZeroError).
+        $highestQty = max(1, (int) ($highestBreak['quantity'] ?? 1));
+        $highestPrice = (float) ($highestBreak['price'] ?? 0);
         
         if ($quantity > $highestQty * 2 && $highestPrice > 0 && count($priceBreaks) >= 2) {
             // Calculate the learning rate from the existing breaks
             $lowestBreak = reset($priceBreaks);
-            $lowestQty = max(1, (int)($lowestBreak['quantity'] ?? 1));
+            $lowestQty = max(1, (int) ($lowestBreak['quantity'] ?? 1));
             $lowestPrice = (float)($lowestBreak['price'] ?? 0);
             
             if ($lowestPrice > $highestPrice && $highestQty > $lowestQty) {
@@ -1434,6 +1393,11 @@ class PricingEngine
         
         // Normalize for comparison
         $normalizedPrimary = strtoupper(preg_replace('/[\s\-]/', '', $primaryMpn));
+
+        // Strip trailing packaging suffixes (" TR", " T&R", " RL", " CT", " REEL"…)
+        // before matching, so "TAJC107K006RNJ TR" resolves to the base MPN.
+        $remark = preg_replace('/\s+(?:TR|T&R|RL|CT|CS|REEL)\s*$/i', '', $remark);
+
         $normalizedRemark = strtoupper(preg_replace('/[\s\-]/', '', $remark));
         
         // Skip if remark is the same as the primary MPN
@@ -1453,11 +1417,19 @@ class PricingEngine
         
         // Try extracting an MPN-like token from longer remarks
         // e.g., "Use CL10A476MQ8QRNC instead" → "CL10A476MQ8QRNC"
-        if (preg_match('/\b([A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9])\b/i', $remark, $m)) {
-            $candidate = $m[1];
-            $normalizedCandidate = strtoupper(preg_replace('/[\s\-]/', '', $candidate));
-            if ($normalizedCandidate !== $normalizedPrimary) {
-                return $candidate;
+        // Candidates are capped to avoid pathological free-text matches, and each
+        // candidate must contain at least one digit AND one letter (free-text
+        // remarks like "REV 3" or "QTY 1000" are not MPNs).
+        if (preg_match_all('/\b([A-Z0-9][A-Z0-9\-]{4,}[A-Z0-9])\b/i', $remark, $matches)) {
+            $candidates = array_slice($matches[1], 0, 5);
+            foreach ($candidates as $candidate) {
+                if (!preg_match('/[0-9]/', $candidate) || !preg_match('/[A-Za-z]/', $candidate)) {
+                    continue;
+                }
+                $normalizedCandidate = strtoupper(preg_replace('/[\s\-]/', '', $candidate));
+                if ($normalizedCandidate !== $normalizedPrimary) {
+                    return $candidate;
+                }
             }
         }
         
@@ -1537,10 +1509,15 @@ class PricingEngine
             return null;
         }
         
-        usort($priceBreaks, fn($a, $b) => $a['quantity'] <=> $b['quantity']);
+        usort($priceBreaks, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
         
         $currentPrice = $this->calculateUnitPrice($priceBreaks, $quantity);
         $currentCost = $currentPrice * $quantity;
+        
+        // Zero/negative cost (missing price data) — nothing to recommend
+        if ($currentCost <= 0) {
+            return null;
+        }
         
         // Find next price break above current quantity
         $nextBreak = null;
@@ -1634,7 +1611,7 @@ class PricingEngine
             }
 
             if ($currency) {
-                $currency = strtoupper($currency);
+                $currency = strtoupper((string) $currency);
                 $counts[$currency] = ($counts[$currency] ?? 0) + 1;
             }
         }
@@ -1652,7 +1629,7 @@ class PricingEngine
     {
         foreach ($priceBreaks as $break) {
             if (!empty($break['currency'])) {
-                return strtoupper($break['currency']);
+                return strtoupper((string) $break['currency']);
             }
         }
 
@@ -1673,16 +1650,15 @@ class PricingEngine
         
         // Check for high-value unsourced parts
         foreach ($processedLines as $line) {
-            if ($line['status'] !== 'sourced') {
-                $estimatedValue = 50; // Assume $50 if no price
+            if (($line['status'] ?? '') !== 'sourced') {
+                $estimatedValue = self::UNSOURCED_LINE_ESTIMATED_VALUE; // Assume $50 if no price
                 
-                if ($estimatedValue * $line['quantity'] > 1000) {
+                if ($estimatedValue * (int) ($line['quantity'] ?? 1) > 1000) {
                     $checks['high_value_sourced'] = false;
                     break;
                 }
             }
         }
-        
         // Check lead times
         foreach ($processedLines as $line) {
             if (isset($line['leadtime_days']) && $line['leadtime_days'] > 84) { // 12 weeks

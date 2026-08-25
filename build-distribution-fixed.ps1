@@ -86,34 +86,26 @@ if (Test-Path $distIgnorePath) {
 }
 Write-Host ""
 
-# Create .env.example from .env
+# Create .env.example from the tracked template (placeholders only).
+# NEVER copy the real .env into the distribution — it contains live secrets
+# (APP_SECRET, GOOGLE_API_KEY, NEXAR_*, MOUSER_API_KEY, DIGIKEY_*, ...).
 Write-Host "[4/6] Creating .env.example..."
 $envPath = Join-Path $tempDir ".env"
+$envExampleSource = Join-Path $projectRoot ".env.example"
 $envExamplePath = Join-Path $tempDir ".env.example"
 
-if (Test-Path $envPath) {
-    # Read .env and remove sensitive values
-    $envContent = Get-Content $envPath
-    $envExample = @()
-    $dbUrl = 'DATABASE_URL="mysql://crm_user:PASSWORD@localhost:3306/starz_crm?serverVersion=8.0&charset=utf8mb4"'
-
-    foreach ($line in $envContent) {
-        if ($line -match '^APP_SECRET=') {
-            $envExample += 'APP_SECRET=CHANGE_ME_ON_PRODUCTION'
-        } elseif ($line -match '^DATABASE_URL=') {
-            $envExample += $dbUrl
-        } elseif ($line -match '^MAILER_DSN=') {
-            $envExample += 'MAILER_DSN=smtp://username:password@smtp.example.com:587'
-        } else {
-            $envExample += $line
-        }
-    }
-
-    $envExample | Set-Content -Path $envExamplePath
-    Remove-Item -Path $envPath -Force
-    Write-Host "OK - Created .env.example (removed .env)"
+if (Test-Path $envExampleSource) {
+    Copy-Item -Path $envExampleSource -Destination $envExamplePath -Force
+    Write-Host "OK - Copied tracked .env.example (placeholders only)"
 } else {
-    Write-Host "WARNING - .env file not found"
+    Write-Host "WARNING - .env.example not found in project root"
+}
+
+if (Test-Path $envPath) {
+    Remove-Item -Path $envPath -Force
+    Write-Host "OK - Removed .env from distribution (contains real secrets)"
+} else {
+    Write-Host "OK - No .env file present"
 }
 Write-Host ""
 
@@ -188,10 +180,9 @@ SYSTEM REQUIREMENTS
 ================================================================================
 
 - PHP 8.2 or higher
-- MySQL 8.0+ or PostgreSQL 13+
+- MySQL 8.0+ (the application targets MySQL)
 - Apache 2.4+ with mod_rewrite OR Nginx 1.18+
 - Composer (latest)
-- Node.js 16+ (for building frontend assets)
 - 4GB RAM minimum (8GB recommended)
 - 20GB disk space minimum
 
@@ -202,7 +193,7 @@ PHP Extensions Required:
 WHAT'S INCLUDED IN THIS PACKAGE
 ================================================================================
 
-✓ Complete Symfony 7.x application source code
+✓ Complete Symfony 7.4 application source code
 ✓ Configuration files (optimized for production)
 ✓ Comprehensive documentation (65+ files, ~180 pages)
 ✓ Database schema and migrations
@@ -212,12 +203,12 @@ WHAT'S INCLUDED IN THIS PACKAGE
 
 NOT INCLUDED (Install separately on production):
 ✗ PHP dependencies (vendor/) - Run: composer install
-✗ Node.js dependencies (node_modules/) - Run: npm install
-✗ Compiled frontend assets (public/build/) - Run: npm run build
 ✗ Development tools
 ✗ Test data
 ✗ IDE configuration
 ✗ Git repository
+
+NOTE: No frontend build step is required — Encore/Webpack/Tailwind were removed from the stack; Twig templates render directly.
 
 ================================================================================
 DEPLOYMENT STEPS
@@ -225,12 +216,11 @@ DEPLOYMENT STEPS
 
 1. Read Documentation/07-Deployment-Operations/PRODUCTION_DEPLOYMENT_GUIDE.md
 2. Install Composer dependencies
-3. Install Node.js dependencies and build assets
-4. Configure .env.local
-5. Set up database
-6. Configure web server
-7. Test deployment
-8. Follow complete checklist in deployment guide
+3. Configure .env.local
+4. Set up database
+5. Configure web server
+6. Test deployment
+7. Follow complete checklist in deployment guide
 
 ================================================================================
 ESTIMATED DEPLOYMENT TIME
@@ -247,7 +237,7 @@ Application Version: 1.0
 Release Date: October 2025
 Status: Production-Ready
 PHP Version Required: 8.2+
-Framework: Symfony 7.x
+Framework: Symfony 7.4.15
 
 ================================================================================
 END OF INSTALLATION GUIDE
@@ -304,11 +294,11 @@ Write-Host "  [+] .env.example (environment template)"
 Write-Host ""
 Write-Host "NOT Included (install on production):"
 Write-Host "  [-] vendor/ (run: composer install)"
-Write-Host "  [-] node_modules/ (run: npm install)"
-Write-Host "  [-] public/build/ (run: npm run build)"
 Write-Host "  [-] Development tools"
 Write-Host "  [-] Cache and log files"
+Write-Host "  [-] Real .env (secrets stay local; .env.example ships with placeholders)"
 Write-Host ""
+Write-Host "Note: No frontend build step exists (Encore/Webpack/Tailwind removed 2026)."
 Write-Host "Next Steps for Sysadmin:"
 Write-Host "  1. Transfer $zipFileName to production server"
 Write-Host "  2. Extract to /var/www/crm-starz-morocco"

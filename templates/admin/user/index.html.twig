@@ -39,9 +39,14 @@
                     <select id="role" name="role" class="rams-form__select">
                         <option value="">{{ 'administration.users.all_roles'|trans }}</option>
                         <option value="ROLE_ADMIN" {% if app.request.query.get('role') == 'ROLE_ADMIN' %}selected{% endif %}>{{ 'administration.users.roles.admin'|trans }}</option>
+                        <option value="ROLE_SALES_OPS" {% if app.request.query.get('role') == 'ROLE_SALES_OPS' %}selected{% endif %}>{{ 'administration.users.roles.sales_ops'|trans }}</option>
+                        <option value="ROLE_DIGITAL_REP" {% if app.request.query.get('role') == 'ROLE_DIGITAL_REP' %}selected{% endif %}>{{ 'administration.users.roles.digital_rep'|trans }}</option>
+                        <option value="ROLE_FIELD_REP" {% if app.request.query.get('role') == 'ROLE_FIELD_REP' %}selected{% endif %}>{{ 'administration.users.roles.field_rep'|trans }}</option>
+                        <option value="ROLE_MANAGER" {% if app.request.query.get('role') == 'ROLE_MANAGER' %}selected{% endif %}>{{ 'administration.users.roles.manager'|trans }}</option>
+                        <option value="ROLE_SALES" {% if app.request.query.get('role') == 'ROLE_SALES' %}selected{% endif %}>{{ 'administration.users.roles.sales'|trans }}</option>
                         <option value="ROLE_ENGINEERING" {% if app.request.query.get('role') == 'ROLE_ENGINEERING' %}selected{% endif %}>{{ 'administration.users.roles.engineering'|trans }}</option>
                         <option value="ROLE_USER" {% if app.request.query.get('role') == 'ROLE_USER' %}selected{% endif %}>{{ 'administration.users.roles.user'|trans }}</option>
-                        <option value="ROLE_SALES" {% if app.request.query.get('role') == 'ROLE_SALES' %}selected{% endif %}>{{ 'administration.users.roles.sales'|trans }}</option>
+                        <option value="ROLE_VIEWER" {% if app.request.query.get('role') == 'ROLE_VIEWER' %}selected{% endif %}>{{ 'administration.users.roles.viewer'|trans }}</option>
                     </select>
                 </div>
                 
@@ -98,9 +103,11 @@
                                 </div>
                             </td>
                             <td class="rams-table__cell">
+                                {% set userIsActive = user.isActive() %}
+                                {% set userStatusKey = userIsActive ? 'administration.users.active' : 'administration.users.inactive' %}
                                 <div class="rams-andon">
-                                    <span class="rams-andon__light rams-andon__light--{{ user.isActive() ? 'green' : '' }}"></span>
-                                    <span class="rams-andon__text">{{ (user.isActive() ? 'administration.users.active' : 'administration.users.inactive')|trans }}</span>
+                                    <span class="rams-andon__light rams-andon__light--{{ userIsActive ? 'green' : '' }}"></span>
+                                    <span class="rams-andon__text">{{ userStatusKey|trans }}</span>
                                 </div>
                             </td>
                             <td class="rams-table__cell rams-table__cell--actions">
@@ -120,7 +127,7 @@
                         <tr>
                             <td colspan="5" class="rams-table__cell">
                                 <div class="rams-empty-state">
-                                    <h3 class="rams-empty-state__title">{{ 'administration.users.no_users'|trans }}</h3>
+                                    <h2 class="rams-empty-state__title">{{ 'administration.users.no_users'|trans }}</h2>
                                     <a href="{{ path('admin_user_new') }}" class="rams-link">{{ 'administration.users.create_first'|trans }}</a>
                                 </div>
                             </td>

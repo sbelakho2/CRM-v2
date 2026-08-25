@@ -52,6 +52,7 @@ class ReportAuditRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('r')
             ->where('r.sha256Hash = :hash')
             ->setParameter('hash', $sha256Hash)
+            ->orderBy('r.id', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

@@ -31,15 +31,15 @@
 
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3>{{ entityType|title }}{{ 'custom_field.info_suffix'|trans }}</h3>
+                <h2>{{ entityType|title }}{{ 'custom_field.info_suffix'|trans }}</h2>
             </div>
             <div class="rams-module__content">
                 {% if groupedFields|length > 0 %}
                     {% for groupName, fields in groupedFields %}
                          <div class="rams-mb-6 last:rams-mb-0">
-                            <h4 class="rams-text--sm rams-text--bold rams-uppercase rams-text--muted rams-mb-4 rams-pb-sm rams-border-b rams-border">
+                            <h3 class="rams-text--sm rams-text--bold rams-uppercase rams-text--muted rams-mb-4 rams-pb-sm rams-border-b rams-border">
                                 {{ groupName }}
-                            </h4>
+                            </h3>
                             <div class="rams-grid--2">
                                 {% for field in fields %}
                                     <div class="rams-form__group">

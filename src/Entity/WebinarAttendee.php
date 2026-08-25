@@ -7,6 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: WebinarAttendeeRepository::class)]
 #[ORM\Table(name: 'webinar_attendees')]
+#[ORM\UniqueConstraint(name: 'uniq_webinar_email', columns: ['webinar_id', 'email'])]
 #[ORM\HasLifecycleCallbacks]
 class WebinarAttendee
 {

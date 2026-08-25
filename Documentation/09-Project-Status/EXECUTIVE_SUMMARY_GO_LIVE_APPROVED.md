@@ -70,7 +70,7 @@ No Sev-1 or Sev-2 defects remain open. Minor UI polish tickets logged for post-r
 ## 6. Deployment Prerequisites
 
 1. ✅ Follow `07-Deployment-Operations/DEPLOYMENT_CHECKLIST.md` (v2.0) for environment prep
-2. ✅ Ensure `release/v1.0.0` tag is created and matches staging build
+2. ✅ Deploy from `main` (no `release/v1.0.0` tag exists — repo is untagged)
 3. ⚠️ Confirm Nexar/Mouser/Digi-Key credentials stored in production secrets (SecOps)
 4. ✅ Schedule maintenance window notice using template in `09-Project-Status/PROJECT_STATUS_DASHBOARD.md`
 5. ✅ Confirm monitoring dashboards (Notifications throughput, Quote latency) are live

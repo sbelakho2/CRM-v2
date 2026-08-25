@@ -21,6 +21,8 @@ use Symfony\Component\Form\Extension\Core\Type\TimeType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class TaskType extends AbstractType
@@ -195,6 +197,21 @@ class TaskType extends AbstractType
                     'placeholder' => 'urgent, client-facing, follow-up',
                 ],
             ]);
+
+        $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event): void {
+            $task = $event->getData();
+            if (!$task instanceof Task) {
+                return;
+            }
+
+            $tagsString = $event->getForm()->get('tags')->getData();
+            if (is_string($tagsString) && trim($tagsString) !== '') {
+                $tags = array_values(array_filter(array_map('trim', explode(',', $tagsString)), static fn (string $tag): bool => $tag !== ''));
+                $task->setTags($tags);
+            } else {
+                $task->setTags(null);
+            }
+        });
     }
 
     public function configureOptions(OptionsResolver $resolver): void

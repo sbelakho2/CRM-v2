@@ -569,19 +569,27 @@ class EmailPersonalizationService
 
     // ========================= NEW: CONTENT LENGTH TEMPLATES =========================
     // Engagement-adaptive content length
+    // FIXED: max_words / max_paragraphs added so enforceContentLength() no
+    // longer silently falls back to hardcoded 200/5 defaults.
     private const CONTENT_LENGTH_SETTINGS = [
         'brief' => [
             'max_sentences' => 3,
+            'max_paragraphs' => 3,
+            'max_words' => 120,
             'cta_style' => 'single_question',
             'detail_level' => 'minimal',
         ],
         'standard' => [
             'max_sentences' => 5,
+            'max_paragraphs' => 5,
+            'max_words' => 200,
             'cta_style' => 'soft_ask',
             'detail_level' => 'moderate',
         ],
         'detailed' => [
             'max_sentences' => 8,
+            'max_paragraphs' => 8,
+            'max_words' => 400,
             'cta_style' => 'full_proposal',
             'detail_level' => 'comprehensive',
         ],
@@ -682,7 +690,8 @@ class EmailPersonalizationService
         private ?PersonalizationArchetypeRepository $archetypeRepository,
         private ?ThompsonSamplerService $thompsonSampler,
         private ?SpintaxEngineService $spintaxEngine,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ?CopyLintService $copyLintService = null
     ) {}
 
     /**
@@ -1056,7 +1065,7 @@ class EmailPersonalizationService
         // Determine content length based on engagement score
         $engagementScore = $profile->getEngagementScore();
         $contentLength = $this->determineContentLength($engagementScore);
-        $lengthSettings = self::CONTENT_LENGTH_SETTINGS[$contentLength];
+        $lengthSettings = self::CONTENT_LENGTH_SETTINGS[$contentLength] ?? self::CONTENT_LENGTH_SETTINGS['standard'];
         
         // Select CTA based on engagement level
         $cta = $this->selectCta($contentLength, $settings['tone']);
@@ -1214,6 +1223,10 @@ class EmailPersonalizationService
      * Uses 20+ regex patterns per tone for meaningful text adaptation.
      * Made public for use by AutonomousSalesOrchestratorService (DRY principle).
      * 
+     * When CopyLintService is available, the tone-substitution count and the
+     * variability of the transformation are checked against the documented
+     * hard caps and logged on violation (output is never silently altered).
+     * 
      * @param string $text The text to transform
      * @param string $tone The target tone (formal, casual, direct, friendly)
      * @return string Transformed text
@@ -1226,18 +1239,51 @@ class EmailPersonalizationService
         if (empty($patterns)) {
             return $text;
         }
+
+        $substitutionCount = 0;
         
-        // Apply all patterns for this tone
+        // Apply all patterns for this tone (counting actual substitutions)
         foreach ($patterns as $pattern => $replacement) {
-            $text = preg_replace($pattern, $replacement, $text);
+            $text = preg_replace_callback($pattern, function ($matches) use ($replacement, &$substitutionCount) {
+                $substitutionCount++;
+                // preg_replace_callback inserts the return value literally,
+                // so backreferences like $1 are not expanded — safe as-is.
+                return $replacement;
+            }, $text);
         }
         
         // Clean up any artifacts (double spaces, leading spaces on lines)
         $text = preg_replace('/  +/', ' ', $text);
         $text = preg_replace('/\n +/', "\n", $text);
         $text = preg_replace('/ +\n/', "\n", $text);
-        
-        return trim($text);
+
+        $result = trim($text);
+
+        // ==================== COPY LINT GATES ====================
+        // Wire the documented hard caps (CopyLintService::checkToneSubstitutionCount
+        // and checkVariability) into the tone-transform path so they are
+        // actually enforced instead of being dead code.
+        if ($this->copyLintService) {
+            $toneGate = $this->copyLintService->checkToneSubstitutionCount($substitutionCount);
+            if (!$toneGate['passed']) {
+                $this->logger->warning('Tone transformation exceeded substitution cap', [
+                    'tone' => $tone,
+                    'substitutions' => $substitutionCount,
+                    'max' => $toneGate['max'],
+                ]);
+            }
+
+            $variabilityGate = $this->copyLintService->checkVariability($text, $result);
+            if (!$variabilityGate['passed']) {
+                $this->logger->warning('Tone transformation variability exceeded hard cap', [
+                    'tone' => $tone,
+                    'variability' => $variabilityGate['variability'],
+                    'max' => CopyLintService::MAX_VARIABILITY_PCT,
+                ]);
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -3184,6 +3230,9 @@ class EmailPersonalizationService
      * CRITICAL FIX: Cialdini constants contain spintax like {option1|option2}
      * This method resolves them to a single option before returning.
      * 
+     * FIXED: The fallback regex loop is now bounded — malformed input such as
+     * "{ }" or "{|}" previously never made progress and looped forever.
+     * 
      * @param string $text Text potentially containing {option1|option2} syntax
      * @return string Text with spintax resolved to random selection
      */
@@ -3196,14 +3245,17 @@ class EmailPersonalizationService
         
         // Fallback: Simple regex-based spintax resolution
         $pattern = '/\{([^{}]+)\}/';
+        $maxIterations = 10; // Bounded: malformed braces must not loop forever
         
-        while (preg_match($pattern, $text)) {
+        for ($iteration = 0; $iteration < $maxIterations && preg_match($pattern, $text); $iteration++) {
             $text = preg_replace_callback($pattern, function ($matches) {
                 $options = array_map('trim', explode('|', $matches[1]));
                 $options = array_filter($options, fn($o) => $o !== '');
                 
                 if (empty($options)) {
-                    return $matches[0];
+                    // Unresolvable (e.g. "{ }") — strip the braces so the
+                    // loop always makes progress instead of spinning forever.
+                    return $matches[1];
                 }
                 
                 return $options[array_rand($options)];

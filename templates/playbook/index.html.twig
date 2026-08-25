@@ -53,6 +53,8 @@
                                 onclick="togglePlaybook({{ playbook.id }})" 
                                 class="rams-toggle-btn {% if playbook.isActive %}rams-toggle-btn--active{% else %}rams-toggle-btn--inactive{% endif %}"
                                 data-playbook-id="{{ playbook.id }}"
+                                data-csrf="{{ csrf_token('playbook_toggle_' ~ playbook.id) }}"
+                                aria-expanded="{% if playbook.isActive %}true{% else %}false{% endif %}"
                             >
                                 <span class="rams-status-text">{% if playbook.isActive %}{{ 'playbook.active'|trans }}{% else %}{{ 'playbook.inactive'|trans }}{% endif %}</span>
                             </button>
@@ -148,11 +150,12 @@ async function togglePlaybook(id) {
     const statusText = btn.querySelector('.rams-status-text');
     
     try {
-        const response = await fetch(`/playbooks/${id}/toggle`, {
+        const response = await fetch('{{ path('app_playbook_toggle', {id: 0}) }}'.replace('/0', '/' + id), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ _csrf_token: btn.dataset.csrf })
         });
         
         const data = await response.json();

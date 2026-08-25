@@ -91,6 +91,8 @@ class LeadRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('l')
             ->where('l.websiteRoot = :website')
             ->setParameter('website', $websiteRoot)
+            ->orderBy('l.leadScore', 'DESC')
+            ->addOrderBy('l.id', 'ASC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

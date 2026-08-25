@@ -35,7 +35,7 @@ class IpMap
     private ?string $country = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
-    private ?string $firmographicData = null; // JSON with industry, size, etc.
+    private ?array $firmographicData = null; // JSON with industry, size, etc.
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $asof = null;
@@ -114,12 +114,12 @@ class IpMap
         return $this;
     }
 
-    public function getFirmographicData(): ?string
+    public function getFirmographicData(): ?array
     {
         return $this->firmographicData;
     }
 
-    public function setFirmographicData(?string $firmographicData): self
+    public function setFirmographicData(?array $firmographicData): self
     {
         $this->firmographicData = $firmographicData;
         return $this;

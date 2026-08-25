@@ -1,1 +1,2 @@
 Part Number,Description,Quantity,Manufacturer,Reference Designators,Package,Supplier,Supplier Part Number,Stock Quantity,Unit Price,Remark
+STM32F407VGT6,ARM Cortex-M4 Microcontroller,1,STMicroelectronics,U1,LQFP-100,Digi-Key,STM32F407VGT6-ND,250,12.4500,Alternative: STM32F407VET6

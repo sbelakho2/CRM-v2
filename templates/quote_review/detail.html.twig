@@ -87,7 +87,7 @@
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M8 12V2M4 6L8 2L12 6"/>
                 </svg>
-                PDF
+                {{ 'quote.review.download_pdf'|trans }}
             </a>
             <a href="{{ path('quote_copilot_full_excel', {id: quote.id}) }}" class="rams-btn rams-uppercase rams-btn--accent-outline">
                 <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -239,15 +239,15 @@
                                     
                                     {% if line.alternativeParts|default([])|length > 0 %}
                                         <div class="rams-alternatives-dropdown rams-mt-1">
-                                            <span class="rams-font-mono rams-text--3xs rams-uppercase rams-link rams-text--muted"  >
+                                            <span class="rams-font-mono rams-text--3xs rams-uppercase rams-link rams-text--muted" role="button" tabindex="0" aria-expanded="false" aria-controls="alt-menu-{{ line.id }}" onclick="toggleAltMenu(this, {{ line.id }})" onkeydown="altMenuKeydown(event, this, {{ line.id }})">
                                                 +{{ line.alternativeParts|length }} {{ 'quote.review.alternatives'|trans }} ▾
                                             </span>
-                                            <div class="rams-alternatives-menu">
+                                            <div class="rams-alternatives-menu" id="alt-menu-{{ line.id }}">
                                                 <div class="rams-px-md rams-py-sm rams-border-b rams-bg-panel">
                                                     <span class="rams-font-mono rams-text--2xs rams-text--bold rams-uppercase rams-text--muted">{{      'quote.review.alternative_parts'|trans }}</span>
                                                 </div>
                                                 {% for alt in line.alternativeParts %}
-                                                    <div class="rams-alt-item" onclick="selectAlternative({{ line.id }}, '{{ alt.mpn|e('js') }}', '{{ (alt.source ?? 'mouser')|e('js') }}')">
+                                                    <div class="rams-alt-item" role="button" tabindex="0" onclick="selectAlternative({{ line.id }}, '{{ alt.mpn|e('js') }}', '{{ (alt.source ?? 'mouser')|e('js') }}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectAlternative({{ line.id }}, '{{ alt.mpn|e('js') }}', '{{ (alt.source ?? 'mouser')|e('js') }}'); }">
                                                         <div class="rams-flex rams-justify-between rams-items-center">
                                                             <div>
                                                                 <span class="rams-font-mono rams-text--xs rams-text--bold">{{    alt.mpn }}</span>
@@ -358,10 +358,10 @@
 
 {# Price Override Modal #}
 <div id="override-modal" class="rams-modal rams-modal--hidden" role="dialog" aria-modal="true" aria-labelledby="override-modal-title">
-    <div class="rams-modal__backdrop" onclick="closeOverrideModal()"></div>
+    <div class="rams-modal__backdrop" role="button" tabindex="0" aria-label="{{ 'common.close'|trans }}" onclick="closeOverrideModal()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); closeOverrideModal(); }"></div>
     <div class="rams-modal__content">
         <div class="rams-modal__header">
-            <h3 id="override-modal-title" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'quote.review.manual_price_override'|trans }}</h3>
+            <h2 id="override-modal-title" class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'quote.review.manual_price_override'|trans }}</h2>
         </div>
         <div class="rams-modal__body">
             <form id="override-form" class="rams-form">
@@ -400,7 +400,16 @@
 <script>
 const quoteId = {{ quote.id }};
 
-const csrfToken = '{{ csrf_token('quote_review') }}'; function computeCharDiff(original, matched) {
+const csrfToken = '{{ csrf_token('quote_review') }}'; 
+const verifyLineUrl = '{{ path('quote_review_verify_line', {id: 0}) }}';
+const rejectLineUrl = '{{ path('quote_review_reject_line', {id: 0}) }}';
+const repriceLineUrl = '{{ path('quote_review_reprice_line', {id: 0}) }}';
+const overrideLineUrl = '{{ path('quote_review_override_line', {id: 0}) }}';
+const selectAlternativeUrl = '{{ path('quote_review_select_alternative', {id: 0}) }}';
+const verifyAllHighUrl = '{{ path('quote_review_verify_all_high', {id: 0}) }}';
+const approveQuoteUrl = '{{ path('quote_review_approve', {id: 0}) }}';
+
+function computeCharDiff(original, matched) {
     if (!original || !matched) return escapeHtml(matched || '');
     const origNorm = original.toUpperCase().replace(/[\s\-]/g, '');
     const matchNorm = matched.toUpperCase().replace(/[\s\-]/g, '');
@@ -436,17 +445,9 @@ function initDiffViews() {
 
 document.addEventListener('DOMContentLoaded', initDiffViews);
 
-function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `rams-toast rams-toast--${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
 async function verifyLine(lineId) {
     try {
-        const response = await fetch(`/quote-review/line/${lineId}/verify`, {
+        const response = await fetch(verifyLineUrl.replace('/0', '/' + lineId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  }
         });
@@ -470,7 +471,7 @@ async function rejectLine(lineId) {
 
 async function doRejectLine(lineId, reason) {
     try {
-        const response = await fetch(`/quote-review/line/${lineId}/reject`, {
+        const response = await fetch(rejectLineUrl.replace('/0', '/' + lineId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  },
             body: JSON.stringify({ reason })
@@ -489,7 +490,7 @@ async function doRejectLine(lineId, reason) {
 
 async function repriceLine(lineId) {
     try {
-        const response = await fetch(`/quote-review/line/${lineId}/reprice`, {
+        const response = await fetch(repriceLineUrl.replace('/0', '/' + lineId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  }
         });
@@ -518,6 +519,37 @@ function closeOverrideModal() {
     document.getElementById('override-modal').classList.add('rams-modal--hidden');
 }
 
+function toggleAltMenu(trigger, lineId) {
+    const menu = document.getElementById('alt-menu-' + lineId);
+    if (!menu) return;
+    const isOpen = menu.style.display === 'block';
+    document.querySelectorAll('.rams-alternatives-menu').forEach(m => { m.style.display = 'none'; });
+    document.querySelectorAll('[aria-controls^="alt-menu-"]').forEach(t => t.setAttribute('aria-expanded', 'false'));
+    if (!isOpen) {
+        menu.style.display = 'block';
+        trigger.setAttribute('aria-expanded', 'true');
+    }
+}
+
+function altMenuKeydown(event, trigger, lineId) {
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleAltMenu(trigger, lineId);
+    } else if (event.key === 'Escape') {
+        const menu = document.getElementById('alt-menu-' + lineId);
+        if (menu) menu.style.display = 'none';
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.focus();
+    }
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.rams-alternatives-dropdown')) {
+        document.querySelectorAll('.rams-alternatives-menu').forEach(m => { m.style.display = 'none'; });
+        document.querySelectorAll('[aria-controls^="alt-menu-"]').forEach(t => t.setAttribute('aria-expanded', 'false'));
+    }
+});
+
 document.getElementById('override-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const lineId = document.getElementById('override-line-id').value;
@@ -526,7 +558,7 @@ document.getElementById('override-form').addEventListener('submit', async (e) =>
     const sourceUrl = document.getElementById('override-source-url').value;
     
     try {
-        const response = await fetch(`/quote-review/line/${lineId}/override`, {
+        const response = await fetch(overrideLineUrl.replace('/0', '/' + lineId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  },
             body: JSON.stringify({ unit_price: price, notes, source_url: sourceUrl })
@@ -547,7 +579,7 @@ document.getElementById('override-form').addEventListener('submit', async (e) =>
 document.getElementById('verify-all-high-btn').addEventListener('click', async () => {
     ramsConfirm('{{ 'quote.review.confirm_verify_all'|trans }}', async function() {
         try {
-            const response = await fetch(`/quote-review/${quoteId}/verify-all-high`, {
+            const response = await fetch(verifyAllHighUrl.replace('/0', '/' + quoteId), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  }
             });
@@ -567,7 +599,7 @@ document.getElementById('verify-all-high-btn').addEventListener('click', async (
 document.getElementById('approve-quote-btn').addEventListener('click', async () => {
     ramsConfirm('{{ 'quote.review.confirm_approve'|trans }}', async function() {
         try {
-            const response = await fetch(`/quote-review/${quoteId}/approve`, {
+            const response = await fetch(approveQuoteUrl.replace('/0', '/' + quoteId), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  }
             });
@@ -591,7 +623,7 @@ async function selectAlternative(lineId, altMpn, source) {
     const message = `{{ 'quote.review.switch_alternative'|trans }}\n\n{{ 'quote.review.new_mpn'|trans }}: ${altMpn}\n{{ 'common.source'|trans }}: ${source}`;
     ramsConfirm(message, async function() {
         try {
-            const response = await fetch(`/quote-review/line/${lineId}/select-alternative`, {
+            const response = await fetch(selectAlternativeUrl.replace('/0', '/' + lineId), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken  },
                 body: JSON.stringify({ mpn: altMpn, source: source })

@@ -238,10 +238,20 @@ class PartMatchConfidenceCalculator
         
         // Check aliases
         foreach ($aliases as $key => $variants) {
-            $requestedMatch = in_array($normalizedRequested, $variants) || 
-                              str_contains($normalizedRequested, $key);
-            $returnedMatch = in_array($normalizedReturned, $variants) ||
-                             str_contains($normalizedReturned, $key);
+            $requestedMatch = in_array($normalizedRequested, $variants, true);
+            $returnedMatch = in_array($normalizedReturned, $variants, true);
+            
+            // 2-char keys ('on', 'st', 'ti') are only matched as exact variants
+            // — substring matching them would false-positive on any word that
+            // merely CONTAINS them (e.g. 'on' inside "Analog Devices").
+            if (strlen($key) >= 3) {
+                if (!$requestedMatch && $this->matchesManufacturerToken($normalizedRequested, $key)) {
+                    $requestedMatch = true;
+                }
+                if (!$returnedMatch && $this->matchesManufacturerToken($normalizedReturned, $key)) {
+                    $returnedMatch = true;
+                }
+            }
             
             if ($requestedMatch && $returnedMatch) {
                 return ['points' => 23, 'reasons' => ['Manufacturer alias match']];
@@ -261,6 +271,21 @@ class PartMatchConfidenceCalculator
         }
         
         return ['points' => 0, 'reasons' => ['Manufacturer mismatch: ' . $requested . ' vs ' . $returned]];
+    }
+
+    /**
+     * Token-boundary manufacturer alias match.
+     *
+     * Matches the alias key as a whole word or as a word prefix (e.g.
+     * 'microchip' inside "microchip technology"), never as a bare substring —
+     * so keys like 'avx' can't match "avx" inside a longer unrelated word.
+     */
+    private function matchesManufacturerToken(string $normalized, string $key): bool
+    {
+        $quoted = preg_quote($key, '/');
+        
+        return preg_match('/(?:^|[\s,.\-])' . $quoted . '(?:$|[\s,.\-])/', $normalized) === 1
+            || preg_match('/^' . $quoted . '[\s,.\-]/', $normalized) === 1;
     }
     
     /**

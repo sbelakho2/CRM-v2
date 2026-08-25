@@ -111,17 +111,33 @@ class LeadNurturingService
             'scores_updated' => 0,
         ];
         
-        // Get all leads that are not converted, lost, or already in CRM
-        $leads = $this->leadRepository->findBy([
-            'alreadyInCrm' => false,
-            'reviewStatus' => 'approved',
-        ]);
+        // Process in bounded batches to keep memory and query volume in check.
+        $batchSize = 100;
+        $offset = 0;
         
-        foreach ($leads as $lead) {
-            $this->processLead($lead, $summary);
+        while (true) {
+            $leads = $this->leadRepository->findBy(
+                [
+                    'alreadyInCrm' => false,
+                    'reviewStatus' => 'approved',
+                ],
+                ['id' => 'ASC'],
+                $batchSize,
+                $offset
+            );
+            
+            if (empty($leads)) {
+                break;
+            }
+            
+            foreach ($leads as $lead) {
+                $this->processLead($lead, $summary);
+            }
+            
+            $this->entityManager->flush();
+            $this->entityManager->clear();
+            $offset += $batchSize;
         }
-        
-        $this->entityManager->flush();
         
         $this->logger->info('Lead nurturing complete', $summary);
         
@@ -475,17 +491,25 @@ class LeadNurturingService
     {
         $actions = [];
         
-        // Reset to contacted stage
-        $score = $this->calculateEngagementScore($lead);
+        $wasDormant = $lead->getNurturingStage() === self::STAGE_DORMANT
+            || $this->determineNurturingStage($lead) === self::STAGE_DORMANT;
+        
+        // Reset to contacted stage when the lead was dormant
+        if ($wasDormant) {
+            $lead->setNurturingStage(self::STAGE_CONTACTED);
+            $actions[] = sprintf('Stage reset from dormant to %s', self::STAGE_CONTACTED);
+        } else {
+            $actions[] = 'Lead reactivated';
+        }
         
         // Boost score slightly for reactivation
+        $score = $this->calculateEngagementScore($lead);
         $newScore = min(100, $score + 5);
         $lead->setLeadScore($newScore);
         $lead->setUpdatedAt(new \DateTime());
         
         $this->entityManager->flush();
         
-        $actions[] = 'Lead reactivated';
         $actions[] = sprintf('Score adjusted to %d', $newScore);
         
         return $actions;

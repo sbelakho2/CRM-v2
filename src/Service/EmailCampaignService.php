@@ -26,7 +26,8 @@ class EmailCampaignService
         private MailerInterface $mailer,
         private UrlGeneratorInterface $urlGenerator,
         private EmailTrackingSigner $trackingSigner,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ?EmailConsentService $consentService = null
     ) {}
 
     /**
@@ -48,32 +49,62 @@ class EmailCampaignService
 
     /**
      * Send email to contact as part of campaign
+     *
+     * Persists a 'queued' EmailSend first, transitions to 'sending' before the
+     * mailer call, and only marks the send 'sent' after the mailer succeeds.
+     * On failure the send is marked 'failed' and false is returned.
      */
-    public function sendToContact(EmailCampaign $campaign, Contact $contact, int $touchNumber): EmailSend
+    public function sendToContact(EmailCampaign $campaign, Contact $contact, int $touchNumber): bool
     {
-        // Create send record
+        // Create send record in 'queued' state — reflects reality until the
+        // mailer actually accepts the message.
         $send = new EmailSend();
         $send->setCampaign($campaign);
         $send->setContact($contact);
         $send->setTouchNumber($touchNumber);
-        $send->setSentAt(new \DateTime());
         $send->setEmailAddress($contact->getEmail());
-        $send->setStatus('sent');
+        $send->setStatus(EmailSend::STATUS_QUEUED);
 
         $this->entityManager->persist($send);
         $this->entityManager->flush();
 
-        // Send actual email with tracking
-        $this->sendEmail($campaign, $contact, $touchNumber, $send);
+        try {
+            // Send actual email with tracking
+            $this->sendEmail($campaign, $contact, $touchNumber, $send);
+        } catch (\Throwable $e) {
+            // sendEmail already persisted the 'failed' state; log here and
+            // report the failure to the caller.
+            $this->logger->error('Failed to send campaign email', [
+                'email_send_id' => $send->getId(),
+                'campaign_id' => $campaign->getId(),
+                'contact_email' => $contact->getEmail(),
+                'error' => $e->getMessage(),
+            ]);
 
-        return $send;
+            return false;
+        }
+
+        // Mailer accepted the message — mark as sent with an accurate timestamp.
+        $send->setStatus(EmailSend::STATUS_SENT);
+        $send->setSentAt(new \DateTime());
+        $this->entityManager->flush();
+
+        return true;
     }
 
     /**
      * Send the actual email via mailer
+     *
+     * @throws \Throwable Re-throws any transport failure after marking the
+     *                    EmailSend record as 'failed'.
      */
     private function sendEmail(EmailCampaign $campaign, Contact $contact, int $touchNumber, EmailSend $send): void
     {
+        // Move the record to 'sending' before the mailer call so the status
+        // never claims 'sent' while the transport is still in flight.
+        $send->setStatus(EmailSend::STATUS_SENDING);
+        $this->entityManager->flush();
+
         try {
             $subject = sprintf('[Touch %d/%d] %s', $touchNumber, $campaign->getTouchCount(), $campaign->getName());
             
@@ -98,18 +129,13 @@ class EmailCampaignService
             ]));
 
             $this->mailer->send($email);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Log error and update send record to reflect failure
-            $send->setStatus('failed');
+            $send->setStatus(EmailSend::STATUS_FAILED);
             $send->setFailureReason($e->getMessage());
             $this->entityManager->flush();
 
-            $this->logger->error('Failed to send email', [
-                'email_send_id' => $send->getId(),
-                'campaign_id' => $campaign->getId(),
-                'contact_email' => $contact->getEmail(),
-                'error' => $e->getMessage(),
-            ]);
+            throw $e;
         }
     }
 
@@ -138,6 +164,14 @@ class EmailCampaignService
             ['id' => $send->getId(), 'url' => $websiteUrl, 'sig' => $trackingLinkSig],
             UrlGeneratorInterface::ABSOLUTE_URL
         );
+
+        // One-click unsubscribe link (HMAC-signed by EmailConsentService).
+        // Fall back to building the same signed token locally when the consent
+        // service is not available (e.g. unit tests), so the footer always
+        // carries a working unsubscribe URL.
+        $unsubscribeLink = $this->consentService
+            ? $this->consentService->generateUnsubscribeLink($contact, $campaign->getId())
+            : $this->buildFallbackUnsubscribeLink($contact, $campaign->getId());
         
         return sprintf('
 <!DOCTYPE html>
@@ -202,7 +236,7 @@ class EmailCampaignService
         <div class="footer">
             <p>&copy; %s STARZ Electronics Morocco. All rights reserved.</p>
             <p>Touch %d/%d - Campaign: %s (%s)</p>
-            <p><a href="#">Unsubscribe</a> | <a href="#">Update Preferences</a></p>
+            <p><a href="%s">Unsubscribe</a> | <a href="%s">Update Preferences</a></p>
         </div>
     </div>
     <!-- Open tracking pixel -->
@@ -213,16 +247,57 @@ class EmailCampaignService
             htmlspecialchars($contact->getFirstName() ?? '', ENT_QUOTES, 'UTF-8'),
             $touchNumber,
             $campaign->getTouchCount(),
-            $campaign->getName(),
+            htmlspecialchars((string) $campaign->getName(), ENT_QUOTES, 'UTF-8'),
             $companyName ? '<p><strong>Company:</strong> ' . htmlspecialchars($companyName) . '</p>' : '',
-            $trackingLinkUrl,
+            htmlspecialchars($trackingLinkUrl, ENT_QUOTES, 'UTF-8'),
             date('Y'),
             $touchNumber,
             $campaign->getTouchCount(),
-            $campaign->getName(),
-            $campaign->getLanguage(),
-            $trackingPixelUrl
+            htmlspecialchars((string) $campaign->getName(), ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars((string) $campaign->getLanguage(), ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars($unsubscribeLink, ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars($unsubscribeLink, ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars($trackingPixelUrl, ENT_QUOTES, 'UTF-8')
         );
+    }
+
+    /**
+     * Build a signed one-click unsubscribe link without the consent service.
+     *
+     * Mirrors EmailConsentService::generateUnsubscribeLink exactly so the
+     * token remains verifiable by EmailConsentService::processUnsubscribeToken.
+     */
+    private function buildFallbackUnsubscribeLink(Contact $contact, ?int $campaignId): string
+    {
+        $timestamp = time();
+        $payload = $contact->getEmail() . '|' . $timestamp;
+        $hmac = hash_hmac('sha256', $payload, $this->getSigningSecret());
+        $token = base64_encode($payload . '|' . $hmac);
+
+        $params = ['token' => $token];
+        if ($campaignId) {
+            $params['campaign'] = $campaignId;
+        }
+
+        return sprintf(
+            '%s/email/unsubscribe?%s',
+            rtrim($_ENV['APP_BASE_URL'] ?? 'https://crm.starz-morocco.com', '/'),
+            http_build_query($params)
+        );
+    }
+
+    /**
+     * Fails closed: without APP_SECRET no unsubscribe token can be signed.
+     */
+    private function getSigningSecret(): string
+    {
+        $secret = $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? getenv('APP_SECRET');
+
+        if (!$secret) {
+            throw new \RuntimeException('APP_SECRET is not configured — unsubscribe tokens cannot be signed.');
+        }
+
+        return (string) $secret;
     }
 
     /**

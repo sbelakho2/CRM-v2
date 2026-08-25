@@ -170,7 +170,7 @@ triggerRules.forEach((rule, index) => {
             <option value="<=" ${rule.operator === '<=' ? 'selected' : ''}>${i18n.operatorLessOrEqual}</option>
             <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>${i18n.operatorContains}</option>
         </select>
-        <input type="text" class="rams-form__input rams-flex-1" placeholder="${i18n.valuePlaceholder}" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
+        <input type="text" class="rams-form__input rams-flex-1" placeholder="{{ 'playbook.rule.value_placeholder'|trans|e('js') }}" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
         <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost rams-text--danger">×</button>
     `;
     
@@ -236,7 +236,7 @@ function addTriggerRule(existingRule = null) {
             <option value="<=" ${rule.operator === '<=' ? 'selected' : ''}>${i18n.operatorLessOrEqual}</option>
             <option value="contains" ${rule.operator === 'contains' ? 'selected' : ''}>${i18n.operatorContains}</option>
         </select>
-        <input type="text" class="rams-form__input rams-flex-1" placeholder="${i18n.valuePlaceholder}" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
+        <input type="text" class="rams-form__input rams-flex-1" placeholder="{{ 'playbook.rule.value_placeholder'|trans|e('js') }}" value="${rule.value}" onchange="updateTriggerField(${ruleId}, 'value', this.value)">
         <button type="button" onclick="removeTriggerRule(${ruleId})" class="rams-btn rams-btn--ghost rams-text--danger">×</button>
     `;
     
@@ -320,7 +320,7 @@ function renderActionParams(actionId, type, existingParams) {
         <div class="rams-form__group">
             <label class="rams-form__label rams-text--xs">${p.label}</label>
             <input type="${p.type || 'text'}" class="rams-form__input" 
-                   placeholder="${p.placeholder || ''}" 
+                   placeholder="${p.placeholder || '{{ 'playbook.action.parameter_placeholder'|trans|e('js') }}'}" 
                    value="${existingParams[p.name] || ''}"
                    onchange="updateActionParam(${actionId}, '${p.name}', this.value)">
         </div>

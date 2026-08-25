@@ -43,7 +43,7 @@ class AbmHit
     private ?int $pageViews = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
-    private ?string $firmographicData = null; // JSON
+    private ?array $firmographicData = null; // JSON
 
     #[ORM\Column(type: 'boolean')]
     private bool $isIdentified = false;
@@ -136,12 +136,12 @@ class AbmHit
         return $this;
     }
 
-    public function getFirmographicData(): ?string
+    public function getFirmographicData(): ?array
     {
         return $this->firmographicData;
     }
 
-    public function setFirmographicData(?string $firmographicData): self
+    public function setFirmographicData(?array $firmographicData): self
     {
         $this->firmographicData = $firmographicData;
         return $this;

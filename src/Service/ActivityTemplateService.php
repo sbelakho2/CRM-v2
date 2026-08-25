@@ -395,13 +395,13 @@ TEMPLATE,
         $data = [
             'company_name' => $company->getName(),
             'sector' => $company->getSector() ?? 'your industry',
-            'certifications' => implode(', ', $company->getQualityStack() ?? []),
+            'certifications' => implode(', ', $this->getCompanyCertifications($company)),
             'certification_match' => $this->findCertificationMatch($company),
         ];
         
         if ($contact) {
             $data['contact_name'] = $contact->getFullName() ?? $contact->getFirstName() ?? 'there';
-            $data['contact_title'] = $contact->getTitle() ?? '';
+            $data['contact_title'] = $contact->getJobTitle() ?? '';
         } else {
             $data['contact_name'] = 'there';
             $data['contact_title'] = '';
@@ -515,19 +515,39 @@ TEMPLATE,
         return $text;
     }
     
+    /**
+     * Certification names from the company's provided compliance documents.
+     * Company has no qualityStack property; compliance documents are the
+     * source of truth for certifications.
+     *
+     * @return string[]
+     */
+    private function getCompanyCertifications(Company $company): array
+    {
+        $certifications = [];
+        foreach ($company->getComplianceDocuments() as $document) {
+            $name = $document->getName();
+            if ($name && $document->isProvided()) {
+                $certifications[] = $name;
+            }
+        }
+
+        return array_values(array_unique($certifications));
+    }
+
     private function findCertificationMatch(Company $company): string
     {
-        $qualityStack = $company->getQualityStack() ?? [];
+        $certifications = array_map('strtolower', $this->getCompanyCertifications($company));
         $sector = strtolower($company->getSector() ?? '');
         
         // Match certification to sector
-        if (in_array('automotive', [$sector]) || in_array('IATF 16949', $qualityStack)) {
+        if (in_array('automotive', [$sector]) || in_array('iatf 16949', $certifications)) {
             return 'Automotive Quality';
         }
-        if (in_array('aerospace', [$sector]) || in_array('AS9100', $qualityStack)) {
+        if (in_array('aerospace', [$sector]) || in_array('as9100', $certifications)) {
             return 'AS9100';
         }
-        if (in_array('medical', [$sector]) || in_array('ISO 13485', $qualityStack)) {
+        if (in_array('medical', [$sector]) || in_array('iso 13485', $certifications)) {
             return 'ISO 13485';
         }
         

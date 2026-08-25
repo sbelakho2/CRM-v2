@@ -6,9 +6,10 @@ namespace App\Service\Integration;
 
 use App\Service\PartMatchConfidenceCalculator;
 use Psr\Log\LoggerInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Mouser API Client
@@ -349,23 +350,38 @@ class MouserApiClient
                 'alternatives' => $alternatives,
             ];
             
-        } catch (\Exception $e) {
-            // Detect HTTP 403 — Mouser rate limit
-            if (str_contains($e->getMessage(), '403')) {
+        } catch (HttpExceptionInterface $e) {
+            // HTTP-level failures: 403 is Mouser's rate-limit signal, 401/403
+            // with invalid key handling for authentication errors.
+            $statusCode = $e->getResponse()->getStatusCode();
+
+            if ($statusCode === 401) {
+                $this->apiKeyInvalid = true;
+                $this->logger->error('Mouser API key is invalid (HTTP 401) — disabling all further Mouser requests', [
+                    'part_number' => $partNumber,
+                ]);
+            } elseif ($statusCode === 403) {
                 $this->consecutiveRateLimits++;
                 $backoff = self::RATE_LIMIT_BACKOFF * $this->consecutiveRateLimits;
                 $this->rateLimitedUntil = microtime(true) + $backoff;
-                $this->logger->warning('Mouser API rate-limited (403) — backing off', [
+                $this->logger->warning('Mouser API rate-limited (HTTP 403) — backing off', [
                     'part_number' => $partNumber,
                     'backoff_seconds' => $backoff,
                     'consecutive_403s' => $this->consecutiveRateLimits,
                 ]);
             } else {
-                $this->logger->error('Mouser API request failed', [
+                $this->logger->error('Mouser API request failed with HTTP status', [
                     'part_number' => $partNumber,
-                    'error' => $e->getMessage()
+                    'status_code' => $statusCode,
+                    'error' => $e->getMessage(),
                 ]);
             }
+            return null;
+        } catch (\Exception $e) {
+            $this->logger->error('Mouser API request failed', [
+                'part_number' => $partNumber,
+                'error' => $e->getMessage()
+            ]);
             return null;
         }
     }
@@ -548,22 +564,36 @@ class MouserApiClient
                 ];
             }, $parts);
             
-        } catch (\Exception $e) {
+        } catch (HttpExceptionInterface $e) {
+            $statusCode = $e->getResponse()->getStatusCode();
+
             // Detect HTTP 403 — rate limit
-            if (str_contains($e->getMessage(), '403')) {
+            if ($statusCode === 403) {
                 $this->consecutiveRateLimits++;
                 $backoff = self::RATE_LIMIT_BACKOFF * $this->consecutiveRateLimits;
                 $this->rateLimitedUntil = microtime(true) + $backoff;
-                $this->logger->warning('Mouser keyword search rate-limited (403) — backing off', [
+                $this->logger->warning('Mouser keyword search rate-limited (HTTP 403) — backing off', [
                     'keyword' => $keyword,
                     'backoff_seconds' => $backoff,
                 ]);
-            } else {
-                $this->logger->error('Mouser keyword search failed', [
+            } elseif ($statusCode === 401) {
+                $this->apiKeyInvalid = true;
+                $this->logger->error('Mouser API key is invalid (HTTP 401) — disabling all further Mouser requests', [
                     'keyword' => $keyword,
-                    'error' => $e->getMessage()
+                ]);
+            } else {
+                $this->logger->error('Mouser keyword search failed with HTTP status', [
+                    'keyword' => $keyword,
+                    'status_code' => $statusCode,
+                    'error' => $e->getMessage(),
                 ]);
             }
+            return [];
+        } catch (\Exception $e) {
+            $this->logger->error('Mouser keyword search failed', [
+                'keyword' => $keyword,
+                'error' => $e->getMessage()
+            ]);
             return [];
         }
     }

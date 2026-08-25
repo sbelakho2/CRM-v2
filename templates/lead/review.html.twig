@@ -157,19 +157,19 @@
                                 </td>
                                 <td class="rams-table__cell">
                                     {% if lead.reviewStatus == 'pending' %}
-                                        <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="approveLead({{ lead.id }})" title="{{ 'lead.approve'|trans }}" aria-label="{{ 'lead.approve'|trans }}">
+                                        <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="approveLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead.approve'|trans }}" aria-label="{{ 'lead.approve'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                             </svg>
                                         </button>
-                                        <button class="rams-btn rams-btn--danger rams-btn--sm" onclick="denyLead({{ lead.id }})" title="{{ 'lead.deny'|trans }}" aria-label="{{ 'lead.deny'|trans }}">
+                                        <button class="rams-btn rams-btn--danger rams-btn--sm" onclick="denyLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead.deny'|trans }}" aria-label="{{ 'lead.deny'|trans }}">
                                             <svg class="rams-icon rams-icon--sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                             </svg>
                                         </button>
                                     {% endif %}
                                     {% if lead.reviewStatus == 'approved' and not lead.company %}
-                                        <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="convertLead({{ lead.id }})" title="{{ 'lead.convert'|trans }}">
+                                        <button class="rams-btn rams-btn--primary rams-btn--sm" onclick="convertLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead.convert'|trans }}">
                                             <svg class="rams-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                             </svg>
@@ -206,11 +206,15 @@
 </div>
 
 <script>
-function approveLead(leadId) {
+const leadApproveUrl = '{{ path('app_lead_approve', {id: 0}) }}';
+const leadDenyUrl = '{{ path('app_lead_deny', {id: 0}) }}';
+const leadConvertUrl = '{{ path('app_lead_convert', {id: 0}) }}';
+
+function approveLead(button, leadId) {
     ramsConfirm('{{ 'lead.confirm_approve'|trans }}', function() {
-        fetch(`/leads/approve/${leadId}`, {
+        fetch(leadApproveUrl.replace('/0', '/' + leadId), {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'}
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': button.dataset.csrf}
         })
         .then(response => response.json())
         .then(data => {
@@ -223,19 +227,19 @@ function approveLead(leadId) {
     }, {title: '{{ 'lead.approve'|trans }}', variant: 'default'});
 }
 
-function denyLead(leadId) {
+function denyLead(button, leadId) {
     ramsPrompt('{{ 'lead.deny_reason_prompt'|trans }}', function(reason) {
-        submitDenyLead(leadId, reason || '{{ 'lead.not_good_fit'|trans }}');
+        submitDenyLead(button, leadId, reason || '{{ 'lead.not_good_fit'|trans }}');
     }, {
         title: '{{ 'lead.deny'|trans }}',
         inputLabel: '{{ 'lead.deny_reason'|trans }}'
     });
 }
 
-function submitDenyLead(leadId, reason) {
-    fetch(`/leads/deny/${leadId}`, {
+function submitDenyLead(button, leadId, reason) {
+    fetch(leadDenyUrl.replace('/0', '/' + leadId), {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': button.dataset.csrf},
         body: JSON.stringify({reason: reason})
     })
     .then(response => response.json())
@@ -248,11 +252,11 @@ function submitDenyLead(leadId, reason) {
     });
 }
 
-function convertLead(leadId) {
+function convertLead(button, leadId) {
     ramsConfirm('{{ 'lead.confirm_convert'|trans }}', function() {
-        fetch(`/leads/convert/${leadId}`, {
+        fetch(leadConvertUrl.replace('/0', '/' + leadId), {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'}
+            headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': button.dataset.csrf}
         })
         .then(response => response.json())
         .then(data => {

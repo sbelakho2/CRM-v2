@@ -131,12 +131,12 @@
         <div class="rams-module">
             <div class="rams-module__content">
                 <div class="rams-module__header">
-                    <h3 class="rams-module__title">
+                    <h2 class="rams-module__title">
                         <svg class="rams-icon rams-icon rams-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
                             <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
                         </svg>
                         {{ 'discovery_pipeline.enrichment_progress'|trans }}
-                    </h3>
+                    </h2>
                     <span id="progress-status" class="rams-dymo">{{ 'messages.processing'|trans }}...</span>
                 </div>
                 
@@ -276,7 +276,7 @@
                 <div id="pipeline-results" class="rams-hidden rams-mt-4">
                     <div class="rams-module rams-module--inset"> 
                         <div class="rams-module__header">
-                            <h4 class="rams-module__title">{{ 'discovery_pipeline.results'|trans }}</h4>
+                            <h3 class="rams-module__title">{{ 'discovery_pipeline.results'|trans }}</h3>
                         </div>
                         <div id="results-content" class="rams-module__content rams-p-4"></div>
                     </div>
@@ -444,12 +444,12 @@
     {# 📈 Analytics Section #}
     <div class="rams-module">
         <div class="rams-module__header">
-            <h2 class="rams-module__title">📈 Pipeline Analytics</h2>
+            <h2 class="rams-module__title">📈 {{ 'discovery_pipeline.analytics_title'|trans }}</h2>
         </div>
         <div class="rams-module__content">
             {# Pipeline Funnel Analytics #}
             <div class="rams-mb-6">
-                <h3 class="rams-text--sm rams-text--strong rams-mb-3">📊 Pipeline Funnel</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">📊 {{ 'discovery_pipeline.analytics_funnel'|trans }}</h3>
                 {% if funnel_analytics is defined and funnel_analytics is not empty %}
                 {% set funnel_max = funnel_analytics|reduce((carry, s) => carry > s.count ? carry : s.count, 0) %}
                 <div class="rams-stack rams-gap-3">
@@ -470,13 +470,13 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="rams-text--muted rams-text--sm rams-py-sm">No pipeline funnel data available</div>
+                <div class="rams-text--muted rams-text--sm rams-py-sm">{{ 'discovery_pipeline.no_funnel_data'|trans }}</div>
                 {% endif %}
             </div>
 
             {# Quality Trend #}
             <div class="rams-mb-6">
-                <h3 class="rams-text--sm rams-text--strong rams-mb-3">📈 Quality Trend (Last 30 Days)</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">📈 {{ 'discovery_pipeline.analytics_quality_trend'|trans }}</h3>
                 {% if quality_trend is defined and quality_trend is not empty %}
                 {% set trend_max = quality_trend|reduce((carry, t) => carry > t.count ? carry : t.count, 0) %}
                 <div class="rams-grid rams-grid--6 rams-gap-3">
@@ -499,13 +499,13 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="rams-text--muted rams-text--sm rams-py-sm">No quality trend data available</div>
+                <div class="rams-text--muted rams-text--sm rams-py-sm">{{ 'discovery_pipeline.no_quality_trend_data'|trans }}</div>
                 {% endif %}
             </div>
 
             {# Actionable Insights #}
             <div>
-                <h3 class="rams-text--sm rams-text--strong rams-mb-3">💡 Actionable Insights</h3>
+                <h3 class="rams-text--sm rams-text--strong rams-mb-3">💡 {{ 'discovery_pipeline.analytics_insights'|trans }}</h3>
                 {% if actionable_insights is defined and actionable_insights is not empty %}
                 <div class="rams-stack rams-gap-2">
                     {% for insight in actionable_insights %}
@@ -526,7 +526,7 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="rams-text--muted rams-text--sm rams-py-sm">No actionable insights available</div>
+                <div class="rams-text--muted rams-text--sm rams-py-sm">{{ 'discovery_pipeline.no_insights_data'|trans }}</div>
                 {% endif %}
             </div>
         </div>
@@ -600,7 +600,7 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
-const csrfRunToken = '{{ csrf_token('discovery_pipeline_run') }}'; const csrfPreviewToken = '{{ csrf_token('discovery_pipeline_preview') }}'; const csrfEnrichToken = '{{ csrf_token('discovery_pipeline_enrich') }}'; const i18n = {
+const csrfRunToken = '{{ csrf_token('discovery_pipeline_run') }}'; const csrfPreviewToken = '{{ csrf_token('discovery_pipeline_preview') }}'; const csrfEnrichToken = '{{ csrf_token('discovery_pipeline_enrich') }}'; const runPipelineUrl = '{{ path('discovery_pipeline_run') }}'; const previewPipelineUrl = '{{ path('discovery_pipeline_preview') }}'; const enrichExistingUrl = '{{ path('discovery_pipeline_enrich') }}'; const pipelineProgressUrl = '{{ path('discovery_pipeline_progress') }}'; const i18n = {
     running: '{{ 'discovery_pipeline.running'|trans|e('js') }}',
     runPipeline: '{{ 'discovery_pipeline.run_pipeline_btn'|trans|e('js') }}',
     loading: '{{ 'common.loading'|trans|e('js') }}',
@@ -646,14 +646,6 @@ const csrfRunToken = '{{ csrf_token('discovery_pipeline_run') }}'; const csrfPre
     exportCsv: '{{ 'discovery_pipeline.export_csv'|trans|e('js') }}'
 };
 
-function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `rams-alert ${type === 'success' ? 'rams-alert--success' : 'rams-alert--error'} rams-alert--toast`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
-}
-
 // Progress polling functions
 function startProgressPolling() {
     if (isPolling) return;
@@ -663,7 +655,7 @@ function startProgressPolling() {
     
     progressInterval = setInterval(async () => {
         try {
-            const response = await fetch('/discovery-pipeline/progress');
+            const response = await fetch(pipelineProgressUrl);
             const data = await response.json();
             
             // Update progress bar
@@ -729,7 +721,7 @@ function startProgressPolling() {
     }, 3000);
     
     // Poll immediately
-    fetch('/discovery-pipeline/progress')
+    fetch(pipelineProgressUrl)
         .then(r => r.json())
         .then(data => {
             document.getElementById('progress-bar').style.width = data.progress + '%';
@@ -762,7 +754,7 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
     };
     
     try {
-        const response = await fetch('/discovery-pipeline/run', {
+        const response = await fetch(runPipelineUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -786,7 +778,7 @@ document.getElementById('pipeline-form').addEventListener('submit', async (e) =>
                     <div class="rams-mt-3">
                         <p class="rams-dymo rams-mb-2">${i18n.imported} ${'discovery_pipeline.leads'|trans}:</p>
                         <div class="rams-stack rams-gap-1" style="max-height: 150px; overflow-y: auto;">
-                            ${result.stats.leads.slice(0, 10).map(l => `<div class="rams-text--xs"><a href="/leads/review?id=${escapeHtml(String(l.id))}" class="rams-link">${escapeHtml(l.name)}</a></div>`).join('')}
+                            ${result.stats.leads.slice(0, 10).map(l => `<div class="rams-text--xs"><a href="{{ path('app_lead_show', {id: 0}) }}".replace('/0', '/' + escapeHtml(String(l.id))) class="rams-link">${escapeHtml(l.name)}</a></div>`).join('')}
                             ${result.stats.leads.length > 10 ? `<div class="rams-text--xs rams-text--muted">...${result.stats.leads.length - 10} more</div>` : ''}
                         </div>
                     </div>
@@ -829,7 +821,7 @@ document.getElementById('preview-btn').addEventListener('click', async () => {
     }
     
     try {
-        const response = await fetch('/discovery-pipeline/preview', {
+        const response = await fetch(previewPipelineUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -888,7 +880,7 @@ document.getElementById('enrich-form').addEventListener('submit', async (e) => {
     };
     
     try {
-        const response = await fetch('/discovery-pipeline/enrich-existing', {
+        const response = await fetch(enrichExistingUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -922,9 +914,9 @@ function exportCustomLeads() {
     modal.id = 'export-modal';
     
     modal.innerHTML = `
-        <div class="rams-modal">
+        <div class="rams-modal" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
             <div class="rams-modal__header">
-                <h3 class="rams-modal__title">${i18n.exportTitle}</h3>
+                <h3 class="rams-modal__title" id="export-modal-title">${i18n.exportTitle}</h3>
             </div>
             <form id="custom-export-form" class="rams-modal__body rams-stack rams-gap-4">
                 <div class="rams-form__group">
@@ -950,7 +942,7 @@ function exportCustomLeads() {
                 
                 <div class="rams-form__group">
                     <label class="rams-form__label rams-dymo">${i18n.sectorFilter}</label>
-                    <input type="text" name="sector" placeholder="${i18n.sectorPlaceholder}" class="rams-form__input">
+                    <input type="text" name="sector" placeholder="{{ 'discovery_pipeline.sector_placeholder'|trans|e('js') }}" class="rams-form__input">
                 </div>
                 
                 <div class="rams-form__group">

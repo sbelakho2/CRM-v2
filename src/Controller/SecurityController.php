@@ -26,12 +26,8 @@ class SecurityController extends AbstractController
     #[Route('/login', name: 'app_login')]
     public function login(AuthenticationUtils $authenticationUtils): Response
     {
-        // If user is already logged in, redirect to an accessible landing page
+        // If user is already logged in, redirect to the dashboard
         if ($this->getUser()) {
-            if ($this->isGranted('ROLE_ENGINEERING') && !$this->isGranted('ROLE_USER')) {
-                return $this->redirectToRoute('quote_copilot_list');
-            }
-
             return $this->redirectToRoute('app_dashboard');
         }
 

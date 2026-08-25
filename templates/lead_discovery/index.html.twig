@@ -328,7 +328,7 @@
                         {% for lead in recent_discoveries %}
                         <tr>
                             <td class="rams-table__cell rams-font-medium"> 
-                                <a href="{{ path('app_lead_review', {id: lead.id}) }}" class="rams-link">
+                                <a href="{{ path('app_lead_show', {id: lead.id}) }}" class="rams-link">
                                     {{ lead.companyName }}
                                 </a>
                             </td>
@@ -378,12 +378,12 @@
                                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </a>
                                     {% if lead.reviewStatus == 'pending' %}
-                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--success" onclick="enrichLead({{ lead.id }})" title="{{ 'lead_discovery.enrich'|trans }}" aria-label="{{ 'lead_discovery.enrich'|trans }}">
+                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--success" onclick="enrichLead(this, {{ lead.id }})" title="{{ 'lead_discovery.enrich'|trans }}" aria-label="{{ 'lead_discovery.enrich'|trans }}">
                                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                     </button>
                                     {% endif %}
                                     {% if lead.reviewStatus == 'approved' and not lead.company %}
-                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--info" onclick="convertLead({{ lead.id }})" title="{{ 'lead_discovery.convert_to_contact'|trans }}" aria-label="{{ 'lead_discovery.convert_to_contact'|trans }}">
+                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--info" onclick="convertLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead_discovery.convert_to_contact'|trans }}" aria-label="{{ 'lead_discovery.convert_to_contact'|trans }}">
                                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                     </button>
                                     {% endif %}
@@ -470,12 +470,16 @@
 {% block javascripts %}
 {{ parent() }}
 <script>
-function enrichLead(leadId) {
+const enrichExistingUrl = '{{ path('discovery_pipeline_enrich') }}';
+const leadConvertUrl = '{{ path('app_lead_convert', {id: 0}) }}';
+const enrichCsrfToken = '{{ csrf_token('discovery_pipeline_enrich') }}';
+
+function enrichLead(button, leadId) {
     ramsConfirm('{{ 'lead_discovery.confirm_enrich'|trans }}', function() {
-        fetch('/discovery-pipeline/enrich-existing', {
+        fetch(enrichExistingUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ limit: 1, lead_ids: [leadId] })
+            body: JSON.stringify({ limit: 1, lead_ids: [leadId], _csrf_token: enrichCsrfToken })
         })
         .then(r => r.json())
         .then(data => {
@@ -489,11 +493,11 @@ function enrichLead(leadId) {
     }, {title: '{{ 'lead_discovery.enrich'|trans }}'});
 }
 
-function convertLead(leadId) {
+function convertLead(button, leadId) {
     ramsConfirm('{{ 'lead_discovery.confirm_convert'|trans }}', function() {
-        fetch('/leads/convert/' + leadId, {
+        fetch(leadConvertUrl.replace('/0', '/' + leadId), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token("lead_convert") }}' }
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': button.dataset.csrf }
         })
         .then(r => r.json())
         .then(data => {
@@ -510,10 +514,10 @@ function convertLead(leadId) {
 
 function enrichExistingLeads() {
     ramsPrompt('{{ 'lead_discovery.enrich_prompt'|trans }}', function(count) {
-        fetch('/discovery-pipeline/enrich-existing', {
+        fetch(enrichExistingUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ limit: parseInt(count) })
+            body: JSON.stringify({ limit: parseInt(count), _csrf_token: enrichCsrfToken })
         })
         .then(r => r.json())
         .then(data => {
@@ -525,15 +529,6 @@ function enrichExistingLeads() {
         })
         .catch(e => showToast(e.message, 'error'));
     }, {title: '{{ 'lead_discovery.enrich_existing_leads'|trans }}', inputLabel: '{{ 'lead_discovery.enrich_prompt_label'|trans }}', value: '50'});
-}
-
-function showToast(message, type) {
-    type = type || 'success';
-    const toast = document.createElement('div');
-    toast.className = 'rams-toast';             
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
 }
 </script>
 {% endblock %}

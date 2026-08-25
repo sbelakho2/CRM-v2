@@ -14,7 +14,7 @@ This checklist orchestrates the full CRM release train. Follow the sections in o
 | Area | Owner | Status | Notes |
 |------|-------|--------|-------|
 | Infrastructure | DevOps | ✅ Ready | Target hosts reachable, disk space > 2 GB, TLS certificates valid |
-| Application Code | Tech Lead | ✅ Ready | `main` branch tagged `release/v1.0.0` |
+| Application Code | Tech Lead | ✅ Ready | `main` branch (no `release/v1.0.0` tag exists — repo is untagged) |
 | Database | DBA | ✅ Ready | Backup completed < 24h, migrations pending `Version20251030120000` |
 | API Credentials | SecOps | ⚠️ Verify | Nexar + Mouser tokens expire in 30 days – confirm refresh schedule |
 | QA Sign-Off | QA Lead | ✅ Approved | See `10-Quality-Assurance/FINAL_TEST_SUMMARY.md` |
@@ -28,8 +28,8 @@ This checklist orchestrates the full CRM release train. Follow the sections in o
 ### 1.1 Code Integrity
 - [ ] Symfony cache warmup succeeds locally (`symfony console cache:warmup`)
 - [ ] PHPUnit test suite green (`php bin/phpunit`)
-- [ ] Frontend assets compile (`npm ci && npm run build`)
-- [ ] Git tag matches release notes (`git describe --tags`)
+- [ ] No frontend build step required (Encore/Webpack/Tailwind removed 2026)
+- [ ] Git branch checked out is the intended deploy source (`git describe --tags`; repo is untagged)
 
 ### 1.2 Feature-Specific Artifacts
 - **Smart Notifications**
@@ -98,19 +98,12 @@ This checklist orchestrates the full CRM release train. Follow the sections in o
 ```bash
 # 1. Fetch release tag
 git fetch --tags
-git checkout release/v1.0.0
+git checkout main   # note: no release/v1.0.0 tag exists in the repository
 
 # 2. Install backend dependencies
 composer install --no-dev --optimize-autoloader
 
-# 3. Install frontend dependencies and build
-npm ci
-npm run build
-
-# 4. Copy build artifacts
-| CLI command | <5s | ~2s | ✅ |
-
-# 5. Clear + warm cache
+# 3. Clear + warm cache
 php bin/console cache:clear --env=prod
 php bin/console cache:warmup --env=prod
 ```
@@ -127,8 +120,7 @@ php bin/console doctrine:migrations:migrate --env=prod --no-interaction
 php bin/console doctrine:schema:validate --env=prod
 ```
 
-### 3.4 Asset & Cache Verification
-- [ ] `public/build/manifest.json` present
+### 3.4 Cache Verification
 - [ ] `var/cache/prod` repopulated without errors
 - [ ] Translations warmed (`php bin/console translation:update --dump-messages`) if locales changed
 
@@ -231,9 +223,8 @@ Add via crontab (Linux) or Task Scheduler (Windows). Logging recommended to `/va
 php bin/console doctrine:migrations:migrate --env=prod --no-interaction --prev
 
 # Restore previous build
-git checkout <previous_tag>
+git checkout <previous_commit>   # repo is untagged — use commit SHA or branch
 composer install --no-dev --optimize-autoloader
-npm ci && npm run build
 php bin/console cache:clear --env=prod
 ```
 

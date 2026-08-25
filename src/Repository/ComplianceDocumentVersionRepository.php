@@ -39,6 +39,7 @@ class ComplianceDocumentVersionRepository extends ServiceEntityRepository
             ->where('v.document = :document')
             ->andWhere('v.isCurrent = true')
             ->setParameter('document', $document)
+            ->orderBy('v.versionNumber', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

@@ -72,25 +72,30 @@ class QualityGateCommand extends Command
 
         $fullPath = str_starts_with($datasetPath, '/')
             ? $datasetPath
-            : $this->projectDir . '/' . $datasetPath;
+            : $this->projectDir . '/' . ltrim($datasetPath, '/');
 
-        $resolvedFullPath = realpath($fullPath);
         $projectDirReal = realpath($this->projectDir);
-        if ($resolvedFullPath === false || !str_starts_with($resolvedFullPath, $projectDirReal . '/')) {
+        $normalizedFullPath = $this->normalizePath($fullPath);
+
+        // Containment check on the normalized absolute path (works even when
+        // the file does not exist yet, which realpath() cannot resolve).
+        if ($projectDirReal === false
+            || !str_starts_with($normalizedFullPath, rtrim($this->normalizePath($projectDirReal), '/') . '/')
+        ) {
             $checks['golden_dataset'] = [
                 'passed' => false,
                 'detail' => "Dataset path is outside the project directory: {$datasetPath}",
             ];
             $allPassed = false;
-        } elseif (!file_exists($resolvedFullPath)) {
+        } elseif (!file_exists($fullPath)) {
             $checks['golden_dataset'] = [
                 'passed' => false,
-                'detail' => "Dataset file not found: {$resolvedFullPath}",
+                'detail' => "Dataset file not found: {$fullPath}",
             ];
             $allPassed = false;
         } else {
             try {
-                $this->goldenDatasetRunner->loadFromFile($resolvedFullPath);
+                $this->goldenDatasetRunner->loadFromFile($fullPath);
                 $report = $this->goldenDatasetRunner->run();
 
                 $passed = $report->meetsThreshold($threshold / 100);
@@ -290,5 +295,28 @@ class QualityGateCommand extends Command
             'passed' => $code === 0,
             'output' => $out,
         ];
+    }
+
+    /**
+     * Collapse ".", ".." and duplicate separators so containment checks work
+     * on paths that do not exist on disk yet (realpath() would fail).
+     */
+    private function normalizePath(string $path): string
+    {
+        $isAbsolute = str_starts_with($path, '/');
+        $parts = [];
+        foreach (explode('/', $path) as $part) {
+            if ($part === '' || $part === '.') {
+                continue;
+            }
+            if ($part === '..') {
+                array_pop($parts);
+                continue;
+            }
+            $parts[] = $part;
+        }
+        $normalized = implode('/', $parts);
+
+        return $isAbsolute ? '/' . $normalized : $normalized;
     }
 }

@@ -23,8 +23,8 @@ VichUploaderBundle is configured to handle file uploads for the CRM system. It p
 - **Mapping:** `documents`
 - **URI Prefix:** `/uploads/documents`
 - **Directory:** `public/uploads/documents/`
-- **Use Case:** Quotes, estimates, FTA packs, DFM reports, cost breakdowns, exceptions reports, sourcing risk, audit trails, onboarding packs
-- **Entities:** `Quote`, `Estimate` (via ComplianceDocument relation)
+- **Use Case:** Quotes, FTA packs, DFM reports, cost breakdowns, exceptions reports, sourcing risk, audit trails, onboarding packs
+- **Entities:** `Quote` (via ComplianceDocument relation); `Estimate` was removed in 2026
 - **Max File Size:** 50 MB
 
 ### 3. Case Study PDFs

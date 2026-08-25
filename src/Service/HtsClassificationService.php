@@ -335,6 +335,9 @@ class HtsClassificationService
     /**
      * Normalize HTS code to standard format (with dots)
      * 
+     * Canonical format is XXXX.XX.XX (4-2-2), which is exactly what
+     * validateHtsCode() accepts (4 digits . 2 digits . 2 digits).
+     * 
      * @param string $htsCode Input HTS code (any format)
      * @return string Normalized HTS code (e.g., '8542.39.00')
      * 
@@ -352,7 +355,8 @@ class HtsClassificationService
             throw new \InvalidArgumentException("Invalid HTS code format: {$htsCode}");
         }
         
-        // Insert dots: XXXX.XX.XX
-        return substr($cleaned, 0, 4) . '.' . substr($cleaned, 4, 2) . '.' . substr($cleaned, 6, 4);
+        // Insert dots: XXXX.XX.XX (4-2-2) — matches validateHtsCode() and the
+        // format used in tariff data (e.g. "8473.30.51").
+        return substr($cleaned, 0, 4) . '.' . substr($cleaned, 4, 2) . '.' . substr($cleaned, 6, 2);
     }
 }

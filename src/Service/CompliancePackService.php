@@ -73,13 +73,27 @@ class CompliancePackService
 
     /**
      * Calculate completion percentage
+     *
+     * Only REQUIRED document types count toward the percentage — uploaded
+     * documents outside the required list (or duplicates of the same type)
+     * must not push the result past 100%.
      */
     public function getCompletionPercentage(Company $company): float
     {
         $total = count(self::REQUIRED_DOCUMENTS);
-        $uploaded = count($this->documentRepository->findBy(['company' => $company]));
         
-        return $total > 0 ? ($uploaded / $total) * 100 : 0;
+        $documents = $this->documentRepository->findBy(['company' => $company]);
+        $uploadedRequiredTypes = [];
+        foreach ($documents as $doc) {
+            $type = $doc->getDocumentType() ?? $doc->getName();
+            if (in_array($type, self::REQUIRED_DOCUMENTS, true)) {
+                $uploadedRequiredTypes[$type] = true;
+            }
+        }
+        
+        $pct = $total > 0 ? (count($uploadedRequiredTypes) / $total) * 100 : 0;
+        
+        return round(min(100.0, $pct), 1);
     }
 
     /**
@@ -91,7 +105,13 @@ class CompliancePackService
         $uploadedTypes = [];
         
         foreach ($documents as $doc) {
-            $uploadedTypes[] = $doc->getDocumentType();
+            // Document type may be stored on either field depending on how the
+            // document was created — consider both so required types aren't
+            // falsely reported as missing.
+            $type = $doc->getDocumentType() ?? $doc->getName();
+            if ($type !== null) {
+                $uploadedTypes[] = $type;
+            }
         }
 
         return array_diff(self::REQUIRED_DOCUMENTS, $uploadedTypes);
@@ -232,7 +252,7 @@ class CompliancePackService
             'approved' => $approved,
             'pending' => $pending,
             'expired' => $expired,
-            'completion_percentage' => $total > 0 ? round(($uploaded / $total) * 100, 1) : 0,
+            'completion_percentage' => $total > 0 ? round(min(100.0, ($uploaded / $total) * 100), 1) : 0,
         ];
     }
 }

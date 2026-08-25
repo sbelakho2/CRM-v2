@@ -110,7 +110,8 @@ class CurrencyConverterController extends AbstractController
     #[Route('/refresh-rates', name: 'currency_converter_refresh', methods: ['POST'])]
     public function refreshRates(Request $request): JsonResponse
     {
-        if (!$this->isCsrfTokenValid('currency_converter_refresh', $request->request->get('_csrf_token'))) {
+        $data = json_decode($request->getContent(), true);
+        if (!$this->isCsrfTokenValid('currency_converter_refresh', $data['_csrf_token'] ?? '')) {
             return $this->json(['error' => 'Invalid CSRF token.'], 403);
         }
 

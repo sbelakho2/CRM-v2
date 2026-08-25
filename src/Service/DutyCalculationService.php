@@ -101,14 +101,19 @@ class DutyCalculationService
             // Use FTA preferential rate
             $dutyRate = (float) $tariffRate->getFtaRate();
             $mfnRate = (float) ($tariffRate->getMfnRate() ?? $tariffRate->getDutyRate());
-            $ftaSavings = $customsValue * ($mfnRate - $dutyRate) / 100;
+            // Clamp savings at 0: a preferential rate above MFN (bad data)
+            // must never produce negative savings.
+            $ftaSavings = max(0.0, $customsValue * ($mfnRate - $dutyRate) / 100);
             $method = 'FTA';
         } else {
             // Use MFN standard rate
             $dutyRate = (float) ($tariffRate->getMfnRate() ?? $tariffRate->getDutyRate());
         }
         
-        // Step 3: Calculate duty amount (ad-valorem)
+        // Step 3: Calculate duty amount (ad-valorem).
+        // NOTE: $quantity/$uom are accepted but currently unused — specific
+        // duties ($ per unit/kg) are not yet implemented; only ad-valorem
+        // (% of customs value) duties are calculated.
         $dutyAmount = $customsValue * ($dutyRate / 100);
         
         // Step 4: Calculate VAT if DDP incoterm
@@ -329,13 +334,23 @@ class DutyCalculationService
      *   vatAmount: float,
      *   vatBase: float
      * }
+     * 
+     * @throws \RuntimeException when the destination country has no configured
+     *         VAT rate — an unknown destination must never silently produce a
+     *         0% VAT quote (understated landed cost in DDP).
      */
     public function calculateVat(
         float $customsValue,
         float $dutyAmount,
         string $destinationCountry
     ): array {
-        $vatRate = self::DEFAULT_VAT_RATES[$destinationCountry] ?? 0.0;
+        $vatRate = self::DEFAULT_VAT_RATES[$destinationCountry] ?? null;
+        
+        if ($vatRate === null) {
+            throw new \RuntimeException(
+                "No VAT rate configured for destination country: {$destinationCountry}"
+            );
+        }
         
         // Calculate VAT base (duty-inclusive)
         $vatBase = $customsValue + $dutyAmount;

@@ -59,8 +59,14 @@ class CalendarController extends AbstractController
     #[Route('/events', name: 'calendar_events_json', methods: ['GET'])]
     public function getEventsJson(Request $request): JsonResponse
     {
-        $start = new \DateTime($request->query->get('start', 'first day of this month'));
-        $end = new \DateTime($request->query->get('end', 'last day of this month'));
+        $start = $this->parseDateParam($request->query->get('start', 'first day of this month'), 'first day of this month');
+        if ($start === null) {
+            return $this->json(['error' => 'Invalid start date'], 400);
+        }
+        $end = $this->parseDateParam($request->query->get('end', 'last day of this month'), 'last day of this month');
+        if ($end === null) {
+            return $this->json(['error' => 'Invalid end date'], 400);
+        }
 
         $events = $this->eventRepository->findForFullCalendar(
             $start,
@@ -109,7 +115,12 @@ class CalendarController extends AbstractController
         
         // Pre-fill from query params
         if ($request->query->has('start')) {
-            $event->setStartAt(new \DateTime($request->query->get('start')));
+            $start = $this->parseDateParam($request->query->get('start'));
+            if ($start === null) {
+                $this->addFlash('error', 'Invalid start date.');
+                return $this->redirectToRoute('calendar_index');
+            }
+            $event->setStartAt($start);
             $event->setEndAt((clone $event->getStartAt())->modify('+1 hour'));
         } else {
             $event->setStartAt(new \DateTime());
@@ -219,14 +230,19 @@ class CalendarController extends AbstractController
             throw $this->createAccessDeniedException('You can only delete your own events.');
         }
 
+        $deleted = false;
         if ($this->isCsrfTokenValid('delete' . $event->getId(), $request->request->get('_token'))) {
             $this->entityManager->remove($event);
             $this->entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('calendar.flash.deleted'));
+            $deleted = true;
         }
 
         if ($request->isXmlHttpRequest()) {
+            if (!$deleted) {
+                return $this->json(['success' => false, 'error' => 'Invalid CSRF token.'], 403);
+            }
             return $this->json(['success' => true]);
         }
 
@@ -275,11 +291,19 @@ class CalendarController extends AbstractController
 
         // Update from drag/drop or resize
         if (isset($data['start'])) {
-            $event->setStartAt(new \DateTime($data['start']));
+            $start = $this->parseDateParam($data['start']);
+            if ($start === null) {
+                return $this->json(['error' => 'Invalid start date'], 400);
+            }
+            $event->setStartAt($start);
         }
         
         if (isset($data['end'])) {
-            $event->setEndAt(new \DateTime($data['end']));
+            $end = $this->parseDateParam($data['end']);
+            if ($end === null) {
+                return $this->json(['error' => 'Invalid end date'], 400);
+            }
+            $event->setEndAt($end);
         }
         
         if (isset($data['allDay'])) {
@@ -310,10 +334,18 @@ class CalendarController extends AbstractController
         $event = new CalendarEvent();
         $event->setTitle($data['title']);
         $event->setOrganizer($this->getUser());
-        $event->setStartAt(new \DateTime($data['start']));
+        $start = $this->parseDateParam($data['start']);
+        if ($start === null) {
+            return $this->json(['error' => 'Invalid start date'], 400);
+        }
+        $event->setStartAt($start);
         
         if (!empty($data['end'])) {
-            $event->setEndAt(new \DateTime($data['end']));
+            $end = $this->parseDateParam($data['end']);
+            if ($end === null) {
+                return $this->json(['error' => 'Invalid end date'], 400);
+            }
+            $event->setEndAt($end);
         } else {
             $event->setEndAt((clone $event->getStartAt())->modify('+1 hour'));
         }
@@ -440,5 +472,20 @@ class CalendarController extends AbstractController
             'query' => $query,
             'events' => $events,
         ]);
+    }
+
+    /**
+     * Parse a user-supplied date string into a \DateTime, or null when invalid.
+     */
+    private function parseDateParam(?string $value, string $default = 'now'): ?\DateTime
+    {
+        if ($value === null || trim($value) === '') {
+            $value = $default;
+        }
+        try {
+            return new \DateTime($value);
+        } catch (\Exception) {
+            return null;
+        }
     }
 }

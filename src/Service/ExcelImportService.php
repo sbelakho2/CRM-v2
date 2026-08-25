@@ -191,6 +191,10 @@ class ExcelImportService
 
     /**
      * Import contact for company
+     *
+     * Deduplicates by (email + company): re-importing the same Tracker file
+     * updates the existing contact instead of creating a duplicate row.
+     * Only non-empty fields are written, so existing data is preserved.
      */
     private function importContact(Company $company, array $data): ?Contact
     {
@@ -198,16 +202,26 @@ class ExcelImportService
             return null;
         }
 
-        $contact = new Contact();
-        $contact->setCompany($company);
-        $contact->setEmail($data['contact_email']);
+        $email = trim($data['contact_email']);
+        if ($email === '') {
+            return null;
+        }
+
+        $contact = $this->entityManager->getRepository(Contact::class)
+            ->findOneBy(['email' => $email, 'company' => $company]);
+
+        if (!$contact) {
+            $contact = new Contact();
+            $contact->setCompany($company);
+            $contact->setEmail($email);
+            $this->entityManager->persist($contact);
+        }
 
         if (!empty($data['contact_name'])) {
             $nameParts = explode(' ', $data['contact_name'], 2);
             $contact->setFirstName($nameParts[0]);
             $contact->setLastName($nameParts[1] ?? '');
         }
-
         if (!empty($data['contact_phone'])) {
             $contact->setPhone($data['contact_phone']);
         }
@@ -215,7 +229,6 @@ class ExcelImportService
             $contact->setJobTitle($data['contact_role']);
         }
 
-        $this->entityManager->persist($contact);
         return $contact;
     }
 
@@ -244,15 +257,5 @@ class ExcelImportService
         }
 
         $this->entityManager->persist($portal);
-    }
-
-    /**
-     * Export companies to Excel
-     */
-    public function exportToExcel(array $companies): string
-    {
-        // Would implement export functionality using PhpSpreadsheet
-        // Return path to generated file
-        return '';
     }
 }

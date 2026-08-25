@@ -17,6 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: PersonalizationProfileRepository::class)]
 #[ORM\Table(name: 'personalization_profiles')]
 #[ORM\Index(name: 'idx_pers_contact', columns: ['contact_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_pers_contact', columns: ['contact_id'])]
 #[ORM\Index(name: 'idx_pers_company', columns: ['company_id'])]
 #[ORM\HasLifecycleCallbacks]
 class PersonalizationProfile

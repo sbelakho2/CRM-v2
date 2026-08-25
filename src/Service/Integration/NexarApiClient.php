@@ -20,6 +20,8 @@ class NexarApiClient
 {
     private const BASE_URL = 'https://api.nexar.com/graphql';
     private const RATE_LIMIT_DELAY = 100000; // 100ms between requests
+    private const HIT_CACHE_TTL = 86400;     // Successful lookups: 24 hours
+    private const MISS_CACHE_TTL = 300;      // Null/failure results: 5 minutes (avoid cache poisoning)
     
     private float $lastRequestTime = 0;
     private ?string $accessToken = null;
@@ -49,12 +51,13 @@ class NexarApiClient
         $cacheKey = 'nexar_part_' . md5($partNumber);
         
         return $this->cache->get($cacheKey, function (ItemInterface $item) use ($partNumber) {
-            $item->expiresAfter(86400); // Cache for 24 hours
+            $item->expiresAfter(self::HIT_CACHE_TTL);
             
             $token = $this->getAccessToken();
             
             if (!$token) {
                 $this->logger->error('Nexar authentication failed');
+                $item->expiresAfter(self::MISS_CACHE_TTL); // Don't poison the cache with failures
                 return null;
             }
             
@@ -126,6 +129,7 @@ GRAPHQL;
                             $this->logger->error('Nexar API quota exceeded — disabling all further Nexar requests', [
                                 'part_number' => $partNumber,
                             ]);
+                            $item->expiresAfter(self::MISS_CACHE_TTL);
                             return null;
                         }
                     }
@@ -134,12 +138,14 @@ GRAPHQL;
                         'part_number' => $partNumber,
                         'errors' => $data['errors']
                     ]);
+                    $item->expiresAfter(self::MISS_CACHE_TTL);
                     return null;
                 }
                 
                 $results = $data['data']['supSearchMpn']['results'] ?? [];
                 
                 if (empty($results)) {
+                    $item->expiresAfter(self::MISS_CACHE_TTL); // Genuine miss: short TTL only
                     return null;
                 }
                 
@@ -207,6 +213,7 @@ GRAPHQL;
                     'part_number' => $partNumber,
                     'error' => $e->getMessage()
                 ]);
+                $item->expiresAfter(self::MISS_CACHE_TTL); // Failure: short TTL so we retry soon
                 return null;
             }
         });

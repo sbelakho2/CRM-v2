@@ -94,9 +94,8 @@
                                 </td>
                                 <td class="rams-table__cell rams-table__cell--actions">
                                     <div class="rams-btn-group mobile-stack">
-                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
-                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.export'|trans }}</a>
-                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</a>
+                                        {% set historyType = {'Tariff Rates': 'tariff_rate', 'Freight Tables': 'freight_table', 'FX Rates': 'fx_rate'}[dataset.name]|default('') %}
+                                        <a href="{{ path('admin_dataset_history', {type: historyType}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
                                     </div>
                                 </td>
                             </tr>
@@ -147,7 +146,7 @@
                 </div>
             </div>
         </a>
-        <div class="rams-module rams-module--hoverable" onclick="ramsAlert('{{ 'administration.datasets.syncing_started'|trans }}')">
+        <div class="rams-module rams-module--hoverable" role="button" tabindex="0" onclick="ramsAlert('{{ 'administration.datasets.syncing_started'|trans }}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); ramsAlert('{{ 'administration.datasets.syncing_started'|trans }}'); }">
             <div class="rams-module__content">
                 <div class="rams-flex rams-items-center rams-gap-3">
                     <span class="rams-metric__value rams-text--xl">

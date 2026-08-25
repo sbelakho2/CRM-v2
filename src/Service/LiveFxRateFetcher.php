@@ -50,6 +50,15 @@ class LiveFxRateFetcher
     private const ECB_CURRENCIES = ['USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'CNY', 'HKD', 'SGD', 'KRW', 'INR', 'TWD', 'MAD', 'EGP'];
     private const FRANKFURTER_CURRENCIES = ['USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'CNY', 'HKD', 'SGD', 'KRW', 'INR', 'EGP'];
     
+    /**
+     * Failures recorded by the fetch*() methods. fetchAllRates() consumes this
+     * so that a silently-returned [] from one source is surfaced in the batch
+     * result instead of making the batch look fully successful.
+     *
+     * @var array<string, string> source => error message
+     */
+    private array $sourceFailures = [];
+    
     public function __construct(
         private HttpClientInterface $httpClient,
         private EntityManagerInterface $entityManager,
@@ -134,19 +143,27 @@ class LiveFxRateFetcher
                 }
             }
             
-            // Try BOE for GBP-specific rates
-            $boeRates = $this->fetchFromBOE();
-            if (!empty($boeRates)) {
-                foreach ($boeRates as $currency => $rate) {
-                    try {
-                        $this->storeRate('GBP', $currency, $rate, 'boe');
-                        $results['success'][] = "GBP/{$currency} (BOE)";
-                    } catch (\Exception $e) {
-                        $results['failed'][] = "GBP/{$currency}: " . $e->getMessage();
-                    }
+        // Try BOE for GBP-specific rates
+        $boeRates = $this->fetchFromBOE();
+        if (!empty($boeRates)) {
+            foreach ($boeRates as $currency => $rate) {
+                try {
+                    $this->storeRate('GBP', $currency, $rate, 'boe');
+                    $results['success'][] = "GBP/{$currency} (BOE)";
+                } catch (\Exception $e) {
+                    $results['failed'][] = "GBP/{$currency}: " . $e->getMessage();
                 }
             }
-        });
+        }
+
+        // Surface source-level failures (e.g. BCT/BOE returning [] after an
+        // HTTP error): the per-source fetch methods swallow exceptions, so the
+        // batch must report them explicitly or it looks fully successful.
+        foreach ($this->sourceFailures as $source => $message) {
+            $results['failed'][] = "source_{$source}: {$message}";
+        }
+        $this->sourceFailures = [];
+    });
 
         if (empty($results['success'])) {
             $this->logger->critical('All FX rate sources failed — no rates retrieved', [
@@ -209,6 +226,7 @@ class LiveFxRateFetcher
             });
         } catch (\Exception $e) {
             $this->logger->error('Failed to fetch from Frankfurter', ['error' => $e->getMessage()]);
+            $this->sourceFailures['frankfurter'] = $e->getMessage();
             return [];
         }
     }
@@ -256,6 +274,7 @@ class LiveFxRateFetcher
             });
         } catch (\Exception $e) {
             $this->logger->error('Failed to fetch from ExchangeRate-API', ['error' => $e->getMessage()]);
+            $this->sourceFailures['exchangerate'] = $e->getMessage();
             return [];
         }
     }
@@ -327,6 +346,7 @@ class LiveFxRateFetcher
             });
         } catch (\Exception $e) {
             $this->logger->warning('Failed to fetch from BCT (non-critical)', ['error' => $e->getMessage()]);
+            $this->sourceFailures['bct'] = $e->getMessage();
             return [];
         }
     }
@@ -377,9 +397,9 @@ class LiveFxRateFetcher
                 // Parse header to get column positions
                 $filteredLines = array_values(array_filter($lines, fn($l) => trim($l) !== ''));
                 if (count($filteredLines) >= 2) {
-                    $header = str_getcsv($filteredLines[0]);
+                    $header = str_getcsv($filteredLines[0], ',', '"', '\\');
                     $lastLine = $filteredLines[count($filteredLines) - 1];
-                    $lastRow = str_getcsv($lastLine);
+                    $lastRow = str_getcsv($lastLine, ',', '"', '\\');
                     
                     foreach ($header as $idx => $colName) {
                         $colName = trim($colName);
@@ -400,6 +420,7 @@ class LiveFxRateFetcher
             });
         } catch (\Exception $e) {
             $this->logger->warning('Failed to fetch from BOE (non-critical)', ['error' => $e->getMessage()]);
+            $this->sourceFailures['boe'] = $e->getMessage();
             return [];
         }
     }
@@ -461,6 +482,7 @@ class LiveFxRateFetcher
                 'currency' => $currency,
                 'error' => $e->getMessage(),
             ]);
+            $this->sourceFailures['ecb_sdw_' . strtolower($currency)] = $e->getMessage();
             return null;
         }
     }

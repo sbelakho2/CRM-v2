@@ -4,6 +4,8 @@
 > 
 > This document provides exhaustive code-level guidance. Every developer must follow these patterns to ensure the interface maintains its proprietary "Industrial Instrument" aesthetic and high-precision rendering.
 
+> **Correction (2026-08):** Tailwind CSS and the frontend build toolchain (`tailwind.config.ts`/`webpack.config.js`, `npm run build`) were removed from the application in 2026. This guide is retained as the design-system specification (colors, typography, spacing, components); translate the token values into plain CSS/Twig when applying them.
+
 ---
 
 ## 1. Project Configuration

@@ -5,7 +5,7 @@
 # Each sector+location combo typically yields 2-5 companies after filtering,
 # so 14 sectors × 1 location ≈ 28-70 raw companies per region.
 set -e
-cd /home/aaron/IdeaProjects/CRM-v2
+cd "$(dirname "$0")/.."
 
 get_count() {
     php bin/console doctrine:query:sql "SELECT COUNT(*) as c FROM companies WHERE region='$1'" 2>/dev/null | grep -oP '\d+' | tail -1

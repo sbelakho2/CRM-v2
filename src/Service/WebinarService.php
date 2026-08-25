@@ -178,9 +178,9 @@ class WebinarService
         
         if (($handle = fopen($csvPath, 'r')) !== false) {
             // Skip header row
-            fgetcsv($handle, ',', '"', '\\');
+            fgetcsv($handle, 0, ',', '"', '\\');
             
-            while (($data = fgetcsv($handle, ',', '"', '\\')) !== false) {
+            while (($data = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
                 // Assuming CSV format: email, name, attended
                 $email = $data[0] ?? null;
                 $name = $data[1] ?? null;

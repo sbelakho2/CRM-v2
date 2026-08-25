@@ -96,18 +96,18 @@
                     <div class="rams-flex" style="justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                         <div class="rams-flex" style="align-items: center; gap: 0.5rem;">
                             <span id="status-indicator" class="rams-andon__light rams-andon__light--yellow rams-pulse" style="width: 12px; height: 12px;"></span>
-                            <strong id="status-label">Discovery Running</strong>
+                            <strong id="status-label">{{ 'webcrawler.status_discovery_running'|trans }}</strong>
                         </div>
                         <span id="status-time" style="font-size: 0.8rem; color: var(--rams-text-muted, #64748b);"></span>
                     </div>
                     <div class="rams-grid rams-grid--3" style="gap: 0.75rem; font-size: 0.85rem;">
-                        <div><span style="color: var(--rams-text-muted);">Searches:</span> <strong id="stat-searches">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">LLM Accept:</span> <strong id="stat-llm-accept">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">LLM Reject:</span> <strong id="stat-llm-reject">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">Loc Reject:</span> <strong id="stat-loc-reject">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">Saved:</span> <strong id="stat-saved">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">Log Lines:</span> <strong id="stat-lines">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">Total Discovered:</span> <strong id="stat-total">{{ stats.discovered }}</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_searches'|trans }}:</span> <strong id="stat-searches">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_llm_accept'|trans }}:</span> <strong id="stat-llm-accept">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_llm_reject'|trans }}:</span> <strong id="stat-llm-reject">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_loc_reject'|trans }}:</span> <strong id="stat-loc-reject">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_saved'|trans }}:</span> <strong id="stat-saved">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_log_lines'|trans }}:</span> <strong id="stat-lines">0</strong></div>
+                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_total_discovered'|trans }}:</span> <strong id="stat-total">{{ stats.discovered }}</strong></div>
                     </div>
                 </div>
             </div>
@@ -212,7 +212,7 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
     const resultsDiv = document.getElementById('discovery-results');
 
     btnStart.disabled = true;
-    btnStart.textContent = 'Starting...';
+    btnStart.textContent = '{{ 'webcrawler.starting'|trans }}';
     resultsDiv.classList.add('rams-hidden');
 
     try {
@@ -225,9 +225,15 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             if (response.redirected || response.url.includes('/login')) {
-                showError('Session expired. Please <a href="/login" class="rams-link">log in again</a>.');
+                const errorDiv = document.getElementById('discovery-results');
+                const errorContent = document.getElementById('results-content');
+                errorDiv.classList.remove('rams-hidden');
+                errorContent.innerHTML = `<div class="rams-alert rams-alert--error">
+                    <p class="rams-alert__title">{{ 'common.error'|trans }}</p>
+                    <p class="rams-alert__text">{{ 'webcrawler.session_expired'|trans }} <a href="{{ path('app_login') }}" class="rams-link">{{ 'webcrawler.login_again'|trans }}</a></p>
+                </div>`;
             } else {
-                showError('Server returned an invalid response. Please refresh the page.');
+                showError('{{ 'webcrawler.invalid_response'|trans }}');
             }
             btnStart.disabled = false;
             btnStart.textContent = '{{ 'webcrawler.start_discovery'|trans }}';
@@ -243,17 +249,17 @@ document.getElementById('discovery-form').addEventListener('submit', async funct
             btnStart.classList.add('rams-hidden');
             
             document.getElementById('status-label').textContent = 
-                data.status === 'already_running' ? 'Discovery Already Running' : 'Discovery Started';
+                data.status === 'already_running' ? '{{ 'webcrawler.status_discovery_already_running'|trans }}' : '{{ 'webcrawler.status_discovery_started'|trans }}';
             
             // Start polling
             startPolling();
         } else if (!data.success) {
-            showError(data.error || 'Failed to start discovery');
+            showError(data.error || '{{ 'webcrawler.failed_start_discovery'|trans }}');
             btnStart.disabled = false;
             btnStart.textContent = '{{ 'webcrawler.start_discovery'|trans }}';
         }
     } catch (error) {
-        showError('Failed to start discovery: ' + error.message);
+        showError('{{ 'webcrawler.failed_start_discovery'|trans }}: ' + error.message);
         btnStart.disabled = false;
         btnStart.textContent = '{{ 'webcrawler.start_discovery'|trans }}';
     }
@@ -287,7 +293,7 @@ async function checkStatus() {
             btnStop.classList.remove('rams-hidden');
             btnStart.classList.add('rams-hidden');
             
-            document.getElementById('status-label').textContent = 'Discovery Running' + 
+            document.getElementById('status-label').textContent = '{{ 'webcrawler.status_discovery_running'|trans }}' + 
                 (data.sector ? ` — ${data.sector}` : '') +
                 (data.location ? ` (${data.location})` : '');
             document.getElementById('status-indicator').className = 'rams-andon__light rams-andon__light--yellow rams-pulse';
@@ -295,7 +301,7 @@ async function checkStatus() {
             if (data.started_at) {
                 const started = new Date(data.started_at);
                 const elapsed = Math.round((Date.now() - started.getTime()) / 60000);
-                document.getElementById('status-time').textContent = `Running ${elapsed} min`;
+                document.getElementById('status-time').textContent = '{{ 'webcrawler.status_running_min'|trans }}'.replace('%min%', elapsed);
             }
 
             // Update stats
@@ -311,9 +317,9 @@ async function checkStatus() {
             if (!pollTimer) startPolling();
         } else if (statusDiv && !statusDiv.classList.contains('rams-hidden')) {
             // Was running, now finished
-            document.getElementById('status-label').textContent = 'Discovery Completed';
+            document.getElementById('status-label').textContent = '{{ 'webcrawler.status_discovery_completed'|trans }}';
             document.getElementById('status-indicator').className = 'rams-andon__light rams-andon__light--green';
-            document.getElementById('status-time').textContent = 'Finished';
+            document.getElementById('status-time').textContent = '{{ 'webcrawler.status_finished'|trans }}';
             
             btnStop.classList.add('rams-hidden');
             btnStart.classList.remove('rams-hidden');
@@ -330,9 +336,9 @@ async function checkStatus() {
             const discTotal = data.discovered_total || 0;
             resultsContent.innerHTML = `
                 <div class="rams-alert rams-alert--success">
-                    <p class="rams-alert__title">Discovery Complete</p>
-                    <p class="rams-alert__text">${escapeHtml(String(saved))} companies saved. Total discovered: ${escapeHtml(String(discTotal))}.</p>
-                    <p class="rams-alert__text"><a class="rams-link" href="{{ path('app_company_discovered') }}">Review discovered companies</a></p>
+                    <p class="rams-alert__title">{{ 'webcrawler.status_discovery_complete'|trans }}</p>
+                    <p class="rams-alert__text">{{ 'webcrawler.status_complete_summary'|trans({'%saved%': '%S%', '%total%': '%T%'}) }}.replace('%S%', escapeHtml(String(saved))).replace('%T%', escapeHtml(String(discTotal)))</p>
+                    <p class="rams-alert__text"><a class="rams-link" href="{{ path('app_company_discovered') }}">{{ 'webcrawler.review_discovered_companies'|trans }}</a></p>
                 </div>`;
         } else {
             // Nothing running, reset UI
@@ -351,7 +357,7 @@ async function stopDiscovery() {
     ramsConfirm('{{ 'webcrawler.stop_discovery_confirm'|trans }}', async function() {
         try {
             await fetch('{{ path('app_webcrawler_discover_stop') }}', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: '_token=' + encodeURIComponent('{{ csrf_token('webcrawler_discover_stop') }}')  });
-            document.getElementById('status-label').textContent = 'Discovery Stopped';
+            document.getElementById('status-label').textContent = '{{ 'webcrawler.status_discovery_stopped'|trans }}';
             document.getElementById('status-indicator').className = 'rams-andon__light rams-andon__light--red';
             document.getElementById('btn-stop').classList.add('rams-hidden');
             document.getElementById('btn-start').classList.remove('rams-hidden');

@@ -70,12 +70,16 @@ class EmailActivityLogger
         $activity->setType('Email');
         $activity->setActivityDate($send->getSentAt() ?? new \DateTime());
         
-        // Build description
+        // Build description — the trailing tag makes the activity uniquely
+        // addressable so engagement updates match exactly (no LIKE collisions
+        // with other activities of the same campaign name).
         $description = sprintf(
-            "Email sent: %s\nCampaign: %s\nSubject: %s",
+            "Email sent: %s\nCampaign: %s\nSubject: %s\n[campaign:%s contact:%s]",
             $contact->getEmail(),
             $campaign->getName(),
-            $campaign->getSubject() ?? $campaign->getName()
+            $campaign->getSubject() ?? $campaign->getName(),
+            $campaign->getId(),
+            $contact->getId()
         );
 
         // Add engagement info if available
@@ -128,21 +132,42 @@ class EmailActivityLogger
             return;
         }
 
-        // Search for the activity by matching description pattern
+        // Search for the activity by its exact campaign+contact tag — the
+        // human-readable description may change, the tag never does. Falls
+        // back to the legacy LIKE pattern for activities created before the
+        // tag was introduced.
+        $exactTag = sprintf('[campaign:%s contact:%s]', $campaign->getId(), $contact->getId());
         $activities = $this->em->getRepository(Activity::class)
             ->createQueryBuilder('a')
             ->where('a.company = :company')
             ->andWhere('a.contact = :contact')
             ->andWhere('a.type = :type')
-            ->andWhere('a.description LIKE :pattern')
+            ->andWhere('a.description LIKE :exactTag')
             ->setParameter('company', $company)
             ->setParameter('contact', $contact)
             ->setParameter('type', 'Email')
-            ->setParameter('pattern', '%Campaign: ' . $campaign->getName() . '%')
+            ->setParameter('exactTag', '%' . $exactTag . '%')
             ->orderBy('a.activityDate', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getResult();
+
+        if (empty($activities)) {
+            $activities = $this->em->getRepository(Activity::class)
+                ->createQueryBuilder('a')
+                ->where('a.company = :company')
+                ->andWhere('a.contact = :contact')
+                ->andWhere('a.type = :type')
+                ->andWhere('a.description LIKE :pattern')
+                ->setParameter('company', $company)
+                ->setParameter('contact', $contact)
+                ->setParameter('type', 'Email')
+                ->setParameter('pattern', '%Campaign: ' . $campaign->getName() . '%')
+                ->orderBy('a.activityDate', 'DESC')
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getResult();
+        }
 
         if (empty($activities)) {
             // No existing activity found, create a new one
@@ -422,11 +447,12 @@ class EmailActivityLogger
         $armName = $message->getSubjectArm()?->getArmName() ?? 'default';
 
         $description = sprintf(
-            "Outbound email sent (Autonomous Sales)\nTo: %s\nSubject: %s\nTemplate: %s\nSubject arm: %s",
+            "Outbound email sent (Autonomous Sales)\nTo: %s\nSubject: %s\nTemplate: %s\nSubject arm: %s%s",
             $contact->getEmail() ?? 'unknown',
             $message->getSubject() ?? '(no subject)',
             $templateName,
-            $armName
+            $armName,
+            $message->getId() ? sprintf("\n[message:%s]", $message->getId()) : ''
         );
 
         $activity->setDescription($description);
@@ -462,21 +488,42 @@ class EmailActivityLogger
             return;
         }
 
-        // Find existing activity for this outbound message
-        $activities = $this->em->getRepository(Activity::class)
-            ->createQueryBuilder('a')
-            ->where('a.company = :company')
-            ->andWhere('a.contact = :contact')
-            ->andWhere('a.type = :type')
-            ->andWhere('a.description LIKE :pattern')
-            ->setParameter('company', $company)
-            ->setParameter('contact', $contact)
-            ->setParameter('type', 'Outbound Email')
-            ->setParameter('pattern', '%Outbound email sent (Autonomous Sales)%Subject: ' . substr($message->getSubject() ?? '', 0, 50) . '%')
-            ->orderBy('a.activityDate', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getResult();
+        // Find existing activity for this outbound message — exact message tag
+        // first, legacy subject-prefix pattern as fallback for old activities.
+        $exactTag = $message->getId() ? sprintf('[message:%s]', $message->getId()) : null;
+        $activities = $exactTag !== null
+            ? $this->em->getRepository(Activity::class)
+                ->createQueryBuilder('a')
+                ->where('a.company = :company')
+                ->andWhere('a.contact = :contact')
+                ->andWhere('a.type = :type')
+                ->andWhere('a.description LIKE :exactTag')
+                ->setParameter('company', $company)
+                ->setParameter('contact', $contact)
+                ->setParameter('type', 'Outbound Email')
+                ->setParameter('exactTag', '%' . $exactTag . '%')
+                ->orderBy('a.activityDate', 'DESC')
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getResult()
+            : [];
+
+        if (empty($activities)) {
+            $activities = $this->em->getRepository(Activity::class)
+                ->createQueryBuilder('a')
+                ->where('a.company = :company')
+                ->andWhere('a.contact = :contact')
+                ->andWhere('a.type = :type')
+                ->andWhere('a.description LIKE :pattern')
+                ->setParameter('company', $company)
+                ->setParameter('contact', $contact)
+                ->setParameter('type', 'Outbound Email')
+                ->setParameter('pattern', '%Outbound email sent (Autonomous Sales)%Subject: ' . substr($message->getSubject() ?? '', 0, 50) . '%')
+                ->orderBy('a.activityDate', 'DESC')
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getResult();
+        }
 
         if (empty($activities)) {
             // No existing activity — create one with the engagement already logged

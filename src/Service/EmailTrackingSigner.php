@@ -35,7 +35,25 @@ final class EmailTrackingSigner
             return false;
         }
 
-        return hash_equals($this->signClick($sendId, $url), $signature);
+        // EmailCampaignService signs the raw target URL and embeds it in a
+        // route parameter. Email clients, proxies or servers may deliver
+        // that parameter still percent-encoded, so accept both the raw form
+        // and the urldecoded form (urlencode and rawurlencode variants).
+        $candidates = [$url];
+        if (urldecode($url) !== $url) {
+            $candidates[] = urldecode($url);
+        }
+        if (rawurldecode($url) !== $url) {
+            $candidates[] = rawurldecode($url);
+        }
+
+        foreach (array_unique($candidates) as $candidate) {
+            if (hash_equals($this->signClick($sendId, $candidate), $signature)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function signPayload(string $payload): string

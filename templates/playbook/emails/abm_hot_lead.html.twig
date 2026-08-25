@@ -1,79 +1,71 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>{{ 'emails.playbook.abm_hot_lead.title'|trans }}</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #fef2f2; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header { border-bottom: 3px solid #dc2626; padding-bottom: 15px; margin-bottom: 20px; }
-        .header h1 { color: #b91c1c; margin: 0; font-size: 24px; }
-        .priority-badge { display: inline-block; background: #dc2626; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .content { color: #374151; line-height: 1.6; }
-        .metrics { background: #fee2e2; padding: 20px; border-radius: 6px; margin: 20px 0; }
-        .metric { margin-bottom: 12px; }
-        .metric-label { font-weight: bold; color: #991b1b; }
-        .metric-value { font-size: 18px; color: #1f2937; }
-        .score-high { color: #059669; font-weight: bold; }
-        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
-        .btn { display: inline-block; background: #dc2626; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 15px; }
-        .action-required { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <span class="priority-badge">{{ 'emails.playbook.abm_hot_lead.priority_high'|trans }}</span>
-            <h1>{{ 'emails.playbook.abm_hot_lead.title'|trans }}</h1>
+{# Playbook ABM hot lead alert email - extends base email layout #}
+{% extends 'emails/base.html.twig' %}
+
+{% block title %}{{ 'emails.playbook.abm_hot_lead.title'|trans }}{% endblock %}
+
+{% block header %}
+<thead>
+    <tr>
+        <th scope="col" style="padding: 30px 40px; text-align: center; background-color: #b91c1c; border-bottom: 3px solid #dc2626;">
+            <span style="display: inline-block; background: #dc2626; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold;">{{ 'emails.playbook.abm_hot_lead.priority_high'|trans }}</span>
+            <h1 style="margin: 10px 0 0 0; color: #ffffff; font-size: 24px; font-weight: 600;">{{ 'emails.playbook.abm_hot_lead.title'|trans }}</h1>
+        </th>
+    </tr>
+</thead>
+{% endblock %}
+
+{% block content %}
+<div class="rams-email-content" style="font-family: Arial, sans-serif; color: #374151; line-height: 1.6;">
+    <p style="margin: 0 0 15px;">{{ 'emails.playbook.abm_hot_lead.message'|trans }}</p>
+
+    <div style="background: #fee2e2; padding: 20px; border-radius: 6px; margin: 20px 0;">
+        <div style="margin-bottom: 12px;">
+            <span style="font-weight: bold; color: #991b1b;">{{ 'common.account_name'|trans }}:</span><br>
+            <span style="font-size: 18px; color: #1f2937;">{{ account_name|default(company_name|default('common.unknown'|trans)) }}</span>
         </div>
-        
-        <div class="content">
-            <p>{{ 'emails.playbook.abm_hot_lead.message'|trans }}</p>
-            
-            <div class="metrics">
-                <div class="metric">
-                    <span class="metric-label">{{ 'common.account_name'|trans }}:</span><br>
-                    <span class="metric-value">{{ account_name|default(company_name|default('common.unknown'|trans)) }}</span>
-                </div>
-                
-                {% if domain is defined %}
-                <div class="metric">
-                    <span class="metric-label">{{ 'common.domain'|trans }}:</span><br>
-                    <span class="metric-value">{{ domain }}</span>
-                </div>
-                {% endif %}
-                
-                {% if engagement_score is defined %}
-                <div class="metric">
-                    <span class="metric-label">{{ 'abm.engagement_score'|trans }}:</span><br>
-                    <span class="metric-value {% if engagement_score >= 70 %}score-high{% endif %}">
-                        {{ engagement_score }}/100
-                    </span>
-                </div>
-                {% endif %}
-                
-                {% if page_visited is defined %}
-                <div class="metric">
-                    <span class="metric-label">{{ 'abm.recent_visit'|trans }}:</span><br>
-                    <span class="metric-value">{{ page_visited }}</span>
-                </div>
-                {% endif %}
-            </div>
-            
-            <div class="action-required">
-                <strong>{{ 'common.recommended_actions'|trans }}:</strong>
-                <ul>
-                    <li>{{ 'emails.playbook.abm_hot_lead.action_review'|trans }}</li>
-                    <li>{{ 'emails.playbook.abm_hot_lead.action_outreach'|trans }}</li>
-                    <li>{{ 'emails.playbook.abm_hot_lead.action_team'|trans }}</li>
-                </ul>
-            </div>
+
+        {% if domain is defined %}
+        <div style="margin-bottom: 12px;">
+            <span style="font-weight: bold; color: #991b1b;">{{ 'common.domain'|trans }}:</span><br>
+            <span style="font-size: 18px; color: #1f2937;">{{ domain }}</span>
         </div>
-        
-        <div class="footer">
-            <p>This is an automated ABM alert from your CRM system.</p>
-            <p>Alert triggered: {{ timestamp|default('now')|date('Y-m-d H:i:s') }}</p>
+        {% endif %}
+
+        {% if engagement_score is defined %}
+        <div style="margin-bottom: 12px;">
+            <span style="font-weight: bold; color: #991b1b;">{{ 'abm.engagement_score'|trans }}:</span><br>
+            <span style="font-size: 18px; color: #1f2937; {% if engagement_score >= 70 %}color: #059669; font-weight: bold;{% endif %}">
+                {{ engagement_score }}/100
+            </span>
         </div>
+        {% endif %}
+
+        {% if page_visited is defined %}
+        <div style="margin-bottom: 12px;">
+            <span style="font-weight: bold; color: #991b1b;">{{ 'abm.recent_visit'|trans }}:</span><br>
+            <span style="font-size: 18px; color: #1f2937;">{{ page_visited }}</span>
+        </div>
+        {% endif %}
     </div>
-</body>
-</html>
+
+    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0;">
+        <strong>{{ 'common.recommended_actions'|trans }}:</strong>
+        <ul style="margin: 5px 0 0; padding-left: 20px;">
+            <li>{{ 'emails.playbook.abm_hot_lead.action_review'|trans }}</li>
+            <li>{{ 'emails.playbook.abm_hot_lead.action_outreach'|trans }}</li>
+            <li>{{ 'emails.playbook.abm_hot_lead.action_team'|trans }}</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<p style="margin: 0 0 10px; color: #6b7280; font-size: 12px; text-align: center;">{{ 'emails.playbook.abm_hot_lead.automated_message'|trans }}</p>
+<p style="margin: 0; color: #6b7280; font-size: 12px; text-align: center;">{{ 'emails.playbook.abm_hot_lead.alert_triggered'|trans }} {{ timestamp|default('now')|date('Y-m-d H:i:s') }}</p>
+{% if unsubscribe_url is defined and unsubscribe_url %}
+<p style="margin-top: 12px; border-top: 1px solid #e5e7eb; padding-top: 12px; color: #6b7280; font-size: 12px; text-align: center;">
+    {{ 'playbook.email.unsubscribe_desc'|trans }}
+    <a href="{{ unsubscribe_url }}" style="color: #6b7280; text-decoration: underline;">{{ 'playbook.email.unsubscribe'|trans }}</a>
+</p>
+{% endif %}
+{% endblock %}

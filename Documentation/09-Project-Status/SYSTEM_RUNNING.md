@@ -6,6 +6,8 @@ templates/           (Twig templates)
 **Environment:** Local/Staging (Symfony CLI)  
 **Status:** 🟢 Application online – Release V1 feature bundle validated
 
+> **Correction (2026-08):** "45 entities" counts in this snapshot are historical — the codebase currently has 66 entities (and the Estimate entity was removed).
+
 ---
 
 ## Server & Environment

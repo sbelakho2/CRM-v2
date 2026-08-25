@@ -1,5 +1,10 @@
 {% extends 'form_div_layout.html.twig' %}
 
+{# This is a Symfony form theme (extends form_div_layout.html.twig), so the
+   page-level body block is intentionally empty: page templates extending
+   base.html.twig define their own body block. #}
+{% block body %}{% endblock body %}
+
 {% block form_label -%}
     {%- set label_attr = label_attr|merge({class: (label_attr.class|default('') ~ ' rams-form__label rams-font-mono rams-text-2xs rams-uppercase rams-text--muted')|trim})      -%}
     {{- parent() -}}
@@ -16,7 +21,7 @@
 {% endblock textarea_widget %}
 
 {% block choice_widget_collapsed -%}
-    {%- set attr = attr|merge({class: (attr.class|default('') ~ ' rams-form__select')|trim}) -%}
+    {%- set attr = attr|merge({class: (attr.class|default('') ~ ' rams-form__select')|trim, 'aria-expanded': 'false'}) -%}
     {{- parent() -}}
 {% endblock choice_widget_collapsed %}
 

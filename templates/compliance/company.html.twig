@@ -187,7 +187,7 @@
 
                             <form method="post" action="{{ path('app_compliance_toggle_required', {id: document.id}) }}" class="rams-inline-block">
                                 <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ document.id) }}">
-                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm" 
+                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm" aria-expanded="false"
                                         title="{{ document.required ? 'compliance.mark_optional'|trans : 'compliance.mark_required'|trans }}">
                                     {% if document.required %}
                                         <svg class="rams-btn__icon rams-text--success" fill="currentColor" viewBox="0 0 24 24">

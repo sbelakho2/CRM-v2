@@ -53,8 +53,8 @@ class FreightTable
     #[ORM\Column(length: 36, nullable: true)]
     private ?string $versionId = null;
 
-    #[ORM\Column(type: 'boolean')]
-    private bool $isActive = false;
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    private bool $isActive = true;
 
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;

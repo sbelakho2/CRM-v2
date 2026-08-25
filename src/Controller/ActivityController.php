@@ -112,13 +112,23 @@ class ActivityController extends AbstractController
         }
 
         if ($dateFrom) {
+            $dateFromParsed = $this->parseDateParam($dateFrom);
+            if ($dateFromParsed === null) {
+                $this->addFlash('error', 'Invalid date_from filter. Please use YYYY-MM-DD format.');
+                return $this->redirectToRoute('app_activity_index');
+            }
             $qb->andWhere('a.activityDate >= :dateFrom')
-               ->setParameter('dateFrom', new \DateTime($dateFrom));
+               ->setParameter('dateFrom', $dateFromParsed);
         }
 
         if ($dateTo) {
+            $dateToParsed = $this->parseDateParam($dateTo);
+            if ($dateToParsed === null) {
+                $this->addFlash('error', 'Invalid date_to filter. Please use YYYY-MM-DD format.');
+                return $this->redirectToRoute('app_activity_index');
+            }
             $qb->andWhere('a.activityDate <= :dateTo')
-               ->setParameter('dateTo', new \DateTime($dateTo));
+               ->setParameter('dateTo', $dateToParsed);
         }
 
         $qb->orderBy('a.activityDate', 'DESC');
@@ -309,7 +319,7 @@ class ActivityController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_activity_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_activity_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(Activity $activity): Response
     {
         return $this->render('activity/show.html.twig', [
@@ -365,5 +375,20 @@ class ActivityController extends AbstractController
         }
 
         return $this->redirectToRoute('app_activity_index');
+    }
+
+    /**
+     * Parse a user-supplied date string into a \DateTime, or null when invalid.
+     */
+    private function parseDateParam(?string $value, string $default = 'now'): ?\DateTime
+    {
+        if ($value === null || trim($value) === '') {
+            $value = $default;
+        }
+        try {
+            return new \DateTime($value);
+        } catch (\Exception) {
+            return null;
+        }
     }
 }

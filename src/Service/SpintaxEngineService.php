@@ -28,6 +28,9 @@ class SpintaxEngineService
 {
     private const MIN_LEVENSHTEIN_DISTANCE = 50; // Minimum distance for "unique" content
 
+    /** Exact Levenshtein DP is used up to this length (per string). */
+    private const MAX_EXACT_LEVENSHTEIN_CHARS = 1000;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private SpintaxTemplateRepository $templateRepository,
@@ -178,64 +181,90 @@ class SpintaxEngineService
     /**
      * Calculate Levenshtein distance between two strings
      * 
-     * PHP's built-in levenshtein() is limited to 255 chars, so we use our own
+     * PHP's built-in levenshtein() is limited to 255 chars, so we use our own.
+     * Strings up to 1000 chars use the exact DP; longer strings use a
+     * chunked approximation that can never return 0 unless the strings are
+     * byte-identical (so the uniqueness gate never accepts a duplicate body).
      */
     public function levenshteinDistance(string $a, string $b): int
     {
         $lenA = strlen($a);
         $lenB = strlen($b);
-        
-        // For very long strings, use sampling to avoid memory issues
-        if ($lenA > 500 || $lenB > 500) {
-            return $this->approximateLevenshtein($a, $b);
+
+        // Exact DP for anything up to the bounded limit.
+        if ($lenA <= self::MAX_EXACT_LEVENSHTEIN_CHARS && $lenB <= self::MAX_EXACT_LEVENSHTEIN_CHARS) {
+            return $this->dpLevenshtein($a, $b);
         }
-        
-        if ($lenA === 0) return $lenB;
-        if ($lenB === 0) return $lenA;
-        
-        // Create distance matrix
-        $d = [];
-        for ($i = 0; $i <= $lenA; $i++) {
-            $d[$i][0] = $i;
-        }
-        for ($j = 0; $j <= $lenB; $j++) {
-            $d[0][$j] = $j;
-        }
-        
-        // Calculate distances
-        for ($i = 1; $i <= $lenA; $i++) {
-            for ($j = 1; $j <= $lenB; $j++) {
-                $cost = ($a[$i - 1] === $b[$j - 1]) ? 0 : 1;
-                $d[$i][$j] = min(
-                    $d[$i - 1][$j] + 1,      // Deletion
-                    $d[$i][$j - 1] + 1,      // Insertion
-                    $d[$i - 1][$j - 1] + $cost // Substitution
-                );
-            }
-        }
-        
-        return $d[$lenA][$lenB];
+
+        // Very long strings: chunk-based approximation with a length-difference
+        // penalty. Identical strings yield 0; any difference yields > 0.
+        return $this->approximateLevenshtein($a, $b);
     }
 
     /**
-     * Approximate Levenshtein distance for long strings
+     * Space-optimized (two-row) exact Levenshtein distance.
+     * Memory is O(min(lenA, lenB)); correct for any input length.
+     */
+    private function dpLevenshtein(string $a, string $b): int
+    {
+        $lenA = strlen($a);
+        $lenB = strlen($b);
+
+        if ($lenA === 0) return $lenB;
+        if ($lenB === 0) return $lenA;
+
+        // Ensure the shorter string drives the outer loop.
+        if ($lenA > $lenB) {
+            [$a, $b] = [$b, $a];
+            [$lenA, $lenB] = [$lenB, $lenA];
+        }
+
+        $prev = range(0, $lenB);
+        for ($i = 1; $i <= $lenA; $i++) {
+            $curr = [0 => $i];
+            for ($j = 1; $j <= $lenB; $j++) {
+                $cost = ($a[$i - 1] === $b[$j - 1]) ? 0 : 1;
+                $curr[$j] = min(
+                    $prev[$j] + 1,        // Deletion
+                    $curr[$j - 1] + 1,    // Insertion
+                    $prev[$j - 1] + $cost // Substitution
+                );
+            }
+            $prev = $curr;
+        }
+
+        return $prev[$lenB];
+    }
+
+    /**
+     * Approximate Levenshtein distance for very long strings.
+     *
+     * FIXED: the old implementation returned 0 (fallback) whenever the sampled
+     * prefix exceeded PHP's 255-char levenshtein limit — identical long bodies
+     * passed the uniqueness gate. Now the strings are compared in fixed-size
+     * chunks with a length-difference penalty, which is 0 only when the input
+     * strings are byte-identical.
      */
     private function approximateLevenshtein(string $a, string $b): int
     {
-        // Sample both strings and calculate distance on samples
-        $sampleSize = 200;
-        $sampledA = substr($a, 0, $sampleSize);
-        $sampledB = substr($b, 0, $sampleSize);
-        
-        if (strlen($sampledA) > 255 || strlen($sampledB) > 255) {
-            return 0; // Fallback for very long strings
+        $lenA = strlen($a);
+        $lenB = strlen($b);
+
+        $distance = 0;
+        $chunkSize = self::MAX_EXACT_LEVENSHTEIN_CHARS;
+
+        $offset = 0;
+        while ($offset < $lenA || $offset < $lenB) {
+            $chunkA = substr($a, $offset, $chunkSize);
+            $chunkB = substr($b, $offset, $chunkSize);
+            $distance += $this->dpLevenshtein($chunkA, $chunkB);
+            $offset += $chunkSize;
         }
 
-        // Scale up the result proportionally
-        $sampleDistance = levenshtein($sampledA, $sampledB);
-        $scaleFactor = max(strlen($a), strlen($b)) / $sampleSize;
-        
-        return (int) ($sampleDistance * $scaleFactor);
+        // Length difference penalty: identical strings → 0; anything else adds > 0.
+        $distance += abs($lenA - $lenB);
+
+        return $distance;
     }
 
     /**

@@ -2,6 +2,8 @@
 
 This guide will help you set up Google Custom Search API for automated lead discovery in the CRM system.
 
+> **Note (2026-08):** The CRM's **primary** search provider is now the self-hosted **SearXNG** instance (port 8888, `SEARXNG_BASE_URL` env var — see `config/services.yaml`, `SearchProviderInterface`). Google CSE is the **fallback** when SearXNG is unavailable. The setup steps below configure that fallback.
+
 ## Prerequisites
 
 - Google Account

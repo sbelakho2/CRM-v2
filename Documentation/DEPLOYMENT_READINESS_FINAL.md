@@ -78,8 +78,8 @@
 ```bash
 $ php bin/console about
 Environment: prod
-Symfony: 7.3.5
-PHP: 8.4.14
+Symfony: 7.4.15 (7.3.5 at the time this report was written)
+PHP: 8.4.18
 ```
 
 ✅ Database clean:

@@ -173,8 +173,8 @@ class ProxyRotationService
         return [
             'proxy' => $proxy,
             'timeout' => self::DEFAULT_TIMEOUT,
-            'verify_peer' => false, // Often needed for rotating proxies
-            'verify_host' => false,
+            'verify_peer' => true,
+            'verify_host' => true,
         ];
     }
 

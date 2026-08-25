@@ -263,7 +263,8 @@ class TestLeadQualityCommand extends Command
             ->addOption('contact-threshold', null, InputOption::VALUE_OPTIONAL, 'Contact finding rate threshold %', '85')
             ->addOption('competitor-threshold', null, InputOption::VALUE_OPTIONAL, 'No-competitor threshold %', '95')
             ->addOption('dry-run', 'd', InputOption::VALUE_NONE, 'Show what would be tested without running')
-            ->addOption('no-persist', null, InputOption::VALUE_NONE, 'Skip saving companies/contacts to the database')
+            ->addOption('persist', null, InputOption::VALUE_NONE, 'Save validated companies/contacts to the database (default: no persistence)')
+            ->addOption('no-persist', null, InputOption::VALUE_NONE, 'Deprecated safety net: explicitly skip saving to the database (default behaviour)')
             ->addOption('max-per-combo', null, InputOption::VALUE_OPTIONAL, 'Max results per country+sector combo', '5')
             ->setHelp(<<<'HELP'
 Tests lead generation quality across European regions.
@@ -274,8 +275,11 @@ THREE QUALITY GATES (all must pass N times in a row):
   3. NO COMPETITORS    — ≥95% of companies are NOT EMS/harness competitors
 
 Examples:
-  # Test Germany, all sectors, 3 passes required
+  # Test Germany, all sectors, 3 passes required (nothing is saved)
   php bin/console app:test-lead-quality --country=DE --passes=3
+
+  # Persist validated companies/contacts to the database (explicit opt-in)
+  php bin/console app:test-lead-quality --country=DE --persist
 
   # Test with custom thresholds
   php bin/console app:test-lead-quality --country=DE --threshold=95 --contact-threshold=85 --competitor-threshold=95
@@ -307,7 +311,8 @@ HELP
         $contactThreshold = (float) $input->getOption('contact-threshold');
         $competitorThreshold = (float) $input->getOption('competitor-threshold');
         $maxPerCombo = (int) $input->getOption('max-per-combo');
-        $noPersist = $input->getOption('no-persist');
+        // Persistence is opt-in: only --persist (and not --no-persist) saves data.
+        $persist = $input->getOption('persist') && !$input->getOption('no-persist');
 
         // Filter to specific country if requested
         $countryFilter = $input->getOption('country');
@@ -347,6 +352,7 @@ HELP
             "Gate 2 — Contact rate:    ≥{$contactThreshold}%",
             "Gate 3 — No competitors:  ≥{$competitorThreshold}%",
             "Max results per combo: {$maxPerCombo}",
+            "Persist to database: " . ($persist ? 'YES (--persist)' : 'NO (default)'),
         ]);
 
         if ($input->getOption('dry-run')) {
@@ -481,7 +487,8 @@ HELP
                         }
 
                         // ── Persist good companies + contacts to the database ──
-                        if (!$noPersist && $isGoodCompany && !$isCompetitor) {
+                        // Persistence is opt-in (--persist); default is a pure test run.
+                        if ($persist && $isGoodCompany && !$isCompetitor) {
                             $this->persistCompanyWithContacts(
                                 $name, $domain, $result, $contacts,
                                 $sector, $countryCode, $countryName

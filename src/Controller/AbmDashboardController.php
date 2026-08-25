@@ -10,6 +10,7 @@ use App\Service\AbmResolverService;
 use App\Service\PlaybookEngine;
 use App\Service\EngagementHeatMapService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -46,7 +47,8 @@ class AbmDashboardController extends AbstractController
         private EntityManagerInterface $entityManager,
         private AbmResolverService $abmResolver,
         private PlaybookEngine $playbookEngine,
-        private EngagementHeatMapService $heatMapService
+        private EngagementHeatMapService $heatMapService,
+        private LoggerInterface $logger
     ) {}
 
     /**
@@ -79,6 +81,9 @@ class AbmDashboardController extends AbstractController
         try {
             $topAccounts = $topAccountsQuery->getResult();
         } catch (\Exception $e) {
+            $this->logger->error('ABM dashboard: failed to load top engaged accounts', [
+                'exception' => $e->getMessage(),
+            ]);
             $topAccounts = [];
         }
         
@@ -98,6 +103,10 @@ class AbmDashboardController extends AbstractController
                 ->getSingleScalarResult();
         } catch (\Exception $e) {
             // If error, continue with 0
+            $this->logger->error('ABM dashboard: failed to count new accounts in 24h', [
+                'exception' => $e->getMessage(),
+            ]);
+            $newAccounts24h = 0;
         }
         
         $metrics = [
@@ -114,6 +123,9 @@ class AbmDashboardController extends AbstractController
         try {
             $heatMapCompanies = $this->heatMapService->getTopCompaniesByEngagement(20);
         } catch (\Exception $e) {
+            $this->logger->error('ABM dashboard: failed to load engagement heat map', [
+                'exception' => $e->getMessage(),
+            ]);
             $heatMapError = 'Operation failed. Please try again.';
         }
         
@@ -235,7 +247,7 @@ class AbmDashboardController extends AbstractController
     /**
      * Edit ABM account
      */
-    #[Route('/account/{id}/edit', name: 'abm_dashboard_account_edit', methods: ['GET', 'POST'])]
+    #[Route('/account/{id}/edit', name: 'abm_dashboard_account_edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function editAccount(string $id, Request $request): Response
     {
         $account = $this->entityManager->getRepository(AbmAccount::class)->find((int)$id);
@@ -278,7 +290,7 @@ class AbmDashboardController extends AbstractController
     /**
      * Account detail with activity timeline
      */
-    #[Route('/account/{id}', name: 'abm_dashboard_account_detail', methods: ['GET'])]
+    #[Route('/account/{id}', name: 'abm_dashboard_account_detail', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function accountDetail(string $id): Response
     {
         $abmAccount = $this->entityManager->getRepository(AbmAccount::class)->find((int)$id);
@@ -307,6 +319,10 @@ class AbmDashboardController extends AbstractController
                 $emailOpens = $emailStats['total_opens'] ?? 0;
             } catch (\Exception $e) {
                 // If query fails, just use zeros
+                $this->logger->error('ABM dashboard: failed to load email stats for account', [
+                    'account_id' => $abmAccount->getId(),
+                    'exception' => $e->getMessage(),
+                ]);
             }
         }
         

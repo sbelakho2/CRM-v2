@@ -66,10 +66,9 @@ SYSTEM REQUIREMENTS
 ================================================================================
 
 - PHP 8.2 or higher
-- MySQL 8.0+ or PostgreSQL 13+
+- MySQL 8.0+ (the application targets MySQL)
 - Apache 2.4+ with mod_rewrite OR Nginx 1.18+
 - Composer (latest)
-- Node.js 16+ (for building frontend assets)
 - 4GB RAM minimum (8GB recommended)
 - 20GB disk space minimum
 
@@ -80,7 +79,7 @@ PHP Extensions Required:
 WHAT'S INCLUDED IN THIS PACKAGE
 ================================================================================
 
-✓ Complete Symfony 7.x application source code
+✓ Complete Symfony 7.4 application source code
 ✓ Configuration files (optimized for production)
 ✓ Comprehensive documentation (65+ files, ~180 pages)
 ✓ Database schema and migrations
@@ -90,12 +89,12 @@ WHAT'S INCLUDED IN THIS PACKAGE
 
 NOT INCLUDED (Install separately on production):
 ✗ PHP dependencies (vendor/) - Run: composer install
-✗ Node.js dependencies (node_modules/) - Run: npm install
-✗ Compiled frontend assets (public/build/) - Run: npm run build
 ✗ Development tools
 ✗ Test data
 ✗ IDE configuration
 ✗ Git repository
+
+NOTE: No frontend build step is required — Encore/Webpack/Tailwind were removed from the stack; Twig templates render directly.
 
 ================================================================================
 DEPLOYMENT STEPS
@@ -103,12 +102,11 @@ DEPLOYMENT STEPS
 
 1. Read Documentation/07-Deployment-Operations/PRODUCTION_DEPLOYMENT_GUIDE.md
 2. Install Composer dependencies
-3. Install Node.js dependencies and build assets
-4. Configure .env.local
-5. Set up database
-6. Configure web server
-7. Test deployment
-8. Follow complete checklist in deployment guide
+3. Configure .env.local
+4. Set up database
+5. Configure web server
+6. Test deployment
+7. Follow complete checklist in deployment guide
 
 ================================================================================
 ESTIMATED DEPLOYMENT TIME
@@ -124,8 +122,8 @@ VERSION INFORMATION
 Application Version: 1.0
 Release Date: October 2025
 Status: Production-Ready
-PHP Version Required: 8.2+
-Framework: Symfony 7.x
+PHP Version Required: 8.2+ (production runs 8.4; dev machine 8.5)
+Framework: Symfony 7.4.15
 
 ================================================================================
 END OF INSTALLATION GUIDE

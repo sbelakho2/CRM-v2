@@ -69,7 +69,7 @@ class AuditLogController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_audit_log_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_audit_log_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(int $id): Response
     {
         $auditLog = $this->auditLogRepository->find($id);

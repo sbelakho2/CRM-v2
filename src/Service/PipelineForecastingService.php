@@ -94,7 +94,7 @@ class PipelineForecastingService
      */
     public function calculateWeightedPipeline(): array
     {
-        $companies = $this->companyRepository->findAll();
+        $companyRows = $this->getPipelineCompanyRows();
         
         $pipeline = [
             'total_unweighted' => 0,
@@ -116,9 +116,9 @@ class PipelineForecastingService
             ];
         }
         
-        foreach ($companies as $company) {
+        foreach ($companyRows as $company) {
             $dealValue = $this->estimateDealValue($company);
-            $stage = $company->getPipelineStage() ?? Company::STAGE_PROSPECT;
+            $stage = $company['pipelineStage'] ?? Company::STAGE_PROSPECT;
             
             if ($dealValue <= 0) {
                 continue;
@@ -165,7 +165,7 @@ class PipelineForecastingService
             $pipeline['by_rep'][$rep]['weighted'] += $weightedValue;
             
             // Update by sector
-            $sector = $company->getSector() ?? 'Other';
+            $sector = $company['sector'] ?? 'Other';
             if (!isset($pipeline['by_sector'][$sector])) {
                 $pipeline['by_sector'][$sector] = ['count' => 0, 'unweighted' => 0, 'weighted' => 0];
             }
@@ -175,8 +175,8 @@ class PipelineForecastingService
             
             // Store individual deal info
             $pipeline['deals'][] = [
-                'company_id' => $company->getId(),
-                'company_name' => $company->getName(),
+                'company_id' => (int) $company['id'],
+                'company_name' => $company['name'],
                 'stage' => $stage,
                 'deal_value' => $dealValue,
                 'base_probability' => $probability,
@@ -239,20 +239,68 @@ class PipelineForecastingService
     }
     
     /**
-     * Calculate historical conversion rates by stage
+     * Calculate historical conversion rates by stage.
+     *
+     * Uses closed RFQs (won/lost) within the period, grouped by the
+     * company's current pipeline stage as a proxy for the stage at close
+     * (stage-at-close history is not tracked). Stages without any closed
+     * RFQs fall back to the default probabilities.
      */
     public function calculateConversionRates(?\DateTime $since = null): array
     {
-        if (!$since) {
-            $since = (new \DateTime())->modify('-12 months');
+        $since ??= (new \DateTime())->modify('-90 days');
+
+        $closed = $this->rfqRepository->createQueryBuilder('r')
+            ->select('c.pipelineStage, r.status, COUNT(r.id) AS total')
+            ->join('r.company', 'c')
+            ->where('r.status IN (:statuses)')
+            ->andWhere('COALESCE(r.decisionDate, r.rfqDate) >= :since')
+            ->setParameter('statuses', [RFQ::STATUS_WON, RFQ::STATUS_LOST])
+            ->setParameter('since', $since)
+            ->groupBy('c.pipelineStage, r.status')
+            ->getQuery()
+            ->getResult();
+
+        $perStage = [];
+        $totalWon = 0;
+        $totalClosed = 0;
+
+        foreach ($closed as $row) {
+            $stage = $row['pipelineStage'] ?? Company::STAGE_PROSPECT;
+            $count = (int) $row['total'];
+            $totalClosed += $count;
+
+            if (!isset($perStage[$stage])) {
+                $perStage[$stage] = ['won' => 0, 'total' => 0];
+            }
+            $perStage[$stage]['total'] += $count;
+            if ($row['status'] === RFQ::STATUS_WON) {
+                $perStage[$stage]['won'] += $count;
+                $totalWon += $count;
+            }
         }
-        
-        // This would ideally query historical data
-        // For now, return defaults with explanation
+
+        $rates = [];
+        $dataStages = 0;
+        foreach (Company::VALID_STAGES as $stage) {
+            if (isset($perStage[$stage]) && $perStage[$stage]['total'] > 0) {
+                $rates[$stage] = round($perStage[$stage]['won'] / $perStage[$stage]['total'], 4);
+                $dataStages++;
+            } else {
+                $rates[$stage] = self::DEFAULT_STAGE_PROBABILITIES[$stage] ?? 0.0;
+            }
+        }
+
         return [
             'period_start' => $since->format('Y-m-d'),
-            'rates' => self::DEFAULT_STAGE_PROBABILITIES,
-            'note' => 'Using default probabilities. Enable conversion tracking for historical analysis.',
+            'rates' => $rates,
+            'based_on' => [
+                'won' => $totalWon,
+                'closed' => $totalClosed,
+            ],
+            'note' => $dataStages === 0
+                ? 'No closed RFQs in the period — using default probabilities.'
+                : 'Computed from RFQ win/loss data grouped by company pipeline stage.',
         ];
     }
     
@@ -261,7 +309,7 @@ class PipelineForecastingService
      */
     public function getPipelineVelocity(): array
     {
-        $companies = $this->companyRepository->findAll();
+        $companyRows = $this->getPipelineCompanyRows();
         
         $velocity = [
             'average_deal_value' => 0,
@@ -276,8 +324,8 @@ class PipelineForecastingService
         $wonDeals = 0;
         $closedDeals = 0;
         
-        foreach ($companies as $company) {
-            $stage = $company->getPipelineStage();
+        foreach ($companyRows as $company) {
+            $stage = $company['pipelineStage'];
             $value = $this->estimateDealValue($company);
             
             if ($value > 0) {
@@ -291,7 +339,7 @@ class PipelineForecastingService
             } elseif ($stage !== null) {
                 // Any non-Award company with stale activity (>90 days) counts as a lost deal
                 // This includes SQL, SQO, and Proposal stages — not just Prospect/MQL
-                $lastUpdate = $company->getUpdatedAt();
+                $lastUpdate = $company['updatedAt'];
                 if ($lastUpdate && (new \DateTime())->diff($lastUpdate)->days > 90) {
                     $closedDeals++;
                 }
@@ -307,8 +355,9 @@ class PipelineForecastingService
             $velocity['win_rate'] = ($wonDeals / $closedDeals) * 100;
         }
         
-        // Simplified cycle calculation (would need deal creation dates)
-        $velocity['average_cycle_days'] = 45; // Default assumption
+        // Average cycle length computed from closed RFQs (decision date minus
+        // creation date), with a 45-day fallback when no data exists.
+        $velocity['average_cycle_days'] = $this->calculateAverageCycleDays();
         
         // Monthly velocity = (# deals × avg value × win rate) / cycle time
         if ($velocity['average_cycle_days'] > 0) {
@@ -321,17 +370,50 @@ class PipelineForecastingService
         
         return $velocity;
     }
+
+    /**
+     * Average sales cycle in days from closed RFQs: decisionDate - created
+     * (falling back to rfqDate). Returns 45 when no usable data exists.
+     */
+    private function calculateAverageCycleDays(): int
+    {
+        $closedRfqs = $this->rfqRepository->createQueryBuilder('r')
+            ->select('r.decisionDate, r.createdAt, r.rfqDate')
+            ->where('r.status IN (:statuses)')
+            ->andWhere('r.decisionDate IS NOT NULL')
+            ->setParameter('statuses', [RFQ::STATUS_WON, RFQ::STATUS_LOST])
+            ->getQuery()
+            ->getResult();
+
+        $cycleDays = [];
+        foreach ($closedRfqs as $row) {
+            $decisionDate = $row['decisionDate'];
+            $startDate = $row['createdAt'] ?? $row['rfqDate'];
+            if ($decisionDate && $startDate) {
+                $days = $decisionDate->diff($startDate)->days;
+                if ($days >= 0) {
+                    $cycleDays[] = $days;
+                }
+            }
+        }
+
+        if (empty($cycleDays)) {
+            return 45; // Default assumption when no closed RFQ data exists
+        }
+
+        return (int) round(array_sum($cycleDays) / count($cycleDays));
+    }
     
     /**
      * Get at-risk deals (stalled or decaying)
      */
     public function getAtRiskDeals(int $limit = 20): array
     {
-        $atRisk = [];
-        $companies = $this->companyRepository->findAll();
+        $atRiskRows = [];
+        $companyRows = $this->getPipelineCompanyRows();
         
-        foreach ($companies as $company) {
-            $stage = $company->getPipelineStage();
+        foreach ($companyRows as $company) {
+            $stage = $company['pipelineStage'];
             
             // Skip won or prospect stages
             if (in_array($stage, [Company::STAGE_AWARD, Company::STAGE_PROSPECT])) {
@@ -347,8 +429,8 @@ class PipelineForecastingService
             
             // Flag as at-risk if significant time decay
             if ($timeDecay < 0.80) {
-                $atRisk[] = [
-                    'company' => $company,
+                $atRiskRows[] = [
+                    'row' => $company,
                     'stage' => $stage,
                     'deal_value' => $dealValue,
                     'time_decay' => $timeDecay,
@@ -360,9 +442,39 @@ class PipelineForecastingService
         }
         
         // Sort by risk level (highest first)
-        usort($atRisk, fn($a, $b) => $b['deal_value'] * (1 - $b['time_decay']) <=> $a['deal_value'] * (1 - $a['time_decay']));
+        usort($atRiskRows, fn($a, $b) => $b['deal_value'] * (1 - $b['time_decay']) <=> $a['deal_value'] * (1 - $a['time_decay']));
         
-        return array_slice($atRisk, 0, $limit);
+        $atRiskRows = array_slice($atRiskRows, 0, $limit);
+        
+        // Hydrate only the at-risk companies (bounded by $limit)
+        $companyIds = array_map(fn(array $r): int => (int) $r['row']['id'], $atRiskRows);
+        $entitiesById = [];
+        if (!empty($companyIds)) {
+            $entities = $this->companyRepository->createQueryBuilder('c')
+                ->where('c.id IN (:ids)')
+                ->setParameter('ids', $companyIds)
+                ->getQuery()
+                ->getResult();
+            foreach ($entities as $entity) {
+                $entitiesById[$entity->getId()] = $entity;
+            }
+        }
+        
+        $atRisk = [];
+        foreach ($atRiskRows as $r) {
+            $atRisk[] = [
+                'company' => $entitiesById[(int) $r['row']['id']] ?? null,
+                'company_name' => $r['row']['name'],
+                'stage' => $r['stage'],
+                'deal_value' => $r['deal_value'],
+                'time_decay' => $r['time_decay'],
+                'risk_level' => $r['risk_level'],
+                'days_in_stage' => $r['days_in_stage'],
+                'recommendation' => $r['recommendation'],
+            ];
+        }
+        
+        return $atRisk;
     }
     
     /**
@@ -386,7 +498,7 @@ class PipelineForecastingService
             'velocity_metrics' => $velocity,
             'at_risk_count' => count($atRisk),
             'top_at_risk' => array_slice(array_map(fn($r) => [
-                'company' => $r['company']->getName(),
+                'company' => $r['company']?->getName() ?? $r['company_name'],
                 'value' => $r['deal_value'],
                 'risk' => $r['risk_level'],
             ], $atRisk), 0, 5),
@@ -395,11 +507,31 @@ class PipelineForecastingService
     }
     
     // Private helpers
-    
-    private function estimateDealValue(Company $company): float
+
+    /**
+     * Fetch only the pipeline-relevant company fields as scalar rows,
+     * avoiding hydration of full Company entities.
+     *
+     * @return array<int, array{id: int, name: string|null, pipelineStage: string|null, accountTier: string|null, sector: string|null, updatedAt: \DateTimeInterface|null}>
+     */
+    private function getPipelineCompanyRows(): array
+    {
+        return $this->companyRepository->createQueryBuilder('c')
+            ->select('c.id, c.name, c.pipelineStage, c.accountTier, c.sector, c.updatedAt')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Estimate deal value for a company row (from its latest RFQ, falling
+     * back to account tier defaults).
+     *
+     * @param array{id: int, accountTier: string|null, ...} $companyRow
+     */
+    private function estimateDealValue(array $companyRow): float
     {
         // Check for RFQs
-        $rfqs = $this->rfqRepository->findBy(['company' => $company], ['createdAt' => 'DESC'], 1);
+        $rfqs = $this->rfqRepository->findBy(['company' => (int) $companyRow['id']], ['createdAt' => 'DESC'], 1);
         
         if (!empty($rfqs)) {
             $rfq = $rfqs[0];
@@ -410,7 +542,7 @@ class PipelineForecastingService
         }
         
         // Default based on account tier
-        $tier = $company->getAccountTier();
+        $tier = $companyRow['accountTier'];
         return match ($tier) {
             Company::TIER_A => 100000,
             Company::TIER_B => 50000,
@@ -418,10 +550,13 @@ class PipelineForecastingService
             default => 35000,
         };
     }
-    
-    private function calculateTimeDecay(Company $company): float
+
+    /**
+     * @param array{updatedAt: \DateTimeInterface|null, ...} $companyRow
+     */
+    private function calculateTimeDecay(array $companyRow): float
     {
-        $updatedAt = $company->getUpdatedAt();
+        $updatedAt = $companyRow['updatedAt'];
         if (!$updatedAt) {
             return 1.0; // No decay if no timestamp
         }
@@ -436,16 +571,22 @@ class PipelineForecastingService
         
         return 0.10; // Severe decay after 180 days
     }
-    
-    private function getTierMultiplier(Company $company): float
+
+    /**
+     * @param array{accountTier: string|null, ...} $companyRow
+     */
+    private function getTierMultiplier(array $companyRow): float
     {
-        $tier = $company->getAccountTier();
+        $tier = $companyRow['accountTier'];
         return self::TIER_MULTIPLIERS[$tier] ?? 1.0;
     }
-    
-    private function determineExpectedCloseQuarter(Company $company): string
+
+    /**
+     * @param array{pipelineStage: string|null, ...} $companyRow
+     */
+    private function determineExpectedCloseQuarter(array $companyRow): string
     {
-        $stage = $company->getPipelineStage();
+        $stage = $companyRow['pipelineStage'];
         
         // Estimate months to close based on stage
         $monthsToClose = match ($stage) {
@@ -462,10 +603,13 @@ class PipelineForecastingService
         
         return "Q{$quarter} {$year}";
     }
-    
-    private function getDaysInCurrentStage(Company $company): int
+
+    /**
+     * @param array{updatedAt: \DateTimeInterface|null, ...} $companyRow
+     */
+    private function getDaysInCurrentStage(array $companyRow): int
     {
-        $updatedAt = $company->getUpdatedAt();
+        $updatedAt = $companyRow['updatedAt'];
         if (!$updatedAt) {
             return 0;
         }

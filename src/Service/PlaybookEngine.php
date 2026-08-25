@@ -11,8 +11,10 @@ use App\Repository\PlaybookRepository;
 use App\Repository\PlaybookRunRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Twig\Environment;
 
 /**
@@ -65,7 +67,9 @@ class PlaybookEngine
         private ?MailerInterface $mailer = null,
         private ?Environment $twig = null,
         private ?LoggerInterface $logger = null,
-        private ?string $senderEmail = null // Configured via services.yaml
+        private ?string $mailerFromAddress = null, // Bound via services.yaml
+        private ?UrlGeneratorInterface $urlGenerator = null,
+        private ?RequestStack $requestStack = null
     ) {}
 
     /**
@@ -521,6 +525,21 @@ class PlaybookEngine
             ];
         }
         
+        if (!$this->mailerFromAddress) {
+            $this->logger?->error('PlaybookEngine: no sender address configured (bind $mailerFromAddress), email action cannot be sent', [
+                'template' => $templateKey,
+                'to' => $recipient,
+            ]);
+
+            return [
+                'action' => 'send_email',
+                'success' => false,
+                'template' => $templateKey,
+                'to' => $recipient,
+                'error' => 'No sender address configured - email not sent',
+            ];
+        }
+
         try {
             // Build template context
             $templateContext = $this->buildEmailTemplateContext($context, $event, $actionData, $recipient);
@@ -531,7 +550,7 @@ class PlaybookEngine
             
             // Create and send email
             $email = (new Email())
-                ->from($this->senderEmail ?? 'noreply@example.com')
+                ->from($this->mailerFromAddress)
                 ->to($recipient)
                 ->subject($subject)
                 ->html($body);
@@ -620,19 +639,70 @@ class PlaybookEngine
      * Build the one-click unsubscribe URL for a recipient, using the same
      * HMAC-signed token scheme as EmailConsentService::generateUnsubscribeLink()
      * so the /email/unsubscribe endpoint can process it.
+     *
+     * The URL is generated from the configured router default_uri (or the
+     * current request context when available). If no URL can be determined,
+     * the link is skipped and the problem is logged loudly — a fabricated
+     * domain must never be emitted.
+     *
+     * @return string|null The absolute unsubscribe URL, or null when no URL is configurable
      */
-    private function buildUnsubscribeUrl(string $email): string
+    private function buildUnsubscribeUrl(string $email): ?string
     {
-        $baseUrl = rtrim($_ENV['APP_BASE_URL'] ?? 'https://crm.starz-morocco.com', '/');
         $secret = $_ENV['APP_SECRET'] ?? $_SERVER['APP_SECRET'] ?? getenv('APP_SECRET');
         $secret = (string) $secret;
+
+        if ($secret === '') {
+            $this->logger?->error('PlaybookEngine: APP_SECRET not configured, unsubscribe link cannot be signed and is skipped');
+            return null;
+        }
 
         $timestamp = time();
         $payload = $email . '|' . $timestamp;
         $hmac = hash_hmac('sha256', $payload, $secret);
         $token = base64_encode($payload . '|' . $hmac);
 
-        return sprintf('%s/email/unsubscribe?token=%s', $baseUrl, urlencode($token));
+        $params = ['token' => $token];
+
+        // Prefer an absolute URL generated from the routing configuration so
+        // the router default_uri (DEFAULT_URI) is honored. When a request is
+        // available, derive the context from it instead.
+        if ($this->urlGenerator !== null) {
+            $context = $this->urlGenerator->getContext();
+            $request = $this->requestStack?->getMainRequest();
+            if ($request !== null) {
+                $context = $context->fromRequest($request);
+            }
+
+            if ($context->getScheme() !== '' && $context->getHost() !== '') {
+                try {
+                    return $this->urlGenerator->generate(
+                        'email_unsubscribe',
+                        $params,
+                        UrlGeneratorInterface::ABSOLUTE_URL,
+                        $context
+                    );
+                } catch (\Exception $e) {
+                    $this->logger?->warning('PlaybookEngine: could not generate unsubscribe route URL, falling back to DEFAULT_URI', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        $defaultUri = (string) ($_ENV['DEFAULT_URI'] ?? $_SERVER['DEFAULT_URI'] ?? getenv('DEFAULT_URI') ?? '');
+        $baseUrl = rtrim($defaultUri, '/');
+
+        if ($baseUrl !== '') {
+            return $baseUrl . '/email/unsubscribe?' . http_build_query($params);
+        }
+
+        $this->logger?->error(
+            'PlaybookEngine: cannot build unsubscribe URL - no request context and DEFAULT_URI is not configured; unsubscribe link skipped',
+            ['recipient' => $email]
+        );
+
+        return null;
     }
 
     /**

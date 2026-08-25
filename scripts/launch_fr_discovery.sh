@@ -1,8 +1,9 @@
 #!/bin/bash
 # Launch FR Automotive discovery on VPS
+# SSH access matches DEPLOYMENT.md (verified root path).
 set -e
 
-SSH="ssh -i ~/.ssh/id_ed25519 ubuntu@51.68.130.83"
+SSH="ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89"
 
 echo "Killing any existing discovery..."
 $SSH "sudo pkill -f discover-companies 2>/dev/null || true"

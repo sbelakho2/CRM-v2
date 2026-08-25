@@ -137,15 +137,17 @@ All email services exist at `src/Service/Email*.php`:
 
 ### CompCrawler Module (`src/Service/CompCrawler/`)
 
+> **Correction (2026-08):** The entire `CompCrawler/` module was removed from the codebase during the 2026 refactoring (directory no longer exists). The table below is retained for historical reference only. Competitor detection now lives in `CompetitorDetectionService` / `CompetitorLearnerService`.
+
 | Service | Location | Purpose |
 |---------|----------|---------|
-| `CompChangeDetectorService` | `CompCrawler/CompChangeDetectorService.php` | Detect website changes |
-| `CompDiscoveryService` | `CompCrawler/CompDiscoveryService.php` | Competitor discovery |
-| `CompExtractionService` | `CompCrawler/CompExtractionService.php` | Data extraction |
-| `CompIntelSyncService` | `CompCrawler/CompIntelSyncService.php` | Intelligence synchronization |
-| `CompProfileCrawlerService` | `CompCrawler/CompProfileCrawlerService.php` | Profile crawling |
-| `CompScoringService` | `CompCrawler/CompScoringService.php` | Competitor scoring |
-| `CompVerificationService` | `CompCrawler/CompVerificationService.php` | Data verification |
+| ~~`CompChangeDetectorService`~~ | ~~`CompCrawler/CompChangeDetectorService.php`~~ | ~~Detect website changes~~ (removed) |
+| ~~`CompDiscoveryService`~~ | ~~`CompCrawler/CompDiscoveryService.php`~~ | ~~Competitor discovery~~ (removed) |
+| ~~`CompExtractionService`~~ | ~~`CompCrawler/CompExtractionService.php`~~ | ~~Data extraction~~ (removed) |
+| ~~`CompIntelSyncService`~~ | ~~`CompCrawler/CompIntelSyncService.php`~~ | ~~Intelligence synchronization~~ (removed) |
+| ~~`CompProfileCrawlerService`~~ | ~~`CompCrawler/CompProfileCrawlerService.php`~~ | ~~Profile crawling~~ (removed) |
+| ~~`CompScoringService`~~ | ~~`CompCrawler/CompScoringService.php`~~ | ~~Competitor scoring~~ (removed) |
+| ~~`CompVerificationService`~~ | ~~`CompCrawler/CompVerificationService.php`~~ | ~~Data verification~~ (removed) |
 
 ### Core Competitor Services
 
@@ -184,7 +186,7 @@ All email services exist at `src/Service/Email*.php`:
 | `RegionStandardizationService` | `src/Service/RegionStandardizationService.php` | Region normalization |
 | `CustomFieldService` | `src/Service/CustomFieldService.php` | Custom field management |
 | `ActivityTemplateService` | `src/Service/ActivityTemplateService.php` | Activity templates |
-| `LlmService` | `src/Service/LlmService.php` | Local LLM integration |
+| ~~`LlmService`~~ | ~~`src/Service/LlmService.php`~~ | ~~Local LLM integration~~ (removed 2026) |
 | `LlmEnrichmentService` | `src/Service/LlmEnrichmentService.php` | AI enrichment |
 | `GeminiContactExtractorService` | `src/Service/GeminiContactExtractorService.php` | Gemini API contact extraction |
 | `ContactEnrichmentService` | `src/Service/ContactEnrichmentService.php` | Contact data enrichment |

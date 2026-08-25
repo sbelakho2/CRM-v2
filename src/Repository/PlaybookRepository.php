@@ -40,6 +40,8 @@ class PlaybookRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('p')
             ->andWhere('p.name = :name')
             ->setParameter('name', $name)
+            ->orderBy('p.id', 'ASC')
+            ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
     }

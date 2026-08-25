@@ -269,8 +269,8 @@ class RegionStandardizationService
         // North Africa (excl. Morocco)
         'EG' => self::REGION_AFRICA_NORTH,
         'Egypt' => self::REGION_AFRICA_NORTH,
-        'TN' => self::REGION_AFRICA_NORTH,
-        'Tunisia' => self::REGION_AFRICA_NORTH,
+        'TN' => self::REGION_TUNISIA,
+        'Tunisia' => self::REGION_TUNISIA,
         'DZ' => self::REGION_AFRICA_NORTH,
         'Algeria' => self::REGION_AFRICA_NORTH,
         'LY' => self::REGION_AFRICA_NORTH,

@@ -116,7 +116,111 @@ final class ManufacturingEvidenceScorer
                 'years of experience', 'since 19', 'since 20',
             ],
         ],
+        'product_manufacturing' => [
+            'cap' => 30,
+            'high' => [
+                // Test & measurement instrumentation
+                'oscilloscopes', 'spectrum analyzers', 'signal generators',
+                'measuring systems', 'test equipment', 'measuring instruments',
+                'power analyzers',
+                // Semiconductor / embedded products
+                'semiconductor', 'microcontrollers', 'embedded systems',
+                'industrial computers', 'soc devices', 'analog products',
+                'calibration tools', 'diagnostic tools', 'measurement modules',
+                // Electrical infrastructure products
+                'switchgear', 'circuit breakers', 'power distribution units',
+                'safety controllers', 'ecus', 'control panels',
+                // Automotive electronics
+                'automotive electronics', 'deterministic networking',
+                // Consumer appliance manufacturing (FR)
+                'appareils électroménagers',
+                // Electrical equipment manufacturing (FR)
+                'tableaux électriques', 'armoires de distribution',
+                'équipements de contrôle',
+            ],
+            'medium' => [
+                'sensors', 'encoders', 'transmitters', 'relays',
+                'connectors', 'radar', 'avionics',
+                'industrial electronics', 'power electronics',
+                'electronic components', 'electronic control units',
+            ],
+        ],
     ];
+
+    /**
+     * Non-target sectors whose language triggers a hard veto regardless of
+     * how much generic manufacturing vocabulary appears.  Each sector is
+     * scored like an evidence family (high 3 / medium 2, capped per keyword);
+     * a sector score >= SECTOR_VETO_THRESHOLD vetoes the domain.
+     *
+     * These are real producers, but they are NOT electronics/industrial
+     * equipment buyers — the pipeline's target segment.
+     */
+    private const NON_TARGET_SECTORS = [
+        'chemicals_raw_materials' => [
+            'high' => [
+                'phosphate mining', 'fertilizer production', 'phosphoric acid',
+                'acide phosphorique', 'produits chimiques', 'crop protection',
+                'petrochemical', 'chemical operations', 'chemical production',
+                'chemical industry', 'refinery',
+            ],
+            'medium' => [
+                'phosphate', 'fertilizer', 'engrais', 'chemicals',
+                'polyurethane',
+            ],
+        ],
+        'food_beverage_dairy' => [
+            'high' => [
+                'produits laitiers', 'nutrition infantile', 'food and beverage',
+                'dairy products', 'agroalimentaire', 'food products',
+                'meat processing', 'beverage production', 'confectionery',
+            ],
+            'medium' => [
+                'laitiers', 'dairy', 'infant formula', 'food processing',
+            ],
+        ],
+        'tic_services' => [
+            'high' => [
+                'testing, inspection, and certification',
+                'testing, inspection, certification',
+                'certification services', 'inspection and certification',
+                'inspection services', 'testing services', 'audit services',
+                'tic services', 'we certify', 'certify companies',
+                'certification body', 'management system standards',
+                'testing and certification',
+            ],
+            'medium' => [
+                'conformity assessment', 'quality assurance services',
+                'inspection body',
+            ],
+        ],
+        'systems_integration' => [
+            'high' => [
+                'system integrator', 'systems integrator',
+                'systems integration', 'automation services',
+                'process automation', 'design and integrate', 'we integrate',
+                'integration services', 'scada', 'mes solutions',
+                'intégration de systèmes',
+            ],
+            'medium' => [
+                'automation projects', 'integration projects',
+            ],
+        ],
+        'research_centre' => [
+            'high' => [
+                'our research', 'research covers', 'develops and proves',
+                'research centre', 'research center', 'research institute',
+                'research and technology organisation',
+                'research and technology organization',
+            ],
+            'medium' => [
+                'research activities', 'research teams', 'researchers',
+                'research projects', 'research infrastructure',
+            ],
+        ],
+    ];
+
+    private const SECTOR_VETO_THRESHOLD = 4;
 
     private const WEIGHT_HIGH   = 3;
     private const WEIGHT_MEDIUM = 2;
@@ -142,6 +246,18 @@ final class ManufacturingEvidenceScorer
         }
 
         $allText = mb_strtolower($domain->getAllText());
+
+        $sectorReason = $this->detectSectorVeto($allText);
+        if ($sectorReason !== null) {
+            return new EvidenceScore(
+                0,
+                false,
+                true,
+                $sectorReason,
+                array_fill_keys(array_keys(self::FAMILIES), 0),
+            );
+        }
+
         $familyScores = [];
 
         foreach (self::FAMILIES as $familyName => $family) {
@@ -152,6 +268,36 @@ final class ManufacturingEvidenceScorer
         $pass = $totalScore >= $this->passThreshold;
 
         return new EvidenceScore($totalScore, $pass, false, null, $familyScores);
+    }
+
+    /**
+     * Detect whether the domain's text signals a non-target sector
+     * (chemicals/mining, food/dairy, TIC services, systems integration,
+     * research centre).  Returns the veto reason, or null if the text
+     * does not strongly belong to any of these sectors.
+     */
+    private function detectSectorVeto(string $text): ?string
+    {
+        foreach (self::NON_TARGET_SECTORS as $sector => $tokens) {
+            $score = 0;
+
+            foreach ($tokens['high'] ?? [] as $token) {
+                $score += min(self::MAX_KEYWORD_HITS, mb_substr_count($text, $token)) * self::WEIGHT_HIGH;
+            }
+            foreach ($tokens['medium'] ?? [] as $token) {
+                $score += min(self::MAX_KEYWORD_HITS, mb_substr_count($text, $token)) * self::WEIGHT_MEDIUM;
+            }
+
+            if ($score >= self::SECTOR_VETO_THRESHOLD) {
+                return sprintf(
+                    'Vetoed: non-target sector %s (signal score %d)',
+                    $sector,
+                    $score,
+                );
+            }
+        }
+
+        return null;
     }
 
     private function scoreFamily(array $family, string $text): int

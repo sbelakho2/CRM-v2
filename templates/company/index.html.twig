@@ -123,7 +123,7 @@
 
     {# Explanation Module #}
     <div class="rams-module">
-        <div class="rams-module__header" style="cursor: pointer;" onclick="this.parentElement.querySelector('.rams-module__content').classList.toggle('rams-hidden');">
+        <div class="rams-module__header" style="cursor: pointer;" role="button" tabindex="0" aria-expanded="true" aria-controls="company-explanation-content" onclick="this.parentElement.querySelector('.rams-module__content').classList.toggle('rams-hidden');" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.parentElement.querySelector('.rams-module__content').classList.toggle('rams-hidden'); this.setAttribute('aria-expanded', this.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'); }">
             <h2 class="rams-module__title">
                 <svg style="width:16px;height:16px;vertical-align:middle;margin-right:6px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -131,7 +131,7 @@
                 {{ 'company.explanation.title'|trans }}
             </h2>
         </div>
-        <div class="rams-module__content">
+        <div class="rams-module__content" id="company-explanation-content">
             <p class="rams-text--sm rams-mb-3">{{ 'company.explanation.body'|trans }}</p>
             <p class="rams-text--sm rams-text--muted">{{ 'company.explanation.discovered_button'|trans|raw }}</p>
         </div>

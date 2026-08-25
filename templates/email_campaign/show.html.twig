@@ -28,7 +28,7 @@
             <div class="rams-btn-group mobile-stack">
                 <form method="post" action="{{ path('app_email_campaign_toggle_active', {id: campaign.id}) }}" class="rams-inline-block">
                     <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ campaign.id) }}">
-                    <button type="submit" class="rams-btn">
+                    <button type="submit" class="rams-btn" aria-expanded="false">
                         {{ (campaign.active ? 'email_campaign.deactivate' : 'email_campaign.activate')|trans }}
                     </button>
                 </form>

@@ -52,11 +52,14 @@
                                 </td>
                                 <td class="rams-table__cell rams-table__cell--actions">
                                     <div class="rams-btn-group mobile-stack">
-                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
+                                        <a href="{{ path('admin_dataset_history', {type: version.type}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }}</a>
                                         {% if not version.is_active %}
-                                            <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-text--success">{{ 'administration.datasets.restore'|trans }}</a>
+                                            <form method="post" action="{{ path('admin_dataset_rollback', {datasetType: version.type}) }}" class="rams-mb-0" onsubmit="return ramsConfirmSubmit(event, '{{ 'administration.datasets.restore_confirm'|trans }}', {variant: 'warning'})">
+                                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin_dataset_rollback_' ~ version.type) }}">
+                                                <input type="hidden" name="target_version" value="{{ version.version }}">
+                                                <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm rams-text--success">{{ 'administration.datasets.restore'|trans }}</button>
+                                            </form>
                                         {% endif %}
-                                        <a href="#" class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">{{ 'common.delete'|trans }}</a>
                                     </div>
                                 </td>
                             </tr>

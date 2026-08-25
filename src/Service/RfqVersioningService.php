@@ -44,24 +44,30 @@ class RfqVersioningService
      */
     public function createInitialVersion(RFQ $rfq, ?string $createdBy = null): RfqVersion
     {
-        $version = new RfqVersion();
-        $version->setRfq($rfq);
-        $version->setVersionNumber(1);
-        $version->setRevisionCode('A');
-        $version->setStatus('Draft');
-        $version->setEstimatedValue($rfq->getEstimatedValue());
-        $version->setTechnicalScope($rfq->getTechnicalScope());
-        $version->setNotes($rfq->getNotes());
-        $version->setCreatedBy($createdBy);
-        $version->setLineItemsSnapshot($this->captureLineItems($rfq));
+        $version = null;
         
-        $this->entityManager->persist($version);
-        $this->entityManager->flush();
-        
-        $this->logger->info('Initial RFQ version created', [
-            'rfq_id' => $rfq->getId(),
-            'rfq_number' => $rfq->getRfqNumber(),
-        ]);
+        $this->entityManager->wrapInTransaction(function () use ($rfq, $createdBy, &$version) {
+            $newVersion = new RfqVersion();
+            $newVersion->setRfq($rfq);
+            $newVersion->setVersionNumber(1);
+            $newVersion->setRevisionCode('A');
+            $newVersion->setStatus('Draft');
+            $newVersion->setEstimatedValue($rfq->getEstimatedValue());
+            $newVersion->setTechnicalScope($rfq->getTechnicalScope());
+            $newVersion->setNotes($rfq->getNotes());
+            $newVersion->setCreatedBy($createdBy);
+            $newVersion->setLineItemsSnapshot($this->captureLineItems($rfq));
+            
+            $this->entityManager->persist($newVersion);
+            $this->entityManager->flush();
+            
+            $this->logger->info('Initial RFQ version created', [
+                'rfq_id' => $rfq->getId(),
+                'rfq_number' => $rfq->getRfqNumber(),
+            ]);
+            
+            $version = $newVersion;
+        });
         
         return $version;
     }
@@ -74,42 +80,48 @@ class RfqVersioningService
         string $revisionReason,
         ?string $createdBy = null
     ): RfqVersion {
-        // Mark previous version as superseded
-        $latestVersion = $this->versionRepository->findLatestVersion($rfq);
-        if ($latestVersion) {
-            $latestVersion->supersede();
-        }
+        $version = null;
         
-        // Get next version number and revision code
-        $nextVersionNumber = $this->versionRepository->getNextVersionNumber($rfq);
-        $revisionCode = $this->generateRevisionCode($nextVersionNumber);
-        
-        // Create new version
-        $version = new RfqVersion();
-        $version->setRfq($rfq);
-        $version->setVersionNumber($nextVersionNumber);
-        $version->setRevisionCode($revisionCode);
-        $version->setRevisionReason($revisionReason);
-        $version->setStatus('Draft');
-        $version->setEstimatedValue($rfq->getEstimatedValue());
-        $version->setTechnicalScope($rfq->getTechnicalScope());
-        $version->setNotes($rfq->getNotes());
-        $version->setCreatedBy($createdBy);
-        $version->setLineItemsSnapshot($this->captureLineItems($rfq));
-        
-        // Default validity: 30 days
-        $version->setValidUntil((new \DateTime())->modify('+30 days'));
-        
-        $this->entityManager->persist($version);
-        $this->entityManager->flush();
-        
-        $this->logger->info('New RFQ revision created', [
-            'rfq_id' => $rfq->getId(),
-            'rfq_number' => $rfq->getRfqNumber(),
-            'version' => $nextVersionNumber,
-            'revision_code' => $revisionCode,
-            'reason' => $revisionReason,
-        ]);
+        $this->entityManager->wrapInTransaction(function () use ($rfq, $revisionReason, $createdBy, &$version) {
+            // Mark previous version as superseded
+            $latestVersion = $this->versionRepository->findLatestVersion($rfq);
+            if ($latestVersion) {
+                $latestVersion->supersede();
+            }
+            
+            // Get next version number and revision code
+            $nextVersionNumber = $this->versionRepository->getNextVersionNumber($rfq);
+            $revisionCode = $this->generateRevisionCode($nextVersionNumber);
+            
+            // Create new version
+            $newVersion = new RfqVersion();
+            $newVersion->setRfq($rfq);
+            $newVersion->setVersionNumber($nextVersionNumber);
+            $newVersion->setRevisionCode($revisionCode);
+            $newVersion->setRevisionReason($revisionReason);
+            $newVersion->setStatus('Draft');
+            $newVersion->setEstimatedValue($rfq->getEstimatedValue());
+            $newVersion->setTechnicalScope($rfq->getTechnicalScope());
+            $newVersion->setNotes($rfq->getNotes());
+            $newVersion->setCreatedBy($createdBy);
+            $newVersion->setLineItemsSnapshot($this->captureLineItems($rfq));
+            
+            // Default validity: 30 days
+            $newVersion->setValidUntil((new \DateTime())->modify('+30 days'));
+            
+            $this->entityManager->persist($newVersion);
+            $this->entityManager->flush();
+            
+            $this->logger->info('New RFQ revision created', [
+                'rfq_id' => $rfq->getId(),
+                'rfq_number' => $rfq->getRfqNumber(),
+                'version' => $nextVersionNumber,
+                'revision_code' => $revisionCode,
+                'reason' => $revisionReason,
+            ]);
+            
+            $version = $newVersion;
+        });
         
         return $version;
     }
@@ -119,13 +131,15 @@ class RfqVersioningService
      */
     public function submitVersion(RfqVersion $version): void
     {
-        $version->submit();
-        $this->entityManager->flush();
-        
-        $this->logger->info('RFQ version submitted', [
-            'rfq_id' => $version->getRfq()?->getId(),
-            'version' => $version->getVersionNumber(),
-        ]);
+        $this->entityManager->wrapInTransaction(function () use ($version) {
+            $version->submit();
+            $this->entityManager->flush();
+            
+            $this->logger->info('RFQ version submitted', [
+                'rfq_id' => $version->getRfq()?->getId(),
+                'version' => $version->getVersionNumber(),
+            ]);
+        });
     }
     
     /**
@@ -169,36 +183,42 @@ class RfqVersioningService
      */
     public function addLineItem(RFQ $rfq, array $data): RfqLineItem
     {
-        $lineItem = new RfqLineItem();
-        $lineItem->setRfq($rfq);
-        $lineItem->setLineNumber($this->lineItemRepository->getNextLineNumber($rfq));
+        $lineItem = null;
         
-        // Set data
-        if (isset($data['partNumber'])) $lineItem->setPartNumber($data['partNumber']);
-        if (isset($data['customerPartNumber'])) $lineItem->setCustomerPartNumber($data['customerPartNumber']);
-        if (isset($data['description'])) $lineItem->setDescription($data['description']);
-        if (isset($data['quantityAnnual'])) $lineItem->setQuantityAnnual($data['quantityAnnual']);
-        if (isset($data['quantityPerBatch'])) $lineItem->setQuantityPerBatch($data['quantityPerBatch']);
-        if (isset($data['unitPrice'])) $lineItem->setUnitPrice($data['unitPrice']);
-        if (isset($data['nrePrice'])) $lineItem->setNrePrice($data['nrePrice']);
-        if (isset($data['currency'])) $lineItem->setCurrency($data['currency']);
-        if (isset($data['leadTimeDays'])) $lineItem->setLeadTimeDays($data['leadTimeDays']);
-        if (isset($data['technology'])) $lineItem->setTechnology($data['technology']);
-        if (isset($data['componentCount'])) $lineItem->setComponentCount($data['componentCount']);
-        if (isset($data['specifications'])) $lineItem->setSpecifications($data['specifications']);
-        if (isset($data['notes'])) $lineItem->setNotes($data['notes']);
-        
-        // Boolean flags
-        $lineItem->setRequiresXray($data['requiresXray'] ?? false);
-        $lineItem->setRequiresAoi($data['requiresAoi'] ?? false);
-        $lineItem->setRequiresFunctionalTest($data['requiresFunctionalTest'] ?? false);
-        $lineItem->setRequiresConformalCoating($data['requiresConformalCoating'] ?? false);
-        
-        $this->entityManager->persist($lineItem);
-        $this->entityManager->flush();
-        
-        // Update RFQ estimated value
-        $this->updateRfqTotalValue($rfq);
+        $this->entityManager->wrapInTransaction(function () use ($rfq, $data, &$lineItem) {
+            $newLineItem = new RfqLineItem();
+            $newLineItem->setRfq($rfq);
+            $newLineItem->setLineNumber($this->lineItemRepository->getNextLineNumber($rfq));
+            
+            // Set data
+            if (isset($data['partNumber'])) $newLineItem->setPartNumber($data['partNumber']);
+            if (isset($data['customerPartNumber'])) $newLineItem->setCustomerPartNumber($data['customerPartNumber']);
+            if (isset($data['description'])) $newLineItem->setDescription($data['description']);
+            if (isset($data['quantityAnnual'])) $newLineItem->setQuantityAnnual($data['quantityAnnual']);
+            if (isset($data['quantityPerBatch'])) $newLineItem->setQuantityPerBatch($data['quantityPerBatch']);
+            if (isset($data['unitPrice'])) $newLineItem->setUnitPrice($data['unitPrice']);
+            if (isset($data['nrePrice'])) $newLineItem->setNrePrice($data['nrePrice']);
+            if (isset($data['currency'])) $newLineItem->setCurrency($data['currency']);
+            if (isset($data['leadTimeDays'])) $newLineItem->setLeadTimeDays($data['leadTimeDays']);
+            if (isset($data['technology'])) $newLineItem->setTechnology($data['technology']);
+            if (isset($data['componentCount'])) $newLineItem->setComponentCount($data['componentCount']);
+            if (isset($data['specifications'])) $newLineItem->setSpecifications($data['specifications']);
+            if (isset($data['notes'])) $newLineItem->setNotes($data['notes']);
+            
+            // Boolean flags
+            $newLineItem->setRequiresXray($data['requiresXray'] ?? false);
+            $newLineItem->setRequiresAoi($data['requiresAoi'] ?? false);
+            $newLineItem->setRequiresFunctionalTest($data['requiresFunctionalTest'] ?? false);
+            $newLineItem->setRequiresConformalCoating($data['requiresConformalCoating'] ?? false);
+            
+            $this->entityManager->persist($newLineItem);
+            $this->entityManager->flush();
+            
+            // Update RFQ estimated value
+            $this->updateRfqTotalValue($rfq);
+            
+            $lineItem = $newLineItem;
+        });
         
         return $lineItem;
     }
@@ -208,35 +228,37 @@ class RfqVersioningService
      */
     public function updateLineItem(RfqLineItem $lineItem, array $data): void
     {
-        if (isset($data['partNumber'])) $lineItem->setPartNumber($data['partNumber']);
-        if (isset($data['customerPartNumber'])) $lineItem->setCustomerPartNumber($data['customerPartNumber']);
-        if (isset($data['description'])) $lineItem->setDescription($data['description']);
-        if (isset($data['quantityAnnual'])) $lineItem->setQuantityAnnual($data['quantityAnnual']);
-        if (isset($data['quantityPerBatch'])) $lineItem->setQuantityPerBatch($data['quantityPerBatch']);
-        if (isset($data['unitPrice'])) $lineItem->setUnitPrice($data['unitPrice']);
-        if (isset($data['nrePrice'])) $lineItem->setNrePrice($data['nrePrice']);
-        if (isset($data['currency'])) $lineItem->setCurrency($data['currency']);
-        if (isset($data['leadTimeDays'])) $lineItem->setLeadTimeDays($data['leadTimeDays']);
-        if (isset($data['technology'])) $lineItem->setTechnology($data['technology']);
-        if (isset($data['componentCount'])) $lineItem->setComponentCount($data['componentCount']);
-        if (isset($data['specifications'])) $lineItem->setSpecifications($data['specifications']);
-        if (isset($data['notes'])) $lineItem->setNotes($data['notes']);
-        if (isset($data['status'])) $lineItem->setStatus($data['status']);
-        
-        if (isset($data['requiresXray'])) $lineItem->setRequiresXray($data['requiresXray']);
-        if (isset($data['requiresAoi'])) $lineItem->setRequiresAoi($data['requiresAoi']);
-        if (isset($data['requiresFunctionalTest'])) $lineItem->setRequiresFunctionalTest($data['requiresFunctionalTest']);
-        if (isset($data['requiresConformalCoating'])) $lineItem->setRequiresConformalCoating($data['requiresConformalCoating']);
-        
-        $lineItem->setUpdatedAt(new \DateTime());
-        
-        $this->entityManager->flush();
-        
-        // Update RFQ estimated value
-        $rfq = $lineItem->getRfq();
-        if ($rfq) {
-            $this->updateRfqTotalValue($rfq);
-        }
+        $this->entityManager->wrapInTransaction(function () use ($lineItem, $data) {
+            if (isset($data['partNumber'])) $lineItem->setPartNumber($data['partNumber']);
+            if (isset($data['customerPartNumber'])) $lineItem->setCustomerPartNumber($data['customerPartNumber']);
+            if (isset($data['description'])) $lineItem->setDescription($data['description']);
+            if (isset($data['quantityAnnual'])) $lineItem->setQuantityAnnual($data['quantityAnnual']);
+            if (isset($data['quantityPerBatch'])) $lineItem->setQuantityPerBatch($data['quantityPerBatch']);
+            if (isset($data['unitPrice'])) $lineItem->setUnitPrice($data['unitPrice']);
+            if (isset($data['nrePrice'])) $lineItem->setNrePrice($data['nrePrice']);
+            if (isset($data['currency'])) $lineItem->setCurrency($data['currency']);
+            if (isset($data['leadTimeDays'])) $lineItem->setLeadTimeDays($data['leadTimeDays']);
+            if (isset($data['technology'])) $lineItem->setTechnology($data['technology']);
+            if (isset($data['componentCount'])) $lineItem->setComponentCount($data['componentCount']);
+            if (isset($data['specifications'])) $lineItem->setSpecifications($data['specifications']);
+            if (isset($data['notes'])) $lineItem->setNotes($data['notes']);
+            if (isset($data['status'])) $lineItem->setStatus($data['status']);
+            
+            if (isset($data['requiresXray'])) $lineItem->setRequiresXray($data['requiresXray']);
+            if (isset($data['requiresAoi'])) $lineItem->setRequiresAoi($data['requiresAoi']);
+            if (isset($data['requiresFunctionalTest'])) $lineItem->setRequiresFunctionalTest($data['requiresFunctionalTest']);
+            if (isset($data['requiresConformalCoating'])) $lineItem->setRequiresConformalCoating($data['requiresConformalCoating']);
+            
+            $lineItem->setUpdatedAt(new \DateTime());
+            
+            $this->entityManager->flush();
+            
+            // Update RFQ estimated value
+            $rfq = $lineItem->getRfq();
+            if ($rfq) {
+                $this->updateRfqTotalValue($rfq);
+            }
+        });
     }
     
     /**
@@ -244,15 +266,17 @@ class RfqVersioningService
      */
     public function removeLineItem(RfqLineItem $lineItem): void
     {
-        $rfq = $lineItem->getRfq();
-        
-        $this->entityManager->remove($lineItem);
-        $this->entityManager->flush();
-        
-        if ($rfq) {
-            $this->resequenceLineItems($rfq);
-            $this->updateRfqTotalValue($rfq);
-        }
+        $this->entityManager->wrapInTransaction(function () use ($lineItem) {
+            $rfq = $lineItem->getRfq();
+            
+            $this->entityManager->remove($lineItem);
+            $this->entityManager->flush();
+            
+            if ($rfq) {
+                $this->resequenceLineItems($rfq);
+                $this->updateRfqTotalValue($rfq);
+            }
+        });
     }
     
     /**
@@ -383,8 +407,11 @@ class RfqVersioningService
     
     private function updateRfqTotalValue(RFQ $rfq): void
     {
+        // getTotalValue() returns float; setEstimatedValue() expects a string.
+        // Round to 2 decimals before casting so float artifacts like
+        // "1234.5000000001" never leak into the stored value.
         $total = $this->lineItemRepository->getTotalValue($rfq);
-        $rfq->setEstimatedValue((string) $total);
+        $rfq->setEstimatedValue((string) round((float) $total, 2));
         $this->entityManager->flush();
     }
     

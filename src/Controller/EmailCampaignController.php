@@ -97,7 +97,7 @@ class EmailCampaignController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_email_campaign_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_email_campaign_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
     public function show(EmailCampaign $campaign): Response
     {

@@ -129,12 +129,11 @@ Error Rate: 0%
 
 ### Framework Stack ✅
 ```
-Framework: Symfony 7.3.5
-Database: SQLite (var/data.db)
+Framework: Symfony 7.4.15 (7.3.5 at the time this report was written)
+Database: MySQL 8 (dev: SQLite was used historically)
 ORM: Doctrine
 Templating: Twig
-CSS: Tailwind
-Status: Ready
+CSS: Tailwind (removed 2026 — no frontend build toolchain remains)
 ```
 
 ---

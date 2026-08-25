@@ -265,9 +265,20 @@ class ExportService
 
     /**
      * Export generic entity data
+     *
+     * The entity class and getter names are caller-supplied, so both are
+     * validated before use:
+     *  - entityClass must be a known App\Entity class
+     *  - getters must be real methods matching the ^get[A-Z] pattern
+     * (callers currently: none in-repo — kept as a safe generic helper)
      */
     public function exportGeneric(string $entityClass, array $fields, string $filename, string $format = 'csv'): string
     {
+        // Guard 1: entity class must be a known entity
+        if (!class_exists($entityClass) || !str_starts_with($entityClass, 'App\Entity\\')) {
+            throw new \InvalidArgumentException("Unknown entity class: {$entityClass}");
+        }
+        
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
@@ -282,7 +293,15 @@ class ExportService
         foreach ($entities as $entity) {
             $data = [];
             foreach ($fields as $fieldName => $getter) {
-                $value = call_user_func([$entity, $getter]);
+                // Guard 2: getter must be a real accessor (^get[A-Z]...).
+                // Arbitrary method invocation from caller-supplied strings would
+                // otherwise be a method-injection risk if ever exposed.
+                if (!is_string($getter) || !preg_match('/^get[A-Z][A-Za-z0-9]*$/', $getter) || !method_exists($entity, $getter)) {
+                    throw new \InvalidArgumentException(
+                        "Invalid getter '{$getter}' for field '{$fieldName}' on {$entityClass}"
+                    );
+                }
+                $value = $entity->$getter();
                 
                 // Convert objects to strings
                 if ($value instanceof \DateTimeInterface) {

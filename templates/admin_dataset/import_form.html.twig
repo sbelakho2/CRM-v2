@@ -48,7 +48,7 @@
 
                     <div class="rams-form__group">
                         <label class="rams-form__label rams-dymo">{{ 'administration.datasets.upload_file'|trans }}</label>
-                        <div class="rams-upload-zone" onclick="document.getElementById('file-input').click()">
+                        <div class="rams-upload-zone" role="button" tabindex="0" onclick="document.getElementById('file-input').click()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('file-input').click(); }">
                             <input type="file" name="dataset_file" class="rams-sr-only" id="file-input" accept=".xlsx,.xls,.csv,.json" required onchange="updateFileName(this)">
                             <div class="rams-upload-zone__icon">
                                 <svg class="rams-icon rams-icon--lg rams-text--muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">

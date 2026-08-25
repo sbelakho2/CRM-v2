@@ -28,6 +28,7 @@ class ImportTrackerCommand extends Command
         $this
             ->addArgument('file', InputArgument::REQUIRED, 'Path to CSV file (converted from Tracker.xlsx)')
             ->addOption('template', 't', InputOption::VALUE_NONE, 'Generate CSV template')
+            ->addOption('yes', 'y', InputOption::VALUE_NONE, 'Skip confirmation prompts (cron-safe)')
             ->setHelp(<<<'HELP'
 Import companies from Tracker.xlsx into the CRM database.
 
@@ -100,7 +101,10 @@ HELP
 
         $io->section("Importing from: {$filePath}");
 
-        if (!$io->confirm('This will import/update companies in the database. Continue?', true)) {
+        // Only prompt in an interactive terminal; --yes / --no-interaction
+        // (or a cron environment without a TTY) proceeds without asking.
+        if ($input->isInteractive() && !$input->getOption('yes') && !$io->confirm('This will import/update companies in the database. Continue?', true)) {
+            $io->note('Import cancelled.');
             return Command::SUCCESS;
         }
 

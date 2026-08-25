@@ -39,7 +39,7 @@ class Contact
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $phone = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 2048, nullable: true)]
     private ?string $linkedInUrl = null;
 
     #[ORM\Column(length: 50, nullable: true)]

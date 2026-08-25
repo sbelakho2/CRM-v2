@@ -15,17 +15,23 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Address;
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use DateTimeImmutable;
 
 #[Route('/meetings')]
-#[IsGranted('ROLE_USER')]
 class MeetingSchedulerController extends AbstractController
 {
     public function __construct(
         private MeetingSlotRepository $slotRepository,
         private EntityManagerInterface $em,
-        private TranslatorInterface $translator
+        private TranslatorInterface $translator,
+        private MailerInterface $mailer,
+        private string $mailerFromAddress,
+        private string $mailerFromName,
+        private \Psr\Log\LoggerInterface $logger
     ) {}
     
     /**
@@ -71,8 +77,14 @@ class MeetingSchedulerController extends AbstractController
     public function apiSlots(Request $request): JsonResponse
     {
         $user = $this->getUser();
-        $start = new DateTimeImmutable($request->query->get('start', 'now'));
-        $end = new DateTimeImmutable($request->query->get('end', '+30 days'));
+        $start = $this->parseDateParam($request->query->get('start'), 'now');
+        if ($start === null) {
+            return $this->json(['error' => 'Invalid start date'], 400);
+        }
+        $end = $this->parseDateParam($request->query->get('end'), '+30 days');
+        if ($end === null) {
+            return $this->json(['error' => 'Invalid end date'], 400);
+        }
         
         $slots = $this->slotRepository->findByUserAndDateRange($user, $start, $end);
         
@@ -109,7 +121,12 @@ class MeetingSchedulerController extends AbstractController
         
         // Pre-fill from query params if provided
         if ($startTime = $request->query->get('start')) {
-            $slot->setStartTime(new DateTimeImmutable($startTime));
+            $parsedStart = $this->parseDateParam($startTime);
+            if ($parsedStart === null) {
+                $this->addFlash('error', 'Invalid start date.');
+                return $this->redirectToRoute('meeting_index');
+            }
+            $slot->setStartTime($parsedStart);
         }
         
         $form = $this->createForm(MeetingSlotType::class, $slot);
@@ -222,10 +239,30 @@ class MeetingSchedulerController extends AbstractController
         }
         
         if ($this->isCsrfTokenValid('cancel' . $slot->getId(), $request->request->get('_token'))) {
+            $bookerEmail = $slot->getBookedByEmail();
             $slot->cancel();
             $this->em->flush();
             
-            // TODO: Send cancellation email to booker
+            if ($bookerEmail !== null && $bookerEmail !== '') {
+                try {
+                    $this->mailer->send(
+                        (new TemplatedEmail())
+                            ->from(new Address($this->mailerFromAddress, $this->mailerFromName))
+                            ->to($bookerEmail)
+                            ->subject($this->translator->trans('emails.meeting_cancellation.subject'))
+                            ->htmlTemplate('emails/meeting_cancellation.html.twig')
+                            ->context([
+                                'slot' => $slot,
+                                'contactName' => $slot->getBookedByName() ?? $bookerEmail,
+                            ])
+                    );
+                } catch (\Throwable $e) {
+                    $this->logger->error('Failed to send meeting cancellation email', [
+                        'slot' => $slot->getId(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
             
             $this->addFlash('success', $this->translator->trans('meeting.flash.cancelled'));
         }
@@ -241,6 +278,10 @@ class MeetingSchedulerController extends AbstractController
     public function generate(Request $request): Response
     {
         if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('meeting_generate', $request->request->get('_csrf_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token.');
+            }
+
             $data = $request->request->all();
             
             $title = $data['title'] ?? '30-min Meeting';
@@ -248,8 +289,16 @@ class MeetingSchedulerController extends AbstractController
             $duration = (int) ($data['duration'] ?? 30);
             $weekdays = array_map('intval', $data['weekdays'] ?? [1, 2, 3, 4, 5]);
             $startTime = $data['startTime'] ?? '09:00';
-            $rangeStart = new DateTimeImmutable($data['rangeStart'] ?? 'tomorrow');
-            $rangeEnd = new DateTimeImmutable($data['rangeEnd'] ?? '+14 days');
+            $rangeStart = $this->parseDateParam($data['rangeStart'] ?? null, 'tomorrow');
+            $rangeEnd = $this->parseDateParam($data['rangeEnd'] ?? null, '+14 days');
+            if ($rangeStart === null || $rangeEnd === null) {
+                $this->addFlash('error', 'Invalid date range.');
+                return $this->redirectToRoute('meeting_generate');
+            }
+            if ($rangeEnd <= $rangeStart) {
+                $this->addFlash('error', 'End date must be after start date.');
+                return $this->redirectToRoute('meeting_generate');
+            }
             $location = $data['location'] ?? null;
             $meetingUrl = $data['meetingUrl'] ?? null;
             $timezone = $data['timezone'] ?? 'UTC';
@@ -284,6 +333,7 @@ class MeetingSchedulerController extends AbstractController
      * Prefer meeting_public_book_by_id (the link generated by meeting_my_link).
      */
     #[Route('/book/slot/{token}', name: 'meeting_book_slot', methods: ['GET', 'POST'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function bookSlot(string $token, Request $request): Response
     {
         $slot = $this->slotRepository->findByBookingToken($token);
@@ -309,7 +359,29 @@ class MeetingSchedulerController extends AbstractController
             
             $this->em->flush();
             
-            // TODO: Send confirmation emails
+            if (!$slot->isConfirmationSent()) {
+                try {
+                    $this->mailer->send(
+                        (new TemplatedEmail())
+                            ->from(new Address($this->mailerFromAddress, $this->mailerFromName))
+                            ->to((string) $data['email'])
+                            ->subject($this->translator->trans('emails.meeting_confirmation.subject'))
+                            ->htmlTemplate('emails/meeting_confirmation.html.twig')
+                            ->context([
+                                'slot' => $slot,
+                                'contactName' => $data['name'],
+                            ])
+                    );
+                    $slot->setConfirmationSent(true);
+                    $slot->setConfirmationSentAt(new DateTimeImmutable());
+                    $this->em->flush();
+                } catch (\Throwable $e) {
+                    $this->logger->error('Failed to send meeting confirmation email', [
+                        'slot' => $slot->getId(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
             
             return $this->render('meeting/booking_confirmed.html.twig', [
                 'slot' => $slot,
@@ -327,6 +399,7 @@ class MeetingSchedulerController extends AbstractController
      */
 
     #[Route('/book/{username}/{token}', name: 'meeting_public_book', methods: ['GET'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function publicBook(string $username, string $token, UserRepository $userRepository): Response
     {
         $owner = $userRepository->findOneBy(['email' => $username]);
@@ -361,6 +434,7 @@ class MeetingSchedulerController extends AbstractController
      * Public booking page for a user (signed, share-safe link)
      */
     #[Route('/book/u/{id}/{token}', name: 'meeting_public_book_by_id', methods: ['GET'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function publicBookById(int $id, string $token, UserRepository $userRepository): Response
     {
         $owner = $userRepository->find($id);
@@ -396,6 +470,7 @@ class MeetingSchedulerController extends AbstractController
      */
 
     #[Route('/cancel/{token}', name: 'meeting_public_cancel', methods: ['GET', 'POST'])]
+    #[IsGranted('PUBLIC_ACCESS')]
     public function publicCancel(string $token, Request $request): Response
     {
         $slot = $this->slotRepository->findByCancellationToken($token);
@@ -471,5 +546,20 @@ class MeetingSchedulerController extends AbstractController
             MeetingSlot::STATUS_CANCELLED => '#dc3545',
             default => '#6c757d',
         };
+    }
+
+    /**
+     * Parse a user-supplied date string into a DateTimeImmutable, or null when invalid.
+     */
+    private function parseDateParam(?string $value, string $default = 'now'): ?DateTimeImmutable
+    {
+        if ($value === null || trim($value) === '') {
+            $value = $default;
+        }
+        try {
+            return new DateTimeImmutable($value);
+        } catch (\Exception) {
+            return null;
+        }
     }
 }

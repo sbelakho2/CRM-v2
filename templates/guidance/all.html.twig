@@ -37,7 +37,7 @@
                 <div class="rams-andon rams-andon--success rams-mb-4">
                     <span class="rams-andon__light rams-andon__light--green"></span>
                 </div>
-                <h3 class="rams-text--lg rams-text--bold rams-mb-2">{{ 'guidance.all_caught_up'|trans }}</h3>
+                <h2 class="rams-text--lg rams-text--bold rams-mb-2">{{ 'guidance.all_caught_up'|trans }}</h2>
                 <p class="rams-dymo">{{ 'guidance.no_pending'|trans }}</p>
             </div>
         </div>
@@ -99,7 +99,7 @@ function dismissGuidanceNotification(button) {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: 'index=' + index
+        body: 'index=' + index + '&_csrf_token=' + encodeURIComponent('{{ csrf_token('guidance_dismiss') }}')
     }).then(response => {
         if (response.ok) {
             setTimeout(() => {
@@ -116,7 +116,9 @@ function dismissGuidanceNotification(button) {
 function clearAllGuidanceNotifications() {
     ramsConfirm('{{ 'guidance.clear_confirm'|trans }}', function() {
         fetch('{{ path('guidance_dismiss_all') }}', {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: '_csrf_token=' + encodeURIComponent('{{ csrf_token('guidance_dismiss_all') }}')
         }).then(response => {
             if (response.ok) {
                 location.reload();

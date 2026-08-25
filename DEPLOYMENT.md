@@ -8,10 +8,9 @@ This document summarizes the deployment flow for the SMART OPS Bundle release. U
 - If `ubuntu@77.42.65.89` fails with `Permission denied (publickey,password)`, use the verified root path above.
 
 ## 1. Prerequisites
-- PHP 8.4 with required extensions (`pdo_mysql`, `intl`, `mbstring`, `xml`, `curl`, `zip`, `gd`)
+- PHP >= 8.2 with required extensions (`pdo_mysql`, `intl`, `mbstring`, `xml`, `curl`, `zip`, `gd`)
 - Composer 2.x
-- Node.js 20.x (only if rebuilding frontend assets)
-- MySQL 8.0+ (or PostgreSQL equivalent)
+- MySQL 8.0+ (the application targets MySQL; no frontend build step is required — Encore/Webpack were removed)
 - Supervisor or systemd for queue/cron workers
 - A reverse proxy (Nginx or Apache with HTTPS)
 
@@ -40,7 +39,7 @@ Use this path for low-risk content changes only:
 - Translation JSON files under `translations/`
 - Public static files under `public/`
 
-Do not use this path when the release changes migrations, Composer dependencies, Node dependencies, Webpack config, environment files, or anything that requires rebuilding `vendor/` or `public/build/`.
+Do not use this path when the release changes migrations, Composer dependencies, environment files, or anything that requires rebuilding `vendor/`.
 
 Hotfix flow:
 1. Package only the changed files into a small tarball from the local machine.

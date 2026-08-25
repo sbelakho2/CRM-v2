@@ -105,22 +105,38 @@ class EmailAnalyticsService
 
     /**
      * Analyze A/B test results
+     *
+     * Reads the canonical A/B test structure produced by EmailAbTestService:
+     * campaign.abTestVariants is a list of test configs, each with a
+     * 'variants' map keyed by variant ID ('A', 'B', ...). EmailSend.variant
+     * stores the variant ID. A legacy flat variant list (entries with 'name'
+     * but no 'variants' key) is also accepted for backward compatibility.
      */
     public function analyzeAbTest(EmailCampaign $campaign): array
     {
-        $variants = $campaign->getAbTestVariants();
-        
-        if (!$variants || count($variants) < 2) {
+        $abTestVariants = $campaign->getAbTestVariants();
+
+        if (empty($abTestVariants)) {
             return [
                 'error' => 'Campaign does not have A/B test variants configured',
             ];
         }
 
+        // Canonical structure: list of test configs → use the most recent test.
+        // Legacy structure: flat variant list → use it as-is.
+        $lastEntry = end($abTestVariants);
+        if (is_array($lastEntry) && isset($lastEntry['variants'])) {
+            $testConfig = $lastEntry;
+        } else {
+            $testConfig = ['variants' => $abTestVariants];
+        }
+
         $results = [];
-        foreach ($variants as $index => $variant) {
-            $variantName = $variant['name'] ?? "Variant " . ($index + 1);
-            
-            // Query EmailSend records filtered by variant name
+        foreach ($testConfig['variants'] as $variantKey => $variant) {
+            $variantId = is_array($variant) ? (string) ($variant['id'] ?? $variantKey) : (string) $variantKey;
+            $variantName = is_array($variant) ? (string) ($variant['name'] ?? $variantId) : $variantId;
+
+            // Query EmailSend records filtered by variant ID (canonical matching key)
             $stats = $this->entityManager->createQuery(
                 'SELECT 
                     COUNT(es.id) as sent,
@@ -130,17 +146,19 @@ class EmailAnalyticsService
                  WHERE es.campaign = :campaign AND es.variant = :variant'
             )
             ->setParameter('campaign', $campaign)
-            ->setParameter('variant', $variantName)
+            ->setParameter('variant', $variantId)
             ->getSingleResult();
-            
+
             $sent = (int) $stats['sent'];
             $opened = (int) $stats['opened'];
             $clicked = (int) $stats['clicked'];
-            
+
             $openRate = $sent > 0 ? round(($opened / $sent) * 100, 2) : 0;
             $clickRate = $sent > 0 ? round(($clicked / $sent) * 100, 2) : 0;
-            
-            $results[$variantName] = [
+
+            $results[$variantId] = [
+                'id' => $variantId,
+                'name' => $variantName,
                 'sent' => $sent,
                 'opened' => $opened,
                 'clicked' => $clicked,
@@ -154,7 +172,7 @@ class EmailAnalyticsService
         $highestClickRate = 0;
 
         foreach ($results as $name => $metrics) {
-            if ($metrics['clickRate'] > $highestClickRate) {
+            if ($metrics['sent'] > 0 && $metrics['clickRate'] > $highestClickRate) {
                 $highestClickRate = $metrics['clickRate'];
                 $winner = $name;
             }

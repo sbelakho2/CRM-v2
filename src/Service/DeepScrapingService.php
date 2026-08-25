@@ -1092,7 +1092,11 @@ class DeepScrapingService
         ];
 
         foreach ($titleKeywords as $kw) {
-            if (str_contains($text, $kw)) {
+            // Word-boundary matching: short keywords like "chief" or "head"
+            // must not match inside unrelated words (e.g. "chief accountant"
+            // is NOT a decision maker, and "headquarters" is not "head").
+            $pattern = '/\b' . preg_quote($kw, '/') . '\b/i';
+            if (preg_match($pattern, $text)) {
                 return true;
             }
         }
@@ -1111,7 +1115,10 @@ class DeepScrapingService
         }
 
         foreach (self::DECISION_MAKER_TITLES as $keyword) {
-            if (str_contains($title, $keyword)) {
+            // Word boundaries avoid false positives: "chief" must not match
+            // inside "Chief Accountant" or "Chief Cashier".
+            $pattern = '/\b' . preg_quote($keyword, '/') . '\b/';
+            if (preg_match($pattern, $title)) {
                 return true;
             }
         }

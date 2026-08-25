@@ -105,8 +105,8 @@ class GoogleDorkService
         $startIndex = max(1, min(100, $startIndex));
         $num = max(1, $num);
 
-        // Prefer the new abstraction if wired
-        if ($this->searchProvider !== null) {
+        // Prefer the new abstraction if wired (respecting its health gate)
+        if ($this->searchProvider !== null && $this->searchProvider->isAvailable()) {
             $resultSet = $this->searchProvider->search($query, $gl, null, $num, $startIndex);
             $legacyResult = $resultSet->toLegacyArray();
 
@@ -119,6 +119,10 @@ class GoogleDorkService
             $this->logger->notice('Search provider returned empty results, falling back to Google CSE', [
                 'query' => mb_substr($query, 0, 80),
                 'provider' => $resultSet->providerName ?? 'unknown',
+            ]);
+        } elseif ($this->searchProvider !== null) {
+            $this->logger->notice('Search provider is unavailable, falling back to Google CSE', [
+                'provider' => $this->searchProvider->getProviderName(),
             ]);
         }
 
@@ -547,7 +551,6 @@ class GoogleDorkService
                                     'sector' => $sector,
                                     'location' => $location,
                                     'location_validated' => $locationValidated,
-                                    'llm_classification' => $llmClassification,
                                     'language' => $this->languageDetector !== null
                                         ? $this->languageDetector->detectWithRegionRelevance($snippet . ' ' . $title, $region)
                                         : null,
@@ -6498,7 +6501,11 @@ class GoogleDorkService
         // These are NOT purchasers of EMS — they resell others' products
         $channelPartnerSignals = 0;
         if (preg_match('/\b(authorized\s+(distribut|resell|partner|dealer|channel)|channel\s+partner|value[\s-]added\s+resell)/i', $text)) $channelPartnerSignals += 3;
-        if (preg_match('/\b(schneider|abb|siemens|omron|allen[\s-]bradley|rockwell|mitsubishi|phoenix\s+contact|eaton)\s+(partner|distribut|resell|dealer|authorized)/i', $text)) $channelPartnerSignals += 3;
+        // Channel partners must frame the brand with authorized/official/
+        // exclusive language ("authorized distributor of Omron"). A bare
+        // "Omron partner" match hits manufacturers' own partner programs
+        // (e.g. Omron, Schneider Electric) — a known false-positive source.
+        if (preg_match('/\b(authorized|authorised|official|exclusive|appointed|sole)\s+(distribut|resell|partner|dealer|channel)\s+(?:of|for|to)?\s*(schneider|abb|siemens|omron|allen[\s-]bradley|rockwell|mitsubishi|phoenix\s+contact|eaton)\b/i', $text)) $channelPartnerSignals += 3;
         if (preg_match('/\b(we\s+(distribut|supply|stock|sell|represent)\s+(schneider|abb|siemens|eaton|omron|allen[\s-]bradley))/i', $text)) $channelPartnerSignals += 4;
         // Products ONLY from brand catalogs, no own manufacturing
         if (preg_match('/\b(product\s+catalog|brand\s+portfolio|we\s+carry|we\s+stock|authorized\s+stock)/i', $text)) $channelPartnerSignals += 1;
@@ -6510,7 +6517,10 @@ class GoogleDorkService
         // Industrial Automation type: "custom automated control solutions", "automation solutions"
         // These provide engineering/integration SERVICES, not products.
         $systemIntegratorSignals = 0;
-        if (preg_match('/\b(custom\s+(automated?|automation|control)\s+(solution|system)|automation\s+(solution|provider|integrator|partner))/i', $text)) $systemIntegratorSignals += 5;
+        // Bare "automation solutions" is product-manufacturer language
+        // (e.g. Omron "Automation Solutions") — only service framings
+        // ("automation provider/integrator/services") count as integrators.
+        if (preg_match('/\b(custom\s+(automated?|automation|control)\s+(solution|system)|automation\s+(provider|integrator|services?))/i', $text)) $systemIntegratorSignals += 5;
         if (preg_match('/\b(system\s+integrat(or|ion)|control\s+system\s+(integrat|design|engineer)|PLC\s+program)/i', $text)) $systemIntegratorSignals += 4;
         if (preg_match('/\b(we\s+(create|design|build|develop|implement)\s+.{0,30}(control|automation|robotic)\s+(system|solution))/i', $text)) $systemIntegratorSignals += 5;
         if (preg_match('/\b(turn[\s-]?key\s+automation|automation\s+(and|&)\s+control|controls?\s+expert|SCADA|HMI\s+design)/i', $text)) $systemIntegratorSignals += 3;
@@ -6842,19 +6852,6 @@ class GoogleDorkService
         if (preg_match('/\b(we\s+(build|construct|deploy|install)\s+.{0,30}(fiber|network|telecom|wireless|broadband))/i', $text)) $telecomContractorSignals += 4;
         if (preg_match('/\b(field\s+engineering|site\s+survey|RF\s+engineering|network\s+planning\s+services?)/i', $text)) $telecomContractorSignals += 2;
         if ($telecomContractorSignals >= 4) {
-            $score -= 45;
-        }
-
-        // ─── AUTOMATION EQUIPMENT / ROBOT MANUFACTURER homepage signals ───
-        // Companies that MAKE robots, PLCs, conveyors — they sell TO manufacturers
-        $automationEquipmentSignals = 0;
-        if (preg_match('/\b(we\s+(manufacture|make|produce|design)\s+.{0,30}(robot|cobot|PLC|HMI|conveyor|automation\s+equipment))/i', $text)) $automationEquipmentSignals += 5;
-        if (preg_match('/\b(collaborative\s+robot|cobot\s+(manufacturer|solution)|industrial\s+robot\s+(manufacturer|maker|supplier))/i', $text)) $automationEquipmentSignals += 5;
-        if (preg_match('/\b(PLC\s+(manufacturer|maker|supplier|product)|programmable\s+logic\s+controller\s+(manufacturer|product))/i', $text)) $automationEquipmentSignals += 5;
-        if (preg_match('/\b(warehouse\s+automation|fulfillment\s+automation|picking\s+robot|AMR\s+(autonomous|solution)|AGV\s+(manufacturer|solution))/i', $text)) $automationEquipmentSignals += 4;
-        if (preg_match('/\b(our\s+(robot|cobot|PLC|automation)\s+(product|lineup|portfolio|range)|robot\s+arm|robotic\s+arm)/i', $text)) $automationEquipmentSignals += 3;
-        if (preg_match('/\b(VFD|variable\s+frequency\s+drive|servo\s+drive|servo\s+motor)\s+(manufacturer|product|lineup)/i', $text)) $automationEquipmentSignals += 3;
-        if ($automationEquipmentSignals >= 4) {
             $score -= 45;
         }
 
@@ -7455,13 +7452,6 @@ class GoogleDorkService
         if (preg_match('/\b(solvent\s+(recovery|recycl|distill|regen)|chemical\s+(recovery|recycl|distill)|waste\s+solvent|recyclage\s+(de\s+)?solvant|Lösemittel(aufbereitung|destillation|recycling))\b/i', $text)) $solventHomeSignals += 3;
         if (preg_match('/\b(distillation\s+(column|unit|plant|process)|fractional\s+distillation|molecular\s+distillation)\b/i', $text)) $solventHomeSignals += 2;
         if ($solventHomeSignals >= 3) { $score -= 35; }
-
-        // ═══════════════════════════════════════════════════════════════
-        // FR/DE AUDIT: GIANT AUTOMATION / ROBOTICS / INSTRUMENTATION OEM
-        // ═══════════════════════════════════════════════════════════════
-        if (preg_match('/\b(FANUC|KUKA|Yaskawa|Stäubli|Staubli|Universal\s+Robots|Yokogawa|Endress\s*\+?\s*Hauser|Festo|Pilz|Balluff|SICK\s+AG|Keyence|Turck|ifm\s+electronic)\b/i', $text)) {
-            $score -= 50;
-        }
 
         // ═══════════════════════════════════════════════════════════════
         // POSITIVE SIGNALS — Real manufacturer / OEM / buyer
@@ -13454,7 +13444,6 @@ class GoogleDorkService
         }
 
         // Process responses
-        $bestTeamPageHtml = null; // Store first team/about page HTML for LLM extraction
         foreach ($responses as $path => $response) {
             try {
                 $code = $response->getStatusCode();
@@ -13511,12 +13500,6 @@ class GoogleDorkService
                         $enrichment['contacts'],
                         $teamContacts
                     );
-                }
-
-                // Track first team/about page HTML for LLM extraction
-                if ($bestTeamPageHtml === null
-                    && preg_match('#/(team|about|leadership|management|equipe|direction|our-people|ansprechpartner|who-we-are|a-propos)#i', $path)) {
-                    $bestTeamPageHtml = $html;
                 }
 
             } catch (\Exception $e) {

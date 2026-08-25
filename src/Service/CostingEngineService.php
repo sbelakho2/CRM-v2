@@ -63,62 +63,6 @@ class CostingEngineService
      */
     public function calculatePcbCost(array $pcbSpec): array
     {
-        // TODO: Implement PCB cost calculation
-        // 
-        // Steps:
-        // 1. Calculate board area:
-        //    $areaPerBoard = ($pcbSpec['width'] / 10) * ($pcbSpec['height'] / 10); // Convert mm² to cm²
-        // 
-        // 2. Query PcbCurve for base price per sqcm:
-        //    $curve = $this->pcbCurveRepository->findOneBy([
-        //        'layerCount' => $pcbSpec['layers']
-        //    ], ['asof' => 'DESC']);
-        //    
-        //    if (!$curve) {
-        //        throw new \RuntimeException("No pricing curve found for {$pcbSpec['layers']} layers");
-        //    }
-        //    
-        //    $basePricePerSqcm = $curve->getPricePerSqcm();
-        // 
-        // 3. Apply complexity modifiers:
-        //    $multiplier = 1.0;
-        //    
-        //    // Material modifier
-        //    if ($pcbSpec['material'] === 'POLYIMIDE') {
-        //        $multiplier *= 1.5; // Polyimide is 50% more expensive
-        //    }
-        //    
-        //    // Surface finish modifier
-        //    if ($pcbSpec['surfaceFinish'] === 'ENIG') {
-        //        $multiplier *= 1.2; // ENIG is 20% more expensive than HASL
-        //    } elseif ($pcbSpec['surfaceFinish'] === 'OSP') {
-        //        $multiplier *= 0.95; // OSP is 5% cheaper
-        //    }
-        // 
-        // 4. Calculate unit cost:
-        //    $pricePerSqcm = $basePricePerSqcm * $multiplier;
-        //    $unitCost = $areaPerBoard * $pricePerSqcm;
-        // 
-        // 5. Apply quantity discounts:
-        //    $qty = $pcbSpec['qty'];
-        //    if ($qty >= 1000) {
-        //        $unitCost *= 0.7; // 30% discount for qty >= 1000
-        //    } elseif ($qty >= 100) {
-        //        $unitCost *= 0.85; // 15% discount for qty >= 100
-        //    }
-        // 
-        // 6. Add setup cost (tooling, CAM, inspection):
-        //    $setupCost = $curve->getSetupCost() ?? 150.00; // Default $150 setup
-        // 
-        // 7. Return cost breakdown:
-        //    return [
-        //        'unitCost' => round($unitCost, 2),
-        //        'setupCost' => round($setupCost, 2),
-        //        'totalCost' => round(($unitCost * $qty) + $setupCost, 2),
-        //        'areaPerBoard' => round($areaPerBoard, 2),
-        //        'pricePerSqcm' => round($pricePerSqcm, 2)
-        //    ];
-
         // 1. Calculate board area (convert mm² to cm²)
         $width = $pcbSpec['width'] ?? 100;
         $height = $pcbSpec['height'] ?? 100;
@@ -162,6 +106,10 @@ class CostingEngineService
         // before multiplication. Previously the discount was applied to unitCost which was then
         // multiplied by qty in totalCost — this double-applied the discount.
         $qty = $pcbSpec['qty'] ?? 1;
+        if ($qty <= 0 || !is_numeric($qty)) {
+            throw new \InvalidArgumentException('PCB quantity must be a positive number');
+        }
+        $qty = (int) $qty;
         $lineTotal = $unitCost * $qty;
         if ($qty >= 1000) {
             $lineTotal *= 0.7; // 30% discount for qty >= 1000
@@ -203,63 +151,6 @@ class CostingEngineService
      */
     public function calculateAsmCost(array $asmSpec): array
     {
-        // TODO: Implement assembly cost calculation
-        // 
-        // Steps:
-        // 1. Query AsmCurve for base price per component:
-        //    $curve = $this->asmCurveRepository->findOneBy([], ['asof' => 'DESC']);
-        //    if (!$curve) {
-        //        throw new \RuntimeException("No assembly pricing curve found");
-        //    }
-        //    
-        //    $basePricePerComponent = $curve->getPricePerComponent();
-        // 
-        // 2. Apply package complexity multipliers:
-        //    $totalCost = 0.0;
-        //    $packageMultipliers = [
-        //        '0201' => 1.5,  // Smallest passive, difficult to place
-        //        '0402' => 1.2,
-        //        '0603' => 1.0,  // Baseline
-        //        '0805' => 1.0,
-        //        'QFN' => 1.5,   // Fine-pitch packages
-        //        'BGA' => 2.0,   // Most complex
-        //        'SOIC' => 1.1,
-        //        'TSSOP' => 1.2,
-        //        'DIP' => 1.3    // THT requires wave soldering
-        //    ];
-        //    
-        //    foreach ($asmSpec['packageComplexity'] as $pkg => $count) {
-        //        $multiplier = $packageMultipliers[$pkg] ?? 1.0;
-        //        $totalCost += $count * ($basePricePerComponent * $multiplier);
-        //    }
-        // 
-        // 3. Apply side count multiplier:
-        //    if ($asmSpec['sideCount'] === 2) {
-        //        $totalCost *= 1.4; // Double-sided assembly is 40% more expensive
-        //    }
-        // 
-        // 4. Calculate unit cost:
-        //    $qty = $asmSpec['qty'];
-        //    $unitCost = $totalCost;
-        // 
-        // 5. Apply quantity discounts:
-        //    if ($qty >= 1000) {
-        //        $unitCost *= 0.75;
-        //    } elseif ($qty >= 100) {
-        //        $unitCost *= 0.9;
-        //    }
-        // 
-        // 6. Add setup cost (programming, first article, fixtures):
-        //    $setupCost = $curve->getSetupCost() ?? 250.00;
-        // 
-        // 7. Return cost breakdown:
-        //    return [
-        //        'unitCost' => round($unitCost, 2),
-        //        'setupCost' => round($setupCost, 2),
-        //        'totalCost' => round(($unitCost * $qty) + $setupCost, 2),
-        //        'pricePerComponent' => round($basePricePerComponent, 2)
-        //    ];
-
         // 1. Query AsmCurve for base price
         $curve = $this->asmCurveRepository->createQueryBuilder('a')
             ->orderBy('a.asof', 'DESC')
@@ -313,6 +204,10 @@ class CostingEngineService
         // before multiplication. Previously the discount was applied to unitCost which was then
         // multiplied by qty in totalCost — this double-applied the discount.
         $qty = $asmSpec['qty'] ?? 1;
+        if ($qty <= 0 || !is_numeric($qty)) {
+            throw new \InvalidArgumentException('Assembly quantity must be a positive number');
+        }
+        $qty = (int) $qty;
         $lineTotal = $unitCost * $qty;
         if ($qty >= 1000) {
             $lineTotal *= 0.75; // 25% discount for qty >= 1000
@@ -353,34 +248,6 @@ class CostingEngineService
      */
     public function calculateNre(array $nreItems): array
     {
-        // TODO: Implement NRE cost calculation
-        // 
-        // Steps:
-        // 1. Query NreTable for item costs:
-        //    $nreRates = [];
-        //    $items = ['stencil', 'fixture', 'programming', 'firstArticle'];
-        //    
-        //    foreach ($items as $item) {
-        //        $rate = $this->nreTableRepository->findOneBy([
-        //            'itemType' => strtoupper($item)
-        //        ], ['asof' => 'DESC']);
-        //        
-        //        $nreRates[$item] = $rate ? $rate->getCost() : 0.0;
-        //    }
-        // 
-        // 2. Calculate total NRE:
-        //    $costs = [
-        //        'stencilCost' => $nreItems['stencil'] ? $nreRates['stencil'] : 0.0,
-        //        'fixtureCost' => $nreItems['fixture'] ? $nreRates['fixture'] : 0.0,
-        //        'programmingCost' => $nreItems['programming'] ? $nreRates['programming'] : 0.0,
-        //        'firstArticleCost' => $nreItems['firstArticle'] ? $nreRates['firstArticle'] : 0.0
-        //    ];
-        //    
-        //    $totalNre = array_sum($costs);
-        // 
-        // 3. Return NRE breakdown:
-        //    return array_merge($costs, ['totalNre' => round($totalNre, 2)]);
-
         // 1. Query NreTable for item costs
         $nreRates = [];
         $items = ['stencil', 'fixture', 'programming', 'firstArticle'];
@@ -436,45 +303,6 @@ class CostingEngineService
      */
     public function checkCapacity(\DateTime $requestedDate, int $quantityBoards): array
     {
-        // TODO: Implement capacity checking
-        // 
-        // Steps:
-        // 1. Query CapacityCalendar for requested date:
-        //    $slot = $this->capacityCalendarRepository->findOneBy([
-        //        'productionDate' => $requestedDate
-        //    ]);
-        // 
-        // 2. Check if slot exists and has capacity:
-        //    if (!$slot) {
-        //        // No slot defined for this date
-        //        return [
-        //            'available' => false,
-        //            'confirmedDate' => null,
-        //            'capacityRemaining' => null,
-        //            'slotId' => null
-        //        ];
-        //    }
-        //    
-        //    $capacityRemaining = $slot->getMaxBoards() - $slot->getBookedBoards();
-        //    
-        //    if ($capacityRemaining < $quantityBoards) {
-        //        // Not enough capacity
-        //        return [
-        //            'available' => false,
-        //            'confirmedDate' => null,
-        //            'capacityRemaining' => $capacityRemaining,
-        //            'slotId' => $slot->getId()
-        //        ];
-        //    }
-        // 
-        // 3. Return availability:
-        //    return [
-        //        'available' => true,
-        //        'confirmedDate' => $requestedDate,
-        //        'capacityRemaining' => $capacityRemaining,
-        //        'slotId' => $slot->getId()
-        //    ];
-
         // 1. Query CapacityCalendar for requested date
         $slot = $this->capacityCalendarRepository->findOneBy([
             'productionDate' => $requestedDate
@@ -521,37 +349,6 @@ class CostingEngineService
      */
     public function bookCapacity(int $slotId, int $quantityBoards, int $quoteId): bool
     {
-        // TODO: Implement capacity booking
-        // 
-        // Steps:
-        // 1. Get capacity slot:
-        //    $slot = $this->capacityCalendarRepository->find($slotId);
-        //    if (!$slot) {
-        //        throw new \RuntimeException("Capacity slot $slotId not found");
-        //    }
-        // 
-        // 2. Check capacity still available:
-        //    $capacityRemaining = $slot->getMaxBoards() - $slot->getBookedBoards();
-        //    if ($capacityRemaining < $quantityBoards) {
-        //        return false; // Capacity no longer available
-        //    }
-        // 
-        // 3. Update booked_boards:
-        //    $slot->setBookedBoards($slot->getBookedBoards() + $quantityBoards);
-        // 
-        // 4. Add quote ID to bookings JSON:
-        //    $bookings = json_decode($slot->getBookingsJson() ?? '[]', true);
-        //    $bookings[] = [
-        //        'quoteId' => $quoteId,
-        //        'quantity' => $quantityBoards,
-        //        'bookedAt' => (new \DateTime())->format('Y-m-d H:i:s')
-        //    ];
-        //    $slot->setBookingsJson(json_encode($bookings));
-        // 
-        // 5. Flush changes:
-        //    $this->entityManager->flush();
-        //    return true;
-
         $result = false;
 
         $this->entityManager->wrapInTransaction(function () use ($slotId, $quantityBoards, $quoteId, &$result) {

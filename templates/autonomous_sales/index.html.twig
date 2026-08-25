@@ -16,7 +16,7 @@
         <div class="rams-page-header__actions mobile-w-full">
             <form method="post" action="{{ path('autonomous_sales_toggle') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_toggle') }}">
-                <button type="submit" class="rams-btn {% if enabled %}rams-btn--primary{% endif %}">
+                <button type="submit" class="rams-btn {% if enabled %}rams-btn--primary{% endif %}" aria-expanded="{% if enabled %}true{% else %}false{% endif %}">
                     {% if enabled %}
                         {{ 'autonomous_sales.disable'|trans }}
                     {% else %}
@@ -93,12 +93,12 @@
         {# ============================================================== #}
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3>{{ 'autonomous_sales.how_it_works_title'|trans }}</h3>
+                <h2>{{ 'autonomous_sales.how_it_works_title'|trans }}</h2>
             </div>
             <div class="rams-module__content">
                 <div class="rams-grid rams-grid--3 rams-gap-4">
                     <div>
-                        <h4 class="rams-text--bold rams-mb-2">{{ 'autonomous_sales.how_it_works_step1_title'|trans }}</h4>
+                        <h3 class="rams-text--bold rams-mb-2">{{ 'autonomous_sales.how_it_works_step1_title'|trans }}</h3>
                         <p class="rams-text--sm rams-text--muted">{{ 'autonomous_sales.how_it_works_step1_desc'|trans }}</p>
                     </div>
                     <div>
@@ -123,37 +123,37 @@
             <div class="rams-grid rams-grid--6 rams-gap-4 rams-mb-6">
                 <div class="rams-card rams-p-4">
                     <div class="rams-metric"> 
-                        <span class="rams-metric__label">Total  Leads</span>
+                        <span class="rams-metric__label">{{ 'autonomous_sales.metric_total_leads'|trans }}</span>
                         <span class="rams-metric__value">{{  total_leads|number_format }}</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
                     <div class="rams-metric"> 
-                        <span class="rams-metric__label">Emails  Sent (7d)</span>
+                        <span class="rams-metric__label">{{ 'autonomous_sales.metric_emails_sent_7d'|trans }}</span>
                         <span class="rams-metric__value">{{  weekly_emails|number_format }}</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
                     <div class="rams-metric"> 
-                        <span class="rams-metric__label">Open  Rate</span>
+                        <span class="rams-metric__label">{{ 'autonomous_sales.metric_open_rate'|trans }}</span>
                         <span class="rams-metric__value">{{  email_open_rate }}%</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
                     <div class="rams-metric"> 
-                        <span class="rams-metric__label">Reply  Rate</span>
+                        <span class="rams-metric__label">{{ 'autonomous_sales.metric_reply_rate'|trans }}</span>
                         <span class="rams-metric__value">{{  email_reply_rate }}%</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
                     <div class="rams-metric"> 
-                        <span class="rams-metric__label">Active  Campaigns</span>
+                        <span class="rams-metric__label">{{ 'autonomous_sales.metric_active_campaigns'|trans }}</span>
                         <span class="rams-metric__value">{{  active_campaigns }}</span>
                     </div>
                 </div>
                 <div class="rams-card rams-p-4">
                     <div class="rams-metric"> 
-                        <span class="rams-metric__label">Pipeline  Value</span>
+                        <span class="rams-metric__label">{{ 'autonomous_sales.metric_pipeline_value'|trans }}</span>
                         <span class="rams-metric__value">{{  pipeline_value|number_format }}</span>
                     </div>
                 </div>
@@ -343,11 +343,11 @@
                                             <td class="rams-text--xs">{{ event.variant|default('—') }}</td>
                                             <td>
                                                 <div class="rams-flex rams-gap-1">
-                                                    {% if event.opened %}<span class="rams-badge rams-badge--success rams-badge--small">Opened</span>{%  endif %}
-                                                    {% if event.clicked %}<span class="rams-badge rams-badge--info rams-badge--small">Clicked</span>{%  endif %}
-                                                    {% if event.replied %}<span class="rams-badge rams-badge--primary rams-badge--small">Replied</span>{%  endif %}
+                                                    {% if event.opened %}<span class="rams-badge rams-badge--success rams-badge--small">{{ 'autonomous_sales.badge_opened'|trans }}</span>{%  endif %}
+                                                    {% if event.clicked %}<span class="rams-badge rams-badge--info rams-badge--small">{{ 'autonomous_sales.badge_clicked'|trans }}</span>{%  endif %}
+                                                    {% if event.replied %}<span class="rams-badge rams-badge--primary rams-badge--small">{{ 'autonomous_sales.badge_replied'|trans }}</span>{%  endif %}
                                                     {% if not event.opened and not event.clicked and not event.replied %}
-                                                        <span class="rams-text--xs rams-text--muted">Sent</span>
+                                                        <span class="rams-text--xs rams-text--muted">{{ 'autonomous_sales.badge_sent'|trans }}</span>
                                                     {% endif %}
                                                 </div>
                                             </td>
@@ -417,18 +417,18 @@
                     <div class="rams-module__content">
                         <div class="rams-grid rams-grid--4 rams-gap-4">
                             <a href="{{ path('autonomous_sales_index', {tab: 'optimization'}) }}" class="rams-btn rams-btn--primary rams-text--center rams-p-3">
-                                Compose & Send
+                                {{ 'autonomous_sales.compose_send'|trans }}
                             </a>
                             <form method="post" action="{{ path('autonomous_sales_score_leads') }}" class="rams-mb-0">
                                 <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_score_leads') }}">
                                 <input type="hidden" name="limit" value="50">
-                                <button type="submit" class="rams-btn rams-btn--primary" style="width:100%">Score Leads</button>
+                                <button type="submit" class="rams-btn rams-btn--primary" style="width:100%">{{ 'autonomous_sales.score_leads'|trans }}</button>
                             </form>
                             <a href="{{ path('command_center_index') }}" class="rams-btn rams-btn--primary rams-text--center rams-p-3">
-                                Process Inbox
+                                {{ 'autonomous_sales.process_inbox'|trans }}
                             </a>
                             <a href="{{ path('command_center_index') }}" class="rams-btn rams-btn--primary rams-text--center rams-p-3">
-                                View Full Dashboard
+                                {{ 'autonomous_sales.view_full_dashboard'|trans }}
                             </a>
                         </div>
                     </div>
@@ -493,7 +493,7 @@
                     <h3>{{ 'autonomous_sales.thompson_stats'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <p class="rams-text--sm rams-text--muted rams-mb-4">The system uses Thompson Sampling (a Bayesian bandit algorithm) to automatically find the best email variations. Below are the raw arm statistics.</p>
+                    <p class="rams-text--sm rams-text--muted rams-mb-4">{{ 'autonomous_sales.thompson_stats_desc'|trans }}</p>
                     <div class="rams-grid rams-grid--3 rams-gap-4">
                         {% for section in variations %}
                             <div class="rams-card rams-p-4">
@@ -568,7 +568,7 @@
                     <h3>{{ 'autonomous_sales.ab_test_results'|trans }}</h3>
                 </div>
                 <div class="rams-module__content">
-                    <p class="rams-text--sm rams-text--muted rams-mb-4">Comparison of how each variation type is performing against its baseline.</p>
+                    <p class="rams-text--sm rams-text--muted rams-mb-4">{{ 'autonomous_sales.ab_test_results_desc'|trans }}</p>
                     {% for section in variations %}
                         {% if section.items|length > 1 %}
                             <div class="rams-module rams-module--inset rams-mb-4">
@@ -576,18 +576,18 @@
                                     <h4 class="rams-text--bold rams-mb-2">{{ section.label }}</h4>
                                     <div class="rams-grid rams-grid--3 rams-gap-4 rams-mb-3">
                                         <div class="rams-metric">
-                                            <span class="rams-metric__label">Total Variations</span>
+                                            <span class="rams-metric__label">{{ 'autonomous_sales.metric_total_variations'|trans }}</span>
                                             <span class="rams-metric__value">{{ section.count }}</span>
                                         </div>
                                         <div class="rams-metric">
-                                            <span class="rams-metric__label">Top Performer</span>
+                                            <span class="rams-metric__label">{{ 'autonomous_sales.metric_top_performer'|trans }}</span>
                                             <span class="rams-metric__value" style="color: var(--rams-success)">
                                                 {% set top = section.items|filter(i => i.badge == 'winning')|first %}
                                                 {{ top ? top.name|length > 15 ? top.name[:15] ~ '…' : top.name : 'N/A' }}
                                             </span>
                                         </div>
                                         <div class="rams-metric">
-                                            <span class="rams-metric__label">Best Open Rate</span>
+                                            <span class="rams-metric__label">{{ 'autonomous_sales.metric_best_open_rate'|trans }}</span>
                                             <span class="rams-metric__value" style="color: var(--rams-success)">
                                                 {% set best = section.items|sort((a, b) => b.successPct <=> a.successPct)|first %}
                                                 {{ best ? best.successPct ~ '%' : 'N/A' }}
@@ -778,34 +778,34 @@
                     <div class="rams-grid rams-grid--3 rams-gap-4">
                         <div class="rams-card rams-p-4">
                             <div class="rams-metric"> 
-                                <span class="rams-metric__label">System  Mode</span>
+                                <span class="rams-metric__label">{{ 'autonomous_sales.system_mode'|trans }}</span>
                                 <span class="rams-metric__value"> 
                                     {% if health.safeMode %}
-                                        <span class="rams-badge rams-badge--warning">Safe Mode Active</span>
+                                        <span class="rams-badge rams-badge--warning">{{ 'autonomous_sales.safe_mode_active'|trans }}</span>
                                     {% elseif enabled %}
-                                        <span class="rams-badge rams-badge--success">Normal</span>
+                                        <span class="rams-badge rams-badge--success">{{ 'autonomous_sales.mode_normal'|trans }}</span>
                                     {% else %}
-                                        <span class="rams-badge">Disabled</span>  
+                                        <span class="rams-badge">{{ 'autonomous_sales.mode_disabled'|trans }}</span>  
                                     {% endif %}
                                 </span>
                             </div>
                         </div>
                         <div class="rams-card rams-p-4">
                             <div class="rams-metric"> 
-                                <span class="rams-metric__label">Active  Safety Features</span>
+                                <span class="rams-metric__label">{{ 'autonomous_sales.active_safety_features'|trans }}</span>
                                 <span class="rams-metric__value">{{  safety_count }}</span>
                             </div>
                         </div>
                         <div class="rams-card rams-p-4">
                             <div class="rams-metric"> 
-                                <span class="rams-metric__label">Quarantined  Variations</span>
+                                <span class="rams-metric__label">{{ 'autonomous_sales.quarantined_variations'|trans }}</span>
                                 <span class="rams-metric__value">{{  health.quarantined }}</span>
                             </div>
                         </div>
                     </div>
                     <div class="rams-flex rams-gap-2 rams-mt-4">
                         <span class="rams-badge rams-badge--{% if health.status == 'green' %}success{% elseif health.status == 'yellow' %}warning{% else %}danger{% endif %}">
-                            Status: {{ health.statusLabel }}
+                            {{ 'autonomous_sales.status_label'|trans }}: {{ health.statusLabel }}
                         </span>
                         <span class="rams-text--xs rams-text--muted">{{ health.statusDesc }}</span>
                     </div>
@@ -844,7 +844,7 @@
                     <p class="rams-text--sm rams-text--muted rams-mb-4">{{ 'autonomous_sales.safety_full_desc'|trans }}</p>
                     <div class="rams-grid rams-grid--2 rams-gap-4">
                         <div>
-                            <h5 class="rams-text--sm rams-text--bold">{{ 'autonomous_sales.safety_auto_mode_title'|trans }}</h5>
+                            <h4 class="rams-text--sm rams-text--bold">{{ 'autonomous_sales.safety_auto_mode_title'|trans }}</h4>
                             <p class="rams-text--xs rams-text--muted">{{ 'autonomous_sales.safety_auto_mode_desc'|trans }}</p>
                         </div>
                         <div>

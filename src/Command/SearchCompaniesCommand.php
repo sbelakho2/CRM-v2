@@ -37,6 +37,7 @@ class SearchCompaniesCommand extends Command
             ->addOption('sector', 's', InputOption::VALUE_OPTIONAL, 'Filter by sector', null)
             ->addOption('location', null, InputOption::VALUE_OPTIONAL, 'Target location/region (e.g. "Germany", "Texas", "Tanger Free Zone")', null)
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show results without importing')
+            ->addOption('yes', 'y', InputOption::VALUE_NONE, 'Skip confirmation prompts (cron-safe)')
             ->setHelp(<<<'HELP'
 The <info>app:search-companies</info> command searches for companies using Google Custom Search API.
 
@@ -90,7 +91,9 @@ HELP
             ]
         );
 
-        if (!$io->confirm('Continue with search?', true)) {
+        // Only prompt in an interactive terminal; --yes / --no-interaction
+        // (or a cron environment without a TTY) proceeds without asking.
+        if ($input->isInteractive() && !$input->getOption('yes') && !$io->confirm('Continue with search?', true)) {
             $io->info('Search cancelled.');
             return Command::SUCCESS;
         }

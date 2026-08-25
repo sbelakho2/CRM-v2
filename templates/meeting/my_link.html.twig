@@ -20,7 +20,7 @@
     <div class="rams-grid rams-grid" style="max-width: 700px; margin: 0 auto;">
         <div class="rams-module">
             <div class="rams-module__header">
-                <h3>{{ 'meeting.my_booking_link'|trans }}</h3>
+                <h2>{{ 'meeting.my_booking_link'|trans }}</h2>
             </div>
             <div class="rams-module__content">
                 <p class="rams-text--muted rams-mb-4">
@@ -28,6 +28,7 @@
                 </p>
                 
                 <div class="rams-form__group rams-mb-6">
+                    <label for="booking-link" class="rams-sr-only">{{ 'meeting.booking_link'|trans }}</label>
                     <input type="text" class="rams-form__input" value="{{ bookingUrl }}" readonly id="booking-link">
                     <button type="button" class="rams-btn" onclick="copyLink()">
                         <svg class="rams-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">

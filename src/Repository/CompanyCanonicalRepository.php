@@ -25,6 +25,9 @@ class CompanyCanonicalRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('cc')
             ->andWhere('cc.domain = :domain')
             ->setParameter('domain', $domain)
+            ->orderBy('cc.isPrimary', 'DESC')
+            ->addOrderBy('cc.id', 'ASC')
+            ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
     }
@@ -54,6 +57,8 @@ class CompanyCanonicalRepository extends ServiceEntityRepository
             ->andWhere('cc.isPrimary = :primary')
             ->setParameter('company', $company)
             ->setParameter('primary', true)
+            ->orderBy('cc.id', 'ASC')
+            ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
     }

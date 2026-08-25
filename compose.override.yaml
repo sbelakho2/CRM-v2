@@ -1,18 +1,12 @@
-
-services:
-###> doctrine/doctrine-bundle ###
-  database:
-    ports:
-      - "5432"
-###< doctrine/doctrine-bundle ###
-
-###> symfony/mailer ###
-  mailer:
-    image: axllent/mailpit
-    ports:
-      - "1025"
-      - "8025"
-    environment:
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_SMTP_AUTH_ALLOW_INSECURE: 1
-###< symfony/mailer ###
+# Development overrides for docker compose.
+#
+# All dev infrastructure (MySQL `db` on port 3308, Mailpit on 1025/8025) is
+# already declared in compose.yaml — this file intentionally adds no services,
+# so `docker compose up -d` brings up the same stack in every environment.
+#
+# It exists to allow machine-local tweaks without touching compose.yaml, e.g.:
+#
+# services:
+#   db:
+#     volumes:
+#       - ./docker/db/data:/var/lib/mysql

@@ -264,7 +264,12 @@ class QuoteWinPredictorService
     {
         // Check if quote has lead time metadata
         $metadata = $quote->getMetadata() ?? [];
-        $maxLeadTime = $metadata['max_lead_time_days'] ?? 30;
+        // Prefer max_lead_time_days (written by QuoteCoPilotService before
+        // predicting); fall back to lead_time_days for older metadata payloads.
+        $maxLeadTime = $metadata['max_lead_time_days']
+            ?? $metadata['lead_time_days']
+            ?? 30;
+        $maxLeadTime = max(0, (int) $maxLeadTime);
         $customerUrgency = $metadata['customer_urgency'] ?? 'normal';
         
         // Map urgency to acceptable lead time

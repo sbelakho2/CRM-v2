@@ -37,7 +37,7 @@
                     <input type="text" name="account_name" required
                            value="{{ account ? account.accountName : '' }}"
                            class="rams-form__input"
-                           placeholder="e.g., Acme Corporation">
+                           placeholder="{{ 'abm_dashboard.name_placeholder'|trans }}">
                 </div>
 
                 {# Domain #}
@@ -46,7 +46,7 @@
                     <input type="text" name="domain" required
                            value="{{ account ? account.domain : '' }}"
                            class="rams-form__input"
-                           placeholder="e.g., acme.com">
+                           placeholder="{{ 'abm_dashboard.domain_placeholder'|trans }}">
                     <p class="rams-form__hint">{{ 'abm_dashboard.domain_hint'|trans }}</p>
                 </div>
 
@@ -67,7 +67,7 @@
                     <input type="text" name="industry"
                            value="{{ account and account.metadata ? (account.metadata.industry ?? '') : '' }}"
                            class="rams-form__input"
-                           placeholder="e.g., Technology, Manufacturing">
+                           placeholder="{{ 'abm_dashboard.sector_placeholder'|trans }}">
                 </div>
 
                 <div class="rams-grid rams-grid--2 rams-gap-4">
@@ -77,7 +77,7 @@
                         <input type="text" name="country"
                                value="{{ account and account.metadata ? (account.metadata.country ?? '') : '' }}"
                                class="rams-form__input"
-                               placeholder="e.g., Morocco, USA">
+                               placeholder="{{ 'abm_dashboard.regions_placeholder'|trans }}">
                     </div>
 
                     {# Company Size #}
@@ -86,7 +86,7 @@
                         <input type="text" name="company_size"
                                value="{{ account and account.metadata ? (account.metadata.company_size ?? '') : '' }}"
                                class="rams-form__input"
-                               placeholder="e.g., 50-200, 1000+">
+                               placeholder="{{ 'abm_dashboard.company_size_placeholder'|trans }}">
                     </div>
                 </div>
 
@@ -96,7 +96,7 @@
                     <input type="text" name="revenue"
                            value="{{ account and account.metadata ? (account.metadata.revenue ?? '') : '' }}"
                            class="rams-form__input"
-                           placeholder="e.g., 1M-10M ({{ display_currency() }})">
+                           placeholder="{{ 'abm_dashboard.revenue_placeholder'|trans }} ({{ display_currency() }})">
                 </div>
 
                 {# Form Actions #}

@@ -9,6 +9,7 @@ use App\Entity\CooSupplierDecl;
 use App\Repository\FtaRuleRepository;
 use App\Repository\CooSupplierDeclRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * FtaEligibilityService
@@ -33,7 +34,8 @@ class FtaEligibilityService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private FtaRuleRepository $ftaRuleRepository,
-        private CooSupplierDeclRepository $cooSupplierDeclRepository
+        private CooSupplierDeclRepository $cooSupplierDeclRepository,
+        private ?LoggerInterface $logger = null
     ) {}
 
     /**
@@ -112,6 +114,23 @@ class FtaEligibilityService
         
         // Check if ROO passes
         if (!$rooEvaluation['passes']) {
+            // A "conditional" ROO result means the rule could not be verified
+            // (e.g. no component HTS data, or an unimplemented ROO method) —
+            // this is NOT a hard failure, but it must not be treated as a
+            // pass either: surface it as CONDITIONAL with low confidence.
+            if (!empty($rooEvaluation['conditional'])) {
+                return [
+                    'eligible' => 'CONDITIONAL',
+                    'status' => 'CONDITIONAL',
+                    'fta_agreement' => $ftaRule->getFtaAgreement(),
+                    'basis' => $rooEvaluation['details'],
+                    'confidence' => 40,
+                    'missing_evidence' => ['ROO rule could not be verified — component HTS data or rule details required'],
+                    'declaration_template' => null,
+                    'roo_evaluation' => $rooEvaluation,
+                ];
+            }
+
             return [
                 'eligible' => 'INELIGIBLE',
                 'status' => 'INELIGIBLE',
@@ -237,12 +256,26 @@ class FtaEligibilityService
                         }
                     }
                     
+                    // Empty component list = nothing verifiable — do NOT pass.
+                    if (empty($componentHeadings)) {
+                        return [
+                            'passes' => false,
+                            'conditional' => true,
+                            'method' => 'CTH',
+                            'details' => 'No component HTS codes provided; change-in-tariff-heading rule cannot be verified',
+                            'product_heading' => $productHeading,
+                            'component_headings' => [],
+                            'roo_text' => $rooText,
+                        ];
+                    }
+                    
                     // Check if any component shares the same heading as the product
                     $sameHeading = in_array($productHeading, $componentHeadings);
-                    $passes = !$sameHeading || empty($componentHeadings);
+                    $passes = !$sameHeading;
                     
                     return [
                         'passes' => $passes,
+                        'conditional' => false,
                         'method' => 'CTH',
                         'details' => $passes
                             ? sprintf('Tariff heading change: product %s differs from component headings [%s]', $productHeading, implode(', ', array_unique($componentHeadings)))
@@ -266,12 +299,26 @@ class FtaEligibilityService
                         }
                     }
                     
+                    // Empty component list = nothing verifiable — do NOT pass.
+                    if (empty($componentChapters)) {
+                        return [
+                            'passes' => false,
+                            'conditional' => true,
+                            'method' => 'CTC',
+                            'details' => 'No component HTS codes provided; change-in-tariff-classification rule cannot be verified',
+                            'product_chapter' => $productChapter,
+                            'component_chapters' => [],
+                            'roo_text' => $rooText,
+                        ];
+                    }
+                    
                     // Check if any component shares the same chapter as the product
                     $sameChapter = in_array($productChapter, $componentChapters);
-                    $passes = !$sameChapter || empty($componentChapters);
+                    $passes = !$sameChapter;
                     
                     return [
                         'passes' => $passes,
+                        'conditional' => false,
                         'method' => 'CTC',
                         'details' => $passes
                             ? sprintf('Tariff chapter change: product %s differs from component chapters [%s]', $productChapter, implode(', ', array_unique($componentChapters)))
@@ -285,6 +332,7 @@ class FtaEligibilityService
                     // RVC is evaluated separately in checkEligibility()
                     return [
                         'passes' => true,
+                        'conditional' => false,
                         'method' => 'RVC',
                         'details' => 'Regional Value Content checked separately in eligibility calculation',
                         'roo_text' => $rooText,
@@ -309,6 +357,7 @@ class FtaEligibilityService
                     
                     return [
                         'passes' => $passes,
+                        'conditional' => false,
                         'method' => 'Wholly Obtained',
                         'details' => $passes
                             ? 'All materials originate from FTA region'
@@ -318,28 +367,42 @@ class FtaEligibilityService
                     ];
                     
                 case 'SPECIFIC_PROCESS':
-                    // Specific process requirements — assume passes with note
+                    // Specific process requirements — documented behavior:
+                    // these rules are not machine-verifiable from BOM data, so
+                    // they are treated as passing with a note for the reviewer.
                     return [
                         'passes' => true,
+                        'conditional' => false,
                         'method' => 'Specific Process',
                         'details' => 'Specific manufacturing process requirement: ' . $rooText,
                         'roo_text' => $rooText,
                     ];
                     
                 default:
-                    // Unknown/unspecified method — assume passes
+                    // Unknown/unimplemented ROO method — fail CLOSED: return
+                    // CONDITIONAL (not an unconditional pass) so the reviewer
+                    // sees the rule needs verification.
                     return [
-                        'passes' => true,
+                        'passes' => false,
+                        'conditional' => true,
                         'method' => 'UNKNOWN',
-                        'details' => sprintf('ROO method "%s" not explicitly implemented; defaulting to pass', $rooText),
+                        'details' => sprintf('ROO method "%s" is not implemented; eligibility cannot be confirmed', $rooText),
                         'roo_text' => $rooText,
                     ];
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // Any evaluation error must NOT silently grant eligibility —
+            // log it and fail closed.
+            $this->logger?->error('ROO evaluation failed — treating as not eligible', [
+                'fta_agreement' => $ftaRule->getFtaAgreement(),
+                'roo_text' => $rooText,
+                'error' => $e->getMessage(),
+            ]);
             return [
-                'passes' => true,
+                'passes' => false,
+                'conditional' => true,
                 'method' => 'UNKNOWN',
-                'details' => 'ROO evaluation error: ' . $e->getMessage(),
+                'details' => 'ROO evaluation error; eligibility cannot be confirmed',
                 'roo_text' => $rooText,
                 'error' => $e->getMessage(),
             ];

@@ -85,7 +85,12 @@ class EmailClassifierService
         ],
         InboxMessage::CLASSIFICATION_NOT_INTERESTED => [
             '/not interested/i',
-            '/no thank/i',
+            // Tightened: "no thank(s)" is only a hard NOT_INTERESTED when it is a
+            // standalone decline. "no thanks for the quote, we'll review" (followed
+            // by 'for'/'we'/'i') is ambivalent and must NOT be classified negative
+            // instantly — it falls through to Naive Bayes, where low confidence
+            // marks it requiresReview.
+            '/\bno thank(?:s)?\b(?!\s+(?:for|we\b|i\b))/i',
             // Removed 'please remove' - it's in UNSUBSCRIBE
             '/don\'?t contact/i',
             '/not looking/i',

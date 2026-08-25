@@ -37,7 +37,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * @see Documentation/AUTONOMOUS_SALES_V2.md
  */
 #[Route('/api/autonomous')]
-#[IsGranted('ROLE_USER')]
 class AutonomousSalesController extends AbstractController
 {
     public function __construct(
@@ -129,6 +128,7 @@ class AutonomousSalesController extends AbstractController
 
         return null;
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Health check endpoint
@@ -142,6 +142,7 @@ class AutonomousSalesController extends AbstractController
             'timestamp' => (new \DateTime())->format('c'),
         ]);
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Get system statistics
@@ -163,6 +164,7 @@ class AutonomousSalesController extends AbstractController
             ], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Initialize default data (templates, arms)
@@ -188,6 +190,7 @@ class AutonomousSalesController extends AbstractController
             ], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     // ==================== TEMPLATES ====================
 
@@ -218,6 +221,7 @@ class AutonomousSalesController extends AbstractController
             ], $templates),
         ]);
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Create a new spintax template
@@ -254,6 +258,7 @@ class AutonomousSalesController extends AbstractController
             ], 400);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Preview template variations
@@ -296,6 +301,7 @@ class AutonomousSalesController extends AbstractController
             ], 400);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     // ==================== BANDIT ARMS ====================
 
@@ -316,6 +322,7 @@ class AutonomousSalesController extends AbstractController
             'stats' => $stats,
         ]);
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Create a new bandit arm
@@ -347,6 +354,7 @@ class AutonomousSalesController extends AbstractController
             ], 400);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Record feedback for an arm (closed-loop learning)
@@ -396,6 +404,7 @@ class AutonomousSalesController extends AbstractController
             ], 400);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     // ==================== COMPOSE ====================
 
@@ -450,6 +459,7 @@ class AutonomousSalesController extends AbstractController
             ], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     // ==================== SCORING ====================
 
@@ -482,6 +492,7 @@ class AutonomousSalesController extends AbstractController
             ], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     // ==================== INBOX (CLASSIFICATION) ====================
 
@@ -518,6 +529,7 @@ class AutonomousSalesController extends AbstractController
             'stats' => $stats,
         ]);
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Classify an email
@@ -549,6 +561,7 @@ class AutonomousSalesController extends AbstractController
             ], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Submit human review
@@ -587,6 +600,7 @@ class AutonomousSalesController extends AbstractController
             ], 400);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     // ==================== COMPETITOR TARGETING ====================
 
@@ -620,6 +634,7 @@ class AutonomousSalesController extends AbstractController
             'competitorStats' => $result['competitorStats'],
         ]);
     }
+    #[IsGranted('ROLE_USER')]
 
     // ==================== DYNAMIC COMPETITORS ====================
 
@@ -660,6 +675,7 @@ class AutonomousSalesController extends AbstractController
             'total' => count($competitors),
         ]);
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Seed baseline competitors
@@ -686,6 +702,7 @@ class AutonomousSalesController extends AbstractController
             return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Learn competitors from content
@@ -726,6 +743,7 @@ class AutonomousSalesController extends AbstractController
             return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Verify a learned competitor
@@ -766,6 +784,7 @@ class AutonomousSalesController extends AbstractController
             return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Get competitor statistics
@@ -782,6 +801,7 @@ class AutonomousSalesController extends AbstractController
             'stats' => $this->competitorLearner->getStatistics(),
         ]);
     }
+    #[IsGranted('ROLE_USER')]
 
     // ==================== ML PERSONALIZATION ====================
 
@@ -834,6 +854,7 @@ class AutonomousSalesController extends AbstractController
             return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Get personalization profile for a contact
@@ -868,6 +889,7 @@ class AutonomousSalesController extends AbstractController
             ],
         ]);
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Record email interaction for learning
@@ -916,6 +938,7 @@ class AutonomousSalesController extends AbstractController
             return $this->json(['success' => false, 'error' => 'Operation failed. Please try again.'], 500);
         }
     }
+    #[IsGranted('ROLE_USER')]
 
     /**
      * Get personalization statistics

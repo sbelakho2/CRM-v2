@@ -44,6 +44,8 @@ class CapacityCalendarRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('cc')
             ->andWhere('cc.productionDate = :date')
             ->setParameter('date', $date)
+            ->orderBy('cc.id', 'ASC')
+            ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
     }

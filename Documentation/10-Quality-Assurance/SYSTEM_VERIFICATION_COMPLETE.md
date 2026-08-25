@@ -4,6 +4,8 @@
 **System**: Starz Morocco CRM v2.0  
 **Testing Status**: ✅ **ALL 37 TASKS VERIFIED - READY FOR PRODUCTION**  
 
+> **Correction (2026-08):** The `Estimate` entity was removed from the codebase (2026 refactoring); claims below describing it as live are historical. Current sales pipeline: RFQ → Quote → QuotePartBreakdown → Activity.
+
 ---
 
 ## Executive Summary
@@ -22,7 +24,7 @@
 | **Lead System** | ✅ READY | Multi-region support with scoring |
 | **ABM Automation** | ✅ READY | Playbook engine and resolver ready |
 | **Visitor Tracking** | ✅ READY | For starzelectronics.com & starzenergies.com |
-| **Sales Pipeline** | ✅ READY | RFQ → Quote → Estimate workflow |
+| **Sales Pipeline** | ✅ READY | RFQ → Quote → QuotePartBreakdown workflow |
 | **Compliance** | ✅ READY | 21-document requirement tracking |
 | **Dashboard** | ✅ READY | KPI and analytics display |
 | **Documentation** | ✅ COMPLETE | 32 comprehensive guides created |
@@ -90,10 +92,9 @@
 - ✅ AbmAccount - Visitor account tracking
 - ✅ AbmHit - Visitor engagement tracking
 
-**Sales Pipeline Entities** (5):
+**Sales Pipeline Entities** (4):
 - ✅ RFQ - Request for quote
 - ✅ Quote - Quote generation and tracking
-- ✅ Estimate - Estimate records
 - ✅ QuotePartBreakdown - Line item details
 - ✅ Activity - Activity timeline
 
@@ -302,7 +303,6 @@
 - ✅ RFQ entity with pipeline stages
 - ✅ Quote entity with multi-line support
 - ✅ QuotePartBreakdown for line items
-- ✅ Estimate entity
 - ✅ PDF generation via UnifiedPdfGeneratorService
 - ✅ RFQController and QuoteCoPilotController
 
@@ -508,7 +508,7 @@ All documentation has been created and organized:
 - ✅ Email System: EmailCampaign, EmailTemplate, EmailSegment, EmailSend, EmailUnsubscribe
 - ✅ Lead Management: Lead
 - ✅ ABM System: Playbook, PlaybookRun, AbmAccount, AbmHit
-- ✅ Sales: RFQ, Quote, Estimate, QuotePartBreakdown
+- ✅ Sales: RFQ, Quote, QuotePartBreakdown
 - ✅ Tracking: WebEvent, IpMap
 - ✅ Compliance: ComplianceDocument, OnboardingPack
 - ✅ Activity: Activity

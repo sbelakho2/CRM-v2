@@ -67,9 +67,10 @@ ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes ubuntu@77.42.65.89
 | **PHP** | 8.4.18 (FPM) | Socket: `/run/php/php8.4-fpm.sock` |
 | **Nginx** | 1.24.0 | Config: `/etc/nginx/sites-available/starzcrm` |
 | **MySQL** | 8.0.45 | Local socket, managed by systemd |
-| **Node.js** | 20.x | For Webpack Encore frontend asset builds |
 | **Composer** | 2.x | `/usr/local/bin/composer` |
 | **Certbot** | Installed | SSL auto-renewal via systemd timer |
+
+> **Note (2026-08):** Node.js/Webpack Encore are no longer part of the stack — the frontend build toolchain (Encore/Tailwind/webpack.config.js) was removed. There is no `npm install` / `npm run build` step.
 
 **Systemd service status (all `active`):**
 ```
@@ -87,17 +88,17 @@ mysql          → active
 | **Engine** | MySQL 8.0.45 |
 | **Database name** | `starz_crm` |
 | **User** | `crm_user` |
-| **Password** | `StarzCRM2026Secure` |
+| **Password** | `<REDACTED-SET-YOUR-OWN>` |
 | **Host** | `127.0.0.1:3306` |
-| **DSN** | `mysql://crm_user:StarzCRM2026Secure@127.0.0.1:3306/starz_crm?serverVersion=8.0&charset=utf8mb4` |
+| **DSN** | `mysql://crm_user:<REDACTED-SET-YOUR-OWN>@127.0.0.1:3306/starz_crm?serverVersion=8.0&charset=utf8mb4` |
 | **Tables** | 77 tables (created via Doctrine migrations) |
 
 **Access MySQL on server:**
 ```bash
 ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
 sudo mysql starz_crm
-# or with credentials:
-mysql -u crm_user -pStarzCRM2026Secure starz_crm
+# or with credentials (you will be prompted for the password):
+mysql -u crm_user -p starz_crm
 ```
 
 ---
@@ -119,15 +120,8 @@ mysql -u crm_user -pStarzCRM2026Secure starz_crm
 │   └── routes.yaml
 ├── external_data/                    ← Classifier data, company boost lists
 ├── migrations/                       ← Doctrine migration files
-├── node_modules/                     ← Node.js dependencies (installed on server)
 ├── public/                           ← Nginx document root
-│   ├── index.php                     ← Symfony front controller
-│   └── build/                        ← Compiled JS/CSS assets (Webpack Encore output)
-│       ├── app.*.css
-│       ├── app.*.js
-│       ├── runtime.*.js
-│       ├── entrypoints.json
-│       └── manifest.json
+│   └── index.php                     ← Symfony front controller
 ├── src/                              ← PHP source code
 │   ├── Command/                      ← Console commands (app:create-admin, etc.)
 │   ├── Controller/                   ← HTTP controllers
@@ -142,11 +136,8 @@ mysql -u crm_user -pStarzCRM2026Secure starz_crm
 │   └── log/
 │       └── prod.log                  ← Application log
 ├── vendor/                           ← Composer dependencies (installed on server)
-├── assets/                           ← Frontend source (Stimulus controllers, SCSS)
+├── assets/                           ← (removed 2026 — no frontend build toolchain)
 ├── composer.json / composer.lock
-├── package.json / package-lock.json
-├── webpack.config.js
-└── tailwind.config.js
 ```
 
 **Key file ownership rules:**
@@ -165,7 +156,7 @@ APP_ENV=prod
 APP_DEBUG=0
 APP_SECRET=CHANGE_ME_generate_a_fresh_secret
 
-DATABASE_URL="mysql://crm_user:StarzCRM2026Secure@127.0.0.1:3306/starz_crm?serverVersion=8.0&charset=utf8mb4"
+DATABASE_URL="mysql://crm_user:<REDACTED-SET-YOUR-OWN>@127.0.0.1:3306/starz_crm?serverVersion=8.0&charset=utf8mb4"
 
 MAILER_DSN=smtp://CHANGE_ME@CHANGE_ME:1025
 MAILER_FROM_ADDRESS=contact@starzelectronics.site
@@ -177,8 +168,8 @@ DEFAULT_URI=https://www.starzcrm.com
 MESSENGER_TRANSPORT_DSN=doctrine://default?auto_setup=0
 LOCK_DSN=flock
 
-# Scraper proxy for web crawling
-SCRAPER_PROXY_URL=http://pHPV5jEpXqHtlpzc:NdL4xVheMTy36UyA_country-ee@geo.iproyal.com:12321
+# Scraper proxy for web crawling (credentials redacted — set your own)
+SCRAPER_PROXY_URL=http://<REDACTED-SET-YOUR-OWN>:<REDACTED-SET-YOUR-OWN>@geo.iproyal.com:12321
 
 # Self-hosted SearXNG search instance (primary search engine)
 SEARXNG_BASE_URL=http://127.0.0.1:8888
@@ -285,7 +276,7 @@ ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
 cd /var/www/starzcrm
 sudo -u www-data php bin/console app:create-admin \
   --email=newuser@example.com \
-  --password='SecurePassword123' \
+  --password='<REDACTED-SET-YOUR-OWN>' \
   --firstName=John \
   --lastName=Doe
 ```
@@ -321,9 +312,9 @@ journalctl -u php8.4-fpm -f                             # PHP-FPM systemd log
 journalctl -u mysql -f                                  # MySQL systemd log
 
 # ─── Frontend Assets ──────────────────────────────────────
+# No frontend build step (Webpack Encore/Tailwind removed 2026)
 cd /var/www/starzcrm
-npm run build                          # Rebuild Webpack Encore (production)
-ls -la public/build/                   # Verify built assets
+ls -la public/                   # Verify web root (templates render directly)
 
 # ─── Database ─────────────────────────────────────────────
 sudo mysql starz_crm                   # Quick MySQL access
@@ -358,7 +349,6 @@ tar czf /tmp/crm-deploy.tar.gz \
   --exclude='./vendor' \
   --exclude='./node_modules' \
   --exclude='./.git' \
-  --exclude='./public/build' \
   --exclude='./.env.local' \
   --exclude='./.env.test' \
   --exclude='./ml' \
@@ -411,9 +401,7 @@ sudo chmod +x bin/console
 # Install PHP dependencies
 sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction
 
-# Install Node dependencies and build frontend
-npm install
-npx encore production
+# (No frontend build step — Webpack Encore/Tailwind removed 2026)
 
 # Run database migrations
 sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction --env=prod
@@ -447,7 +435,7 @@ curl -sI https://www.starzcrm.com/login | head -3
 Use this instead of the full deploy only when all of the following are true:
 - only files under `templates/`, `translations/`, or `public/` changed
 - no Doctrine migrations changed
-- no `composer.lock`, `package-lock.json`, `webpack.config.js`, or environment files changed
+- no `composer.lock` or environment files changed
 - no `vendor/` reinstall or frontend rebuild is required
 
 #### Local machine
@@ -518,7 +506,7 @@ curl -sI https://www.starzcrm.com/samples/quote-copilot-upload-spec.html | head 
 | Permission denied on `var/` | `sudo chown -R www-data:www-data /var/www/starzcrm/var && sudo chmod -R 775 /var/www/starzcrm/var` |
 | `bin/console` not executable | `sudo chmod +x /var/www/starzcrm/bin/console` |
 | Class not found errors | `cd /var/www/starzcrm && sudo -u www-data composer dump-autoload --optimize` |
-| Missing assets (broken CSS/JS) | `cd /var/www/starzcrm && npm run build` |
+| Missing assets (broken CSS/JS) | No frontend build step exists (Encore/Tailwind removed 2026); verify `public/` files exist and clear cache |
 | `tar: Ignoring unknown extended header keyword 'LIBARCHIVE.xattr.com.apple.provenance'` | Safe when the archive was created on macOS; Ubuntu still extracts the payload correctly |
 | SSL certificate expired | `sudo certbot renew` |
 | MySQL won't start | `sudo journalctl -u mysql -n 50` to check logs |
@@ -543,7 +531,7 @@ This section covers setting up a brand new server from scratch.
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y php8.4-fpm php8.4-cli php8.4-intl php8.4-mbstring \
   php8.4-xml php8.4-curl php8.4-zip php8.4-mysql php8.4-gd php8.4-bcmath \
-  nginx mysql-server git unzip nodejs npm certbot python3-certbot-nginx
+  nginx mysql-server git unzip certbot python3-certbot-nginx
 ```
 
 ### 1.3 Create Application Directory
@@ -558,7 +546,7 @@ sudo chown www-data:www-data /var/www/starzcrm
 ```bash
 sudo mysql <<'SQL'
 CREATE DATABASE IF NOT EXISTS starz_crm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'crm_user'@'localhost' IDENTIFIED BY 'StarzCRM2026Secure';
+CREATE USER IF NOT EXISTS 'crm_user'@'localhost' IDENTIFIED BY '<REDACTED-SET-YOUR-OWN>';
 GRANT ALL PRIVILEGES ON starz_crm.* TO 'crm_user'@'localhost';
 FLUSH PRIVILEGES;
 SQL
@@ -628,7 +616,7 @@ sudo -u www-data php bin/console doctrine:migrations:migrate --no-interaction --
 ```bash
 sudo -u www-data php bin/console app:create-admin \
   --email=sadok.aaron@starzelectronics.com \
-  --password='YourSecurePassword' \
+  --password='<REDACTED-SET-YOUR-OWN>' \
   --firstName=Aaron \
   --lastName=Sadok
 ```

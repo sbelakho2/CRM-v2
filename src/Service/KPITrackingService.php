@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Repository\CompanyRepository;
+use App\Repository\QuoteRepository;
 use App\Repository\RFQRepository;
 use App\Repository\ActivityRepository;
+use App\Repository\SupplierPortalRepository;
 use App\Repository\WebinarRepository;
+use App\Entity\Quote;
 
 class KPITrackingService
 {
@@ -16,6 +19,8 @@ class KPITrackingService
         private RFQRepository $rfqRepository,
         private ActivityRepository $activityRepository,
         private WebinarRepository $webinarRepository,
+        private SupplierPortalRepository $supplierPortalRepository,
+        private QuoteRepository $quoteRepository,
         private CurrencyConverter $currencyConverter
     ) {}
 
@@ -85,12 +90,23 @@ class KPITrackingService
     }
 
     /**
-     * Get portal signups in date range
+     * Get portal signups in date range: count of supplier portals with
+     * registered = true and a registration date within the range.
      */
     private function getPortalSignups(\DateTime $start, \DateTime $end): int
     {
-        // Will count supplier portal registrations
-        return 0; // To be implemented with SupplierPortalRepository
+        $count = $this->supplierPortalRepository->createQueryBuilder('sp')
+            ->select('COUNT(sp.id)')
+            ->where('sp.registered = :registered')
+            ->andWhere('sp.registrationDate >= :start')
+            ->andWhere('sp.registrationDate <= :end')
+            ->setParameter('registered', true)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (int) $count;
     }
 
     /**
@@ -114,13 +130,40 @@ class KPITrackingService
         
         // Single query for all active RFQ counts by sector
         $rfqCounts = $this->rfqRepository->getActiveRfqCountsBySector();
+
+        // Pipeline value per sector: sum of totalCost for quotes whose
+        // company sector matches, limited to sent/approved/accepted quotes.
+        $quoteRows = $this->quoteRepository->createQueryBuilder('q')
+            ->select('c.sector, q.totalCost, q.currency')
+            ->join('q.company', 'c')
+            ->where('q.status IN (:statuses)')
+            ->andWhere('c.sector IS NOT NULL')
+            ->setParameter('statuses', [Quote::STATUS_SENT, Quote::STATUS_APPROVED, Quote::STATUS_ACCEPTED])
+            ->getQuery()
+            ->getResult();
+
+        $displayCurrency = $this->currencyConverter->getDisplayCurrency();
+        $pipelineValues = [];
+        foreach ($quoteRows as $row) {
+            $sector = $row['sector'];
+            if (!$sector) {
+                continue;
+            }
+            $amount = (float) $row['totalCost'];
+            if ($amount <= 0) {
+                continue;
+            }
+            $sourceCurrency = $row['currency'] ?: $displayCurrency;
+            $pipelineValues[$sector] = ($pipelineValues[$sector] ?? 0.0)
+                + $this->currencyConverter->convert($amount, $sourceCurrency, $displayCurrency);
+        }
         
         $breakdown = [];
         foreach ($sectors as $sector) {
             $breakdown[$sector] = [
                 'company_count' => $companyCounts[$sector] ?? 0,
                 'active_rfqs' => $rfqCounts[$sector] ?? 0,
-                'pipeline_value' => 0, // To be calculated
+                'pipeline_value' => round($pipelineValues[$sector] ?? 0.0, 2),
             ];
         }
 
@@ -167,14 +210,52 @@ class KPITrackingService
     }
 
     /**
-     * Get team performance metrics
+     * Get team performance metrics: activity volume per user over the last
+     * 90 days, classified by role where possible.
      */
     public function getTeamPerformance(): array
     {
-        // Will be implemented with User repository to track per-rep metrics
+        $start = new \DateTime('-90 days');
+
+        $rows = $this->activityRepository->createQueryBuilder('a')
+            ->select('u.id, u.firstName, u.lastName, u.roles, COUNT(a.id) as cnt')
+            ->join('a.user', 'u')
+            ->where('a.activityDate >= :start')
+            ->setParameter('start', $start)
+            ->groupBy('u.id')
+            ->orderBy('cnt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $fieldReps = [];
+        $digitalReps = [];
+
+        foreach ($rows as $row) {
+            $roles = $row['roles'] ?? [];
+            $entry = [
+                'user_id' => (int) $row['id'],
+                'name' => trim(($row['firstName'] ?? '') . ' ' . ($row['lastName'] ?? '')),
+                'activities_90d' => (int) $row['cnt'],
+            ];
+
+            $isDigital = false;
+            foreach ($roles as $role) {
+                if (is_string($role) && str_contains(strtoupper($role), 'DIGITAL')) {
+                    $isDigital = true;
+                    break;
+                }
+            }
+
+            if ($isDigital) {
+                $digitalReps[] = $entry;
+            } else {
+                $fieldReps[] = $entry;
+            }
+        }
+
         return [
-            'field_reps' => [],
-            'digital_reps' => [],
+            'field_reps' => $fieldReps,
+            'digital_reps' => $digitalReps,
         ];
     }
 }

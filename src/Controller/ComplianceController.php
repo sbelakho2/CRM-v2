@@ -8,10 +8,10 @@ use App\Repository\ComplianceDocumentRepository;
 use App\Service\CompliancePackService;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -28,7 +28,8 @@ class ComplianceController extends AbstractController
         private CompliancePackService $compliancePackService,
         private SluggerInterface $slugger,
         private GuidanceNotificationService $guidanceService,
-        private TranslatorInterface $translator
+        private TranslatorInterface $translator,
+        private LoggerInterface $logger
     ) {}
 
     #[Route('/company/{id}', name: 'app_compliance_company', methods: ['GET'])]
@@ -205,7 +206,13 @@ class ComplianceController extends AbstractController
             $this->addFlash('success', $this->translator->trans('compliance.flash.document_uploaded', [
                 '%name%' => $document->getName(),
             ]));
-        } catch (FileException $e) {
+        } catch (\RuntimeException $e) {
+            // Covers both Symfony's FileException (move failures) and the
+            // validation RuntimeExceptions thrown above (extension/MIME/size).
+            $this->logger->error('Compliance document upload failed', [
+                'document_id' => $document->getId(),
+                'error' => $e->getMessage(),
+            ]);
             $this->addFlash('danger', $this->translator->trans('compliance.error.upload_failed'));
         }
 

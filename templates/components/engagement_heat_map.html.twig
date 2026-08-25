@@ -22,6 +22,7 @@
                      data-recent-days="{{ company.recent_activity_days ?? 'N/A' }}"
                      style="background-color: {{ company.color }};"
                      onclick="navigateToCompany({{ company.id }})"
+                     onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigateToCompany({{ company.id }}); }"
                      role="button"
                      tabindex="0"
                      aria-label="{{ 'company.title_singular'|trans }}: {{ company.name }}, {{ 'dashboard.engagement_score'|trans }}: {{ company.score }}">
@@ -68,7 +69,7 @@
 
 <script>
     function navigateToCompany(companyId) {
-        window.location.href = `/companies/${companyId}`;
+        window.location.href = '{{ path('app_company_show', {id: 0}) }}'.replace('/0', '/' + companyId);
     }
     
     function refreshHeatMap() {

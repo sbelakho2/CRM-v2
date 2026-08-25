@@ -381,11 +381,12 @@ class BOMParser
         $delimiter = $this->detectCSVDelimiter($raw);
 
         // Parse into rows
+        // (escape arg omitted — PHP 8.5 deprecates it and the default matches)
         $rows = [];
         $handle = fopen('php://temp', 'r+');
         fwrite($handle, $raw);
         rewind($handle);
-        while (($row = fgetcsv($handle, 0, $delimiter, ',', '"', '\\')) !== false) {
+        while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
             $rows[] = $row;
         }
         fclose($handle);
@@ -493,7 +494,7 @@ class BOMParser
             for ($r = 1; $r <= $scanDepth; $r++) {
                 $row = [];
                 for ($c = 1; $c <= $highestColIdx; $c++) {
-                    $row[] = $sheet->getCellByColumnAndRow($c, $r)->getValue();
+                    $row[] = $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . $r)->getValue();
                 }
                 $scanRows[] = $row;
             }
@@ -536,7 +537,7 @@ class BOMParser
                     for ($rowNum = $startRow; $rowNum <= $endRow; $rowNum++) {
                         $row = [];
                         for ($c = 1; $c <= $highestColIdx; $c++) {
-                            $row[] = $sheet->getCellByColumnAndRow($c, $rowNum)->getValue();
+                            $row[] = $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . $rowNum)->getValue();
                         }
                         if ($this->isEmptyRow($row)) continue;
                         $lineNumber++;

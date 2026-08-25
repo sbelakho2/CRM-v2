@@ -80,12 +80,13 @@ class TrackerDataService
     public function getStatistics(): array
     {
         $data = $this->loadTrackerData();
+        $datasets = $this->getDatasets();
         
         return [
             'total_suppliers' => count($data['suppliers']),
-            'active_datasets' => 8,
-            'total_records' => 12547,
-            'last_updated' => '2025-10-25',
+            'active_datasets' => count($datasets),
+            'total_records' => array_sum(array_column($datasets, 'records')),
+            'last_updated' => max(array_column($datasets, 'updated_at')),
             'storage_used' => '2.4 GB',
             'by_priority' => $data['by_priority'],
             'by_status' => $data['by_status'],

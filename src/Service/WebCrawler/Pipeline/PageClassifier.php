@@ -47,9 +47,10 @@ final class PageClassifier
                 'die casting', 'our manufacturing',
                 'designs and manufactures', 'develops and manufactures',
                 'manufactures and supplies', 'manufactures and distributes',
+                'design and manufacture', 'conceives and manufactures',
                 // French
                 'conçoit et fabrique', 'conçoit et produit', 'nous fabriquons',
-                'notre usine', 'ligne de production',
+                'notre usine', 'ligne de production', 'conçoit, fabrique',
                 // German
                 'entwickelt und fertigt', 'entwickelt und produziert',
                 'wir fertigen', 'wir produzieren', 'unsere fabrik',
@@ -63,8 +64,17 @@ final class PageClassifier
                 'extrusion', 'tooling', 'heat treatment', 'surface treatment',
                 'coating', 'plating', 'welding', 'turning', 'milling',
                 'sheet metal', 'metal parts', 'precision parts',
+                // Electronic / electrical product types
+                'switchgear', 'circuit breakers', 'power distribution units',
+                'measuring systems', 'embedded systems', 'industrial computers',
+                'microcontrollers', 'analog products', 'soc devices',
+                'oscilloscopes', 'spectrum analyzers', 'signal generators',
+                'safety controllers', 'ecus', 'calibration tools',
+                'diagnostic tools', 'radar', 'avionics',
                 // French
                 'fabrique', 'fabricant', 'fabrication', 'produit',
+                'appareils électroménagers', 'tableaux électriques',
+                'armoires de distribution', 'équipements de contrôle',
                 // German
                 'fertigt', 'hersteller', 'fertigung', 'produziert',
                 // Spanish
@@ -129,6 +139,11 @@ final class PageClassifier
             'medium' => [
                 'news', 'magazine', 'journal', 'publication',
                 'editor', 'reporter', 'article',
+                // German
+                'fachmagazin', 'nachrichten', 'fachartikel', 'marktberichte',
+                'zeitschrift', 'redaktion',
+                // French
+                'média', 'actualités', 'enquêtes', 'magazine industriel',
             ],
             'low' => [
                 'blog', 'subscribe', 'newsletter',

@@ -81,7 +81,7 @@
             {# Score Distribution #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="rams-module__title">{{ 'lead.score_distribution'|trans }}</h3>
+                    <h2 class="rams-module__title">{{ 'lead.score_distribution'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-stack rams-gap-3">
@@ -386,16 +386,16 @@
                             </td>
                             <td class="rams-table__cell rams-text--center">
                                 <div class="rams-flex rams-gap-1 rams-justify-center">
-                                    <a href="{{ path('app_lead_review', {id: lead.id}) }}" class="rams-btn rams-btn--sm rams-btn--ghost" title="{{ 'lead.view'|trans }}" aria-label="{{ 'lead.view'|trans }}">
+                                    <a href="{{ path('app_lead_show', {id: lead.id}) }}" class="rams-btn rams-btn--sm rams-btn--ghost" title="{{ 'lead.view'|trans }}" aria-label="{{ 'lead.view'|trans }}">
                                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </a>
                                     {% if lead.reviewStatus == 'pending' %}
-                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--success" onclick="approveLead({{ lead.id }})" title="{{ 'lead.approve'|trans }}" aria-label="{{ 'lead.approve'|trans }}">
+                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--success" onclick="approveLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead.approve'|trans }}" aria-label="{{ 'lead.approve'|trans }}">
                                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                                     </button>
                                     {% endif %}
                                     {% if lead.reviewStatus == 'approved' and not lead.company %}
-                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--info" onclick="convertLead({{ lead.id }})" title="{{ 'lead.convert_to_company'|trans }}" aria-label="{{ 'lead.convert_to_company'|trans }}">
+                                    <button type="button" class="rams-btn rams-btn--sm rams-btn--ghost rams-text--info" onclick="convertLead(this, {{ lead.id }})" data-csrf="{{ csrf_token('lead_action_' ~ lead.id) }}" title="{{ 'lead.convert_to_company'|trans }}" aria-label="{{ 'lead.convert_to_company'|trans }}">
                                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                                     </button>
                                     {% endif %}
@@ -448,11 +448,14 @@
 {% block javascripts %}
 {{ parent() }}
 <script>
-function approveLead(leadId) {
+const leadApproveUrl = '{{ path('app_lead_approve', {id: 0}) }}';
+const leadConvertUrl = '{{ path('app_lead_convert', {id: 0}) }}';
+
+function approveLead(button, leadId) {
     ramsConfirm('{{ 'lead.confirm_approve'|trans }}', function() {
-        fetch('/leads/approve/' + leadId, {
+        fetch(leadApproveUrl.replace('/0', '/' + leadId), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token("lead_approve") }}' }
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': button.dataset.csrf }
         })
         .then(r => r.json())
         .then(data => {
@@ -467,11 +470,11 @@ function approveLead(leadId) {
     }, {title: '{{ 'lead.approve'|trans }}', variant: 'danger'});
 }
 
-function convertLead(leadId) {
+function convertLead(button, leadId) {
     ramsConfirm('{{ 'lead.confirm_convert'|trans }}', function() {
-        fetch('/leads/convert/' + leadId, {
+        fetch(leadConvertUrl.replace('/0', '/' + leadId), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token("lead_convert") }}' }
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': button.dataset.csrf }
         })
         .then(r => r.json())
         .then(data => {
@@ -484,15 +487,6 @@ function convertLead(leadId) {
         })
         .catch(e => showToast(e.message, 'error'));
     }, {title: '{{ 'lead.convert'|trans }}'});
-}
-
-function showToast(message, type) {
-    type = type || 'success';
-    const toast = document.createElement('div');
-    toast.className = 'rams-toast';             
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
 }
 </script>
 {% endblock %}

@@ -313,9 +313,11 @@ class LeadSalesAnalystService
         }
         
         $totalCerts = count($qualityStack);
+        // Neutral score when no certification data exists: do not assume
+        // alignment we have not verified.
         $score = $totalCerts > 0 
             ? (count($matchedCerts) / $totalCerts) * 100 
-            : 70; // Default assumption
+            : 50;
         
         return [
             'score' => round($score, 1),
@@ -495,7 +497,7 @@ class LeadSalesAnalystService
                 'type' => 'capability_match',
                 'topic' => 'shared_capabilities',
                 'opener' => "I noticed you're focused on {$capabilities}. That's exactly our specialty.",
-                'follow_up' => "We've helped similar companies reduce time-to-market by 30%.",
+                'follow_up' => "We've helped similar companies streamline time-to-market.",
                 'priority' => 2,
             ];
         }

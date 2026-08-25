@@ -28,12 +28,12 @@ when@test:
       proxy_dir: "%kernel.cache_dir%/doctrine/orm/Proxies"
       second_level_cache:
         enabled: false
-      metadata_cache_driver:
-        type: array
-      query_cache_driver:
-        type: array
-      result_cache_driver:
-        type: array
+      # Cache drivers are intentionally NOT set here: config/packages/test/
+      # (doctrine.yaml + framework.yaml) already wires array-backed pools
+      # (doctrine.system_cache_pool / doctrine.result_cache_pool), and the
+      # test/ directory is merged after this file, so any drivers declared
+      # here would be dead config. Metadata/query/result caches are therefore
+      # configured in exactly one place.
 
 when@prod:
   doctrine:

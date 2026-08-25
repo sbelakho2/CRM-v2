@@ -1,76 +1,72 @@
-<!DOCTYPE html>
-<html lang="{{ app.request.locale }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ 'webinar.registration.confirmation'|trans }} - {{ webinar.title }}</title>
-    <link rel="stylesheet" href="{{ asset('css/sensei-rams.css') }}">
+{% extends 'base_login.html.twig' %}
 
-    <style>
-        .rams-public-container { max-width: 640px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
-        .rams-public-container--narrow { max-width: 560px; }
-        .rams-confirmation { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
-        .rams-confirmation__icon { width: 64px; height: 64px; border-radius: 50%; background: var(--rams-panel); border: 2px solid var(--rams-line); display: flex; align-items: center; justify-content: center; color: var(--rams-muted); }
-        .rams-confirmation__icon--success { background: var(--rams-bg-success-subtle); border-color: var(--rams-green); color: var(--rams-green); }
-        .rams-confirmation__title { margin: 0; }
-        .rams-confirmation__message { color: var(--rams-muted); }
-        .rams-detail-row { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-2) 0; }
-        .rams-detail-row--separated { border-top: 1px solid var(--rams-line); margin-top: var(--space-2); }
-        .rams-detail-row__icon { flex-shrink: 0; width: 20px; height: 20px; color: var(--rams-muted); margin-top: 2px; }
-        .rams-detail-row__content { display: flex; flex-direction: column; gap: var(--space-1); }
-        .rams-detail-row__value { font-weight: 600; }
-        .rams-confirmation__notes { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
-        .rams-note { margin: 0; padding: var(--space-2) var(--space-3); background: var(--rams-panel); border-radius: var(--radius-sm); font-size: var(--text-sm); color: var(--rams-muted); }
-    </style>
+{% block title %}{{ 'webinar.registration.confirmation'|trans }} - {{ webinar.title }}{% endblock %}
 
-</head>
-<body class="rams-page rams-page rams-text--center">
-    <div class="rams-public-container rams-public-container--narrow">
-        <div class="rams-confirmation">
-            <div class="rams-confirmation__icon rams-confirmation__icon--success">
-                <svg class="rams-icon--2xl" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-            </div>
+{% block stylesheets %}
+<style>
+    .rams-public-container { max-width: 640px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
+    .rams-public-container--narrow { max-width: 560px; }
+    .rams-confirmation { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
+    .rams-confirmation__icon { width: 64px; height: 64px; border-radius: 50%; background: var(--rams-panel); border: 2px solid var(--rams-line); display: flex; align-items: center; justify-content: center; color: var(--rams-muted); }
+    .rams-confirmation__icon--success { background: var(--rams-bg-success-subtle); border-color: var(--rams-green); color: var(--rams-green); }
+    .rams-confirmation__title { margin: 0; }
+    .rams-confirmation__message { color: var(--rams-muted); }
+    .rams-detail-row { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-2) 0; }
+    .rams-detail-row--separated { border-top: 1px solid var(--rams-line); margin-top: var(--space-2); }
+    .rams-detail-row__icon { flex-shrink: 0; width: 20px; height: 20px; color: var(--rams-muted); margin-top: 2px; }
+    .rams-detail-row__content { display: flex; flex-direction: column; gap: var(--space-1); }
+    .rams-detail-row__value { font-weight: 600; }
+    .rams-confirmation__notes { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+    .rams-note { margin: 0; padding: var(--space-2) var(--space-3); background: var(--rams-panel); border-radius: var(--radius-sm); font-size: var(--text-sm); color: var(--rams-muted); }
+</style>
+{% endblock %}
 
-            <h1 class="rams-confirmation__title">{{ 'webinar.registration.confirmation'|trans }}!</h1>
-            
-            <p class="rams-confirmation__message">
-                {{ 'webinar.registration_confirmed_message'|trans|default("You're all set for") }} <strong>{{ webinar.title }}</strong>.
-            </p>
+{% block body %}
+<div class="rams-public-container rams-public-container--narrow rams-text--center">
+    <div class="rams-confirmation">
+        <div class="rams-confirmation__icon rams-confirmation__icon--success">
+            <svg class="rams-icon--2xl" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
 
-            <div class="rams-module rams-module--inset"> 
-                <div class="rams-module__content">
-                    <div class="rams-detail-row">
-                        <svg class="rams-detail-row__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <div class="rams-detail-row__content">
-                            <span class="rams-dymo">{{ 'webinar.date'|trans }} & {{ 'webinar.start_time'|trans }}</span>
-                            <span class="rams-detail-row__value">{{ webinar.scheduledDate|date('F d, Y - H:i') }}</span>
-                        </div>
+        <h1 class="rams-confirmation__title">{{ 'webinar.registration.confirmation'|trans }}!</h1>
+        
+        <p class="rams-confirmation__message">
+            {{ 'webinar.registration_confirmed_message'|trans|default("You're all set for") }} <strong>{{ webinar.title }}</strong>.
+        </p>
+
+        <div class="rams-module rams-module--inset"> 
+            <div class="rams-module__content">
+                <div class="rams-detail-row">
+                    <svg class="rams-detail-row__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <div class="rams-detail-row__content">
+                        <span class="rams-dymo">{{ 'webinar.date'|trans }} & {{ 'webinar.start_time'|trans }}</span>
+                        <span class="rams-detail-row__value">{{ webinar.scheduledDate|date('F d, Y - H:i') }}</span>
                     </div>
-                    
-                    {% if webinar.meetingUrl %}
-                        <div class="rams-detail-row rams-detail-row--separated">
-                            <span class="rams-dymo">{{ 'webinar.link'|trans }}</span>
-                            <a href="{{ webinar.meetingUrl }}" target="_blank" class="rams-link rams-link--plain">
-                                {{ webinar.meetingUrl }}
-                            </a>
-                        </div>
-                    {% endif %}
                 </div>
-            </div>
-
-            <div class="rams-confirmation__notes">
-                <p class="rams-note">
-                    📧 {{ 'webinar.check_email'|trans }}
-                </p>
-                <p class="rams-note">
-                    {{ 'webinar.reminder_notice'|trans|default("We'll send you a reminder 24 hours before the webinar.") }}
-                </p>
+                
+                {% if webinar.meetingUrl %}
+                    <div class="rams-detail-row rams-detail-row--separated">
+                        <span class="rams-dymo">{{ 'webinar.link'|trans }}</span>
+                        <a href="{{ webinar.meetingUrl }}" target="_blank" class="rams-link rams-link--plain">
+                            {{ webinar.meetingUrl }}
+                        </a>
+                    </div>
+                {% endif %}
             </div>
         </div>
+
+        <div class="rams-confirmation__notes">
+            <p class="rams-note">
+                📧 {{ 'webinar.check_email'|trans }}
+            </p>
+            <p class="rams-note">
+                {{ 'webinar.reminder_notice'|trans|default("We'll send you a reminder 24 hours before the webinar.") }}
+            </p>
+        </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

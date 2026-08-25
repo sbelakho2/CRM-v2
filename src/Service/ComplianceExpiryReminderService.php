@@ -60,9 +60,12 @@ class ComplianceExpiryReminderService
         CompanyRepository $companyRepository,
         EntityManagerInterface $entityManager,
         LoggerInterface $logger,
-        ?MailerInterface $mailer = null,
-        string $adminEmail = 'admin@example.com',
-        string $mailerFromAddress = 'noreply@example.com'
+        // These are wired from parameters via services.yaml ($adminEmail /
+        // $mailerFromAddress binds); they must NOT silently fall back to
+        // placeholder values, so no defaults are allowed.
+        string $adminEmail,
+        string $mailerFromAddress,
+        ?MailerInterface $mailer = null
     ) {
         $this->documentRepository = $documentRepository;
         $this->companyRepository = $companyRepository;
@@ -94,14 +97,15 @@ class ComplianceExpiryReminderService
         
         $documents = $qb->getQuery()->getResult();
         
-        $grouped = [
-            'expired' => [],
-            'urgent' => [],
-            'critical' => [],
-            'warning' => [],
-            'notice' => [],
-            'info' => [],
-        ];
+        // Buckets are derived from REMINDER_THRESHOLDS (90/60/30/14/7/0) so the
+        // grouping can never drift out of sync with the reminder table.
+        $grouped = [];
+        $thresholdLevels = [];
+        foreach (self::REMINDER_THRESHOLDS as $thresholdDays => $cfg) {
+            $grouped[$cfg['level']] = [];
+            $thresholdLevels[$thresholdDays] = $cfg['level'];
+        }
+        krsort($thresholdLevels);
         
         foreach ($documents as $doc) {
             $expiryDate = $doc->getExpiryDate();
@@ -110,17 +114,18 @@ class ComplianceExpiryReminderService
             
             if ($isPast) {
                 $grouped['expired'][] = $this->formatDocumentInfo($doc, $daysUntilExpiry, true);
-            } elseif ($daysUntilExpiry <= 7) {
-                $grouped['urgent'][] = $this->formatDocumentInfo($doc, $daysUntilExpiry);
-            } elseif ($daysUntilExpiry <= 14) {
-                $grouped['critical'][] = $this->formatDocumentInfo($doc, $daysUntilExpiry);
-            } elseif ($daysUntilExpiry <= 30) {
-                $grouped['warning'][] = $this->formatDocumentInfo($doc, $daysUntilExpiry);
-            } elseif ($daysUntilExpiry <= 60) {
-                $grouped['notice'][] = $this->formatDocumentInfo($doc, $daysUntilExpiry);
-            } else {
-                $grouped['info'][] = $this->formatDocumentInfo($doc, $daysUntilExpiry);
+                continue;
             }
+            
+            // Find the strictest threshold the document still fits within
+            // (iterating descending means the LAST match is the tightest).
+            $level = 'info';
+            foreach ($thresholdLevels as $thresholdDays => $cfgLevel) {
+                if ($daysUntilExpiry <= $thresholdDays) {
+                    $level = $cfgLevel;
+                }
+            }
+            $grouped[$level][] = $this->formatDocumentInfo($doc, $daysUntilExpiry);
         }
         
         return $grouped;
@@ -183,6 +188,7 @@ class ComplianceExpiryReminderService
         $summary = [
             'processed' => 0,
             'emails_sent' => 0,
+            'emails_failed' => 0,
             'by_level' => [],
         ];
         
@@ -197,6 +203,8 @@ class ComplianceExpiryReminderService
                     $sent = $this->sendReminderEmail($docInfo, $level);
                     if ($sent) {
                         $summary['emails_sent']++;
+                    } else {
+                        $summary['emails_failed']++;
                     }
                 }
             }
@@ -360,6 +368,11 @@ class ComplianceExpiryReminderService
     private function sendReminderEmail(array $docInfo, string $level): bool
     {
         if (!$this->mailer) {
+            $this->logger->warning('Compliance expiry email NOT sent — no mailer configured', [
+                'document' => $docInfo['document_name'],
+                'company' => $docInfo['company_name'],
+                'level' => $level,
+            ]);
             return false;
         }
         
@@ -388,10 +401,16 @@ class ComplianceExpiryReminderService
             ]);
             
             return true;
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to send compliance expiry email', [
+        } catch (\Throwable $e) {
+            // Log loudly — a swallowed send failure would hide a broken
+            // reminder pipeline and the doc would never be chased up.
+            $this->logger->error('FAILED to send compliance expiry email', [
                 'error' => $e->getMessage(),
+                'exception' => $e,
                 'document' => $docInfo['document_name'],
+                'company' => $docInfo['company_name'],
+                'level' => $level,
+                'to' => $this->adminEmail,
             ]);
             return false;
         }

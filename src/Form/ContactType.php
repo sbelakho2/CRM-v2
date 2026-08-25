@@ -107,6 +107,7 @@ class ContactType extends AbstractType
                 'required' => false,
                 'constraints' => [
                     new Url(['message' => 'validation.url']),
+                    new Length(['max' => 2048]),
                 ],
             ])
             ->add('source', ChoiceType::class, [

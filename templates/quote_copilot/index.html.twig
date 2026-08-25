@@ -76,7 +76,7 @@
                         {# BOM File Upload #}
                         <div class="rams-form__group">
                             <label class="rams-form__label rams-dymo">{{ 'quote.copilot.bom_file'|trans }}</label>
-                            <div class="rams-upload-zone" onclick="document.getElementById('bom-file-input').click()">
+                            <div class="rams-upload-zone" role="button" tabindex="0" onclick="document.getElementById('bom-file-input').click()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('bom-file-input').click(); }">
                                 <svg class="rams-upload-zone__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
                                 </svg>

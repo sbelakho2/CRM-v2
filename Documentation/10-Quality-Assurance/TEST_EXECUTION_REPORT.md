@@ -5,6 +5,8 @@
 **System**: Starz Morocco CRM v2.0  
 **Status**: 🟢 TESTING IN PROGRESS  
 
+> **Correction (2026-08):** The `Estimate` entity was removed from the codebase; entity listings below have been updated. "45 entities" counts in this file are historical (current: 66).
+
 ---
 
 ## Executive Summary
@@ -59,7 +61,6 @@ Comprehensive end-to-end system testing of all 37 tasks and features. Testing en
 | **EmailSend** | Email (Task 32) | ✓ |
 | **EmailTemplate** | Email (Task 33) | ✓ |
 | **EmailUnsubscribe** | Email (Task 37) | ✓ |
-| Estimate | Quote | ✓ |
 | FreightTable | Reference | ✓ |
 | FtaRule | Reference | ✓ |
 | FxRate | Reference | ✓ |
@@ -91,7 +92,7 @@ Comprehensive end-to-end system testing of all 37 tasks and features. Testing en
 - ✅ Email campaign entities (EmailCampaign, EmailTemplate, EmailSegment, EmailSend, EmailUnsubscribe) - Tasks 32-37
 - ✅ Lead management (Lead)
 - ✅ ABM automation (Playbook, PlaybookRun, AbmAccount, AbmHit)
-- ✅ Sales pipeline (RFQ, Quote, Estimate, QuotePartBreakdown)
+- ✅ Sales pipeline (RFQ, Quote, QuotePartBreakdown)
 - ✅ Tracking (WebEvent, IpMap)
 - ✅ Compliance (ComplianceDocument, OnboardingPack)
 - ✅ Reference tables (30+ supporting entities)
@@ -349,7 +350,6 @@ All email campaign entities are defined and ready:
 - ✓ RFQ entity with pipeline stages
 - ✓ Quote entity for pricing
 - ✓ QuotePartBreakdown for line items
-- ✓ Estimate entity for initial quotes
 
 ### 📋 TESTS
 
@@ -769,10 +769,9 @@ All email campaign entities are defined and ready:
 - AbmAccount ✓
 - AbmHit ✓
 
-**Sales Pipeline Entities** (5):
+**Sales Pipeline Entities** (4):
 - RFQ ✓
 - Quote ✓
-- Estimate ✓
 - QuotePartBreakdown ✓
 - Activity ✓
 

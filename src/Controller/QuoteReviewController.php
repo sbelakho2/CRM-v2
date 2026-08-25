@@ -90,7 +90,7 @@ class QuoteReviewController extends AbstractController
     /**
      * Review a specific quote's BOM lines
      */
-    #[Route('/{id}', name: 'quote_review_detail', methods: ['GET'])]
+    #[Route('/{id}', name: 'quote_review_detail', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function review(int $id): Response
     {
         $row = $this->quoteRepository->createQueryBuilder('q')

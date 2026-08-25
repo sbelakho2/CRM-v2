@@ -673,8 +673,8 @@ Visual representation of all interactions at a company:
 
 **System:** CRM Starz Morocco  
 **Version:** 1.0.0  
-**Framework:** Symfony 7.3.5  
-**Database:** SQLite (dev) / PostgreSQL (production)  
+**Framework:** Symfony 7.4.15 (7.3.5 at the time this guide was written)  
+**Database:** MySQL 8 (dev port 3308)  
 **Built for:** Moroccan Manufacturing Supply Chain  
 
 ---

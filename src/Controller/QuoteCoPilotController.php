@@ -469,24 +469,25 @@ class QuoteCoPilotController extends AbstractController
         $totalExtPrice = 0;
         foreach ($quote->getBomLines() as $line) {
             $col = 1;
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getLineNumber());
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getMpn());
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getMatchedMpn());
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getProcurementSource());
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getQuantity());
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getUnitPrice() ? (float)$line->getUnitPrice() : '');
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getExtendedPrice() ? (float)$line->getExtendedPrice() : '');
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getConfidenceLevel() ?? '');
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getConfidenceScore() ?? '');
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getSupplierName() ?? '');
-            $sheet->setCellValueByColumnAndRow($col++, $dataRow, $line->getLifecycleStatus() ?? 'Active');
+            $colLetter = fn(int $idx): string => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($idx);
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getLineNumber());
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getMpn());
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getMatchedMpn());
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getProcurementSource());
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getQuantity());
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getUnitPrice() ? (float)$line->getUnitPrice() : '');
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getExtendedPrice() ? (float)$line->getExtendedPrice() : '');
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getConfidenceLevel() ?? '');
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getConfidenceScore() ?? '');
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getSupplierName() ?? '');
+            $sheet->setCellValue($colLetter($col++) . $dataRow, $line->getLifecycleStatus() ?? 'Active');
 
             // Fallback indicator column
             $fallbackColIdx = $col++;
             if ($line->isFallback()) {
                 $fbLabel = $line->getFallbackLabel() ?? 'Yes';
-                $sheet->setCellValueByColumnAndRow($fallbackColIdx, $dataRow, $fbLabel);
                 $fbCell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($fallbackColIdx) . $dataRow;
+                $sheet->setCellValue($fbCell, $fbLabel);
                 $sheet->getStyle($fbCell)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFB45309'));
                 $sheet->getStyle($fbCell)->getFont()->setBold(true);
             }

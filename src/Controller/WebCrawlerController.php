@@ -129,7 +129,9 @@ class WebCrawlerController extends AbstractController
                 ]);
             }
             // Stale PID file — remove it
-            @unlink($pidFile);
+            if (file_exists($pidFile)) {
+                unlink($pidFile);
+            }
         }
 
         // Build the CLI command
@@ -222,7 +224,9 @@ class WebCrawlerController extends AbstractController
             $running = $pid > 0 && file_exists("/proc/{$pid}");
             if (!$running) {
                 // Process finished — clean up PID file
-                @unlink($pidFile);
+                if (file_exists($pidFile)) {
+                    unlink($pidFile);
+                }
             }
         }
 
@@ -274,7 +278,9 @@ class WebCrawlerController extends AbstractController
             }
         }
 
-        @unlink($pidFile);
+        if (file_exists($pidFile)) {
+            unlink($pidFile);
+        }
 
         return new JsonResponse(['success' => true, 'message' => 'Discovery stopped.']);
     }

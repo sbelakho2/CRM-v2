@@ -21,7 +21,7 @@ class HtsMapRule
     private ?string $category = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
-    private ?string $keywords = null; // JSON array of keywords
+    private ?array $keywords = null; // JSON array of keywords
 
     #[ORM\Column(length: 100)]
     private ?string $htsCode = null;
@@ -84,12 +84,12 @@ class HtsMapRule
         return $this;
     }
 
-    public function getKeywords(): ?string
+    public function getKeywords(): ?array
     {
         return $this->keywords;
     }
 
-    public function setKeywords(?string $keywords): self
+    public function setKeywords(?array $keywords): self
     {
         $this->keywords = $keywords;
         return $this;

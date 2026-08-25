@@ -162,6 +162,10 @@ class EmailConsentService
     /**
      * Unsubscribe a contact from all email communications
      * 
+     * The reason is validated against EmailUnsubscribe::VALID_REASONS; any
+     * free-form value is normalized to REASON_MANUAL so the column only ever
+     * stores one of the entity's REASON_* constants.
+     * 
      * @param Contact $contact
      * @param string $reason Optional reason for unsubscribing
      * @return EmailUnsubscribe
@@ -176,17 +180,28 @@ class EmailConsentService
             return $existing;
         }
 
+        // Cap the reason to the entity's REASON_* constants.
+        $normalizedReason = $reason ?? EmailUnsubscribe::REASON_MANUAL;
+        if (!in_array($normalizedReason, EmailUnsubscribe::VALID_REASONS, true)) {
+            $this->logger->warning("Unsubscribe reason not in allowed set — normalized to MANUAL", [
+                'email' => $contact->getEmail(),
+                'provided_reason' => $normalizedReason,
+                'allowed_reasons' => EmailUnsubscribe::VALID_REASONS,
+            ]);
+            $normalizedReason = EmailUnsubscribe::REASON_MANUAL;
+        }
+
         $unsubscribe = new EmailUnsubscribe();
         $unsubscribe->setEmail($contact->getEmail());
         $unsubscribe->setContact($contact);
-        $unsubscribe->setReason($reason ?? 'User requested');
+        $unsubscribe->setReason($normalizedReason);
         $unsubscribe->setUnsubscribedAt(new \DateTime());
 
         $this->em->persist($unsubscribe);
         $this->em->flush();
 
         $this->logger->info("Contact {$contact->getEmail()} unsubscribed", [
-            'reason' => $reason
+            'reason' => $normalizedReason
         ]);
 
         return $unsubscribe;

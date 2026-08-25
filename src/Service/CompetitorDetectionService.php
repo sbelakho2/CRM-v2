@@ -122,7 +122,7 @@ class CompetitorDetectionService
         
         foreach ($allCompetitors as $domain => $info) {
             // Check for domain mention or company name
-            $domainPattern = str_replace('.', '\\.', $domain);
+            $domainPattern = preg_quote(strtolower($domain), '/');
             $namePattern = preg_quote(strtolower($info['name']), '/');
             
             // Also check aliases if available

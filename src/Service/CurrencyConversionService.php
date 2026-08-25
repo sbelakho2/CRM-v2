@@ -81,6 +81,8 @@ class CurrencyConversionService
      * @param string $fromCurrency Source currency code (e.g., 'EUR')
      * @param string $toCurrency Target currency code (e.g., 'USD')
      * @return array{amount: float, rate: float, source: string, stale: bool, warning: ?string}
+     * @throws \RuntimeException when the currency pair is unknown (no rate can
+     *         be resolved from DB, live APIs, or the hardcoded fallback table)
      */
     public function convert(float $amount, string $fromCurrency, string $toCurrency): array
     {
@@ -100,6 +102,17 @@ class CurrencyConversionService
         
         // Try to get rate from database
         $rateInfo = $this->getRate($fromCurrency, $toCurrency);
+        
+        // An 'unknown' source means the pair exists in no data source at all.
+        // Previously this silently converted 1:1 (converting typos without
+        // error); now it surfaces loudly so callers can flag the issue.
+        if (($rateInfo['source'] ?? '') === 'unknown') {
+            throw new \RuntimeException(sprintf(
+                'No exchange rate available for unknown currency pair: %s/%s',
+                $fromCurrency,
+                $toCurrency
+            ));
+        }
         
         $convertedAmount = $amount * $rateInfo['rate'];
         
@@ -342,6 +355,11 @@ class CurrencyConversionService
 
     /**
      * Get fallback rate from hardcoded values
+     *
+     * The fallback table is keyed by KNOWN currency codes and is only used as
+     * the last resort for those known pairs — never an identity 1:1 guess for
+     * unknown codes. Unknown pairs are reported via the 'unknown' source so
+     * convert() can surface them as errors instead of silently converting.
      */
     private function getFallbackRate(string $fromCurrency, string $toCurrency): array
     {
@@ -355,7 +373,7 @@ class CurrencyConversionService
             ]);
             
             return [
-                'rate' => 1.0, // Default to 1:1 if unknown
+                'rate' => 1.0, // never used for conversion — see convert()
                 'source' => 'unknown',
                 'stale' => true,
                 'warning' => "Unknown currency pair: {$fromCurrency}/{$toCurrency}",

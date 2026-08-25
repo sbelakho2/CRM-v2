@@ -17,6 +17,16 @@ use Symfony\Component\Intl\Subdivisions;
  */
 class CountryService
 {
+    /**
+     * Pseudo-region codes returned by normalizeRegionCode() for inputs that
+     * describe a region rather than a single country. These are NOT ISO 3166
+     * country codes: isValidCountry() will return false for them, and any
+     * downstream code comparing region values MUST handle them explicitly
+     * (the lead-pipeline callers compare against these literals).
+     */
+    public const REGION_EU = 'EU_REGION';
+    public const REGION_GCC = 'GCC_REGION';
+
     private static ?array $cachedCountryList = null;
     private static ?array $cachedUsRegionList = null;
 
@@ -203,6 +213,13 @@ class CountryService
 
     /**
      * Normalize a region input to ISO country code or US subdivision code
+     *
+     * NOTE: this can also return the pseudo-region codes REGION_EU /
+     * REGION_GCC ('EU_REGION' / 'GCC_REGION') for inputs like "Europe" or
+     * "GCC". Those are NOT valid ISO country codes (isValidCountry() returns
+     * false for them) — downstream consumers that compare against these
+     * literals should use the CountryService::REGION_EU / REGION_GCC
+     * constants.
      */
     public function normalizeRegionCode(?string $value): ?string
     {
@@ -299,8 +316,8 @@ class CountryService
             '10th of ramadan city egypt' => 'EG',
             'new cairo' => 'EG',
             // GCC markers
-            'gcc' => 'GCC_REGION',
-            'gulf' => 'GCC_REGION',
+            'gcc' => self::REGION_GCC,
+            'gulf' => self::REGION_GCC,
             'dubai' => 'AE',
             'dubai uae' => 'AE',
             'abu dhabi' => 'AE',
@@ -323,8 +340,8 @@ class CountryService
             'muscat' => 'OM',
             'kuwait city' => 'KW',
             // Generic region labels
-            'europe' => 'EU_REGION',
-            'eu' => 'EU_REGION',
+            'europe' => self::REGION_EU,
+            'eu' => self::REGION_EU,
             // EU countries as location strings
             'germany' => 'DE',
             'france' => 'FR',

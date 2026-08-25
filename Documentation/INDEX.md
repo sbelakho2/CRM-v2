@@ -157,7 +157,7 @@ Additional documentation at the Documentation root:
 | Email Campaigns | ✅ Live | `02-Email-Campaigns/` |
 | Lead Discovery | ✅ Live | `03-LeadBot-Webcrawler/` |
 | ABM Playbooks | ✅ Live | `04-ABM-Automation/` |
-| Competitor Intelligence | ✅ Live | CompCrawler module |
+| Competitor Intelligence | ✅ Live | `01-Core/SERVICE_API_REFERENCE.md` (CompCrawler module removed 2026) |
 | Autonomous Sales | ✅ Live | `AUTONOMOUS_SALES_INTEGRATION.md` |
 
 ---

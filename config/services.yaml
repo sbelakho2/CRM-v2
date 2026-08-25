@@ -9,8 +9,10 @@ parameters:
   admin_email: "%env(default::ADMIN_EMAIL)%"
   default_locale: "%env(default::DEFAULT_LOCALE)%"
   default_timezone: "%env(default::DEFAULT_TIMEZONE)%"
-  # Signing key for public meeting booking/cancellation tokens
-  app.booking_secret_default: 'change-me-booking-secret'
+  # Signing key for public meeting booking/cancellation tokens.
+  # Dev/test fall back to the known literal below (see when@dev/when@test);
+  # prod resolves APP_BOOKING_SECRET with NO default so the container build
+  # fails loudly if the env var is unset (see when@prod).
   app.booking_secret: "%env(default:app.booking_secret_default:APP_BOOKING_SECRET)%"
 
 services:
@@ -24,6 +26,7 @@ services:
       $adminEmail: "%admin_email%"
       $defaultLocale: "%default_locale%"
       $defaultTimezone: "%default_timezone%"
+      $retryLimit: "%email_campaign_retry_limit%"
 
   # makes classes in src/ available to be used as services
   # this creates a service per class whose id is the fully-qualified class name
@@ -89,19 +92,65 @@ services:
     arguments:
       $secret: '%kernel.secret%'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+  # Humanizes untranslated translation keys: a missing key such as
+  # "quote.flash.created" renders as "Created" instead of the raw key.
+  App\Translation\TranslatorDecorator:
+    decorates: translator
 
-  # ── Local dev overrides ──────────────────────────────────────────────────────
-  # SearXNG is not running locally. These configs force fallback to Google CSE.
-  # Remove these blocks when SearXNG (port 8888) is running again.
+  # add more service definitions when explicit configuration is needed
+  # please note that last definitions always *replace* previous ones
 
-  # GoogleDorkService: force null searchProvider → falls back to Google CSE
-  App\Service\WebCrawler\GoogleDorkService:
-    arguments:
-      $searchProvider: null
+when@dev:
+  parameters:
+    app.booking_secret_default: 'change-me-booking-secret'
 
-  # CompanyDiscoveryService: force null discoveryPipeline → falls back to GoogleDorkService
-  App\Service\WebCrawler\CompanyDiscoveryService:
-    arguments:
-      $discoveryPipeline: null
+  services:
+    # ── Local dev overrides ──────────────────────────────────────────────────
+    # SearXNG is not running locally. These configs force fallback to Google CSE.
+    # Remove these blocks when SearXNG (port 8888) is running again.
+
+    # GoogleDorkService: force null searchProvider → falls back to Google CSE
+    App\Service\WebCrawler\GoogleDorkService:
+      arguments:
+        $httpClient: '@http_client'
+        $logger: '@logger'
+        $searchProvider: null
+
+    # CompanyDiscoveryService: force null discoveryPipeline → falls back to GoogleDorkService
+    App\Service\WebCrawler\CompanyDiscoveryService:
+      arguments:
+        $em: '@doctrine.orm.entity_manager'
+        $companyRepo: '@App\Repository\CompanyRepository'
+        $googleDork: '@App\Service\WebCrawler\GoogleDorkService'
+        $logger: '@logger'
+        $discoveryPipeline: null
+
+when@test:
+  parameters:
+    app.booking_secret_default: 'change-me-booking-secret'
+
+  services:
+    # Tests exercise the real DI wiring (SearchProviderInterface → SearXNG).
+    # GoogleDorkService falls back to Google CSE when SearXNG is unreachable,
+    # so tests never depend on the port-8888 service being up.
+    App\Service\WebCrawler\GoogleDorkService:
+      arguments:
+        $httpClient: '@http_client'
+        $logger: '@logger'
+        $searchProvider: '@App\Service\WebCrawler\SearchProvider\LocalSearxngProvider'
+
+    App\Service\WebCrawler\CompanyDiscoveryService:
+      arguments:
+        $em: '@doctrine.orm.entity_manager'
+        $companyRepo: '@App\Repository\CompanyRepository'
+        $googleDork: '@App\Service\WebCrawler\GoogleDorkService'
+        $logger: '@logger'
+        $discoveryPipeline: null
+
+when@prod:
+  parameters:
+    # No default: APP_BOOKING_SECRET must be set explicitly in production.
+    # Container compilation fails with a clear "Environment variable not found"
+    # error if it is missing, instead of silently signing tokens with a
+    # known literal.
+    app.booking_secret: "%env(APP_BOOKING_SECRET)%"

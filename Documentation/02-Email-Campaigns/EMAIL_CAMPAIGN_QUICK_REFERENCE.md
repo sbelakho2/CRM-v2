@@ -81,9 +81,9 @@ GET    /email-campaigns/track/{id}/click    → Track click (redirect)
 ## Deployment Checklist
 
 ### Server Requirements
-- [x] PHP 8.2+
-- [x] Symfony 7.3.5
-- [x] MySQL/PostgreSQL
+- [x] PHP 8.2+ (production runs 8.4; dev machine 8.5)
+- [x] Symfony 7.4.15
+- [x] MySQL 8.0+
 - [x] PDO extension
 - [x] Composer 2.x
 

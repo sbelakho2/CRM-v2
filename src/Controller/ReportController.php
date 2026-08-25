@@ -107,8 +107,9 @@ class ReportController extends AbstractController
     #[Route('/{id}/builder', name: 'report_builder', methods: ['GET', 'POST'])]
     public function builder(ReportDefinition $report, Request $request): Response
     {
-        if ($report->getCreatedBy()->getId() !== $this->getUser()->getId() && !$this->isGranted('ROLE_ADMIN')) {
-            throw $this->createAccessDeniedException('Only the report creator can edit this report.');
+        if (!$this->canManageReport($report)) {
+            $this->addFlash('error', 'Only the report creator can edit this report.');
+            return $this->redirectToRoute('report_show', ['id' => $report->getId()]);
         }
         
         $fields = $this->reportBuilder->getFieldsForSource($report->getDataSource());
@@ -229,8 +230,9 @@ class ReportController extends AbstractController
     #[Route('/{id}/edit', name: 'report_edit', methods: ['GET', 'POST'])]
     public function edit(ReportDefinition $report, Request $request): Response
     {
-        if ($report->getCreatedBy()->getId() !== $this->getUser()->getId() && !$this->isGranted('ROLE_ADMIN')) {
-            throw $this->createAccessDeniedException('Only the report creator can edit this report.');
+        if (!$this->canManageReport($report)) {
+            $this->addFlash('error', 'Only the report creator can edit this report.');
+            return $this->redirectToRoute('report_show', ['id' => $report->getId()]);
         }
         
         $form = $this->createForm(ReportDefinitionType::class, $report);
@@ -254,8 +256,9 @@ class ReportController extends AbstractController
     #[Route('/{id}/delete', name: 'report_delete', methods: ['POST'])]
     public function delete(ReportDefinition $report, Request $request): Response
     {
-        if ($report->getCreatedBy()->getId() !== $this->getUser()->getId() && !$this->isGranted('ROLE_ADMIN')) {
-            throw $this->createAccessDeniedException('Only the report creator can delete this report.');
+        if (!$this->canManageReport($report)) {
+            $this->addFlash('error', 'Only the report creator can delete this report.');
+            return $this->redirectToRoute('report_index');
         }
         
         if ($this->isCsrfTokenValid('delete' . $report->getId(), $request->request->get('_token'))) {
@@ -418,5 +421,19 @@ class ReportController extends AbstractController
     private function sanitizeFilename(string $name): string
     {
         return preg_replace('/[^a-zA-Z0-9_-]/', '_', $name);
+    }
+
+    /**
+     * Only the report creator (or an admin) may manage a report.
+     * Reports whose creator row was deleted can only be managed by admins.
+     */
+    private function canManageReport(ReportDefinition $report): bool
+    {
+        $creator = $report->getCreatedBy();
+        if ($creator === null) {
+            return $this->isGranted('ROLE_ADMIN');
+        }
+
+        return $creator->getId() === $this->getUser()?->getId() || $this->isGranted('ROLE_ADMIN');
     }
 }

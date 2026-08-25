@@ -39,7 +39,7 @@
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Release tag `release/v1.0.0` | ✅ | Matches staging build |
+| Release tag | ⚠️ N/A | No `release/v1.0.0` tag exists — repo is untagged, deploys from `main` |
 | Automated + manual tests | ✅ | Evidence stored in QA folder |
 | Monitoring dashboards | ✅ | Links in deployment guide |
 | Rollback rehearsal | ✅ | Logged in `ROLLBACK_PLAYBOOK.md` |

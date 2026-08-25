@@ -27,6 +27,7 @@ class HtsMapRuleRepository extends ServiceEntityRepository
             ->setParameter('category', $category)
             ->setParameter('active', true)
             ->orderBy('hmr.priority', 'ASC')
+            ->addOrderBy('hmr.id', 'ASC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

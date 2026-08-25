@@ -17,6 +17,23 @@ class WebinarAttendeeRepository extends ServiceEntityRepository
         parent::__construct($registry, WebinarAttendee::class);
     }
 
+    /**
+     * Find an attendee by webinar and email (registration duplicate check).
+     */
+    public function findByWebinarAndEmail(Webinar $webinar, string $email): ?WebinarAttendee
+    {
+        return $this->createQueryBuilder('a')
+            ->where('a.webinar = :webinar')
+            ->andWhere('LOWER(a.email) = LOWER(:email)')
+            ->setParameter('webinar', $webinar)
+            ->setParameter('email', $email)
+            ->orderBy('a.registeredAt', 'ASC')
+            ->addOrderBy('a.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function findNeedingFollowUp(Webinar $webinar): array
     {
         return $this->createQueryBuilder('a')

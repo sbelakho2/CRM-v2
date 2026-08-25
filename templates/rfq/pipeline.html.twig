@@ -73,7 +73,7 @@
                 <div class="rams-kanban__header">
                     <div class="rams-flex rams-items-center rams-gap-2">
                         <span class="rams-andon {{ stage.andon }}"><span class="rams-andon__light"></span></span>
-                        <h3 class="rams-kanban__title">{{ stage.label }}</h3>
+                        <h2 class="rams-kanban__title">{{ stage.label }}</h2>
                     </div>
                     <span class="rams-badge">{{ pipeline[stage.key]|default([])|length }}</span>
                 </div>
@@ -82,7 +82,7 @@
                     {% for rfq in pipeline[stage.key]|default([]) %}
                         <a href="{{ path('app_rfq_show', {id: rfq.id}) }}" class="rams-kanban__card {{ stage.class == 'won' ? 'rams-kanban__card--success' : (stage.class == 'lost' ? 'rams-kanban__card--danger' : '') }}">
                             <div class="rams-kanban__card-header">
-                                <h4 class="rams-kanban__card-title">{{ safe_company_name(rfq) }}</h4>
+                                <h3 class="rams-kanban__card-title">{{ safe_company_name(rfq) }}</h3>
                             </div>
                             
                             <div class="rams-kanban__card-meta">
@@ -99,13 +99,13 @@
                                 
                                 <div class="rams-flex rams-flex-wrap rams-gap-1 rams-mt-1">
                                     {% if rfq.type == 'NPI' %}
-                                        <span class="rams-badge rams-badge--npi rams-badge--small">NPI</span> 
+                                        <span class="rams-badge rams-badge--npi rams-badge--small">{{ 'rfq.badges.npi'|trans }}</span> 
                                     {% elseif rfq.type == 'Framework Agreement' %}
-                                        <span class="rams-badge rams-badge--framework rams-badge--small">FWA</span> 
+                                        <span class="rams-badge rams-badge--framework rams-badge--small">{{ 'rfq.badges.fwa'|trans }}</span> 
                                     {% endif %}
 
                                     {% if rfq.ndaExecuted %}
-                                        <span class="rams-badge rams-badge--success rams-badge--small">NDA</span> 
+                                        <span class="rams-badge rams-badge--success rams-badge--small">{{ 'rfq.badges.nda'|trans }}</span> 
                                     {% elseif rfq.ndaSent %}
                                         <span class="rams-badge rams-badge--warning rams-badge--small">{{ 'rfq.nda.sent'|trans|upper }}</span>  
                                     {% endif %}

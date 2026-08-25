@@ -78,7 +78,8 @@ class QualityAuditCommand extends Command
             ->addOption('sectors', 's', InputOption::VALUE_OPTIONAL, 'Comma-separated sector list (default: all)', null)
             ->addOption('regions', 'r', InputOption::VALUE_OPTIONAL, 'Comma-separated region list (default: MA,US,EU,GCC,EG)', null)
             ->addOption('audit-only', null, InputOption::VALUE_NONE, 'Only audit existing DB data, don\'t run new discovery')
-            ->addOption('wipe', null, InputOption::VALUE_NONE, 'Wipe all discovered companies + their contacts before running')
+            ->addOption('wipe', null, InputOption::VALUE_NONE, 'Wipe all discovered companies + their contacts before running (requires --force)')
+            ->addOption('force', null, InputOption::VALUE_NONE, 'Confirm destructive operations (required together with --wipe)')
             ->addOption('no-interaction', 'n', InputOption::VALUE_NONE, 'Skip confirmation prompts');
     }
 
@@ -95,17 +96,53 @@ class QualityAuditCommand extends Command
             : self::REGIONS;
         $auditOnly = $input->getOption('audit-only');
         $wipe = $input->getOption('wipe');
+        $force = $input->getOption('force');
 
         // ── WIPE PHASE: Delete all discovered companies + contacts ──
         if ($wipe && !$auditOnly) {
+            // Destructive operation: --wipe alone is never enough.
+            if (!$force) {
+                $io->error([
+                    'Refusing to wipe: --wipe deletes discovered companies and their contacts.',
+                    'This is a destructive operation that cannot be undone.',
+                    'Pass --wipe --force together to confirm you really want to delete this data.',
+                ]);
+                return Command::FAILURE;
+            }
+
+            $discoveredCompanies = $this->em->getRepository(Company::class)->findBy([
+                'companyStatus' => Company::STATUS_DISCOVERED,
+            ]);
+            $companyIds = array_map(fn (Company $c) => $c->getId(), $discoveredCompanies);
+
+            $contactsDeleted = 0;
+            if (!empty($companyIds)) {
+                $contactsDeleted = (int) $this->em->getRepository(Contact::class)
+                    ->createQueryBuilder('ct')
+                    ->select('COUNT(ct.id)')
+                    ->where('ct.company IN (:companyIds)')
+                    ->setParameter('companyIds', $companyIds)
+                    ->getQuery()
+                    ->getSingleScalarResult();
+            }
+
+            $io->warning([
+                'DATA DELETION — this cannot be undone.',
+                sprintf('Discovered companies to delete: %d', count($discoveredCompanies)),
+                sprintf('Related contacts to delete: %d', $contactsDeleted),
+                'Only companies with status "discovered" are affected (no user-entered data).',
+                'Confirmation is required: --force was passed, now confirm interactively.',
+            ]);
+
+            if ($input->isInteractive() && !$io->confirm('Are you sure you want to permanently delete this data?', false)) {
+                $io->note('Wipe cancelled.');
+                return Command::SUCCESS;
+            }
+
             $io->section('Phase 0: Wiping discovered companies and contacts');
 
             $this->em->beginTransaction();
             try {
-                $discoveredCompanies = $this->em->getRepository(Company::class)->findBy([
-                    'companyStatus' => Company::STATUS_DISCOVERED,
-                ]);
-
                 foreach ($discoveredCompanies as $company) {
                     foreach ($company->getContacts() as $contact) {
                         $this->em->remove($contact);
@@ -120,8 +157,7 @@ class QualityAuditCommand extends Command
                 $this->em->flush();
                 $this->em->commit();
 
-                $contactsDeleted = 0;
-                $io->success("Wiped {$companiesDeleted} discovered companies and their contacts.");
+                $io->success("Wiped {$companiesDeleted} discovered companies and {$contactsDeleted} contacts.");
             } catch (\Throwable $e) {
                 $this->em->rollback();
                 $io->error('Wipe failed: ' . $e->getMessage());

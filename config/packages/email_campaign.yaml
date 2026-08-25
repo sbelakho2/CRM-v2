@@ -15,6 +15,7 @@ services:
       $messageBus: "@messenger.default_bus"
 
 parameters:
+  email_campaign_retry_limit: 3
   email_campaign:
     sender_email: "%env(MAILER_FROM_ADDRESS)%"
     sender_name: "%env(MAILER_FROM_NAME)%"

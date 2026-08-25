@@ -109,7 +109,13 @@
         "total_accounts": "إجمالي الحسابات",
         "update_account": "تحديث الحساب",
         "view_reports": "عرض التقارير",
-        "web_visits": "زيارات الموقع"
+        "web_visits": "زيارات الموقع",
+        "name_placeholder": "مثال: شركة Acme",
+        "domain_placeholder": "مثال: acme.com",
+        "sector_placeholder": "مثال: التكنولوجيا، التصنيع",
+        "regions_placeholder": "مثال: المغرب، الولايات المتحدة",
+        "company_size_placeholder": "مثال: 50-200، 1000+",
+        "revenue_placeholder": "مثال: 1M-10M"
     },
     "accessibility": {
         "close_menu": "إغلاق القائمة",
@@ -166,7 +172,7 @@
         "log_first_activity_with": "⚡ سجّل أول نشاط لك مع %name% لتتبع التفاعل",
         "log_first_interaction": "📞 سجّل أول تفاعل لك مع %name% لبدء تتبع التفاعل",
         "logged_by": "مسجّل بواسطة",
-        "new": "\\u0646\\u0634\\u0627\\u0637 \\u062c\\u062f\\u064a\\u062f",
+        "new": "نشاط جديد",
         "new_activity": "نشاط جديد",
         "new_subtitle": "سجّل نشاطًا جديدًا",
         "no_activities": "لا توجد أنشطة.",
@@ -282,6 +288,7 @@
             "replace_existing": "استبدال البيانات الحالية بهذه النسخة",
             "replace_hint": "إذا لم يتم تحديده، سيتم حفظها كنسخة جديدة",
             "restore": "استعادة",
+            "restore_confirm": "استعادة هذا الإصدار؟ سيتم إنشاء لقطة قبل الاستعادة.",
             "select_type": "اختر النوع",
             "status": "الحالة",
             "storage_used": "المساحة المستخدمة",
@@ -592,7 +599,32 @@
         "table_arm": "الذراع",
         "table_pulls": "السحبات",
         "table_wins": "الانتصارات",
-        "table_win_rate": "معدل الفوز"
+        "table_win_rate": "معدل الفوز",
+        "metric_total_leads": "إجمالي العملاء المحتملين",
+        "metric_emails_sent_7d": "رسائل بريدية مرسلة (7 أيام)",
+        "metric_open_rate": "معدل الفتح",
+        "metric_reply_rate": "معدل الرد",
+        "metric_active_campaigns": "حملات نشطة",
+        "metric_pipeline_value": "قيمة خط الأنابيب",
+        "compose_send": "إنشاء وإرسال",
+        "process_inbox": "معالجة صندوق الوارد",
+        "view_full_dashboard": "عرض لوحة التحكم الكاملة",
+        "thompson_stats_desc": "يستخدم النظام أخذ عينات طومسون (خوارزمية اللص بايزية) للعثور تلقائياً على أفضل نسخ البريد. فيما يلي إحصائيات الذراع الخام.",
+        "ab_test_results_desc": "مقارنة أداء كل نوع من النسخ مقارنة بخط الأساس الخاص به.",
+        "metric_total_variations": "إجمالي النسخ",
+        "metric_top_performer": "الأفضل أداءً",
+        "metric_best_open_rate": "أفضل معدل فتح",
+        "badge_opened": "تم الفتح",
+        "badge_clicked": "تم النقر",
+        "badge_replied": "تم الرد",
+        "badge_sent": "تم الإرسال",
+        "system_mode": "وضع النظام",
+        "safe_mode_active": "الوضع الآمن نشط",
+        "mode_normal": "عادي",
+        "mode_disabled": "معطل",
+        "active_safety_features": "ميزات الأمان النشطة",
+        "quarantined_variations": "النسخ المعزولة",
+        "status_label": "الحالة"
     },
     "calendar": {
         "add_event": "إضافة حدث",
@@ -670,11 +702,11 @@
     "command_center": {
         "action_items": "عناصر العمل",
         "alerts": "التنبيهات",
-        "alerts_description": "\\u0627\\u0644\\u062a\\u0646\\u0628\\u064a\\u0647\\u0627\\u062a \\u0627\\u0644\\u0623\\u062e\\u064a\\u0631\\u0629 \\u0648\\u0625\\u0634\\u0639\\u0627\\u0631\\u0627\\u062a \\u0627\\u0644\\u0646\\u0638\\u0627\\u0645",
+        "alerts_description": "التنبيهات الأخيرة وإشعارات النظام",
         "key_metrics": "المؤشرات الرئيسية",
         "lead_inflow": "تدفق العملاء المحتملين",
         "overview": "نظرة عامة على النظام",
-        "pipeline": "\\u062e\\u0637 \\u0627\\u0644\\u0623\\u0646\\u0627\\u0628\\u064a\\u0628",
+        "pipeline": "خط الأنابيب",
         "quote_status": "حالة العروض",
         "recent_activity": "النشاط الأخير",
         "supply_alerts": "تنبيهات الإمداد",
@@ -751,7 +783,7 @@
         "info": "معلومات",
         "information": "معلومات",
         "initialized": "تمت التهيئة",
-        "insights": "\\u0631\\u0624\\u0649",
+        "insights": "رؤى",
         "last_crawled": "آخر زحف",
         "last_n_days": "آخر %count% أيام",
         "last_updated": "آخر تحديث",
@@ -773,7 +805,7 @@
         "off": "إيقاف",
         "ok": "موافق",
         "on": "تشغيل",
-        "open": "\\u0645\\u0641\\u062a\\u0648\\u062d",
+        "open": "مفتوح",
         "optional": "اختياري",
         "options": "خيارات",
         "parent": "الأصل",
@@ -811,8 +843,8 @@
         "status": "الحالة",
         "submit": "إرسال",
         "success": "نجاح",
-        "supply": "\\u0627\\u0644\\u062a\\u0648\\u0631\\u064a\\u062f",
-        "system": "\\u0627\\u0644\\u0646\\u0638\\u0627\\u0645",
+        "supply": "التوريد",
+        "system": "النظام",
         "time": "الوقت",
         "time_range": "النطاق الزمني",
         "tip": "نصيحة",
@@ -821,7 +853,7 @@
         "type": "النوع",
         "units": "وحدات",
         "unknown": "غير معروف",
-        "unread": "\\u063a\\u064a\\u0631 \\u0645\\u0642\\u0631\\u0648\\u0621",
+        "unread": "غير مقروء",
         "update": "تحديث",
         "updated": "تم التحديث",
         "upload": "رفع",
@@ -833,7 +865,8 @@
         "yes": "نعم",
         "breadcrumb": "مسار التنقل",
         "enter_value": "أدخل القيمة",
-        "reason": "السبب"
+        "reason": "السبب",
+        "no_company": "لا توجد شركة"
     },
     "company": {
         "account_tier": "فئة الحساب",
@@ -1413,35 +1446,35 @@
         "description": "الوصف"
     },
     "dashboard": {
-        "active": "\\u0646\\u0634\\u0637",
+        "active": "نشط",
         "active_campaigns": "حملات نشطة",
-        "activity_summary": "\\u0645\\u0644\\u062e\\u0635 \\u0627\\u0644\\u0623\\u0646\\u0634\\u0637\\u0629",
-        "click": "\\u0646\\u0642\\u0631\\u0629",
-        "click_rate": "\\u0645\\u0639\\u062f\\u0644 \\u0627\\u0644\\u0646\\u0642\\u0631",
+        "activity_summary": "ملخص الأنشطة",
+        "click": "نقرة",
+        "click_rate": "معدل النقر",
         "conversion_rate": "معدل التحويل",
         "days": "يومًا",
-        "email_metrics": "\\u0645\\u0642\\u0627\\u064a\\u064a\\u0633 \\u0627\\u0644\\u0628\\u0631\\u064a\\u062f \\u0627\\u0644\\u0625\\u0644\\u0643\\u062a\\u0631\\u0648\\u0646\\u064a",
-        "emails": "\\u0631\\u0633\\u0627\\u0626\\u0644 \\u0627\\u0644\\u0628\\u0631\\u064a\\u062f",
-        "emails_today": "\\u0631\\u0633\\u0627\\u0626\\u0644 \\u0627\\u0644\\u064a\\u0648\\u0645",
-        "engagement": "\\u0627\\u0644\\u062a\\u0641\\u0627\\u0639\\u0644",
+        "email_metrics": "مقاييس البريد الإلكتروني",
+        "emails": "رسائل البريد",
+        "emails_today": "رسائل اليوم",
+        "engagement": "التفاعل",
         "engagement_heat_map": "خريطة تفاعل حرارية",
         "engagement_score": "درجة التفاعل",
         "framework_agreements": "اتفاقيات إطار",
-        "last_24h": "\\u0622\\u062e\\u0631 24 \\u0633\\u0627\\u0639\\u0629",
-        "last_7d": "\\u0622\\u062e\\u0631 7 \\u0623\\u064a\\u0627\\u0645",
+        "last_24h": "آخر 24 ساعة",
+        "last_7d": "آخر 7 أيام",
         "last_activity": "آخر نشاط",
         "metrics": "المؤشرات الرئيسية",
         "no_recent_activity": "لا توجد أنشطة حديثة",
         "npi_awards": "جوائز إدخال المنتج الجديد",
-        "open": "\\u0645\\u0641\\u062a\\u0648\\u062d",
-        "open_rate": "\\u0645\\u0639\\u062f\\u0644 \\u0627\\u0644\\u0641\\u062a\\u062d",
+        "open": "مفتوح",
+        "open_rate": "معدل الفتح",
         "open_rfqs": "طلبات مفتوحة",
         "overview": "نظرة عامة",
         "pending_approvals": "موافقات قيد الانتظار",
         "performance": "الأداء",
         "quick_actions": "إجراءات سريعة",
         "recent_activity": "النشاط الأخير",
-        "reply_rate": "\\u0645\\u0639\\u062f\\u0644 \\u0627\\u0644\\u0631\\u062f",
+        "reply_rate": "معدل الرد",
         "response_rate": "معدل الاستجابة",
         "score": "الدرجة",
         "statistics": "الإحصاءات",
@@ -1449,7 +1482,7 @@
         "this_week": "هذا الأسبوع",
         "this_year": "هذا العام",
         "title": "لوحة التحكم",
-        "to": "\\u0625\\u0644\\u0649",
+        "to": "إلى",
         "today": "اليوم",
         "total_companies": "إجمالي الشركات",
         "total_contacts": "إجمالي جهات الاتصال",
@@ -1549,7 +1582,14 @@
         "today": "اليوم",
         "total_leads": "إجمالي العملاء المحتملين",
         "use_llm": "استخدام إثراء بالذكاء الاصطناعي",
-        "with_emails": "بريد إلكتروني متوفر"
+        "with_emails": "بريد إلكتروني متوفر",
+        "analytics_title": "تحليلات خط الأنابيب",
+        "analytics_funnel": "قمع خط الأنابيب",
+        "analytics_quality_trend": "اتجاه الجودة (آخر 30 يوم)",
+        "analytics_insights": "رؤى قابلة للتنفيذ",
+        "no_funnel_data": "لا توجد بيانات قمع متاحة",
+        "no_quality_trend_data": "لا توجد بيانات اتجاه الجودة متاحة",
+        "no_insights_data": "لا توجد رؤى قابلة للتنفيذ"
     },
     "email": {
         "opens": "عمليات الفتح"
@@ -1929,7 +1969,8 @@
             "all_rights_reserved": "جميع الحقوق محفوظة.",
             "best_regards": "مع أطيب التحيات",
             "email_sent_to": "تم إرسال هذه الرسالة إلى",
-            "hello": "مرحبًا"
+            "hello": "مرحبًا",
+            "automated_message": "هذه رسالة تلقائية من Starz Morocco CRM."
         },
         "playbook": {
             "abm_hot_lead": {
@@ -1938,7 +1979,9 @@
                 "action_team": "التنسيق مع فريق المبيعات",
                 "message": "يُظهر حساب مستهدف إشارات تفاعل عالية. يُنصح باتخاذ إجراء فوري.",
                 "priority_high": "أولوية عالية",
-                "title": "تنبيه عميل محتمل ساخن"
+                "title": "تنبيه عميل محتمل ساخن",
+                "automated_message": "هذه رسالة تنبيه ABM تلقائية من نظام إدارة علاقات العملاء الخاص بك.",
+                "alert_triggered": "تم تشغيل التنبيه:"
             },
             "quote_reminder": {
                 "address_questions": "معالجة أي أسئلة أو مخاوف",
@@ -1948,7 +1991,8 @@
                 "discuss_timeline": "مناقشة الجدول الزمني والخطوات التالية",
                 "next_steps": "الخطوات التالية",
                 "subject": "تذكير: عرض السعر الخاص بك من ستارز المغرب",
-                "title": "تذكير عرض السعر"
+                "title": "تذكير عرض السعر",
+                "automated_message": "هذه رسالة تذكير تلقائية من نظام إدارة علاقات العملاء الخاص بك."
             }
         },
         "quote_notification": {
@@ -2026,6 +2070,14 @@
             "meeting_link": "رابط الاجتماع",
             "subject": "تأكيد التسجيل في الندوة",
             "team": "فريق %org%"
+        },
+        "verification": {
+            "subject": "تحقق من بريدك الإلكتروني",
+            "welcome": "مرحبًا بك في %company%! يرجى تأكيد عنوان بريدك الإلكتروني لتفعيل حسابك.",
+            "verify_button": "تأكيد البريد الإلكتروني",
+            "copy_link": "إذا لم يعمل الزر، انسخ هذا الرابط",
+            "expires": "تنتهي صلاحية هذا الرابط خلال 7 أيام.",
+            "arabic_note": "يرجى تأكيد عنوان بريدك الإلكتروني لتفعيل حسابك. الرابط صالح لمدة 7 أيام."
         }
     },
     "fab": {
@@ -2173,7 +2225,7 @@
         "leads_by_region": "العملاء المحتملون حسب المنطقة",
         "location": "الموقع",
         "min_score": "الحد الأدنى للدرجة",
-        "new": "\\u0639\\u0645\\u064a\\u0644 \\u0645\\u062d\\u062a\\u0645\\u0644 \\u062c\\u062f\\u064a\\u062f",
+        "new": "عميل محتمل جديد",
         "new_lead": "عميل محتمل جديد",
         "no_leads": "لا يوجد عملاء محتملون.",
         "no_leads_yet": "لا يوجد عملاء محتملون بعد",
@@ -2183,7 +2235,7 @@
         "notes": "ملاحظات",
         "nurturing_stage": "مرحلة الرعاية",
         "pending_review": "بانتظار المراجعة",
-        "pipeline": "\\u062e\\u0637 \\u0623\\u0646\\u0627\\u0628\\u064a\\u0628 \\u0627\\u0644\\u0639\\u0645\\u0644\\u0627\\u0621 \\u0627\\u0644\\u0645\\u062d\\u062a\\u0645\\u0644\\u064a\\u0646",
+        "pipeline": "خط أنابيب العملاء المحتملين",
         "precision_top50": "دقة أفضل خمسين",
         "provisional_leads": "عملاء محتملون مؤقتون",
         "qualified": "مؤهل",
@@ -2594,7 +2646,7 @@
         "webinars": "الندوات عبر الإنترنت"
     },
     "notification": {
-        "plural": "\\u0627\\u0644\\u0625\\u0634\\u0639\\u0627\\u0631\\u0627\\u062a"
+        "plural": "الإشعارات"
     },
     "notifications": {
         "mark_all_read": "وضع علامة مقروء على الكل",
@@ -2768,7 +2820,9 @@
             "title": "قابلية التصنيع",
             "tombstone_pass": "لم يتم اكتشاف خطر انقلاب المكوّن",
             "tombstone_risk": "خطر انقلاب المكوّن",
-            "warnings": "تحذيرات"
+            "warnings": "تحذيرات",
+            "no_data": "لا توجد نتائج DFM متاحة لهذا العرض. قم بتشغيل تحليل DFM لتوليد نتائج قابلية التصنيع.",
+            "no_findings": "لم يتم اكتشاف أي مشكلات لهذه الفئة."
         },
         "estimate": {
             "amount": "المبلغ",
@@ -2992,7 +3046,8 @@
     },
     "playbook": {
         "action": {
-            "select_action": "اختر إجراءً..."
+            "select_action": "اختر إجراءً...",
+            "parameter_placeholder": "أدخل قيمة"
         },
         "actions": "الإجراءات",
         "actions_executed": "إجراءات تم تنفيذها",
@@ -3035,8 +3090,8 @@
         "flash": {
             "created": "تم إنشاء الكتيّب بنجاح",
             "deleted": "تم حذف الكتيّب بنجاح",
-            "invalid_actions": "\\u062a\\u0643\\u0648\\u064a\\u0646 \\u0625\\u062c\\u0631\\u0627\\u0621\\u0627\\u062a \\u063a\\u064a\\u0631 \\u0635\\u0627\\u0644\\u062d \\u0644\\u0644\\u0639\\u0628 playbook.",
-            "invalid_rules": "\\u062a\\u0643\\u0648\\u064a\\u0646 \\u0642\\u0648\\u0627\\u0639\\u062f \\u063a\\u064a\\u0631 \\u0635\\u0627\\u0644\\u062d \\u0644\\u0644\\u0639\\u0628 playbook.",
+            "invalid_actions": "تكوين إجراءات غير صالح للعب playbook.",
+            "invalid_rules": "تكوين قواعد غير صالح للعب playbook.",
             "updated": "تم تحديث الكتيّب بنجاح"
         },
         "inactive": "غير نشط",
@@ -3271,7 +3326,8 @@
             "units_to_produce": "الوحدات المطلوب إنتاجها",
             "upload_bom": "رفع قائمة المواد",
             "upload_spec_intro": "استخدم القالب كنقطة بداية نظيفة أو افتح مواصفات الرفع الكاملة قبل تجهيز قوائم مواد أكبر.",
-            "link": "الرابط"
+            "link": "الرابط",
+            "review_verify_lines": "مراجعة والتحقق من الأسطر"
         },
         "created_at": "تاريخ الإنشاء",
         "currency": "العملة",
@@ -3334,7 +3390,7 @@
             "stock_all_in": "جميعها متوفرة",
             "stock_partial": "توفر جزئي",
             "stock_status": "حالة المخزون",
-            "support_email_address": "⁦sales@starzcrm.com⁩",
+            "support_email_address": "sales@starzcrm.com",
             "support_email_label": "البريد الإلكتروني للدعم",
             "tip": "نصيحة",
             "title": "عرض مباشر",
@@ -3345,7 +3401,7 @@
             "valid_until": "صالح حتى",
             "view": "عرض السعر"
         },
-        "new": "\\u0639\\u0631\\u0636 \\u0633\\u0639\\u0631 \\u062c\\u062f\\u064a\\u062f",
+        "new": "عرض سعر جديد",
         "quantity": "الكمية",
         "quote": "عرض سعر",
         "quote_number": "رقم العرض",
@@ -3363,6 +3419,7 @@
             "confirm_approve": "تأكيد الموافقة",
             "confirm_verify_all": "تأكيد التحقق من الكل",
             "detail": "تفاصيل عرض السعر",
+            "download_pdf": "PDF",
             "enter_manual_price": "إدخال سعر يدوي",
             "extended": "ممتد",
             "failed_override": "فشل التجاوز",
@@ -3679,7 +3736,7 @@
             "npi": "إدخال منتج جديد",
             "standard": "قياسي"
         },
-        "type_label": "\\u0646\\u0648\\u0639 RFQ",
+        "type_label": "نوع RFQ",
         "types": {
             "framework": "اتفاقية إطار",
             "npi": "إدخال منتج جديد",
@@ -3695,7 +3752,12 @@
             "description": "تم وضع علامة على هذا الطلب كفائز.",
             "title": "طلب فائز"
         },
-        "won_label": "\\u0641\\u0627\\u0632"
+        "won_label": "فاز",
+        "badges": {
+            "npi": "NPI",
+            "fwa": "FWA",
+            "nda": "NDA"
+        }
     },
     "shortcuts": {
         "add_company": "إضافة شركة",
@@ -3860,7 +3922,7 @@
         "mins": "دقيقة",
         "my_day": "يومي",
         "my_day_title": "يومي - المهام",
-        "new": "\\u0645\\u0647\\u0645\\u0629 \\u062c\\u062f\\u064a\\u062f\\u0629",
+        "new": "مهمة جديدة",
         "new_task": "مهمة جديدة",
         "new_title": "مهمة جديدة",
         "no_description": "لا يوجد وصف.",
@@ -4031,7 +4093,29 @@
         "url": "الرابط",
         "stop_discovery": "إيقاف الاستكشاف",
         "stop_discovery_confirm": "هل تريد إيقاف عملية الاستكشاف الجارية؟",
-        "stop_failed": "فشل الإيقاف: %error%"
+        "stop_failed": "فشل الإيقاف: %error%",
+        "status_discovery_running": "الاكتشاف قيد التشغيل",
+        "status_discovery_started": "بدأ الاكتشاف",
+        "status_discovery_already_running": "الاكتشاف يعمل بالفعل",
+        "status_discovery_completed": "اكتمل الاكتشاف",
+        "status_discovery_complete": "اكتمل الاكتشاف",
+        "status_discovery_stopped": "توقف الاكتشاف",
+        "starting": "جارٍ البدء...",
+        "failed_start_discovery": "فشل بدء الاكتشاف",
+        "status_running_min": "يعمل منذ %min% دقيقة",
+        "status_finished": "انتهى",
+        "status_complete_summary": "تم حفظ %saved% شركة. إجمالي المكتشف: %total%.",
+        "review_discovered_companies": "مراجعة الشركات المكتشفة",
+        "stat_searches": "عمليات البحث",
+        "stat_llm_accept": "قبول النموذج اللغوي",
+        "stat_llm_reject": "رفض النموذج اللغوي",
+        "stat_loc_reject": "رفض الموقع",
+        "stat_saved": "المحفوظة",
+        "stat_log_lines": "سطور السجل",
+        "stat_total_discovered": "إجمالي المكتشف",
+        "session_expired": "انتهت الجلسة.",
+        "login_again": "سجّل الدخول مرة أخرى",
+        "invalid_response": "أعاد الخادم استجابة غير صالحة. يرجى تحديث الصفحة."
     },
     "webinar": {
         "attendance_rate": "معدل الحضور",
@@ -4136,5 +4220,19 @@
         "error_title": "فشل إلغاء الاشتراك",
         "success": "تم إلغاء اشتراكك بنجاح",
         "footer_note": "إذا كان هذا خطأ، يمكنك إعادة الاشتراك من إعدادات ملفك الشخصي."
-    }
+    },
+    "emails.meeting_confirmation.subject": "تم تأكيد الاجتماع",
+    "emails.meeting_confirmation.dear": "مرحباً",
+    "emails.meeting_confirmation.body": "تم حجز اجتماعك بنجاح. إليك التفاصيل:",
+    "emails.meeting_confirmation.title": "الاجتماع",
+    "emails.meeting_confirmation.date": "التاريخ والوقت",
+    "emails.meeting_confirmation.location": "المكان",
+    "emails.meeting_confirmation.link": "رابط الاجتماع",
+    "emails.meeting_confirmation.footer": "إذا كنت بحاجة لإعادة الجدولة، يرجى التواصل معنا مباشرة. شكراً لك.",
+    "emails.meeting_cancellation.subject": "تم إلغاء الاجتماع",
+    "emails.meeting_cancellation.dear": "مرحباً",
+    "emails.meeting_cancellation.body": "نأسف لإعلامك بأنه تم إلغاء الاجتماع التالي:",
+    "emails.meeting_cancellation.title": "الاجتماع",
+    "emails.meeting_cancellation.date": "التاريخ والوقت",
+    "emails.meeting_cancellation.footer": "شكراً لتفهمك. نحن في خدمتك."
 }

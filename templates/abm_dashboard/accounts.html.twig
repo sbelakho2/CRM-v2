@@ -62,11 +62,11 @@
     <div class="rams-grid rams-grid--3 rams-gap-6">
         {% if accounts | default([]) %}
             {% for account in accounts %}
-                <div class="rams-module rams-module--hoverable" onclick="location.href='{{ path('abm_dashboard_account_detail', {'id': account.id})    }}'">
+                <div class="rams-module rams-module--hoverable" role="link" tabindex="0" onclick="location.href='{{ path('abm_dashboard_account_detail', {'id': account.id})    }}'" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); location.href='{{ path('abm_dashboard_account_detail', {'id': account.id})    }}'; }">
                     <div class="rams-module__content">
                         <div class="rams-flex rams-justify-between rams-items-start rams-mb-4">
                             <div>
-                                <h3 class="rams-heading rams-heading--3 rams-mb-1">{{ account.name | default('abm_dashboard.account_name_placeholder'|trans) }}</h3>
+                                <h2 class="rams-heading rams-heading--3 rams-mb-1">{{ account.name | default('abm_dashboard.account_name_placeholder'|trans) }}</h2>
                                 <p class="rams-text--muted rams-text--xs rams-uppercase">{{ account.industry | default('abm_dashboard.industry_placeholder'|trans) }}</p>
                             </div>
                             {% set statusKey = account.status|default('prospect') %}

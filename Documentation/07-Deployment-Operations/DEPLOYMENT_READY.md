@@ -26,7 +26,7 @@ All five flagship CRM capabilities have cleared functional, integration, and per
 | Feature | Backend | Frontend | Integration | QA | Deployment Notes |
 |---------|---------|----------|-------------|----|------------------|
 | Smart Notification Center | ✅ Complete | ✅ Complete | ✅ Complete | ✅ Pass | Cron + cleanup jobs scheduled |
-| Mobile Quick Actions | ✅ Complete | ✅ Complete | ✅ Complete | ✅ Pass | Requires asset build (`npm run build`) |
+| Mobile Quick Actions | ✅ Complete | ✅ Complete | ✅ Complete | ✅ Pass | No asset build needed (Encore/Tailwind removed 2026) |
 | Secure Authentication | ✅ Complete | ✅ Complete | ✅ Complete | ✅ Pass | Confirm remember-me cookie domain |
 | Engagement Heat Map | ✅ Complete | ✅ Complete | ✅ Complete | ✅ Pass | Ensure `company_engagement` table populated |
 | Quote Co-Pilot | ✅ Complete | ✅ Complete | ✅ Complete | ✅ Pass | Set Nexar/Mouser/Digi-Key credentials in secrets vault |

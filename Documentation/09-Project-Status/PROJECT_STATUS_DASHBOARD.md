@@ -88,7 +88,7 @@ All features verified through automated and manual testing; QA sign-off recorded
 
 ## 🛠️ Go-Live Readiness Checklist (Highlights)
 
-- ✅ Release branch/tag `release/v1.0.0`
+- ✅ Deployed from `main` (no release tag exists — repo is untagged)
 - ✅ Composer/NPM assets rebuilt for production
 - ✅ Database migrations rehearsed and validated (`Version20251030120000` + ancillary updates)
 - ✅ Rollback playbook tested in staging

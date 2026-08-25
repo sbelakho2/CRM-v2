@@ -54,6 +54,9 @@ class PriceImputationService
     private int $maxTextLen = 48;
     private bool $modelLoaded = false;
 
+    /** Guards the "model files not found" log so it fires once per process. */
+    private bool $missingModelLogged = false;
+
     public function __construct(
         private readonly LoggerInterface $logger,
     ) {
@@ -231,13 +234,18 @@ class PriceImputationService
 
         if (!file_exists($modelPath) || !file_exists($configPath)
             || !file_exists($tokenizerPath) || !file_exists($scalerPath)) {
-            $this->logger->warning('ONNX model files not found, using heuristic fallback', [
-                'model_dir' => self::MODEL_DIR,
-                'model_exists' => file_exists($modelPath),
-                'config_exists' => file_exists($configPath),
-                'tokenizer_exists' => file_exists($tokenizerPath),
-                'scaler_exists' => file_exists($scalerPath),
-            ]);
+            // Log once per process — a missing ml/models directory is a
+            // persistent deployment condition, not a per-request event.
+            if (!$this->missingModelLogged) {
+                $this->missingModelLogged = true;
+                $this->logger->warning('ONNX model files not found, using heuristic fallback', [
+                    'model_dir' => self::MODEL_DIR,
+                    'model_exists' => file_exists($modelPath),
+                    'config_exists' => file_exists($configPath),
+                    'tokenizer_exists' => file_exists($tokenizerPath),
+                    'scaler_exists' => file_exists($scalerPath),
+                ]);
+            }
             return false;
         }
 

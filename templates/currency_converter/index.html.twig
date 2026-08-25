@@ -282,7 +282,8 @@
                 body: JSON.stringify({
                     amount: amount,
                     from: fromSelect.value,
-                    to: toSelect.value
+                    to: toSelect.value,
+                    _csrf_token: '{{ csrf_token('currency_converter_convert') }}'
                 })
             });
             const data = await resp.json();
@@ -332,7 +333,8 @@
         try {
             const resp = await fetch(refreshUrl, {
                 method: 'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ _csrf_token: '{{ csrf_token('currency_converter_refresh') }}' })
             });
             const data = await resp.json();
 

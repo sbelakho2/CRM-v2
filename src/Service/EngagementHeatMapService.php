@@ -226,11 +226,33 @@ class EngagementHeatMapService
 
     /**
      * Clear the engagement heat map cache
+     *
+     * Cache keys are namespaced per limit ('engagement_heat_map_data_20',
+     * 'engagement_heat_map_data_50', ...). Delete every known limit variant
+     * plus a sweep of plausible values so no orphaned entries survive.
      */
     public function clearCache(): void
     {
-        if ($this->cache) {
-            $this->cache->deleteItem(self::CACHE_KEY . '_20');
+        if (!$this->cache) {
+            return;
+        }
+
+        // Known/plausible limit values the service is called with.
+        $limits = array_unique(array_merge(
+            [10, 15, 20, 25, 30, 50, 100],
+            range(1, 50)
+        ));
+
+        $keys = array_map(fn(int $limit) => self::CACHE_KEY . '_' . $limit, $limits);
+
+        try {
+            $this->cache->deleteItems($keys);
+        } catch (\Throwable $e) {
+            // Fall back to per-item deletion for cache pools without
+            // batch-delete support.
+            foreach ($keys as $key) {
+                $this->cache->deleteItem($key);
+            }
         }
     }
 }

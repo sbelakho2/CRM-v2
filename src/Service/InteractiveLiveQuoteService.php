@@ -9,6 +9,8 @@ use App\Entity\BomLine;
 use App\Repository\QuoteRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 /**
  * Interactive Live Quote Service
@@ -44,7 +46,8 @@ class InteractiveLiveQuoteService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private QuoteRepository $quoteRepository,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ?Security $security = null
     ) {}
     
     /**
@@ -435,9 +438,38 @@ class InteractiveLiveQuoteService
     
     /**
      * Customer accepts the quote
+     *
+     * When a public access token is supplied it is verified against the
+     * quote (constant-time comparison + expiry check). Without a token, the
+     * caller must be an authenticated user (admin flow) or the quote must
+     * still carry a valid public token (i.e. it was retrieved through
+     * getQuoteByToken() on the public route).
      */
-    public function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo): array
+    public function acceptQuote(Quote $quote, int $acceptedQuantity, array $customerInfo, ?string $token = null): array
     {
+        if ($token !== null) {
+            if (!$quote->isTokenValid() || !hash_equals((string) ($quote->getPublicToken() ?? ''), $token)) {
+                $this->logger->warning('Quote acceptance rejected: invalid or expired token', [
+                    'quote_id' => $quote->getId(),
+                    'quote_number' => $quote->getQuoteNumber(),
+                ]);
+
+                throw new AccessDeniedException('Invalid or expired quote access token.');
+            }
+        } elseif ($this->security !== null && !$this->security->isGranted('ROLE_USER')) {
+            // No token supplied and the caller is not authenticated: the only
+            // legitimate path is a quote that was fetched via the public
+            // token flow and therefore still carries a valid token.
+            if ($quote->getPublicToken() === null || !$quote->isTokenValid()) {
+                $this->logger->warning('Quote acceptance rejected: no token and no authenticated user', [
+                    'quote_id' => $quote->getId(),
+                    'quote_number' => $quote->getQuoteNumber(),
+                ]);
+
+                throw new AccessDeniedException('Quote acceptance requires a valid access token or an authenticated user.');
+            }
+        }
+
         // Update quote status
         $quote->setStatus('accepted');
         $quote->setQuantity($acceptedQuantity);
@@ -450,6 +482,7 @@ class InteractiveLiveQuoteService
             'quote_number' => $quote->getQuoteNumber(),
             'accepted_quantity' => $acceptedQuantity,
             'customer_info' => $customerInfo,
+            'via_public_token' => $token !== null,
         ]);
         
         return [

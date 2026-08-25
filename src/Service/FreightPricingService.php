@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Repository\FreightTableRepository;
 use App\Repository\RoutePreferenceRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * FreightPricingService
@@ -19,7 +20,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * - Air freight: $/kg based on chargeable weight
  * - LCL (Less than Container Load): $/cbm (cubic meter)
  * - FCL (Full Container Load): flat rate per 20'/40' container
- * - Insurance: typically 0.5% of CIF value
+ * - Insurance: 0.5% of CIF value (single rate used everywhere)
  * 
  * Used by:
  * - QuoteCoPilotController for freight cost calculations
@@ -31,12 +32,19 @@ class FreightPricingService
     private const GENERIC_RATE_LCL_PER_CBM = 50.0;
     private const GENERIC_RATE_FCL_PER_CONTAINER = 2000.0;
 
+    /**
+     * Insurance rate applied to the CIF base (goods value + freight).
+     * Single source of truth for calculateInsurance() and quickEstimate().
+     */
+    private const INSURANCE_RATE = 0.005; // 0.5%
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private FreightTableRepository $freightTableRepository,
         private RoutePreferenceRepository $routePreferenceRepository,
         private RouteSelectionService $routeSelectionService,
-        private CurrencyPreferenceService $currencyPreferenceService
+        private CurrencyPreferenceService $currencyPreferenceService,
+        private ?LoggerInterface $logger = null
     ) {}
 
     /**
@@ -200,12 +208,11 @@ class FreightPricingService
      */
     public function calculateInsurance(float $goodsValue, float $freightCost = 0.0): float
     {
-        // Fully implemented helper method
-        
         // CIF value = Cost + Insurance + Freight
-        // Insurance is typically 0.5% of (goodsValue + freightCost)
+        // Insurance is 0.5% of (goodsValue + freightCost) — the same rate the
+        // quickEstimate() fallback uses (single INSURANCE_RATE constant).
         $cifBase = $goodsValue + $freightCost;
-        return $cifBase * 0.005; // 0.5%
+        return $cifBase * self::INSURANCE_RATE;
     }
 
     /**
@@ -338,9 +345,16 @@ class FreightPricingService
                     'total_cost' => $cost['totalCost'],
                     'transit_days' => $route->getTransitDays()
                 ];
-            } catch (\Exception $e) {
-                // Skip routes without pricing
-                continue;
+            } catch (\Throwable $e) {
+                // Skip routes without pricing — but log each skip so silent
+                // route dropouts are visible in the logs.
+                $this->logger?->warning('Route skipped in freight comparison (no pricing)', [
+                    'route_code' => $route->getRouteCode(),
+                    'lane_code' => $route->getLaneCode(),
+                    'mode' => $mode,
+                    'destination' => $destinationCountry,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
         
@@ -420,7 +434,7 @@ class FreightPricingService
                 default => 0
             };
             
-            $insurance = 10000 * 0.003; // 0.3% of $10k
+            $insurance = 10000 * self::INSURANCE_RATE; // 0.5% of $10k — same rate as calculateInsurance()
             
             return [
                 'estimatedFreight' => round($freight, 2),

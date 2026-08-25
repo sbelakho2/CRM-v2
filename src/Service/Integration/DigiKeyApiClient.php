@@ -20,6 +20,8 @@ class DigiKeyApiClient
 {
     private const BASE_URL = 'https://api.digikey.com';
     private const RATE_LIMIT_DELAY = 200000; // 200ms between requests (5 req/sec)
+    private const HIT_CACHE_TTL = 86400;    // Successful lookups: 24 hours
+    private const MISS_CACHE_TTL = 300;     // Null/failure results: 5 minutes (avoid cache poisoning)
     
     private float $lastRequestTime = 0;
     private ?string $accessToken = null;
@@ -43,12 +45,13 @@ class DigiKeyApiClient
         $cacheKey = 'digikey_part_' . md5($partNumber);
         
         return $this->cache->get($cacheKey, function (ItemInterface $item) use ($partNumber) {
-            $item->expiresAfter(86400); // Cache for 24 hours
+            $item->expiresAfter(self::HIT_CACHE_TTL);
             
             $token = $this->getAccessToken();
             
             if (!$token) {
                 $this->logger->error('DigiKey authentication failed');
+                $item->expiresAfter(self::MISS_CACHE_TTL); // Don't poison the cache with failures
                 return null;
             }
             
@@ -121,6 +124,7 @@ class DigiKeyApiClient
                 }
                 
                 if (empty($parts)) {
+                    $item->expiresAfter(self::MISS_CACHE_TTL); // Genuine miss: short TTL only
                     return null;
                 }
                 
@@ -240,6 +244,7 @@ class DigiKeyApiClient
                     'part_number' => $partNumber,
                     'error' => $e->getMessage()
                 ]);
+                $item->expiresAfter(self::MISS_CACHE_TTL); // Failure: short TTL so we retry soon
                 return null;
             }
         });

@@ -137,7 +137,7 @@ class Company
     #[ORM\Column(length: 30, options: ['default' => 'approved'])]
     private string $companyStatus = self::STATUS_APPROVED; // discovered, approved, active
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 2048, nullable: true)]
     private ?string $website = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -149,7 +149,7 @@ class Company
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $country = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 2048, nullable: true)]
     private ?string $linkedInUrl = null;
 
     #[ORM\Column(type: 'text', nullable: true)]

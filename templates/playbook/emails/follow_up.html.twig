@@ -1,51 +1,43 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>{{ 'playbook.email.follow_up_title'|trans }}</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f0f9ff; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header { border-bottom: 2px solid #0ea5e9; padding-bottom: 15px; margin-bottom: 20px; }
-        .header h1 { color: #0369a1; margin: 0; font-size: 24px; }
-        .content { color: #374151; line-height: 1.6; }
-        .highlight { background: #e0f2fe; padding: 15px; border-radius: 6px; margin: 15px 0; }
-        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
-        .btn { display: inline-block; background: #0ea5e9; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 15px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>{{ 'playbook.email.follow_up_title'|trans }}</h1>
-        </div>
-        
-        <div class="content">
-            <p>{{ 'playbook.email.reminder_due'|trans }}</p>
-            
-            <div class="highlight">
-                <strong>{{ 'playbook.email.account'|trans }}</strong> {{ account_name|default(company_name|default('common.unknown'|trans)) }}<br>
-                {% if domain is defined %}
-                <strong>{{ 'playbook.email.domain'|trans }}</strong> {{ domain }}<br>
-                {% endif %}
-                {% if engagement_score is defined %}
-                <strong>{{ 'playbook.email.engagement_score'|trans }}</strong> {{ engagement_score }}<br>
-                {% endif %}
-            </div>
-            
-            <p>{{ 'playbook.email.timely_follow_up'|trans }}</p>
-        </div>
-        
-        <div class="footer">
-            <p>{{ 'playbook.email.automated_message'|trans }}</p>
-            <p>{{ timestamp|default('now')|date('Y-m-d H:i:s') }}</p>
-            {% if unsubscribe_url is defined and unsubscribe_url %}
-            <p style="margin-top: 12px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
-                {{ 'playbook.email.unsubscribe_desc'|trans }}
-                <a href="{{ unsubscribe_url }}" style="color: #6b7280; text-decoration: underline;">{{ 'playbook.email.unsubscribe'|trans }}</a>
-            </p>
-            {% endif %}
-        </div>
+{# Playbook follow-up reminder email - extends base email layout #}
+{% extends 'emails/base.html.twig' %}
+
+{% block title %}{{ 'playbook.email.follow_up_title'|trans }}{% endblock %}
+
+{% block header %}
+<thead>
+    <tr>
+        <th scope="col" style="padding: 30px 40px; text-align: center; background-color: #0369a1; border-bottom: 2px solid #0ea5e9;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">{{ 'playbook.email.follow_up_title'|trans }}</h1>
+        </th>
+    </tr>
+</thead>
+{% endblock %}
+
+{% block content %}
+<div class="rams-email-content" style="font-family: Arial, sans-serif; color: #374151; line-height: 1.6;">
+    <p style="margin: 0 0 15px;">{{ 'playbook.email.reminder_due'|trans }}</p>
+
+    <div style="background: #e0f2fe; padding: 15px; border-radius: 6px; margin: 15px 0;">
+        <strong>{{ 'playbook.email.account'|trans }}</strong> {{ account_name|default(company_name|default('common.unknown'|trans)) }}<br>
+        {% if domain is defined %}
+        <strong>{{ 'playbook.email.domain'|trans }}</strong> {{ domain }}<br>
+        {% endif %}
+        {% if engagement_score is defined %}
+        <strong>{{ 'playbook.email.engagement_score'|trans }}</strong> {{ engagement_score }}<br>
+        {% endif %}
     </div>
-</body>
-</html>
+
+    <p style="margin: 0 0 15px;">{{ 'playbook.email.timely_follow_up'|trans }}</p>
+</div>
+{% endblock %}
+
+{% block footer %}
+<p style="margin: 0 0 10px; color: #6b7280; font-size: 12px; text-align: center;">{{ 'playbook.email.automated_message'|trans }}</p>
+<p style="margin: 0; color: #6b7280; font-size: 12px; text-align: center;">{{ timestamp|default('now')|date('Y-m-d H:i:s') }}</p>
+{% if unsubscribe_url is defined and unsubscribe_url %}
+<p style="margin-top: 12px; border-top: 1px solid #e5e7eb; padding-top: 12px; color: #6b7280; font-size: 12px; text-align: center;">
+    {{ 'playbook.email.unsubscribe_desc'|trans }}
+    <a href="{{ unsubscribe_url }}" style="color: #6b7280; text-decoration: underline;">{{ 'playbook.email.unsubscribe'|trans }}</a>
+</p>
+{% endif %}
+{% endblock %}

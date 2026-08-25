@@ -58,7 +58,7 @@ class PlaybookRunRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('pr')
             ->andWhere('pr.status = :status')
-            ->setParameter('status', 'pending')
+            ->setParameter('status', PlaybookRun::STATUS_PENDING)
             ->orderBy('pr.triggeredAt', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()

@@ -39,7 +39,7 @@
 | Feature | Key Deliverables | QA Evidence | Ops Notes |
 |---------|------------------|-------------|-----------|
 | Smart Notification Center | Service layer, CLI automation, REST endpoints, Twig component, JS polling | `TEST_EXECUTION_REPORT.md` §2 | Cron jobs (`app:check-notifications`) scheduled every 5 minutes |
-| Mobile Quick Actions | Floating action button, quick shortcuts menu, recent activity cache | `SYSTEM_VERIFICATION_COMPLETE.md` §4 | Requires asset build (`npm run build`) before deployment |
+| Mobile Quick Actions | Floating action button, quick shortcuts menu, recent activity cache | `SYSTEM_VERIFICATION_COMPLETE.md` §4 | No asset build needed (Encore/Tailwind removed 2026) |
 | Secure Authentication | Login template refresh, logout hardening, session stabilization | `FINAL_TEST_SUMMARY.md` §3 | Remember-me cookie domain validated; CSP headers updated |
 | Engagement Heat Map | Heat map service, dashboard widget, hourly data refresh job | `TESTING_INDEX.md` §5 | Manual fallback command documented (`app:heatmap:refresh`) |
 | Quote Co-Pilot | BOM upload flow, supplier API cascade, caching, audit logs | `SYSTEM_VERIFICATION_COMPLETE.md` §5 | Dependent on Nexar/Mouser/Digi-Key credentials (refresh pending) |

@@ -273,6 +273,7 @@ class LeadAnalysisService
             ->andWhere('l.reviewStatus = :pending')
             ->setParameter('pending', 'pending')
             ->orderBy('l.leadScore', 'DESC')
+            ->setMaxResults(100)
             ->getQuery()
             ->getResult();
 
@@ -293,6 +294,7 @@ class LeadAnalysisService
             ->setParameter('staleSince', $fourteenDaysAgo)
             ->setParameter('pending', 'pending')
             ->orderBy('l.createdAt', 'ASC')
+            ->setMaxResults(100)
             ->getQuery()
             ->getResult();
 
@@ -312,6 +314,7 @@ class LeadAnalysisService
             ->andWhere('l.reviewStatus = :denied')
             ->setParameter('denied', 'denied')
             ->orderBy('l.leadScore', 'DESC')
+            ->setMaxResults(100)
             ->getQuery()
             ->getResult();
 

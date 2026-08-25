@@ -30,7 +30,7 @@
                     
                     <div class="rams-form__group">
                          {{ form_label(form.fieldType, null, {'label_attr': {'class': 'rams-form__label'}}) }}
-                         {{ form_widget(form.fieldType, {'attr': {'class': 'rams-form__select', 'data-action': 'toggle-options'}}) }}
+                         {{ form_widget(form.fieldType, {'attr': {'class': 'rams-form__select', 'data-action': 'toggle-options', 'aria-expanded': 'false', 'aria-controls': 'field-options-container'}}) }}
                          {{ form_errors(form.fieldType) }}
                     </div>
 
@@ -113,8 +113,10 @@
             const val = typeSelect.value;
             if (['select', 'multiselect', 'radio'].includes(val)) {
                 optionsContainer.classList.remove('hidden');
+                typeSelect.setAttribute('aria-expanded', 'true');
             } else {
                 optionsContainer.classList.add('hidden');
+                typeSelect.setAttribute('aria-expanded', 'false');
             }
         }
         

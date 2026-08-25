@@ -472,10 +472,12 @@ class ContactEnrichmentService
                 continue;
             }
 
-            // Email domain must match company if email is present
+            // Email domain must match company if email is present. Compare the
+            // registrable (root) domain on both sides so subdomains of the
+            // company's own domain (e.g. engineering.example.com) are accepted.
             if (!empty($c['email']) && $domain) {
                 $emailDomain = strtolower(explode('@', $c['email'])[1] ?? '');
-                if ($emailDomain && $emailDomain !== strtolower($domain)) {
+                if ($emailDomain && !$this->domainsMatch($emailDomain, $domain)) {
                     $skipped++;
                     continue;
                 }
@@ -649,6 +651,55 @@ class ContactEnrichmentService
         }
         // Strip www.
         return preg_replace('/^www\./i', '', $host);
+    }
+
+    /**
+     * Compare two domains at the registrable-root level so that subdomains of
+     * the company's own domain are accepted (e.g. engineering.example.com
+     * matches example.com), while unrelated domains are rejected.
+     */
+    private function domainsMatch(string $emailDomain, string $companyDomain): bool
+    {
+        $emailDomain = strtolower(trim($emailDomain, " \t\n\r\0\x0B."));
+        $companyDomain = strtolower(trim($companyDomain, " \t\n\r\0\x0B."));
+
+        if ($emailDomain === '' || $companyDomain === '') {
+            return false;
+        }
+
+        // Exact match, or a subdomain of the company domain.
+        if ($emailDomain === $companyDomain || str_ends_with($emailDomain, '.' . $companyDomain)) {
+            return true;
+        }
+
+        // Shared registrable root: compare the last two labels of each side.
+        return $this->registrableRoot($emailDomain) === $this->registrableRoot($companyDomain)
+            && $this->registrableRoot($emailDomain) !== null;
+    }
+
+    /**
+     * Extract a simple registrable root: the last two labels of a domain,
+     * which covers common patterns (co.uk, com.au, etc. get the final three
+     * labels when the last label is a well-known second-level suffix).
+     */
+    private function registrableRoot(string $domain): ?string
+    {
+        $parts = explode('.', $domain);
+        $parts = array_values(array_filter($parts, fn(string $p): bool => $p !== ''));
+
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $last = end($parts);
+        $secondLast = $parts[count($parts) - 2];
+
+        // ccTLD-with-2nd-level patterns: co.uk, com.au, co.jp, org.uk, ...
+        if (strlen($last) === 2 && in_array($secondLast, ['co', 'com', 'org', 'net', 'gov', 'ac', 'edu'], true)) {
+            return implode('.', array_slice($parts, -3));
+        }
+
+        return implode('.', array_slice($parts, -2));
     }
 
     /**

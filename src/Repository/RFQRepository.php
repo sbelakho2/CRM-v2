@@ -21,7 +21,7 @@ class RFQRepository extends ServiceEntityRepository
         $result = $this->createQueryBuilder('r')
             ->select('SUM(r.estimatedValue)')
             ->where('r.status IN (:statuses)')
-            ->setParameter('statuses', ['Submitted', 'In Review'])
+            ->setParameter('statuses', [RFQ::STATUS_SUBMITTED, RFQ::STATUS_IN_REVIEW])
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -80,7 +80,7 @@ class RFQRepository extends ServiceEntityRepository
             ->where('c.sector = :sector')
             ->andWhere('r.status NOT IN (:closedStatuses)')
             ->setParameter('sector', $sector)
-            ->setParameter('closedStatuses', ['Award', 'Lost', 'Cancelled'])
+            ->setParameter('closedStatuses', [RFQ::STATUS_WON, RFQ::STATUS_LOST])
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -98,7 +98,7 @@ class RFQRepository extends ServiceEntityRepository
             ->join('r.company', 'c')
             ->where('r.status NOT IN (:closedStatuses)')
             ->andWhere('c.sector IS NOT NULL')
-            ->setParameter('closedStatuses', ['Award', 'Lost', 'Cancelled'])
+            ->setParameter('closedStatuses', [RFQ::STATUS_WON, RFQ::STATUS_LOST])
             ->groupBy('c.sector')
             ->getQuery()
             ->getResult();
@@ -125,7 +125,7 @@ class RFQRepository extends ServiceEntityRepository
             ->select('r.estimatedValue as value, r.currency')
             ->where('r.status IN (:statuses)')
             ->andWhere('r.estimatedValue > 0')
-            ->setParameter('statuses', ['Submitted', 'In Review'])
+            ->setParameter('statuses', [RFQ::STATUS_SUBMITTED, RFQ::STATUS_IN_REVIEW])
             ->getQuery()
             ->getResult();
     }

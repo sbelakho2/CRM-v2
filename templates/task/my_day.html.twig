@@ -40,7 +40,7 @@
             <!-- Overdue -->
              {% if overdueTasks|length > 0 %}
             <div class="rams-mb-6">
-                <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--red rams-mb-3">{{ 'task.overdue'|trans }}</h3>
+                <h2 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--red rams-mb-3">{{ 'task.overdue'|trans }}</h2>
                 <div class="rams-flex rams-flex-col rams-gap-2">
                     {% for task in overdueTasks %}
                         {{ include('task/_task_item_row.html.twig', {task: task, overdue: true}) }}

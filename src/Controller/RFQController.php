@@ -298,8 +298,16 @@ class RFQController extends AbstractController
         
         if ($period === 'custom' && $startDateParam && $endDateParam) {
             // Custom date range
-            $startDate = new \DateTime($startDateParam . ' 00:00:00');
-            $endDate = new \DateTime($endDateParam . ' 23:59:59');
+            $startDate = $this->parseDateParam($startDateParam . ' 00:00:00');
+            $endDate = $this->parseDateParam($endDateParam . ' 23:59:59');
+            if ($startDate === null || $endDate === null) {
+                $this->addFlash('error', 'Invalid date range. Please use YYYY-MM-DD format.');
+                return $this->redirectToRoute('app_rfq_index');
+            }
+            if ($endDate < $startDate) {
+                $this->addFlash('error', 'End date must be after start date.');
+                return $this->redirectToRoute('app_rfq_index');
+            }
             $customRange = true;
             $dateRangeDisplay = $startDate->format('M j, Y') . ' - ' . $endDate->format('M j, Y');
         } elseif ($period === 'ytd') {
@@ -313,6 +321,9 @@ class RFQController extends AbstractController
         } else {
             // Standard period in days
             $days = (int) $period;
+            if ($days < 1 || $days > 3650) {
+                $days = 90;
+            }
             $startDate = (new \DateTime())->modify("-{$days} days")->setTime(0, 0, 0);
             $dateRangeDisplay = $startDate->format('M j, Y') . ' - ' . $endDate->format('M j, Y');
         }
@@ -459,5 +470,20 @@ class RFQController extends AbstractController
             'lessonsLearned' => array_slice($lessonsLearned, 0, 10),
             'winFactors' => array_slice($winFactorsList, 0, 10),
         ];
+    }
+
+    /**
+     * Parse a user-supplied date string into a \DateTime, or null when invalid.
+     */
+    private function parseDateParam(?string $value, string $default = 'now'): ?\DateTime
+    {
+        if ($value === null || trim($value) === '') {
+            $value = $default;
+        }
+        try {
+            return new \DateTime($value);
+        } catch (\Exception) {
+            return null;
+        }
     }
 }

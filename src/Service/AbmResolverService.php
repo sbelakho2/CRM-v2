@@ -13,6 +13,7 @@ use App\Repository\AbmHitRepository;
 use App\Repository\AbmAccountRepository;
 use App\Repository\IpMapRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * AbmResolverService
@@ -47,7 +48,8 @@ class AbmResolverService
         private AbmHitRepository $abmHitRepository,
         private AbmAccountRepository $abmAccountRepository,
         private IpMapRepository $ipMapRepository,
-        private PlaybookEngine $playbookEngine
+        private PlaybookEngine $playbookEngine,
+        private ?LoggerInterface $logger = null
     ) {}
 
     /**
@@ -187,9 +189,9 @@ class AbmResolverService
         
         try {
             // Attempt reverse DNS lookup
-            $hostname = gethostbyaddr($ipAddress);
+            $hostname = @gethostbyaddr($ipAddress);
             
-            if ($hostname !== $ipAddress) {
+            if ($hostname !== $ipAddress && $hostname !== false) {
                 // Successfully resolved hostname
                 // Extract organization from hostname (e.g., "mail.company.com" -> "company")
                 $parts = explode('.', $hostname);
@@ -208,19 +210,15 @@ class AbmResolverService
                 }
             }
             
-            // Basic country detection from IP (first octet heuristic - not accurate)
-            // In production, use MaxMind GeoIP2
-            $firstOctet = (int)explode('.', $ipAddress)[0];
-            if ($firstOctet >= 1 && $firstOctet <= 127) {
-                $country = 'US'; // North America
-            } elseif ($firstOctet >= 128 && $firstOctet <= 191) {
-                $country = 'EU'; // Europe
-            } else {
-                $country = 'APAC'; // Asia-Pacific
-            }
+            // NOTE: no country heuristic here — a country is only reported when it
+            // is actually known (e.g. from the IpMap cache). Inventing a country
+            // from the first IP octet feeds wrong data into lead/ABM records.
             
         } catch (\Exception $e) {
-            // DNS lookup failed, continue with null values
+            $this->logger?->debug('Reverse DNS lookup failed', [
+                'ip' => $ipAddress,
+                'error' => $e->getMessage(),
+            ]);
         }
         
         // 3. Cache result in IpMap (even if unresolved, to avoid repeated lookups)
@@ -236,7 +234,11 @@ class AbmResolverService
             $this->entityManager->persist($newIpMap);
             $this->entityManager->flush();
         } catch (\Exception $e) {
-            // IpMap table might not exist yet, continue
+            // IpMap table might not exist yet, but the failure should not be silent
+            $this->logger?->warning('Failed to cache IP resolution', [
+                'ip' => $ipAddress,
+                'error' => $e->getMessage(),
+            ]);
         }
         
         // 4. Return resolved data
@@ -441,21 +443,65 @@ class AbmResolverService
     /**
      * Extract domain from company name
      * 
+     * Only returns a domain when the name plausibly contains one (i.e. the name
+     * is a bare domain like "acme.com" or contains a domain token with a known
+     * TLD). Never fabricates ".com" domains from plain company names — invented
+     * domains cause account mismatches downstream.
+     * 
      * @param string $companyName - Company name
      * @return string|null - Domain or null
      */
     private function extractDomainFromCompanyName(string $companyName): ?string
     {
-        // Simple heuristic: lowercase, remove common suffixes, add .com
-        $cleanName = strtolower($companyName);
-        $cleanName = str_replace([' inc', ' llc', ' ltd', ' corp', ' corporation', ' company'], '', $cleanName);
-        $cleanName = trim($cleanName);
-        $cleanName = str_replace(' ', '', $cleanName); // Remove spaces
-        
-        if (strlen($cleanName) > 2) {
-            return $cleanName . '.com';
+        $cleanName = strtolower(trim($companyName));
+        if ($cleanName === '') {
+            return null;
         }
-        
+
+        // Known TLDs (covers the markets Starz operates in plus generic ones)
+        $knownTlds = 'com|net|org|io|co|de|fr|uk|us|ca|cn|jp|sg|ae|sa|ma|tn|nl|it|es|pl|cz|sk|hu|ro|bg|se|no|fi|dk|at|ch|be|pt|gr|hr|si|lt|lv|ee|info|biz|dev|ai|online|store|site|eu|asia';
+
+        // Case 1: the whole name is already a domain ("www.mail.acme.com", "acme.com")
+        if (preg_match('/^(?:www\.)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:' . $knownTlds . ')$/i', $cleanName)) {
+            $parts = explode('.', $cleanName);
+            // Registered domain = last two labels ("co.uk", "co.ma" style TLDs
+            // are only two labels, so keep last two labels at minimum).
+            $tld = array_pop($parts);
+            $sld = array_pop($parts);
+            if ($sld === null) {
+                return null;
+            }
+            // Handle two-part TLDs (co.uk, co.ma, com.sa, ...)
+            while (!in_array($tld, ['com', 'net', 'org', 'co', 'gov', 'ac', 'edu'], true) && count($parts) > 0) {
+                $tld = $sld . '.' . $tld;
+                $sld = array_pop($parts);
+                if ($sld === null) {
+                    return $tld;
+                }
+            }
+            return $sld . '.' . $tld;
+        }
+
+        // Case 2: the name contains a domain token with a known TLD
+        // (e.g. "Acme Holdings (acme.com)" or "Acme - acme.ma")
+        if (preg_match('/(?:^|[\s(])[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:' . $knownTlds . ')\b/i', $cleanName, $m)) {
+            $domain = strtolower(trim($m[0], " \t\n\r\0\x0B()"));
+            $parts = explode('.', $domain);
+            $tld = array_pop($parts);
+            $sld = array_pop($parts);
+            if ($sld === null) {
+                return null;
+            }
+            while (!in_array($tld, ['com', 'net', 'org', 'co', 'gov', 'ac', 'edu'], true) && count($parts) > 0) {
+                $tld = $sld . '.' . $tld;
+                $sld = array_pop($parts);
+                if ($sld === null) {
+                    return $tld;
+                }
+            }
+            return $sld . '.' . $tld;
+        }
+
         return null;
     }
 }

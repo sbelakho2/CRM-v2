@@ -91,7 +91,12 @@ class NotificationService
     }
 
     /**
-     * Check for email replies (recently opened emails)
+     * Check for recently opened emails (campaign sends).
+     *
+     * NOTE: despite the historical method name, this detects OPENS of
+     * EmailSend records, not email replies. Notifications are created with
+     * type 'email_opened' (Notification::TYPE_EMAIL_OPENED) so the type
+     * accurately describes the event.
      */
     public function checkEmailReplies(User $user): int
     {
@@ -109,10 +114,10 @@ class NotificationService
 
         foreach ($emails as $email) {
             // Check if we already notified
-            if (!$this->notificationRepo->existsForEntity($user, 'email_reply', 'EmailSend', $email->getId())) {
+            if (!$this->notificationRepo->existsForEntity($user, Notification::TYPE_EMAIL_OPENED, 'EmailSend', $email->getId())) {
                 $notification = new Notification();
                 $notification->setUser($user);
-                $notification->setType('email_reply');
+                $notification->setType(Notification::TYPE_EMAIL_OPENED);
                 $notification->setEntityType('EmailSend');
                 $notification->setEntityId($email->getId());
                 $notification->setMessage(sprintf(
@@ -133,7 +138,7 @@ class NotificationService
 
         if ($notificationsCreated > 0) {
             $this->em->flush();
-            $this->logger->info("Created {$notificationsCreated} email reply notifications for user {$user->getId()}");
+            $this->logger->info("Created {$notificationsCreated} email opened notifications for user {$user->getId()}");
         }
 
         return $notificationsCreated;

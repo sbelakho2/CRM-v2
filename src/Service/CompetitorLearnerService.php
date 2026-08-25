@@ -335,7 +335,7 @@ class CompetitorLearnerService
         foreach (self::INDUSTRY_KEYWORDS as $industry => $keywords) {
             $scores[$industry] = 0;
             foreach ($keywords as $keyword) {
-                $scores[$industry] += substr_count($content, $keyword);
+                $scores[$industry] += $this->countKeywordOccurrences($content, $keyword);
             }
         }
         
@@ -343,6 +343,28 @@ class CompetitorLearnerService
         $topIndustry = array_key_first($scores);
         
         return $scores[$topIndustry] > 0 ? $topIndustry : LearnedCompetitor::INDUSTRY_EMS;
+    }
+
+    /**
+     * Count occurrences of a keyword in lowercased content.
+     *
+     * Short single-word keywords (ems, smt, pcb, ict, aoi, bga, odm, oem,
+     * ...) are matched with word boundaries so that e.g. "ems" does not
+     * match inside "systems" or "blossom". Multi-word phrases keep plain
+     * substring counting.
+     */
+    private function countKeywordOccurrences(string $content, string $keyword): int
+    {
+        $content = strtolower($content);
+
+        if (str_contains($keyword, ' ')) {
+            return substr_count($content, $keyword);
+        }
+
+        $pattern = '/(?<![a-z0-9])' . preg_quote($keyword, '/') . '(?![a-z0-9])/';
+        $count = preg_match_all($pattern, $content);
+
+        return $count !== false ? $count : 0;
     }
 
     /**
@@ -368,7 +390,9 @@ class CompetitorLearnerService
         }
         
         foreach ($allKeywords as $keyword) {
-            if (stripos($context, $keyword) !== false) {
+            // Short keywords must match as whole words to avoid false
+            // positives in surrounding text (e.g. 'ems' inside 'systems').
+            if ($this->countKeywordOccurrences($context, $keyword) > 0) {
                 $keywords[] = $keyword;
             }
         }

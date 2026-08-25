@@ -9,6 +9,7 @@
 /.env.local
 /.env.test
 /.env.*.local
+/.env
 
 # Cache and logs (regenerated on production)
 /var/cache/*
@@ -69,6 +70,17 @@ desktop.ini
 # Uploaded test files
 /Tracker.csv
 /Tracker.xlsx
+
+# Root data/artifacts (must never ship in the distribution zip)
+/.output.txt
+/sample_bom.csv
+/tracker_template.csv
+/ab_priced_*.xlsx
+/quote*.xlsx
+/quote*.pdf
+/CRM_V2_*
+/PS600.xlsx
+/ab.xls
 
 # Build artifacts
 /public/build/

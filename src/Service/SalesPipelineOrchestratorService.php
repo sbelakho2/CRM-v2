@@ -224,10 +224,15 @@ class SalesPipelineOrchestratorService
             }
 
             // Check if company already has an open RFQ — don't create duplicates
-            $openRfqs = $this->rfqRepository->findBy([
-                'company' => $company,
-                'status'  => ['Pending', 'In Review', 'Submitted'],
-            ]);
+            // (findBy cannot take an array value for a field; use IN via DQL)
+            $openRfqs = $this->rfqRepository->createQueryBuilder('r')
+                ->where('r.company = :company')
+                ->andWhere('r.status IN (:statuses)')
+                ->setParameter('company', $company)
+                ->setParameter('statuses', ['Pending', 'In Review', 'Submitted'])
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getResult();
 
             if (count($openRfqs) > 0) {
                 // Link message to existing open RFQ instead

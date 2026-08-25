@@ -73,7 +73,7 @@ class CustomFieldController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'custom_field_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'custom_field_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(CustomFieldDefinition $field): Response
     {
         return $this->render('custom_field/show.html.twig', [

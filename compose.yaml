@@ -1,20 +1,47 @@
+# Infrastructure-only Docker Compose for the Starz CRM development environment.
+#
+# The Symfony application runs on the host (see INSTALLATION.txt / DEPLOYMENT.md
+# for the supported local and production deployment flows) and connects to the
+# services below. There is intentionally no app container here: the project has
+# no Dockerfile, and the documented deploy flow uses the host PHP runtime.
+#
+# Start the services with:
+#   docker compose up -d
+#
+# MySQL 8.0 is exposed on host port 3308 (not 3306) to match the DATABASE_URL
+# used by the app in development:
+#   DATABASE_URL="mysql://root:@127.0.0.1:3308/starz_crm?serverVersion=8&charset=utf8mb4"
+# (see .env.example for the crm_user variant used on production)
 
 services:
-###> doctrine/doctrine-bundle ###
-  database:
-    image: postgres:${POSTGRES_VERSION:-16}-alpine
+  db:
+    image: mysql:8.0
+    container_name: starz-crm-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-app}
-      # You should definitely change the password in production
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
-      POSTGRES_USER: ${POSTGRES_USER:-app}
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: starz_crm
+      MYSQL_USER: crm_user
+      MYSQL_PASSWORD: crm_password
+    ports:
+      - "3308:3306"
     volumes:
-      - database_data:/var/lib/postgresql/data:rw
-      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
-      # - ./docker/db/data:/var/lib/postgresql/data:rw
-###< doctrine/doctrine-bundle ###
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: starz-crm-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
 volumes:
-###> doctrine/doctrine-bundle ###
-  database_data:
-###< doctrine/doctrine-bundle ###
+  db_data:

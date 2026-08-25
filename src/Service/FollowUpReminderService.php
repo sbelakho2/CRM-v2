@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Entity\Activity;
 use App\Entity\Company;
 use App\Entity\Contact;
+use App\Entity\User;
 use App\Repository\ActivityRepository;
 use App\Repository\CompanyRepository;
 use App\Repository\ContactRepository;
@@ -154,14 +155,31 @@ class FollowUpReminderService
         $now = new \DateTime();
         
         // Get companies with scheduled activities
-        // Note: Company entity has no ownerRep — filter via activities or return all companies
         $qb = $this->companyRepository->createQueryBuilder('c');
         
         if ($ownerRep) {
-            // Filter companies that have activities with notes containing follow-up markers
-            // owned by the specified rep (via Activity join)
-            $qb->innerJoin('App\Entity\Activity', 'a', 'WITH', 'a.company = c')
+            // Resolve the rep to a User (matched by email or full name) and
+            // restrict to activities owned by that user.
+            $user = $this->entityManager->getRepository(User::class)->createQueryBuilder('u')
+                ->where('u.email = :ownerRep')
+                ->orWhere('LOWER(CONCAT(u.firstName, \' \', u.lastName)) = LOWER(:ownerRep)')
+                ->setParameter('ownerRep', $ownerRep)
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
+
+            if (!$user) {
+                $this->logger->warning('FollowUpReminderService: owner rep not found', [
+                    'owner_rep' => $ownerRep,
+                ]);
+                return [];
+            }
+
+            // Filter companies that have activities with notes containing
+            // follow-up markers owned by the specified rep (via Activity join)
+            $qb->innerJoin('App\Entity\Activity', 'a', 'WITH', 'a.company = c AND a.user = :user')
                ->where('a.notes LIKE :followUpMarker')
+               ->setParameter('user', $user)
                ->setParameter('followUpMarker', '%[Follow-up scheduled for%')
                ->groupBy('c.id');
         }

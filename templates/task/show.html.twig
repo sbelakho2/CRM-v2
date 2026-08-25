@@ -57,7 +57,7 @@
         <div class="rams-grid-span-2 mobile-w-full">
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <h3 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'task.description'|trans }}</h3>
+                    <h2 class="rams-font-mono rams-text--2xs rams-uppercase rams-text--muted">{{      'task.description'|trans }}</h2>
                 </div>
                 <div class="rams-module__content">
                     <div class="rams-bg-panel rams-p-4 rams-rounded rams-border">   
@@ -76,7 +76,7 @@
                         <div class="rams-definition-list__item">
                             <dt class="rams-definition-list__term">{{ 'common.company'|trans }}</dt>
                             <dd class="rams-definition-list__desc">
-                                <a href="#" class="rams-link">{{ safe_company_name(task) }}</a>
+                                <a href="{{ path('app_company_show', {id: task.company.id}) }}" class="rams-link">{{ safe_company_name(task) }}</a>
                             </dd>
                         </div>
                     </dl>

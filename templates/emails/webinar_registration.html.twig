@@ -12,13 +12,16 @@
             <td align="center">
                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; overflow: hidden;">
                     <!-- Header -->
-                    <tr>
-                        <td style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 600; letter-spacing: -0.02em;">{{ 'emails.webinar_registration.subject'|trans }}</h1>
-                            <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ 'app.company'|trans }}</p>
-                        </td>
-                    </tr>
+                    <thead>
+                        <tr>
+                            <th scope="col" style="padding: 30px 40px; text-align: center; background-color: #1a1a1a; border-bottom: 4px solid #FFBE00;">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 600; letter-spacing: -0.02em;">{{ 'emails.webinar_registration.subject'|trans }}</h1>
+                                <p style="margin: 10px 0 0 0; color: #FFBE00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">{{ 'app.company'|trans }}</p>
+                            </th>
+                        </tr>
+                    </thead>
 
+                    <tbody>
                     <!-- Content -->
                     <tr>
                         <td style="padding: 40px;">
@@ -38,12 +41,12 @@
                                         
                                         <table width="100%" cellpadding="0" cellspacing="0">
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; width: 35%;">{{ 'emails.webinar_registration.date_time'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; width: 35%; text-align: left; font-weight: 400;">{{ 'emails.webinar_registration.date_time'|trans }}:</th>
                                                 <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">{{ webinar.scheduledDate|date('F d, Y - H:i') }}</td>
                                             </tr>
                                             {% if webinar.meetingUrl %}
                                             <tr>
-                                                <td style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0;">{{ 'emails.webinar_registration.meeting_link'|trans }}:</td>
+                                                <th scope="row" style="padding: 8px 0; color: #4a4a4a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid #e0e0e0; text-align: left; font-weight: 400;">{{ 'emails.webinar_registration.meeting_link'|trans }}:</th>
                                                 <td style="padding: 8px 0; border-top: 1px solid #e0e0e0;"><a href="{% if webinar.meetingUrl matches '#^https?://#' %}{{ webinar.meetingUrl }}{% else %}#{% endif %}" style="color: #FFBE00; text-decoration: none; font-size: 13px; word-break: break-all;">{{ webinar.meetingUrl }}</a></td>
                                             </tr>
                                             {% endif %}
@@ -100,6 +103,7 @@
                             </p>
                         </td>
                     </tr>
+                    </tbody>
                 </table>
             </td>
         </tr>

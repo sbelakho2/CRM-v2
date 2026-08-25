@@ -24,7 +24,8 @@ class AutonomousSalesSettingsService
     {
         $data = $this->readSettings();
 
-        return (bool) ($data['enabled'] ?? true);
+        // Fail closed: missing/corrupt settings default to DISABLED
+        return (bool) ($data['enabled'] ?? false);
     }
 
     public function setEnabled(bool $enabled): void
@@ -61,19 +62,20 @@ class AutonomousSalesSettingsService
     private function readSettings(): array
     {
         if (!file_exists($this->settingsPath)) {
-            return ['enabled' => true];
+            $this->logger?->warning('Autonomous sales settings file not found, defaulting to DISABLED', ['path' => $this->settingsPath]);
+            return ['enabled' => false];
         }
 
         $raw = file_get_contents($this->settingsPath);
         if ($raw === false) {
-            $this->logger?->warning('Failed to read settings file', ['path' => $this->settingsPath]);
-            return ['enabled' => true];
+            $this->logger?->warning('Failed to read settings file, defaulting to DISABLED', ['path' => $this->settingsPath]);
+            return ['enabled' => false];
         }
 
         $data = json_decode($raw, true);
         if (!is_array($data)) {
-            $this->logger?->warning('Settings file contains invalid JSON, resetting to defaults', ['path' => $this->settingsPath]);
-            return ['enabled' => true];
+            $this->logger?->warning('Settings file contains invalid JSON, defaulting to DISABLED', ['path' => $this->settingsPath]);
+            return ['enabled' => false];
         }
 
         return $data;
@@ -82,13 +84,26 @@ class AutonomousSalesSettingsService
     private function writeSettings(array $data): void
     {
         $dir = dirname($this->settingsPath);
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0775, true);
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            $this->logger?->error('Failed to create settings directory', ['path' => $dir]);
+            return;
         }
 
-        $result = file_put_contents($this->settingsPath, json_encode($data, JSON_PRETTY_PRINT));
-        if ($result === false) {
+        // Atomic write: write to a temp file, then rename into place.
+        // This prevents a concurrent reader (or a crash mid-write) from
+        // observing a truncated/corrupt settings file.
+        $tmpPath = $this->settingsPath . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        $payload = json_encode($data, JSON_PRETTY_PRINT);
+
+        if ($payload === false || @file_put_contents($tmpPath, $payload) === false) {
+            @unlink($tmpPath);
             $this->logger?->error('Failed to write settings file', ['path' => $this->settingsPath]);
+            return;
+        }
+
+        if (!@rename($tmpPath, $this->settingsPath)) {
+            @unlink($tmpPath);
+            $this->logger?->error('Failed to atomically replace settings file', ['path' => $this->settingsPath]);
         }
     }
 }

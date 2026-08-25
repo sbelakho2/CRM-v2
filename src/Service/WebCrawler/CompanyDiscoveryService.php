@@ -104,6 +104,14 @@ class CompanyDiscoveryService
         'Energy Storage',
     ];
 
+    /**
+     * Number of companies persisted per flush() call.
+     * Larger batches reduce DB round-trips (N+1 flush elimination);
+     * the final partial batch is still flushed per company to preserve
+     * per-company error isolation.
+     */
+    private const FLUSH_BATCH_SIZE = 25;
+
     public function __construct(
         private EntityManagerInterface $em,
         private CompanyRepository $companyRepo,
@@ -392,6 +400,9 @@ class CompanyDiscoveryService
             }
         }
 
+        // Companies awaiting a batched flush() call
+        $pendingBatch = [];
+
         foreach ($discoveredData as $data) {
             $this->ensureEntityManagerOpen();
 
@@ -520,9 +531,9 @@ class CompanyDiscoveryService
                 // Store phone in notes if no direct phone field on Company
                 // Prepend to existing notes
                 $existingNotes = $company->getNotes() ?? '';
-                $phoneNote = '📞 ' . $data['phone'];
+                $phoneNote = 'Phone: ' . $data['phone'];
                 if (!empty($data['email'])) {
-                    $phoneNote .= ' | ✉ ' . $data['email'];
+                    $phoneNote .= ' | Email: ' . $data['email'];
                 }
                 $company->setNotes(
                     $phoneNote . ($existingNotes ? "\n" . $existingNotes : '')
@@ -530,7 +541,7 @@ class CompanyDiscoveryService
             } elseif (!empty($data['email'])) {
                 $existingNotes = $company->getNotes() ?? '';
                 $company->setNotes(
-                    '✉ ' . $data['email'] . ($existingNotes ? "\n" . $existingNotes : '')
+                    'Email: ' . $data['email'] . ($existingNotes ? "\n" . $existingNotes : '')
                 );
             }
 
@@ -787,27 +798,53 @@ class CompanyDiscoveryService
                 $this->em->persist($contact);
             }
 
-            // ── Flush company + contacts together ─────────────────
+            // Mark the domain as seen immediately so duplicates within
+            // the same discovery run are skipped.
+            if ($rootDomain) {
+                $existingDomains[$rootDomain] = true;
+            }
+
+            // ── Batch persistence ─────────────────────────────────
+            // Accumulate companies and flush every FLUSH_BATCH_SIZE
+            // instead of flushing per company (N+1 write elimination).
+            $pendingBatch[] = [
+                'company' => $company,
+                'contacts' => count($pendingContacts),
+            ];
+            if (count($pendingBatch) >= self::FLUSH_BATCH_SIZE) {
+                $this->flushCompanyBatch($pendingBatch, $savedCompanies);
+                $pendingBatch = [];
+            }
+        }
+
+        // ── Final partial batch ───────────────────────────────────
+        // Fewer than FLUSH_BATCH_SIZE companies remain — flush them
+        // per company so a single bad row only drops that company
+        // (matching the legacy per-company error isolation).
+        $needsRepersist = false;
+        foreach ($pendingBatch as $pending) {
+            $this->ensureEntityManagerOpen();
+            if ($needsRepersist) {
+                $this->em->persist($pending['company']);
+            }
             try {
                 $this->em->flush();
+                $needsRepersist = false;
 
-                $savedCompanies[] = $company;
-                if ($rootDomain) {
-                    $existingDomains[$rootDomain] = true;
-                }
+                $savedCompanies[] = $pending['company'];
 
                 $this->logger->info('Saved company to DB', [
-                    'company' => $name,
-                    'id' => $company->getId(),
-                    'contacts' => count($pendingContacts),
+                    'company' => $pending['company']->getName(),
+                    'id' => $pending['company']->getId(),
+                    'contacts' => $pending['contacts'],
                 ]);
             } catch (\Throwable $flushErr) {
                 $this->logger->error('Flush failed for company', [
-                    'company' => $name,
+                    'company' => $pending['company']->getName(),
                     'error' => $flushErr->getMessage(),
                 ]);
                 $this->resetEntityManagerAfterFailure();
-                continue;
+                $needsRepersist = true;
             }
         }
 
@@ -1058,6 +1095,64 @@ class CompanyDiscoveryService
         }
 
         $this->em = $this->doctrine->resetManager();
+    }
+
+    /**
+     * Flush a full batch of companies with a single flush() call.
+     *
+     * If the batched flush fails, falls back to per-company flushing so a
+     * single bad row only drops that company, not the whole batch.
+     *
+     * @param array<int, array{company: Company, contacts: int}> $batch
+     * @param array<int, Company> $savedCompanies
+     */
+    private function flushCompanyBatch(array $batch, array &$savedCompanies): void
+    {
+        try {
+            $this->em->flush();
+
+            foreach ($batch as $pending) {
+                $savedCompanies[] = $pending['company'];
+                $this->logger->info('Saved company to DB', [
+                    'company' => $pending['company']->getName(),
+                    'id' => $pending['company']->getId(),
+                    'contacts' => $pending['contacts'],
+                ]);
+            }
+
+            return;
+        } catch (\Throwable $flushErr) {
+            $this->logger->error('Batch flush failed — falling back to per-company flush', [
+                'companies' => count($batch),
+                'error' => $flushErr->getMessage(),
+            ]);
+            $this->resetEntityManagerAfterFailure();
+        }
+
+        // Per-company fallback: resetting the entity manager detaches every
+        // entity, so each company is re-persisted before flushing (contacts
+        // are cascade-persisted through the Company association).
+        foreach ($batch as $pending) {
+            $this->ensureEntityManagerOpen();
+            try {
+                $this->em->persist($pending['company']);
+                $this->em->flush();
+
+                $savedCompanies[] = $pending['company'];
+
+                $this->logger->info('Saved company to DB', [
+                    'company' => $pending['company']->getName(),
+                    'id' => $pending['company']->getId(),
+                    'contacts' => $pending['contacts'],
+                ]);
+            } catch (\Throwable $flushErr) {
+                $this->logger->error('Flush failed for company', [
+                    'company' => $pending['company']->getName(),
+                    'error' => $flushErr->getMessage(),
+                ]);
+                $this->resetEntityManagerAfterFailure();
+            }
+        }
     }
 
     private function resetEntityManagerAfterFailure(): void

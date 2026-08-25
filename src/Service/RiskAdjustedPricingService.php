@@ -101,6 +101,11 @@ class RiskAdjustedPricingService
 
     /**
      * Persist current reliability scores to cache.
+     *
+     * The shared item is updated as a read-merge-write: the current cached map
+     * is merged into the in-memory map BEFORE the delete+store, so a
+     * concurrent writer's per-supplier scores survive this write instead of
+     * being clobbered by a plain delete→re-get.
      */
     private function persistSupplierReliability(): void
     {
@@ -109,6 +114,17 @@ class RiskAdjustedPricingService
         }
 
         try {
+            // Read-merge: preserve suppliers written concurrently by other
+            // requests (per-supplier granularity survives the update).
+            $cached = $this->cache->get(self::CACHE_KEY, function (ItemInterface $item) {
+                $item->expiresAfter(self::CACHE_TTL);
+                return $this->supplierReliability;
+            });
+            if (is_array($cached) && !empty($cached)) {
+                $this->supplierReliability = array_merge($cached, $this->supplierReliability);
+            }
+
+            // Single logical update of the merged map.
             $this->cache->delete(self::CACHE_KEY);
             $this->cache->get(self::CACHE_KEY, function (ItemInterface $item) {
                 $item->expiresAfter(self::CACHE_TTL);
@@ -427,7 +443,9 @@ class RiskAdjustedPricingService
             return 0.0;
         }
         
-        // Sort by quantity ascending
+        // Sort a COPY — never reorder the caller's array (PHP arrays are
+        // copy-on-write, but being explicit here prevents regressions).
+        $pricing = array_values($pricing);
         usort($pricing, fn($a, $b) => ($a['quantity'] ?? 0) <=> ($b['quantity'] ?? 0));
         
         $applicablePrice = $pricing[0]['price'] ?? 0;

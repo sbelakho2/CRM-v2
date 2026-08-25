@@ -49,6 +49,15 @@ class CopyLintService
     /**
      * Run all lint checks on composed email. Returns pass/fail + violations.
      *
+     * Rules 8 (variability) and 9 (tone-substitution cap) need data the
+     * orchestrator only has at composition time. They are wired here via
+     * optional context keys so callers can opt in without changing behavior:
+     *   - 'baseline_text' (string): original template text before
+     *     spintax/personalization → runs checkVariability() (hard cap).
+     *   - 'tone_substitution_count' (int): number of tone substitutions
+     *     applied → runs checkToneSubstitutionCount() (hard cap).
+     * Violations from these gates are appended to $violations.
+     *
      * @param string $subject  Final subject line
      * @param string $body     Final body text
      * @param array  $context  Template context (for token sanity checks)
@@ -118,6 +127,30 @@ class CopyLintService
         }
         if (mb_strlen(trim($subject)) < 5) {
             $violations[] = sprintf('Subject too short: %d chars (min 5)', mb_strlen(trim($subject)));
+        }
+
+        // 8. Variability hard cap (opt-in: needs the pre-spintax baseline)
+        if (!empty($context['baseline_text']) && is_string($context['baseline_text'])) {
+            $variability = $this->checkVariability($context['baseline_text'], $body);
+            if (!$variability['passed']) {
+                $violations[] = sprintf(
+                    'Variability too high: %.1f%% of tokens differ from template baseline (max %.0f%%)',
+                    $variability['variability'] * 100,
+                    self::MAX_VARIABILITY_PCT * 100
+                );
+            }
+        }
+
+        // 9. Tone-substitution hard cap (opt-in: set by the tone pipeline)
+        if (isset($context['tone_substitution_count'])) {
+            $toneGate = $this->checkToneSubstitutionCount((int) $context['tone_substitution_count']);
+            if (!$toneGate['passed']) {
+                $violations[] = sprintf(
+                    'Tone substitution count too high: %d substitutions (max %d)',
+                    $toneGate['count'],
+                    $toneGate['max']
+                );
+            }
         }
 
         $passed = empty($violations);

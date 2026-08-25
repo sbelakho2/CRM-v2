@@ -17,6 +17,7 @@
     </div>
 
     <form method="post" action="{{ path('app_playbook_builder_triggers', {id: playbook.id}) }}" class="rams-stack rams-gap-6">
+        <label for="trigger-rules-input" class="rams-sr-only">{{ 'playbook.builder_triggers'|trans }}</label>
         <input type="hidden" name="trigger_rules" id="trigger-rules-input" value="" />
 
         <div class="rams-module">

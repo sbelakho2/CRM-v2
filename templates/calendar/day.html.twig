@@ -59,8 +59,8 @@
                     <div class="rams-module__content rams-p-0">
                          <!-- Simple Grid for Timeline -->
                          {% for hour in 6..22 %}
-                         <div style="display: grid; grid-template-columns: 80px 1fr; border-bottom: 1px solid var(--rams-border); min-height: 4rem;">
-                             <div style="padding: 1rem; text-align: right; color: var(--rams-text--muted); font-size: 0.875rem; border-right: 1px solid var(--rams-border);">
+                         <div class="rams-calendar-hour-row" style="display: grid; grid-template-columns: 80px 1fr; border-bottom: 1px solid var(--rams-border); min-height: 4rem;">
+                             <div class="rams-calendar-hour-label" style="padding: 1rem; text-align: right; color: var(--rams-text--muted); font-size: 0.875rem; border-right: 1px solid var(--rams-border);">
                                  {{ '%02d'|format(hour) }}:00
                              </div>
                              <div style="padding: 0.5rem; position: relative;">
@@ -68,7 +68,7 @@
                                   {% for event in events %}
                                      {% if event.startAt|date('H') == hour and not event.allDay %}
                                         <a href="{{ path('calendar_show', {id: event.id}) }}" 
-                                           class="rams-block rams-p-2 rams-mb-1 rams-rounded rams-bg-module rams-border rams-text--sm"  
+                                           class="rams-block rams-p-2 rams-mb-1 rams-rounded rams-bg-module rams-border rams-text--sm rams-calendar-hour-event"  
                                            style="border-left: 4px solid rgba(0,0,0,0.2);">
                                            <div class="rams-text--bold">{{ event.title }}</div>
                                            <div class="rams-text--xs rams-opacity-75">{{  event.startAt|date('H:i') }} - {{ event.endAt|date('H:i') }}</div>

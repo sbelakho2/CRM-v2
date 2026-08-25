@@ -26,7 +26,9 @@ use Symfony\Component\Uid\Uuid;
  * - Rollback capability (activate previous version)
  * - Signature verification (SHA-256 hash validation)
  * - CSV parsing with validation
- * - Atomic transactions (all-or-nothing imports)
+ * - Per-row error tolerance: malformed rows are recorded and skipped; the
+ *   version is only ACTIVATED when the import completed with zero errors
+ *   (so a partially-imported dataset never silently becomes the live one)
  * 
  * DMZ → LAN Transfer Process:
  * 1. DMZ system generates CSV export with signature
@@ -106,18 +108,33 @@ class DatasetImportService
         }
         
         // Read header
-        $headers = fgetcsv($handle, ',', '"', '\\');
+        // Note: the explicit escape argument is omitted — PHP 8.5 deprecates it
+        // and the default ('\\') matches the previous explicit value.
+        $headers = fgetcsv($handle, 0, ',', '"', '\\');
+        if ($headers === false) {
+            fclose($handle);
+            throw new \RuntimeException("CSV file has no header row: $csvPath");
+        }
         $recordsImported = 0;
         $errors = [];
         $effectiveDate = null;
         
         // Step 5: Import each row
-        while (($row = fgetcsv($handle, ',', '"', '\\')) !== false) {
+        while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
             if (empty(array_filter($row))) {
                 continue; // Skip empty rows
             }
+            $rowNumber = $recordsImported + count($errors) + 1;
             
             try {
+                // Guard ragged rows (mismatched column count) — array_combine
+                // throws \ValueError (an \Error, NOT an \Exception) which would
+                // otherwise crash the entire import.
+                if (count($row) !== count($headers)) {
+                    throw new \RuntimeException(
+                        sprintf('Column count mismatch: expected %d, got %d', count($headers), count($row))
+                    );
+                }
                 $data = array_combine($headers, $row);
                 
                 // Create TariffRate entity
@@ -155,8 +172,8 @@ class DatasetImportService
                     $this->entityManager->clear(\App\Entity\TariffRate::class); // Clear memory
                 }
                 
-            } catch (\Exception $e) {
-                $errors[] = "Row $recordsImported: " . $e->getMessage();
+            } catch (\Throwable $e) {
+                $errors[] = "Row $rowNumber: " . $e->getMessage();
             }
         }
         
@@ -169,13 +186,22 @@ class DatasetImportService
         $version->setRecordCount($recordsImported);
         $this->entityManager->flush();
         
-        // Step 7: Activate this version (deactivate others)
-        $this->activateVersion($versionUuid);
+        // Step 7: Activate this version ONLY when the import is error-free —
+        // a partially-imported dataset must not silently become the live one.
+        // (On errors the version stays isActive=false and the previous active
+        // version remains authoritative.)
+        $activated = false;
+        if (empty($errors)) {
+            $this->activateVersion($versionUuid);
+            $activated = true;
+        }
         
         return [
             'version_uuid' => $versionUuid,
             'recordsImported' => $recordsImported,
             'errors' => $errors,
+            'errorCount' => count($errors),
+            'activated' => $activated,
             'effectiveDate' => $effectiveDate,
             'datasetType' => 'TARIFF_RATES'
         ];
@@ -226,16 +252,26 @@ class DatasetImportService
             throw new \RuntimeException("Cannot open CSV file: $csvPath");
         }
         
-        $headers = fgetcsv($handle, ',', '"', '\\');
+        $headers = fgetcsv($handle, 0, ',', '"', '\\');
+        if ($headers === false) {
+            fclose($handle);
+            throw new \RuntimeException("CSV file has no header row: $csvPath");
+        }
         $recordsImported = 0;
         $errors = [];
         
-        while (($row = fgetcsv($handle, ',', '"', '\\')) !== false) {
+        while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
             if (empty(array_filter($row))) {
                 continue;
             }
+            $rowNumber = $recordsImported + count($errors) + 1;
             
             try {
+                if (count($row) !== count($headers)) {
+                    throw new \RuntimeException(
+                        sprintf('Column count mismatch: expected %d, got %d', count($headers), count($row))
+                    );
+                }
                 $data = array_combine($headers, $row);
                 
                 $freight = new \App\Entity\FreightTable();
@@ -277,8 +313,8 @@ class DatasetImportService
                     $this->entityManager->clear(\App\Entity\FreightTable::class);
                 }
                 
-            } catch (\Exception $e) {
-                $errors[] = "Row $recordsImported: " . $e->getMessage();
+            } catch (\Throwable $e) {
+                $errors[] = "Row $rowNumber: " . $e->getMessage();
             }
         }
         
@@ -289,13 +325,19 @@ class DatasetImportService
         $version->setRecordCount($recordsImported);
         $this->entityManager->flush();
         
-        // Activate this version
-        $this->activateVersion($versionUuid);
+        // Activate this version only when the import is error-free
+        $activated = false;
+        if (empty($errors)) {
+            $this->activateVersion($versionUuid);
+            $activated = true;
+        }
         
         return [
             'version_uuid' => $versionUuid,
             'recordsImported' => $recordsImported,
             'errors' => $errors,
+            'errorCount' => count($errors),
+            'activated' => $activated,
             'datasetType' => 'FREIGHT_TABLES'
         ];
     }
@@ -343,15 +385,17 @@ class DatasetImportService
         }
         
         // Skip header
-        fgetcsv($handle, ',', '"', '\\');
+        fgetcsv($handle, 0, ',', '"', '\\');
         
         $imported = 0;
         $errors = [];
+        $rowNumber = 0;
         
-        while (($row = fgetcsv($handle, ',', '"', '\\')) !== false) {
+        while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
+            $rowNumber++;
             try {
                 if (count($row) < 4) {
-                    $errors[] = "Invalid row (expected 4 columns): " . implode(',', $row);
+                    $errors[] = "Row $rowNumber (expected 4 columns): " . implode(',', $row);
                     continue;
                 }
                 
@@ -373,50 +417,56 @@ class DatasetImportService
                     $this->entityManager->flush();
                 }
                 
-            } catch (\Exception $e) {
-                $errors[] = "Error on row: " . implode(',', $row) . " - " . $e->getMessage();
+            } catch (\Throwable $e) {
+                $errors[] = "Row $rowNumber: " . implode(',', $row) . " - " . $e->getMessage();
             }
         }
         
         fclose($handle);
         
-        // 5. Flush remaining records and activate version
+        // 5. Flush remaining records
         $this->entityManager->flush();
-        
-        // Deactivate old versions
-        $this->entityManager->createQuery(
-            'UPDATE App\Entity\DatasetVersion v 
-             SET v.isActive = false 
-             WHERE v.datasetType = :type'
-        )
-        ->setParameter('type', 'FX_RATES')
-        ->execute();
-        
-        $this->entityManager->createQuery(
-            'UPDATE App\Entity\FxRate f 
-             SET f.isActive = false'
-        )->execute();
-        
-        // Activate new version
-        $version->setIsActive(true);
-        
-        $this->entityManager->createQuery(
-            'UPDATE App\Entity\FxRate f 
-             SET f.isActive = true 
-             WHERE f.versionId = :versionId'
-        )
-        ->setParameter('versionId', $versionId)
-        ->execute();
+
+        // Activate the new version ONLY when the import is error-free —
+        // otherwise the previous live rates stay active (no partial takeover).
+        if (empty($errors)) {
+            // Deactivate old versions
+            $this->entityManager->createQuery(
+                'UPDATE App\Entity\DatasetVersion v 
+                 SET v.isActive = false 
+                 WHERE v.datasetType = :type'
+            )
+            ->setParameter('type', 'FX_RATES')
+            ->execute();
+            
+            $this->entityManager->createQuery(
+                'UPDATE App\Entity\FxRate f 
+                 SET f.isActive = false'
+            )->execute();
+            
+            // Activate new version
+            $version->setIsActive(true);
+            
+            $this->entityManager->createQuery(
+                'UPDATE App\Entity\FxRate f 
+                 SET f.isActive = true 
+                 WHERE f.versionId = :versionId'
+            )
+            ->setParameter('versionId', $versionId)
+            ->execute();
+        }
         
         $this->entityManager->flush();
         
         // 6. Return summary
         return [
-            'success' => true,
+            'success' => empty($errors),
             'version_uuid' => $versionId,
             'dataset_type' => 'FX_RATES',
             'imported_count' => $imported,
             'errors' => $errors,
+            'errorCount' => count($errors),
+            'activated' => empty($errors),
             'description' => $description
         ];
     }
@@ -448,6 +498,10 @@ class DatasetImportService
         // 3. Clone records based on dataset type
         $recordCount = 0;
         
+        // DOCUMENTED RISK: the raw INSERT ... SELECT statements below hardcode
+        // column lists that must mirror the TariffRate/FreightTable/FxRate
+        // entity mappings. If a column is added to an entity, this snapshot
+        // must be updated in lockstep or the snapshot silently loses data.
         switch ($datasetType) {
             case 'TARIFF_RATES':
                 // Clone tariff_rates

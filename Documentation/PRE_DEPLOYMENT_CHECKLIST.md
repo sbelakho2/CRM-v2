@@ -111,7 +111,8 @@ APP_SECRET=CHANGE_ME_generate_a_fresh_secret
 ###< symfony/framework-bundle ###
 
 ###> doctrine/doctrine-bundle ###
-DATABASE_URL="mysql://username:password@127.0.0.1:3306/crm_production?serverVersion=8.0"
+# serverVersion is auto-detected by DBAL; omit it for MySQL 8 and MariaDB
+DATABASE_URL="mysql://username:password@127.0.0.1:3306/crm_production?charset=utf8mb4"
 ###< doctrine/doctrine-bundle ###
 
 ###> symfony/mailer ###

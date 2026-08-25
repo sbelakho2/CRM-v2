@@ -46,6 +46,7 @@ class UserAdminType extends AbstractType
             ])
             ->add('roles', ChoiceType::class, [
                 'choices' => [
+                    'administration.users.roles.super_admin' => 'ROLE_SUPER_ADMIN',
                     'administration.users.roles.admin' => 'ROLE_ADMIN',
                     'administration.users.roles.engineering' => 'ROLE_ENGINEERING',
                     'administration.users.roles.sales_ops' => 'ROLE_SALES_OPS',
@@ -77,8 +78,11 @@ class UserAdminType extends AbstractType
                 'ROLE_ENGINEERING',
             ];
 
+            // Only an actual ROLE_ADMIN (or above, via the role hierarchy) may
+            // assign admin-level roles; everyone else gets them stripped.
             if ($this->authChecker->isGranted('ROLE_ADMIN')) {
                 $manageableRoles[] = 'ROLE_ADMIN';
+                $manageableRoles[] = 'ROLE_SUPER_ADMIN';
             }
 
             foreach ($roles as $role) {
