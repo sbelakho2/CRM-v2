@@ -4430,7 +4430,17 @@ a.rams-module:hover {
     animation: rams-modal-enter 0.2s ease-out;
 }
 
-.rams-notification__panel .rams-modal__content {
+.rams-notification__panel .rams-notification__list {
+    position: static;
+    top: auto;
+    left: auto;
+    transform: none;
+    width: auto;
+    max-width: none;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    z-index: auto;
     flex: 1;
     overflow-y: auto;
     padding: var(--space-4);

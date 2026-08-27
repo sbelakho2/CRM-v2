@@ -1664,7 +1664,7 @@
             "top_contacts": "Top contacts"
         },
         "audience": "Audience",
-        "best_practice_title": "Best practice title",
+        "best_practice_title": "Best practices",
         "bounce_rate": "Bounce Rate",
         "bounced": "Bounced",
         "cadence_hint": "Contacts on the global unsubscribe list or who have received 3+ emails in the past 7 days (from any module, including Sales Automation) will be automatically skipped.",
@@ -1855,11 +1855,11 @@
         "title_singular": "Email Campaign",
         "total_sent": "Total Sent",
         "touch": "Touch",
-        "touch_1_hint": "Touch 1 hint",
-        "touch_2_hint": "Touch 2 hint",
-        "touch_3_hint": "Touch 3 hint",
-        "touch_4_hint": "Touch 4 hint",
-        "touch_5_hint": "Touch 5 hint",
+        "touch_1_hint": "Introduce your company and the problem you solve",
+        "touch_2_hint": "Share a relevant case study or proof point",
+        "touch_3_hint": "Offer a specific next step, such as a call or sample",
+        "touch_4_hint": "Follow up with a value-add resource or insight",
+        "touch_5_hint": "Close with a clear, low-friction offer",
         "touch_count": "Touch count",
         "touch_count_hint": "Touch count hint",
         "touch_number": "Touch number",
@@ -1897,7 +1897,7 @@
                 "tip_3": "Tip 3",
                 "tip_4": "Tip 4",
                 "tips": "Tips",
-                "title": "Title"
+                "title": "Review"
             },
             "schedule": {
                 "avoid": "Avoid",
@@ -1920,7 +1920,7 @@
                 "throttle_hint": "Throttle hint",
                 "time": "Time",
                 "timezone": "Timezone",
-                "title": "Title",
+                "title": "Schedule",
                 "track_clicks": "Track clicks",
                 "track_opens": "Track opens",
                 "tuesday": "Tuesday",
@@ -1938,7 +1938,7 @@
                 "no_segments": "No segments",
                 "select": "Select",
                 "subtitle": "Subtitle",
-                "title": "Title",
+                "title": "Segment",
                 "use_segment": "Use segment",
                 "use_segment_desc": "Use segment desc"
             },
@@ -1960,7 +1960,7 @@
                 "subject_hint": "Subject hint",
                 "subject_placeholder": "Subject placeholder",
                 "subtitle": "Subtitle",
-                "title": "Title"
+                "title": "Template"
             }
         }
     },
@@ -2651,7 +2651,7 @@
     "notifications": {
         "mark_all_read": "Mark all read",
         "no_notifications": "No notifications",
-        "title": "Title"
+        "title": "Notifications"
     },
     "pagination": {
         "entries": "entries",
@@ -3364,7 +3364,7 @@
                 "reason_deactivated": "Reason deactivated",
                 "reason_expired": "Reason expired",
                 "security_note": "Security note",
-                "title": "Title",
+                "title": "Quote Expired",
                 "what_happened": "What happened"
             },
             "extended_price": "Extended Price",
@@ -3780,7 +3780,7 @@
         "quick_actions": "Quick actions",
         "show_dialog": "Show dialog",
         "show_shortcuts": "Show shortcuts",
-        "title": "Title"
+        "title": "Keyboard Shortcuts"
     },
     "status_bar": {
         "critical": "Critical",

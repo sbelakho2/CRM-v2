@@ -1855,11 +1855,11 @@
         "title_singular": "Campagne e-mail",
         "total_sent": "Total envoyé",
         "touch": "Point de contact",
-        "touch_1_hint": "Message d’introduction",
-        "touch_2_hint": "Relance 1",
-        "touch_3_hint": "Relance 2",
-        "touch_4_hint": "Relance 3",
-        "touch_5_hint": "Dernière relance",
+        "touch_1_hint": "Présentez votre entreprise et le problème que vous résolvez",
+        "touch_2_hint": "Partagez une étude de cas ou une preuve pertinente",
+        "touch_3_hint": "Proposez une étape concrète : appel ou échantillon",
+        "touch_4_hint": "Relancez avec une ressource à valeur ajoutée",
+        "touch_5_hint": "Terminez par une offre claire et sans friction",
         "touch_count": "Nombre de points de contact",
         "touch_count_hint": "Nombre d’étapes dans la séquence",
         "touch_number": "Numéro du point",
@@ -2651,7 +2651,7 @@
     "notifications": {
         "mark_all_read": "Tout marquer comme lu",
         "no_notifications": "Aucune notification",
-        "title": "Titre"
+        "title": "Notifications"
     },
     "pagination": {
         "entries": "entrées",
