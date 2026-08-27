@@ -83,7 +83,7 @@
                 {% if lead.websiteRoot %}
                     <div class="rams-mb-3">
                         <div class="rams-dymo">{{ 'lead.website'|trans }}</div>
-                        <div><a href="{{ lead.websiteRoot }}" target="_blank" rel="noopener noreferrer" class="rams-link">{{ lead.websiteRoot }}</a></div>
+                        <div><a href="{{ lead.websiteRoot }}" target="_blank" rel="noopener noreferrer" class="rams-link rams-url-break">{{ lead.websiteRoot }}</a></div>
                     </div>
                 {% endif %}
                 {% if lead.contactEmailsPublic|length > 0 %}

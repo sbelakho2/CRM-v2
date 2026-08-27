@@ -5321,3 +5321,11 @@ a.rams-module:hover {
     background: var(--rams-orange, #d97706);
     filter: brightness(0.92);
 }
+
+/* Long URLs: break anywhere so they never overflow their container */
+.rams-url-break {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    display: inline-block;
+    max-width: 100%;
+}
