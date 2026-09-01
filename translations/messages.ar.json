@@ -230,7 +230,8 @@
         "update_button": "تحديث",
         "user": "المستخدم",
         "users_label": "المستخدمون",
-        "view_activity": "عرض النشاط"
+        "view_activity": "عرض النشاط",
+        "activities_total": "نشاطات"
     },
     "admin": {
         "audit_log": "سجل التدقيق",

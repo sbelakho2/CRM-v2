@@ -265,13 +265,13 @@
                     <a href="{{ path('app_activity_index', {company: company.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.view'|trans }} {{ 'common.all'|trans }}</a>
                 </div>
                 <div class="rams-module__content">
-                    {% if company.activities is empty %}
+                    {% if recent_activities is empty %}
                         <div class="rams-empty-state">
                             <p class="rams-text--muted rams-text--sm">{{ 'activity.no_activities'|trans }}</p>
                         </div>
                     {% else %}
                         <div class="rams-stack rams-gap-4">
-                            {% for activity in company.activities|slice(0, 5) %}
+                            {% for activity in recent_activities %}
                                 <div class="rams-flex rams-items-start rams-gap-3">
                                     <div class="rams-andon rams-mt-1">
                                         {% if activity.type == 'Call' %}

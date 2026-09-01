@@ -173,6 +173,23 @@
                         </tbody>
                     </table>
                 </div>
+
+                {# Pagination — every page of history must stay reachable #}
+                {% if total_pages is defined and total_pages > 1 %}
+                    <div class="rams-flex rams-items-center rams-justify-between rams-gap-3 rams-mt-4 rams-px-4 rams-pb-4">
+                        <span class="rams-text--xs rams-text--muted">
+                            {{ 'pagination.page'|trans }} {{ page }} {{ 'pagination.of'|trans }} {{ total_pages }} · {{ total }} {{ 'activity.activities_total'|trans }}
+                        </span>
+                        <div class="rams-flex rams-gap-2">
+                            {% if page > 1 %}
+                                <a href="{{ path('app_activity_index', app.request.query.all|merge({page: page - 1})) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.previous'|trans }}</a>
+                            {% endif %}
+                            {% if page < total_pages %}
+                                <a href="{{ path('app_activity_index', app.request.query.all|merge({page: page + 1})) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.next'|trans }}</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
 

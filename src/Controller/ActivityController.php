@@ -135,6 +135,14 @@ class ActivityController extends AbstractController
 
         $page = max(1, (int) $request->query->get('page', 1));
         $limit = 50;
+
+        // Total matching rows (before the limit) so the template can render
+        // pagination — with only page 1 reachable, older activities were
+        // effectively hidden once a month's worth filled the first page.
+        $countQb = (clone $qb)->select('COUNT(DISTINCT a.id)');
+        $total = (int) $countQb->getQuery()->getSingleScalarResult();
+        $totalPages = max(1, (int) ceil($total / $limit));
+
         $qb->setMaxResults($limit)
            ->setFirstResult(($page - 1) * $limit);
 
@@ -184,6 +192,10 @@ class ActivityController extends AbstractController
             'current_user' => $user,
             'current_date_from' => $dateFrom,
             'current_date_to' => $dateTo,
+            'page' => $page,
+            'total_pages' => $totalPages,
+            'total' => $total,
+            'limit' => $limit,
         ]);
     }
 

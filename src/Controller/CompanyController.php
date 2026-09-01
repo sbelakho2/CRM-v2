@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Company;
 use App\Form\CompanyType;
 use App\Repository\ComplianceDocumentRepository;
+use App\Repository\ActivityRepository;
 use App\Repository\CompanyRepository;
 use App\Service\ExportService;
 use App\Service\GuidanceNotificationService;
@@ -35,6 +36,7 @@ class CompanyController extends AbstractController
 
     public function __construct(
         private CompanyRepository $companyRepository,
+        private ActivityRepository $activityRepository,
         private ComplianceDocumentRepository $complianceDocumentRepository,
         private EntityManagerInterface $entityManager,
         private ExportService $exportService,
@@ -153,8 +155,14 @@ class CompanyController extends AbstractController
         $this->guidanceService->checkIncompleteCompanyProfile($company);
         [, $sectorLabels] = $this->buildSectorOptions();
 
+        // The "Recent Activity" panel shows the five most recent activities,
+        // newest first — queried explicitly so ordering is deterministic and
+        // independent of collection hydration order.
+        $recentActivities = $this->activityRepository->findLatestByCompany($company, 5);
+
         return $this->render('company/show.html.twig', [
             'company' => $company,
+            'recent_activities' => $recentActivities,
             'sector_labels' => $sectorLabels,
         ]);
     }

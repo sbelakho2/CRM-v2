@@ -149,6 +149,13 @@ class CompanyRepository extends ServiceEntityRepository
             ->addSelect('rfqs')
             ->where('c.id = :id')
             ->setParameter('id', $id)
+            // Deterministic collection order: without ORDER BY the SQL engine
+            // picks its own row order, so "recent activity" panels sliced the
+            // collection in an arbitrary (often oldest/random) order and the
+            // newest activities never surfaced on the company page.
+            ->orderBy('activities.activityDate', 'DESC')
+            ->addOrderBy('rfqs.createdAt', 'DESC')
+            ->addOrderBy('contacts.firstName', 'ASC')
             ->getQuery()
             ->getOneOrNullResult();
     }

@@ -111,6 +111,24 @@ class ActivityRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Find the latest activities for a company, newest first, without any
+     * date window. The company detail page's "Recent Activity" panel must
+     * surface the most recent five activities regardless of age.
+     *
+     * @return Activity[]
+     */
+    public function findLatestByCompany(\App\Entity\Company $company, int $limit = 5): array
+    {
+        return $this->createQueryBuilder('a')
+            ->where('a.company = :company')
+            ->setParameter('company', $company)
+            ->orderBy('a.activityDate', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
     
     /**
      * Find activities by company

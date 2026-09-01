@@ -230,7 +230,8 @@
         "update_button": "Update Activity",
         "user": "User",
         "users_label": "Team Members",
-        "view_activity": "View Activity"
+        "view_activity": "View Activity",
+        "activities_total": "activities"
     },
     "admin": {
         "audit_log": "Audit Log",

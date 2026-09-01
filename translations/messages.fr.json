@@ -230,7 +230,8 @@
         "update_button": "Mettre à jour",
         "user": "Utilisateur",
         "users_label": "utilisateurs",
-        "view_activity": "Voir l'activité"
+        "view_activity": "Voir l'activité",
+        "activities_total": "activités"
     },
     "admin": {
         "audit_log": "Journal d'audit",
