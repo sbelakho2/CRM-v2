@@ -171,3 +171,7 @@ credentials.json
 /config/reference.php
 /playwright-report/
 /node_modules/
+# Local tooling artifacts (browser snapshots, dev router, planning files)
+/.playwright-mcp/
+/.zcode/
+/router-dev.php
