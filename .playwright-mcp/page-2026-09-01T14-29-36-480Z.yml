@@ -1,0 +1,28 @@
+- generic [active] [ref=f2e1]:
+  - link "Skip to main content" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - main [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - img "Starz Morocco CRM logo" [ref=f2e7]
+        - generic [ref=f2e8]: Starz Morocco CRM
+        - generic [ref=f2e9]: Access your control station
+      - generic [ref=f2e10]:
+        - generic [ref=f2e11]: Authentication
+        - generic [ref=f2e14]:
+          - generic [ref=f2e15]:
+            - generic [ref=f2e16]: Email
+            - textbox "Email" [ref=f2e17]:
+              - /placeholder: Enter your email address
+            - generic [ref=f2e18]: Use your company email address
+          - generic [ref=f2e19]:
+            - generic [ref=f2e20]: Password
+            - textbox "Password" [ref=f2e21]:
+              - /placeholder: Enter your password
+          - generic [ref=f2e23] [cursor=pointer]:
+            - checkbox "Remember Me" [ref=f2e24]
+            - generic [ref=f2e25]: Remember Me
+          - button "Sign In" [ref=f2e27] [cursor=pointer]
+        - link "Forgot your password?" [ref=f2e29] [cursor=pointer]:
+          - /url: /forgot-password
+      - generic [ref=f2e30]: System Online

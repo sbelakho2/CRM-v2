@@ -336,7 +336,9 @@
             "flash": {
                 "created": "Utilisateur créé avec succès !",
                 "deleted": "Utilisateur supprimé avec succès !",
-                "updated": "Utilisateur mis à jour avec succès !"
+                "updated": "Utilisateur mis à jour avec succès !",
+                "deleted_reassigned": "Utilisateur %name% supprimé. Toutes ses données ont été réassignées à %target%.",
+                "delete_needs_target": "Impossible de supprimer l'utilisateur : choisissez d'abord un autre utilisateur pour recevoir ses données."
             },
             "full_name": "Nom complet",
             "inactive": "Inactif",

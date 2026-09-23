@@ -336,7 +336,9 @@
             "flash": {
                 "created": "User created successfully!",
                 "deleted": "User deleted successfully!",
-                "updated": "User updated successfully!"
+                "updated": "User updated successfully!",
+                "deleted_reassigned": "User %name% deleted. All their data was reassigned to %target%.",
+                "delete_needs_target": "Cannot delete the user: choose another user to receive their data first."
             },
             "full_name": "Full Name",
             "inactive": "Inactive",

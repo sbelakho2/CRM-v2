@@ -1,0 +1,229 @@
+- generic [active] [ref=f5e1]:
+  - link "Skip to main content" [ref=f5e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - navigation "Navigation" [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - img "Starz Morocco CRM logo" [ref=f5e6]
+      - generic [ref=f5e7]:
+        - generic [ref=f5e8]: Starz Morocco CRM
+        - generic [ref=f5e9]: Control Station
+    - navigation [ref=f5e10]:
+      - list [ref=f5e11]:
+        - listitem [ref=f5e12]:
+          - button "Quick Links" [expanded] [ref=f5e13] [cursor=pointer]
+          - list [ref=f5e17]:
+            - listitem [ref=f5e18]:
+              - link "Command Center" [ref=f5e19] [cursor=pointer]:
+                - /url: /command-center
+            - listitem [ref=f5e25]:
+              - link "Leads" [ref=f5e26] [cursor=pointer]:
+                - /url: /leads/review
+            - listitem [ref=f5e32]:
+              - link "Quotes" [ref=f5e33] [cursor=pointer]:
+                - /url: /quote-copilot/quotes
+            - listitem [ref=f5e39]:
+              - link "Discovery Pipeline" [ref=f5e40] [cursor=pointer]:
+                - /url: /discovery-pipeline
+        - listitem [ref=f5e48]:
+          - button "Core CRM" [expanded] [ref=f5e49] [cursor=pointer]
+          - list [ref=f5e53]:
+            - listitem [ref=f5e54]:
+              - link "Dashboard" [ref=f5e55] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f5e63]:
+              - link "Companies" [ref=f5e64] [cursor=pointer]:
+                - /url: /companies
+              - link "Add Company" [ref=f5e71] [cursor=pointer]:
+                - /url: /companies/new
+            - listitem [ref=f5e74]:
+              - link "Contacts" [ref=f5e75] [cursor=pointer]:
+                - /url: /contacts
+              - link "Add Contact" [ref=f5e81] [cursor=pointer]:
+                - /url: /contacts/new
+            - listitem [ref=f5e84]:
+              - link "Activities" [ref=f5e85] [cursor=pointer]:
+                - /url: /activities
+              - link "Add Activity" [ref=f5e91] [cursor=pointer]:
+                - /url: /activities/new
+            - listitem [ref=f5e94]:
+              - link "Tasks" [ref=f5e95] [cursor=pointer]:
+                - /url: /tasks
+              - link "Add Task" [ref=f5e101] [cursor=pointer]:
+                - /url: /tasks/new
+            - listitem [ref=f5e104]:
+              - link "Calendar" [ref=f5e105] [cursor=pointer]:
+                - /url: /calendar
+              - link "Add Event" [ref=f5e111] [cursor=pointer]:
+                - /url: /calendar/new
+            - listitem [ref=f5e114]:
+              - link "Meetings" [ref=f5e115] [cursor=pointer]:
+                - /url: /meetings
+              - link "Add Meeting" [ref=f5e122] [cursor=pointer]:
+                - /url: /meetings/new
+        - listitem [ref=f5e125]:
+          - button "Sales & Pipeline" [ref=f5e126] [cursor=pointer]
+        - listitem [ref=f5e130]:
+          - button "Growth & Marketing" [ref=f5e131] [cursor=pointer]
+        - listitem [ref=f5e135]:
+          - button "Quoting Engine" [ref=f5e136] [cursor=pointer]
+        - listitem [ref=f5e140]:
+          - button "Operations" [ref=f5e141] [cursor=pointer]
+        - listitem [ref=f5e145]:
+          - button "Administration" [ref=f5e146] [cursor=pointer]
+    - generic [ref=f5e150]:
+      - generic [ref=f5e151]:
+        - button "Notifications" [ref=f5e152] [cursor=pointer]:
+          - generic [ref=f5e156]: "0"
+        - link "Test User" [ref=f5e158] [cursor=pointer]:
+          - /url: /profile
+        - link "Logout" [ref=f5e164] [cursor=pointer]:
+          - /url: /logout
+      - generic [ref=f5e169]: Operational
+  - main "Main content" [ref=f5e173]:
+    - status [ref=f5e174]:
+      - generic [ref=f5e175]: Operational
+      - generic [ref=f5e178]: System Status · EN · OS Ver
+    - generic:
+      - generic [ref=f5e180]:
+        - generic [ref=f5e184]:
+          - generic [ref=f5e185]:
+            - generic [ref=f5e186]: Warning
+            - generic [ref=f5e187]: 14:30
+          - paragraph [ref=f5e188]: "Missing: Contacts"
+        - generic [ref=f5e189]:
+          - link "Complete Profile" [ref=f5e190] [cursor=pointer]:
+            - /url: /companies/1/edit
+          - button "Close" [ref=f5e191] [cursor=pointer]
+      - generic [ref=f5e194]:
+        - generic [ref=f5e198]:
+          - generic [ref=f5e199]:
+            - generic [ref=f5e200]: Warning
+            - generic [ref=f5e201]: 14:31
+          - paragraph [ref=f5e202]: "Missing: Contacts"
+        - generic [ref=f5e203]:
+          - link "Complete Profile" [ref=f5e204] [cursor=pointer]:
+            - /url: /companies/1/edit
+          - button "Close" [ref=f5e205] [cursor=pointer]
+      - generic [ref=f5e208]:
+        - generic [ref=f5e212]:
+          - generic [ref=f5e213]:
+            - generic [ref=f5e214]: Warning
+            - generic [ref=f5e215]: 14:41
+          - paragraph [ref=f5e216]: "Missing: Contacts"
+        - generic [ref=f5e217]:
+          - link "Complete Profile" [ref=f5e218] [cursor=pointer]:
+            - /url: /companies/1/edit
+          - button "Close" [ref=f5e219] [cursor=pointer]
+    - generic [ref=f5e222]:
+      - navigation "Breadcrumb" [ref=f5e223]:
+        - list [ref=f5e224]:
+          - listitem [ref=f5e225]:
+            - link "Dashboard" [ref=f5e226] [cursor=pointer]:
+              - /url: /
+          - listitem [ref=f5e227]: /
+          - listitem [ref=f5e228]:
+            - link "Companies" [ref=f5e229] [cursor=pointer]:
+              - /url: /companies
+          - listitem [ref=f5e230]: /
+          - listitem [ref=f5e231]: Emerson Test
+      - generic [ref=f5e232]:
+        - generic [ref=f5e233]:
+          - heading "Emerson Test" [level=1] [ref=f5e234]
+          - generic [ref=f5e235]:
+            - generic [ref=f5e236]: Power Electronics
+            - generic [ref=f5e237]: Approved — Not in Compliance
+            - generic [ref=f5e238]: Account Tier Tier C
+            - generic [ref=f5e239]: Prospect
+        - generic [ref=f5e241]:
+          - button "Activate for Compliance" [ref=f5e243] [cursor=pointer]
+          - link "Edit" [ref=f5e246] [cursor=pointer]:
+            - /url: /companies/1/edit
+          - button "Delete" [ref=f5e250] [cursor=pointer]
+      - generic [ref=f5e253]:
+        - generic [ref=f5e254]:
+          - generic [ref=f5e255]:
+            - heading "Company Details" [level=2] [ref=f5e257]
+            - generic [ref=f5e259]:
+              - generic [ref=f5e260]:
+                - term [ref=f5e261]: Sector
+                - definition [ref=f5e262]: Power Electronics
+              - generic [ref=f5e263]:
+                - term [ref=f5e264]: Account Tier
+                - definition [ref=f5e265]: Tier C
+              - generic [ref=f5e266]:
+                - term [ref=f5e267]: Pipeline Stage
+                - definition [ref=f5e268]: Prospect
+              - generic [ref=f5e269]:
+                - term [ref=f5e270]: Website
+                - definition [ref=f5e271]:
+                  - link "emerson.com/en/corporate/global/mea/Saudi-Local-Manufacturing-Capabilities" [ref=f5e272] [cursor=pointer]:
+                    - /url: www.emerson.com/en/corporate/global/mea/Saudi-Local-Manufacturing-Capabilities
+              - generic [ref=f5e275]:
+                - term [ref=f5e276]: Created At
+                - definition [ref=f5e277]: Aug 27, 2026
+              - generic [ref=f5e278]:
+                - term [ref=f5e279]: Updated At
+                - definition [ref=f5e280]: Aug 27, 2026
+          - generic [ref=f5e281]:
+            - generic [ref=f5e282]:
+              - heading "Contacts" [level=2] [ref=f5e283]
+              - link "Add" [ref=f5e284] [cursor=pointer]:
+                - /url: /contacts/new?company_id=1
+            - paragraph [ref=f5e289]: No contacts found.
+          - generic [ref=f5e290]:
+            - generic [ref=f5e291]:
+              - heading "Recent Activity" [level=2] [ref=f5e292]
+              - link "View All" [ref=f5e293] [cursor=pointer]:
+                - /url: /activities?company=1
+            - generic [ref=f5e295]:
+              - generic [ref=f5e299]:
+                - generic [ref=f5e300]:
+                  - generic [ref=f5e301]: Meeting
+                  - generic [ref=f5e302]: Sep 01, 2026
+                - paragraph [ref=f5e303]: NEWEST Sep01-2
+              - generic [ref=f5e307]:
+                - generic [ref=f5e308]:
+                  - generic [ref=f5e309]: Meeting
+                  - generic [ref=f5e310]: Sep 01, 2026
+                - paragraph [ref=f5e311]: NEW Sep1
+              - generic [ref=f5e315]:
+                - generic [ref=f5e316]:
+                  - generic [ref=f5e317]: Call
+                  - generic [ref=f5e318]: Aug 30, 2026
+                - paragraph [ref=f5e319]: NEW2 Aug30
+              - generic [ref=f5e323]:
+                - generic [ref=f5e324]:
+                  - generic [ref=f5e325]: Email
+                  - generic [ref=f5e326]: Aug 25, 2026
+                - paragraph [ref=f5e327]: MID2 Aug25
+              - generic [ref=f5e331]:
+                - generic [ref=f5e332]:
+                  - generic [ref=f5e333]: Email
+                  - generic [ref=f5e334]: Aug 20, 2026
+                - paragraph [ref=f5e335]: MID Aug20
+        - generic [ref=f5e336]:
+          - generic [ref=f5e337]:
+            - heading "Actions" [level=2] [ref=f5e339]
+            - generic [ref=f5e341]:
+              - link [ref=f5e342] [cursor=pointer]:
+                - /url: www.emerson.com/en/corporate/global/mea/Saudi-Local-Manufacturing-Capabilities
+                - text: 🌐
+                - generic [ref=f5e343]:
+                  - paragraph [ref=f5e344]: Website
+                  - paragraph [ref=f5e345]: www.emerson.com/en/corporate/global/mea/Saudi-Local-Manufacturing-Capabilities
+              - link "New RFQ" [ref=f5e346] [cursor=pointer]:
+                - /url: /rfq/new?company=1
+              - link "Log Activity" [ref=f5e347] [cursor=pointer]:
+                - /url: /activities/new?company=1&redirect=app_company_show&redirect_params=%7B%22id%22:1%7D
+          - generic [ref=f5e348]:
+            - heading "Statistics" [level=2] [ref=f5e350]
+            - generic [ref=f5e352]:
+              - generic [ref=f5e353]:
+                - generic [ref=f5e354]: Contacts
+                - generic [ref=f5e355]: "0"
+              - generic [ref=f5e356]:
+                - generic [ref=f5e357]: Activities
+                - generic [ref=f5e358]: "9"
+              - generic [ref=f5e359]:
+                - generic [ref=f5e360]: RFQs
+                - generic [ref=f5e361]: "0"

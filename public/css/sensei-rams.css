@@ -4868,9 +4868,40 @@ a.rams-module:hover {
         text-overflow: clip;
     }
 
-    .rams-table__cell--actions {
-        white-space: normal;
+    /* Specificity must beat the generic `.rams-table td` rule, whose
+       white-space:normal + word-break:break-word wrapped "Delete" per
+       character on narrow screens. */
+    /* Tables with several columns (e.g. Administration ▸ Users) cannot fit a
+       phone width: keep usable column widths and let the container scroll
+       horizontally instead of squeezing cells (which wrapped button labels
+       per character). */
+    .rams-table-container--scroll-mobile .rams-table {
+        min-width: 600px;
+        /* table-layout:fixed (set for mobile tables below) ignores content
+           widths, collapsing the actions column and wrapping its button
+           labels per character. Content-sized columns + a scrolling
+           container keep every label on one line. */
+        table-layout: auto;
+    }
+
+    .rams-table td.rams-table__cell--actions {
+        /* Never let button labels wrap per character. No width constraint: a
+           percentage width collapsed the column and pushed the labels out. */
+        white-space: nowrap;
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+
+    /* min-width is ignored on <td>; the inner wrapper carries the minimum so
+       the starved actions column cannot collapse to a few pixels. */
+    .rams-table__cell--actions .rams-btn-group {
         min-width: 120px;
+        width: max-content;
+    }
+
+    .rams-table__cell--actions .rams-btn,
+    .rams-table__cell--actions .rams-inline-block {
+        white-space: nowrap;
     }
 
     .rams-table__cell--actions form {
@@ -4883,7 +4914,11 @@ a.rams-module:hover {
     }
 
     .rams-table__cell--actions .rams-btn {
-        width: 100%;
+        /* Natural width: a 100%-wide button gives the actions column a
+           min-content of zero, which collapsed the column and pushed the
+           labels out of their cell. */
+        width: auto;
+        white-space: nowrap;
         justify-content: center;
     }
 

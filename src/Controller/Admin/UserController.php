@@ -102,19 +102,71 @@ class UserController extends AbstractController
             return $this->redirectToRoute('admin_user_index');
         }
 
-        try {
-            // FK integrity is handled by DB-level ON DELETE rules:
-            //   CASCADE: activities, calendar_events.organizer_id, meeting_slots.owner_id,
-            //            notifications, report_definitions, tasks.created_by_id
-            //   SET NULL: audit_logs.user_id, custom_field_definitions.created_by_id,
-            //             tasks.assigned_to_id, calendar_event_attendees via join table
-            $em->remove($user);
-            $em->flush();
+        // Never let a user deletion destroy data: reassign everything the user
+        // owns/created to a target user first (explicit reassign_to, otherwise
+        // the acting admin), then remove the account. The DB-level ON DELETE
+        // CASCADE rules would otherwise silently delete activities, tasks,
+        // calendar events, meeting slots, notifications and report definitions.
+        $actingAdmin = $this->getUser();
+        $targetId = $request->request->get('reassign_to');
+        $target = null;
 
-            $this->addFlash('success', $translator->trans('administration.users.flash.deleted'));
-        } catch (\Throwable $e) {
-            throw $e;
+        if ($targetId !== null && $targetId !== '') {
+            $candidate = $em->getRepository(User::class)->find((int) $targetId);
+            if ($candidate && $candidate->getId() !== $user->getId()) {
+                $target = $candidate;
+            }
         }
+
+        if ($target === null && $actingAdmin instanceof User && $actingAdmin->getId() !== $user->getId()) {
+            $target = $actingAdmin;
+        }
+
+        if ($target === null) {
+            $this->addFlash('error', $translator->trans('administration.users.flash.delete_needs_target'));
+
+            return $this->redirectToRoute('admin_user_index');
+        }
+
+        $userFullName = trim(($user->getFirstName() ?? '') . ' ' . ($user->getLastName() ?? ''));
+        $userId = $user->getId();
+        $connection = $em->getConnection();
+
+        $em->wrapInTransaction(function () use ($connection, $userId, $userFullName, $target): void {
+            $targetId = $target->getId();
+
+            // Integer foreign keys (cascade or set-null on user delete).
+            $connection->executeStatement('UPDATE activities SET user_id = :t WHERE user_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE tasks SET created_by_id = :t WHERE created_by_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE tasks SET assigned_to_id = :t WHERE assigned_to_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE calendar_events SET organizer_id = :t WHERE organizer_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE calendar_event_attendees SET user_id = :t WHERE user_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE meeting_slots SET owner_id = :t WHERE owner_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE notification SET user_id = :t WHERE user_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE report_definitions SET created_by_id = :t WHERE created_by_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE custom_field_definitions SET created_by_id = :t WHERE created_by_id = :u', ['t' => $targetId, 'u' => $userId]);
+            $connection->executeStatement('UPDATE audit_logs SET user_id = :t WHERE user_id = :u', ['t' => $targetId, 'u' => $userId]);
+
+            // Textual owner references (stored as display names).
+            if ($userFullName !== '') {
+                $targetFullName = trim(($target->getFirstName() ?? '') . ' ' . ($target->getLastName() ?? ''));
+                foreach (['leads' => 'owner_rep', 'email_segment' => 'created_by', 'email_template' => 'created_by', 'rfq_versions' => 'created_by'] as $table => $column) {
+                    $connection->executeStatement(
+                        sprintf('UPDATE %s SET %s = :t WHERE %s = :u', $table, $column, $column),
+                        ['t' => $targetFullName, 'u' => $userFullName]
+                    );
+                }
+            }
+        });
+
+        $em->refresh($user);
+        $em->remove($user);
+        $em->flush();
+
+        $this->addFlash('success', $translator->trans('administration.users.flash.deleted_reassigned', [
+            '%name%' => $userFullName,
+            '%target%' => trim(($target->getFirstName() ?? '') . ' ' . ($target->getLastName() ?? '')),
+        ]));
 
         return $this->redirectToRoute('admin_user_index');
     }
