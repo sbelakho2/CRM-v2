@@ -106,8 +106,10 @@ steps:
         # On failure, surface the application log tail (mailer and service
         # errors are caught-and-logged in controllers, invisible to phpunit).
         vendor/bin/phpunit || {
-          echo '---- mailer/meeting errors ----'
-          grep -niE "failed to send|meeting_confirmation|transport|mailer" var/log/test.log 2>/dev/null | tail -30 || true
+          echo '---- meeting booking requests ----'
+          grep -niE "meetings/book|meeting_booking|book_slot" var/log/test.log 2>/dev/null | tail -20 || true
+          echo '---- dispatch + errors ----'
+          grep -niE "SendEmailMessage|confirmation|ERROR|CRITICAL" var/log/test.log 2>/dev/null | tail -40 || true
           exit 1
         }
 
