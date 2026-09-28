@@ -83,6 +83,9 @@ steps:
       # .env.example declares semaphore:// for prod Linux; the macOS worker
       # must use flock.
       LOCK_DSN: flock
+      # Local-backend agents inherit the worker user's global environment;
+      # pin the null mail transport so no real SMTP is ever contacted.
+      MAILER_DSN: null://null
     commands:
       - |
         set -eu
@@ -105,13 +108,9 @@ steps:
         set -eu
         # On failure, surface the application log tail (mailer and service
         # errors are caught-and-logged in controllers, invisible to phpunit).
-        php -r '$_SERVER["APP_ENV"]="test"; require "vendor/autoload.php"; (new Symfony\Component\Dotenv\Dotenv())->bootEnv(".env"); echo "RESOLVED MAILER_DSN=", $_SERVER["MAILER_DSN"] ?? "?", "\n";' || true
-        env | grep -E "^(MAILER|APP_ENV)" || true
         vendor/bin/phpunit || {
-          echo '---- meeting booking requests ----'
-          grep -niE "meetings/book|meeting_booking|book_slot" var/log/test.log 2>/dev/null | tail -20 || true
-          echo '---- dispatch + errors ----'
-          grep -niE "SendEmailMessage|confirmation|ERROR|CRITICAL" var/log/test.log 2>/dev/null | tail -40 || true
+          echo '---- mailer/meeting errors ----'
+          grep -niE "failed to send|ERROR|CRITICAL" var/log/test.log 2>/dev/null | tail -20 || true
           exit 1
         }
 
