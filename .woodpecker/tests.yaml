@@ -103,7 +103,13 @@ steps:
     commands:
       - |
         set -eu
-        vendor/bin/phpunit
+        # On failure, surface the application log tail (mailer and service
+        # errors are caught-and-logged in controllers, invisible to phpunit).
+        vendor/bin/phpunit || {
+          echo '---- var/log/test.log tail ----'
+          tail -n 80 var/log/test.log 2>/dev/null || true
+          exit 1
+        }
 
   cleanup:
     image: bash
