@@ -175,6 +175,15 @@ class RouteCrawlTest extends WebTestCase
         $doc->setFilePath('crawl-cert.pdf');
         $em->persist($doc);
 
+        // The download route serves this file: create it so the fixture is
+        // self-contained in fresh checkouts (no dependency on untracked
+        // local files under var/uploads).
+        $uploadDir = static::getContainer()->getParameter('kernel.project_dir') . '/var/uploads/compliance';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0775, true);
+        }
+        file_put_contents($uploadDir . '/crawl-cert.pdf', '%PDF-1.4 crawl fixture');
+
         $playbook = new Playbook();
         $playbook->setName('Crawl Playbook');
         $playbook->setDescription('A playbook');

@@ -38,7 +38,10 @@ final class LocalSearxngProvider extends GoogleCSEProvider
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         LoggerInterface $logger,
-        #[Autowire('%env(default::SEARXNG_BASE_URL)%')]
+        // `default::` without a named fallback resolves to null when the env
+        // var is unset, which breaks container compilation (string arg). Use
+        // a named parameter fallback equal to the historical default.
+        #[Autowire('%env(default:app.searxng_base_url_fallback:SEARXNG_BASE_URL)%')]
         private readonly string $baseUrl = self::DEFAULT_BASE_URL,
     ) {
         parent::__construct(

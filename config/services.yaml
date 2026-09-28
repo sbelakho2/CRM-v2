@@ -19,6 +19,7 @@ parameters:
   # accounts must be created by an admin (or via a future invitation flow).
   # Set ALLOW_PUBLIC_REGISTRATION=1 only if open signup is deliberate policy.
   app.public_registration_fallback: '0'
+  app.searxng_base_url_fallback: 'http://127.0.0.1:8888'
   app.public_registration_enabled: "%env(bool:default:app.public_registration_fallback:ALLOW_PUBLIC_REGISTRATION)%"
   app.resend_verification_enabled: true
 
