@@ -1,0 +1,123 @@
+# .woodpecker/audit.yaml — adversarial static gates.
+#
+# Runs on the local macOS worker (local backend, no container isolation):
+#   checkout -> toolchain -> composer validation -> static analysis ->
+#   destructive-migration gate -> secrets gate -> dangerous-pattern gate.
+#
+# SECURITY - LOCAL BACKEND, NO ISOLATION: commands run directly on the worker
+# host as the agent user. `when` is restricted to push/manual/tag (trusted
+# events only — write access required); never add pull_request events here.
+#
+# The clone step is manual (skip_clone) because plugin-git is not guaranteed
+# in PATH on this worker; the workspace (CI_WORKSPACE) is created by the
+# local backend before the first step.
+labels:
+  platform: darwin/arm64
+  backend: local
+
+when:
+  - event: [push, manual, tag]
+
+skip_clone: true
+
+steps:
+  checkout:
+    image: bash
+    commands:
+      - |
+        set -eu
+        git -C "$CI_WORKSPACE" init -q
+        git -C "$CI_WORKSPACE" remote add origin "$CI_REPO_CLONE_URL" || git -C "$CI_WORKSPACE" remote set-url origin "$CI_REPO_CLONE_URL"
+        git -C "$CI_WORKSPACE" fetch -q --force origin "$CI_COMMIT_REF"
+        git -C "$CI_WORKSPACE" checkout -q --detach "$CI_COMMIT_SHA"
+        test "$(git -C "$CI_WORKSPACE" rev-parse HEAD)" = "$CI_COMMIT_SHA"
+
+  toolchain:
+    image: bash
+    depends_on: [checkout]
+    commands:
+      - |
+        set -eu
+        php -v | head -1
+        composer --version
+        php -m | grep -E '^(pdo_mysql|intl|mbstring|xml|curl)$' | sort
+        test "$(php -r 'echo PHP_VERSION_ID;')" -ge 80200
+
+  composer-validate:
+    image: bash
+    depends_on: [toolchain]
+    commands:
+      - |
+        set -eu
+        export PATH="/opt/homebrew/bin:$PATH"
+        composer validate --strict --no-check-publish
+      # composer.lock freshness is validated by `composer install` failing
+      # below when the lock is out of sync with composer.json.
+
+  composer-install:
+    image: bash
+    depends_on: [composer-validate]
+    commands:
+      - |
+        set -eu
+        export PATH="/opt/homebrew/bin:$PATH"
+        composer install --no-interaction --no-progress --prefer-dist
+
+  php-syntax:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        fail=0
+        while IFS= read -r file; do
+          php -l "$file" >/dev/null || fail=1
+        done < <(find src tests migrations config public/index.php -name '*.php' -type f)
+        test "$fail" -eq 0
+
+  container-twig-lint:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        php bin/console lint:container --env=dev
+        php bin/console lint:twig templates/
+
+  doctrine-mapping:
+    image: bash
+    depends_on: [composer-install]
+    environment:
+      APP_ENV: test
+      DATABASE_URL: mysql://unused:unused@127.0.0.1:1/unused
+    commands:
+      - |
+        set -eu
+        php bin/console doctrine:schema:validate --skip-sync --env=test
+
+  migration-gate:
+    image: bash
+    depends_on: [checkout]
+    commands:
+      - php scripts/ci/check-migrations.php
+
+  secrets-gate:
+    image: bash
+    depends_on: [checkout]
+    commands:
+      - bash scripts/ci/check-secrets.sh
+
+  dangerous-patterns-gate:
+    image: bash
+    depends_on: [checkout]
+    commands:
+      - php scripts/ci/check-dangerous-patterns.php
+
+  composer-audit:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        export PATH="/opt/homebrew/bin:$PATH"
+        composer audit --locked

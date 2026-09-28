@@ -13,7 +13,13 @@
         <ini name="error_reporting" value="-1" />
         <ini name="memory_limit" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
-        <server name="DATABASE_URL" value="mysql://root:@127.0.0.1:3308/starz_crm?charset=utf8mb4" force="true" />
+        <!-- Test-only database. The test environment appends dbname_suffix
+             "_test" (config/packages/test/config_test.yaml), so the effective
+             name is starz_crm_test — a dedicated throwaway database, never
+             the live CRM. App\Tests\Bootstrap\TestDatabaseGuard fail-closes
+             any destructive operation against a non-_test database. Without
+             force= so CI can inject its own DATABASE_URL. -->
+        <server name="DATABASE_URL" value="mysql://crm_test:crm_test_pw@127.0.0.1:3309/crm_ci?charset=utf8mb4" />
         <server name="SHELL_VERBOSITY" value="-1" />
         <server name="SYMFONY_PHPUNIT_REMOVE" value="" />
         <server name="SYMFONY_PHPUNIT_VERSION" value="9.5" />

@@ -117,8 +117,8 @@
 </div>
 
 <script>
-const triggerGroupsRaw = {{ availableTriggers|json_encode|raw }};
-const actionMapRaw = {{ availableActions|json_encode|raw }};
+const triggerGroupsRaw = {{ availableTriggers|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
+const actionMapRaw = {{ availableActions|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
 const availableTriggers = Object.values(triggerGroupsRaw || {}).flatMap(group => group.triggers || []);
 const availableActions = Object.entries(actionMapRaw || {}).map(([key, action]) => ({
     type: key,
@@ -139,8 +139,8 @@ const i18n = {
     valuePlaceholder: '{{ 'playbook.rule.value_placeholder'|trans|e('js') }}'
 };
 
-let triggerRules = JSON.parse({{ playbook.triggerRules|json_encode|raw }}) || [];
-let actions = JSON.parse({{ playbook.actions|json_encode|raw }}) || [];
+let triggerRules = JSON.parse({{ playbook.triggerRules|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }}) || [];
+let actions = JSON.parse({{ playbook.actions|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }}) || [];
 
 // Load existing trigger rules
 triggerRules.forEach((rule, index) => {

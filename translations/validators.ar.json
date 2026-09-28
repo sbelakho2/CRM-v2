@@ -3,5 +3,6 @@
   "validation.email": "يرجى إدخال بريد إلكتروني صحيح.",
   "validation.url": "يرجى إدخال رابط صحيح.",
   "validation.min_length": "يجب أن تتكون كلمة المرور من {{ limit }} أحرف على الأقل.",
-  "validation.password_mismatch": "كلمتا المرور غير متطابقتين."
+  "validation.password_mismatch": "كلمتا المرور غير متطابقتين.",
+  "validation.password_min_length": "يجب أن يتكون كلمة المرور من 12 حرفاً على الأقل ويجب ألا تظهر في تسريبات البيانات المعروفة."
 }

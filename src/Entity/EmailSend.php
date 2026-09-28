@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'email_sends')]
 #[ORM\Index(name: 'idx_email_sends_campaign', columns: ['campaign_id'])]
 #[ORM\Index(name: 'idx_email_sends_contact', columns: ['contact_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_email_sends_touch', columns: ['campaign_id', 'contact_id', 'touch_number'])]
 #[ORM\HasLifecycleCallbacks]
 class EmailSend
 {

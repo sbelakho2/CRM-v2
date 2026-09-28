@@ -46,4 +46,27 @@ class EmailSendRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Find the record of an already-delivered (or in-flight) campaign touch.
+     *
+     * Used for per-(campaign, contact, touch) idempotency: if a sent/sending
+     * row exists, a redelivered worker message must not email the customer a
+     * second time for the same touch.
+     */
+    public function findSentTouch(int $campaignId, int $contactId, int $touchNumber): ?EmailSend
+    {
+        return $this->createQueryBuilder('e')
+            ->where('e.campaign = :campaignId')
+            ->andWhere('e.contact = :contactId')
+            ->andWhere('e.touchNumber = :touchNumber')
+            ->andWhere('e.status IN (:statuses)')
+            ->setParameter('campaignId', $campaignId)
+            ->setParameter('contactId', $contactId)
+            ->setParameter('touchNumber', $touchNumber)
+            ->setParameter('statuses', [EmailSend::STATUS_SENT, EmailSend::STATUS_SENDING])
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

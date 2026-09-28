@@ -89,9 +89,13 @@ class EmailCampaignControllerTest extends WebTestCase
     {
         parent::tearDown();
         
-        // Clean up the database
+        // Clean up the database. History FKs are ON DELETE RESTRICT now, so
+        // the cleanup disables FK checks instead of relying on cascades.
+        $connection = $this->entityManager->getConnection();
+        $connection->executeStatement('SET FOREIGN_KEY_CHECKS=0');
         $this->entityManager->createQuery('DELETE FROM App\Entity\EmailCampaign')->execute();
         $this->entityManager->createQuery('DELETE FROM App\Entity\User')->execute();
+        $connection->executeStatement('SET FOREIGN_KEY_CHECKS=1');
         
         $this->entityManager->close();
         $this->entityManager = null;

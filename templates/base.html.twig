@@ -460,10 +460,11 @@
                 </div>
                 
                 {# System Status #}
+                {% set sys_health = system_health() %}
                 <div class="rams-sidebar__status rams-mt-3">
                     <div class="rams-andon">
-                        <span class="rams-andon__light rams-andon__light--green"></span>
-                        <span class="rams-andon__text rams-andon__text--green">{{ 'status_bar.operational'|trans }}</span>
+                        <span class="rams-andon__light rams-andon__light--{{ sys_health == 'healthy' ? 'green' : 'yellow' }}"></span>
+                        <span class="rams-andon__text rams-andon__text--{{ sys_health == 'healthy' ? 'green' : '' }}">{{ sys_health == 'healthy' ? 'status_bar.operational'|trans : 'status_bar.degraded'|trans }}</span>
                     </div>
                 </div>
             </div>
@@ -479,8 +480,8 @@
         {% if not isAuthPage %}
         <div class="rams-status-bar" role="status" aria-live="polite">
             <div class="rams-status-bar__item">
-                <span class="rams-andon__light rams-andon__light--green" aria-hidden="true"></span>
-                <span class="rams-status-bar__text">{{ 'status_bar.operational'|trans }}</span>
+                <span class="rams-andon__light rams-andon__light--{{ system_health() == 'healthy' ? 'green' : 'yellow' }}" aria-hidden="true"></span>
+                <span class="rams-status-bar__text">{{ system_health() == 'healthy' ? 'status_bar.operational'|trans : 'status_bar.degraded'|trans }}</span>
             </div>
             <div class="rams-status-bar__item rams-status-bar__item--meta">
                 <span class="rams-status-bar__meta">{{ 'status_bar.system_status'|trans }} · {{ app.request.locale|upper }} · {{ 'status_bar.os_version'|trans }}</span>

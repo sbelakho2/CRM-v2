@@ -9,6 +9,7 @@ use App\Entity\EmailSend;
 use App\Entity\Contact;
 use App\Repository\EmailCampaignRepository;
 use App\Repository\EmailSendRepository;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
@@ -48,14 +49,36 @@ class EmailCampaignService
     }
 
     /**
-     * Send email to contact as part of campaign
+     * Send email to contact as part of campaign.
      *
-     * Persists a 'queued' EmailSend first, transitions to 'sending' before the
-     * mailer call, and only marks the send 'sent' after the mailer succeeds.
-     * On failure the send is marked 'failed' and false is returned.
+     * Idempotent per (campaign, contact, touch): if this touch was already
+     * sent (or is being sent) the call is a no-op returning true, so a worker
+     * crash + redelivery can never duplicate a customer email. Persists a
+     * 'queued' EmailSend first, transitions to 'sending' before the mailer
+     * call, and only marks the send 'sent' after the mailer succeeds. On
+     * failure the send is marked 'failed' and false is returned.
      */
     public function sendToContact(EmailCampaign $campaign, Contact $contact, int $touchNumber): bool
     {
+        // Already-sent guard: a redelivered message (worker died after SMTP
+        // accept, Messenger retry, manual re-dispatch) must not email the
+        // customer twice for the same campaign touch.
+        $existing = $this->sendRepository->findSentTouch(
+            $campaign->getId(),
+            (int) $contact->getId(),
+            $touchNumber
+        );
+        if ($existing !== null) {
+            $this->logger->info('Skipping duplicate campaign touch (already sent)', [
+                'campaign_id' => $campaign->getId(),
+                'contact_id' => $contact->getId(),
+                'touch_number' => $touchNumber,
+                'existing_email_send_id' => $existing->getId(),
+            ]);
+
+            return true;
+        }
+
         // Create send record in 'queued' state — reflects reality until the
         // mailer actually accepts the message.
         $send = new EmailSend();
@@ -66,7 +89,15 @@ class EmailCampaignService
         $send->setStatus(EmailSend::STATUS_QUEUED);
 
         $this->entityManager->persist($send);
-        $this->entityManager->flush();
+
+        try {
+            $this->entityManager->flush();
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent worker won the race for this touch — treat as sent.
+            $this->entityManager->clear();
+
+            return true;
+        }
 
         try {
             // Send actual email with tracking

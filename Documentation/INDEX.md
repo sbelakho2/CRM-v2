@@ -199,8 +199,8 @@ php bin/console app:discover-companies --sector=Automotive --region=EU
 | Item | Value |
 |------|-------|
 | **Domain** | https://www.starzcrm.com |
-| **Server IP** | 77.42.65.89 |
-| **SSH** | `ssh -i ~/.ssh/hetzner-db-mac ubuntu@77.42.65.89` |
+| **Server IP** | $PRODUCTION_HOST |
+| **SSH** | `ssh -i $SSH_KEY ubuntu@$PRODUCTION_HOST` |
 | **OS** | Ubuntu 24.04.3 LTS |
 | **Stack** | PHP 8.4, Nginx, MySQL 8.0 |
 

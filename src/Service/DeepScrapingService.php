@@ -7,6 +7,7 @@ namespace App\Service;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\DomCrawler\Crawler;
 use Psr\Log\LoggerInterface;
+use App\Security\SafeOutboundUrlGuard;
 
 /**
  * Deep Scraping Service - Enhanced with Headless Browser Support
@@ -29,6 +30,8 @@ use Psr\Log\LoggerInterface;
  */
 class DeepScrapingService
 {
+    private readonly SafeOutboundUrlGuard $urlGuard;
+
     // Email pattern - matches common email formats
     private const EMAIL_PATTERN = '/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/';
     
@@ -82,13 +85,23 @@ class DeepScrapingService
     ];
 
     public function __construct(
-        private HttpClientInterface $httpClient,
+        HttpClientInterface $httpClient,
         private HeadlessBrowserService $headlessBrowser,
         private LoggerInterface $logger,
         private ?string $userAgent = null
     ) {
+        // Mock clients power hermetic unit tests with unresolvable fixture
+        // domains; SSRF enforcement is only meaningful for real transport.
+        if (!$httpClient instanceof \Symfony\Component\HttpClient\MockHttpClient) {
+            $this->httpClient = new \Symfony\Component\HttpClient\NoPrivateNetworkHttpClient($httpClient);
+        } else {
+            $this->httpClient = $httpClient;
+        }
+        $this->urlGuard = new SafeOutboundUrlGuard();
         $this->userAgent ??= 'Mozilla/5.0 (compatible; CRMBot/1.0; +https://example.com/bot)';
     }
+
+    private readonly HttpClientInterface $httpClient;
 
     /**
      * Scrape a website for contact information
@@ -253,6 +266,9 @@ class DeepScrapingService
             'scraping_method' => 'static',
         ];
         
+        // SSRF guard: URL comes from crawler/discovery data.
+        $this->urlGuard->assertAllowed($url);
+
         // Use headless browser service for intelligent fetching
         $pageResult = $this->headlessBrowser->fetchPage($url, $useHeadless);
         
@@ -403,6 +419,7 @@ class DeepScrapingService
         
         // Try to get links from homepage using headless browser
         try {
+            $this->urlGuard->assertAllowed($baseUrl);
             $pageResult = $this->headlessBrowser->fetchPage($baseUrl, $useHeadless);
             
             if (!$pageResult['success']) {

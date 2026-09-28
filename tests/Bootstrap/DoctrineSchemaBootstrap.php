@@ -28,6 +28,8 @@ final class DoctrineSchemaBootstrap
             /** @var EntityManagerInterface $entityManager */
             $entityManager = $container->get('doctrine')->getManager();
 
+            TestDatabaseGuard::assertSafeTestDatabase($entityManager->getConnection());
+
             $allMetadata = $entityManager->getMetadataFactory()->getAllMetadata();
             if (count($allMetadata) === 0) {
                 return;

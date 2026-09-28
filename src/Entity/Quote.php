@@ -31,8 +31,15 @@ class Quote
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Company $company = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $archivedAt = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $archivedBy = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
@@ -127,6 +134,44 @@ class Quote
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
+
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
+    }
+
+    public function getArchivedAt(): ?\DateTimeInterface
+    {
+        return $this->archivedAt;
+    }
+
+    public function archive(User $by): self
+    {
+        $this->archivedAt = $this->archivedAt ?? new \DateTime();
+        $this->archivedBy = $by;
+
+        return $this;
+    }
+
+    public function restore(): self
+    {
+        $this->archivedAt = null;
+        $this->archivedBy = null;
+
+        return $this;
+    }
+
+    public function getArchivedBy(): ?User
+    {
+        return $this->archivedBy;
+    }
+
+    public function setArchivedBy(?User $archivedBy): self
+    {
+        $this->archivedBy = $archivedBy;
+
+        return $this;
+    }
 
     public function __construct()
     {

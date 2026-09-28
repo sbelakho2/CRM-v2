@@ -161,6 +161,7 @@ class CompliancePackService
         $document = new ComplianceDocument();
         $document->setCompany($company);
         $document->setName($documentType);
+        $document->setDocumentKey(self::documentKeyFromName($documentType));
         $document->setFileName($fileName);
         $document->setUploadedAt(new \DateTime());
 
@@ -192,31 +193,86 @@ class CompliancePackService
     }
 
     /**
-     * Initialize compliance pack for company with all required documents
+     * Initialize (or reconcile) the compliance pack for a company.
+     *
+     * This operation is idempotent and NEVER destructive: existing
+     * ComplianceDocument rows, uploaded files, expiry dates and approval
+     * status are preserved. Rows are matched by documentKey (falling back to
+     * a name match for legacy rows created before documentKey existed).
+     * Rows that are no longer part of the standard pack are demoted with
+     * required=false instead of being deleted.
      */
     public function initializeCompliancePackForCompany(Company $company): void
     {
         $sector = $company->getSector() ?? 'Industrial';
         $requiredDocs = $this->getSectorSpecificDocuments($sector);
+        $requiredKeys = [];
 
         foreach ($requiredDocs as $docType) {
-            // Check if document already exists
-            $existing = $this->documentRepository->findOneBy([
+            $key = self::documentKeyFromName($docType);
+            $requiredKeys[$key] = true;
+
+            $document = $this->documentRepository->findOneBy([
                 'company' => $company,
-                'name' => $docType
+                'documentKey' => $key,
             ]);
 
-            if (!$existing) {
+            // Legacy rows predating documentKey are matched by name and
+            // upgraded in place, keeping their uploaded files and history.
+            if ($document === null) {
+                $document = $this->documentRepository->findOneBy([
+                    'company' => $company,
+                    'name' => $docType,
+                ]);
+            }
+
+            if ($document === null) {
                 $document = new ComplianceDocument();
                 $document->setCompany($company);
                 $document->setName($docType);
                 $document->setStatus('Pending');
-
                 $this->entityManager->persist($document);
+            } elseif ($document->getDocumentKey() === null) {
+                $document->setDocumentKey($key);
+            }
+
+            // Keep the human-readable label current; never touch file data,
+            // expiry, uploadedAt or status of existing rows.
+            if ($document->getName() !== $docType) {
+                $document->setName($docType);
+            }
+        }
+
+        // Demote (do NOT delete) rows that are no longer part of the pack.
+        foreach ($this->documentRepository->findBy(['company' => $company]) as $document) {
+            $key = $document->getDocumentKey();
+            if ($key === null) {
+                continue; // custom/manually-created document — leave untouched
+            }
+            if (!isset($requiredKeys[$key]) && $document->isRequired()) {
+                $document->setRequired(false);
             }
         }
 
         $this->entityManager->flush();
+    }
+
+    /**
+     * Stable machine key for a required-document definition, e.g.
+     * "ISO 9001" -> "iso_9001". Used for reconciliation across pack
+     * regenerations so history is never duplicated or destroyed.
+     */
+    public static function documentKeyFromName(string $name): string
+    {
+        $key = strtolower(trim($name));
+        $key = preg_replace('/[^a-z0-9]+/', '_', $key) ?? '';
+        $key = trim($key, '_');
+
+        if ($key === '') {
+            throw new \InvalidArgumentException('Document name cannot produce an empty key.');
+        }
+
+        return substr($key, 0, 100);
     }
 
     /**

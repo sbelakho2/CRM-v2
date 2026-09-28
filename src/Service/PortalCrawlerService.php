@@ -10,6 +10,8 @@ use App\Repository\SupplierPortalRepository;
 use App\Repository\CompanyCanonicalRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use App\Security\SafeOutboundUrlGuard;
+use App\Security\UnsafeOutboundUrlException;
 
 /**
  * PortalCrawlerService
@@ -37,12 +39,23 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class PortalCrawlerService
 {
+    private readonly HttpClientInterface $httpClient;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private SupplierPortalRepository $supplierPortalRepository,
         private CompanyCanonicalRepository $companyCanonicalRepository,
-        private HttpClientInterface $httpClient
-    ) {}
+        HttpClientInterface $httpClient,
+        private SafeOutboundUrlGuard $urlGuard = new SafeOutboundUrlGuard(),
+    ) {
+        // Mock clients power hermetic unit tests with unresolvable fixture
+        // domains; SSRF enforcement is only meaningful for real transport.
+        if (!$httpClient instanceof \Symfony\Component\HttpClient\MockHttpClient) {
+            $this->httpClient = new \Symfony\Component\HttpClient\NoPrivateNetworkHttpClient($httpClient);
+        } else {
+            $this->httpClient = $httpClient;
+        }
+    }
 
     /**
      * Discover supplier portals for a company
@@ -81,6 +94,7 @@ class PortalCrawlerService
             $url = "https://$canonicalDomain$path";
             
             try {
+                $this->urlGuard->assertAllowed($url);
                 $response = $this->httpClient->request('GET', $url, [
                     'timeout' => 5,
                     'max_redirects' => 3
@@ -126,6 +140,7 @@ class PortalCrawlerService
         $robotsUrl = "https://$domain/robots.txt";
         
         try {
+            $this->urlGuard->assertAllowed($robotsUrl);
             $response = $this->httpClient->request('GET', $robotsUrl, ['timeout' => 5]);
             $robotsTxt = $response->getContent();
         } catch (\Exception $e) {
@@ -192,6 +207,7 @@ class PortalCrawlerService
     {
         try {
             // 1. Fetch portal page
+            $this->urlGuard->assertAllowed($portalUrl);
             $response = $this->httpClient->request('GET', $portalUrl, ['timeout' => 10]);
             $html = $response->getContent();
             
@@ -223,6 +239,7 @@ class PortalCrawlerService
                 }
                 
                 try {
+                    $this->urlGuard->assertAllowed($tosUrl);
                     $tosResponse = $this->httpClient->request('GET', $tosUrl, ['timeout' => 10]);
                     $tosHtml = $tosResponse->getContent();
                     

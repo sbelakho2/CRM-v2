@@ -8,6 +8,7 @@ use App\Service\WebCrawler\Text\TextNormalizer;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use App\Security\SafeOutboundUrlGuard;
 
 /**
  * Directory Seed Extractor (Improvement 2D)
@@ -80,11 +81,25 @@ final class DirectorySeedExtractor
     private TextNormalizer $normalizer;
     private LoggerInterface $logger;
 
+    private readonly HttpClientInterface $httpClient;
+    private readonly SafeOutboundUrlGuard $urlGuard;
+
     public function __construct(
-        private HttpClientInterface $httpClient,
+        HttpClientInterface $httpClient,
         ?TextNormalizer $normalizer = null,
         ?LoggerInterface $logger = null,
+        ?SafeOutboundUrlGuard $urlGuard = null,
     ) {
+        // SSRF defense: every outbound directory fetch is IP-validated on
+        // the request and each redirect hop.
+        // Mock clients power hermetic unit tests with unresolvable fixture
+        // domains; SSRF enforcement is only meaningful for real transport.
+        if (!$httpClient instanceof \Symfony\Component\HttpClient\MockHttpClient) {
+            $this->httpClient = new \Symfony\Component\HttpClient\NoPrivateNetworkHttpClient($httpClient);
+        } else {
+            $this->httpClient = $httpClient;
+        }
+        $this->urlGuard = $urlGuard ?? new SafeOutboundUrlGuard();
         $this->normalizer = $normalizer ?? new TextNormalizer();
         $this->logger = $logger ?? new NullLogger();
     }
@@ -207,6 +222,7 @@ final class DirectorySeedExtractor
         }
 
         try {
+            $this->urlGuard->assertAllowed($url);
             $response = $this->httpClient->request('GET', $url, [
                 'timeout' => 10,
                 'headers' => [

@@ -3,6 +3,7 @@
 namespace App\Form;
 
 use App\Entity\User;
+use App\Validator\PasswordPolicy;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -12,8 +13,6 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
-use Symfony\Component\Validator\Constraints\Length;
-use Symfony\Component\Validator\Constraints\NotBlank;
 
 class RegistrationFormType extends AbstractType
 {
@@ -35,11 +34,7 @@ class RegistrationFormType extends AbstractType
                 'first_options' => ['label' => 'auth.password'],
                 'second_options' => ['label' => 'auth.confirm_password'],
                 'constraints' => [
-                    new NotBlank(['message' => 'validation.required']),
-                    new Length([
-                        'min' => 6,
-                        'minMessage' => 'validation.min_length',
-                    ]),
+                    new PasswordPolicy(),
                 ],
             ])
             ->add('agreeTerms', CheckboxType::class, [

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\WebCrawler\Crawl;
 
+use App\Security\SafeOutboundUrlGuard;
+use App\Security\UnsafeOutboundUrlException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\NoPrivateNetworkHttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -84,11 +87,24 @@ final class SitemapPageDiscovery
     private LoggerInterface $logger;
 
     public function __construct(
-        private HttpClientInterface $httpClient,
+        HttpClientInterface $httpClient,
         ?LoggerInterface $logger = null,
+        ?SafeOutboundUrlGuard $urlGuard = null,
     ) {
+        // Defense in depth: the decorator blocks private-network IPs on the
+        // initial request AND on every redirect hop; the guard enforces
+        // scheme/credential/port/same-organization policy explicitly.
+        // Mock clients power hermetic unit tests with unresolvable fixture
+        // domains; SSRF enforcement is only meaningful for real transport.
+        $this->httpClient = $httpClient instanceof \Symfony\Component\HttpClient\MockHttpClient
+            ? $httpClient
+            : new NoPrivateNetworkHttpClient($httpClient);
+        $this->urlGuard = $urlGuard ?? new SafeOutboundUrlGuard();
         $this->logger = $logger ?? new NullLogger();
     }
+
+    private readonly HttpClientInterface $httpClient;
+    private readonly SafeOutboundUrlGuard $urlGuard;
 
     // ──────────────────────────────────────────────────
     // Public API
@@ -106,18 +122,20 @@ final class SitemapPageDiscovery
         $baseUrl = 'https://' . $domain;
 
         // 1. Try /sitemap.xml
-        $urls = $this->fetchAndParseSitemap($baseUrl . '/sitemap.xml');
+        $urls = $this->fetchAndParseSitemap($baseUrl . '/sitemap.xml', $baseUrl);
 
         // 2. Try /sitemap_index.xml
         if (empty($urls)) {
-            $urls = $this->fetchAndParseSitemap($baseUrl . '/sitemap_index.xml');
+            $urls = $this->fetchAndParseSitemap($baseUrl . '/sitemap_index.xml', $baseUrl);
         }
 
-        // 3. Try robots.txt → Sitemap: directive
+        // 3. Try robots.txt → Sitemap: directive (must stay within the same
+        // organization: a compromised robots.txt must not aim the crawler at
+        // arbitrary hosts)
         if (empty($urls)) {
             $sitemapUrl = $this->getSitemapFromRobots($baseUrl . '/robots.txt');
-            if ($sitemapUrl !== null) {
-                $urls = $this->fetchAndParseSitemap($sitemapUrl);
+            if ($sitemapUrl !== null && $this->urlGuard->isAllowedChildUrl($baseUrl, $sitemapUrl)) {
+                $urls = $this->fetchAndParseSitemap($sitemapUrl, $baseUrl);
             }
         }
 
@@ -157,16 +175,24 @@ final class SitemapPageDiscovery
      *
      * @return list<array{loc: string, priority: float}>
      */
-    private function fetchAndParseSitemap(string $url): array
+    private function fetchAndParseSitemap(string $url, string $baseUrl): array
     {
+        // Sub-sitemaps and robots-declared sitemaps must stay within the
+        // same organization as the site being crawled.
+        if (!$this->urlGuard->isAllowedChildUrl($baseUrl, $url)) {
+            $this->logger->debug('SitemapPageDiscovery: cross-origin sitemap rejected', ['url' => $url, 'base' => $baseUrl]);
+            return [];
+        }
+
         $xml = $this->fetchUrl($url);
         if ($xml === null) {
             return [];
         }
 
-        // Suppress XML errors
+        // Suppress XML errors; LIBXML_NONET forbids any network access the
+        // parser itself might attempt (external DTD/entity loading).
         $prev = libxml_use_internal_errors(true);
-        $doc = simplexml_load_string($xml);
+        $doc = simplexml_load_string($xml, \SimpleXMLElement::class, LIBXML_NONET | LIBXML_NOCDATA);
         libxml_clear_errors();
         libxml_use_internal_errors($prev);
 
@@ -180,17 +206,17 @@ final class SitemapPageDiscovery
         // Check if this is a sitemap index
         $sitemaps = $doc->xpath('//s:sitemap/s:loc') ?: $doc->xpath('//sitemap/loc') ?: [];
         if (!empty($sitemaps)) {
-            return $this->parseSitemapIndex($sitemaps);
+            return $this->parseSitemapIndex($sitemaps, $baseUrl);
         }
 
         // Parse as urlset
-        return $this->parseUrlSet($doc);
+        return $this->parseUrlSet($doc, $baseUrl);
     }
 
     /**
      * Follow a sitemap index (recurse into sub-sitemaps, max 5).
      */
-    private function parseSitemapIndex(array $sitemapLocs): array
+    private function parseSitemapIndex(array $sitemapLocs, string $baseUrl): array
     {
         $allUrls = [];
         $count = 0;
@@ -201,7 +227,7 @@ final class SitemapPageDiscovery
             $subUrl = trim((string) $loc);
             if (empty($subUrl)) continue;
 
-            $urls = $this->fetchAndParseSitemap($subUrl);
+            $urls = $this->fetchAndParseSitemap($subUrl, $baseUrl);
             $allUrls = array_merge($allUrls, $urls);
             $count++;
         }
@@ -214,7 +240,7 @@ final class SitemapPageDiscovery
      *
      * @return list<array{loc: string, priority: float}>
      */
-    private function parseUrlSet(\SimpleXMLElement $doc): array
+    private function parseUrlSet(\SimpleXMLElement $doc, string $baseUrl): array
     {
         $urls = [];
         $ns = 'http://www.sitemaps.org/schemas/sitemap/0.9';
@@ -230,7 +256,9 @@ final class SitemapPageDiscovery
             $url = !empty($loc) ? trim((string) $loc[0]) : '';
             $priority = !empty($pri) ? (float) (string) $pri[0] : 0.5;
 
-            if (!empty($url) && str_starts_with($url, 'http')) {
+            // A sitemap's <loc> entries are attacker-controlled content: only
+            // same-organization URLs are accepted, everything else is dropped.
+            if (!empty($url) && str_starts_with($url, 'http') && $this->urlGuard->isAllowedChildUrl($baseUrl, $url)) {
                 $urls[] = [
                     'loc'      => $url,
                     'priority' => min(1.0, max(0.0, $priority)),
@@ -328,6 +356,7 @@ final class SitemapPageDiscovery
     private function fetchUrl(string $url): ?string
     {
         try {
+            $url = $this->urlGuard->assertAllowed($url);
             $response = $this->httpClient->request('GET', $url, [
                 'timeout'     => self::TIMEOUT,
                 'max_redirects' => 3,
@@ -349,6 +378,9 @@ final class SitemapPageDiscovery
             }
 
             return $content;
+        } catch (UnsafeOutboundUrlException $e) {
+            $this->logger->warning('SitemapPageDiscovery: unsafe URL rejected', ['url' => $url, 'reason' => $e->getMessage()]);
+            return null;
         } catch (\Throwable $e) {
             $this->logger->debug('SitemapPageDiscovery: fetch failed', ['url' => $url, 'error' => $e->getMessage()]);
             return null;
@@ -358,6 +390,7 @@ final class SitemapPageDiscovery
     private function urlReturnsXml(string $url): bool
     {
         try {
+            $url = $this->urlGuard->assertAllowed($url);
             $response = $this->httpClient->request('HEAD', $url, [
                 'timeout' => 5,
                 'max_redirects' => 2,

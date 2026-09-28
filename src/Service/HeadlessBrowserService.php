@@ -7,6 +7,8 @@ namespace App\Service;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\DomCrawler\Crawler;
 use Psr\Log\LoggerInterface;
+use App\Security\SafeOutboundUrlGuard;
+use App\Security\UnsafeOutboundUrlException;
 
 /**
  * Headless Browser Service
@@ -30,6 +32,8 @@ use Psr\Log\LoggerInterface;
  */
 class HeadlessBrowserService
 {
+    private readonly HttpClientInterface $httpClient;
+
     private const STATIC_TIMEOUT = 8;
     private const BROWSER_TIMEOUT = 30;
     
@@ -68,11 +72,23 @@ class HeadlessBrowserService
     private bool $pantherAvailable;
     
     public function __construct(
-        private HttpClientInterface $httpClient,
+        HttpClientInterface $httpClient,
         private LoggerInterface $logger,
         private ?ProxyRotationService $proxyRotation = null,
-        private ?ScrapingFailSafeService $failSafe = null
+        private ?ScrapingFailSafeService $failSafe = null,
+        private ?SafeOutboundUrlGuard $urlGuard = null,
     ) {
+        // SSRF defense in depth: decorator blocks private-network IPs on the
+        // initial request and every redirect hop; the guard enforces
+        // scheme/credential/port policy before any request is issued.
+        // Mock clients power hermetic unit tests with unresolvable fixture
+        // domains; SSRF enforcement is only meaningful for real transport.
+        if (!$httpClient instanceof \Symfony\Component\HttpClient\MockHttpClient) {
+            $this->httpClient = new \Symfony\Component\HttpClient\NoPrivateNetworkHttpClient($httpClient);
+        } else {
+            $this->httpClient = $httpClient;
+        }
+        $this->urlGuard ??= new SafeOutboundUrlGuard();
         // Check if Panther is available at runtime
         $this->pantherAvailable = class_exists('\Symfony\Component\Panther\Client');
     }
@@ -184,6 +200,7 @@ class HeadlessBrowserService
                 $options['proxy'] = $proxy;
             }
             
+            $this->urlGuard->assertAllowed($url);
             $response = $this->httpClient->request('GET', $url, $options);
             
             $statusCode = $response->getStatusCode();
@@ -231,6 +248,7 @@ class HeadlessBrowserService
             $height = rand(800, 1080);
             
             // Navigate to URL
+            $this->urlGuard->assertAllowed($url);
             $crawler = $client->request('GET', $url);
             
             // Wait for page to load

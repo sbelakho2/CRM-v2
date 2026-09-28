@@ -115,8 +115,8 @@
 </div>
 
 <script>
-const triggerGroupsRaw = {{ availableTriggers|json_encode|raw }};
-const actionMapRaw = {{ availableActions|json_encode|raw }};
+const triggerGroupsRaw = {{ availableTriggers|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
+const actionMapRaw = {{ availableActions|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
 const availableTriggers = Object.values(triggerGroupsRaw || {}).flatMap(group => group.triggers || []);
 const availableActions = Object.entries(actionMapRaw || {}).map(([key, action]) => ({
     type: key,

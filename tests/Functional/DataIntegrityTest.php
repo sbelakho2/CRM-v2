@@ -52,42 +52,66 @@ class DataIntegrityTest extends KernelTestCase
         return $contact;
     }
 
-    public function testDeletingCompanyCascadesToContactsAndDocuments(): void
+    public function testCompanyArchivePreservesChildrenAndDbBlocksHardDelete(): void
     {
-        $company = $this->company('Cascade Co');
+        $company = $this->company('Preserve Co');
         $this->em->persist($company);
-        $this->em->persist($this->contact($company, 'cascade@example.com'));
-        $this->em->persist($this->contact($company, 'cascade2@example.com'));
+        $this->em->persist($this->contact($company, 'preserve@example.com'));
+        $this->em->persist($this->contact($company, 'preserve2@example.com'));
 
         $doc = new ComplianceDocument();
         $doc->setCompany($company);
         $doc->setFileName('cert.pdf');
         $doc->setDocumentType('certificate');
-        $doc->setFilePath('/tmp/cert.pdf');
+        $doc->setDocumentKey('certificate');
+        $doc->setFilePath('cert.pdf');
         $this->em->persist($doc);
+
+        $archiver = new User();
+        $archiver->setEmail('archiver@example.com');
+        $archiver->setPassword('irrelevant-but-not-null');
+        $archiver->setRoles(['ROLE_USER']);
+        $archiver->setFirstName('Ar');
+        $archiver->setLastName('Chiver');
+        $this->em->persist($archiver);
         $this->em->flush();
 
-        $companyId = $company->getId();
-        $this->em->remove($company);
+        // The CRM's supported lifecycle: archive, never hard-delete.
+        $company->archive($archiver, 'test archive');
         $this->em->flush();
-        $this->em->clear(); // DB-level cascades are invisible to the identity map
+        $this->em->clear();
 
-        $this->assertNull($this->em->getRepository(Contact::class)->findOneBy(['email' => 'cascade@example.com']), 'Contacts must cascade-delete with the company');
-        $this->assertNull($this->em->getRepository(Contact::class)->findOneBy(['email' => 'cascade2@example.com']));
-        $this->assertCount(0, $this->em->getRepository(ComplianceDocument::class)->findBy(['company' => $companyId]), 'Compliance documents must cascade-delete with the company');
+        $archived = $this->em->getRepository(Company::class)->find($company->getId());
+        $this->assertTrue($archived->isArchived());
+        $this->assertNotNull($archived->getArchivedAt());
+        $this->assertSame('test archive', $archived->getArchiveReason());
+
+        // History survives: contacts and compliance documents are untouched.
+        $this->assertNotNull($this->em->getRepository(Contact::class)->findOneBy(['email' => 'preserve@example.com']));
+        $this->assertNotNull($this->em->getRepository(Contact::class)->findOneBy(['email' => 'preserve2@example.com']));
+        $this->assertCount(1, $this->em->getRepository(ComplianceDocument::class)->findBy(['company' => $company->getId()]));
+
+        // Defense in depth: even a rogue entityManager->remove($company) is
+        // rejected by the DB (history FKs are ON DELETE RESTRICT).
+        $rogueDelete = function () use ($archived): void {
+            $this->em->remove($archived);
+            $this->em->flush();
+        };
+        $this->expectException(\Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException::class);
+        $rogueDelete();
     }
 
-    public function testDeletingUserCascadesActivitiesAndNullsAuditLogs(): void
+    public function testUserDeactivationPreservesActivitiesAndAuditLogs(): void
     {
         $user = new User();
-        $user->setEmail('cascade-user@example.com');
+        $user->setEmail('deactivate-user@example.com');
         $user->setPassword('$2y$13$9UmWR.BDzgbAJEzpkjq9suqeNiIIA6dGpmOe0Em/ClzFAZEIWMOCq');
         $user->setRoles(['ROLE_USER']);
         $user->setFirstName('Cas');
         $user->setLastName('Cade');
         $this->em->persist($user);
 
-        $company = $this->company('User Cascade Co');
+        $company = $this->company('Deactivate Co');
         $this->em->persist($company);
 
         $activity = new Activity();
@@ -101,17 +125,27 @@ class DataIntegrityTest extends KernelTestCase
         $this->em->persist($activity);
         $this->em->flush();
 
-        $activityId = $activity->getId();
-        $this->em->remove($user);
+        // The supported lifecycle: deactivate (optionally pseudonymize),
+        // never delete — historical attribution must survive.
+        $user->deactivate($user);
+        $user->pseudonymize();
         $this->em->flush();
-        $this->em->clear(); // DB-level cascades are invisible to the identity map
+        $this->em->clear();
 
-        $this->assertNull($this->em->getRepository(Activity::class)->find($activityId), 'Activities must cascade-delete with the user');
+        $preservedUser = $this->em->getRepository(User::class)->find($user->getId());
+        $this->assertNotNull($preservedUser, 'The user row must be preserved for historical attribution');
+        $this->assertFalse($preservedUser->isActive());
+        $this->assertNotNull($preservedUser->getDeactivatedAt());
+        $this->assertSame('Former', $preservedUser->getFirstName());
+        $this->assertStringContainsString('@invalid.local', (string) $preservedUser->getEmail());
 
-        // The user audit log's FK is SET NULL — it must survive the delete
-        $auditLogs = $this->em->getRepository(AuditLog::class)->findAll();
-        foreach ($auditLogs as $log) {
-            $this->assertNull($log->getUser(), 'Audit log user must be SET NULL, not deleted');
+        $preservedActivity = $this->em->getRepository(Activity::class)->find($activity->getId());
+        $this->assertNotNull($preservedActivity, 'Activities must never be deleted with the user');
+        $this->assertSame($preservedUser->getId(), $preservedActivity->getUser()?->getId(), 'Activity attribution is preserved exactly');
+
+        // Audit logs keep pointing at the (preserved) user.
+        foreach ($this->em->getRepository(AuditLog::class)->findAll() as $log) {
+            $this->assertTrue($log->getUser() === null || $log->getUser()->getId() === $preservedUser->getId());
         }
     }
 

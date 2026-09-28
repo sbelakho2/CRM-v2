@@ -11,6 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Process\Process;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -39,6 +40,13 @@ class WebCrawlerController extends AbstractController
 
     /** Directory where discovery status files are written */
     private const DISCOVERY_STATUS_DIR = 'var/discovery';
+
+    /**
+     * Hard cap on how long a launched discovery may be considered "running"
+     * from its PID alone: beyond this, the PID is assumed recycled and the
+     * run finished. Discovery batches complete well within this budget.
+     */
+    private const MAX_RUN_SECONDS = 21600; // 6 hours
 
     public function __construct(
         private CompanyDiscoveryService $discoveryService,
@@ -116,11 +124,14 @@ class WebCrawlerController extends AbstractController
             mkdir($statusDir, 0775, true);
         }
 
-        // Check if a discovery is already running
+        // Check if a discovery is already running. PID liveness is probed
+        // portably AND capped by a maximum run duration, so a recycled PID
+        // can never make a dead run look immortal.
         $pidFile = $statusDir . '/discovery.pid';
         if (file_exists($pidFile)) {
             $existingPid = (int) file_get_contents($pidFile);
-            if ($existingPid > 0 && file_exists("/proc/{$existingPid}")) {
+            $startedAt = filemtime($pidFile) ?: time();
+            if ($this->isProcessRunning($existingPid) && time() - $startedAt < self::MAX_RUN_SECONDS) {
                 return new JsonResponse([
                     'success' => true,
                     'async' => true,
@@ -129,9 +140,7 @@ class WebCrawlerController extends AbstractController
                 ]);
             }
             // Stale PID file — remove it
-            if (file_exists($pidFile)) {
-                unlink($pidFile);
-            }
+            unlink($pidFile);
         }
 
         // Build the CLI command
@@ -149,35 +158,46 @@ class WebCrawlerController extends AbstractController
             'pid' => null,
         ]));
 
-        // Build command arguments
-        // Use setsid to create a new session so the process is fully detached
-        // from the PHP-FPM process group. Without this, `systemctl restart php-fpm`
-        // sends SIGTERM to FPM workers which propagates to child processes.
-        // nohup only protects against SIGHUP, not SIGTERM.
-        $cmd = sprintf(
-            'ulimit -n 65536; setsid nohup php %s app:discover-companies',
-            escapeshellarg($consolePath)
-        );
+        // Build the command as an ARGV ARRAY: Symfony\Component\Process
+        // executes it without a shell, so there is no command string to
+        // inject into and no escapeshellarg juggling. Process::start()
+        // detaches the child from this request lifecycle.
+        $command = [PHP_BINARY, $consolePath, 'app:discover-companies'];
 
         if ($sector) {
-            $cmd .= ' --sector=' . escapeshellarg($sector);
+            $command[] = '--sector=' . $sector;
         }
 
         if ($locationLabel && !$sector) {
             // When no sector is specified, use --all with --region
-            $cmd .= ' --all';
+            $command[] = '--all';
             if ($regionCode) {
-                $cmd .= ' --region=' . escapeshellarg($regionCode);
+                $command[] = '--region=' . $regionCode;
             }
         } elseif ($locationLabel) {
-            $cmd .= ' --location=' . escapeshellarg($locationLabel);
+            $command[] = '--location=' . $locationLabel;
         }
 
-        $cmd .= ' --no-interaction -vvv --env=prod';
-        $cmd .= ' > ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+        $command[] = '--no-interaction';
+        $command[] = '-vvv';
+        $command[] = '--env=prod';
 
-        // Execute in background
-        $pid = (int) trim(shell_exec($cmd) ?? '0');
+        $process = new Process($command, $this->projectDir, null, null, null);
+        $process->setTimeout(null);
+
+        $logHandle = fopen($logFile, 'ab');
+        if ($logHandle === false) {
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Unable to open discovery log file.',
+            ], 500);
+        }
+
+        $process->start(static function (string $type, string $output) use ($logHandle): void {
+            fwrite($logHandle, $output);
+        });
+
+        $pid = (int) $process->getPid();
 
         if ($pid > 0) {
             file_put_contents($pidFile, (string) $pid);
@@ -216,17 +236,19 @@ class WebCrawlerController extends AbstractController
             ? json_decode(file_get_contents($statusFile), true) ?? []
             : [];
 
-        // Check if process is still running
+        // Check if process is still running (portable liveness probe plus a
+        // hard run-duration cap so a reused PID cannot fake liveness).
         $running = false;
         $pid = null;
         if (file_exists($pidFile)) {
             $pid = (int) file_get_contents($pidFile);
-            $running = $pid > 0 && file_exists("/proc/{$pid}");
+            $startedAt = filemtime($pidFile) ?: time();
+            $running = $pid > 0
+                && time() - $startedAt < self::MAX_RUN_SECONDS
+                && $this->isProcessRunning($pid);
             if (!$running) {
                 // Process finished — clean up PID file
-                if (file_exists($pidFile)) {
-                    unlink($pidFile);
-                }
+                unlink($pidFile);
             }
         }
 
@@ -268,12 +290,11 @@ class WebCrawlerController extends AbstractController
         }
 
         $pid = (int) file_get_contents($pidFile);
-        if ($pid > 0 && file_exists("/proc/{$pid}")) {
-            // Send SIGTERM
+        if ($pid > 0 && $this->isProcessRunning($pid)) {
+            // Send SIGTERM, then force-kill if still alive
             posix_kill($pid, 15);
-            usleep(500000); // wait 500ms
-            // Force kill if still alive
-            if (file_exists("/proc/{$pid}")) {
+            usleep(500000);
+            if ($this->isProcessRunning($pid)) {
                 posix_kill($pid, 9);
             }
         }
@@ -523,41 +544,59 @@ class WebCrawlerController extends AbstractController
             return $stats;
         }
 
-        // Use grep for efficiency (avoid reading entire log into PHP)
-        // IMPORTANT: Do NOT use `|| echo 0` with `grep -c`!
-        // `grep -c` always outputs a count (even 0) when the file exists,
-        // but returns exit code 1 for zero matches. `|| echo 0` would then
-        // print an EXTRA "0" line, shifting all subsequent array indices.
-        // This was the root cause of the UI showing location-reject count
-        // as "saved" count.
-        $grepCmd = sprintf(
-            'wc -l < %1$s; ' .
-            'grep -c "LLM Primary Gate ACCEPT" %1$s 2>/dev/null; true; ' .
-            'grep -c "LLM Primary Gate REJECT" %1$s 2>/dev/null; true; ' .
-            'grep -c "No location presence" %1$s 2>/dev/null; true; ' .
-            'grep -c "LocalSearxngProvider: success" %1$s 2>/dev/null; true; ' .
-            'grep -c "Saved company to DB" %1$s 2>/dev/null; true; ' .
-            'tail -1 %1$s 2>/dev/null',
-            escapeshellarg($logFile)
-        );
+        // Stream the log in PHP instead of assembling a shell pipeline:
+        // no shell string, no escapeshellarg, identical accounting for the
+        // same markers (single pass over the file).
+        $markers = [
+            'llm_accept' => 'LLM Primary Gate ACCEPT',
+            'llm_reject' => 'LLM Primary Gate REJECT',
+            'location_reject' => 'No location presence',
+            'searches' => 'LocalSearxngProvider: success',
+            'saved' => 'Saved company to DB',
+        ];
 
-        $output = shell_exec($grepCmd);
-        if ($output) {
-            $lines = explode("\n", trim($output));
-            $stats['log_lines'] = (int) ($lines[0] ?? 0);
-            $stats['llm_accept'] = (int) ($lines[1] ?? 0);
-            $stats['llm_reject'] = (int) ($lines[2] ?? 0);
-            $stats['location_reject'] = (int) ($lines[3] ?? 0);
-            $stats['searches'] = (int) ($lines[4] ?? 0);
-            $stats['saved'] = (int) ($lines[5] ?? 0);
-            // Last line of log for timestamp
-            $lastLine = $lines[6] ?? '';
-            if (preg_match('/^(\d{2}:\d{2}:\d{2})\s/', $lastLine, $m)) {
-                $stats['last_activity'] = $m[1];
+        $stats['log_lines'] = 0;
+        $lastLine = '';
+        $handle = fopen($logFile, 'rb');
+        if ($handle !== false) {
+            while (($line = fgets($handle)) !== false) {
+                $stats['log_lines']++;
+                foreach ($markers as $key => $marker) {
+                    if (str_contains($line, $marker)) {
+                        $stats[$key]++;
+                    }
+                }
+                if (trim($line) !== '') {
+                    $lastLine = $line;
+                }
             }
+            fclose($handle);
+        }
+
+        if (preg_match('/^(\d{2}:\d{2}:\d{2})\s/', $lastLine, $m)) {
+            $stats['last_activity'] = $m[1];
         }
 
         return $stats;
+    }
+
+    /**
+     * Portable process-liveness probe. On Linux /proc is authoritative; on
+     * macOS/BSD a zero-signal posix probe is used. A positive result does
+     * NOT prove the PID still belongs to our discovery run (PIDs are
+     * recycled) — callers combine it with a run-duration cap.
+     */
+    private function isProcessRunning(int $pid): bool
+    {
+        if ($pid <= 0) {
+            return false;
+        }
+
+        if (PHP_OS_FAMILY === 'Linux') {
+            return file_exists('/proc/' . $pid);
+        }
+
+        return function_exists('posix_kill') && posix_kill($pid, 0);
     }
 
     private function resolveLocationLabel(?string $location): ?string

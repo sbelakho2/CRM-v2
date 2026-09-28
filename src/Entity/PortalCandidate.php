@@ -17,7 +17,7 @@ class PortalCandidate
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'portalCandidates')]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Company $company = null;
 
     #[ORM\Column(type: Types::TEXT)]

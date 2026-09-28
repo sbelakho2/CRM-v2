@@ -221,7 +221,7 @@
         const token = '{{ token }}'; const csrfToken = '{{ csrf_token('quote_live') }}';
         const liveRequestUrl = '{{ path('quote_live_request', {token: '__TOKEN__'}) }}'.replace('__TOKEN__', token);
         const liveAcceptUrl = '{{ path('quote_live_accept', {token: '__TOKEN__'}) }}'.replace('__TOKEN__', token);
-        const tierData = {{ tierPricing.tiers|json_encode|raw }};
+        const tierData = {{ tierPricing.tiers|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
         const currencySymbol = '{{ currency_symbol(tierPricing.currency)|e('js') }}';
         const currencyNeedsSpace = {{ tierPricing.currency in ['MAD', 'TND'] ? 'true' : 'false' }};
         const stockAllInLabel = '{{ 'quote.live.stock_all_in'|trans|e('js') }}';

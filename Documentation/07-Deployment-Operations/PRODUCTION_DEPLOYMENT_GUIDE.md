@@ -20,7 +20,7 @@
 |------|-------|
 | **Domain** | [https://www.starzcrm.com](https://www.starzcrm.com) |
 | **VPS Provider** | Hetzner |
-| **VPS IPv4** | `77.42.65.89` |
+| **VPS IPv4** | `$PRODUCTION_HOST` |
 | **VPS IPv6 Gateway** | `2a01:4f9:c012:a8e::/64` |
 | **OS** | Ubuntu 24.04.3 LTS (Noble Numbat), kernel 6.8.0-90 |
 | **Hostname** | `StarzMain` |
@@ -33,30 +33,30 @@ The VPS authenticates with an **Ed25519 SSH key** stored on the local developmen
 
 | Item | Value |
 |------|-------|
-| **Private key** | `~/.ssh/hetzner-db-mac` (local machine) |
-| **Public key** | `~/.ssh/hetzner-db-mac.pub` |
+| **Private key** | `$SSH_KEY` (local machine) |
+| **Public key** | `$SSH_KEY.pub` |
 
 **Preferred connect command (verified April 14, 2026):**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST
 ```
 
 **SSH config shortcut (if present locally):**
 ```bash
-ssh hetzner-apexintel
+ssh $PRODUCTION_SSH_ALIAS
 ```
 
 **Alternate sudo-user path (legacy):**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes ubuntu@77.42.65.89
+ssh -i $SSH_KEY -o IdentitiesOnly=yes ubuntu@$PRODUCTION_HOST
 ```
 
-> **Note:** Root access is the currently verified path from the main development machine. If the `ubuntu` login returns `Permission denied (publickey,password)`, use `root` or the `hetzner-apexintel` alias.
+> **Note:** Root access is the currently verified path from the main development machine. If the `ubuntu` login returns `Permission denied (publickey,password)`, use `root` or the `$PRODUCTION_SSH_ALIAS` alias.
 
 **To add this key to a new machine:**
-1. Copy `~/.ssh/hetzner-db-mac` and `~/.ssh/hetzner-db-mac.pub` to the new machine's `~/.ssh/` directory.
-2. Set permissions: `chmod 600 ~/.ssh/hetzner-db-mac && chmod 644 ~/.ssh/hetzner-db-mac.pub`
-3. Connect: `ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89`
+1. Copy `$SSH_KEY` and `$SSH_KEY.pub` to the new machine's `~/.ssh/` directory.
+2. Set permissions: `chmod 600 $SSH_KEY && chmod 644 $SSH_KEY.pub`
+3. Connect: `ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST`
 
 ---
 
@@ -95,7 +95,7 @@ mysql          → active
 
 **Access MySQL on server:**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST
 sudo mysql starz_crm
 # or with credentials (you will be prompted for the password):
 mysql -u crm_user -p starz_crm
@@ -255,7 +255,7 @@ server {
 
 **Manual renewal (if needed):**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST
 sudo certbot renew --dry-run    # test
 sudo certbot renew              # force renew
 ```
@@ -272,7 +272,7 @@ sudo certbot renew              # force renew
 
 **To create additional users:**
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST
 cd /var/www/starzcrm
 sudo -u www-data php bin/console app:create-admin \
   --email=newuser@example.com \
@@ -287,8 +287,8 @@ sudo -u www-data php bin/console app:create-admin \
 
 ```bash
 # ─── SSH Access ─────────────────────────────────────────────
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
-ssh hetzner-apexintel                           # if local SSH config is present
+ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST
+ssh $PRODUCTION_SSH_ALIAS                           # if local SSH config is present
 
 # ─── Service Management ────────────────────────────────────
 sudo systemctl restart php8.4-fpm         # Restart PHP
@@ -336,7 +336,7 @@ sudo chmod -R 775 /var/www/starzcrm/var
 Use this process to deploy code updates from the local development machine to the VPS.
 
 **Prerequisites:**
-- SSH key `~/.ssh/hetzner-db-mac` available on local machine
+- SSH key `$SSH_KEY` available on local machine
 - Local project at `~/IdeaProjects/CRM-v2`
 
 #### Step 1: Create deployment tarball
@@ -373,13 +373,13 @@ ls -lh /tmp/crm-deploy.tar.gz
 #### Step 2: Upload to VPS
 
 ```bash
-scp -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes /tmp/crm-deploy.tar.gz root@77.42.65.89:/tmp/
+scp -i $SSH_KEY -o IdentitiesOnly=yes /tmp/crm-deploy.tar.gz root@$PRODUCTION_HOST:/tmp/
 ```
 
 #### Step 3: Deploy on server
 
 ```bash
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST
 ```
 
 Then on the server:
@@ -453,8 +453,8 @@ tar czf /tmp/crm-hotfix.tar.gz \
     public/samples/quote-copilot-upload-template.csv \
     public/samples/quote-copilot-upload-spec.html
 
-scp -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes /tmp/crm-hotfix.tar.gz root@77.42.65.89:/tmp/
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
+scp -i $SSH_KEY -o IdentitiesOnly=yes /tmp/crm-hotfix.tar.gz root@$PRODUCTION_HOST:/tmp/
+ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST
 ```
 
 #### Server
@@ -781,8 +781,8 @@ sudo systemctl restart php8.4-fpm
 
 ```bash
 # SSH Access
-ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89
-ssh hetzner-apexintel
+ssh -i $SSH_KEY -o IdentitiesOnly=yes root@$PRODUCTION_HOST
+ssh $PRODUCTION_SSH_ALIAS
 
 # Restart services
 sudo systemctl restart php8.4-fpm nginx mysql
@@ -797,7 +797,7 @@ tail -f /var/www/starzcrm/var/log/prod.log
 sudo mysqldump starz_crm > /tmp/backup_$(date +%Y%m%d).sql
 
 # Deploy code
-scp -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes /tmp/crm-deploy.tar.gz root@77.42.65.89:/tmp/
+scp -i $SSH_KEY -o IdentitiesOnly=yes /tmp/crm-deploy.tar.gz root@$PRODUCTION_HOST:/tmp/
 
 # Check SSL expiry
 openssl x509 -in /etc/letsencrypt/live/www.starzcrm.com/fullchain.pem -noout -dates

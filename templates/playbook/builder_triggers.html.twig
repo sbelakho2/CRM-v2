@@ -80,7 +80,7 @@
 
 <script>
 (function() {
-    const initial = {{ currentTriggers|json_encode|raw }};
+    const initial = {{ currentTriggers|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
     const listEl = document.getElementById('trigger-rules-list');
     const emptyEl = document.getElementById('trigger-rules-empty');
     const inputEl = document.getElementById('trigger-rules-input');

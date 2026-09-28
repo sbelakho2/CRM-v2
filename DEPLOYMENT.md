@@ -2,10 +2,20 @@
 
 This document summarizes the deployment flow for the SMART OPS Bundle release. Use it beside the detailed guides found under `Documentation/`.
 
-## 0. Verified Production Access
-- Preferred SSH path verified on April 14, 2026: `ssh -i ~/.ssh/hetzner-db-mac -o IdentitiesOnly=yes root@77.42.65.89`
-- Optional local SSH alias: `ssh hetzner-apexintel`
-- If `ubuntu@77.42.65.89` fails with `Permission denied (publickey,password)`, use the verified root path above.
+## 0. Production Access (managed outside this repository)
+- Host, deploy user, SSH key and alias are provisioned through the private ops
+  secret store; they must never be committed here.
+- Required variables (provided by the ops secret store at deploy time):
+  - `PRODUCTION_HOST` — VPS address
+  - `PRODUCTION_USER` — dedicated non-root deploy account
+  - `SSH_KEY` — path to the deploy private key
+- Deployments connect with:
+  `ssh -i "$SSH_KEY" -o IdentitiesOnly=yes "$PRODUCTION_USER@$PRODUCTION_HOST"`
+- Direct root logins for deployment are prohibited; use the dedicated deploy
+  account and escalate only for targeted operational tasks.
+- If any credential, host address or private key was previously committed to
+  this repository, treat it as disclosed: rotate it rather than relying on
+  Git history cleanup.
 
 ## 1. Prerequisites
 - PHP >= 8.2 with required extensions (`pdo_mysql`, `intl`, `mbstring`, `xml`, `curl`, `zip`, `gd`)

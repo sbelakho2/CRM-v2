@@ -42,14 +42,7 @@ class ChangePasswordType extends AbstractType
                         'class' => 'rams-form__input'
                     ],
                     'constraints' => [
-                        new NotBlank([
-                            'message' => 'validation.required',
-                        ]),
-                        new Length([
-                            'min' => 6,
-                            'minMessage' => 'validation.min_length',
-                            'max' => 4096,
-                        ]),
+                        new \App\Validator\PasswordPolicy(),
                     ],
                 ],
                 'second_options' => [

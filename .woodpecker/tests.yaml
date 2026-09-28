@@ -1,0 +1,104 @@
+# .woodpecker/tests.yaml — full integration test lane.
+#
+# Boots a THROWAWAY MySQL 8 container (fresh volume, dedicated credentials,
+# database name crm_ci_test), verifies the complete migration chain on an
+# empty database, checks schema/entities are in sync, then runs the whole
+# PHPUnit suite. The fail-closed bootstrap guard (TestDatabaseGuard) makes
+# it impossible for this lane to touch any database whose name does not end
+# in "_test".
+#
+# SECURITY - LOCAL BACKEND: see audit.yaml. push/manual/tag only.
+labels:
+  platform: darwin/arm64
+  backend: local
+
+when:
+  - event: [push, manual, tag]
+
+skip_clone: true
+
+steps:
+  checkout:
+    image: bash
+    commands:
+      - |
+        set -eu
+        git -C "$CI_WORKSPACE" init -q
+        git -C "$CI_WORKSPACE" remote add origin "$CI_REPO_CLONE_URL" || git -C "$CI_WORKSPACE" remote set-url origin "$CI_REPO_CLONE_URL"
+        git -C "$CI_WORKSPACE" fetch -q --force origin "$CI_COMMIT_REF"
+        git -C "$CI_WORKSPACE" checkout -q --detach "$CI_COMMIT_SHA"
+        test "$(git -C "$CI_WORKSPACE" rev-parse HEAD)" = "$CI_COMMIT_SHA"
+
+  composer-install:
+    image: bash
+    depends_on: [checkout]
+    commands:
+      - |
+        set -eu
+        export PATH="/opt/homebrew/bin:$PATH"
+        composer install --no-interaction --no-progress --prefer-dist
+
+  test-database:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        export PATH="/opt/homebrew/bin:$PATH"
+        # Idempotent throwaway MySQL for this lane. Fresh volume every run:
+        # the container is removed with its anonymous volume after tests.
+        if docker rm -f crm-ci-mysql >/dev/null 2>&1; then
+          echo "removed stale test container"
+        fi
+        docker run -d --name crm-ci-mysql \
+          -e MYSQL_ROOT_PASSWORD=ci_root_pw \
+          -e MYSQL_DATABASE=crm_ci_test \
+          -e MYSQL_USER=crm_test \
+          -e MYSQL_PASSWORD=crm_test_pw \
+          -p 3309:3306 mysql:8 >/dev/null
+        for i in $(seq 1 60); do
+          if docker exec crm-ci-mysql mysqladmin ping -uroot -pci_root_pw --silent >/dev/null 2>&1; then
+            echo "MySQL ready after ~$((i*2))s"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "MySQL failed to become ready" >&2
+        exit 1
+
+  migrations-fresh:
+    image: bash
+    depends_on: [test-database]
+    environment:
+      APP_ENV: test
+      DATABASE_URL: mysql://crm_test:crm_test_pw@127.0.0.1:3309/crm_ci?charset=utf8mb4
+    commands:
+      - |
+        set -eu
+        # The test env appends dbname_suffix "_test" -> effective database
+        # crm_ci_test. Recreate from scratch and run the ENTIRE migration
+        # chain (empty database -> latest) exactly as a fresh deploy would.
+        php bin/console doctrine:database:drop --if-exists --force --env=test
+        php bin/console doctrine:database:create --env=test
+        php bin/console doctrine:migrations:migrate --no-interaction --env=test
+        php bin/console doctrine:schema:validate --env=test
+
+  phpunit:
+    image: bash
+    depends_on: [migrations-fresh]
+    environment:
+      APP_ENV: test
+      DATABASE_URL: mysql://crm_test:crm_test_pw@127.0.0.1:3309/crm_ci?charset=utf8mb4
+    commands:
+      - |
+        set -eu
+        vendor/bin/phpunit
+
+  cleanup:
+    image: bash
+    depends_on: [phpunit]
+    failure: ignore
+    commands:
+      - |
+        export PATH="/opt/homebrew/bin:$PATH"
+        docker rm -f crm-ci-mysql >/dev/null 2>&1 || true

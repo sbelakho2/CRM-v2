@@ -226,13 +226,26 @@ class InteractiveLiveQuoteController extends AbstractController
         }
 
         $quote = $this->liveQuoteService->getQuoteByToken($token);
-        
+
         if (!$quote) {
             return new JsonResponse([
                 'error' => 'Quote not found or expired',
             ], Response::HTTP_NOT_FOUND);
         }
-        
+
+        // Idempotent acceptance: once accepted, replaying the request (double
+        // click, retry, token shared twice) returns the ORIGINAL acceptance
+        // instead of creating a second acceptance event.
+        if ($quote->getStatus() === Quote::STATUS_ACCEPTED) {
+            return new JsonResponse([
+                'success' => true,
+                'idempotent_replay' => true,
+                'quote_number' => $quote->getQuoteNumber(),
+                'accepted_at' => $quote->getUpdatedAt()?->format(\DateTimeInterface::ATOM),
+                'message' => 'This quote has already been accepted.',
+            ]);
+        }
+
         $data = json_decode($request->getContent(), true);
         $quantity = (int) ($data['quantity'] ?? $quote->getQuantity());
         $customerInfo = [
@@ -242,7 +255,7 @@ class InteractiveLiveQuoteController extends AbstractController
             'company' => $data['company'] ?? null,
             'po_number' => $data['po_number'] ?? null,
         ];
-        
+
         $result = $this->liveQuoteService->acceptQuote($quote, $quantity, $customerInfo);
         
         return new JsonResponse($result);

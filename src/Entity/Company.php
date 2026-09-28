@@ -13,6 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_company_sector', columns: ['sector'])]
 #[ORM\Index(name: 'idx_company_pipeline', columns: ['pipeline_stage'])]
 #[ORM\Index(name: 'idx_company_status', columns: ['company_status'])]
+#[ORM\Index(name: 'idx_company_archived_at', columns: ['archived_at'])]
 #[ORM\HasLifecycleCallbacks]
 class Company
 {
@@ -170,28 +171,42 @@ class Company
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $googleDriveLink = null;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: Contact::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $archivedAt = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $archivedBy = null;
+
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $archiveReason = null;
+
+    // History-preserving relations: cascade "remove"/orphanRemoval is
+    // deliberately absent so no code path can cascade-destroy CRM history
+    // (contacts, activities, RFQs, compliance records, ...). Companies are
+    // archived (archivedAt), never hard-deleted through the CRM UI.
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: Contact::class, cascade: ['persist'])]
     private Collection $contacts;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: Activity::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: Activity::class, cascade: ['persist'])]
     private Collection $activities;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: RFQ::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: RFQ::class, cascade: ['persist'])]
     private Collection $rfqs;
 
-    #[ORM\OneToOne(mappedBy: 'company', targetEntity: SupplierPortal::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToOne(mappedBy: 'company', targetEntity: SupplierPortal::class, cascade: ['persist'])]
     private ?SupplierPortal $supplierPortal = null;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: ComplianceDocument::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: ComplianceDocument::class, cascade: ['persist'])]
     private Collection $complianceDocuments;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: PortalCandidate::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: PortalCandidate::class, cascade: ['persist'])]
     private Collection $portalCandidates;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: OnboardingPack::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: OnboardingPack::class, cascade: ['persist'])]
     private Collection $onboardingPacks;
 
-    #[ORM\OneToMany(mappedBy: 'company', targetEntity: CompanyCanonical::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'company', targetEntity: CompanyCanonical::class, cascade: ['persist'])]
     private Collection $companyCanonicals;
 
     #[ORM\Column(type: 'datetime')]
@@ -646,6 +661,58 @@ class Company
     public function onPreUpdate(): void
     {
         $this->updatedAt = new \DateTime();
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
+    }
+
+    public function getArchivedAt(): ?\DateTimeInterface
+    {
+        return $this->archivedAt;
+    }
+
+    public function archive(User $by, ?string $reason = null): self
+    {
+        $this->archivedAt = $this->archivedAt ?? new \DateTime();
+        $this->archivedBy = $by;
+        $this->archiveReason = $reason;
+
+        return $this;
+    }
+
+    public function restore(): self
+    {
+        $this->archivedAt = null;
+        $this->archivedBy = null;
+        $this->archiveReason = null;
+
+        return $this;
+    }
+
+    public function getArchivedBy(): ?User
+    {
+        return $this->archivedBy;
+    }
+
+    public function setArchivedBy(?User $archivedBy): self
+    {
+        $this->archivedBy = $archivedBy;
+
+        return $this;
+    }
+
+    public function getArchiveReason(): ?string
+    {
+        return $this->archiveReason;
+    }
+
+    public function setArchiveReason(?string $archiveReason): self
+    {
+        $this->archiveReason = $archiveReason;
+
+        return $this;
     }
 
     public function getPhysicalSite(): ?string

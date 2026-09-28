@@ -75,7 +75,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $reducedMotion = false;
 
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Activity::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $deactivatedAt = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $deactivatedBy = null;
+
+    // History-preserving: no cascade remove/orphanRemoval — deleting a user
+    // would cascade-destroy their activities. Users are deactivated, not deleted.
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Activity::class, cascade: ['persist'])]
     private Collection $activities;
 
     public function __construct()
@@ -299,6 +308,54 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->active = $active;
         return $this;
+    }
+
+    /**
+     * Deactivate instead of deleting: the user row (and every historical
+     * foreign key pointing at it) is preserved forever for attribution.
+     */
+    public function deactivate(self $by): self
+    {
+        $this->active = false;
+        $this->deactivatedAt = $this->deactivatedAt ?? new \DateTime();
+        $this->deactivatedBy = $by;
+
+        return $this;
+    }
+
+    public function reactivate(): self
+    {
+        $this->active = true;
+        $this->deactivatedAt = null;
+        $this->deactivatedBy = null;
+
+        return $this;
+    }
+
+    /**
+     * Erase personal data while keeping the row and its primary key intact,
+     * so historical records keep pointing at a valid (anonymous) user.
+     */
+    public function pseudonymize(): self
+    {
+        $this->firstName = 'Former';
+        $this->lastName = 'User';
+        $this->email = sprintf('deleted-%s@invalid.local', bin2hex(random_bytes(8)));
+        $this->territory = null;
+        $this->resetToken = null;
+        $this->resetTokenExpiresAt = null;
+
+        return $this;
+    }
+
+    public function getDeactivatedAt(): ?\DateTimeInterface
+    {
+        return $this->deactivatedAt;
+    }
+
+    public function getDeactivatedBy(): ?self
+    {
+        return $this->deactivatedBy;
     }
 
     public function isVerified(): bool

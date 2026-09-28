@@ -3,6 +3,7 @@
 namespace App\Form;
 
 use App\Entity\User;
+use App\Validator\PasswordPolicy;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -97,14 +98,7 @@ class UserAdminType extends AbstractType
                 'mapped' => false,
                 'label' => 'administration.users.password',
                 'constraints' => [
-                    new NotBlank([
-                        'message' => 'validation.required',
-                    ]),
-                    new Length([
-                        'min' => 6,
-                        'minMessage' => 'validation.min_length',
-                        'max' => 4096,
-                    ]),
+                    new PasswordPolicy(),
                 ],
             ]);
         }

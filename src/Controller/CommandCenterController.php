@@ -47,7 +47,8 @@ class CommandCenterController extends AbstractController
         private LeadSalesAnalystService $salesAnalyst,
         private InteractiveLiveQuoteService $liveQuoteService,
         private EntityManagerInterface $entityManager,
-        private CountryService $countryService
+        private CountryService $countryService,
+        private \App\Service\CurrencyConverter $currencyConverter
     ) {}
 
     /**
@@ -83,14 +84,28 @@ class CommandCenterController extends AbstractController
         $openQuotes = $em->getRepository(Quote::class)->createQueryBuilder('q')
             ->select('q.id, q.quoteNumber, q.totalCost, q.currency, q.status, q.createdAt')
             ->where('q.status IN (:statuses)')
+            ->andWhere('q.archivedAt IS NULL')
             ->setParameter('statuses', ['draft', 'pending_review', 'sent'])
             ->orderBy('q.totalCost', 'DESC')
             ->setMaxResults(20)
             ->getQuery()->getResult();
 
+        // Sum in a single display currency: quotes are captured in mixed
+        // currencies (USD/EUR/MAD/...), so a raw SUM(totalCost) would add
+        // apples and oranges into a meaningless number. Each row converts
+        // through the same CurrencyConverter used by CommandCenterService.
+        $displayCurrency = $this->currencyConverter->getDisplayCurrency();
         $openQuotesValue = 0.0;
         foreach ($openQuotes as $q) {
-            $openQuotesValue += (float) ($q['totalCost'] ?? 0);
+            $amount = (float) ($q['totalCost'] ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+            $openQuotesValue += $this->currencyConverter->convert(
+                $amount,
+                $q['currency'] ?: $displayCurrency,
+                $displayCurrency
+            );
         }
 
         // Recent activities counts

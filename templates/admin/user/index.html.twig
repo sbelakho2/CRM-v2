@@ -113,13 +113,26 @@
                             <td class="rams-table__cell rams-table__cell--actions">
                                 <div class="rams-btn-group mobile-stack">
                                     <a href="{{ path('admin_user_edit', {id: user.id}) }}" class="rams-btn rams-btn--ghost rams-btn--sm">{{ 'common.edit'|trans }}</a>
-                                    <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'administration.users.delete_confirm'|trans }}', {variant: 'danger'})">
-                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_user' ~ user.id) }}">
-                                        <button type="submit" 
-                                                class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">
-                                            {{ 'common.delete'|trans }}
-                                        </button>
-                                    </form>
+                                    {% if user.isActive() %}
+                                        <form action="{{ path('admin_user_delete', {id: user.id}) }}" method="post" class="rams-inline-block" onsubmit="return ramsConfirmSubmit(event, '{{ 'administration.users.delete_confirm'|trans }}', {variant: 'danger'})">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('delete_user' ~ user.id) }}">
+                                            <label class="rams-flex rams-flex-col rams-gap-1 rams-mb-2">
+                                                <span class="rams-dymo">{{ 'administration.users.pseudonymize'|trans }}</span>
+                                                <input type="checkbox" name="pseudonymize" value="1">
+                                            </label>
+                                            <button type="submit"
+                                                    class="rams-btn rams-btn--ghost rams-btn--sm rams-btn--danger">
+                                                {{ 'administration.users.deactivate'|trans }}
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <form action="{{ path('admin_user_reactivate', {id: user.id}) }}" method="post" class="rams-inline-block">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('reactivate_user' ~ user.id) }}">
+                                            <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">
+                                                {{ 'administration.users.reactivate'|trans }}
+                                            </button>
+                                        </form>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>

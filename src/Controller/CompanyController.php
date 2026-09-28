@@ -4,13 +4,11 @@ namespace App\Controller;
 
 use App\Entity\Company;
 use App\Form\CompanyType;
-use App\Repository\ComplianceDocumentRepository;
 use App\Repository\ActivityRepository;
 use App\Repository\CompanyRepository;
 use App\Service\ExportService;
 use App\Service\GuidanceNotificationService;
 use App\Service\CountryService;
-use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -37,7 +35,6 @@ class CompanyController extends AbstractController
     public function __construct(
         private CompanyRepository $companyRepository,
         private ActivityRepository $activityRepository,
-        private ComplianceDocumentRepository $complianceDocumentRepository,
         private EntityManagerInterface $entityManager,
         private ExportService $exportService,
         private GuidanceNotificationService $guidanceService,
@@ -58,7 +55,8 @@ class CompanyController extends AbstractController
         // Build query — only show approved & active companies (NOT discovered)
         $qb = $this->companyRepository->createQueryBuilder('c');
         $qb->andWhere('c.companyStatus IN (:statuses)')
-           ->setParameter('statuses', [Company::STATUS_APPROVED, Company::STATUS_ACTIVE]);
+           ->setParameter('statuses', [Company::STATUS_APPROVED, Company::STATUS_ACTIVE])
+           ->andWhere('c.archivedAt IS NULL');
 
         if ($sector) {
             $qb->andWhere('c.sector = :sector')
@@ -191,19 +189,19 @@ class CompanyController extends AbstractController
     public function delete(Request $request, Company $company): Response
     {
         if ($this->isCsrfTokenValid('delete' . $company->getId(), $request->request->get('_token'))) {
-            try {
-                // Explicitly remove compliance documents first to satisfy DB-level FK constraints.
-                foreach ($this->complianceDocumentRepository->findBy(['company' => $company]) as $document) {
-                    $this->entityManager->remove($document);
-                }
+            // Companies are NEVER hard-deleted: their contacts, activities,
+            // RFQs, quotes and compliance history would cascade away with
+            // them. "Delete" archives instead; a super-admin can restore or
+            // purge later through explicit maintenance tooling.
+            $company->archive(
+                $this->getUser(),
+                (string) $request->request->get('reason', 'Archived from company list')
+            );
+            $this->entityManager->flush();
 
-                $this->entityManager->remove($company);
-                $this->entityManager->flush();
-
-                $this->addFlash('success', $this->translator->trans('company.flash.deleted'));
-            } catch (ForeignKeyConstraintViolationException) {
-                $this->addFlash('error', 'Unable to delete this company because related records still exist. Please remove linked data first.');
-            }
+            $this->addFlash('success', $this->translator->trans('company.flash.archived', [
+                '%company%' => $company->getName(),
+            ]));
         }
 
         // If it was a discovered company, go back to discovered list
@@ -212,6 +210,40 @@ class CompanyController extends AbstractController
         }
 
         return $this->redirectToRoute('app_company_index');
+    }
+
+    #[Route('/{id}/restore', name: 'app_company_restore', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function restore(Request $request, Company $company): Response
+    {
+        if ($this->isCsrfTokenValid('restore' . $company->getId(), $request->request->get('_token'))) {
+            $company->restore();
+            $this->entityManager->flush();
+
+            $this->addFlash('success', $this->translator->trans('company.flash.restored', [
+                '%company%' => $company->getName(),
+            ]));
+        }
+
+        return $this->redirectToRoute('app_company_archive_index');
+    }
+
+    /**
+     * Admin-only view of archived companies, with restore actions.
+     */
+    #[Route('/archived', name: 'app_company_archive_index', methods: ['GET'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function archived(): Response
+    {
+        $companies = $this->companyRepository->createQueryBuilder('c')
+            ->andWhere('c.archivedAt IS NOT NULL')
+            ->orderBy('c.archivedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        return $this->render('company/archived.html.twig', [
+            'companies' => $companies,
+        ]);
     }
 
     /**
@@ -226,7 +258,8 @@ class CompanyController extends AbstractController
 
         $qb = $this->companyRepository->createQueryBuilder('c');
         $qb->andWhere('c.companyStatus = :status')
-           ->setParameter('status', Company::STATUS_DISCOVERED);
+           ->setParameter('status', Company::STATUS_DISCOVERED)
+           ->andWhere('c.archivedAt IS NULL');
 
         if ($sector) {
             $qb->andWhere('c.sector = :sector')
@@ -355,7 +388,8 @@ class CompanyController extends AbstractController
         $region = $request->query->get('region');
         $search = $request->query->get('search');
 
-        $qb = $this->companyRepository->createQueryBuilder('c');
+        $qb = $this->companyRepository->createQueryBuilder('c')
+            ->andWhere('c.archivedAt IS NULL');
 
         if ($sector) {
             $qb->andWhere('c.sector = :sector')
@@ -414,7 +448,8 @@ class CompanyController extends AbstractController
             ->leftJoin('c.contacts', 'ct')
             ->addSelect('ct')
             ->andWhere('c.companyStatus = :status')
-            ->setParameter('status', Company::STATUS_DISCOVERED);
+            ->setParameter('status', Company::STATUS_DISCOVERED)
+            ->andWhere('c.archivedAt IS NULL');
 
         if ($sector) {
             $qb->andWhere('c.sector = :sector')

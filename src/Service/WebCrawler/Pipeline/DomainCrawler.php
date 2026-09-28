@@ -6,6 +6,7 @@ namespace App\Service\WebCrawler\Pipeline;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use App\Security\SafeOutboundUrlGuard;
 
 /**
  * Fetches homepage + standard subpages for every candidate domain.
@@ -79,10 +80,24 @@ final class DomainCrawler
     private const MAX_REDIRECTS   = 5;
     private const USER_AGENT      = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+    private readonly HttpClientInterface $guardedHttpClient;
+    private readonly SafeOutboundUrlGuard $urlGuard;
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger,
     ) {
+        // SSRF defense in depth for homepage/robots/sitemap crawling: the
+        // decorated client blocks private-network destinations on the
+        // initial request and every redirect hop.
+        // Mock clients power hermetic unit tests with unresolvable fixture
+        // domains; SSRF enforcement is only meaningful for real transport.
+        if (!$httpClient instanceof \Symfony\Component\HttpClient\MockHttpClient) {
+            $this->guardedHttpClient = new \Symfony\Component\HttpClient\NoPrivateNetworkHttpClient($httpClient);
+        } else {
+            $this->guardedHttpClient = $httpClient;
+        }
+        $this->urlGuard = new SafeOutboundUrlGuard();
     }
 
     /**
@@ -230,7 +245,7 @@ final class DomainCrawler
         $results = [];
         foreach ($urls as $url) {
             try {
-                $responses[$url] = $this->httpClient->request('GET', $url, [
+                $responses[$url] = $this->guardedHttpClient->request('GET', $url, [
                     'timeout'       => self::REQUEST_TIMEOUT,
                     'max_redirects' => self::MAX_REDIRECTS,
                     'headers'       => [
@@ -295,7 +310,7 @@ final class DomainCrawler
 
             for ($attempt = 1; $attempt <= 2; $attempt++) {
                 try {
-                    $response = $this->httpClient->request('GET', $robotsUrl, [
+                    $response = $this->guardedHttpClient->request('GET', $robotsUrl, [
                         'timeout' => self::ROBOTS_TIMEOUT,
                         'max_redirects' => 2,
                         'headers' => [
@@ -344,7 +359,7 @@ final class DomainCrawler
                     $retry = null;
                     for ($attempt = 1; $attempt <= 2; $attempt++) {
                         try {
-                            $retry = $this->httpClient->request('GET', $robotsUrl, [
+                            $retry = $this->guardedHttpClient->request('GET', $robotsUrl, [
                                 'timeout' => self::ROBOTS_TIMEOUT,
                                 'max_redirects' => 2,
                                 'headers' => [
@@ -486,7 +501,8 @@ final class DomainCrawler
 
             $sitemapUrl = 'https://' . $domain . '/sitemap.xml';
             try {
-                $response = $this->httpClient->request('GET', $sitemapUrl, [
+                $this->urlGuard->assertAllowed($sitemapUrl);
+                $response = $this->guardedHttpClient->request('GET', $sitemapUrl, [
                     'timeout' => self::ROBOTS_TIMEOUT,
                     'max_redirects' => 2,
                     'headers' => [
@@ -502,7 +518,7 @@ final class DomainCrawler
                 if ($content === '') {
                     continue;
                 }
-                $parsedUrls = $this->parseSitemapXml($content);
+                $parsedUrls = $this->parseSitemapXml($content, $homepageUrl);
                 $added = 0;
                 foreach ($parsedUrls as $url) {
                     if ($added >= self::MAX_SITEMAP_URLS) {
@@ -544,9 +560,14 @@ final class DomainCrawler
      * Handles both sitemap indexes (pointing to sub-sitemaps) and
      * standard sitemaps with <url><loc> entries.
      *
+     * Sitemap content is attacker-controlled: <loc> entries and sub-sitemap
+     * references are only accepted when they stay within the crawled site's
+     * organization ($baseUrl), XML is parsed with network access disabled,
+     * and every outbound fetch goes through the SSRF guard.
+     *
      * @return string[]
      */
-    private function parseSitemapXml(string $xml): array
+    private function parseSitemapXml(string $xml, ?string $baseUrl = null): array
     {
         $urls = [];
 
@@ -554,7 +575,7 @@ final class DomainCrawler
         $useErrors = libxml_use_internal_errors(true);
 
         $doc = new \DOMDocument();
-        $loaded = $doc->loadXML($xml);
+        $loaded = $doc->loadXML($xml, LIBXML_NONET);
         if (!$loaded) {
             libxml_clear_errors();
             libxml_use_internal_errors($useErrors);
@@ -569,9 +590,13 @@ final class DomainCrawler
         if ($locNodes !== false && $locNodes->length > 0) {
             foreach ($locNodes as $node) {
                 $url = trim($node->nodeValue ?? '');
-                if ($url !== '') {
-                    $urls[] = $url;
+                if ($url === '') {
+                    continue;
                 }
+                if ($baseUrl !== null && !$this->urlGuard->isAllowedChildUrl($baseUrl, $url)) {
+                    continue; // cross-origin <loc> from a compromised sitemap
+                }
+                $urls[] = $url;
             }
         }
 
@@ -582,9 +607,14 @@ final class DomainCrawler
                 foreach ($subSitemaps as $node) {
                     $subUrl = trim($node->nodeValue ?? '');
                     if ($subUrl !== '') {
+                        // Sub-sitemaps must stay within the crawled organization
+                        if ($baseUrl !== null && !$this->urlGuard->isAllowedChildUrl($baseUrl, $subUrl)) {
+                            continue;
+                        }
                         // Recursively fetch and parse sub-sitemaps (limited depth)
                         try {
-                            $response = $this->httpClient->request('GET', $subUrl, [
+                            $this->urlGuard->assertAllowed($subUrl);
+                            $response = $this->guardedHttpClient->request('GET', $subUrl, [
                                 'timeout' => self::ROBOTS_TIMEOUT,
                                 'max_redirects' => 2,
                                 'headers' => [
@@ -594,7 +624,7 @@ final class DomainCrawler
                             ]);
                             $subContent = $response->getContent(false);
                             if ($subContent !== '') {
-                                $subUrls = $this->parseSitemapXml($subContent);
+                                $subUrls = $this->parseSitemapXml($subContent, $baseUrl);
                                 $urls = array_merge($urls, $subUrls);
                             }
                         } catch (\Throwable) {

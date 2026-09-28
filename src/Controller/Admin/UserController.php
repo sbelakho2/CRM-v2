@@ -95,6 +95,15 @@ class UserController extends AbstractController
         ]);
     }
 
+    /**
+     * Deactivate (not delete) a user account.
+     *
+     * User rows are preserved forever: they anchor historical attribution for
+     * activities, tasks, reports, audit logs, etc. Deactivation blocks login
+     * immediately (UserProvider refuses inactive accounts) without touching
+     * any related record. An optional "pseudonymize" flag erases personal
+     * data (name/email) while keeping the row and its primary key intact.
+     */
     #[Route('/{id}/delete', name: 'admin_user_delete', methods: ['POST'])]
     public function delete(Request $request, User $user, EntityManagerInterface $em, TranslatorInterface $translator): Response
     {
@@ -102,70 +111,43 @@ class UserController extends AbstractController
             return $this->redirectToRoute('admin_user_index');
         }
 
-        // Never let a user deletion destroy data: reassign everything the user
-        // owns/created to a target user first (explicit reassign_to, otherwise
-        // the acting admin), then remove the account. The DB-level ON DELETE
-        // CASCADE rules would otherwise silently delete activities, tasks,
-        // calendar events, meeting slots, notifications and report definitions.
         $actingAdmin = $this->getUser();
-        $targetId = $request->request->get('reassign_to');
-        $target = null;
 
-        if ($targetId !== null && $targetId !== '') {
-            $candidate = $em->getRepository(User::class)->find((int) $targetId);
-            if ($candidate && $candidate->getId() !== $user->getId()) {
-                $target = $candidate;
-            }
-        }
-
-        if ($target === null && $actingAdmin instanceof User && $actingAdmin->getId() !== $user->getId()) {
-            $target = $actingAdmin;
-        }
-
-        if ($target === null) {
-            $this->addFlash('error', $translator->trans('administration.users.flash.delete_needs_target'));
+        if ($actingAdmin instanceof User && $actingAdmin->getId() === $user->getId()) {
+            $this->addFlash('error', $translator->trans('administration.users.flash.cannot_deactivate_self'));
 
             return $this->redirectToRoute('admin_user_index');
         }
 
         $userFullName = trim(($user->getFirstName() ?? '') . ' ' . ($user->getLastName() ?? ''));
-        $userId = $user->getId();
-        $connection = $em->getConnection();
 
-        $em->wrapInTransaction(function () use ($connection, $userId, $userFullName, $target): void {
-            $targetId = $target->getId();
+        $user->deactivate($actingAdmin);
 
-            // Integer foreign keys (cascade or set-null on user delete).
-            $connection->executeStatement('UPDATE activities SET user_id = :t WHERE user_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE tasks SET created_by_id = :t WHERE created_by_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE tasks SET assigned_to_id = :t WHERE assigned_to_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE calendar_events SET organizer_id = :t WHERE organizer_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE calendar_event_attendees SET user_id = :t WHERE user_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE meeting_slots SET owner_id = :t WHERE owner_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE notification SET user_id = :t WHERE user_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE report_definitions SET created_by_id = :t WHERE created_by_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE custom_field_definitions SET created_by_id = :t WHERE created_by_id = :u', ['t' => $targetId, 'u' => $userId]);
-            $connection->executeStatement('UPDATE audit_logs SET user_id = :t WHERE user_id = :u', ['t' => $targetId, 'u' => $userId]);
+        if ($request->request->getBoolean('pseudonymize')) {
+            $user->pseudonymize();
+        }
 
-            // Textual owner references (stored as display names).
-            if ($userFullName !== '') {
-                $targetFullName = trim(($target->getFirstName() ?? '') . ' ' . ($target->getLastName() ?? ''));
-                foreach (['leads' => 'owner_rep', 'email_segment' => 'created_by', 'email_template' => 'created_by', 'rfq_versions' => 'created_by'] as $table => $column) {
-                    $connection->executeStatement(
-                        sprintf('UPDATE %s SET %s = :t WHERE %s = :u', $table, $column, $column),
-                        ['t' => $targetFullName, 'u' => $userFullName]
-                    );
-                }
-            }
-        });
-
-        $em->refresh($user);
-        $em->remove($user);
         $em->flush();
 
-        $this->addFlash('success', $translator->trans('administration.users.flash.deleted_reassigned', [
-            '%name%' => $userFullName,
-            '%target%' => trim(($target->getFirstName() ?? '') . ' ' . ($target->getLastName() ?? '')),
+        $this->addFlash('success', $translator->trans('administration.users.flash.deactivated', [
+            '%name%' => $userFullName !== '' ? $userFullName : $user->getEmail(),
+        ]));
+
+        return $this->redirectToRoute('admin_user_index');
+    }
+
+    #[Route('/{id}/reactivate', name: 'admin_user_reactivate', methods: ['POST'])]
+    public function reactivate(Request $request, User $user, EntityManagerInterface $em, TranslatorInterface $translator): Response
+    {
+        if (!$this->isCsrfTokenValid('reactivate_user'.$user->getId(), $request->request->get('_token'))) {
+            return $this->redirectToRoute('admin_user_index');
+        }
+
+        $user->reactivate();
+        $em->flush();
+
+        $this->addFlash('success', $translator->trans('administration.users.flash.reactivated', [
+            '%name%' => $user->getEmail(),
         ]));
 
         return $this->redirectToRoute('admin_user_index');

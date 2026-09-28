@@ -77,7 +77,7 @@ class QuoteCoPilotController extends AbstractController
     }
 
     /**
-     * List all quotes
+     * List all non-archived quotes
      */
     #[Route('/quotes', name: 'quote_copilot_list', methods: ['GET'])]
     public function list(): Response
@@ -88,6 +88,7 @@ class QuoteCoPilotController extends AbstractController
             ->addSelect('c')
             ->addSelect('COALESCE(c.name, :missingCompany) AS company_name')
             ->setParameter('missingCompany', $this->translator->trans('common.n_a'))
+            ->andWhere('q.archivedAt IS NULL')
             ->orderBy('q.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
@@ -98,13 +99,17 @@ class QuoteCoPilotController extends AbstractController
     }
 
     /**
-     * Delete a quote and its BOM lines
+     * Archive a quote (never hard-delete commercial history).
+     *
+     * Only quotes that were never sent and never viewed may be physically
+     * deleted, and even then archiving is the default: BOM lines, pricing and
+     * audit history are part of the commercial record.
      */
     #[Route('/{id}/delete', name: 'quote_copilot_delete', methods: ['POST'])]
     public function delete(int $id, Request $request): Response
     {
         $quote = $this->entityManager->getRepository(Quote::class)->find($id);
-        
+
         if (!$quote) {
             $this->addFlash('error', $this->translator->trans('quote.copilot.not_found'));
             return $this->redirectToRoute('quote_copilot_list');
@@ -118,21 +123,14 @@ class QuoteCoPilotController extends AbstractController
         }
 
         try {
-            // Delete associated BOM lines first
-            $bomLines = $this->entityManager->getRepository(BomLine::class)
-                ->findBy(['quote' => $quote]);
-            
-            foreach ($bomLines as $bomLine) {
-                $this->entityManager->remove($bomLine);
-            }
-            
-            // Delete the quote
-            $this->entityManager->remove($quote);
+            // Archive instead of hard delete. Quotes are commercial history:
+            // BOM lines, pricing and customer interactions must survive.
+            $quote->archive($this->getUser());
             $this->entityManager->flush();
-            
+
             $this->addFlash('success', $this->translator->trans('quote.copilot.deleted_successfully'));
         } catch (\Exception $e) {
-            $this->logger->error('Failed to delete quote', ['id' => $id, 'error' => $e->getMessage()]);
+            $this->logger->error('Failed to archive quote', ['id' => $id, 'error' => $e->getMessage()]);
             $this->addFlash('error', $this->translator->trans('quote.copilot.delete_failed'));
         }
 

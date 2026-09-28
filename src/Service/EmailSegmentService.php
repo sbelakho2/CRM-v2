@@ -140,7 +140,7 @@ class EmailSegmentService
     }
 
     /**
-     * Calculate contact count for filter rules
+     * Calculate contact count for filter rules (SQL COUNT, never loads rows).
      */
     private function calculateContactCount(array $filterRules): int
     {
@@ -148,13 +148,142 @@ class EmailSegmentService
             return $this->contactRepository->count([]);
         }
 
+        if ($this->isCompilableToDql($filterRules)) {
+            try {
+                return (int) $this->buildFilterQueryBuilder($filterRules)
+                    ->select('COUNT(c.id)')
+                    ->getQuery()
+                    ->getSingleScalarResult();
+            } catch (\Throwable) {
+                // Fall through to the legacy evaluation below: a counting
+                // failure must degrade, never break segment creation.
+            }
+        }
+
         $contacts = $this->getContactsByFilters($filterRules);
         return count($contacts);
     }
 
     /**
-     * Get contacts matching filter rules
-     * 
+     * Contact fields that segment filters may compile to SQL safely.
+     * Anything outside this whitelist keeps the legacy in-memory path.
+     */
+    private const ALLOWED_CONTACT_FIELDS = [
+        'email', 'firstName', 'lastName', 'jobTitle', 'phone',
+        'country', 'city', 'linkedinUrl', 'status', 'createdAt',
+    ];
+
+    /**
+     * Company fields reachable via dot notation (e.g. "company.sector").
+     */
+    private const ALLOWED_COMPANY_FIELDS = [
+        'name', 'sector', 'country', 'region', 'city', 'accountTier', 'companyStatus',
+    ];
+
+    private const ALLOWED_OPERATORS = [
+        '=', '!=', '>', '>=', '<', '<=',
+        'contains', 'not_contains', 'starts_with', 'ends_with',
+        'is_empty', 'is_not_empty',
+    ];
+
+    /**
+     * True when every rule references a whitelisted field/operator, so the
+     * whole filter set can compile to a single DQL query.
+     */
+    private function isCompilableToDql(array $filterRules): bool
+    {
+        $rules = $filterRules['rules'] ?? [];
+        if ($rules === []) {
+            return true; // empty rules trivially compile
+        }
+
+        foreach ($rules as $rule) {
+            $field = $rule['field'] ?? '';
+            $operator = $rule['operator'] ?? '=';
+
+            if (!in_array($operator, self::ALLOWED_OPERATORS, true)) {
+                return false;
+            }
+
+            if (str_contains($field, '.')) {
+                [$entity, $property] = explode('.', $field, 2);
+                if ($entity !== 'company' || !in_array($property, self::ALLOWED_COMPANY_FIELDS, true)) {
+                    return false;
+                }
+            } elseif (!in_array($field, self::ALLOWED_CONTACT_FIELDS, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Build a QueryBuilder implementing the filter rules against Contact,
+     * joined with Company when any rule uses dot notation.
+     */
+    private function buildFilterQueryBuilder(array $filterRules): \Doctrine\ORM\QueryBuilder
+    {
+        $qb = $this->contactRepository->createQueryBuilder('c');
+        $needsCompanyJoin = false;
+
+        foreach (($filterRules['rules'] ?? []) as $index => $rule) {
+            $field = (string) ($rule['field'] ?? '');
+            $operator = (string) ($rule['operator'] ?? '=');
+            $value = $rule['value'] ?? null;
+
+            $alias = 'c';
+            $column = $field;
+            if (str_contains($field, '.')) {
+                [$entity, $property] = explode('.', $field, 2);
+                $alias = 'co';
+                $column = $property;
+                $needsCompanyJoin = true;
+            }
+
+            $param = 'f'.$index;
+            $predicate = null;
+
+            switch ($operator) {
+                case '=':         $predicate = $qb->expr()->eq($alias.'.'.$column, ':'.$param); break;
+                case '!=':        $predicate = $qb->expr()->neq($alias.'.'.$column, ':'.$param); break;
+                case '>':         $predicate = $qb->expr()->gt($alias.'.'.$column, ':'.$param); break;
+                case '>=':        $predicate = $qb->expr()->gte($alias.'.'.$column, ':'.$param); break;
+                case '<':         $predicate = $qb->expr()->lt($alias.'.'.$column, ':'.$param); break;
+                case '<=':        $predicate = $qb->expr()->lte($alias.'.'.$column, ':'.$param); break;
+                case 'contains':  $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = '%'.mb_strtolower((string) $value).'%'; break;
+                case 'not_contains': $predicate = 'LOWER('.$alias.'.'.$column.') NOT LIKE :'.$param; $value = '%'.mb_strtolower((string) $value).'%'; break;
+                case 'starts_with': $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = mb_strtolower((string) $value).'%'; break;
+                case 'ends_with':  $predicate = 'LOWER('.$alias.'.'.$column.') LIKE :'.$param; $value = '%'.mb_strtolower((string) $value); break;
+                case 'is_empty':   $predicate = '('.$alias.'.'.$column.' IS NULL OR '.$alias.'.'.$column.' = \'\')'; break;
+                case 'is_not_empty': $predicate = '('.$alias.'.'.$column.' IS NOT NULL AND '.$alias.'.'.$column.' <> \'\')'; break;
+            }
+
+            if ($predicate === null) {
+                continue;
+            }
+
+            if (($filterRules['operator'] ?? 'AND') === 'OR') {
+                $qb->orWhere($predicate);
+            } else {
+                $qb->andWhere($predicate);
+            }
+
+            if (!in_array($operator, ['is_empty', 'is_not_empty'], true)) {
+                $qb->setParameter($param, $value);
+            }
+        }
+
+        if ($needsCompanyJoin) {
+            $qb->leftJoin('c.company', 'co');
+        }
+
+        return $qb;
+    }
+
+    /**
+     * Get contacts matching filter rules.
+     *
      * Filter rules structure:
      * [
      *   'operator' => 'AND' | 'OR',
@@ -163,23 +292,33 @@ class EmailSegmentService
      *     ['field' => 'leadScore', 'operator' => '>=', 'value' => 75],
      *   ]
      * ]
+     *
+     * Whitelisted fields compile to a DB-side query with real LIMIT/OFFSET
+     * and never load the contact table into PHP memory. Only non-whitelisted
+     * legacy fields fall back to the (bounded, but in-memory) legacy path.
      */
     private function getContactsByFilters(array $filterRules, ?int $limit = null, int $offset = 0): array
     {
-        if (empty($filterRules)) {
-            // TODO: Convert to DQL query for scalability. findAll() loads all rows
-            // into memory and will degrade with >100k contacts. Use a DQL/SQL
-            // query with WHERE clauses and pagination instead.
-            return $this->contactRepository->findAll();
+        if ($this->isCompilableToDql($filterRules)) {
+            try {
+                $qb = $this->buildFilterQueryBuilder($filterRules)
+                    ->orderBy('c.id', 'ASC');
+
+                if ($limit !== null) {
+                    $qb->setMaxResults($limit);
+                }
+                if ($offset > 0) {
+                    $qb->setFirstResult($offset);
+                }
+
+                return $qb->getQuery()->getResult();
+            } catch (\Throwable) {
+                // Degrade to the legacy evaluation below.
+            }
         }
 
-        // Get all contacts and filter in memory
-        // For production, this should be converted to DQL for better performance
-        // TODO: Convert to DQL query for scalability
-        // TODO: Strongly recommended — migrate to DQL aggregation with indexed filters.
-        //       The current findAll loads entities into memory and
-        //       will degrade with large contact volumes. Use a DQL/SQL query with
-        //       WHERE clauses and pagination instead.
+        // Legacy fallback for non-whitelisted fields (or when the DB-side
+        // path is unavailable, e.g. repositories without a query builder).
         $allContacts = $this->contactRepository->findAll();
         $matchingContacts = [];
 

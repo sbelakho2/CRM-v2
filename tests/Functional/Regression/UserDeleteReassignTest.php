@@ -10,13 +10,15 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
- * Regression test for user deletion.
+ * Regression test for user lifecycle.
  *
- * The delete action used to rely on DB-level ON DELETE CASCADE rules, so
- * deleting an account silently destroyed everything the employee had created
- * (activities, tasks, calendar events, meeting slots, notifications, report
- * definitions) and orphaned the rest (audit trail, assigned tasks, owner-rep
- * names). Deletion must instead reassign every reference to another user.
+ * History: the delete action first relied on DB-level ON DELETE CASCADE
+ * (silently destroying everything the employee had created), then on
+ * reassign-then-delete (falsifying attribution by rewriting history to
+ * another user). The supported lifecycle is now DEACTIVATE: the user row and
+ * every historical reference to it are preserved exactly as they were, and
+ * login is blocked. Optional pseudonymization erases personal data while
+ * keeping the row and its primary key.
  */
 class UserDeleteReassignTest extends WebTestCase
 {
@@ -36,21 +38,20 @@ class UserDeleteReassignTest extends WebTestCase
         $connection->executeStatement('SET FOREIGN_KEY_CHECKS=1');
     }
 
-    public function testDeletingUserReassignsTheirDataInsteadOfDestroyingIt(): void
+    public function testDeactivatingUserPreservesHistoryAndAttribution(): void
     {
         $admin = $this->createUser('admin-delete@example.com', ['ROLE_ADMIN'], 'Admin', 'Remover');
         $victim = $this->createUser('victim@example.com', ['ROLE_SALES'], 'Raihana', 'Lembardi');
-        $receiver = $this->createUser('receiver@example.com', ['ROLE_SALES'], 'Khawla', 'Touati');
 
         $company = new Company();
-        $company->setName('Reassign Co');
+        $company->setName('Deactivate Co');
         $company->setAccountTier(Company::TIER_C);
         $company->setSector('Industrial');
         $company->setPipelineStage(Company::STAGE_PROSPECT);
         $this->entityManager->persist($company);
         $this->entityManager->flush();
 
-        // Data owned by the victim that the old delete would have destroyed.
+        // Data owned by the deactivated user that must survive untouched.
         $activity = new Activity();
         $activity->setType('Call');
         $activity->setNotes('Work the victim entered');
@@ -59,76 +60,58 @@ class UserDeleteReassignTest extends WebTestCase
         $activity->setUser($victim);
         $this->entityManager->persist($activity);
 
-        // A lead whose owner is recorded by display name.
+        // A lead whose owner is recorded by display name — attribution is
+        // historical fact and must NOT be rewritten to someone else.
         $this->entityManager->getConnection()->executeStatement(
             "INSERT INTO leads (company_name, owner_rep, created_at) VALUES ('Lead of victim', 'Raihana Lembardi', NOW())"
         );
         $this->entityManager->flush();
 
-        // In production the audit rows carry the acting user; setUp-time rows
-        // have no request user, so attribute them to the victim here.
-        $this->entityManager->getConnection()->executeStatement(
-            'UPDATE audit_logs SET user_id = :u WHERE user_id IS NULL OR user_id = :admin',
-            ['u' => $victim->getId(), 'admin' => $admin->getId()]
-        );
-
         $victimId = $victim->getId();
-        $receiverId = $receiver->getId();
-        $activityId = $activity->getId();
+        $adminId = $admin->getId();
         $this->entityManager->clear();
 
         $this->client->loginUser($this->loadUser('admin-delete@example.com'));
         $crawler = $this->client->request('GET', '/admin/users');
         $this->assertResponseIsSuccessful();
-        $token = $crawler->filter('form[action="/admin/users/' . $victimId . '/delete"] input[name="_token"]')->attr('value');
+        $token = $crawler
+            ->filter('form[action="/admin/users/' . $victimId . '/delete"] input[name="_token"]')
+            ->attr('value');
 
         $this->client->request('POST', '/admin/users/' . $victimId . '/delete', [
             '_token' => $token,
-            'reassign_to' => (string) $receiverId,
         ]);
         $this->assertResponseRedirects();
 
         $connection = $this->entityManager->getConnection();
 
-        // The account is gone …
-        $this->assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM users WHERE id = ?', [$victimId]));
+        // The account still exists — deactivated, never deleted.
+        $row = $connection->fetchAssociative('SELECT id, active, deactivated_at, deactivated_by_id FROM users WHERE id = ?', [$victimId]);
+        $this->assertNotNull($row, 'The user row must be preserved');
+        $this->assertSame(0, (int) $row['active'], 'Deactivated users must not be able to log in');
+        $this->assertNotNull($row['deactivated_at']);
+        $this->assertSame($adminId, (int) $row['deactivated_by_id']);
 
-        // … but nothing the user created was destroyed.
-        $this->assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM activities WHERE id = ?', [$activityId]));
+        // History untouched: attribution stays with the original user.
         $this->assertSame(
-            $receiverId,
-            (int) $connection->fetchOne('SELECT user_id FROM activities WHERE id = ?', [$activityId]),
-            'Activities must be reassigned, not deleted'
+            $victimId,
+            (int) $connection->fetchOne('SELECT user_id FROM activities WHERE notes = ?', ['Work the victim entered']),
+            'Activity attribution must NOT be reassigned to the acting admin'
         );
         $this->assertSame(
             1,
-            (int) $connection->fetchOne("SELECT COUNT(*) FROM leads WHERE owner_rep = 'Khawla Touati'"),
-            'Owner-rep name references must be reassigned'
-        );
-        // (Rows created directly in setUp have no acting user, so scope the
-        // limbo check to the deleted user's own records.)
-        $this->assertSame(
-            0,
-            (int) $connection->fetchOne(
-                "SELECT COUNT(*) FROM audit_logs WHERE user_id IS NULL AND entity_type = 'Activity' AND entity_id = ?",
-                [$activityId]
-            ),
-            'Audit trail must follow the reassignment, never fall into limbo'
-        );
-        $this->assertGreaterThanOrEqual(
-            1,
-            (int) $connection->fetchOne('SELECT COUNT(*) FROM audit_logs WHERE user_id = ?', [$receiverId]),
-            'The deleted user\'s audit trail must be reassigned to the target'
+            (int) $connection->fetchOne("SELECT COUNT(*) FROM leads WHERE owner_rep = 'Raihana Lembardi'"),
+            'Owner-rep references are historical facts and must not be rewritten'
         );
     }
 
-    public function testDeletingUserWithoutTargetReassignsToActingAdmin(): void
+    public function testDeactivatingWithPseudonymizeKeepsRowAndAttribution(): void
     {
         $admin = $this->createUser('admin2@example.com', ['ROLE_ADMIN'], 'Admin', 'Two');
         $victim = $this->createUser('victim2@example.com', ['ROLE_SALES'], 'Other', 'Person');
 
         $company = new Company();
-        $company->setName('Default Target Co');
+        $company->setName('Pseudonymize Co');
         $company->setAccountTier(Company::TIER_C);
         $company->setSector('Industrial');
         $company->setPipelineStage(Company::STAGE_PROSPECT);
@@ -137,7 +120,7 @@ class UserDeleteReassignTest extends WebTestCase
 
         $activity = new Activity();
         $activity->setType('Email');
-        $activity->setNotes('Belongs to the deleted user');
+        $activity->setNotes('Belongs to the deactivated user');
         $activity->setActivityDate(new \DateTime('2026-09-02 10:00:00'));
         $activity->setCompany($company);
         $activity->setUser($victim);
@@ -145,22 +128,56 @@ class UserDeleteReassignTest extends WebTestCase
         $this->entityManager->flush();
 
         $victimId = $victim->getId();
-        $adminId = $admin->getId();
         $this->entityManager->clear();
 
         $this->client->loginUser($this->loadUser('admin2@example.com'));
         $crawler = $this->client->request('GET', '/admin/users');
         $this->assertResponseIsSuccessful();
-        $token = $crawler->filter('form[action="/admin/users/' . $victimId . '/delete"] input[name="_token"]')->attr('value');
+        $token = $crawler
+            ->filter('form[action="/admin/users/' . $victimId . '/delete"] input[name="_token"]')
+            ->attr('value');
 
-        $this->client->request('POST', '/admin/users/' . $victimId . '/delete', ['_token' => $token]);
+        $this->client->request('POST', '/admin/users/' . $victimId . '/delete', [
+            '_token' => $token,
+            'pseudonymize' => '1',
+        ]);
+        $this->assertResponseRedirects();
+
+        $connection = $this->entityManager->getConnection();
+
+        // Row kept, personal data erased, attribution intact.
+        $row = $connection->fetchAssociative('SELECT id, email, first_name FROM users WHERE id = ?', [$victimId]);
+        $this->assertNotNull($row, 'Pseudonymization keeps the row (and its PK) forever');
+        $this->assertSame('Former', $row['first_name']);
+        $this->assertStringContainsString('@invalid.local', (string) $row['email']);
+        $this->assertSame(
+            $victimId,
+            (int) $connection->fetchOne('SELECT user_id FROM activities WHERE notes = ?', ['Belongs to the deactivated user']),
+            'Historical attribution survives pseudonymization'
+        );
+    }
+
+    public function testAdminCannotDeactivateThemselves(): void
+    {
+        $admin = $this->createUser('admin3@example.com', ['ROLE_ADMIN'], 'Admin', 'Three');
+        $adminId = $admin->getId();
+        $this->entityManager->clear();
+
+        $this->client->loginUser($this->loadUser('admin3@example.com'));
+        $crawler = $this->client->request('GET', '/admin/users');
+        $this->assertResponseIsSuccessful();
+        $token = $crawler
+            ->filter('form[action="/admin/users/' . $adminId . '/delete"] input[name="_token"]')
+            ->attr('value');
+
+        $this->client->request('POST', '/admin/users/' . $adminId . '/delete', ['_token' => $token]);
         $this->assertResponseRedirects();
 
         $connection = $this->entityManager->getConnection();
         $this->assertSame(
-            $adminId,
-            (int) $connection->fetchOne('SELECT user_id FROM activities WHERE notes = ?', ['Belongs to the deleted user']),
-            'Without an explicit target the acting admin receives the data'
+            1,
+            (int) $connection->fetchOne('SELECT active FROM users WHERE id = ?', [$adminId]),
+            'Self-deactivation must be refused'
         );
     }
 

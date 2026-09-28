@@ -19,7 +19,7 @@ class CompanyCanonical
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'companyCanonicals')]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Company $company = null;
 
     #[ORM\Column(length: 255)]

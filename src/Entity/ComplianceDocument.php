@@ -9,6 +9,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
 #[ORM\Entity(repositoryClass: ComplianceDocumentRepository::class)]
 #[ORM\Table(name: 'compliance_documents')]
+#[ORM\Index(name: 'idx_compliance_documents_key', columns: ['document_key'])]
 #[Vich\Uploadable]
 class ComplianceDocument
 {
@@ -23,11 +24,20 @@ class ComplianceDocument
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'complianceDocuments')]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Company $company = null;
 
     #[ORM\Column(length: 255)]
     private ?string $name = null; // ISO 9001, IATF 16949, etc.
+
+    /**
+     * Stable machine identifier of the required-document definition (e.g.
+     * "iso_9001_certificate"). Used to reconcile pack regeneration without
+     * destroying uploaded files or history. Null only for legacy rows that
+     * predate the key; they are backfilled by slugifying the name.
+     */
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $documentKey = null;
 
     #[ORM\Column(type: 'boolean')]
     private bool $required = true;
@@ -99,6 +109,17 @@ class ComplianceDocument
     public function setName(string $name): self
     {
         $this->name = $name;
+        return $this;
+    }
+
+    public function getDocumentKey(): ?string
+    {
+        return $this->documentKey;
+    }
+
+    public function setDocumentKey(?string $documentKey): self
+    {
+        $this->documentKey = $documentKey;
         return $this;
     }
 

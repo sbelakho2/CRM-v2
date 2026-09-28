@@ -3,5 +3,6 @@
   "validation.email": "Please enter a valid email address.",
   "validation.url": "Please enter a valid URL.",
   "validation.min_length": "Your password should be at least {{ limit }} characters.",
-  "validation.password_mismatch": "The password fields must match."
+  "validation.password_mismatch": "The password fields must match.",
+  "validation.password_min_length": "Your password must be at least 12 characters long and must not appear in known data breaches."
 }

@@ -3,5 +3,6 @@
   "validation.email": "Veuillez saisir une adresse e-mail valide.",
   "validation.url": "Veuillez saisir une URL valide.",
   "validation.min_length": "Votre mot de passe doit contenir au moins {{ limit }} caractères.",
-  "validation.password_mismatch": "Les mots de passe doivent correspondre."
+  "validation.password_mismatch": "Les mots de passe doivent correspondre.",
+  "validation.password_min_length": "Votre mot de passe doit contenir au moins 12 caractères et ne doit pas figurer dans des fuites de données connues."
 }

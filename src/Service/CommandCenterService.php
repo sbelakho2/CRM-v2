@@ -146,7 +146,11 @@ class CommandCenterService
                 'pending_review' => (int) $pendingReview,
                 'high_priority_count' => count($highPriorityLeads),
             ],
-            'by_region' => array_column($leadsByRegion, 'count', 'regionTag'),
+            'by_region' => array_column(
+                array_filter($leadsByRegion, static fn (array $row) => ($row['regionTag'] ?? null) !== null),
+                'count',
+                'regionTag'
+            ),
             'high_priority_leads' => array_map(fn(Lead $l) => [
                 'id' => $l->getId(),
                 'company_name' => $l->getCompanyName(),

@@ -175,3 +175,4 @@ credentials.json
 /.playwright-mcp/
 /.zcode/
 /router-dev.php
+.output.txt

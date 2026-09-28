@@ -251,16 +251,38 @@ class ExportService
         $extension = $format === 'xlsx' ? 'xlsx' : 'csv';
         $filename = "{$prefix}_{$timestamp}.{$extension}";
         $filepath = sys_get_temp_dir() . '/' . $filename;
-        
+
+        // Spreadsheet-formula neutralization: CRM/discovery-sourced strings
+        // (company names, notes, emails-as-text, ...) starting with =, +, -,
+        // @, TAB or CR would execute as formulas in Excel/LibreOffice when
+        // the exported file is opened. Prefixing an apostrophe forces the
+        // value to be treated as text.
+        $this->neutralizeSpreadsheetFormulas($spreadsheet);
+
         if ($format === 'xlsx') {
             $writer = new Xlsx($spreadsheet);
         } else {
             $writer = new Csv($spreadsheet);
         }
-        
+
         $writer->save($filepath);
-        
+
         return $filepath;
+    }
+
+    private function neutralizeSpreadsheetFormulas(Spreadsheet $spreadsheet): void
+    {
+        foreach ($spreadsheet->getAllSheets() as $sheet) {
+            foreach ($sheet->getRowIterator() as $row) {
+                foreach ($row->getCellIterator() as $cell) {
+                    $value = $cell->getValue();
+
+                    if (is_string($value) && preg_match('/^[=+\-@\t\r]/', $value) === 1) {
+                        $cell->setValue("'" . $value);
+                    }
+                }
+            }
+        }
     }
 
     /**

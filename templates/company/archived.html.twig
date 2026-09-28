@@ -1,0 +1,61 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'company.flash.archived_page_title'|trans }} - {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+<div class="rams-flex rams-flex-col rams-gap-6">
+    <div class="rams-page-header">
+        <div>
+            <h1 class="rams-page-title">{{ 'company.flash.archived_page_title'|trans }}</h1>
+            {% if companies is empty %}
+                <p class="rams-page-subtitle">{{ 'company.flash.archived_empty'|trans }}</p>
+            {% endif %}
+        </div>
+        <div class="rams-page-actions mobile-stack">
+            <a href="{{ path('app_company_index') }}" class="rams-btn">{{ 'common.back'|trans }}</a>
+        </div>
+    </div>
+
+    {% if companies is not empty %}
+    <div class="rams-module">
+        <div class="rams-module__header">
+            <span class="rams-module__title">{{ 'company.flash.archived_page_title'|trans }}</span>
+        </div>
+        <div class="rams-module__content">
+            <div class="rams-table-wrapper">
+                <table class="rams-table">
+                    <thead>
+                        <tr>
+                            <th>{{ 'company.name'|trans }}</th>
+                            <th>{{ 'company.flash.archived_at'|trans }}</th>
+                            <th>{{ 'company.flash.archived_by'|trans }}</th>
+                            <th>{{ 'company.flash.reason'|trans }}</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for company in companies %}
+                        <tr>
+                            <td>
+                                <a href="{{ path('app_company_show', {id: company.id}) }}">{{ company.name }}</a>
+                                <span class="rams-badge">{{ 'company.flash.archived_badge'|trans }}</span>
+                            </td>
+                            <td>{{ company.archivedAt|date('Y-m-d H:i') }}</td>
+                            <td>{{ company.archivedBy ? (company.archivedBy.firstName ~ ' ' ~ company.archivedBy.lastName) : '—' }}</td>
+                            <td>{{ company.archiveReason|default('—') }}</td>
+                            <td>
+                                <form method="post" action="{{ path('app_company_restore', {id: company.id}) }}" style="display:inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('restore' ~ company.id) }}">
+                                    <button type="submit" class="rams-btn rams-btn--primary rams-btn--sm">{{ 'company.flash.restore'|trans }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -30,6 +30,7 @@ security:
   access_control:
     - { path: ^/login, roles: PUBLIC_ACCESS }
     - { path: ^/register, roles: PUBLIC_ACCESS }
+    - { path: ^/resend-verification, roles: PUBLIC_ACCESS }
     - { path: ^/verify-email, roles: PUBLIC_ACCESS }
     - { path: ^/email/unsubscribe, roles: PUBLIC_ACCESS }
     - { path: ^/logout, roles: PUBLIC_ACCESS }

@@ -76,7 +76,7 @@ class MeetingSlot
     
     // Owner of this slot (the sales rep offering the meeting)
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?User $owner = null;
     
     // Booking information

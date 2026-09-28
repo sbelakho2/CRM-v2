@@ -24,7 +24,7 @@ class OnboardingPack
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Company::class, inversedBy: 'onboardingPacks')]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Company $company = null;
 
     #[ORM\ManyToOne(targetEntity: PortalCandidate::class)]

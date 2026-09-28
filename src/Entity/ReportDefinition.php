@@ -115,7 +115,7 @@ class ReportDefinition
     private ?array $scheduledDelivery = null;
     
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?User $createdBy = null;
     
     #[ORM\Column]

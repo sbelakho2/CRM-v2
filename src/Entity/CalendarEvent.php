@@ -119,7 +119,7 @@ class CalendarEvent
 
     // Relationships
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(name: 'organizer_id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'organizer_id', nullable: false, onDelete: 'RESTRICT')]
     private ?User $organizer = null;
 
     #[ORM\ManyToMany(targetEntity: User::class)]

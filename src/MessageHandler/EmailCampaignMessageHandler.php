@@ -29,15 +29,19 @@ class EmailCampaignMessageHandler
             throw new \RuntimeException('Campaign not found');
         }
 
-        $attempt = $message->getAttempt();
+        // The touch number is the semantic identity of this send. The retry
+        // attempt is infrastructure-only and must never leak into it: retrying
+        // a failed delivery of touch 1 is still touch 1, otherwise a transport
+        // hiccup would silently advance the customer's drip sequence.
+        $touchNumber = $message->getTouchNumber();
         $recipients = $this->contactRepository->findBy(['id' => $message->getRecipientIds()]);
 
         $failedRecipientIds = [];
         foreach ($recipients as $recipient) {
             // sendToContact returns bool: false means the EmailSend record was
             // persisted as failed by the service, so the recipient can be
-            // retried.
-            $sent = $this->campaignService->sendToContact($campaign, $recipient, $attempt);
+            // retried for the SAME touch number.
+            $sent = $this->campaignService->sendToContact($campaign, $recipient, $touchNumber);
 
             if (!$sent) {
                 $failedRecipientIds[] = $recipient->getId();
@@ -48,11 +52,11 @@ class EmailCampaignMessageHandler
     }
 
     /**
-     * Re-queue only the recipients whose send failed, with attempt + 1, so
-     * successful recipients are never sent twice. When the attempt limit is
-     * reached the failure is already persisted on the EmailSend record
-     * (status/failureReason set by EmailCampaignService), so nothing more is
-     * done here.
+     * Re-queue only the recipients whose send failed, with the SAME touch
+     * number and an incremented retry attempt, so successful recipients are
+     * never sent twice and failures never advance the drip sequence. When the
+     * attempt limit is reached the failure is already persisted on the
+     * EmailSend record (status/failureReason set by EmailCampaignService).
      */
     private function redispatchFailed(EmailCampaignMessage $message, array $failedRecipientIds): void
     {
@@ -60,11 +64,16 @@ class EmailCampaignMessageHandler
             return;
         }
 
-        $attempt = $message->getAttempt();
+        $attempt = $message->getRetryAttempt();
         if ($attempt >= $this->retryLimit || $attempt >= self::MAX_ATTEMPTS_CAP) {
             return;
         }
 
-        $this->messageBus->dispatch(new EmailCampaignMessage($message->getCampaignId(), $failedRecipientIds, $attempt + 1));
+        $this->messageBus->dispatch(new EmailCampaignMessage(
+            $message->getCampaignId(),
+            $failedRecipientIds,
+            $message->getTouchNumber(),
+            $attempt + 1
+        ));
     }
 }

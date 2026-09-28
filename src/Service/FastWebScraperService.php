@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Security\SafeOutboundUrlGuard;
+use App\Security\UnsafeOutboundUrlException;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -18,6 +20,7 @@ use Psr\Log\LoggerInterface;
 class FastWebScraperService
 {
     private const CONCURRENCY = 20; // simultaneous HTTP requests
+    private const MAX_REDIRECTS = 5; // validated redirect hops per URL
     private const TIMEOUT = 10;     // seconds per request
     private const CONNECT_TIMEOUT = 5;
     
@@ -44,9 +47,13 @@ class FastWebScraperService
         'who we are', 'our team', 'staff', 'executives', 'directors',
     ];
 
+    private readonly SafeOutboundUrlGuard $urlGuard;
+
     public function __construct(
         private LoggerInterface $logger,
-    ) {}
+    ) {
+        $this->urlGuard = new SafeOutboundUrlGuard();
+    }
 
     /**
      * Scrape multiple company websites concurrently.
@@ -163,8 +170,13 @@ class FastWebScraperService
     /**
      * Execute multiple HTTP GET requests concurrently using curl_multi.
      *
+     * Every URL (initial and each redirect hop) is validated by the SSRF
+     * guard before a connection is opened; redirects are followed manually
+     * so no hop can bypass validation. Results are keyed by the ORIGINAL
+     * URL so callers never see redirect chains.
+     *
      * @param string[] $urls
-     * @return array<string, string> URL → response body (empty string on failure)
+     * @return array<string, string> URL -> response body (empty string on failure)
      */
     private function multiGet(array $urls): array
     {
@@ -172,6 +184,77 @@ class FastWebScraperService
             return [];
         }
 
+        // Validate everything up front: unsafe URLs never reach curl.
+        $validated = [];
+        foreach ($urls as $url) {
+            try {
+                $validated[$url] = $this->urlGuard->assertAllowed($url);
+            } catch (UnsafeOutboundUrlException $e) {
+                $this->logger->warning('[FastScraper] Unsafe URL rejected', ['url' => $url, 'reason' => $e->getMessage()]);
+            }
+        }
+        if ($validated === []) {
+            return array_fill_keys($urls, '');
+        }
+
+        // originalUrl => currentUrl, at most self::MAX_REDIRECTS hops each
+        $current = $validated;
+        $finalBodies = [];
+
+        for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
+            if ($current === []) {
+                break;
+            }
+
+            $roundResults = $this->curlMultiGet(array_values(array_unique($current)));
+
+            $next = [];
+            foreach ($current as $originalUrl => $currentUrl) {
+                $outcome = $roundResults[$currentUrl] ?? null;
+
+                if ($outcome === null || $outcome['body'] === null) {
+                    if ($outcome !== null && $outcome['redirect'] !== null) {
+                        $redirectUrl = $this->resolveLocation($currentUrl, $outcome['redirect']);
+                        if ($redirectUrl !== null) {
+                            try {
+                                $next[$originalUrl] = $this->urlGuard->assertAllowed($redirectUrl);
+                                continue;
+                            } catch (UnsafeOutboundUrlException $e) {
+                                $this->logger->warning('[FastScraper] Unsafe redirect rejected', [
+                                    'url' => $currentUrl,
+                                    'to' => $redirectUrl,
+                                    'reason' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                    }
+                    $finalBodies[$originalUrl] = '';
+                    continue;
+                }
+
+                $finalBodies[$originalUrl] = $outcome['body'];
+            }
+
+            $current = $next;
+        }
+
+        // Exhausted redirect budget
+        foreach (array_keys($current) as $originalUrl) {
+            $finalBodies[$originalUrl] = '';
+        }
+
+        return $finalBodies;
+    }
+
+    /**
+     * Single curl_multi round: no redirect following; returns per-URL body or
+     * redirect target.
+     *
+     * @param string[] $urls
+     * @return array<string, array{body: ?string, redirect: ?string}>
+     */
+    private function curlMultiGet(array $urls): array
+    {
         $results = [];
         $chunks = array_chunk($urls, self::CONCURRENCY);
 
@@ -184,8 +267,9 @@ class FastWebScraperService
                 curl_setopt_array($ch, [
                     CURLOPT_URL => $url,
                     CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_FOLLOWLOCATION => true,
-                    CURLOPT_MAXREDIRS => 5,
+                    // Redirects are followed MANUALLY (validated hop by hop
+                    // by SafeOutboundUrlGuard) — never automatically.
+                    CURLOPT_FOLLOWLOCATION => false,
                     CURLOPT_TIMEOUT => self::TIMEOUT,
                     CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT,
                     CURLOPT_USERAGENT => self::USER_AGENT,
@@ -207,7 +291,6 @@ class FastWebScraperService
 
             $cumulativeStart = microtime(true);
 
-            // Execute all requests
             $running = null;
             do {
                 if (microtime(true) - $cumulativeStart > self::TIMEOUT) {
@@ -217,21 +300,22 @@ class FastWebScraperService
                 curl_multi_select($mh, 0.5);
             } while ($running > 0);
 
-            // Collect results
             foreach ($handles as $url => $ch) {
-                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                if ($httpCode >= 200 && $httpCode < 400) {
-                    $body = curl_multi_getcontent($ch);
-                    // Only keep HTML responses (not PDFs, images, etc.)
+                $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $body = null;
+                $redirect = null;
+
+                if ($httpCode >= 300 && $httpCode < 400) {
+                    $redirect = curl_getinfo($ch, CURLINFO_REDIRECT_URL) ?: null;
+                } elseif ($httpCode >= 200 && $httpCode < 300) {
+                    $raw = curl_multi_getcontent($ch);
                     $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?? '';
                     if (str_contains($contentType, 'html') || str_contains($contentType, 'text') || empty($contentType)) {
-                        $results[$url] = $body ?: '';
-                    } else {
-                        $results[$url] = '';
+                        $body = $raw ?: '';
                     }
-                } else {
-                    $results[$url] = '';
                 }
+
+                $results[$url] = ['body' => $body, 'redirect' => $redirect];
                 curl_multi_remove_handle($mh, $ch);
                 curl_close($ch);
             }
@@ -240,6 +324,37 @@ class FastWebScraperService
         }
 
         return $results;
+    }
+
+    /**
+     * Resolve a Location header against the URL that produced it.
+     */
+    private function resolveLocation(string $baseUrl, string $location): ?string
+    {
+        $location = trim($location);
+        if ($location === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $location)) {
+            return $location;
+        }
+
+        $parts = parse_url($baseUrl);
+        if ($parts === false || !isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+
+        $origin = $parts['scheme'] . '://' . $parts['host']
+            . (isset($parts['port']) ? ':' . $parts['port'] : '');
+
+        if ($location[0] === '/') {
+            return $origin . $location;
+        }
+
+        $directory = rtrim(str_replace('\\', '/', dirname($parts['path'] ?? '/')), '/');
+
+        return $origin . $directory . '/' . $location;
     }
 
     /**

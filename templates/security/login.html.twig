@@ -81,6 +81,10 @@
         
         <div class="rams-module__footer">
             <a href="{{ path('app_forgot_password') }}" class="rams-link">{{ 'auth.forgot_password_link'|trans }}</a>
+            <form action="{{ path('app_resend_verification') }}" method="post" class="rams-flex rams-gap-2 rams-mt-2">
+                <input type="email" name="email" required placeholder="{{ 'registration.flash.resend_placeholder'|trans }}" class="rams-form__input" aria-label="{{ 'registration.flash.resend_placeholder'|trans }}">
+                <button type="submit" class="rams-btn rams-btn--sm">{{ 'registration.flash.resend_verification'|trans }}</button>
+            </form>
         </div>
     </div>
     

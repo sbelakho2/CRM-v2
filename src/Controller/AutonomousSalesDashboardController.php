@@ -31,6 +31,7 @@ class AutonomousSalesDashboardController extends AbstractController
     public function __construct(
         private TranslatorInterface $translator,
         private EntityManagerInterface $entityManager,
+        private \App\Service\CurrencyConverter $currencyConverter,
     ) {}
 
     #[Route('', name: 'autonomous_sales_index', methods: ['GET'])]
@@ -126,11 +127,27 @@ class AutonomousSalesDashboardController extends AbstractController
             ->setMaxResults(20)
             ->getQuery()->getResult();
 
-        // Pipeline value estimates (from quotes)
-        $pipelineValue = $this->entityManager->createQuery(
-            'SELECT COALESCE(SUM(q.totalCost), 0) FROM App\Entity\Quote q WHERE q.status IN (:statuses)'
+        // Pipeline value estimates (from quotes), normalized to the display
+        // currency — quotes are captured in mixed currencies (USD/EUR/MAD/...),
+        // so SUM(totalCost) in SQL would produce a currency-meaningless number.
+        $displayCurrency = $this->currencyConverter->getDisplayCurrency();
+        $pipelineRows = $this->entityManager->createQuery(
+            'SELECT q.totalCost, q.currency FROM App\Entity\Quote q WHERE q.status IN (:statuses) AND q.archivedAt IS NULL'
         )->setParameter('statuses', ['draft', 'pending_review', 'approved', 'sent'])
-         ->getSingleScalarResult();
+         ->getArrayResult();
+
+        $pipelineValue = 0.0;
+        foreach ($pipelineRows as $row) {
+            $amount = (float) ($row['totalCost'] ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+            $pipelineValue += $this->currencyConverter->convert(
+                $amount,
+                $row['currency'] ?: $displayCurrency,
+                $displayCurrency
+            );
+        }
 
         // Gather raw arm data from the sampler (backend unchanged)
         $armTypes = [

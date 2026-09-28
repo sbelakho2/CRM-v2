@@ -20,6 +20,7 @@ class CompanyRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
+            ->andWhere('c.archivedAt IS NULL')
             ->where('c.pipelineStage = :stage')
             ->andWhere('c.createdAt >= :start')
             ->andWhere('c.createdAt <= :end')
@@ -33,6 +34,7 @@ class CompanyRepository extends ServiceEntityRepository
     public function findBySectorAndTier(string $sector, string $tier): array
     {
         return $this->createQueryBuilder('c')
+            ->andWhere('c.archivedAt IS NULL')
             ->where('c.sector = :sector')
             ->andWhere('c.accountTier = :tier')
             ->setParameter('sector', $sector)
@@ -46,6 +48,7 @@ class CompanyRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
+            ->andWhere('c.archivedAt IS NULL')
             ->where('c.sector = :sector')
             ->setParameter('sector', $sector)
             ->getQuery()
@@ -56,6 +59,7 @@ class CompanyRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
+            ->andWhere('c.archivedAt IS NULL')
             ->where('c.pipelineStage = :stage')
             ->setParameter('stage', $stage)
             ->getQuery()
@@ -171,6 +175,7 @@ class CompanyRepository extends ServiceEntityRepository
         $results = $this->createQueryBuilder('c')
             ->select('c.sector, COUNT(c.id) as cnt')
             ->where('c.sector IS NOT NULL')
+            ->andWhere('c.archivedAt IS NULL')
             ->groupBy('c.sector')
             ->getQuery()
             ->getResult();
@@ -196,6 +201,7 @@ class CompanyRepository extends ServiceEntityRepository
         $results = $this->createQueryBuilder('c')
             ->select('c.pipelineStage, COUNT(c.id) as cnt')
             ->where('c.pipelineStage IS NOT NULL')
+            ->andWhere('c.archivedAt IS NULL')
             ->groupBy('c.pipelineStage')
             ->getQuery()
             ->getResult();

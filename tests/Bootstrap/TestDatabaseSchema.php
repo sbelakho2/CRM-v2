@@ -8,6 +8,8 @@ class TestDatabaseSchema
 {
     public static function createSchema(Connection $connection): void
     {
+        TestDatabaseGuard::assertSafeTestDatabase($connection);
+
         $platform = $connection->getDatabasePlatform()->getName();
 
         // This helper is used by a small number of functional template/controller tests.

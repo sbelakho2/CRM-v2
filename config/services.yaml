@@ -15,6 +15,13 @@ parameters:
   # fails loudly if the env var is unset (see when@prod).
   app.booking_secret: "%env(default:app.booking_secret_default:APP_BOOKING_SECRET)%"
 
+  # Public self-registration is OFF by default: this is an internal CRM, and
+  # accounts must be created by an admin (or via a future invitation flow).
+  # Set ALLOW_PUBLIC_REGISTRATION=1 only if open signup is deliberate policy.
+  app.public_registration_fallback: '0'
+  app.public_registration_enabled: "%env(bool:default:app.public_registration_fallback:ALLOW_PUBLIC_REGISTRATION)%"
+  app.resend_verification_enabled: true
+
 services:
   # default configuration for services in *this* file
   _defaults:
@@ -25,6 +32,7 @@ services:
       $mailerFromName: "%mailer_from_name%"
       $adminEmail: "%admin_email%"
       $defaultLocale: "%default_locale%"
+      $publicRegistrationEnabled: "%app.public_registration_enabled%"
       $defaultTimezone: "%default_timezone%"
       $retryLimit: "%email_campaign_retry_limit%"
 

@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Company;
 use App\Entity\ComplianceDocument;
 use App\Repository\ComplianceDocumentRepository;
+use App\Service\ComplianceDocumentVersioningService;
 use App\Service\CompliancePackService;
 use App\Service\GuidanceNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +27,7 @@ class ComplianceController extends AbstractController
         private EntityManagerInterface $entityManager,
         private ComplianceDocumentRepository $complianceDocumentRepository,
         private CompliancePackService $compliancePackService,
+        private ComplianceDocumentVersioningService $documentVersioningService,
         private SluggerInterface $slugger,
         private GuidanceNotificationService $guidanceService,
         private TranslatorInterface $translator,
@@ -71,13 +73,9 @@ class ComplianceController extends AbstractController
     #[Route('/document/{id}/download', name: 'app_compliance_download', methods: ['GET'])]
     public function downloadDocument(ComplianceDocument $document): Response
     {
-        if (!$document->getFilePath()) {
-            throw $this->createNotFoundException($this->translator->trans('compliance.error.no_file'));
-        }
+        $filePath = $this->resolveContainedPath($document->getFilePath());
 
-        $filePath = $this->getParameter('kernel.project_dir').'/var/uploads/compliance/'.$document->getFilePath();
-
-        if (!file_exists($filePath)) {
+        if ($filePath === null || !file_exists($filePath)) {
             throw $this->createNotFoundException($this->translator->trans('compliance.error.file_not_found'));
         }
 
@@ -112,22 +110,22 @@ class ComplianceController extends AbstractController
         if ($this->isCsrfTokenValid('delete'.$document->getId(), $request->request->get('_token'))) {
             $companyId = $document->getCompany()->getId();
 
-            // Delete physical file
-            if ($document->getFilePath()) {
-                $filePath = $this->getParameter('kernel.project_dir').'/var/uploads/compliance/'.$document->getFilePath();
-                if (file_exists($filePath)) {
-                    unlink($filePath);
-                }
-            }
+            // Persist the reset FIRST; only unlink the physical file after the
+            // database change is durably committed, so a failed flush can never
+            // leave a DB record pointing at a deleted file.
+            $physicalPath = $this->resolveContainedPath($document->getFilePath());
 
-            // Reset document status
             $document->setFilePath(null);
             $document->setProvided(false);
             $document->setUploadedAt(null);
             $this->entityManager->flush();
 
+            if ($physicalPath !== null && is_file($physicalPath)) {
+                @unlink($physicalPath);
+            }
+
             $this->addFlash('success', $this->translator->trans('compliance.flash.document_removed'));
-            
+
             return $this->redirectToRoute('app_compliance_company', ['id' => $companyId]);
         }
 
@@ -181,22 +179,43 @@ class ComplianceController extends AbstractController
                 throw new \RuntimeException('File too large (max 10 MB)');
             }
 
-            $newFilename = $safeFilename.'-'.uniqid().'.'.$extension;
+            $newFilename = $safeFilename.'-'.uniqid('', true).'.'.$extension;
 
             $file->move($uploadDir, $newFilename);
 
-            // Delete old file if replacing
-            if ($document->getFilePath()) {
-                $oldPath = $uploadDir.'/'.$document->getFilePath();
-                if (file_exists($oldPath)) {
-                    unlink($oldPath);
-                }
+            // Transactional replacement: the DB row is committed before the
+            // old physical file is removed, and a failed commit rolls the row
+            // back and removes the freshly uploaded file instead — the
+            // database and filesystem can never disagree about which file is
+            // current. A ComplianceDocumentVersion snapshot preserves history.
+            $oldPath = $this->resolveContainedPath($document->getFilePath());
+
+            try {
+                $this->entityManager->wrapInTransaction(function () use ($document, $newFilename, $file, $detectedMime): void {
+                    $document->setFilePath($newFilename);
+                    $document->setProvided(true);
+                    $document->setUploadedAt(new \DateTimeImmutable());
+
+                    $this->documentVersioningService->createVersion(
+                        $document,
+                        $newFilename,
+                        (int) $file->getSize(),
+                        $detectedMime,
+                        $this->getUser()?->getUserIdentifier(),
+                        $document->getExpiryDate()
+                    );
+                });
+            } catch (\Throwable $e) {
+                // Commit failed: drop the orphaned upload so storage matches
+                // the still-unchanged database state.
+                @unlink($uploadDir.'/'.$newFilename);
+                throw $e;
             }
 
-            $document->setFilePath($newFilename);
-            $document->setProvided(true);
-            $document->setUploadedAt(new \DateTimeImmutable());
-            $this->entityManager->flush();
+            // Committed — now (and only now) retire the previous file.
+            if ($oldPath !== null && is_file($oldPath)) {
+                @unlink($oldPath);
+            }
 
             $this->guidanceService->recordAction('compliance_uploaded', [
                 'name' => $document->getName(),
@@ -368,19 +387,40 @@ class ComplianceController extends AbstractController
     public function generatePack(Request $request, Company $company): Response
     {
         if ($this->isCsrfTokenValid('generate'.$company->getId(), $request->request->get('_token'))) {
-            // Delete existing documents
-            $existingDocs = $this->complianceDocumentRepository->findBy(['company' => $company]);
-            foreach ($existingDocs as $doc) {
-                $this->entityManager->remove($doc);
-            }
-            $this->entityManager->flush();
-
-            // Generate new pack
+            // Reconciliation is idempotent and non-destructive: uploaded
+            // files, expiry dates, approval status and document versions are
+            // preserved. Never delete existing document rows here.
             $this->compliancePackService->initializeCompliancePackForCompany($company);
 
             $this->addFlash('success', $this->translator->trans('compliance.flash.pack_generated'));
         }
 
         return $this->redirectToRoute('app_compliance_company', ['id' => $company->getId()]);
+    }
+
+    /**
+     * Resolve a stored relative file path to an absolute path contained
+     * within the compliance upload directory. Returns null when the stored
+     * value is empty; throws when the value escapes the upload directory
+     * (legacy/imported rows must not be trusted to contain safe names).
+     */
+    private function resolveContainedPath(?string $relative): ?string
+    {
+        if ($relative === null || $relative === '') {
+            return null;
+        }
+
+        $base = realpath($this->getParameter('kernel.project_dir').'/var/uploads/compliance');
+        if ($base === false) {
+            return null;
+        }
+
+        $candidate = realpath($base.'/'.$relative);
+
+        if ($candidate === false || !str_starts_with($candidate, $base.DIRECTORY_SEPARATOR)) {
+            throw $this->createAccessDeniedException('Stored file path escapes the compliance upload directory.');
+        }
+
+        return $candidate;
     }
 }

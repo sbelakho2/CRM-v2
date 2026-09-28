@@ -71,7 +71,7 @@
 
 <script>
 (function() {
-    const initial = {{ currentActions|json_encode|raw }};
+    const initial = {{ currentActions|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
     const listEl = document.getElementById('actions-list');
     const emptyEl = document.getElementById('actions-empty');
     const inputEl = document.getElementById('actions-input');

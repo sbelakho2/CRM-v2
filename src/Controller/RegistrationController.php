@@ -19,9 +19,22 @@ use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 class RegistrationController extends AbstractController
 {
+    public function __construct(
+        private bool $publicRegistrationEnabled,
+    ) {}
+
     #[Route('/register', name: 'app_register')]
     public function register(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher, TranslatorInterface $translator, MailerInterface $mailer, UriSigner $uriSigner, RateLimiterFactory $registrationLimiter, RateLimiterFactory $registrationIpLimiter): Response
     {
+        // Internal CRM: public self-registration is disabled unless
+        // ALLOW_PUBLIC_REGISTRATION=1 is explicitly set. User lifecycle is
+        // admin-driven; an invitation flow replaces open signup.
+        if (!$this->publicRegistrationEnabled) {
+            $this->addFlash('error', $translator->trans('registration.flash.disabled'));
+
+            return $this->redirectToRoute('app_login');
+        }
+
         // If already logged in, redirect
         if ($this->getUser()) {
             return $this->redirectToRoute('app_dashboard');
@@ -111,7 +124,7 @@ class RegistrationController extends AbstractController
 
         $expires = (int) $request->query->get('expires', 0);
         if ($expires > 0 && time() > $expires) {
-            $this->addFlash('error', 'The verification link has expired. Please register again to receive a new link.');
+            $this->addFlash('error', 'The verification link has expired. Request a new one with "Resend verification email" on the login page.');
             return $this->redirectToRoute('app_login');
         }
 
@@ -125,6 +138,63 @@ class RegistrationController extends AbstractController
         $em->flush();
 
         $this->addFlash('success', 'Your email address has been verified. You can now log in.');
+
+        return $this->redirectToRoute('app_login');
+    }
+
+    /**
+     * Resend the verification email for an existing (unverified) account.
+     *
+     * Never creates a second account and never reveals whether an email is
+     * registered: the response is identical either way. Rate limited per IP.
+     */
+    #[Route('/resend-verification', name: 'app_resend_verification', methods: ['POST'])]
+    public function resendVerification(
+        Request $request,
+        EntityManagerInterface $em,
+        MailerInterface $mailer,
+        UriSigner $uriSigner,
+        RateLimiterFactory $registrationIpLimiter,
+    ): Response {
+        $clientIp = $request->getClientIp() ?? 'unknown';
+        $limiter = $registrationIpLimiter->create('resend_verification_ip_' . $clientIp);
+        if (!$limiter->consume()->isAccepted()) {
+            $this->addFlash('error', 'Too many requests. Please try again later.');
+
+            return $this->redirectToRoute('app_login', [], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
+        $email = trim((string) $request->request->get('email', ''));
+        if ($email !== '') {
+            $user = $em->getRepository(User::class)->findOneBy(['email' => $email]);
+
+            if ($user !== null && !$user->isVerified()) {
+                $verificationUrl = $this->generateUrl('app_verify_email', [
+                    'id' => $user->getId(),
+                    'expires' => (new \DateTime('+7 days'))->getTimestamp(),
+                ], UrlGeneratorInterface::ABSOLUTE_URL);
+                $verificationUrl = $uriSigner->sign($verificationUrl);
+
+                try {
+                    $emailMessage = (new Email())
+                        ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site')
+                        ->to($user->getEmail())
+                        ->subject('Verify your email - STARZ Morocco CRM')
+                        ->html($this->renderView('emails/verification.html.twig', [
+                            'user' => $user,
+                            'verificationUrl' => $verificationUrl,
+                        ]));
+
+                    $mailer->send($emailMessage);
+                } catch (\Exception $e) {
+                    error_log('Failed to send verification email (resend): ' . $e->getMessage());
+                }
+            }
+        }
+
+        // Identical message whether or not the account exists — no account
+        // enumeration.
+        $this->addFlash('info', 'If that email belongs to an unverified account, a new verification link has been sent.');
 
         return $this->redirectToRoute('app_login');
     }
