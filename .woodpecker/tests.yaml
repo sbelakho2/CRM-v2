@@ -80,6 +80,9 @@ steps:
     environment:
       APP_ENV: test
       DATABASE_URL: mysql://crm_test:crm_test_pw@127.0.0.1:3309/crm_ci?charset=utf8mb4
+      # .env.example declares semaphore:// for prod Linux; the macOS worker
+      # must use flock.
+      LOCK_DSN: flock
     commands:
       - |
         set -eu
