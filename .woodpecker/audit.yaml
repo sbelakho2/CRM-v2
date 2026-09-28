@@ -65,7 +65,7 @@ steps:
       - |
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
-        php -d memory_limit=-1 /opt/homebrew/bin/composer install --no-interaction --no-progress --prefer-dist
+        php -d memory_limit=-1 /opt/homebrew/bin/composer install --no-interaction --no-progress --prefer-dist --no-scripts
 
   php-syntax:
     image: bash
@@ -85,8 +85,8 @@ steps:
     commands:
       - |
         set -eu
-        php bin/console lint:container --env=dev
-        php bin/console lint:twig templates/
+        php -d memory_limit=-1 bin/console lint:container --env=dev
+        php -d memory_limit=-1 bin/console lint:twig templates/
 
   doctrine-mapping:
     image: bash
@@ -97,7 +97,7 @@ steps:
     commands:
       - |
         set -eu
-        php bin/console doctrine:schema:validate --skip-sync --env=test
+        php -d memory_limit=-1 bin/console doctrine:schema:validate --skip-sync --env=test
 
   migration-gate:
     image: bash
