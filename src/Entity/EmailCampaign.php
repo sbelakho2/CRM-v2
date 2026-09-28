@@ -89,6 +89,16 @@ class EmailCampaign
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $sentAt = null;
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $archivedAt = null;
+
+    #[ORM\ManyToOne(targetEntity: \App\Entity\User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?\App\Entity\User $archivedBy = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $scheduledDispatchedAt = null;
+
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $createdAt = null;
@@ -238,6 +248,9 @@ class EmailCampaign
     {
         if (!$this->contacts->contains($contact)) {
             $this->contacts->add($contact);
+            // Contact owns the join table: without the reverse sync nothing
+            // is persisted to contact_email_campaigns.
+            $contact->addEmailCampaign($this);
         }
 
         return $this;
@@ -245,7 +258,10 @@ class EmailCampaign
 
     public function removeContact(Contact $contact): self
     {
-        $this->contacts->removeElement($contact);
+        if ($this->contacts->removeElement($contact)) {
+            $contact->removeEmailCampaign($this);
+        }
+
         return $this;
     }
 
@@ -432,4 +448,54 @@ class EmailCampaign
         $this->segment = $segment;
         return $this;
     }
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
+    }
+
+    public function getArchivedAt(): ?\DateTimeInterface
+    {
+        return $this->archivedAt;
+    }
+
+    public function archive(\App\Entity\User $by, ?string $reason = null): self
+    {
+        $this->archivedAt = $this->archivedAt ?? new \DateTime();
+        $this->archivedBy = $by;
+        $this->archiveReason = $reason;
+
+        return $this;
+    }
+
+    public function restore(): self
+    {
+        $this->archivedAt = null;
+        $this->archivedBy = null;
+        $this->archiveReason = null;
+
+        return $this;
+    }
+
+    public function getScheduledDispatchedAt(): ?\DateTimeInterface
+    {
+        return $this->scheduledDispatchedAt;
+    }
+
+    public function setScheduledDispatchedAt(?\DateTimeInterface $at): self
+    {
+        $this->scheduledDispatchedAt = $at;
+
+        return $this;
+    }
+
+    public function getArchivedBy(): ?\App\Entity\User
+    {
+        return $this->archivedBy;
+    }
+
+    public function getArchiveReason(): ?string
+    {
+        return $this->archiveReason;
+    }
+
 }

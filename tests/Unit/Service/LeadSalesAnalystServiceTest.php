@@ -64,6 +64,14 @@ class LeadSalesAnalystServiceTest extends TestCase
 
     public function testHighFitScoreForMatchingCapabilities(): void
     {
+        // Capability/certification truth must be SUPPLIED (verified
+        // operating data) — never assumed from source-code defaults.
+        $this->service = new LeadSalesAnalystService(
+            $this->logger,
+            ['pcba' => true, 'smt' => true, 'through_hole' => true, 'testing' => true, 'prototyping' => true],
+            ['ISO 9001', 'ISO 14001', 'AS9100'],
+        );
+
         $lead = $this->createLead([
             'fit_signals' => ['pcba', 'smt', 'through_hole', 'testing', 'prototyping'],
             'quality_stack' => ['ISO 9001', 'ISO 14001', 'AS9100'],
@@ -72,8 +80,27 @@ class LeadSalesAnalystServiceTest extends TestCase
 
         $result = $this->service->analyzeLead($lead);
 
-        // Multiple matching capabilities should give reasonable score (>50)
+        // Multiple matching VERIFIED capabilities should give reasonable score (>50)
         $this->assertGreaterThan(50, $result['overall_fit_score']);
+    }
+
+    public function testNoUnsubstantiatedClaimsWithoutVerifiedCapabilityData(): void
+    {
+        // Default service: no capability data supplied -> nothing to match,
+        // no capability-based claims.
+        $lead = $this->createLead([
+            'fit_signals' => ['pcba', 'smt'],
+            'quality_stack' => ['ISO 9001'],
+            'sector_tags' => ['industrial'],
+        ]);
+
+        $result = $this->service->analyzeLead($lead);
+
+        $this->assertLessThanOrEqual(
+            50,
+            $result['overall_fit_score'],
+            'Without verified capability data the analyst must not score as a strong capability match'
+        );
     }
 
     public function testLowFitScoreForNoMatchingCapabilities(): void

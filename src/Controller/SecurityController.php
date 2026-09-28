@@ -173,8 +173,15 @@ class SecurityController extends AbstractController
                 return $this->redirectToRoute('app_reset_password', ['token' => $token]);
             }
 
-            if (strlen($password) < 8) {
-                $this->addFlash('error', 'Password must be at least 8 characters long.');
+            // Same canonical policy as registration/admin/change (12+ chars,
+            // not in known breaches) — an account must never be able to
+            // reset FROM a strong password TO a weak one.
+            $violations = $this->container->get('validator')->validate(
+                (string) $password,
+                [new \App\Validator\PasswordPolicy()]
+            );
+            if (count($violations) > 0) {
+                $this->addFlash('error', (string) $violations->get(0)->getMessage());
                 return $this->redirectToRoute('app_reset_password', ['token' => $token]);
             }
 

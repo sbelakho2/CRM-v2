@@ -168,9 +168,20 @@ class EmailSegmentService
      * Contact fields that segment filters may compile to SQL safely.
      * Anything outside this whitelist keeps the legacy in-memory path.
      */
+    /**
+     * Single source of truth for filterable fields: the SQL compiler AND the
+     * builder UI are both generated from this map, so the UI can never
+     * advertise a field that would fall back to full-table hydration.
+     */
     private const ALLOWED_CONTACT_FIELDS = [
         'email', 'firstName', 'lastName', 'jobTitle', 'phone',
         'country', 'city', 'linkedinUrl', 'status', 'createdAt',
+    ];
+    public const FILTERABLE_FIELDS = [
+        'email', 'firstName', 'lastName', 'jobTitle', 'phone',
+        'country', 'city', 'linkedinUrl', 'status', 'createdAt',
+        'company.name', 'company.sector', 'company.country',
+        'company.region', 'company.city', 'company.accountTier', 'company.companyStatus',
     ];
 
     /**
@@ -481,28 +492,47 @@ class EmailSegmentService
     /**
      * Get available filter fields
      */
+    /**
+     * Fields offered to the segment builder UI — generated from the exact
+     * FILTERABLE_FIELDS map the SQL compiler whitelists, so the UI can never
+     * advertise a field that would force the full-table in-memory fallback.
+     */
     public function getAvailableFields(): array
     {
-        return [
-            'contact' => [
-                ['name' => 'firstName', 'label' => 'First Name', 'type' => 'string'],
-                ['name' => 'lastName', 'label' => 'Last Name', 'type' => 'string'],
-                ['name' => 'email', 'label' => 'Email', 'type' => 'string'],
-                ['name' => 'phone', 'label' => 'Phone', 'type' => 'string'],
-                ['name' => 'title', 'label' => 'Job Title', 'type' => 'string'],
-                ['name' => 'leadScore', 'label' => 'Lead Score', 'type' => 'number'],
-                ['name' => 'isSubscribed', 'label' => 'Is Subscribed', 'type' => 'boolean'],
-                ['name' => 'createdAt', 'label' => 'Created Date', 'type' => 'date'],
-            ],
-            'company' => [
-                ['name' => 'company.name', 'label' => 'Company Name', 'type' => 'string'],
-                ['name' => 'company.industry', 'label' => 'Industry', 'type' => 'string'],
-                ['name' => 'company.employeeCount', 'label' => 'Employee Count', 'type' => 'number'],
-                ['name' => 'company.annualRevenue', 'label' => 'Annual Revenue', 'type' => 'number'],
-                ['name' => 'company.website', 'label' => 'Website', 'type' => 'string'],
-                ['name' => 'company.country', 'label' => 'Country', 'type' => 'string'],
-            ],
+        $labels = [
+            'firstName' => 'First Name',
+            'lastName' => 'Last Name',
+            'email' => 'Email',
+            'jobTitle' => 'Job Title',
+            'phone' => 'Phone',
+            'city' => 'City',
+            'country' => 'Country',
+            'linkedinUrl' => 'LinkedIn URL',
+            'status' => 'Status',
+            'createdAt' => 'Created Date',
+            'company.name' => 'Company Name',
+            'company.sector' => 'Sector',
+            'company.country' => 'Company Country',
+            'company.region' => 'Company Region',
+            'company.city' => 'Company City',
+            'company.accountTier' => 'Account Tier',
+            'company.companyStatus' => 'Company Status',
         ];
+
+        $fields = [
+            'contact' => [],
+            'company' => [],
+        ];
+        foreach (self::FILTERABLE_FIELDS as $name) {
+            $entry = [
+                'name' => $name,
+                'label' => $labels[$name] ?? $name,
+                'type' => str_starts_with($name, 'createdAt') ? 'date' : 'string',
+            ];
+            $fields[str_starts_with($name, 'company.') ? 'company' : 'contact'][] = $entry;
+        }
+
+        return $fields;
     }
 
     /**

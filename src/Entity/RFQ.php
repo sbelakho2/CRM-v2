@@ -12,6 +12,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class RFQ
 {
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $archivedAt = null;
+
+    #[ORM\ManyToOne(targetEntity: \App\Entity\User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?\App\Entity\User $archivedBy = null;
+
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $archiveReason = null;
+
     public const TYPE_NPI = 'NPI';
     public const TYPE_FRAMEWORK = 'Framework Agreement';
     public const TYPE_STANDARD = 'Standard RFQ';
@@ -558,4 +568,42 @@ class RFQ
         
         return round((($ourBid - $winningBid) / $winningBid) * 100, 2);
     }
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
+    }
+
+    public function getArchivedAt(): ?\DateTimeInterface
+    {
+        return $this->archivedAt;
+    }
+
+    public function archive(\App\Entity\User $by, ?string $reason = null): self
+    {
+        $this->archivedAt = $this->archivedAt ?? new \DateTime();
+        $this->archivedBy = $by;
+        $this->archiveReason = $reason;
+
+        return $this;
+    }
+
+    public function restore(): self
+    {
+        $this->archivedAt = null;
+        $this->archivedBy = null;
+        $this->archiveReason = null;
+
+        return $this;
+    }
+
+    public function getArchivedBy(): ?\App\Entity\User
+    {
+        return $this->archivedBy;
+    }
+
+    public function getArchiveReason(): ?string
+    {
+        return $this->archiveReason;
+    }
+
 }

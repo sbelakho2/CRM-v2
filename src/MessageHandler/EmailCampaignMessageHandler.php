@@ -38,12 +38,11 @@ class EmailCampaignMessageHandler
 
         $failedRecipientIds = [];
         foreach ($recipients as $recipient) {
-            // sendToContact returns bool: false means the EmailSend record was
-            // persisted as failed by the service, so the recipient can be
-            // retried for the SAME touch number.
-            $sent = $this->campaignService->sendToContact($campaign, $recipient, $touchNumber);
+            // FAILED is the only outcome warranting a retry; policy-skipped
+            // and idempotent replays are terminal for this attempt.
+            $result = $this->campaignService->sendToContact($campaign, $recipient, $touchNumber);
 
-            if (!$sent) {
+            if ($result->outcome === \App\Service\CampaignSendResult::FAILED) {
                 $failedRecipientIds[] = $recipient->getId();
             }
         }

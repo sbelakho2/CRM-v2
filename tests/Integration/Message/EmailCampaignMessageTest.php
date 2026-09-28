@@ -52,7 +52,8 @@ class EmailCampaignMessageTest extends TestCase
 
         $this->campaignService->expects($this->once())
             ->method('sendToContact')
-            ->with($campaign, $contact, 1);
+            ->with($campaign, $contact, 1)
+            ->willReturn(\App\Service\CampaignSendResult::sent());
 
         $this->handler->__invoke($message);
     }

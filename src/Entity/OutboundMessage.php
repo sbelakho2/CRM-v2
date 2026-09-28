@@ -37,7 +37,7 @@ class OutboundMessage
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Contact $contact = null;
 
     #[ORM\ManyToOne(targetEntity: RFQ::class)]

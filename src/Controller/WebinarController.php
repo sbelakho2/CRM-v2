@@ -33,6 +33,7 @@ class WebinarController extends AbstractController
         $status = $request->query->get('status', 'all');
         
         $queryBuilder = $this->webinarRepository->createQueryBuilder('w')
+            ->andWhere('w.archivedAt IS NULL')
             ->orderBy('w.scheduledDate', 'DESC');
 
         if ($status === 'upcoming') {
@@ -115,67 +116,16 @@ class WebinarController extends AbstractController
     public function delete(Request $request, Webinar $webinar): Response
     {
         if ($this->isCsrfTokenValid('delete'.$webinar->getId(), $request->request->get('_token'))) {
-            $this->entityManager->remove($webinar);
+            // Webinars carry registration/attendance history: archive
+            // instead of cascading attendees away.
+            $webinar->archive($this->getUser(), 'Archived from webinars list');
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Webinar deleted successfully!');
+            $this->addFlash('success', 'Webinar archived. Registration and attendance history is preserved.');
         }
 
         return $this->redirectToRoute('app_webinar_index');
     }
-
-    #[Route('/{id}/register', name: 'app_webinar_register', methods: ['GET', 'POST'])]
-    public function register(Request $request, Webinar $webinar): Response
-    {
-        if ($request->isMethod('POST')) {
-            if (!$this->isCsrfTokenValid('webinar_register_' . $webinar->getId(), $request->request->get('_csrf_token'))) {
-                throw $this->createAccessDeniedException('Invalid CSRF token.');
-            }
-
-            $email = $request->request->get('email');
-            $firstName = $request->request->get('first_name');
-            $lastName = $request->request->get('last_name');
-            $company = $request->request->get('company');
-
-            // Find or create contact
-            $contact = $this->contactRepository->findOneBy(['email' => $email]);
-            
-            if (!$contact) {
-                $contact = new Contact();
-                $contact->setEmail($email);
-                $contact->setFirstName($firstName);
-                $contact->setLastName($lastName);
-                // Note: Company relationship would need to be handled if required
-                $this->entityManager->persist($contact);
-                $this->entityManager->flush();
-            }
-
-            // Register attendee
-            $this->webinarService->registerAttendee(
-                $webinar, 
-                $contact, 
-                $email, 
-                trim($firstName . ' ' . $lastName)
-            );
-
-            $this->addFlash('success', 'Registration successful! Check your email for confirmation.');
-            return $this->redirectToRoute('app_webinar_register_confirmation', ['id' => $webinar->getId()]);
-        }
-
-        return $this->render('webinar/register.html.twig', [
-            'webinar' => $webinar,
-        ]);
-    }
-
-    #[Route('/{id}/register/confirmation', name: 'app_webinar_register_confirmation', methods: ['GET'])]
-    public function registerConfirmation(Webinar $webinar): Response
-    {
-        return $this->render('webinar/confirmation.html.twig', [
-            'webinar' => $webinar,
-        ]);
-    }
-
-
 
     #[Route('/{id}/attendees/{attendeeId}/mark-attended', name: 'app_webinar_mark_attended', methods: ['POST'])]
     public function markAttended(Request $request, Webinar $webinar, int $attendeeId): Response

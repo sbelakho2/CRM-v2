@@ -48,7 +48,7 @@ class MeetingBookingType extends AbstractType
             ])
             ->add('company', TextType::class, [
                 'label' => 'Company',
-                'required' => false,
+                'required' => true,
                 'constraints' => [
                     new Assert\NotBlank(['message' => 'Please enter your company name']),
                     new Assert\Length(['max' => 255]),

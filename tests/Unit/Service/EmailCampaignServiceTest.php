@@ -25,7 +25,7 @@ class EmailCampaignServiceTest extends TestCase
         $trackingSigner = new EmailTrackingSigner('test-secret');
         $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger);
+        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em));
 
         $campaign = new EmailCampaign();
 
@@ -48,14 +48,16 @@ class EmailCampaignServiceTest extends TestCase
         $trackingSigner = new EmailTrackingSigner('test-secret');
         $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger);
+        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em));
 
         $campaign = new EmailCampaign();
 
         $s1 = new EmailSend();
+        $s1->setStatus(EmailSend::STATUS_SENT);
         $s1->setOpened(true);
 
         $s2 = new EmailSend();
+        $s2->setStatus(EmailSend::STATUS_SENT);
         $s2->setOpened(true);
         $s2->setClicked(true);
 
@@ -82,7 +84,7 @@ class EmailCampaignServiceTest extends TestCase
         $trackingSigner = new EmailTrackingSigner('test-secret');
         $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger);
+        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em));
 
         $send = new EmailSend();
 
@@ -109,7 +111,7 @@ class EmailCampaignServiceTest extends TestCase
         $trackingSigner = new EmailTrackingSigner('test-secret');
         $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger);
+        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em));
 
         $contact = new Contact();
         $campaign = new EmailCampaign();

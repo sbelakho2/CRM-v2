@@ -104,7 +104,8 @@ class EmailSchedulerServiceTest extends TestCase
     public function testProcessCampaignWithNoContactsReturnsZero(): void
     {
         $campaignService = $this->createMock(EmailCampaignService::class);
-        $campaignService->expects($this->never())->method('sendToContact');
+        $campaignService->expects($this->never())->method('sendToContact')
+            ->willReturn(\App\Service\CampaignSendResult::sent());
 
         $service = $this->createService(null, null, $campaignService);
 
@@ -124,7 +125,8 @@ class EmailSchedulerServiceTest extends TestCase
         $em = $this->createEntityManagerWithCadence($unsubRepo, 0);
 
         $campaignService = $this->createMock(EmailCampaignService::class);
-        $campaignService->expects($this->exactly(2))->method('sendToContact');
+        $campaignService->expects($this->exactly(2))->method('sendToContact')
+            ->willReturn(\App\Service\CampaignSendResult::sent());
 
         $service = $this->createService($em, null, $campaignService);
 
@@ -153,7 +155,7 @@ class EmailSchedulerServiceTest extends TestCase
         $this->assertSame(2, $count);
     }
 
-    public function testProcessCampaignSkipsContactsWithoutEmail(): void
+    public function testProcessCampaignPassesAllContactsToCanonicalSendPolicy(): void
     {
         $unsubRepo = $this->createMock(EmailUnsubscribeRepository::class);
         $unsubRepo->method('findOneBy')->willReturn(null);
@@ -161,7 +163,11 @@ class EmailSchedulerServiceTest extends TestCase
         $em = $this->createEntityManagerWithCadence($unsubRepo, 0);
 
         $campaignService = $this->createMock(EmailCampaignService::class);
-        $campaignService->expects($this->once())->method('sendToContact');
+        // Eligibility (missing email included) is decided by EmailSendPolicy
+        // INSIDE sendToContact — the scheduler hands every enrolled contact
+        // to the canonical path and counts only real deliveries.
+        $campaignService->expects($this->exactly(2))->method('sendToContact')
+            ->willReturnCallback(static fn () => \App\Service\CampaignSendResult::sent());
 
         $service = $this->createService($em, null, $campaignService);
 
@@ -187,7 +193,7 @@ class EmailSchedulerServiceTest extends TestCase
 
         $count = $service->processCampaign($campaign);
 
-        $this->assertSame(1, $count);
+        $this->assertSame(2, $count);
     }
 
     public function testProcessCampaignSkipsUnsubscribedContacts(): void
@@ -206,7 +212,10 @@ class EmailSchedulerServiceTest extends TestCase
         $em = $this->createEntityManagerWithCadence($unsubRepo, 0);
 
         $campaignService = $this->createMock(EmailCampaignService::class);
-        $campaignService->expects($this->once())->method('sendToContact');
+        // The canonical send path decides suppression (covered by
+        // EmailRetrySemanticsTest); the scheduler itself must not bypass it.
+        $campaignService->expects($this->exactly(2))->method('sendToContact')
+            ->willReturnCallback(static fn () => \App\Service\CampaignSendResult::sent());
 
         $service = $this->createService($em, null, $campaignService);
 
@@ -232,6 +241,6 @@ class EmailSchedulerServiceTest extends TestCase
 
         $count = $service->processCampaign($campaign);
 
-        $this->assertSame(1, $count);
+        $this->assertSame(2, $count);
     }
 }

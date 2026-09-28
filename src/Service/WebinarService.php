@@ -28,15 +28,40 @@ class WebinarService
     /**
      * Register a contact for a webinar and send confirmation email
      */
-    public function registerAttendee(Webinar $webinar, Contact $contact, string $email, string $name): WebinarAttendee
+    /**
+     * Register an attendee. Idempotent per (webinar, email): an existing
+     * registration is returned unchanged — repeat submissions must not
+     * create duplicate rows or inflate the registered count.
+     *
+     * $contact is OPTIONAL: external registrants are not forced into the
+     * CRM contact model (a Contact requires a Company); a contact link is
+     * only set when the email matches an existing CRM contact. Conversion
+     * of an external attendee into a full contact is a separate internal
+     * workflow.
+     */
+    public function registerAttendee(Webinar $webinar, ?Contact $contact, string $email, string $name): WebinarAttendee
     {
+        $email = strtolower(trim($email));
+
+        $existing = $this->entityManager->getRepository(WebinarAttendee::class)
+            ->findOneBy(['webinar' => $webinar, 'email' => $email]);
+        if ($existing !== null) {
+            return $existing;
+        }
+
         $attendee = new WebinarAttendee();
         $attendee->setWebinar($webinar);
-        $attendee->setContact($contact);
-        $attendee->setCompany($contact->getCompany());
         $attendee->setEmail($email);
         $attendee->setName($name);
         $attendee->setRegisteredAt(new \DateTime());
+
+        if ($contact !== null) {
+            $attendee->setContact($contact);
+            $attendee->setCompany($contact->getCompany());
+        }
+        // Free-text company names from external registrants are NOT matched
+        // to Company entities (arbitrary name matching would pollute CRM
+        // data); converting an attendee to a company is an internal workflow.
 
         // Increment registered count
         $webinar->setRegisteredCount($webinar->getRegisteredCount() + 1);

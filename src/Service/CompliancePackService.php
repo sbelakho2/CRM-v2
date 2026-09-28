@@ -54,8 +54,14 @@ class CompliancePackService
     {
         $documents = $this->documentRepository->findBy(['company' => $company]);
         $uploaded = [];
-        
+
+        // A checklist row existing is NOT a document being uploaded: rows
+        // are created empty by pack initialization. Only rows with actual
+        // file bytes count as uploaded.
         foreach ($documents as $doc) {
+            if (!$doc->isProvided() || $doc->getFileName() === null || $doc->getFileName() === '') {
+                continue;
+            }
             $uploaded[$doc->getDocumentType()] = [
                 'uploaded' => true,
                 'fileName' => $doc->getFileName(),
@@ -85,6 +91,9 @@ class CompliancePackService
         $documents = $this->documentRepository->findBy(['company' => $company]);
         $uploadedRequiredTypes = [];
         foreach ($documents as $doc) {
+            if (!$doc->isProvided() || $doc->getFileName() === null || $doc->getFileName() === '') {
+                continue;
+            }
             $type = $doc->getDocumentType() ?? $doc->getName();
             if (in_array($type, self::REQUIRED_DOCUMENTS, true)) {
                 $uploadedRequiredTypes[$type] = true;
@@ -105,6 +114,11 @@ class CompliancePackService
         $uploadedTypes = [];
         
         foreach ($documents as $doc) {
+            // Only actually-provided documents can satisfy a requirement —
+            // empty checklist rows must surface as missing.
+            if (!$doc->isProvided() || $doc->getFileName() === null || $doc->getFileName() === '') {
+                continue;
+            }
             // Document type may be stored on either field depending on how the
             // document was created — consider both so required types aren't
             // falsely reported as missing.
@@ -172,11 +186,15 @@ class CompliancePackService
     }
 
     /**
-     * Delete document
+     * Retire a compliance document from the active checklist.
+     *
+     * Rows (and their version history) are never physically deleted: the
+     * record is demoted instead, preserving file and approval history.
      */
     public function deleteDocument(ComplianceDocument $document): void
     {
-        $this->entityManager->remove($document);
+        $document->setRequired(false);
+        $document->setProvided(false);
         $this->entityManager->flush();
     }
 
@@ -232,7 +250,12 @@ class CompliancePackService
                 $document->setName($docType);
                 $document->setStatus('Pending');
                 $this->entityManager->persist($document);
-            } elseif ($document->getDocumentKey() === null) {
+            }
+
+            // Every reconciled row carries its stable key — including rows
+            // created above (a bare elseif would leave new rows NULL-keyed
+            // until some later reconciliation).
+            if ($document->getDocumentKey() === null) {
                 $document->setDocumentKey($key);
             }
 
@@ -288,7 +311,7 @@ class CompliancePackService
         $expired = 0;
 
         foreach ($allDocs as $doc) {
-            if ($doc->getFileName()) {
+            if ($doc->isProvided() && $doc->getFileName()) {
                 $uploaded++;
             }
             if ($doc->getStatus() === 'Approved') {

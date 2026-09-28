@@ -110,18 +110,24 @@ class ComplianceController extends AbstractController
         if ($this->isCsrfTokenValid('delete'.$document->getId(), $request->request->get('_token'))) {
             $companyId = $document->getCompany()->getId();
 
-            // Persist the reset FIRST; only unlink the physical file after the
-            // database change is durably committed, so a failed flush can never
-            // leave a DB record pointing at a deleted file.
-            $physicalPath = $this->resolveContainedPath($document->getFilePath());
+            // Reset the checklist row. The physical file is deliberately KEPT
+            // when version records reference it: version history must never
+            // point at deleted bytes. Only an unreferenced file (no version
+            // rows) is removed, after the DB change is durably committed.
+            $currentFile = $document->getFilePath();
+            $isReferencedByVersions = $currentFile !== null
+                && $this->documentVersioningService->getVersions($document) !== [];
 
             $document->setFilePath(null);
             $document->setProvided(false);
             $document->setUploadedAt(null);
             $this->entityManager->flush();
 
-            if ($physicalPath !== null && is_file($physicalPath)) {
-                @unlink($physicalPath);
+            if (!$isReferencedByVersions) {
+                $physicalPath = $this->resolveContainedPath($currentFile);
+                if ($physicalPath !== null && is_file($physicalPath)) {
+                    @unlink($physicalPath);
+                }
             }
 
             $this->addFlash('success', $this->translator->trans('compliance.flash.document_removed'));
@@ -212,10 +218,10 @@ class ComplianceController extends AbstractController
                 throw $e;
             }
 
-            // Committed — now (and only now) retire the previous file.
-            if ($oldPath !== null && is_file($oldPath)) {
-                @unlink($oldPath);
-            }
+            // Committed. The previous version's file is deliberately KEPT:
+            // ComplianceDocumentVersion rows reference their exact filenames,
+            // and deleting bytes would leave version history pointing at
+            // nothing. Retention/purge is a separate explicit mechanism.
 
             $this->guidanceService->recordAction('compliance_uploaded', [
                 'name' => $document->getName(),
@@ -316,6 +322,7 @@ class ComplianceController extends AbstractController
             ->select('c')
             ->from(Company::class, 'c')
             ->andWhere('c.companyStatus = :status')
+            ->andWhere('c.archivedAt IS NULL')
             ->setParameter('status', Company::STATUS_ACTIVE);
 
         if ($sector) {

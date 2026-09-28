@@ -48,6 +48,28 @@ class EmailSendRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find the record of a campaign touch in ANY state.
+     *
+     * Retry semantics depend on the full row: SENT means do not resend,
+     * QUEUED/SENDING means another worker owns it, FAILED means the row
+     * must be REUSED for the retry (never re-inserted — the unique
+     * (campaign, contact, touch) constraint forbids a second row).
+     */
+    public function findTouch(int $campaignId, int $contactId, int $touchNumber): ?EmailSend
+    {
+        return $this->createQueryBuilder('e')
+            ->where('e.campaign = :campaignId')
+            ->andWhere('e.contact = :contactId')
+            ->andWhere('e.touchNumber = :touchNumber')
+            ->setParameter('campaignId', $campaignId)
+            ->setParameter('contactId', $contactId)
+            ->setParameter('touchNumber', $touchNumber)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
      * Find the record of an already-delivered (or in-flight) campaign touch.
      *
      * Used for per-(campaign, contact, touch) idempotency: if a sent/sending

@@ -39,6 +39,7 @@ class ContactController extends AbstractController
 
         // Build query
         $qb = $this->contactRepository->createQueryBuilder('c')
+            ->andWhere('c.archivedAt IS NULL')
             ->leftJoin('c.company', 'co')
             ->addSelect('co');
 
@@ -173,7 +174,9 @@ class ContactController extends AbstractController
     public function delete(Request $request, Contact $contact): Response
     {
         if ($this->isCsrfTokenValid('delete' . $contact->getId(), $request->request->get('_token'))) {
-            $this->entityManager->remove($contact);
+            // Contacts anchor engagement history (email sends, outbound
+            // messages, activities): archive instead of hard-deleting.
+            $contact->archive($this->getUser(), 'Archived from contacts list');
             $this->entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('contact.flash.deleted'));
@@ -191,6 +194,7 @@ class ContactController extends AbstractController
         $search = $request->query->get('search');
 
         $qb = $this->contactRepository->createQueryBuilder('c')
+            ->andWhere('c.archivedAt IS NULL')
             ->leftJoin('c.company', 'co')
             ->addSelect('co');
 

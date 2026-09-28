@@ -163,6 +163,7 @@
                                     <td class="rams-table__cell">
                                         {% if not attendee.attended %}
                                             <form method="post" action="{{ path('app_webinar_mark_attended', {id: webinar.id, attendeeId: attendee.id}) }}" class="rams-inline-block">
+                                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('webinar_mark_attended_' ~ attendee.id) }}">
                                                 <button type="submit" class="rams-btn rams-btn--ghost rams-btn--sm">
                                                     {{ 'webinar.mark_attended'|trans }}
                                                 </button>

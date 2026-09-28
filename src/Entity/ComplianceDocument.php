@@ -10,6 +10,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[ORM\Entity(repositoryClass: ComplianceDocumentRepository::class)]
 #[ORM\Table(name: 'compliance_documents')]
 #[ORM\Index(name: 'idx_compliance_documents_key', columns: ['document_key'])]
+#[ORM\UniqueConstraint(name: 'uniq_compliance_company_key', columns: ['company_id', 'document_key'])]
 #[Vich\Uploadable]
 class ComplianceDocument
 {

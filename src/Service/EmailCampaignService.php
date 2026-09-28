@@ -28,6 +28,7 @@ class EmailCampaignService
         private UrlGeneratorInterface $urlGenerator,
         private EmailTrackingSigner $trackingSigner,
         private LoggerInterface $logger,
+        private EmailSendPolicy $sendPolicy,
         private ?EmailConsentService $consentService = null
     ) {}
 
@@ -51,52 +52,93 @@ class EmailCampaignService
     /**
      * Send email to contact as part of campaign.
      *
-     * Idempotent per (campaign, contact, touch): if this touch was already
-     * sent (or is being sent) the call is a no-op returning true, so a worker
-     * crash + redelivery can never duplicate a customer email. Persists a
-     * 'queued' EmailSend first, transitions to 'sending' before the mailer
-     * call, and only marks the send 'sent' after the mailer succeeds. On
-     * failure the send is marked 'failed' and false is returned.
+     * Canonical path for EVERY sender (manual, scheduler, Messenger, drip).
+     *
+     *  1. EmailSendPolicy is evaluated first: unsubscribed, bounced,
+     *     cadence-exceeded or archived contacts are refused here — no
+     *     calling route can bypass the policy.
+     *  2. Idempotency/retry per (campaign, contact, touch): SENT rows are
+     *     never resent; QUEUED/SENDING rows belong to a concurrent worker;
+     *     FAILED rows are REUSED for the retry (reset to queued, retryCount
+     *     incremented) — never re-inserted, because the unique constraint
+     *     forbids a second row for the same touch.
      */
-    public function sendToContact(EmailCampaign $campaign, Contact $contact, int $touchNumber): bool
+    public function sendToContact(EmailCampaign $campaign, Contact $contact, int $touchNumber): CampaignSendResult
     {
-        // Already-sent guard: a redelivered message (worker died after SMTP
-        // accept, Messenger retry, manual re-dispatch) must not email the
-        // customer twice for the same campaign touch.
-        $existing = $this->sendRepository->findSentTouch(
-            $campaign->getId(),
+        $eligibility = $this->sendPolicy->evaluate($contact, $campaign);
+        if (!$eligibility->allowed) {
+            $this->logger->info('Campaign send refused by send policy', [
+                'campaign_id' => $campaign->getId(),
+                'contact_id' => $contact->getId(),
+                'reason' => $eligibility->reason,
+            ]);
+
+            return CampaignSendResult::skipped((string) $eligibility->reason);
+        }
+
+        $existing = $this->sendRepository->findTouch(
+            (int) $campaign->getId(),
             (int) $contact->getId(),
             $touchNumber
         );
+
         if ($existing !== null) {
-            $this->logger->info('Skipping duplicate campaign touch (already sent)', [
-                'campaign_id' => $campaign->getId(),
-                'contact_id' => $contact->getId(),
-                'touch_number' => $touchNumber,
-                'existing_email_send_id' => $existing->getId(),
-            ]);
+            if ($existing->getStatus() === EmailSend::STATUS_SENT) {
+                $this->logger->info('Skipping duplicate campaign touch (already sent)', [
+                    'campaign_id' => $campaign->getId(),
+                    'contact_id' => $contact->getId(),
+                    'touch_number' => $touchNumber,
+                    'existing_email_send_id' => $existing->getId(),
+                ]);
 
-            return true;
-        }
+                return CampaignSendResult::alreadySent();
+            }
 
-        // Create send record in 'queued' state — reflects reality until the
-        // mailer actually accepts the message.
-        $send = new EmailSend();
-        $send->setCampaign($campaign);
-        $send->setContact($contact);
-        $send->setTouchNumber($touchNumber);
-        $send->setEmailAddress($contact->getEmail());
-        $send->setStatus(EmailSend::STATUS_QUEUED);
+            if (in_array($existing->getStatus(), [EmailSend::STATUS_QUEUED, EmailSend::STATUS_SENDING], true)) {
+                $this->logger->info('Campaign touch already owned by another worker', [
+                    'campaign_id' => $campaign->getId(),
+                    'contact_id' => $contact->getId(),
+                    'touch_number' => $touchNumber,
+                    'status' => $existing->getStatus(),
+                ]);
 
-        $this->entityManager->persist($send);
+                return CampaignSendResult::alreadyInProgress();
+            }
 
-        try {
+            // FAILED (or cancelled) row: reuse it for this retry attempt.
+            $send = $existing;
+            $send->setStatus(EmailSend::STATUS_QUEUED);
+            $send->setFailureReason(null);
+            $send->setRetryCount($send->getRetryCount() + 1);
             $this->entityManager->flush();
-        } catch (UniqueConstraintViolationException) {
-            // Concurrent worker won the race for this touch — treat as sent.
-            $this->entityManager->clear();
+        } else {
+            // No row yet: create the send record in 'queued' state —
+            // reflects reality until the mailer accepts the message.
+            $send = new EmailSend();
+            $send->setCampaign($campaign);
+            $send->setContact($contact);
+            $send->setTouchNumber($touchNumber);
+            $send->setEmailAddress($contact->getEmail());
+            $send->setStatus(EmailSend::STATUS_QUEUED);
 
-            return true;
+            $this->entityManager->persist($send);
+
+            try {
+                $this->entityManager->flush();
+            } catch (UniqueConstraintViolationException) {
+                // A concurrent worker won the race for this touch: inspect
+                // the winning row's actual state instead of assuming success.
+                $winner = $this->sendRepository->findTouch(
+                    (int) $campaign->getId(),
+                    (int) $contact->getId(),
+                    $touchNumber
+                );
+                if ($winner !== null && $winner->getStatus() === EmailSend::STATUS_SENT) {
+                    return CampaignSendResult::alreadySent();
+                }
+
+                return CampaignSendResult::alreadyInProgress();
+            }
         }
 
         try {
@@ -112,7 +154,7 @@ class EmailCampaignService
                 'error' => $e->getMessage(),
             ]);
 
-            return false;
+            return CampaignSendResult::failed();
         }
 
         // Mailer accepted the message — mark as sent with an accurate timestamp.
@@ -120,7 +162,7 @@ class EmailCampaignService
         $send->setSentAt(new \DateTime());
         $this->entityManager->flush();
 
-        return true;
+        return CampaignSendResult::sent();
     }
 
     /**
@@ -379,8 +421,16 @@ class EmailCampaignService
     public function getCampaignMetrics(EmailCampaign $campaign): array
     {
         $sends = $campaign->getEmailSends();
-        $total = count($sends);
-        
+        // Engagement denominators must describe the DELIVERED population:
+        // queued/sending/failed/cancelled rows are not emails a recipient
+        // could have opened. Bounced rows count as delivered-then-rejected
+        // and are reported separately.
+        $delivered = array_values(array_filter(
+            iterator_to_array($sends),
+            static fn (EmailSend $s) => in_array($s->getStatus(), [EmailSend::STATUS_SENT, EmailSend::STATUS_BOUNCED], true)
+        ));
+        $total = count($delivered);
+
         if ($total === 0) {
             return [
                 'total_sent' => 0,
@@ -400,7 +450,7 @@ class EmailCampaignService
         $replied = 0;
         $bounced = 0;
 
-        foreach ($sends as $send) {
+        foreach ($delivered as $send) {
             if ($send->isOpened()) $opened++;
             if ($send->isClicked()) $clicked++;
             if ($send->isReplied()) $replied++;
@@ -423,11 +473,49 @@ class EmailCampaignService
     /**
      * Get contacts for next touch in sequence
      */
+    /**
+     * Contacts eligible for the given touch, computed in SQL:
+     *
+     *  - touch 1: enrolled contacts with no touch-1 record yet
+     *  - touch N>1: contacts whose touch N-1 was SENT, who have no touch-N
+     *    record, who have not unsubscribed, not hard-bounced, and not
+     *    replied-stop. Cadence/archival are re-checked per contact by the
+     *    send policy at delivery time.
+     */
     public function getContactsForNextTouch(EmailCampaign $campaign, int $touchNumber): array
     {
-        // Logic to find contacts who need the next touch
-        // This would check who received touch N-1 and needs touch N
-        return []; // To be implemented with complex query
+        if ($touchNumber < 1) {
+            return [];
+        }
+
+        $previous = max(1, $touchNumber - 1);
+
+        $qb = $this->entityManager->createQueryBuilder()
+            ->select('c')
+            ->from(Contact::class, 'c')
+            ->join('c.emailCampaigns', 'ec')
+            ->andWhere('ec = :campaign')
+            ->andWhere('c.email IS NOT NULL')
+            ->andWhere('c.archivedAt IS NULL')
+            // Global unsubscribe suppression by email address.
+            ->andWhere('NOT EXISTS (SELECT u.id FROM App\Entity\EmailUnsubscribe u WHERE u.email = c.email)')
+            // No record for the target touch yet (any status).
+            ->andWhere('NOT EXISTS (SELECT t.id FROM App\Entity\EmailSend t WHERE t.campaign = :campaign AND t.contact = c AND t.touchNumber = :touch)')
+            // No hard bounce on this address in the last 90 days.
+            ->andWhere('NOT EXISTS (SELECT b.id FROM App\Entity\EmailSend b WHERE b.emailAddress = c.email AND b.bounced = true AND b.sentAt > :bounceWindow)')
+            ->setParameter('campaign', $campaign)
+            ->setParameter('touch', $touchNumber)
+            ->setParameter('bounceWindow', (new \DateTime())->modify('-90 days'));
+
+        if ($touchNumber > 1) {
+            // Touch N requires SENT touch N-1: the recipient actually
+            // received the previous email in the sequence.
+            $qb->andWhere('EXISTS (SELECT p.id FROM App\Entity\EmailSend p WHERE p.campaign = :campaign AND p.contact = c AND p.touchNumber = :previous AND p.status = :sent)')
+               ->setParameter('previous', $previous)
+               ->setParameter('sent', EmailSend::STATUS_SENT);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     /**

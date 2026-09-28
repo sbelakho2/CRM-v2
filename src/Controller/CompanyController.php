@@ -149,6 +149,12 @@ class CompanyController extends AbstractController
             throw $this->createNotFoundException('Company not found');
         }
 
+        // Archived companies are only reachable by admins (via the archive
+        // page); ordinary users get a 404 rather than a live-looking page.
+        if ($company->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createNotFoundException('Company not found');
+        }
+
         // Check for incomplete profile and provide guidance
         $this->guidanceService->checkIncompleteCompanyProfile($company);
         [, $sectorLabels] = $this->buildSectorOptions();
@@ -168,6 +174,12 @@ class CompanyController extends AbstractController
     #[Route('/{id}/edit', name: 'app_company_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, Company $company): Response
     {
+        if ($company->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            $this->addFlash('error', 'This company is archived and cannot be edited.');
+
+            return $this->redirectToRoute('app_company_index');
+        }
+
         $form = $this->createForm(CompanyType::class, $company);
         $form->handleRequest($request);
 

@@ -7,8 +7,6 @@ namespace App\Service;
 use App\Entity\EmailCampaign;
 use App\Entity\Contact;
 use App\Entity\EmailSend;
-use App\Entity\EmailUnsubscribe;
-use App\Entity\OutboundMessage;
 use App\Message\EmailCampaignMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -18,9 +16,8 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 /**
  * Service for email campaign scheduling and queue management
  * 
- * Cross-module aware: checks both EmailUnsubscribe (global suppression)
- * and recent OutboundMessage sends (Autonomous Sales) so a contact in
- * both systems doesn't get over-emailed.
+ * Eligibility (unsubscribe/bounce/cadence/archival) is enforced centrally
+ * by App\Service\EmailSendPolicy inside every send path.
  * 
  * Features:
  * - Send time optimization based on engagement history
@@ -32,9 +29,6 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
  */
 class EmailSchedulerService
 {
-    /** Max combined emails (campaigns + outbound) a contact may receive in 7 days */
-    private const CROSS_MODULE_MAX_7_DAYS = 3;
-
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
@@ -160,34 +154,51 @@ class EmailSchedulerService
      */
     public function dispatchDueCampaigns(): array
     {
-        $now = new \DateTimeImmutable();
-        $due = $this->entityManager->createQueryBuilder()
-            ->select('c')
-            ->from(EmailCampaign::class, 'c')
-            ->where('c.scheduledAt IS NOT NULL')
-            ->andWhere('c.scheduledAt <= :now')
-            ->andWhere('c.active = true')
-            ->setParameter('now', \DateTime::createFromImmutable($now))
-            ->getQuery()
-            ->getResult();
-
         $dispatched = [];
-        foreach ($due as $campaign) {
-            $recipientIds = array_map(
-                static fn (Contact $contact) => $contact->getId(),
-                $campaign->getContacts()->toArray()
-            );
 
-            if ($recipientIds === []) {
-                continue;
+        $this->entityManager->wrapInTransaction(function () use (&$dispatched): void {
+            $now = new \DateTimeImmutable();
+
+            // Claim due campaigns EXACTLY ONCE: only campaigns never
+            // dispatched before are selected, and each is marked dispatched
+            // inside the same transaction that selects it, so overlapping
+            // cron invocations cannot re-enqueue the same campaign.
+            // ( scheduledAt is preserved unchanged for audit. )
+            $due = $this->entityManager->createQueryBuilder()
+                ->select('c')
+                ->from(EmailCampaign::class, 'c')
+                ->where('c.scheduledAt IS NOT NULL')
+                ->andWhere('c.scheduledAt <= :now')
+                ->andWhere('c.scheduledDispatchedAt IS NULL')
+                ->andWhere('c.active = true')
+                ->setParameter('now', \DateTime::createFromImmutable($now))
+                ->getQuery()
+                ->getResult();
+
+            foreach ($due as $campaign) {
+                $campaign->setScheduledDispatchedAt(new \DateTime());
             }
 
-            $this->messageBus->dispatch(
-                new EmailCampaignMessage((int) $campaign->getId(), $recipientIds, 1, 1)
-            );
+            $this->entityManager->flush();
 
-            $dispatched[] = ['campaign_id' => (int) $campaign->getId(), 'queued' => count($recipientIds)];
-        }
+            foreach ($due as $campaign) {
+                $recipientIds = array_map(
+                    static fn (Contact $contact) => $contact->getId(),
+                    $campaign->getContacts()->toArray()
+                );
+
+                if ($recipientIds === []) {
+                    $dispatched[] = ['campaign_id' => (int) $campaign->getId(), 'queued' => 0];
+                    continue;
+                }
+
+                $this->messageBus->dispatch(
+                    new EmailCampaignMessage((int) $campaign->getId(), $recipientIds, 1, 1)
+                );
+
+                $dispatched[] = ['campaign_id' => (int) $campaign->getId(), 'queued' => count($recipientIds)];
+            }
+        });
 
         return $dispatched;
     }
@@ -204,16 +215,15 @@ class EmailSchedulerService
 
         $emailsSent = 0;
         foreach ($contacts as $contact) {
-            // Skip unsubscribed contacts
-            if (!$this->canSendToContact($contact)) {
-                continue;
-            }
-
+            // Eligibility (unsubscribe/bounce/cadence/archival) is enforced
+            // inside sendToContact via EmailSendPolicy for every sender.
             // Default to first touch when using scheduler-style processing.
             // A single contact's failure must not abort the batch.
             try {
-                $this->campaignService->sendToContact($campaign, $contact, 1);
-                $emailsSent++;
+                $result = $this->campaignService->sendToContact($campaign, $contact, 1);
+                if ($result->outcome === \App\Service\CampaignSendResult::SENT) {
+                    $emailsSent++;
+                }
             } catch (\Throwable $e) {
                 $this->logger?->error('Campaign send failed for contact — continuing with batch', [
                     'campaign_id' => $campaign->getId(),
@@ -227,63 +237,4 @@ class EmailSchedulerService
         return $emailsSent;
     }
 
-    /**
-     * Check if we can send to a contact (not unsubscribed, has email, cadence OK).
-     *
-     * Performs three checks:
-     * 1. Contact has a valid email address
-     * 2. Contact is not on the global suppression list (EmailUnsubscribe)
-     * 3. Contact hasn't received too many emails across ALL modules in the
-     *    last 7 days (EmailSend + OutboundMessage combined)
-     */
-    private function canSendToContact(Contact $contact): bool
-    {
-        // Check if contact has an email
-        if (empty($contact->getEmail())) {
-            return false;
-        }
-
-        // Check if contact is on global suppression list
-        $unsubscribe = $this->entityManager->getRepository(EmailUnsubscribe::class)
-            ->findOneBy(['email' => $contact->getEmail()]);
-
-        if ($unsubscribe !== null) {
-            return false;
-        }
-
-        // Cross-module cadence: count recent sends from BOTH modules
-        // (OutboundMessage from Autonomous Sales + EmailSend from campaigns)
-        // so a contact in both systems doesn't get over-emailed.
-        $sevenDaysAgo = (new \DateTime())->modify('-7 days');
-
-        $outboundCount = (int) $this->entityManager->createQueryBuilder()
-            ->select('COUNT(om.id)')
-            ->from(OutboundMessage::class, 'om')
-            ->where('om.contact = :contact')
-            ->andWhere('om.sentAt IS NOT NULL')
-            ->andWhere('om.sentAt > :since')
-            ->setParameter('contact', $contact)
-            ->setParameter('since', $sevenDaysAgo)
-            ->getQuery()
-            ->getSingleScalarResult();
-
-        $campaignCount = (int) $this->entityManager->createQueryBuilder()
-            ->select('COUNT(es.id)')
-            ->from(EmailSend::class, 'es')
-            ->where('es.contact = :contact')
-            ->andWhere('es.status = :sent')
-            ->andWhere('es.sentAt IS NOT NULL')
-            ->andWhere('es.sentAt > :since')
-            ->setParameter('contact', $contact)
-            ->setParameter('sent', EmailSend::STATUS_SENT)
-            ->setParameter('since', $sevenDaysAgo)
-            ->getQuery()
-            ->getSingleScalarResult();
-
-        if ($outboundCount + $campaignCount >= self::CROSS_MODULE_MAX_7_DAYS) {
-            return false;
-        }
-
-        return true;
-    }
 }

@@ -47,23 +47,39 @@ class DiagSaveTestCommand extends Command
                 'buyer_evidence' => ['verdict' => 'ACCEPT', 'reason' => 'Test', 'positive_families' => ['x' => 1]],
             ],
         ];
-        $result = $this->discoveryService->saveDiscoveredCompanies($fakeData, 'Automotive', 'Tunis Tunisia');
-        $output->writeln('  Returned: ' . count($result));
-        foreach ($result as $c) {
-            $output->writeln('  Saved: ' . $c->getName() . ' (ID: ' . $c->getId() . ')');
+        if (($_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'prod') !== 'test') {
+            $output->writeln('Refusing to run: diagnostics that create/remove rows are only permitted with APP_ENV=test.');
+
+            return Command::FAILURE;
         }
 
-        // Verify all in DB
-        $output->writeln("\n--- DB Verification ---");
+        $result = $this->discoveryService->saveDiscoveredCompanies($fakeData, 'Automotive', 'Tunis Tunisia');
+        $output->writeln('  Returned: ' . count($result));
+
+        // Track EXACTLY the rows this invocation created: cleaning by name
+        // pattern would delete unrelated rows that happen to share a prefix.
+        $createdIds = [];
+        foreach ($result as $c) {
+            $output->writeln('  Saved: ' . $c->getName() . ' (ID: ' . $c->getId() . ')');
+            $createdIds[] = $c->getId();
+        }
+
         $conn = $this->em->getConnection();
-        $rows = $conn->fetchAllAssociative(
-            "SELECT id, name FROM companies WHERE name LIKE 'T1_%' OR name LIKE 'T3_%' ORDER BY id"
-        );
+        if ($createdIds !== []) {
+            $placeholders = implode(',', array_fill(0, count($createdIds), '?'));
+            $rows = $conn->fetchAllAssociative(
+                "SELECT id, name FROM companies WHERE id IN ($placeholders) ORDER BY id",
+                $createdIds
+            );
+        } else {
+            $rows = [];
+        }
+
         foreach ($rows as $r) {
             $output->writeln("  DB: id={$r['id']} name={$r['name']}");
         }
 
-        // Cleanup - use EntityManager remove instead of raw SQL
+        // Cleanup: only the exact rows created above.
         foreach ($rows as $r) {
             $company = $this->em->getRepository(Company::class)->find($r['id']);
             if ($company) {

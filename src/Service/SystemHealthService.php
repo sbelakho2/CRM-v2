@@ -27,7 +27,29 @@ class SystemHealthService
     public function __construct(
         private Connection $connection,
         private CacheItemPoolInterface $cacheApp,
+        private string $projectDir = '',
     ) {}
+
+    /**
+     * Per-probe results ('healthy'|'degraded'|'unknown') for tooling; the
+     * UI uses the cached aggregate via getStatus().
+     *
+     * @return array<string, string>
+     */
+    public function getDetails(): array
+    {
+        $item = $this->cacheApp->getItem(self::CACHE_KEY.'.details');
+        if ($item->isHit() && is_array($item->get())) {
+            return $item->get();
+        }
+
+        $details = $this->probeDetails();
+        $item->set($details);
+        $item->expiresAfter(self::CACHE_TTL_SECONDS);
+        $this->cacheApp->save($item);
+
+        return $details;
+    }
 
     /**
      * @return self::STATUS_*
@@ -50,12 +72,62 @@ class SystemHealthService
 
     private function probe(): string
     {
+        $details = $this->probeDetails();
+
+        return in_array(self::STATUS_DEGRADED, $details, true)
+            ? self::STATUS_DEGRADED
+            : self::STATUS_HEALTHY;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function probeDetails(): array
+    {
+        $details = [];
+
+        // Database
         try {
             $this->connection->fetchOne('SELECT 1');
+            $details['database'] = self::STATUS_HEALTHY;
         } catch (\Throwable) {
-            return self::STATUS_DEGRADED;
+            $details['database'] = self::STATUS_DEGRADED;
+            return $details; // everything else needs the DB anyway
         }
 
-        return self::STATUS_HEALTHY;
+        // Storage: the app must be able to write its var/ tree (logs,
+        // uploads, exports).
+        $varDir = $this->projectDir.'/var';
+        $details['storage'] = (is_dir($varDir) && is_writable($varDir))
+            ? self::STATUS_HEALTHY
+            : self::STATUS_DEGRADED;
+
+        // Messenger failed queue: a growing failed queue means workers are
+        // losing messages (missing table => unknown, e.g. before setup).
+        try {
+            $failed = $this->connection->fetchOne(
+                "SELECT COUNT(*) FROM messenger_messages WHERE queue_name = 'failed'"
+            );
+            $details['messenger'] = ((int) $failed > 100)
+                ? self::STATUS_DEGRADED
+                : self::STATUS_HEALTHY;
+        } catch (\Throwable) {
+            $details['messenger'] = 'unknown';
+        }
+
+        // FX rate freshness (only meaningful once FX data exists).
+        try {
+            $newest = $this->connection->fetchOne('SELECT MAX(created_at) FROM fx_rates');
+            if ($newest === null) {
+                $details['fx'] = 'unknown';
+            } else {
+                $ageDays = (time() - strtotime((string) $newest)) / 86400;
+                $details['fx'] = ($ageDays > 7) ? self::STATUS_DEGRADED : self::STATUS_HEALTHY;
+            }
+        } catch (\Throwable) {
+            $details['fx'] = 'unknown';
+        }
+
+        return $details;
     }
 }

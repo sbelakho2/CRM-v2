@@ -118,8 +118,15 @@ class LeadSalesAnalystService
         array $ourCertifications = [],
         array $targetSectors = [],
     ) {
-        $this->ourCapabilities = !empty($ourCapabilities) ? $ourCapabilities : self::DEFAULT_CAPABILITIES;
-        $this->ourCertifications = !empty($ourCertifications) ? $ourCertifications : self::DEFAULT_CERTIFICATIONS;
+        // Capability/certification truth must come from VERIFIED operating
+        // data (config/DB), never from source-code defaults: a hard-coded
+        // default can turn into an outbound factual claim about a real
+        // factory. Unknown is the safe default — the analyst simply does
+        // not claim capabilities it cannot substantiate.
+        // The DEFAULT_CAPABILITIES / DEFAULT_CERTIFICATIONS constants remain
+        // only as an explicit opt-in template for populating verified data.
+        $this->ourCapabilities = $ourCapabilities;
+        $this->ourCertifications = $ourCertifications;
         $this->targetSectors = !empty($targetSectors) ? $targetSectors : self::DEFAULT_TARGET_SECTORS;
     }
     

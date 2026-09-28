@@ -20,8 +20,8 @@ class CompanyRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
-            ->andWhere('c.archivedAt IS NULL')
             ->where('c.pipelineStage = :stage')
+            ->andWhere('c.archivedAt IS NULL')
             ->andWhere('c.createdAt >= :start')
             ->andWhere('c.createdAt <= :end')
             ->setParameter('stage', $stage)
@@ -34,9 +34,9 @@ class CompanyRepository extends ServiceEntityRepository
     public function findBySectorAndTier(string $sector, string $tier): array
     {
         return $this->createQueryBuilder('c')
-            ->andWhere('c.archivedAt IS NULL')
             ->where('c.sector = :sector')
             ->andWhere('c.accountTier = :tier')
+            ->andWhere('c.archivedAt IS NULL')
             ->setParameter('sector', $sector)
             ->setParameter('tier', $tier)
             ->orderBy('c.name', 'ASC')
@@ -48,8 +48,8 @@ class CompanyRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
-            ->andWhere('c.archivedAt IS NULL')
             ->where('c.sector = :sector')
+            ->andWhere('c.archivedAt IS NULL')
             ->setParameter('sector', $sector)
             ->getQuery()
             ->getSingleScalarResult();
@@ -59,8 +59,8 @@ class CompanyRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
-            ->andWhere('c.archivedAt IS NULL')
             ->where('c.pipelineStage = :stage')
+            ->andWhere('c.archivedAt IS NULL')
             ->setParameter('stage', $stage)
             ->getQuery()
             ->getSingleScalarResult();
@@ -74,6 +74,10 @@ class CompanyRepository extends ServiceEntityRepository
      * out of search results, making room for new discoveries.
      *
      * @return string[] Root domains (e.g. ['ezz-elarab.com', 'aboulfotouh-egypt.com'])
+     */
+    /**
+     * NOTE: intentionally INCLUDES archived companies — an archived company
+     * must stay excluded from future discovery results.
      */
     public function findAllWebsiteDomains(): array
     {
@@ -102,6 +106,10 @@ class CompanyRepository extends ServiceEntityRepository
      *
      * @return string[]
      */
+    /**
+     * NOTE: intentionally INCLUDES archived companies (discovery exclusion
+     * seeds — archived rows must still suppress re-discovery).
+     */
     public function findNamesBySector(string $sector): array
     {
         $rows = $this->createQueryBuilder('c')
@@ -121,6 +129,10 @@ class CompanyRepository extends ServiceEntityRepository
      * should skip dynamic expansion rather than pollute with wrong-region seeds.
      *
      * @return string[]
+     */
+    /**
+     * NOTE: intentionally INCLUDES archived companies (discovery exclusion
+     * seeds — archived rows must still suppress re-discovery).
      */
     public function findNamesBySectorAndRegion(string $sector, string $region): array
     {

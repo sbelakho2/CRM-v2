@@ -49,7 +49,8 @@ class EmailCampaignMessageHandlerTest extends TestCase
             ->withConsecutive(
                 [$this->identicalTo($campaign), $this->identicalTo($recipient1), 1],
                 [$this->identicalTo($campaign), $this->identicalTo($recipient2), 1]
-            );
+            )
+            ->willReturn(\App\Service\CampaignSendResult::sent());
 
         $handler = new EmailCampaignMessageHandler($campaignRepo, $contactRepo, $service);
 

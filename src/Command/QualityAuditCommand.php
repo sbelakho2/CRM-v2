@@ -100,6 +100,14 @@ class QualityAuditCommand extends Command
 
         // ── WIPE PHASE: Delete all discovered companies + contacts ──
         if ($wipe && !$auditOnly) {
+            // Production data is never wiped by a diagnostic command. The
+            // same fail-closed model as App\Tests\Bootstrap\TestDatabaseGuard.
+            if (($_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'prod') !== 'test') {
+                $io->error('Refusing to wipe: destructive diagnostics are only permitted with APP_ENV=test. Use a dedicated *_test database for crawler regression testing.');
+
+                return Command::FAILURE;
+            }
+
             // Destructive operation: --wipe alone is never enough.
             if (!$force) {
                 $io->error([

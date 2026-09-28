@@ -34,6 +34,7 @@ services:
       $adminEmail: "%admin_email%"
       $defaultLocale: "%default_locale%"
       $publicRegistrationEnabled: "%app.public_registration_enabled%"
+      $projectDir: "%kernel.project_dir%"
       $defaultTimezone: "%default_timezone%"
       $retryLimit: "%email_campaign_retry_limit%"
 
@@ -54,6 +55,10 @@ services:
       - { name: doctrine.event_listener, event: postFlush }
 
   # API Client Configuration
+  App\Command\MigrationsPreflightCommand:
+    arguments:
+      $dependencyFactory: '@doctrine.migrations.dependency_factory'
+
   App\Service\Integration\AlibabaApiClient:
     arguments:
       $proxyRotation: '@App\Service\ProxyRotationService'

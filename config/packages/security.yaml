@@ -43,6 +43,8 @@ security:
     # Must stay BEFORE the generic ^/ ROLE_USER rule below.
     - { path: ^/quote/live, roles: PUBLIC_ACCESS }
     - { path: ^/meetings/book, roles: PUBLIC_ACCESS }
+    - { path: ^/meetings/cancel, roles: PUBLIC_ACCESS }
+    - { path: ^/webinars/\d+/register, roles: PUBLIC_ACCESS }
     - { path: ^/admin, roles: ROLE_ADMIN }
     # ROLE_ENGINEERING implies ROLE_USER via role_hierarchy, so listing both
     # is redundant; ROLE_USER alone is the minimal correct form.

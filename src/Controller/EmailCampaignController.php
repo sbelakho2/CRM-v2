@@ -41,6 +41,7 @@ class EmailCampaignController extends AbstractController
         $language = $request->query->get('language', 'all');
 
         $qb = $this->campaignRepository->createQueryBuilder('c')
+            ->andWhere('c.archivedAt IS NULL')
             ->orderBy('c.id', 'DESC');
 
         if ($status === 'active') {
@@ -186,7 +187,9 @@ class EmailCampaignController extends AbstractController
     public function delete(Request $request, EmailCampaign $campaign): Response
     {
         if ($this->isCsrfTokenValid('delete'.$campaign->getId(), $request->request->get('_token'))) {
-            $this->entityManager->remove($campaign);
+            // Campaigns carry send/open/click/reply/bounce history: they are
+            // archived, never hard-deleted.
+            $campaign->archive($this->getUser(), 'Archived from campaigns list');
             $this->entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('email_campaign.flash.deleted'));
@@ -238,11 +241,19 @@ class EmailCampaignController extends AbstractController
             }
 
             $sentCount = 0;
+            $skippedCount = 0;
+            $failedCount = 0;
             foreach ($contactIds as $contactId) {
                 $contact = $this->contactRepository->find($contactId);
                 if ($contact) {
-                    $this->campaignService->sendToContact($campaign, $contact, $touchNumber);
-                    $sentCount++;
+                    $result = $this->campaignService->sendToContact($campaign, $contact, $touchNumber);
+                    if ($result->outcome === \App\Service\CampaignSendResult::SENT) {
+                        $sentCount++;
+                    } elseif ($result->outcome === \App\Service\CampaignSendResult::FAILED) {
+                        $failedCount++;
+                    } else {
+                        $skippedCount++;
+                    }
                 }
             }
 
@@ -250,6 +261,13 @@ class EmailCampaignController extends AbstractController
             $this->guidanceService->afterEmailCampaignSent($campaign->getId(), $sentCount);
 
             $this->addFlash('success', $this->translator->trans('email_campaign.flash.sent_count', ['%count%' => $sentCount]));
+            if ($skippedCount > 0 || $failedCount > 0) {
+                $this->addFlash('warning', sprintf(
+                    '%d skipped by send policy (unsubscribed/bounce/cadence), %d failed and can be retried.',
+                    $skippedCount,
+                    $failedCount
+                ));
+            }
             return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
         }
 

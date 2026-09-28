@@ -37,6 +37,7 @@ class RFQController extends AbstractController
         $ndaStatus = $request->query->get('nda_status');
 
         $qb = $rfqRepository->createQueryBuilder('r')
+            ->andWhere('r.archivedAt IS NULL')
             ->leftJoin('r.company', 'c')
             ->addSelect('c')
             ->orderBy('r.createdAt', 'DESC');
@@ -89,6 +90,7 @@ class RFQController extends AbstractController
         $companyId = $request->query->get('company');
 
         $qb = $rfqRepository->createQueryBuilder('r')
+            ->andWhere('r.archivedAt IS NULL')
             ->leftJoin('r.company', 'c')
             ->addSelect('c')
             ->orderBy('r.createdAt', 'DESC');
@@ -197,7 +199,9 @@ class RFQController extends AbstractController
     public function delete(Request $request, RFQ $rfq, EntityManagerInterface $entityManager): Response
     {
         if ($this->isCsrfTokenValid('delete'.$rfq->getId(), $request->request->get('_token'))) {
-            $entityManager->remove($rfq);
+            // RFQs are commercial history (line items, versions, quotes):
+            // archive instead of hard-deleting.
+            $rfq->archive($this->getUser(), 'Archived from RFQ list');
             $entityManager->flush();
 
             $this->addFlash('success', $this->translator->trans('rfq.flash.deleted'));

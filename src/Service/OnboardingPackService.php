@@ -52,14 +52,25 @@ class OnboardingPackService
         'bankAccountName',
     ];
 
+    private readonly HttpClientInterface $httpClient;
+    private readonly \App\Security\SafeOutboundUrlGuard $urlGuard;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private OnboardingPackRepository $onboardingPackRepository,
         private PortalCandidateRepository $portalCandidateRepository,
         private SupplierPortalRepository $supplierPortalRepository,
-        private HttpClientInterface $httpClient,
+        HttpClientInterface $httpClient,
         private UnifiedPdfGeneratorService $pdfGenerator
-    ) {}
+    ) {
+        // Credential-bearing portal automation: enforce the SSRF guard on
+        // every outbound URL AND block private-network destinations at the
+        // transport layer (initial request and each redirect hop).
+        $this->httpClient = $httpClient instanceof \Symfony\Component\HttpClient\MockHttpClient
+            ? $httpClient
+            : new \Symfony\Component\HttpClient\NoPrivateNetworkHttpClient($httpClient);
+        $this->urlGuard = new \App\Security\SafeOutboundUrlGuard();
+    }
 
     /**
      * Company profile sourced from env vars only. Every value defaults to
@@ -359,6 +370,9 @@ class OnboardingPackService
                 throw new \RuntimeException('Login credentials or URL missing');
             }
             
+            // These requests carry credentials/session data: validate the
+            // destination BEFORE sending anything.
+            $this->urlGuard->assertAllowed($loginUrl);
             $loginResponse = $this->httpClient->request('POST', $loginUrl, [
                 'body' => [
                     'username' => $credentials['username'],
@@ -396,6 +410,7 @@ class OnboardingPackService
                 throw new \RuntimeException('Submit URL not configured');
             }
             
+            $this->urlGuard->assertAllowed($submitUrl);
             $submitResponse = $this->httpClient->request('POST', $submitUrl, [
                 'headers' => ['Cookie' => $sessionCookie ?? ''],
                 'body' => $formData,

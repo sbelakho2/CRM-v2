@@ -36,11 +36,11 @@ class EmailSend
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: EmailCampaign::class, inversedBy: 'emailSends')]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?EmailCampaign $campaign = null;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?Contact $contact = null;
 
     #[ORM\Column(type: 'integer')]
