@@ -64,9 +64,9 @@ steps:
           -e MYSQL_USER=crm_test \
           -e MYSQL_PASSWORD=crm_test_pw \
           -p 3309:3306 mysql:8 >/dev/null
-        for i in $(seq 1 60); do
-          if docker exec crm-ci-mysql mysqladmin ping -uroot -pci_root_pw --silent >/dev/null 2>&1; then
-            echo "MySQL ready after ~$((i*2))s"
+        for i in $(seq 1 90); do
+          if docker exec crm-ci-mysql mysql -ucrm_test -pcrm_test_pw -e 'SELECT 1' >/dev/null 2>&1; then
+            echo "MySQL ready (SELECT 1 as app user) after ~$((i*2))s"
             exit 0
           fi
           sleep 2

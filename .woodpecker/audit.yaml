@@ -85,8 +85,10 @@ steps:
     commands:
       - |
         set -eu
+        # .env (from .env.example) declares APP_ENV=prod; lint against the
+        # dev environment explicitly — prod warmers expect live services.
         php -d memory_limit=-1 bin/console lint:container --env=dev
-        php -d memory_limit=-1 bin/console lint:twig templates/
+        php -d memory_limit=-1 bin/console lint:twig templates/ --env=dev
 
   migration-gate:
     image: bash
