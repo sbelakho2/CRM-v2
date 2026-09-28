@@ -106,8 +106,8 @@ steps:
         # On failure, surface the application log tail (mailer and service
         # errors are caught-and-logged in controllers, invisible to phpunit).
         vendor/bin/phpunit || {
-          echo '---- var/log/test.log tail ----'
-          tail -n 80 var/log/test.log 2>/dev/null || true
+          echo '---- mailer/meeting errors ----'
+          grep -niE "failed to send|meeting_confirmation|transport|mailer" var/log/test.log 2>/dev/null | tail -30 || true
           exit 1
         }
 
