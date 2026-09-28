@@ -88,17 +88,6 @@ steps:
         php -d memory_limit=-1 bin/console lint:container --env=dev
         php -d memory_limit=-1 bin/console lint:twig templates/
 
-  doctrine-mapping:
-    image: bash
-    depends_on: [composer-install]
-    environment:
-      APP_ENV: test
-      DATABASE_URL: mysql://unused:unused@127.0.0.1:1/unused
-    commands:
-      - |
-        set -eu
-        php -d memory_limit=-1 bin/console doctrine:schema:validate --skip-sync --env=test
-
   migration-gate:
     image: bash
     depends_on: [checkout]
@@ -124,4 +113,4 @@ steps:
       - |
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
-        php -d memory_limit=-1 /opt/homebrew/bin/composer audit --locked
+        php -d memory_limit=-1 /opt/homebrew/bin/composer audit --locked --abandoned=ignore

@@ -45,6 +45,10 @@ steps:
   test-database:
     image: bash
     depends_on: [composer-install]
+    environment:
+      # CI steps run with a sanitized environment that does not carry the
+      # user's docker context; point the CLI at the colima socket explicitly.
+      DOCKER_HOST: unix:///Users/sabelakhoua/.colima/default/docker.sock
     commands:
       - |
         set -eu
@@ -102,6 +106,8 @@ steps:
     image: bash
     depends_on: [phpunit]
     failure: ignore
+    environment:
+      DOCKER_HOST: unix:///Users/sabelakhoua/.colima/default/docker.sock
     commands:
       - |
         export PATH="/opt/homebrew/bin:$PATH"
