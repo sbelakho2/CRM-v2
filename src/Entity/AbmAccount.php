@@ -15,6 +15,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class AbmAccount
 {
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $archivedAt = null;
+
+    #[ORM\ManyToOne(targetEntity: \App\Entity\User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?\App\Entity\User $archivedBy = null;
+
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $archiveReason = null;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -245,4 +255,33 @@ class AbmAccount
         }
         return $this;
     }
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
+    }
+
+    public function archive(\App\Entity\User $by, ?string $reason = null): self
+    {
+        $this->archivedAt = $this->archivedAt ?? new \DateTime();
+        $this->archivedBy = $by;
+        $this->archiveReason = $reason;
+
+        return $this;
+    }
+
+    public function getArchivedAt(): ?\DateTimeInterface
+    {
+        return $this->archivedAt;
+    }
+
+    public function getArchivedBy(): ?\App\Entity\User
+    {
+        return $this->archivedBy;
+    }
+
+    public function getArchiveReason(): ?string
+    {
+        return $this->archiveReason;
+    }
+
 }

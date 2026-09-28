@@ -46,6 +46,12 @@ final class EmailSendPolicy
             return SendEligibility::skipped('contact_archived');
         }
 
+        // Archived first: archive() deactivates too, and 'archived' is the
+        // actionable reason (inactive alone may be a deliberate pause).
+        if ($campaign->isArchived()) {
+            return SendEligibility::skipped('campaign_archived');
+        }
+
         if (!$campaign->isActive()) {
             return SendEligibility::skipped('campaign_inactive');
         }

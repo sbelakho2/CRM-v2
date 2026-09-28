@@ -4,6 +4,7 @@ namespace App\Command;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\Migrations\DependencyFactory;
+use Doctrine\Migrations\Metadata\ExecutedMigration;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -43,7 +44,7 @@ class MigrationsPreflightCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $executed = array_map(
-            static fn (ExecutedMigration $m) => $m->getVersion(),
+            static fn (ExecutedMigration $m): string => (string) $m->getVersion(),
             $this->dependencyFactory->getMigrationRepository()->getExecutedMigrations()->getItems()
         );
 
@@ -64,6 +65,56 @@ class MigrationsPreflightCommand extends Command
             }
         }
 
+        // ── Version20260824120000: DROP COLUMN on populated columns ────────
+        // The migration assumes the dropped columns are unused. Verify the
+        // assumption against live data: non-default values are history.
+        $dropColumnChecks = [
+            'DoctrineMigrations\\Version20260824120000' => [
+                ['contacts', 'subscribed'],
+                ['contacts', 'lead_score'],
+                ['compliance_documents', 'document_type'],
+                ['compliance_documents', 'sha256_hash'],
+                ['compliance_documents', 'version_id'],
+            ],
+        ];
+        foreach ($dropColumnChecks as $version => $columns) {
+            if (in_array($version, $executed, true)) {
+                continue;
+            }
+            foreach ($columns as [$table, $column]) {
+                if (!$this->columnExists($table, $column)) {
+                    continue;
+                }
+                $nonNull = (int) $this->connection->fetchOne(
+                    "SELECT COUNT(*) FROM {$table} WHERE {$column} IS NOT NULL AND {$column} <> '' AND {$column} <> 0"
+                );
+                if ($nonNull > 0) {
+                    $blockers[] = sprintf(
+                        'Migration %s would DROP %s.%s which still holds %d populated value(s). '.
+                        'Migrate or deliberately archive that data first.',
+                        $version,
+                        $table,
+                        $column,
+                        $nonNull
+                    );
+                }
+            }
+        }
+
+        // ── Version20260824110000: DELETE FROM webinar_attendees ───────────
+        // This migration merges duplicate attendees before deleting the
+        // losers (preservation-first), so it is a warning rather than a
+        // blocker — but it deserves upgrade-path attention.
+        $version = 'DoctrineMigrations\\Version20260824110000';
+        if (!in_array($version, $executed, true) && $this->tableExists('webinar_attendees')) {
+            $dupes = (int) $this->connection->fetchOne(
+                'SELECT COUNT(*) FROM (SELECT webinar_id, email FROM webinar_attendees GROUP BY webinar_id, email HAVING COUNT(*) > 1 LIMIT 1) d'
+            );
+            if ($dupes > 0) {
+                $io->warning('Migration DoctrineMigrations\Version20260824110000 merges duplicate webinar attendees (preservation-first). Review its merge logic against your data before upgrading.');
+            }
+        }
+
         if ($blockers !== []) {
             $io->error('Migration preflight FAILED — deployment must not proceed:');
             foreach ($blockers as $blocker) {
@@ -76,6 +127,14 @@ class MigrationsPreflightCommand extends Command
         $io->success('Migration preflight passed: no pending migration destroys existing data.');
 
         return Command::SUCCESS;
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        return (bool) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+            [$table, $column]
+        );
     }
 
     private function tableExists(string $table): bool

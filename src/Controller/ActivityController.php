@@ -380,10 +380,11 @@ class ActivityController extends AbstractController
     public function delete(Request $request, Activity $activity): Response
     {
         if ($this->isCsrfTokenValid('delete' . $activity->getId(), $request->request->get('_token'))) {
-            $this->entityManager->remove($activity);
+            // Activities are historical sales records: archive them.
+            $activity->archive($this->getUser(), 'Archived from activities list');
             $this->entityManager->flush();
 
-            $this->addFlash('success', 'Activity deleted successfully!');
+            $this->addFlash('success', 'Activity archived. Its history is preserved.');
         }
 
         return $this->redirectToRoute('app_activity_index');

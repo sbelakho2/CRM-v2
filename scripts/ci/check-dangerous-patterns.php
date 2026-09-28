@@ -125,7 +125,39 @@ foreach ($guardRequired as $relative) {
     }
 }
 
-// ── 6. phpunit database safety ───────────────────────────────────────
+// ── 6. Doctrine where() overwriting archive predicates ───────────────
+// where() REPLACES the whole WHERE expression: calling it after an
+// archivedAt IS NULL andWhere() erases the archive filter (a real bug in
+// two rounds of this codebase).
+$predTargets = [$root . '/src/Controller', $root . '/src/Repository'];
+foreach ($predTargets as $dir) {
+    foreach (phpFiles($dir) as $file) {
+        $code = (string) file_get_contents($file);
+        $archLine = null;
+        $lineNo = 0;
+        foreach (explode("\n", $code) as $line) {
+            $lineNo++;
+            // A new query builder starts an independent chain: where() as
+            // its first predicate is fine.
+            if (str_contains($line, 'createQueryBuilder(')) {
+                $archLine = null;
+            }
+            if (str_contains($line, 'archivedAt IS NULL')) {
+                $archLine = $lineNo;
+            }
+            if ($archLine !== null && preg_match('/->where\(/', $line)) {
+                fail($failures, sprintf(
+                    '%s:%d calls where() after an archivedAt filter (line %d) — where() REPLACES the WHERE clause and resurrects archived rows; use andWhere()',
+                    $file,
+                    $lineNo,
+                    $archLine
+                ));
+            }
+        }
+    }
+}
+
+// ── 7. phpunit database safety ───────────────────────────────────────
 $phpunit = (string) file_get_contents($root . '/phpunit.xml.dist');
 if (preg_match('#<server name="DATABASE_URL"[^>]*value="([^"]+)"#', $phpunit, $m)) {
     $url = html_entity_decode($m[1], ENT_QUOTES);

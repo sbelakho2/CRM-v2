@@ -365,10 +365,12 @@ class AbmDashboardController extends AbstractController
             throw $this->createNotFoundException('ABM account not found');
         }
 
-        $this->entityManager->remove($account);
+        // ABM hit history is CRM history: archive the account instead of
+        // cascading its hits away.
+        $account->archive($this->getUser(), 'Archived from ABM accounts');
         $this->entityManager->flush();
 
-        $this->addFlash('success', 'abm_dashboard.flash.account_deleted');
+        $this->addFlash('success', 'abm_dashboard.flash.account_archived');
 
         return $this->redirectToRoute('abm_dashboard_accounts');
     }

@@ -22,7 +22,6 @@ class EmailDripCampaignService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private EmailSchedulerService $schedulerService,
         private EmailSegmentService $segmentService,
         private EmailConsentService $consentService
     ) {}
@@ -191,11 +190,22 @@ class EmailDripCampaignService
             $nextTouchConfig
         );
 
-        // Create next email send
+        // Create next email send (idempotent: skip when the next touch row
+        // already exists — webhook/worker redelivery must not duplicate it)
+        $alreadyScheduled = $this->entityManager->getRepository(EmailSend::class)->findOneBy([
+            'campaign' => $campaign,
+            'contact' => $contact,
+            'touchNumber' => $nextTouch,
+        ]);
+        if ($alreadyScheduled !== null) {
+            return;
+        }
+
         $nextEmailSend = new EmailSend();
         $nextEmailSend->setCampaign($campaign);
         $nextEmailSend->setContact($contact);
         $nextEmailSend->setTouchNumber($nextTouch);
+        $nextEmailSend->setEmailAddress($contact->getEmail());
         $nextEmailSend->setScheduledAt($sendAt);
         $nextEmailSend->setStatus('queued');
 
@@ -571,12 +581,11 @@ class EmailDripCampaignService
     }
 
     /**
-     * Check if a contact has an ACTIVE enrollment (queued or sending send).
-     * Completed or cancelled sequences do not block re-enrollment.
-     * 
-     * @param EmailCampaign $campaign Campaign
-     * @param Contact $contact Contact
-     * @return bool True if contact has an active, non-cancelled queued/sending send
+     * One enrollment per (campaign, contact): the database identity of a
+     * sequence is UNIQUE(campaign_id, contact_id, touch_number), so a
+     * second enrollment starting at touch 1 could not be represented
+     * anyway. Historical enrollments (completed/cancelled) therefore also
+     * block re-enrollment in the same campaign.
      */
     private function hasActiveEnrollment(EmailCampaign $campaign, Contact $contact): bool
     {
@@ -585,13 +594,8 @@ class EmailDripCampaignService
             ->from(EmailSend::class, 'es')
             ->where('es.campaign = :campaign')
             ->andWhere('es.contact = :contact')
-            ->andWhere('es.status IN (:activeStatuses)')
             ->setParameter('campaign', $campaign)
             ->setParameter('contact', $contact)
-            ->setParameter('activeStatuses', [
-                EmailSend::STATUS_QUEUED,
-                EmailSend::STATUS_SENDING,
-            ])
             ->getQuery()
             ->getSingleScalarResult();
 

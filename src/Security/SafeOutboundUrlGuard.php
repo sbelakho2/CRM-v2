@@ -108,6 +108,29 @@ final class SafeOutboundUrlGuard
     }
 
     /**
+     * Stricter gate for CREDENTIAL-BEARING requests (portal logins and
+     * submissions): crawling may use plain http, but sending usernames,
+     * passwords, session cookies and supplier documents must not. Also
+     * rejects non-default ports.
+     */
+    public function assertAllowedCredentialEndpoint(string $url): string
+    {
+        $allowed = $this->assertAllowed($url);
+
+        $scheme = strtolower((string) (parse_url($allowed, PHP_URL_SCHEME) ?? ''));
+        if ($scheme !== 'https') {
+            throw new UnsafeOutboundUrlException('Credential-bearing requests require HTTPS.');
+        }
+
+        $port = parse_url($allowed, PHP_URL_PORT);
+        if ($port !== null && $port !== 443) {
+            throw new UnsafeOutboundUrlException('Credential-bearing requests must use port 443.');
+        }
+
+        return $allowed;
+    }
+
+    /**
      * Same-organization check for URLs discovered inside crawled content
      * (sitemaps, robots.txt): a candidate is allowed when it shares the base
      * host, or is a subdomain of it (or vice versa after stripping "www.").

@@ -73,6 +73,15 @@ class EmailSend
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $scheduledAt = null;
 
+    /**
+     * Delivery ownership lease: a worker processing this row extends it; a
+     * QUEUED/SENDING row whose lease has expired is crash-debris and may be
+     * re-claimed. Without it, a worker dying mid-send would leave the touch
+     * permanently "in progress" and un-retryable.
+     */
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $sendLeaseExpiresAt = null;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $openedAt = null;
 
@@ -222,6 +231,18 @@ class EmailSend
     public function getScheduledAt(): ?\DateTimeInterface
     {
         return $this->scheduledAt;
+    }
+
+    public function getSendLeaseExpiresAt(): ?\DateTimeInterface
+    {
+        return $this->sendLeaseExpiresAt;
+    }
+
+    public function setSendLeaseExpiresAt(?\DateTimeInterface $expiresAt): self
+    {
+        $this->sendLeaseExpiresAt = $expiresAt;
+
+        return $this;
     }
 
     public function setScheduledAt(?\DateTimeInterface $scheduledAt): self

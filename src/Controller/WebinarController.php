@@ -36,11 +36,13 @@ class WebinarController extends AbstractController
             ->andWhere('w.archivedAt IS NULL')
             ->orderBy('w.scheduledDate', 'DESC');
 
+        // andWhere, never where(): where() REPLACES the WHERE clause and
+        // would resurrect archived webinars under a status filter.
         if ($status === 'upcoming') {
-            $queryBuilder->where('w.scheduledDate > :now')
+            $queryBuilder->andWhere('w.scheduledDate > :now')
                 ->setParameter('now', new \DateTime());
         } elseif ($status === 'past') {
-            $queryBuilder->where('w.scheduledDate <= :now')
+            $queryBuilder->andWhere('w.scheduledDate <= :now')
                 ->setParameter('now', new \DateTime());
         }
 

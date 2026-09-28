@@ -25,7 +25,7 @@ class EmailCampaignServiceTest extends TestCase
         $trackingSigner = new EmailTrackingSigner('test-secret');
         $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em));
+        $service = new EmailCampaignService($this->createMock(\Doctrine\Persistence\ManagerRegistry::class), $em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em), $this->createMock(\Symfony\Component\Mailer\Transport\TransportInterface::class));
 
         $campaign = new EmailCampaign();
 
@@ -48,7 +48,7 @@ class EmailCampaignServiceTest extends TestCase
         $trackingSigner = new EmailTrackingSigner('test-secret');
         $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em));
+        $service = new EmailCampaignService($this->createMock(\Doctrine\Persistence\ManagerRegistry::class), $em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em), $this->createMock(\Symfony\Component\Mailer\Transport\TransportInterface::class));
 
         $campaign = new EmailCampaign();
 
@@ -84,7 +84,7 @@ class EmailCampaignServiceTest extends TestCase
         $trackingSigner = new EmailTrackingSigner('test-secret');
         $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em));
+        $service = new EmailCampaignService($this->createMock(\Doctrine\Persistence\ManagerRegistry::class), $em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em), $this->createMock(\Symfony\Component\Mailer\Transport\TransportInterface::class));
 
         $send = new EmailSend();
 
@@ -111,7 +111,7 @@ class EmailCampaignServiceTest extends TestCase
         $trackingSigner = new EmailTrackingSigner('test-secret');
         $logger = $this->createMock(LoggerInterface::class);
 
-        $service = new EmailCampaignService($em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em));
+        $service = new EmailCampaignService($this->createMock(\Doctrine\Persistence\ManagerRegistry::class), $em, $campaignRepo, $sendRepo, $mailer, $urlGenerator, $trackingSigner, $logger, new \App\Service\EmailSendPolicy($em), $this->createMock(\Symfony\Component\Mailer\Transport\TransportInterface::class));
 
         $contact = new Contact();
         $campaign = new EmailCampaign();

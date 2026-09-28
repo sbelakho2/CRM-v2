@@ -52,6 +52,7 @@ class CompliancePackService
      */
     public function getCompanyPackStatus(Company $company): array
     {
+        $requiredDocs = $this->requiredDocumentsFor($company);
         $documents = $this->documentRepository->findBy(['company' => $company]);
         $uploaded = [];
 
@@ -70,7 +71,7 @@ class CompliancePackService
         }
 
         $status = [];
-        foreach (self::REQUIRED_DOCUMENTS as $docType) {
+        foreach ($requiredDocs as $docType) {
             $status[$docType] = $uploaded[$docType] ?? ['uploaded' => false];
         }
 
@@ -86,7 +87,12 @@ class CompliancePackService
      */
     public function getCompletionPercentage(Company $company): float
     {
-        $total = count(self::REQUIRED_DOCUMENTS);
+        // The denominator is the SECTOR-SPECIFIC requirement set (base +
+        // sector extras), matching what initialization creates — otherwise
+        // an Automotive company can read 100% while its APQP/PPAP documents
+        // are missing.
+        $requiredDocs = $this->requiredDocumentsFor($company);
+        $total = count($requiredDocs);
         
         $documents = $this->documentRepository->findBy(['company' => $company]);
         $uploadedRequiredTypes = [];
@@ -95,7 +101,7 @@ class CompliancePackService
                 continue;
             }
             $type = $doc->getDocumentType() ?? $doc->getName();
-            if (in_array($type, self::REQUIRED_DOCUMENTS, true)) {
+            if (in_array($type, $requiredDocs, true)) {
                 $uploadedRequiredTypes[$type] = true;
             }
         }
@@ -110,6 +116,7 @@ class CompliancePackService
      */
     public function getMissingDocuments(Company $company): array
     {
+        $requiredDocs = $this->requiredDocumentsFor($company);
         $documents = $this->documentRepository->findBy(['company' => $company]);
         $uploadedTypes = [];
         
@@ -128,7 +135,18 @@ class CompliancePackService
             }
         }
 
-        return array_diff(self::REQUIRED_DOCUMENTS, $uploadedTypes);
+        return array_diff($requiredDocs, $uploadedTypes);
+    }
+
+    /**
+     * The canonical per-company requirement set used by initialization,
+     * status, missing-documents and completion calculations alike.
+     *
+     * @return list<string>
+     */
+    private function requiredDocumentsFor(Company $company): array
+    {
+        return $this->getSectorSpecificDocuments($company->getSector() ?? 'Industrial');
     }
 
     /**
@@ -177,6 +195,10 @@ class CompliancePackService
         $document->setName($documentType);
         $document->setDocumentKey(self::documentKeyFromName($documentType));
         $document->setFileName($fileName);
+        // A created document HAS a file: without provided=true the
+        // provided-based completion logic would contradict the row.
+        $document->setProvided(true);
+        $document->setStatus(ComplianceDocument::STATUS_PENDING);
         $document->setUploadedAt(new \DateTime());
 
         $this->entityManager->persist($document);

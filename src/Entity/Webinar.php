@@ -66,7 +66,7 @@ class Webinar
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $maxAttendees = null;
 
-    #[ORM\OneToMany(mappedBy: 'webinar', targetEntity: WebinarAttendee::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'webinar', targetEntity: WebinarAttendee::class, cascade: ['persist'])]
     private Collection $attendees;
 
     #[ORM\Column(length: 50)]
@@ -240,6 +240,32 @@ class Webinar
         $this->status = $status;
         return $this;
     }
+    /**
+     * Whether PUBLIC registration may accept this webinar right now:
+     * not archived, not completed/cancelled, in the future, and capacity
+     * (when configured) not exhausted.
+     */
+    public function canAcceptRegistrations(\DateTimeInterface $now = new \DateTime()): bool
+    {
+        if ($this->isArchived()) {
+            return false;
+        }
+
+        if ($this->status === self::STATUS_COMPLETED || $this->status === self::STATUS_CANCELLED) {
+            return false;
+        }
+
+        if ($this->scheduledDate !== null && $this->scheduledDate <= $now) {
+            return false;
+        }
+
+        if ($this->maxAttendees !== null && $this->maxAttendees > 0 && $this->registeredCount >= $this->maxAttendees) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function isArchived(): bool
     {
         return $this->archivedAt !== null;

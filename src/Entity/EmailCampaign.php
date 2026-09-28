@@ -96,6 +96,9 @@ class EmailCampaign
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?\App\Entity\User $archivedBy = null;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $archiveReason = null;
+
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $scheduledDispatchedAt = null;
 
@@ -106,7 +109,7 @@ class EmailCampaign
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
-    #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: EmailSend::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: EmailSend::class, cascade: ['persist'])]
     private Collection $emailSends;
 
     #[ORM\ManyToMany(targetEntity: Contact::class, mappedBy: 'emailCampaigns')]
@@ -463,6 +466,14 @@ class EmailCampaign
         $this->archivedAt = $this->archivedAt ?? new \DateTime();
         $this->archivedBy = $by;
         $this->archiveReason = $reason;
+
+        // An archived campaign must immediately stop being sendable by ANY
+        // path (scheduler, triggers, manual sends).
+        $this->active = false;
+
+        if ($this->status !== self::STATUS_COMPLETED) {
+            $this->status = self::STATUS_CANCELLED;
+        }
 
         return $this;
     }

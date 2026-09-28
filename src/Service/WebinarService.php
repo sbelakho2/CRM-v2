@@ -39,13 +39,15 @@ class WebinarService
      * of an external attendee into a full contact is a separate internal
      * workflow.
      */
-    public function registerAttendee(Webinar $webinar, ?Contact $contact, string $email, string $name): WebinarAttendee
+    public function registerAttendee(Webinar $webinar, ?Contact $contact, string $email, string $name, ?string $companyName = null): WebinarAttendee
     {
         $email = strtolower(trim($email));
 
         $existing = $this->entityManager->getRepository(WebinarAttendee::class)
             ->findOneBy(['webinar' => $webinar, 'email' => $email]);
         if ($existing !== null) {
+            $this->ensureConfirmationEmail($existing);
+
             return $existing;
         }
 
@@ -59,21 +61,68 @@ class WebinarService
             $attendee->setContact($contact);
             $attendee->setCompany($contact->getCompany());
         }
-        // Free-text company names from external registrants are NOT matched
-        // to Company entities (arbitrary name matching would pollute CRM
-        // data); converting an attendee to a company is an internal workflow.
+        // Free-text company name is stored as plain text on the attendee —
+        // never fuzzy-matched into Company entities; conversion is an
+        // internal workflow.
+        if ($companyName !== null && trim($companyName) !== '') {
+            $attendee->setCompanyName(trim($companyName));
+        }
+
+        // Capacity is enforced under the webinar row lock taken by the
+        // controller's transaction; re-verified here for other callers.
+        if (!$webinar->canAcceptRegistrations()) {
+            throw new \RuntimeException('This webinar is no longer accepting registrations.');
+        }
 
         // Increment registered count
         $webinar->setRegisteredCount($webinar->getRegisteredCount() + 1);
 
         $this->entityManager->persist($attendee);
         $this->entityManager->persist($webinar);
-        $this->entityManager->flush();
 
-        // Send confirmation email
-        $this->sendConfirmationEmail($attendee);
+        try {
+            $this->entityManager->flush();
+        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
+            // Concurrent duplicate registration: the database uniqueness is
+            // authoritative — behave idempotently, never surface a 500.
+            $winner = $this->entityManager->getRepository(WebinarAttendee::class)
+                ->findOneBy(['webinar' => $webinar, 'email' => $email]);
+            if ($winner !== null) {
+                $this->ensureConfirmationEmail($winner);
+
+                return $winner;
+            }
+
+            throw $e;
+        }
+
+        $this->ensureConfirmationEmail($attendee);
 
         return $attendee;
+    }
+
+    /**
+     * Send the confirmation email unless one was already delivered.
+     *
+     * Registration MUST succeed independently of mail delivery: a mailer
+     * outage turns into a logged, retryable confirmation gap — never a 500
+     * for the registrant, and repeated submissions repair the gap.
+     */
+    private function ensureConfirmationEmail(WebinarAttendee $attendee): void
+    {
+        if ($attendee->getConfirmationSentAt() !== null) {
+            return;
+        }
+
+        try {
+            $this->sendConfirmationEmail($attendee);
+            $attendee->setConfirmationSentAt(new \DateTime());
+            $this->entityManager->flush();
+        } catch (\Throwable $e) {
+            // Registration stands; the confirmation stays retryable via
+            // repeated registration attempts or a future resend worker.
+            error_log('Failed to send webinar confirmation email: ' . $e->getMessage());
+        }
     }
 
     /**

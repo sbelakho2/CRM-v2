@@ -115,8 +115,15 @@ class ComplianceController extends AbstractController
             // point at deleted bytes. Only an unreferenced file (no version
             // rows) is removed, after the DB change is durably committed.
             $currentFile = $document->getFilePath();
+            // Only keep bytes that a version row references BY EXACT
+            // FILENAME — "has any versions" would also retain unrelated
+            // files forever.
             $isReferencedByVersions = $currentFile !== null
-                && $this->documentVersioningService->getVersions($document) !== [];
+                && $this->documentVersioningService->getVersions($document) !== []
+                && in_array($currentFile, array_map(
+                    static fn ($v) => $v->getFileName(),
+                    $this->documentVersioningService->getVersions($document)
+                ), true);
 
             $document->setFilePath(null);
             $document->setProvided(false);

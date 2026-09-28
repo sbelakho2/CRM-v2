@@ -335,12 +335,18 @@ class EmailCampaignTriggerService
         $sendAt = new \DateTime();
         $sendAt->modify("+{$delay} minutes");
 
-        // Create email send record
+        // Create the scheduled send record. touchNumber is NOT NULL in the
+        // schema (triggered campaigns are single-touch); status is always
+        // queued — the due-send worker (app:email:process-due-sends) claims
+        // and executes it through the canonical sendExisting() path, for
+        // due-now rows as much as future-dated ones.
         $send = new EmailSend();
         $send->setCampaign($campaign);
         $send->setContact($contact);
+        $send->setTouchNumber(1);
+        $send->setEmailAddress($contact->getEmail());
         $send->setScheduledAt($sendAt);
-        $send->setStatus($delay > 0 ? 'queued' : 'sending');
+        $send->setStatus('queued');
         // Note: metadata storage removed as EmailSend doesn't have this field
 
         $this->em->persist($send);
@@ -433,8 +439,11 @@ class EmailCampaignTriggerService
         $campaign->setName($name);
         $campaign->setTriggerType($triggerType);
         $campaign->setTriggerConditions($triggerConditions);
-        $campaign->setStatus('sending'); // Active by default
+        $campaign->setStatus('sending');
         $campaign->setType('triggered');
+        // 'sending' + inactive is a contradictory state that the canonical
+        // EmailSendPolicy would suppress — triggered campaigns are active.
+        $campaign->setActive(true);
         
         if ($baseCampaign) {
             $campaign->setSubject($baseCampaign->getSubject());

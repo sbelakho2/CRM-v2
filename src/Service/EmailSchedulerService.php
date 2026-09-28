@@ -11,7 +11,6 @@ use App\Message\EmailCampaignMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
  * Service for email campaign scheduling and queue management
@@ -39,16 +38,28 @@ class EmailSchedulerService
     /**
      * Schedule a campaign for sending.
      *
-     * Persists scheduledAt and actually dispatches the campaign through
-     * Messenger: immediately when due, with a DelayStamp matching the
-     * remaining delay when scheduled in the future. Returns the number of
-     * recipients queued.
+     * Persists scheduledAt; the due-campaign worker claims and dispatches
+     * it exactly once (see scheduleCampaign). Returns the number of
+     * enrolled recipients.
      *
      * Send-time optimization is real, not a placeholder: when enabled (and
      * no explicit time given), the target time is derived from the hour of
      * day recipients historically opened campaign email. With insufficient
      * evidence (< MIN_OPENS_FOR_OPTIMIZATION opens) it falls back to "now"
      * rather than pretending to optimize.
+     */
+    /**
+     * Schedule a campaign for future sending.
+     *
+     * SINGLE OWNERSHIP MODEL (audit rule): this method ONLY records the
+     * schedule. The due-campaign worker (dispatchDueCampaigns, via
+     * app:email:process-scheduled) is the ONLY component that claims and
+     * dispatches scheduled campaigns — with FOR UPDATE SKIP LOCKED and the
+     * scheduled_dispatched_at claim marker. Dispatching here as well would
+     * double-enqueue the same campaign (delayed message now, cron claim
+     * later) and re-introduce exactly-once races.
+     *
+     * Returns the number of currently enrolled recipients.
      */
     public function scheduleCampaign(
         EmailCampaign $campaign,
@@ -61,34 +72,13 @@ class EmailSchedulerService
 
         if ($scheduledAt !== null) {
             $campaign->setScheduledAt(\DateTime::createFromImmutable($scheduledAt));
+            // Re-scheduling resets the claim: the previous schedule's
+            // dispatch marker no longer applies.
+            $campaign->setScheduledDispatchedAt(null);
         }
         $this->entityManager->flush();
 
-        $recipientIds = array_map(
-            static fn (Contact $contact) => $contact->getId(),
-            $campaign->getContacts()->toArray()
-        );
-
-        if ($recipientIds === []) {
-            return 0;
-        }
-
-        $stamps = [];
-        $now = new \DateTimeImmutable();
-        $scheduled = $campaign->getScheduledAt();
-        if ($scheduled !== null) {
-            $delayMs = (int) ceil($scheduled->getTimestamp() - $now->getTimestamp()) * 1000;
-            if ($delayMs > 0) {
-                $stamps[] = new DelayStamp($delayMs);
-            }
-        }
-
-        $this->messageBus->dispatch(
-            new EmailCampaignMessage((int) $campaign->getId(), $recipientIds, 1, 1),
-            $stamps
-        );
-
-        return count($recipientIds);
+        return count($campaign->getContacts());
     }
 
     /**
@@ -159,19 +149,35 @@ class EmailSchedulerService
         $this->entityManager->wrapInTransaction(function () use (&$dispatched): void {
             $now = new \DateTimeImmutable();
 
-            // Claim due campaigns EXACTLY ONCE: only campaigns never
-            // dispatched before are selected, and each is marked dispatched
-            // inside the same transaction that selects it, so overlapping
-            // cron invocations cannot re-enqueue the same campaign.
+            // Claim due campaigns with a REAL database lock: a plain
+            // SELECT-inside-transaction still lets two concurrent workers
+            // both read scheduled_dispatched_at IS NULL before either
+            // commits. FOR UPDATE SKIP LOCKED makes each worker claim a
+            // disjoint set of rows; the loser simply never sees rows the
+            // winner holds. Archived/inactive campaigns are excluded before
+            // any queue work is created for them.
             // ( scheduledAt is preserved unchanged for audit. )
+            $dueIds = $this->entityManager->getConnection()->fetchFirstColumn(
+                'SELECT id FROM email_campaigns
+                 WHERE scheduled_at IS NOT NULL
+                   AND scheduled_at <= :now
+                   AND scheduled_dispatched_at IS NULL
+                   AND active = 1
+                   AND archived_at IS NULL
+                 ORDER BY scheduled_at
+                 FOR UPDATE SKIP LOCKED',
+                ['now' => $now->format('Y-m-d H:i:s')]
+            );
+
+            if ($dueIds === []) {
+                return;
+            }
+
             $due = $this->entityManager->createQueryBuilder()
                 ->select('c')
                 ->from(EmailCampaign::class, 'c')
-                ->where('c.scheduledAt IS NOT NULL')
-                ->andWhere('c.scheduledAt <= :now')
-                ->andWhere('c.scheduledDispatchedAt IS NULL')
-                ->andWhere('c.active = true')
-                ->setParameter('now', \DateTime::createFromImmutable($now))
+                ->where('c.id IN (:ids)')
+                ->setParameter('ids', $dueIds)
                 ->getQuery()
                 ->getResult();
 

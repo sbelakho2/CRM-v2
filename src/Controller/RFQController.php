@@ -170,14 +170,38 @@ class RFQController extends AbstractController
     #[Route('/{id}', name: 'app_rfq_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(RFQ $rfq): Response
     {
+        // Archived commercial records are only reachable by admins.
+        if ($rfq->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createNotFoundException('RFQ not found');
+        }
+
         return $this->render('rfq/show.html.twig', [
             'rfq' => $rfq,
         ]);
     }
 
+    /**
+     * Archived RFQs must not be mutated through direct URLs: every state
+     * change (edit, status, NDA tracking) funnels through this guard.
+     */
+    private function rejectArchived(RFQ $rfq): ?Response
+    {
+        if ($rfq->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            $this->addFlash('error', 'This RFQ is archived and cannot be modified.');
+
+            return $this->redirectToRoute('app_rfq_index');
+        }
+
+        return null;
+    }
+
     #[Route('/{id}/edit', name: 'app_rfq_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, RFQ $rfq, EntityManagerInterface $entityManager): Response
     {
+        if ($redirect = $this->rejectArchived($rfq)) {
+            return $redirect;
+        }
+
         $form = $this->createForm(RFQType::class, $rfq);
         $form->handleRequest($request);
 
@@ -213,6 +237,10 @@ class RFQController extends AbstractController
     #[Route('/{id}/update-status', name: 'app_rfq_update_status', methods: ['POST'])]
     public function updateStatus(Request $request, RFQ $rfq, EntityManagerInterface $entityManager): Response
     {
+        if ($redirect = $this->rejectArchived($rfq)) {
+            return $redirect;
+        }
+
         if (!$this->isCsrfTokenValid('update_status' . $rfq->getId(), $request->request->get('_token'))) {
             $this->addFlash('error', $this->translator->trans('common.flash.invalid_csrf'));
             return $this->redirectToRoute('app_rfq_show', ['id' => $rfq->getId()]);
@@ -242,6 +270,10 @@ class RFQController extends AbstractController
     #[Route('/{id}/nda-sent', name: 'app_rfq_nda_sent', methods: ['POST'])]
     public function ndaSent(Request $request, RFQ $rfq, EntityManagerInterface $entityManager): Response
     {
+        if ($redirect = $this->rejectArchived($rfq)) {
+            return $redirect;
+        }
+
         if ($this->isCsrfTokenValid('nda_sent'.$rfq->getId(), $request->request->get('_token'))) {
             $rfq->setNdaSent(true);
             $rfq->setNdaDate(new \DateTime());

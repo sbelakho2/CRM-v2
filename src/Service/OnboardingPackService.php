@@ -370,9 +370,9 @@ class OnboardingPackService
                 throw new \RuntimeException('Login credentials or URL missing');
             }
             
-            // These requests carry credentials/session data: validate the
-            // destination BEFORE sending anything.
-            $this->urlGuard->assertAllowed($loginUrl);
+            // These requests carry credentials/session data: HTTPS-only,
+            // port 443, and validated BEFORE anything is sent.
+            $this->urlGuard->assertAllowedCredentialEndpoint($loginUrl);
             $loginResponse = $this->httpClient->request('POST', $loginUrl, [
                 'body' => [
                     'username' => $credentials['username'],
@@ -410,7 +410,15 @@ class OnboardingPackService
                 throw new \RuntimeException('Submit URL not configured');
             }
             
-            $this->urlGuard->assertAllowed($submitUrl);
+            $this->urlGuard->assertAllowedCredentialEndpoint($submitUrl);
+
+            // The session cookie obtained from the login host must never be
+            // forwarded to a different origin: login and submit endpoints
+            // must belong to the same organization.
+            if (!$this->urlGuard->isAllowedChildUrl($loginUrl, $submitUrl)) {
+                throw new \RuntimeException('Portal submit URL does not share the login URL origin; refusing to forward the session.');
+            }
+
             $submitResponse = $this->httpClient->request('POST', $submitUrl, [
                 'headers' => ['Cookie' => $sessionCookie ?? ''],
                 'body' => $formData,

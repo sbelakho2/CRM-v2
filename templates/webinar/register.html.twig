@@ -41,7 +41,13 @@
         </div>
 
         <div class="rams-module__content">
+            {% if registration_closed|default(false) %}
+            <div class="rams-alert rams-alert--warning">
+                <p>Registration for this webinar is closed (it may be full, completed, or cancelled).</p>
+            </div>
+            {% else %}
             <form method="post" class="rams-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('webinar_register_' ~ webinar.id) }}">
                 <div class="rams-form__row rams-form__row--2">
                     <div class="rams-form__group">
                         <label for="first_name" class="rams-form__label">{{ 'auth.first_name'|trans }} *</label>
@@ -73,6 +79,7 @@
                     {{ 'webinar.registration_notice'|trans|default("By registering, you'll receive a confirmation email with the meeting link.") }}
                 </p>
             </form>
+            {% endif %}
         </div>
     </div>
 </div>

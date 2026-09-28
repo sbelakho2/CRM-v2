@@ -35,7 +35,7 @@ class EmailCampaignRepository extends ServiceEntityRepository
 
         $rows = $this->createQueryBuilder('c')
             ->select('c.id AS campaign_id')
-            ->addSelect('COUNT(s.id) AS total_sent')
+            ->addSelect('COALESCE(SUM(CASE WHEN s.status IN (:deliveredStatuses) THEN 1 ELSE 0 END), 0) AS total_sent')
             ->addSelect('COALESCE(SUM(CASE WHEN s.opened = true THEN 1 ELSE 0 END), 0) AS opened')
             ->addSelect('COALESCE(SUM(CASE WHEN s.clicked = true THEN 1 ELSE 0 END), 0) AS clicked')
             ->addSelect('COALESCE(SUM(CASE WHEN s.replied = true THEN 1 ELSE 0 END), 0) AS replied')
@@ -43,6 +43,7 @@ class EmailCampaignRepository extends ServiceEntityRepository
             ->leftJoin('c.emailSends', 's')
             ->where('c.id IN (:campaignIds)')
             ->setParameter('campaignIds', $campaignIds)
+            ->setParameter('deliveredStatuses', [EmailSend::STATUS_SENT, EmailSend::STATUS_BOUNCED])
             ->groupBy('c.id')
             ->getQuery()
             ->getResult();

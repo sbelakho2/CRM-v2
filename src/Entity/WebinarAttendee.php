@@ -40,6 +40,16 @@ class WebinarAttendee
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $attended = false;
 
+    /**
+     * Free-text company from external registration (never fuzzy-matched
+     * into Company entities — that is an internal conversion workflow).
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $companyName = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $confirmationSentAt = null;
+
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $followUpSent = false;
 
@@ -123,6 +133,30 @@ class WebinarAttendee
     public function setRegisteredAt(\DateTimeInterface $registeredAt): self
     {
         $this->registeredAt = $registeredAt;
+        return $this;
+    }
+
+    public function getCompanyName(): ?string
+    {
+        return $this->companyName;
+    }
+
+    public function setCompanyName(?string $companyName): self
+    {
+        $this->companyName = $companyName;
+
+        return $this;
+    }
+
+    public function getConfirmationSentAt(): ?\DateTimeInterface
+    {
+        return $this->confirmationSentAt;
+    }
+
+    public function setConfirmationSentAt(?\DateTimeInterface $at): self
+    {
+        $this->confirmationSentAt = $at;
+
         return $this;
     }
 

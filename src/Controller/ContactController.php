@@ -145,6 +145,12 @@ class ContactController extends AbstractController
     #[Route('/{id}', name: 'app_contact_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(Contact $contact): Response
     {
+        // Archived contacts are only reachable by admins; ordinary users
+        // get a 404 rather than a live-looking page.
+        if ($contact->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createNotFoundException('Contact not found');
+        }
+
         return $this->render('contact/show.html.twig', [
             'contact' => $contact,
         ]);
@@ -153,6 +159,12 @@ class ContactController extends AbstractController
     #[Route('/{id}/edit', name: 'app_contact_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, Contact $contact): Response
     {
+        if ($contact->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            $this->addFlash('error', 'This contact is archived and cannot be edited.');
+
+            return $this->redirectToRoute('app_contact_index');
+        }
+
         $form = $this->createForm(ContactType::class, $contact);
         $form->handleRequest($request);
 

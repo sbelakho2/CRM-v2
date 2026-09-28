@@ -74,9 +74,18 @@ class SystemHealthService
     {
         $details = $this->probeDetails();
 
-        return in_array(self::STATUS_DEGRADED, $details, true)
-            ? self::STATUS_DEGRADED
-            : self::STATUS_HEALTHY;
+        if (in_array(self::STATUS_DEGRADED, $details, true)) {
+            return self::STATUS_DEGRADED;
+        }
+
+        // A critical probe reporting 'unknown' is not evidence of health:
+        // this deployment expects workers, so an unreadable messenger state
+        // degrades the aggregate rather than rendering "Operational".
+        if (($details['messenger'] ?? null) === 'unknown') {
+            return self::STATUS_DEGRADED;
+        }
+
+        return self::STATUS_HEALTHY;
     }
 
     /**
@@ -102,15 +111,28 @@ class SystemHealthService
             ? self::STATUS_HEALTHY
             : self::STATUS_DEGRADED;
 
-        // Messenger failed queue: a growing failed queue means workers are
-        // losing messages (missing table => unknown, e.g. before setup).
+        // Messenger: workers are presumed dead when the OLDEST queued
+        // message has been waiting far beyond a healthy processing window,
+        // when the queue is deep, or when the failed queue is exploding.
+        // A missing messenger table means the async layer was never used:
+        // 'unknown' for messenger DEGRADES the aggregate (this app expects
+        // workers), unlike fx where absence of FX data is a valid state.
         try {
-            $failed = $this->connection->fetchOne(
+            $failed = (int) $this->connection->fetchOne(
                 "SELECT COUNT(*) FROM messenger_messages WHERE queue_name = 'failed'"
             );
-            $details['messenger'] = ((int) $failed > 100)
-                ? self::STATUS_DEGRADED
-                : self::STATUS_HEALTHY;
+            $oldestQueuedAgeMinutes = $this->connection->fetchOne(
+                'SELECT TIMESTAMPDIFF(MINUTE, MIN(created_at), NOW()) FROM messenger_messages'
+            );
+            $queuedDepth = (int) $this->connection->fetchOne(
+                'SELECT COUNT(*) FROM messenger_messages'
+            );
+
+            if ($failed > 100 || $queuedDepth > 1000 || ((int) $oldestQueuedAgeMinutes > 30 && $queuedDepth > 0)) {
+                $details['messenger'] = self::STATUS_DEGRADED;
+            } else {
+                $details['messenger'] = self::STATUS_HEALTHY;
+            }
         } catch (\Throwable) {
             $details['messenger'] = 'unknown';
         }

@@ -6,11 +6,13 @@ namespace App\Service;
 
 use App\Entity\EmailCampaign;
 use App\Entity\EmailSend;
+use Symfony\Component\Mailer\Transport\TransportInterface;
 use App\Entity\Contact;
 use App\Repository\EmailCampaignRepository;
 use App\Repository\EmailSendRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
@@ -21,6 +23,7 @@ class EmailCampaignService
     private const DEFAULT_WEBSITE_URL = 'https://starzelectronics.site';
 
     public function __construct(
+        private ManagerRegistry $managerRegistry,
         private EntityManagerInterface $entityManager,
         private EmailCampaignRepository $campaignRepository,
         private EmailSendRepository $sendRepository,
@@ -29,6 +32,8 @@ class EmailCampaignService
         private EmailTrackingSigner $trackingSigner,
         private LoggerInterface $logger,
         private EmailSendPolicy $sendPolicy,
+        private TransportInterface $mailerTransport,
+        private ?\App\Service\EmailDripCampaignService $dripCampaignService = null,
         private ?EmailConsentService $consentService = null
     ) {}
 
@@ -65,6 +70,14 @@ class EmailCampaignService
      */
     public function sendToContact(EmailCampaign $campaign, Contact $contact, int $touchNumber): CampaignSendResult
     {
+        if (!$this->isValidTouchNumber($campaign, $touchNumber)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Touch number %d is outside the campaign sequence (1..%d).',
+                $touchNumber,
+                max(1, (int) $campaign->getTouchCount())
+            ));
+        }
+
         $eligibility = $this->sendPolicy->evaluate($contact, $campaign);
         if (!$eligibility->allowed) {
             $this->logger->info('Campaign send refused by send policy', [
@@ -83,37 +96,14 @@ class EmailCampaignService
         );
 
         if ($existing !== null) {
-            if ($existing->getStatus() === EmailSend::STATUS_SENT) {
-                $this->logger->info('Skipping duplicate campaign touch (already sent)', [
-                    'campaign_id' => $campaign->getId(),
-                    'contact_id' => $contact->getId(),
-                    'touch_number' => $touchNumber,
-                    'existing_email_send_id' => $existing->getId(),
-                ]);
-
-                return CampaignSendResult::alreadySent();
+            $claim = $this->claimExistingTouch($existing);
+            if ($claim !== null) {
+                return $claim;
             }
-
-            if (in_array($existing->getStatus(), [EmailSend::STATUS_QUEUED, EmailSend::STATUS_SENDING], true)) {
-                $this->logger->info('Campaign touch already owned by another worker', [
-                    'campaign_id' => $campaign->getId(),
-                    'contact_id' => $contact->getId(),
-                    'touch_number' => $touchNumber,
-                    'status' => $existing->getStatus(),
-                ]);
-
-                return CampaignSendResult::alreadyInProgress();
-            }
-
-            // FAILED (or cancelled) row: reuse it for this retry attempt.
             $send = $existing;
-            $send->setStatus(EmailSend::STATUS_QUEUED);
-            $send->setFailureReason(null);
-            $send->setRetryCount($send->getRetryCount() + 1);
-            $this->entityManager->flush();
         } else {
             // No row yet: create the send record in 'queued' state —
-            // reflects reality until the mailer accepts the message.
+            // reflects reality until the transport accepts the message.
             $send = new EmailSend();
             $send->setCampaign($campaign);
             $send->setContact($contact);
@@ -126,8 +116,12 @@ class EmailCampaignService
             try {
                 $this->entityManager->flush();
             } catch (UniqueConstraintViolationException) {
-                // A concurrent worker won the race for this touch: inspect
-                // the winning row's actual state instead of assuming success.
+                // A concurrent worker won the race for this touch. After a
+                // failed flush the ORM manager may be closed: re-fetch
+                // through a reset manager rather than reusing it.
+                $this->entityManager = $this->managerRegistry->resetManager();
+                $this->sendRepository = $this->entityManager->getRepository(EmailSend::class);
+
                 $winner = $this->sendRepository->findTouch(
                     (int) $campaign->getId(),
                     (int) $contact->getId(),
@@ -157,25 +151,191 @@ class EmailCampaignService
             return CampaignSendResult::failed();
         }
 
-        // Mailer accepted the message — mark as sent with an accurate timestamp.
+        // Transport accepted the message — mark as sent with an accurate
+        // timestamp and release the delivery lease.
         $send->setStatus(EmailSend::STATUS_SENT);
         $send->setSentAt(new \DateTime());
+        $send->setSendLeaseExpiresAt(null);
         $this->entityManager->flush();
+
+        $this->progressDripSequence($send);
 
         return CampaignSendResult::sent();
     }
 
     /**
-     * Send the actual email via mailer
+     * Drip progression: after an authoritative delivery (transport
+     * accepted), schedule the next touch of a drip sequence. Idempotent —
+     * if the next-touch row already exists, nothing happens (unique
+     * (campaign, contact, touch) constraint + pre-check).
+     */
+    private function progressDripSequence(EmailSend $sent): void
+    {
+        try {
+            $campaign = $sent->getCampaign();
+            if ($campaign !== null && $campaign->getType() === EmailCampaign::TYPE_DRIP) {
+                $this->dripCampaignService?->processCompletedTouch($sent);
+            }
+        } catch (\Throwable $e) {
+            // Progression failure must never fail the delivered send.
+            $this->logger->error('Drip progression failed after successful send', [
+                'email_send_id' => $sent->getId(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private const SEND_LEASE_SECONDS = 900; // 15 minutes
+
+    private function isValidTouchNumber(EmailCampaign $campaign, int $touchNumber): bool
+    {
+        $max = max(1, (int) $campaign->getTouchCount());
+
+        return $touchNumber >= 1 && $touchNumber <= $max;
+    }
+
+    /**
+     * Decide what to do with an existing touch row. Returns a terminal
+     * CampaignSendResult when the caller must NOT proceed, or null when the
+     * row is claimable for a (re)try:
+     *
+     *  - SENT: never resend (idempotency).
+     *  - QUEUED/SENDING with an UNEXPIRED lease: another worker owns it.
+     *  - QUEUED/SENDING with an EXPIRED lease: crash debris — claimable.
+     *  - FAILED/CANCELLED: claimable retry, reusing the row.
+     *  - BOUNCED: terminal for this address (suppression handles retries).
+     */
+    private function claimExistingTouch(EmailSend $existing): ?CampaignSendResult
+    {
+        $status = $existing->getStatus();
+
+        if ($status === EmailSend::STATUS_SENT || $status === EmailSend::STATUS_BOUNCED) {
+            return CampaignSendResult::alreadySent();
+        }
+
+        if (in_array($status, [EmailSend::STATUS_QUEUED, EmailSend::STATUS_SENDING], true)) {
+            $lease = $existing->getSendLeaseExpiresAt();
+            $leaseAlive = $lease !== null && $lease > new \DateTime();
+
+            // A live SENDING lease means another worker owns delivery.
+            if ($leaseAlive && $status === EmailSend::STATUS_SENDING) {
+                return CampaignSendResult::alreadyInProgress();
+            }
+
+            // QUEUED rows scheduled for the future (drip/triggered
+            // scheduling) are not yet due — only the due-send worker may
+            // execute them at their scheduled time.
+            $scheduledFor = $existing->getScheduledAt();
+            if ($status === EmailSend::STATUS_QUEUED && $scheduledFor !== null && $scheduledFor > new \DateTime()) {
+                return CampaignSendResult::alreadyInProgress();
+            }
+
+            // A live QUEUED lease belongs to a worker between claim and
+            // transport handoff.
+            if ($leaseAlive && $status === EmailSend::STATUS_QUEUED) {
+                return CampaignSendResult::alreadyInProgress();
+            }
+        }
+
+        // Claimable: stale lease, lease-less non-sending debris, FAILED,
+        // CANCELLED — reuse the row and count the retry attempt.
+        $existing->setRetryCount($existing->getRetryCount() + 1);
+        $existing->setFailureReason(null);
+
+        return null; // caller proceeds with this row
+    }
+
+    /**
+     * Execute a PRE-CREATED EmailSend row (drip progression and triggered
+     * emails schedule rows with a future scheduledAt; the due-send worker
+     * claims and executes exactly those rows).
+     *
+     * Same policy/idempotency/state semantics as sendToContact, but the
+     * row already exists BY DESIGN — never call the create-or-dedupe path
+     * for it.
+     */
+    public function sendExisting(EmailSend $send): CampaignSendResult
+    {
+        $campaign = $send->getCampaign();
+        $contact = $send->getContact();
+
+        if ($campaign === null || $contact === null) {
+            $send->setStatus(EmailSend::STATUS_FAILED);
+            $send->setFailureReason('missing campaign or contact');
+            $this->entityManager->flush();
+
+            return CampaignSendResult::failed();
+        }
+
+        if (!$this->isValidTouchNumber($campaign, (int) $send->getTouchNumber())) {
+            $send->setStatus(EmailSend::STATUS_FAILED);
+            $send->setFailureReason('touch number outside campaign sequence');
+            $this->entityManager->flush();
+
+            return CampaignSendResult::failed();
+        }
+
+        $eligibility = $this->sendPolicy->evaluate($contact, $campaign);
+        if (!$eligibility->allowed) {
+            // Policy refusal is terminal for a scheduled row: mark cancelled
+            // so the due-send worker does not re-pick it forever.
+            $send->setStatus(EmailSend::STATUS_CANCELLED);
+            $send->setFailureReason('policy: ' . $eligibility->reason);
+            $send->setSendLeaseExpiresAt(null);
+            $this->entityManager->flush();
+
+            return CampaignSendResult::skipped((string) $eligibility->reason);
+        }
+
+        if ($send->getStatus() === EmailSend::STATUS_SENT) {
+            return CampaignSendResult::alreadySent();
+        }
+
+        $send->setRetryCount($send->getRetryCount() + 1);
+
+        try {
+            $this->sendEmail($campaign, $contact, (int) $send->getTouchNumber(), $send);
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to send scheduled campaign email', [
+                'email_send_id' => $send->getId(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return CampaignSendResult::failed();
+        }
+
+        $send->setStatus(EmailSend::STATUS_SENT);
+        $send->setSentAt(new \DateTime());
+        $send->setSendLeaseExpiresAt(null);
+        $this->entityManager->flush();
+
+        $this->progressDripSequence($send);
+
+        return CampaignSendResult::sent();
+    }
+
+    /**
+     * Send the actual email — SYNCHRONOUSLY through the real transport.
+     *
+     * MailerInterface routes through the async Messenger bus in production,
+     * so using it here would make STATUS_SENT mean "queued into Symfony
+     * Mailer" while the actual SMTP delivery (and its failures) happen
+     * later, invisible to the campaign retry machinery. This worker owns
+     * delivery and retries, so it talks to the transport directly and only
+     * marks SENT after the transport accepted the message.
      *
      * @throws \Throwable Re-throws any transport failure after marking the
      *                    EmailSend record as 'failed'.
      */
     private function sendEmail(EmailCampaign $campaign, Contact $contact, int $touchNumber, EmailSend $send): void
     {
-        // Move the record to 'sending' before the mailer call so the status
-        // never claims 'sent' while the transport is still in flight.
+        // Move the record to 'sending' with a fresh lease before the
+        // transport call: crash debris becomes re-claimable when the lease
+        // expires instead of sticking as "in progress" forever.
         $send->setStatus(EmailSend::STATUS_SENDING);
+        $send->setSendLeaseExpiresAt(
+            (new \DateTime())->modify('+' . self::SEND_LEASE_SECONDS . ' seconds')
+        );
         $this->entityManager->flush();
 
         try {
@@ -201,10 +361,11 @@ class EmailCampaignService
                 'touch_number' => $touchNumber
             ]));
 
-            $this->mailer->send($email);
+            $this->mailerTransport->send($email);
         } catch (\Throwable $e) {
             // Log error and update send record to reflect failure
             $send->setStatus(EmailSend::STATUS_FAILED);
+            $send->setSendLeaseExpiresAt(null);
             $send->setFailureReason($e->getMessage());
             $this->entityManager->flush();
 
@@ -503,6 +664,9 @@ class EmailCampaignService
             ->andWhere('NOT EXISTS (SELECT t.id FROM App\Entity\EmailSend t WHERE t.campaign = :campaign AND t.contact = c AND t.touchNumber = :touch)')
             // No hard bounce on this address in the last 90 days.
             ->andWhere('NOT EXISTS (SELECT b.id FROM App\Entity\EmailSend b WHERE b.emailAddress = c.email AND b.bounced = true AND b.sentAt > :bounceWindow)')
+            // Reply-stop: any human reply in this sequence pauses further
+            // automated touches until it is reviewed.
+            ->andWhere('NOT EXISTS (SELECT r.id FROM App\Entity\EmailSend r WHERE r.campaign = :campaign AND r.contact = c AND r.replied = true)')
             ->setParameter('campaign', $campaign)
             ->setParameter('touch', $touchNumber)
             ->setParameter('bounceWindow', (new \DateTime())->modify('-90 days'));

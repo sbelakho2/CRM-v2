@@ -12,6 +12,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class Activity
 {
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $archivedAt = null;
+
+    #[ORM\ManyToOne(targetEntity: \App\Entity\User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?\App\Entity\User $archivedBy = null;
+
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $archiveReason = null;
+
     // Standardized outcome categories for analytics
     public const OUTCOME_POSITIVE = 'positive';     // Meeting scheduled, interest expressed
     public const OUTCOME_NEUTRAL = 'neutral';       // Left voicemail, sent info
@@ -401,4 +411,33 @@ class Activity
         return !($from === self::STATUS_COMPLETED && $to === self::STATUS_OPEN)
             && !($from === self::STATUS_CANCELLED && $to !== self::STATUS_OPEN);
     }
+    public function isArchived(): bool
+    {
+        return $this->archivedAt !== null;
+    }
+
+    public function archive(\App\Entity\User $by, ?string $reason = null): self
+    {
+        $this->archivedAt = $this->archivedAt ?? new \DateTime();
+        $this->archivedBy = $by;
+        $this->archiveReason = $reason;
+
+        return $this;
+    }
+
+    public function getArchivedAt(): ?\DateTimeInterface
+    {
+        return $this->archivedAt;
+    }
+
+    public function getArchivedBy(): ?\App\Entity\User
+    {
+        return $this->archivedBy;
+    }
+
+    public function getArchiveReason(): ?string
+    {
+        return $this->archiveReason;
+    }
+
 }

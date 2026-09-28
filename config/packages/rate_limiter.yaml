@@ -22,6 +22,16 @@ framework:
             limit: 5
             interval: '1 hour'
 
+        webinar_registration:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'
+
+        webinar_registration_ip:
+            policy: 'fixed_window'
+            limit: 20
+            interval: '1 hour'
+
         webhook_email:
             policy: 'sliding_window'
             limit: 30

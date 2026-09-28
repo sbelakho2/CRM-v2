@@ -396,7 +396,7 @@ class Company
      */
     public function canEnterCompliance(): bool
     {
-        return $this->companyStatus === self::STATUS_ACTIVE;
+        return !$this->isArchived() && $this->companyStatus === self::STATUS_ACTIVE;
     }
 
     public function getWebsite(): ?string

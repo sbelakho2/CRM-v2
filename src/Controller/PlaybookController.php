@@ -162,10 +162,12 @@ class PlaybookController extends AbstractController
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
-        // PlaybookRun rows reference playbook with ON DELETE CASCADE (FK-safe delete)
-        $this->entityManager->remove($playbook);
+        // Playbook execution history (runs) is CRM history: archive the
+        // playbook instead of cascading its runs away.
+        $playbook->archive($this->getUser(), 'Archived from playbooks list');
+        $playbook->setIsActive(false);
         $this->entityManager->flush();
-        
+
         $this->addFlash('success', $this->translator->trans('playbook.flash.deleted'));
         return $this->redirectToRoute('app_playbook_index');
     }

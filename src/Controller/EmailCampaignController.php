@@ -118,7 +118,16 @@ class EmailCampaignController extends AbstractController
         // Calculate per-touch metrics
         $touchMetrics = [];
         for ($i = 1; $i <= $campaign->getTouchCount(); $i++) {
-            $sends = $sendsByTouch[$i] ?? [];
+            $sends = array_values(array_filter(
+                $sendsByTouch[$i] ?? [],
+                static fn (\App\Entity\EmailSend $s) => in_array(
+                    $s->getStatus(),
+                    [\App\Entity\EmailSend::STATUS_SENT, \App\Entity\EmailSend::STATUS_BOUNCED],
+                    true
+                )
+            ));
+            // Engagement denominators describe the DELIVERED population,
+            // consistent with getCampaignMetrics().
             $total = count($sends);
             
             if ($total > 0) {
