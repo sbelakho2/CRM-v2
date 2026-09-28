@@ -65,8 +65,12 @@ if grep -rqiE '(password|passwd|api[_-]?key|secret)\s*[=:]\s*["'\''][^"'\''"{}<>
 fi
 
 # 4. The specific production values that were scrubbed must stay out.
-if printf '%s\n' $(tracked_text_files | tr '\n' ' ') | xargs grep -lE 'hetzner-db-mac|hetzner-apexintel' 2>/dev/null; then
-  add_error "scrubbed production SSH identity names present again"
+#    (This checker itself is excluded: it contains the patterns verbatim.)
+hetzner_hits=$(tracked_text_files \
+  | grep -v '^scripts/ci/check-secrets.sh$' \
+  | xargs grep -lE 'hetzner-db-mac|hetzner-apexintel' 2>/dev/null || true)
+if [ -n "$hetzner_hits" ]; then
+  add_error "scrubbed production SSH identity names present again: $(echo "$hetzner_hits" | tr '\n' ' ')"
 fi
 
 if [ "$errors" -gt 0 ]; then
