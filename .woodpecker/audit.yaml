@@ -65,7 +65,7 @@ steps:
       - |
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
-        composer install --no-interaction --no-progress --prefer-dist
+        php -d memory_limit=-1 /opt/homebrew/bin/composer install --no-interaction --no-progress --prefer-dist
 
   php-syntax:
     image: bash
@@ -124,4 +124,4 @@ steps:
       - |
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
-        composer audit --locked
+        php -d memory_limit=-1 /opt/homebrew/bin/composer audit --locked
