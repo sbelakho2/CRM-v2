@@ -56,6 +56,7 @@ class EmailCampaignControllerTest extends WebTestCase
         $form = $crawler->filter('form')->form([
             'email_campaign[name]' => 'Test Campaign',
             'email_campaign[language]' => 'EN',
+            'email_campaign[touchCount]' => 5,
         ]);
         
         $this->client->submit($form);

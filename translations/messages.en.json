@@ -1746,7 +1746,8 @@
       "body_html": "Email Body (HTML)",
       "body_html_placeholder": "Supports {{first_name}}, {{last_name}}, {{company}}, {{campaign_name}} merge tags. Leave empty for the branded default.",
       "from_name": "From Name",
-      "from_email": "From Email"
+      "from_email": "From Email",
+      "touch_templates": "Touch Templates (JSON)"
     },
     "from_email": "From Email",
     "from_name": "From Name",

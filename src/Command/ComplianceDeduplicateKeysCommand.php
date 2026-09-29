@@ -75,6 +75,19 @@ class ComplianceDeduplicateKeysCommand extends Command
                     ));
 
                     if (!$dryRun) {
+                        // Consolidate EVIDENCE onto the winner first: the
+                        // best of each field across the duplicate set
+                        // survives on one row, so nothing is lost by the
+                        // neutralization.
+                        $winner->setFileName($winner->getFileName() ?: $row->getFileName());
+                        $winner->setProvided($winner->isProvided() || $row->isProvided());
+                        if ($winner->getStatus() === null && $row->getStatus() !== null) {
+                            $winner->setStatus($row->getStatus());
+                        }
+                        $winner->setExpiryDate($winner->getExpiryDate() ?: $row->getExpiryDate());
+                        $winner->setUploadedAt($winner->getUploadedAt() ?: $row->getUploadedAt());
+                        $winner->setSnoozedUntil($winner->getSnoozedUntil() ?: $row->getSnoozedUntil());
+
                         // Neutralize, never delete: the row stays queryable
                         // history; NULL document_key escapes the unique
                         // constraint (MySQL allows multiple NULLs).

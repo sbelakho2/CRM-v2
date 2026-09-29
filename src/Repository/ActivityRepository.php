@@ -123,6 +123,7 @@ class ActivityRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('a')
             ->where('a.company = :company')
+            ->andWhere('a.archivedAt IS NULL')
             ->setParameter('company', $company)
             ->orderBy('a.activityDate', 'DESC')
             ->setMaxResults($limit)

@@ -40,9 +40,10 @@ class PlaybookEngineTest extends TestCase
         $playbook1 = $this->createMock(Playbook::class);
         $playbook2 = $this->createMock(Playbook::class);
 
+        // findAllActive() enforces the archive invariant (isActive AND
+        // archivedAt IS NULL) — the engine delegates to it.
         $this->playbookRepo->expects($this->once())
-            ->method('findBy')
-            ->with(['isActive' => true])
+            ->method('findAllActive')
             ->willReturn([$playbook1, $playbook2]);
 
         $result = $this->engine->getActivePlaybooks();
@@ -56,8 +57,7 @@ class PlaybookEngineTest extends TestCase
     public function testGetActivePlaybooksReturnsEmptyArrayWhenNoActivePlaybooks()
     {
         $this->playbookRepo->expects($this->once())
-            ->method('findBy')
-            ->with(['isActive' => true])
+            ->method('findAllActive')
             ->willReturn([]);
 
         $result = $this->engine->getActivePlaybooks();

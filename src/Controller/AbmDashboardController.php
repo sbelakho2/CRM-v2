@@ -72,6 +72,7 @@ class AbmDashboardController extends AbstractController
             ->createQueryBuilder('a')
             ->leftJoin('a.abmHits', 'h')
             ->where('h.timestamp >= :since')
+            ->andWhere('a.archivedAt IS NULL')
             ->setParameter('since', new \DateTime('-7 days'))
             ->groupBy('a.id')
             ->orderBy('a.engagementScore', 'DESC')
@@ -98,6 +99,7 @@ class AbmDashboardController extends AbstractController
                 ->createQueryBuilder('a')
                 ->select('COUNT(a.id)')
                 ->where('a.createdAt >= :since')
+                ->andWhere('a.archivedAt IS NULL')
                 ->setParameter('since', new \DateTime('-24 hours'))
                 ->getQuery()
                 ->getSingleScalarResult();
@@ -113,7 +115,12 @@ class AbmDashboardController extends AbstractController
             'totalVisitors24h' => count($recentHits),
             'newAccounts24h' => $newAccounts24h,
             'activePlaybooks' => count($activePlaybooks),
-            'totalAccounts' => $this->entityManager->getRepository(AbmAccount::class)->count([])
+            'totalAccounts' => $this->entityManager->getRepository(AbmAccount::class)
+                ->createQueryBuilder('a')
+                ->select('COUNT(a.id)')
+                ->andWhere('a.archivedAt IS NULL')
+                ->getQuery()
+                ->getSingleScalarResult()
         ];
         
         // Get engagement heat map data with error handling
@@ -149,6 +156,7 @@ class AbmDashboardController extends AbstractController
         // Get ABM accounts from the database
         $accounts = $this->entityManager->getRepository(AbmAccount::class)
             ->createQueryBuilder('a')
+            ->andWhere('a.archivedAt IS NULL')
             ->orderBy('a.lastActivityAt', 'DESC')
             ->addOrderBy('a.engagementScore', 'DESC')
             ->getQuery()

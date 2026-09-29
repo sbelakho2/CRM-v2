@@ -230,7 +230,9 @@ class EmailCampaignController extends AbstractController
         }
 
         if ($this->isCsrfTokenValid('toggle'.$campaign->getId(), $request->request->get('_token'))) {
-            $campaign->setActive(!$campaign->isActive());
+            // Transition methods enforce lifecycle invariants (archived is
+            // never re-activatable; pause/activate keep status coherent).
+            $campaign->isActive() ? $campaign->pause() : $campaign->activate();
             $this->entityManager->flush();
 
             $statusTrans = $campaign->isActive() ? 'activated' : 'deactivated';
@@ -321,6 +323,10 @@ class EmailCampaignController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function analytics(EmailCampaign $campaign): Response
     {
+        if ($campaign->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createNotFoundException('Campaign not found');
+        }
+
         $metrics = $this->campaignService->getCampaignMetrics($campaign);
         
         // Get timeline data (sends over time) — using native SQL for DATE()

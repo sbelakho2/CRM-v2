@@ -27,6 +27,7 @@ class ProcessScheduledEmailCampaignsCommand extends Command
     public function __construct(
         private EmailSchedulerService $scheduler,
         private LockFactory $lockFactory,
+        private \App\Repository\WorkerHeartbeatRepository $heartbeatRepository,
     ) {
         parent::__construct();
     }
@@ -44,6 +45,10 @@ class ProcessScheduledEmailCampaignsCommand extends Command
 
         try {
             $dispatched = $this->scheduler->dispatchDueCampaigns();
+            $this->heartbeatRepository->beat(
+                'email:process-scheduled',
+                $dispatched === [] ? 'idle' : sprintf('dispatched=%d', count($dispatched))
+            );
 
             if ($dispatched === []) {
                 $io->success('No due scheduled campaigns.');

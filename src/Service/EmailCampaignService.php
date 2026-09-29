@@ -482,7 +482,15 @@ class EmailCampaignService
                 'touch_number' => $touchNumber
             ]));
 
-            $this->mailerTransport->send($email);
+            $sentMessage = $this->mailerTransport->send($email);
+
+            // Capture the provider message ID for delivery/bounce
+            // reconciliation (best effort — some transports assign none).
+            try {
+                $send->setProviderMessageId($sentMessage?->getMessageId());
+            } catch (\Throwable) {
+                // messageId unavailable on this transport — nothing to record
+            }
         } catch (\Throwable $e) {
             // Log error and update send record to reflect failure. Failed
             // rows are RETRYABLE with exponential backoff (the due-send

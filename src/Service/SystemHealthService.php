@@ -85,6 +85,16 @@ class SystemHealthService
             return self::STATUS_DEGRADED;
         }
 
+        // A worker that has run before but is now unreadable is also not
+        // evidence of health; a never-run heartbeat on a fresh install
+        // stays 'unknown' without degrading.
+        if (($details['workers'] ?? null) === 'unknown') {
+            $hasRun = $this->connection->fetchOne('SELECT COUNT(*) FROM worker_heartbeats');
+            if ((int) $hasRun > 0) {
+                return self::STATUS_DEGRADED;
+            }
+        }
+
         return self::STATUS_HEALTHY;
     }
 
@@ -137,6 +147,25 @@ class SystemHealthService
             }
         } catch (\Throwable) {
             $details['messenger'] = 'unknown';
+        }
+
+        // Worker liveness: a stale heartbeat means no worker completed a
+        // run recently — distinguishing a dead worker from a calm queue.
+        // Workers are expected at least every 15 minutes (cron interval
+        // plus processing time).
+        try {
+            $dueWorkerAge = $this->connection->fetchOne(
+                "SELECT TIMESTAMPDIFF(SECOND, MAX(last_run_at), NOW()) FROM worker_heartbeats WHERE name = 'email:process-due-sends'"
+            );
+            if ($dueWorkerAge === null) {
+                $details['workers'] = 'unknown';
+            } elseif ((int) $dueWorkerAge > 900) {
+                $details['workers'] = self::STATUS_DEGRADED;
+            } else {
+                $details['workers'] = self::STATUS_HEALTHY;
+            }
+        } catch (\Throwable) {
+            $details['workers'] = 'unknown';
         }
 
         // FX rate freshness (only meaningful once FX data exists).

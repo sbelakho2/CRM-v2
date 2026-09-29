@@ -49,6 +49,7 @@ class EmailAnalyticsService
         ->getSingleResult();
 
         $total = (int) $stats['total'];
+        $delivered = (int) ($stats['delivered'] ?? 0);
         $sent = (int) $stats['sent'];
         $opened = (int) $stats['opened'];
         $clicked = (int) $stats['clicked'];
@@ -62,7 +63,10 @@ class EmailAnalyticsService
             'clicked' => $clicked,
             'replied' => $replied,
             'bounced' => $bounced,
-            'deliveryRate' => $total > 0 ? round(($sent / $total) * 100, 2) : 0,
+            // Delivered population (sent+bounced) is the honest
+            // denominator — queued/cancelled rows are not attempts that
+            // could have bounced.
+            'deliveryRate' => $total > 0 ? round(($delivered / $total) * 100, 2) : 0,
             'openRate' => $sent > 0 ? round(($opened / $sent) * 100, 2) : 0,
             'clickRate' => $sent > 0 ? round(($clicked / $sent) * 100, 2) : 0,
             'clickToOpenRate' => $opened > 0 ? round(($clicked / $opened) * 100, 2) : 0,
@@ -144,6 +148,7 @@ class EmailAnalyticsService
             $stats = $this->entityManager->createQuery(
                 'SELECT 
                     COUNT(es.id) as sent,
+                    SUM(CASE WHEN es.status IN (:deliveredStates) THEN 1 ELSE 0 END) as delivered,
                     SUM(CASE WHEN es.opened = true THEN 1 ELSE 0 END) as opened,
                     SUM(CASE WHEN es.clicked = true THEN 1 ELSE 0 END) as clicked
                  FROM App\Entity\EmailSend es 
@@ -151,14 +156,18 @@ class EmailAnalyticsService
             )
             ->setParameter('campaign', $campaign)
             ->setParameter('variant', $variantId)
+            ->setParameter('deliveredStates', ['sent', 'bounced'])
             ->getSingleResult();
 
             $sent = (int) $stats['sent'];
+            $delivered = (int) ($stats['delivered'] ?? 0);
             $opened = (int) $stats['opened'];
             $clicked = (int) $stats['clicked'];
 
-            $openRate = $sent > 0 ? round(($opened / $sent) * 100, 2) : 0;
-            $clickRate = $sent > 0 ? round(($clicked / $sent) * 100, 2) : 0;
+            // Engagement rates over the DELIVERED variant population —
+            // consistent with campaign metrics everywhere else.
+            $openRate = $delivered > 0 ? round(($opened / $delivered) * 100, 2) : 0;
+            $clickRate = $delivered > 0 ? round(($clicked / $delivered) * 100, 2) : 0;
 
             $results[$variantId] = [
                 'id' => $variantId,
@@ -465,8 +474,9 @@ class EmailAnalyticsService
      */
     public function getTopPerformingCampaigns(int $limit = 10, string $metric = 'openRate'): array
     {
+        // Archived campaigns are retired from rankings.
         $campaigns = $this->entityManager->createQuery(
-            'SELECT c FROM App\Entity\EmailCampaign c ORDER BY c.createdAt DESC'
+            'SELECT c FROM App\Entity\EmailCampaign c WHERE c.archivedAt IS NULL ORDER BY c.createdAt DESC'
         )
         ->setMaxResults($limit * 2)
         ->getResult();

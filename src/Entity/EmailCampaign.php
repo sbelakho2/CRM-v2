@@ -451,6 +451,39 @@ class EmailCampaign
         $this->segment = $segment;
         return $this;
     }
+    /**
+     * Lifecycle transitions with enforced invariants: activate/pause refuse
+     * archived campaigns, so 'active=true + archived' can never be reached
+     * through any path.
+     */
+    public function activate(): self
+    {
+        if ($this->isArchived()) {
+            throw new \LogicException('An archived campaign cannot be reactivated. Restore it first.');
+        }
+
+        $this->active = true;
+        if ($this->status === self::STATUS_PAUSED) {
+            $this->status = self::STATUS_SENDING;
+        }
+
+        return $this;
+    }
+
+    public function pause(): self
+    {
+        if ($this->isArchived()) {
+            throw new \LogicException('An archived campaign cannot be paused.');
+        }
+
+        $this->active = false;
+        if ($this->status === self::STATUS_SENDING) {
+            $this->status = self::STATUS_PAUSED;
+        }
+
+        return $this;
+    }
+
     public function isArchived(): bool
     {
         return $this->archivedAt !== null;

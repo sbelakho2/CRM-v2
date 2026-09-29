@@ -49,6 +49,7 @@ class ProcessDueEmailSendsCommand extends Command
         private EmailSendRepository $sendRepository,
         private EmailCampaignService $campaignService,
         private LockFactory $lockFactory,
+        private \App\Repository\WorkerHeartbeatRepository $heartbeatRepository,
     ) {
         parent::__construct();
     }
@@ -152,6 +153,12 @@ class ProcessDueEmailSendsCommand extends Command
                 $counts['sent'],
                 $counts['skipped'],
                 $counts['already'],
+                $counts['failed']
+            ));
+            $this->heartbeatRepository->beat('email:process-due-sends', sprintf(
+                'sent=%d skipped=%d failed=%d',
+                $counts['sent'],
+                $counts['skipped'],
                 $counts['failed']
             ));
         } finally {

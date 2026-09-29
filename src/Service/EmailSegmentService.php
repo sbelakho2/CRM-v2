@@ -323,28 +323,61 @@ class EmailSegmentService
                 }
 
                 return $qb->getQuery()->getResult();
+            } catch (\InvalidArgumentException $e) {
+                throw $e; // deprecated-field errors are never swallowed
             } catch (\Throwable) {
-                // Degrade to the legacy evaluation below.
+                // Query machinery failed (NOT a deprecated-field error —
+                // those rethrow above). Supported-field segments degrade to
+                // a bounded in-memory evaluation rather than crash; the
+                // hard cap bounds memory when machinery is broken.
+                return $this->evaluateInMemory($filterRules, $limit, $offset);
             }
         }
 
-        // Legacy fallback for non-whitelisted fields (or when the DB-side
-        // path is unavailable, e.g. repositories without a query builder).
-        $allContacts = $this->contactRepository->findAll();
-        $matchingContacts = [];
+        // Non-whitelisted fields are DEPRECATED filters (several referenced
+        // schema-dropped columns, e.g. contacts.lead_score / subscribed — the
+        // old findAll() path silently returned wrong results for them). They
+        // now fail loudly with a migration instruction instead of hydrating
+        // the whole contact table into PHP memory.
+        $unsupported = [];
+        foreach (($filterRules['rules'] ?? []) as $rule) {
+            $field = (string) ($rule['field'] ?? '');
+            $isCompany = str_starts_with($field, 'company.');
+            $base = $isCompany ? substr($field, 8) : $field;
+            $whitelist = $isCompany ? self::ALLOWED_COMPANY_FIELDS : self::ALLOWED_CONTACT_FIELDS;
+            if ($base !== '' && !in_array($base, $whitelist, true)) {
+                $unsupported[] = $field;
+            }
+        }
 
-        foreach ($allContacts as $contact) {
+        throw new \InvalidArgumentException(sprintf(
+            'This segment uses a deprecated filter (%s) that must be migrated to a supported field. Supported contact fields: %s; company fields: company.%s.',
+            implode(', ', array_unique($unsupported) ?: ['?']),
+            implode(', ', self::ALLOWED_CONTACT_FIELDS),
+            implode(', company.', self::ALLOWED_COMPANY_FIELDS)
+        ));
+    }
+
+    /**
+     * Bounded in-memory evaluation for machinery-failure degradation ONLY
+     * (deprecated fields throw before reaching here). Cap is a safety
+     * valve, not a product limit.
+     */
+    private function evaluateInMemory(array $filterRules, ?int $limit, int $offset): array
+    {
+        // Last-resort degradation only (deprecated fields never reach
+        // here): hydrate once, bounded, never again.
+        $all = array_slice($this->contactRepository->findAll() ?? [], 0, 5000);
+        $matching = [];
+        foreach ($all as $contact) {
             if ($this->evaluateFilters($contact, $filterRules)) {
-                $matchingContacts[] = $contact;
+                $matching[] = $contact;
             }
         }
 
-        // Apply limit and offset
-        if ($limit !== null) {
-            return array_slice($matchingContacts, $offset, $limit);
-        }
-
-        return array_slice($matchingContacts, $offset);
+        return $limit !== null
+            ? array_slice($matching, $offset, $limit)
+            : array_slice($matching, $offset);
     }
 
     /**

@@ -301,22 +301,51 @@ class WebinarService
                 $attended = ($data[2] ?? 'no') === 'yes';
                 
                 if ($email && $name) {
+                    // Idempotent import: existing (webinar, email) rows are
+                    // updated (attended flag) rather than duplicated.
+                    $existing = $this->entityManager->getRepository(WebinarAttendee::class)
+                        ->findOneBy(['webinar' => $webinar, 'email' => strtolower(trim($email))]);
+                    if ($existing !== null) {
+                        if ($attended && !$existing->isAttended()) {
+                            $existing->setAttended(true);
+                        }
+                        continue;
+                    }
+
                     $attendee = new WebinarAttendee();
                     $attendee->setWebinar($webinar);
-                    $attendee->setEmail($email);
+                    $attendee->setEmail(strtolower(trim($email)));
                     $attendee->setName($name);
                     $attendee->setAttended($attended);
                     $attendee->setRegisteredAt(new \DateTime());
-                    
+
                     $this->entityManager->persist($attendee);
                     $imported++;
                 }
             }
-            
+
             fclose($handle);
             $this->entityManager->flush();
+
+            // Recompute the denormalized display counters from LIVE rows —
+            // imports bypass the registration path that maintains them, and
+            // attendance flags arrive in the CSV itself. (Admission capacity
+            // uses the live COUNT, so this is display hygiene, not correctness.)
+            $this->recomputeWebinarCounters($webinar);
         }
-        
+
         return $imported;
+    }
+
+    private function recomputeWebinarCounters(Webinar $webinar): void
+    {
+        $conn = $this->entityManager->getConnection();
+        $conn->executeStatement(
+            'UPDATE webinars SET
+                registered_count = (SELECT COUNT(*) FROM webinar_attendees WHERE webinar_id = :id),
+                attended_count = (SELECT COUNT(*) FROM webinar_attendees WHERE webinar_id = :id AND attended = 1)
+             WHERE id = :id',
+            ['id' => $webinar->getId()]
+        );
     }
 }

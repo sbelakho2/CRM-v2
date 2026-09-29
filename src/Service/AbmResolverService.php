@@ -107,11 +107,19 @@ class AbmResolverService
             
             $abmAccount = null;
             if ($domain) {
+                // Archived accounts never resolve: a retired account must not accumulate
+                // new hits or engagement from web events.
                 $abmAccount = $this->abmAccountRepository->findOneBy(['domain' => $domain]);
+                if ($abmAccount !== null && $abmAccount->isArchived()) {
+                    $abmAccount = null;
+                }
             }
             
             if (!$abmAccount && $resolvedData['companyName']) {
                 $abmAccount = $this->abmAccountRepository->findOneBy(['accountName' => $resolvedData['companyName']]);
+                if ($abmAccount !== null && $abmAccount->isArchived()) {
+                    $abmAccount = null;
+                }
             }
             
             if ($abmAccount) {

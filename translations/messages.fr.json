@@ -1746,7 +1746,8 @@
       "body_html": "Corps de l'e-mail (HTML)",
       "body_html_placeholder": "Balises {{first_name}}, {{company}}... acceptées. Vide = modèle par défaut.",
       "from_name": "Nom de l'expéditeur",
-      "from_email": "E-mail expéditeur"
+      "from_email": "E-mail expéditeur",
+      "touch_templates": "Modèles par touche (JSON)"
     },
     "from_email": "E-mail de l'expéditeur",
     "from_name": "Nom de l'expéditeur",

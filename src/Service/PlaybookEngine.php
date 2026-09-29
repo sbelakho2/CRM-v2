@@ -80,7 +80,9 @@ class PlaybookEngine
     public function getActivePlaybooks(): array
     {
         // Fully implemented helper method
-        return $this->playbookRepository->findBy(['isActive' => true]);
+        // Executable playbooks exclude archived rows even if isActive lingers
+        // true — findAllActive() enforces the archive invariant.
+        return $this->playbookRepository->findAllActive();
     }
     
     /**

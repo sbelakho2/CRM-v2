@@ -289,33 +289,6 @@ class FreightPricingService
         float $volumeM3,
         float $goodsValue
     ): array {
-        // TODO: Implement route comparison
-        // 
-        // Steps:
-        // 1. Get all ranked routes for destination:
-        //    $routes = $this->routeSelectionService->rankRoutes($destinationCountry);
-        // 
-        // 2. Evaluate optimal mode for weight/volume:
-        //    $mode = $this->routeSelectionService->evaluateModeByWeight($weightKg, $volumeM3);
-        // 
-        // 3. Calculate freight cost for each route:
-        //    $comparisons = [];
-        //    foreach ($routes as $route) {
-        //        $laneCode = $route->getLaneCode();
-        //        $cost = $this->calculateFreight($laneCode, $mode, $weightKg, $volumeM3, $goodsValue);
-        //        $comparisons[] = [
-        //            'laneCode' => $laneCode,
-        //            'mode' => $mode,
-        //            'cost' => $cost,
-        //            'rank' => $route->getRank()
-        //        ];
-        //    }
-        // 
-        // 4. Sort by total cost:
-        //    usort($comparisons, fn($a, $b) => $a['cost']['totalCost'] <=> $b['cost']['totalCost']);
-        // 
-        // 5. Return sorted comparisons:
-        //    return $comparisons;
 
         // 1. Get all ranked routes
         $routes = $this->routeSelectionService->rankRoutes($destinationCountry);
@@ -378,25 +351,6 @@ class FreightPricingService
         float $weightKg,
         float $volumeM3
     ): array {
-        // TODO: Implement quick estimate
-        // 
-        // Steps:
-        // 1. Select optimal route:
-        //    $route = $this->routeSelectionService->selectOptimalRoute($destinationCountry, null, $weightKg, $volumeM3);
-        // 
-        // 2. Determine mode:
-        //    $mode = $this->routeSelectionService->evaluateModeByWeight($weightKg, $volumeM3);
-        // 
-        // 3. Calculate freight (assume $10k goods value for insurance):
-        //    $cost = $this->calculateFreight($route['laneCode'], $mode, $weightKg, $volumeM3, 10000);
-        // 
-        // 4. Return simplified estimate:
-        //    return [
-        //        'estimatedFreight' => $cost['freightCost'],
-        //        'estimatedInsurance' => $cost['insurance'],
-        //        'mode' => $mode,
-        //        'laneCode' => $route['laneCode']
-        //    ];
 
         try {
             // 1. Select optimal route

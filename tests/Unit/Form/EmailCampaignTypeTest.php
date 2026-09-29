@@ -19,6 +19,7 @@ class EmailCampaignTypeTest extends TypeTestCase
             'name' => 'Q4 Automotive Outreach',
             'language' => 'FR',
             'description' => 'Campaign objectives',
+            'touchTemplates' => '{"1": {"template_id": "12"}}',
             'touchCount' => 3,
             'active' => true,
         ];

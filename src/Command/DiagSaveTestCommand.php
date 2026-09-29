@@ -44,10 +44,10 @@ class DiagSaveTestCommand extends Command
         $connection->beginTransaction();
 
         try {
-            // Test 1: Direct save via our EM
+            $stamp = time();
             $output->writeln("\n--- Test 1: Direct save via command EM ---");
             $c1 = new Company();
-            $c1->setName('T1_' . time());
+            $c1->setName('T1_' . $stamp);
             $c1->setSector('Automotive');
             $c1->setPipelineStage('Prospect');
             $c1->setAccountTier('C');
@@ -62,8 +62,8 @@ class DiagSaveTestCommand extends Command
             $output->writeln("\n--- Test 2: Full saveDiscoveredCompanies path ---");
             $fakeData = [
                 [
-                    'name' => 'T3_' . time(),
-                    'website' => 'https://t3-' . time() . '.example.com',
+                    'name' => 'T3_' . $stamp,
+                    'website' => 'https://t3-' . $stamp . '.example.com',
                     'buyer_evidence' => ['verdict' => 'ACCEPT', 'reason' => 'Test', 'positive_families' => ['x' => 1]],
                 ],
             ];
@@ -75,9 +75,10 @@ class DiagSaveTestCommand extends Command
             }
 
             $output->writeln("\n--- DB Verification (inside transaction) ---");
+            $stamp = time();
             $rows = $connection->fetchAllAssociative(
                 'SELECT id, name FROM companies WHERE name LIKE ? OR name LIKE ? ORDER BY id',
-                ['T1_' . date('Ymd'), '%T3_' . time() . '%']
+                ['T1_' . $stamp . '%', 'T3_' . $stamp . '%']
             );
             foreach ($rows as $r) {
                 $output->writeln("  DB: id={$r['id']} name={$r['name']}");

@@ -58,7 +58,7 @@ steps:
         if docker rm -f crm-ci-mysql >/dev/null 2>&1; then
           echo "removed stale test container"
         fi
-        docker run -d --name crm-ci-mysql \
+        docker run -d --name crm-ci-mysql --restart unless-stopped \
           -e MYSQL_ROOT_PASSWORD=ci_root_pw \
           -e MYSQL_DATABASE=crm_ci_test \
           -e MYSQL_USER=crm_test \

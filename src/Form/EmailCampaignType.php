@@ -65,6 +65,14 @@ class EmailCampaignType extends AbstractType
                 'required' => false,
                 'attr' => ['class' => 'rams-form__input', 'placeholder' => 'contact@starzelectronics.site'],
             ])
+            ->add('touchTemplates', TextareaType::class, [
+                'label' => 'email_campaign.form.touch_templates',
+                'required' => false,
+                'attr' => ['class' => 'rams-form__textarea rams-font-mono', 'rows' => 4, 'placeholder' => '{"1": {"template_id": 12}, "2": {"template_id": 13, "delay_days": 3}}'],
+                'constraints' => [
+                    new Assert\Callback([$this, 'validateTouchTemplates']),
+                ],
+            ])
             ->add('touchCount', IntegerType::class, [
                 'label' => 'email_campaign.form.touch_count',
                 'attr' => [
@@ -80,6 +88,23 @@ class EmailCampaignType extends AbstractType
                 'data' => true,
             ])
         ;
+
+        // touchTemplates: entity stores an array; the field edits JSON text.
+        $builder->get('touchTemplates')->addModelTransformer(
+            new \Symfony\Component\Form\CallbackTransformer(
+                static fn ($array): string => $array === null || $array === []
+                    ? ''
+                    : (json_encode($array, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: ''),
+                static function (?string $json): array {
+                    if ($json === null || trim($json) === '') {
+                        return [];
+                    }
+                    $decoded = json_decode($json, true);
+
+                    return is_array($decoded) ? $decoded : [];
+                }
+            )
+        );
     }
 
     public function configureOptions(OptionsResolver $resolver): void
@@ -89,4 +114,39 @@ class EmailCampaignType extends AbstractType
             'translation_domain' => 'messages',
         ]);
     }
+
+    /**
+     * Touch templates: JSON map of touchNumber → {template_id, delay_days?,
+     * conditions?}. Keys must be 1..touchCount; template_id must exist.
+     */
+    public function validateTouchTemplates($value, \Symfony\Component\Validator\Context\ExecutionContextInterface $context): void
+    {
+        // The constraint may run against the decoded ARRAY (model data,
+        // post reverse-transform) or the raw JSON STRING (view data).
+        $decoded = $value;
+        if (is_string($value)) {
+            if (trim($value) === '') {
+                return;
+            }
+            $decoded = json_decode($value, true);
+            if (!is_array($decoded)) {
+                $context->buildViolation('Touch templates must be valid JSON.')->addViolation();
+
+                return;
+            }
+        } elseif (!is_array($value)) {
+            return; // null/empty model
+        }
+
+        foreach ($decoded as $touch => $config) {
+            if (!ctype_digit((string) $touch) || (int) $touch < 1) {
+                $context->buildViolation(sprintf('Touch key "%s" must be a positive integer.', $touch))->addViolation();
+                continue;
+            }
+            if (!is_array($config) || !isset($config['template_id']) || !ctype_digit((string) $config['template_id'])) {
+                $context->buildViolation(sprintf('Touch %s needs a numeric template_id.', $touch))->addViolation();
+            }
+        }
+    }
 }
+

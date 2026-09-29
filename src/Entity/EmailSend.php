@@ -89,6 +89,14 @@ class EmailSend
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $nextAttemptAt = null;
 
+    /**
+     * Provider/transport message identifier returned when the message was
+     * accepted (groundwork for provider-side delivery/bounce
+     * reconciliation). NULL when the transport assigns no ID.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $providerMessageId = null;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $openedAt = null;
 
@@ -260,6 +268,18 @@ class EmailSend
     public function setNextAttemptAt(?\DateTimeInterface $at): self
     {
         $this->nextAttemptAt = $at;
+
+        return $this;
+    }
+
+    public function getProviderMessageId(): ?string
+    {
+        return $this->providerMessageId;
+    }
+
+    public function setProviderMessageId(?string $id): self
+    {
+        $this->providerMessageId = $id;
 
         return $this;
     }

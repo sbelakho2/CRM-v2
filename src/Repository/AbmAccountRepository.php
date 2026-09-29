@@ -22,6 +22,7 @@ class AbmAccountRepository extends ServiceEntityRepository
     public function findByDomain(string $domain): ?AbmAccount
     {
         return $this->createQueryBuilder('a')
+            ->andWhere('a.archivedAt IS NULL')
             ->andWhere('a.domain = :domain')
             ->setParameter('domain', $domain)
             ->getQuery()
@@ -36,6 +37,7 @@ class AbmAccountRepository extends ServiceEntityRepository
     public function findByIcpTier(string $tier): array
     {
         return $this->createQueryBuilder('a')
+            ->andWhere('a.archivedAt IS NULL')
             ->andWhere('a.icpTier = :tier')
             ->setParameter('tier', $tier)
             ->orderBy('a.lastActivityAt', 'DESC')
@@ -53,6 +55,7 @@ class AbmAccountRepository extends ServiceEntityRepository
         $since = new \DateTime("-{$daysBack} days");
 
         return $this->createQueryBuilder('a')
+            ->andWhere('a.archivedAt IS NULL')
             ->andWhere('a.lastActivityAt >= :since')
             ->setParameter('since', $since)
             ->orderBy('a.engagementScore', 'DESC')
@@ -68,6 +71,7 @@ class AbmAccountRepository extends ServiceEntityRepository
     public function getTopEngagedAccounts(int $limit = 10): array
     {
         return $this->createQueryBuilder('a')
+            ->andWhere('a.archivedAt IS NULL')
             ->orderBy('a.engagementScore', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()
@@ -82,6 +86,7 @@ class AbmAccountRepository extends ServiceEntityRepository
     public function searchByNameOrDomain(string $query): array
     {
         return $this->createQueryBuilder('a')
+            ->andWhere('a.archivedAt IS NULL')
             ->andWhere('a.accountName LIKE :query OR a.domain LIKE :query')
             ->setParameter('query', '%' . addcslashes($query, '%_') . '%')
             ->orderBy('a.engagementScore', 'DESC')

@@ -65,6 +65,38 @@
                     </div>
 
                     <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'email_campaign.form.subject'|trans }}</label>
+                        {{ form_widget(form.subject, {'attr': {'class': 'rams-form__input'}}) }}
+                        {{ form_errors(form.subject) }}
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'email_campaign.form.body_html'|trans }}</label>
+                        {{ form_widget(form.bodyHtml, {'attr': {'class': 'rams-form__textarea', 'rows': 8}}) }}
+                        {{ form_errors(form.bodyHtml) }}
+                        <span class="rams-form__hint">{{ 'email_campaign.form.body_html_placeholder'|trans }}</span>
+                    </div>
+
+                    <div class="rams-form__row rams-form__row--2">
+                        <div class="rams-form__group">
+                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.form.from_name'|trans }}</label>
+                            {{ form_widget(form.fromName, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.fromName) }}
+                        </div>
+                        <div class="rams-form__group">
+                            <label class="rams-form__label rams-dymo">{{ 'email_campaign.form.from_email'|trans }}</label>
+                            {{ form_widget(form.fromEmail, {'attr': {'class': 'rams-form__input'}}) }}
+                            {{ form_errors(form.fromEmail) }}
+                        </div>
+                    </div>
+
+                    <div class="rams-form__group">
+                        <label class="rams-form__label rams-dymo">{{ 'email_campaign.form.touch_templates'|trans }}</label>
+                        {{ form_widget(form.touchTemplates, {'attr': {'class': 'rams-form__textarea rams-font-mono', 'rows': 3}}) }}
+                        {{ form_errors(form.touchTemplates) }}
+                    </div>
+
+                    <div class="rams-form__group">
                         <label class="rams-form__label rams-dymo">{{ 'common.description'|trans }}</label>
                         {{ form_widget(form.description, {'attr': {'class': 'rams-form__textarea'}}) }}
                         {{ form_errors(form.description) }}
