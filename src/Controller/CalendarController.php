@@ -178,6 +178,12 @@ class CalendarController extends AbstractController
     #[Route('/{id}', name: 'calendar_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(CalendarEvent $event): Response
     {
+        // IDOR guard: viewing is scoped to the organizer (or admins) —
+        // matching the edit/delete authorization.
+        if ($event->getOrganizer() !== $this->getUser() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createNotFoundException('Event not found');
+        }
+
         return $this->render('calendar/show.html.twig', [
             'event' => $event,
         ]);

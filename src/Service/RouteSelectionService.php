@@ -34,6 +34,7 @@ class RouteSelectionService
         private FreightTableRepository $freightTableRepository,
         private CurrencyPreferenceService $currencyPreferenceService,
         private \App\Service\DutyCalculationService $dutyCalculationService,
+        private \App\Service\CurrencyConverter $currencyConverter,
     ) {}
 
     /**
@@ -130,6 +131,7 @@ class RouteSelectionService
                 && $quantity !== null
                 && $quantity > 0.0;
 
+            $dutyCurrency = null;
             if ($dutyInputsKnown) {
                 try {
                     $duty = $this->dutyCalculationService->calculateDuty(
@@ -150,7 +152,17 @@ class RouteSelectionService
             }
 
             $laneDetails = $this->parseLaneCode($route->getLaneCode());
-            $landed = (float) $freightCost['cost'] + $dutyAmount;
+
+            // Currency normalization BEFORE ranking: freight rates can carry
+            // mixed currencies (USD/EUR/MAD); comparing raw numbers ranked a
+            // €900 lane above a $950 one as "cheaper". All candidates (and
+            // duty) are converted into ONE base currency with the same FX
+            // snapshot; originals stay for display.
+            $rateCurrency = strtoupper((string) ($freightCost['currency'] ?? 'USD'));
+            $baseCurrency = strtoupper($this->currencyConverter->getDisplayCurrency());
+            $freightNormalized = $this->currencyConverter->convert((float) $freightCost['cost'], $rateCurrency, $baseCurrency);
+            $dutyNormalized = $this->currencyConverter->convert($dutyAmount, $dutyCurrency ?? $baseCurrency, $baseCurrency);
+            $landed = $freightNormalized + $dutyNormalized;
 
             // Unresolved mandatory landed-cost components exclude the
             // candidate from the comparison (it stays in the report).
@@ -160,7 +172,7 @@ class RouteSelectionService
                     'mode' => $recommendedMode,
                     'origin_port' => $laneDetails['origin_port'],
                     'destination_port' => $laneDetails['destination_port'],
-                    'transit_days' => 7,
+                    'transit_days' => $freightCost['transit_days'] ?? 7,
                     'freight_cost' => $freightCost['cost'],
                     'duty_basis' => 'unresolved',
                     'total_landed_cost' => null,
@@ -175,12 +187,15 @@ class RouteSelectionService
                 'mode' => $recommendedMode,
                 'origin_port' => $laneDetails['origin_port'],
                 'destination_port' => $laneDetails['destination_port'],
-                'transit_days' => 7 /* transit time lives in freight_tables, not the preference */ ?? 7,
+                'transit_days' => $freightCost['transit_days'] ?? 7,
                 'freight_cost' => $freightCost['cost'],
+                'freight_currency' => $rateCurrency,
+                'freight_cost_base' => round($freightNormalized, 2),
                 'duty_amount' => $dutyAmount,
                 'duty_basis' => $dutyBasis,
                 'total_landed_cost' => round($landed, 2),
-                'currency' => $freightCost['currency'] ?? 'USD',
+                'base_currency' => $baseCurrency,
+                'currency' => $baseCurrency,
                 'rank' => $route->getRank(),
             ];
 
@@ -265,16 +280,47 @@ class RouteSelectionService
      * 4. Order by rank ASC
      * 5. Return array of RoutePreference entities
      */
+    /**
+     * Origin-country → eligible origin ports map. RoutePreference stores a
+     * port-level origin (lane code); this deterministic map answers which
+     * ports serve which origin country — rankRoutes uses it to honor the
+     * $origin argument instead of silently ignoring it.
+     */
+    private const ORIGIN_PORTS = [
+        'MA' => ['CMN', 'TNG', 'CAS', 'MRZ', 'AGA'], // Casablanca, Tanger, Casablanca, Mohammedia, Agadir
+        'US' => ['JFK', 'LAX', 'NYC', 'ORD', 'SAV'],
+        'EU' => ['RTM', 'HAM', 'FRA', 'ANR', 'LEH'],
+    ];
+
     public function rankRoutes(string $destinationCountry, ?string $origin = 'MA'): array
     {
-        // originCountry is NOT a mapped property on RoutePreference —
-        // origin lives in the lane code (originPort). The $origin parameter
-        // is retained for API compatibility; lane-level filtering happens
-        // via the port prefix when callers need it.
-        return $this->routePreferenceRepository->createQueryBuilder('r')
+        $qb = $this->routePreferenceRepository->createQueryBuilder('r')
             ->where('r.destinationCountry = :dest')
             ->andWhere('r.isActive = true')
-            ->setParameter('dest', $destinationCountry)
+            ->setParameter('dest', $destinationCountry);
+
+        // Honor $origin: map the country to its eligible origin ports and
+        // filter the lane origin by prefix; unsupported origins fail loudly
+        // (never silently return Morocco routes to a non-MA caller).
+        $origin = $origin ?? 'MA';
+        $ports = self::ORIGIN_PORTS[strtoupper($origin)] ?? null;
+        if ($ports === null) {
+            throw new \RuntimeException(sprintf(
+                'Origin "%s" is not supported (eligible: %s). Model the origin ports before routing from it.',
+                $origin,
+                implode(', ', array_keys(self::ORIGIN_PORTS))
+            ));
+        }
+
+        $expr = $qb->expr();
+        $ors = [];
+        foreach ($ports as $i => $port) {
+            $ors[] = $expr->like('r.originPort', ':originPort' . $i);
+            $qb->setParameter('originPort' . $i, $port . '%');
+        }
+        $qb->andWhere($expr->orX(...$ors));
+
+        return $qb
             ->orderBy('r.rank', 'ASC')
             ->getQuery()
             ->getResult();
@@ -430,9 +476,13 @@ class RouteSelectionService
                     }
                 }
 
+                $rateCurrency = strtoupper((string) ($freightCost['currency'] ?? 'USD'));
+                $baseCurrency = strtoupper($this->currencyConverter->getDisplayCurrency());
+                $freightNormalized = $this->currencyConverter->convert((float) $freightCost['cost'], $rateCurrency, $baseCurrency);
+
                 $totalLanded = $dutyBasis === 'unresolved'
                     ? null
-                    : round((float) $freightCost['cost'] + $dutyAmount, 2);
+                    : round($freightNormalized + $dutyAmount, 2);
 
                 $comparisons[] = [
                     'route_code' => $route->getLaneCode(),

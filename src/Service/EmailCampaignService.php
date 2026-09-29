@@ -951,7 +951,7 @@ class EmailCampaignService
     }
 
     /**
-     * Get 5-touch sequence progress for contact
+     * Get touch-sequence progress for contact (derived from touchCount)
      */
     public function getContactProgress(Contact $contact, EmailCampaign $campaign): array
     {
@@ -972,7 +972,7 @@ class EmailCampaignService
 
         foreach ($sends as $send) {
             $touchNum = $send->getTouchNumber();
-            if ($touchNum >= 1 && $touchNum <= 5) {
+            if ($touchNum >= 1 && $touchNum <= $touchCount) {
                 $touches[$touchNum] = [
                     'sent' => $send->getSentAt(),
                     'opened' => $send->isOpened(),

@@ -43,7 +43,12 @@ class ReportDefinitionRepository extends ServiceEntityRepository
             ->orderBy('r.isFavorite', 'DESC')
             ->addOrderBy('r.name', 'ASC');
         
-        // Access control: user's own reports, public reports, or role-matched reports
+        // Access control — the SAME predicate canUserAccess() enforces:
+        // user's own reports, public reports, OR role-granted access
+        // (previously role-shared reports were reachable directly but never
+        // appeared in lists).
+        // Base predicate in DQL; role-granted rows are merged in PHP below
+        // (JSON columns cannot be LIKE-matched portably in DQL).
         $qb->andWhere('r.createdBy = :user OR r.isPublic = true')
            ->setParameter('user', $user);
         
@@ -56,8 +61,36 @@ class ReportDefinitionRepository extends ServiceEntityRepository
             $qb->andWhere('r.category = :category')
                ->setParameter('category', $category);
         }
-        
-        return $qb->getQuery()->getResult();
+
+        $results = $qb->getQuery()->getResult();
+
+        // Merge role-granted rows (accessRoles JSON contains one of the
+        // user's roles) that the base predicate missed — matching
+        // canUserAccess() exactly. JSON containment is evaluated in PHP for
+        // portability.
+        $roles = array_flip($user->getRoles());
+        $existing = [];
+        foreach ($results as $report) {
+            $existing[$report->getId()] = true;
+        }
+        $roleGranted = $this->createQueryBuilder('r2')
+            ->andWhere('r2.accessRoles IS NOT NULL')
+            ->getQuery()->getResult();
+        foreach ($roleGranted as $report) {
+            if (isset($existing[$report->getId()])) {
+                continue;
+            }
+            foreach ($report->getAccessRoles() ?? [] as $grantedRole) {
+                if (isset($roles[$grantedRole])) {
+                    $results[] = $report;
+                    break;
+                }
+            }
+        }
+
+        usort($results, static fn ($a, $b) => [$b->isFavorite(), $a->getName()] <=> [$a->isFavorite(), $b->getName()]);
+
+        return $results;
     }
     
     /**
@@ -195,18 +228,15 @@ class ReportDefinitionRepository extends ServiceEntityRepository
             $myReports += (int) $row['myReports'];
             $favorites += (int) $row['favorites'];
             $source = $row['dataSource'];
-            if ($source && !isset($sourceStats[$source])) {
-                $sourceStats[$source] = 0;
-            }
+            // The query groups by (dataSource, reportType): each row carries
+            // a COUNT for its whole group — SUM the counts, never ++
+            // (two reports in the same group previously counted once).
             if ($source) {
-                $sourceStats[$source]++;
+                $sourceStats[$source] = ($sourceStats[$source] ?? 0) + (int) $row['total'];
             }
             $rType = $row['reportType'];
-            if ($rType && !isset($typeStats[$rType])) {
-                $typeStats[$rType] = 0;
-            }
             if ($rType) {
-                $typeStats[$rType]++;
+                $typeStats[$rType] = ($typeStats[$rType] ?? 0) + (int) $row['total'];
             }
         }
 

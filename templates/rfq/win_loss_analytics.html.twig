@@ -34,11 +34,11 @@
                 <div id="custom-date-range" class="rams-flex rams-gap-2 rams-items-center mobile-stack" style="{{ custom_range ? '' : 'display: none;' }}">
                     <label for="start_date" class="rams-text-3xs rams-text--muted">{{ 'filters.from'|trans  }}</label>
                     <input type="date" id="start_date" name="start_date" value="{{ start_date|default('')|date('Y-m-d') }}" 
-                           class="rams-form__input"   style="width: 140px;"
+                           class="rams-form__input" class="rams-w-lg"
                            max="{{ "now"|date('Y-m-d') }}">
                     <label for="end_date" class="rams-text-3xs rams-text--muted">{{ 'filters.to'|trans  }}</label>
                     <input type="date" id="end_date" name="end_date" value="{{ end_date|default('')|date('Y-m-d') }}" 
-                           class="rams-form__input"   style="width: 140px;"
+                           class="rams-form__input" class="rams-w-lg"
                            max="{{ "now"|date('Y-m-d') }}">
                     <button type="submit" class="rams-btn rams-btn--primary rams-btn--sm">
                         {{ 'filters.apply'|trans  }}
@@ -170,7 +170,7 @@
                             <span class="rams-badge rams-font-mono">{{ count }} ({{ ((count / lost_count) * 100)|round }}%)</span>
                         </div>
                         <div class="rams-progress rams-progress--compact">
-                            <div class="rams-progress__bar rams-progress__bar--danger" style="width: {{ (count / lost_count) * 100 }}%;"></div>
+                            <div class="rams-progress__bar rams-progress__bar--danger" style="--rams-meter-value: {{  (count / lost_count) * 100  }}%;"></div>
                         </div>
                     </div>
                     {% endfor %}

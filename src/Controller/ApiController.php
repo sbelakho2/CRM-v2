@@ -36,7 +36,20 @@ class ApiController extends AbstractController
             return $this->json(['error' => 'Company not found'], 404);
         }
 
-        $contacts = $contactRepository->findBy(['company' => $companyId]);
+        // Archive contract: archived companies (and their archived contacts)
+        // are invisible to non-admins — the API route must not bypass the
+        // controllers' visibility rules.
+        if ($company->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            return $this->json(['error' => 'Company not found'], 404);
+        }
+
+        $contacts = $contactRepository->createQueryBuilder('c')
+            ->andWhere('c.company = :company')
+            ->andWhere('c.archivedAt IS NULL')
+            ->setParameter('company', $company)
+            ->orderBy('c.lastName', 'ASC')
+            ->getQuery()
+            ->getResult();
         
         $data = array_map(function($contact) {
             return [

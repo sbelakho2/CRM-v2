@@ -47,9 +47,22 @@ class InteractiveLiveQuoteService
         private EntityManagerInterface $entityManager,
         private QuoteRepository $quoteRepository,
         private LoggerInterface $logger,
-        private ?Security $security = null
+        private ?Security $security = null,
+        private ?\App\Service\PricingEngine $pricingEngine = null,
     ) {}
     
+    /**
+     * Guard: archived quotes are read-only. All interactive-mode MUTATIONS
+     * route through this — the public token resolver already refuses them;
+     * admin endpoints must not modify (or re-token) an archived record.
+     */
+    private function assertNotArchived(Quote $quote): void
+    {
+        if ($quote->isArchived()) {
+            throw new \InvalidArgumentException('This quote is archived and read-only.');
+        }
+    }
+
     /**
      * Enable interactive mode for a quote and generate public token
      * 
@@ -63,6 +76,8 @@ class InteractiveLiveQuoteService
         ?array $quantityTiers = null,
         int $expirationDays = 30
     ): array {
+        $this->assertNotArchived($quote);
+
         // Validate expiration
         $expirationDays = min($expirationDays, self::MAX_TOKEN_VALIDITY_DAYS);
         
@@ -104,6 +119,8 @@ class InteractiveLiveQuoteService
      */
     public function disableInteractiveMode(Quote $quote): void
     {
+        $this->assertNotArchived($quote);
+
         $quote->setPublicToken(null);
         $quote->setTokenExpiresAt(null);
         $quote->setInteractiveEnabled(false);
@@ -169,12 +186,13 @@ class InteractiveLiveQuoteService
         $tierPricing = [];
         
         foreach ($tiers as $quantity) {
-            $tierResult = $this->calculatePricingForQuantity($bomData, $quantity);
+            $tierResult = $this->calculatePricingForQuantity($bomData, $quantity, $currency);
             
             $tierPricing[] = [
                 'quantity' => $quantity,
                 'unit_price' => round($tierResult['unit_total'], 4),
-                'extended_price' => round($tierResult['extended_total'], 2),
+                'material_subtotal' => round($tierResult['extended_total'], 2),
+                'extended_price' => round((float) ($tierResult['canonical_total'] ?? $tierResult['extended_total']), 2),
                 'per_unit_breakdown' => $tierResult['per_unit_breakdown'],
                 'savings_vs_minimum' => $this->calculateSavings($tierPricing, $tierResult),
                 'lead_time_estimate' => $this->estimateLeadTime($quantity, $bomData),
@@ -217,31 +235,43 @@ class InteractiveLiveQuoteService
     /**
      * Calculate pricing for a specific quantity
      */
-    private function calculatePricingForQuantity(array $bomData, int $quantity): array
+    /**
+     * Price a quantity through the CANONICAL pricing model.
+     *
+     * Historical bug: this method summed raw material costs itself, so the
+     * customer's live quote could diverge from the actual quote total (the
+     * canonical QuoteCoPilot path applies PricingEngine::calculateQuoteTotals
+     * with the standard 25% margin). Now the per-quantity material lines are
+     * converted into the SAME processed-line shape the copilot pipeline
+     * produces (extended_price per line) and priced by the one canonical
+     * engine — same cost components, same margin rules, same currency.
+     */
+    private function calculatePricingForQuantity(array $bomData, int $quantity, ?string $currency = null): array
     {
         $unitTotal = 0.0;
         $extendedTotal = 0.0;
         $perUnitBreakdown = [];
         $allInStock = true;
-        
+        $processedLines = [];
+
         foreach ($bomData as $line) {
             $priceBreaks = $line['pricing'] ?? [];
             $lineQty = ($line['quantity_per_unit'] ?? 1) * $quantity;
-            
+
             // Get unit price for this quantity
             $unitPrice = $this->getUnitPriceForQuantity($priceBreaks, $lineQty);
             $lineExtended = $unitPrice * $lineQty;
-            
+
             // Track per-assembly-unit cost
             $perUnitCost = $unitPrice * ($line['quantity_per_unit'] ?? 1);
             $unitTotal += $perUnitCost;
             $extendedTotal += $lineExtended;
-            
+
             $stock = $line['stock'] ?? 0;
             if ($stock < $lineQty) {
                 $allInStock = false;
             }
-            
+
             $perUnitBreakdown[] = [
                 'mpn' => $line['mpn'] ?? 'Unknown',
                 'description' => $line['description'] ?? '',
@@ -251,11 +281,31 @@ class InteractiveLiveQuoteService
                 'stock_available' => $stock,
                 'sufficient_stock' => $stock >= $lineQty,
             ];
+
+            // Canonical processed-line shape (what PricingEngine totals consume).
+            $processedLines[] = [
+                'mpn' => $line['mpn'] ?? 'Unknown',
+                'description' => $line['description'] ?? '',
+                'quantity' => $lineQty,
+                'unit_price' => $unitPrice,
+                'extended_price' => $lineExtended,
+            ];
         }
-        
+
+        // CANONICAL totals: identical margin model to QuoteCoPilotService.
+        $totals = $this->pricingEngine !== null
+            ? $this->pricingEngine->calculateQuoteTotals($processedLines, 25.0, $currency)
+            : null;
+
         return [
             'unit_total' => $unitTotal,
-            'extended_total' => $extendedTotal,
+            // material subtotal when canonical engine unavailable (unit tests)
+            'extended_total' => $totals['subtotal'] ?? $extendedTotal,
+            // CANONICAL customer total (material + standard margin)
+            'canonical_total' => $totals['total'] ?? null,
+            'margin_percent' => $totals['margin_percent'] ?? null,
+            'margin_amount' => $totals['margin_amount'] ?? null,
+            'currency' => $totals['currency'] ?? $currency,
             'per_unit_breakdown' => $perUnitBreakdown,
             'stock_status' => $allInStock ? 'all_in_stock' : 'partial_stock',
         ];
@@ -409,28 +459,54 @@ class InteractiveLiveQuoteService
     public function requestQuoteAtQuantity(
         Quote $quote,
         int $requestedQuantity,
-        ?string $customerNotes = null
+        ?string $customerNotes = null,
+        ?string $token = null,
+        ?string $requestIp = null,
+        ?string $userAgent = null
     ): array {
-        // Calculate pricing for requested quantity
+        if ($requestedQuantity <= 0 || $requestedQuantity > 1_000_000) {
+            throw new \InvalidArgumentException('Requested quantity must be between 1 and 1,000,000.');
+        }
+
+        // Calculate pricing for requested quantity (canonical engine)
         $bomData = $this->extractBomData($quote);
-        $pricing = $this->calculatePricingForQuantity($bomData, $requestedQuantity);
+        $pricing = $this->calculatePricingForQuantity($bomData, $requestedQuantity, $quote->getCurrency());
         $leadTime = $this->estimateLeadTime($requestedQuantity, $bomData);
-        
-        // Log the request
+
+        // DURABLE persistence — the "submitted" response is a contract: the
+        // request must exist in the database before the success is returned.
+        // (Previously only a log line recorded it; log rotation destroyed
+        // customer requests.)
+        $request = new \App\Entity\QuoteCustomerRequest();
+        $request->setQuote($quote);
+        $request->setRequestType(\App\Entity\QuoteCustomerRequest::TYPE_QUANTITY_REQUEST);
+        $request->setRequestedQuantity($requestedQuantity);
+        $request->setEstimatedTotal(number_format((float) ($pricing['canonical_total'] ?? $pricing['extended_total']), 2, '.', ''));
+        $request->setCurrency($pricing['currency'] ?? $quote->getCurrency());
+        $request->setCustomerNotes($customerNotes);
+        $request->setTokenFingerprint($token !== null ? hash('sha256', $token) : null);
+        $request->setRequestIp($requestIp);
+        $request->setUserAgent($userAgent !== null ? mb_substr($userAgent, 0, 255) : null);
+
+        $this->entityManager->persist($request);
+        $this->entityManager->flush();
+
         $this->logger->info('Customer quote request received', [
             'quote_id' => $quote->getId(),
             'quote_number' => $quote->getQuoteNumber(),
+            'request_id' => $request->getId(),
             'requested_quantity' => $requestedQuantity,
-            'estimated_total' => $pricing['extended_total'],
-            'customer_notes' => $customerNotes,
+            'estimated_total' => $request->getEstimatedTotal(),
         ]);
-        
+
         return [
             'status' => 'request_received',
+            'request_id' => $request->getId(),
             'quote_number' => $quote->getQuoteNumber(),
             'requested_quantity' => $requestedQuantity,
             'estimated_unit_price' => round($pricing['unit_total'], 4),
-            'estimated_total' => round($pricing['extended_total'], 2),
+            'estimated_total' => (float) ($pricing['canonical_total'] ?? $pricing['extended_total']),
+            'currency' => $pricing['currency'] ?? $quote->getCurrency(),
             'estimated_lead_time' => $leadTime,
             'customer_notes' => $customerNotes,
             'message' => 'Your request has been submitted. A sales representative will contact you within 24 hours with a formal quote.',
@@ -476,25 +552,94 @@ class InteractiveLiveQuoteService
             }
         }
 
-        // Update quote status
+        // Quantity validation: positive, sane bound, and the accepted
+        // pricing must be AUTHORITATIVELY computed for that quantity (the
+        // canonical engine) — never trust a client-supplied total.
+        if ($acceptedQuantity <= 0 || $acceptedQuantity > 1_000_000) {
+            throw new \InvalidArgumentException('Accepted quantity must be between 1 and 1,000,000.');
+        }
+
+        $bomData = $this->extractBomData($quote);
+        $pricing = $this->calculatePricingForQuantity($bomData, $acceptedQuantity, $quote->getCurrency());
+        $acceptedTotal = (string) number_format((float) ($pricing['canonical_total'] ?? $pricing['extended_total']), 2, '.', '');
+
+        // Idempotent acceptance: an already-accepted quote keeps its
+        // ORIGINAL acceptance record and returns it (no second event).
+        // (getRepository can return null on unit-test mocks — fall back to
+        // treating a non-accepted quote as a fresh acceptance.)
+        /** @var \App\Repository\QuoteAcceptanceRepository|null $repository */
+        $repository = $this->entityManager->getRepository(\App\Entity\QuoteAcceptance::class);
+        $existing = ($repository instanceof \App\Repository\QuoteAcceptanceRepository)
+            ? $repository->findLatestForQuote($quote)
+            : null;
+        if ($quote->getStatus() === 'accepted' && $existing !== null) {
+            return [
+                'status' => 'accepted',
+                'acceptance_id' => $existing->getId(),
+                'quote_number' => $quote->getQuoteNumber(),
+                'accepted_quantity' => $existing->getAcceptedQuantity(),
+                'accepted_total' => (float) $existing->getAcceptedTotal(),
+                'idempotent_replay' => true,
+                'message' => 'This quote has already been accepted.',
+            ];
+        }
+
+        $acceptance = new \App\Entity\QuoteAcceptance();
+        $acceptance->setQuote($quote);
+        $acceptance->setAcceptedQuantity($acceptedQuantity);
+        $acceptance->setAcceptedTotal($acceptedTotal);
+        $acceptance->setCurrency($pricing['currency'] ?? $quote->getCurrency());
+        $acceptance->setTokenFingerprint($token !== null ? hash('sha256', $token) : null);
+        $acceptance->setPricingSnapshot([
+            'unit_total' => $pricing['unit_total'],
+            'material_subtotal' => $pricing['extended_total'],
+            'canonical_total' => $pricing['canonical_total'],
+            'margin_percent' => $pricing['margin_percent'],
+            'margin_amount' => $pricing['margin_amount'],
+            'quantity' => $acceptedQuantity,
+        ]);
+        $acceptance->setCustomerName(
+            isset($customerInfo['name']) && is_string($customerInfo['name']) ? mb_substr($customerInfo['name'], 0, 255) : null
+        );
+        $acceptance->setCustomerEmail(
+            isset($customerInfo['email']) && is_string($customerInfo['email']) ? mb_substr($customerInfo['email'], 0, 255) : null
+        );
+        $acceptance->setCustomerPhone(
+            isset($customerInfo['phone']) && is_string($customerInfo['phone']) ? mb_substr($customerInfo['phone'], 0, 50) : null
+        );
+        $acceptance->setCustomerCompany(
+            isset($customerInfo['company']) && is_string($customerInfo['company']) ? mb_substr($customerInfo['company'], 0, 255) : null
+        );
+        $acceptance->setPoNumber(
+            isset($customerInfo['po_number']) && is_string($customerInfo['po_number']) ? mb_substr($customerInfo['po_number'], 0, 100) : null
+        );
+
+        // ONE transaction: acceptance record + quote state transition commit
+        // together (neither can exist without the other).
+        // One flush boundary: acceptance + state transition commit together.
+        $this->entityManager->persist($acceptance);
         $quote->setStatus('accepted');
         $quote->setQuantity($acceptedQuantity);
         $quote->setUpdatedAt(new \DateTime());
-        
         $this->entityManager->flush();
-        
+
+        // Audit-log only structural IDs — never the customer-info payload
+        // (unnecessary PII in logs).
         $this->logger->info('Quote accepted by customer', [
             'quote_id' => $quote->getId(),
             'quote_number' => $quote->getQuoteNumber(),
+            'acceptance_id' => $acceptance->getId(),
             'accepted_quantity' => $acceptedQuantity,
-            'customer_info' => $customerInfo,
             'via_public_token' => $token !== null,
         ]);
-        
+
         return [
             'status' => 'accepted',
+            'acceptance_id' => $acceptance->getId(),
             'quote_number' => $quote->getQuoteNumber(),
             'accepted_quantity' => $acceptedQuantity,
+            'accepted_total' => (float) $acceptedTotal,
+            'currency' => $pricing['currency'] ?? $quote->getCurrency(),
             'message' => 'Thank you for accepting this quote! Our team will reach out to begin the order process.',
             'next_steps' => [
                 'You will receive an order confirmation email',

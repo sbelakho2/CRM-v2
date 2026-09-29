@@ -58,7 +58,7 @@
                             <td class="rams-table__cell">
                                 {% set coverage = q.coveragePercent|default(0) %}
                                 <div class="rams-progress rams-progress--compact"> 
-                                    <div class="rams-progress__bar rams-progress__bar--{% if coverage >= 90 %}green{% elseif coverage >= 60 %}yellow{% else %}red{% endif %}" style="width: {{ coverage }}%"></div>
+                                    <div class="rams-progress__bar rams-progress__bar--{% if coverage >= 90 %}green{% elseif coverage >= 60 %}yellow{% else %}red{% endif %}" style="--rams-meter-value: {{ coverage|default(0) }}%"></div>
                                     <span class="rams-text--xs rams-text--muted">{{ coverage|number_format(0) }}%</span>
                                 </div>
                             </td>

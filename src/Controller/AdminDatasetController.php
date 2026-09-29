@@ -276,7 +276,8 @@ class AdminDatasetController extends AbstractController
         // 4. Perform rollback
         try {
             $result = $this->datasetImport->rollbackDataset(
-                $targetVersion
+                $targetVersion,
+                $datasetType
             );
         } catch (\Exception $e) {
             $this->addFlash('error', 'admin_dataset.flash.error.rollback_failed');

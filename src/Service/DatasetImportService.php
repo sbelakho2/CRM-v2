@@ -962,12 +962,31 @@ class DatasetImportService
      *   recordCount: int
      * }
      */
-    public function rollbackDataset(string $versionId): array
+    public function rollbackDataset(string $versionId, ?string $expectedDatasetType = null): array
     {
+        // Normalize the caller's identifier the same way snapshotDataset does.
+        $expectedDatasetType = $expectedDatasetType !== null ? (match (strtolower(trim($expectedDatasetType))) {
+            'tariff_rate', 'tariff_rates' => 'TARIFF_RATES',
+            'freight_table', 'freight_tables' => 'FREIGHT_TABLES',
+            'fx_rate', 'fx_rates' => 'FX_RATES',
+            default => strtoupper(trim($expectedDatasetType)),
+        }) : null;
+
         // 1. Find target version
         $targetVersion = $this->datasetVersionRepository->findOneBy(['versionUuid' => $versionId]);
         if (!$targetVersion) {
             throw new \RuntimeException("Version $versionId not found");
+        }
+
+        // TYPE BINDING: the target's stored dataset type must equal the type
+        // of the URL the admin used — otherwise an FX target could be rolled
+        // back through the tariff endpoint (after a tariff snapshot).
+        if ($expectedDatasetType !== null && $targetVersion->getDatasetType() !== $expectedDatasetType) {
+            throw new \RuntimeException(sprintf(
+                'Rollback type mismatch: the %s endpoint cannot roll back a %s version.',
+                $expectedDatasetType,
+                $targetVersion->getDatasetType()
+            ));
         }
         
         // 2. Find current active version

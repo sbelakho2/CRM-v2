@@ -104,6 +104,15 @@ class ReportDefinition
     
     #[ORM\Column]
     private bool $isFavorite = false;
+
+    /**
+     * Per-user favorite list (user IDs). Replaces the global isFavorite
+     * toggle: one user's favorite never changes anyone else's view.
+     * isFavorite is retained as a derived "featured" flag for migration
+     * compatibility only.
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $favoritedBy = [];
     
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $category = null;
@@ -315,6 +324,30 @@ class ReportDefinition
     public function isFavorite(): bool
     {
         return $this->isFavorite;
+    }
+
+    public function isFavoritedBy(?User $user): bool
+    {
+        return $user !== null && in_array($user->getId(), $this->favoritedBy ?? [], false);
+    }
+
+    public function toggleFavoriteBy(User $user): self
+    {
+        $ids = $this->favoritedBy ?? [];
+        $key = array_search($user->getId(), $ids, false);
+        if ($key !== false) {
+            unset($ids[$key]);
+        } else {
+            $ids[] = $user->getId();
+        }
+        $this->favoritedBy = array_values($ids);
+
+        return $this;
+    }
+
+    public function getFavoritedBy(): array
+    {
+        return $this->favoritedBy ?? [];
     }
     
     public function setIsFavorite(bool $isFavorite): static

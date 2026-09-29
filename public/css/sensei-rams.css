@@ -2515,6 +2515,11 @@ body {
 .rams-progress__bar {
     height: 100%;
     background: var(--rams-orange);
+    /* Dynamic values enter through the --rams-progress-value token (set
+     * inline by templates as the delineated data channel), never through
+     * raw style overrides of system properties.
+     */
+    width: var(--rams-progress-value, 0%);
     transition: width var(--duration-normal);
 }
 
@@ -5364,3 +5369,157 @@ a.rams-module:hover {
     display: inline-block;
     max-width: 100%;
 }
+
+
+/* ============================================
+   v3.1 SHARP REFINEMENT LAYER
+   Modern crispness within the Rams vocabulary:
+   optical depth, focus clarity, data presence.
+   No new colors, no new radii — sharper edges
+   of the EXISTING system.
+   ============================================ */
+
+/* Crisp optical elevation replaces flat grey-on-grey
+ * (cards lift by contrast, not blur). */
+.rams-module {
+    background: var(--rams-chassis);
+    border: 1px solid var(--rams-line);
+    box-shadow: 0 1px 2px rgba(26, 26, 26, 0.06), 0 2px 8px rgba(26, 26, 26, 0.04);
+}
+
+.rams-module__header {
+    border-bottom: 1px solid var(--rams-line);
+    letter-spacing: 0.04em;
+}
+
+/* Focus clarity: unmistakable keyboard focus ring —
+ * the machine tells you where you ARE. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--rams-accent);
+    outline-offset: 1px;
+    border-radius: var(--radius-sm);
+}
+
+/* Buttons: confident primary action, tactile press. */
+.rams-btn--primary {
+    box-shadow: 0 1px 0 rgba(26, 26, 26, 0.15);
+    transition: transform 80ms ease, box-shadow var(--duration-normal) ease, background var(--duration-normal) ease;
+}
+
+.rams-btn--primary:not(:disabled):hover {
+    box-shadow: 0 2px 6px rgba(26, 26, 26, 0.18);
+}
+
+.rams-btn--primary:not(:disabled):active {
+    transform: translateY(1px);
+    box-shadow: 0 0 0 rgba(26, 26, 26, 0);
+}
+
+/* Data presence: rows breathe and answer the pointer. */
+.rams-table tbody tr {
+    transition: background var(--duration-fast, 80ms) ease;
+}
+
+.rams-table tbody tr:hover {
+    background: var(--rams-panel);
+}
+
+.rams-table th {
+    letter-spacing: 0.04em;
+    font-size: 0.78rem;
+}
+
+/* Status icons: andon dots gain ring carriers so
+ * state is visible at any size, including small. */
+.rams-andon__light {
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.rams-andon__light--green {
+    color: var(--rams-green);
+}
+
+.rams-andon__light--red {
+    color: var(--rams-red);
+}
+
+/* Progress track: subtle inner shadow gives the bar
+ * a machined-channel read. */
+.rams-progress {
+    box-shadow: inset 0 1px 2px rgba(26, 26, 26, 0.08);
+}
+
+.rams-progress__bar {
+    box-shadow: inset 0 -1px 0 rgba(26, 26, 26, 0.15);
+}
+
+/* Metric numbers: tabular figures for control-room readouts. */
+.rams-metric__value,
+.rams-stat__value,
+td .rams-text--bold {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Empty states: the system states its state. */
+.rams-empty-state {
+    border: 1px dashed var(--rams-line);
+    border-radius: var(--radius-sm);
+    padding: var(--space-lg, 32px) var(--space-md, 16px);
+    text-align: center;
+    color: var(--rams-muted);
+    background: var(--rams-chassis);
+}
+
+/* Dark-mode parity (tokens already flip; the layer
+ * only adjusts shadow opacities). */
+@media (prefers-color-scheme: dark) {
+    :root[data-theme="dark"] .rams-module,
+    [data-theme="dark"] .rams-module {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.25);
+        background: var(--rams-grey-800);
+        border-color: var(--rams-grey-600);
+    }
+}
+
+
+/* v3.1 utility completions: the recurring inline-style patterns,
+ * promoted to first-class utilities so templates stay delineated. */
+
+.rams-text--muted-2 { color: var(--rams-text-muted, var(--rams-muted)); }
+
+.rams-icon--xs { width: 12px; height: 12px; }
+.rams-icon--sm { width: 16px; height: 16px; }
+.rams-icon--lg { width: 48px; height: 48px; }
+
+.rams-inline-block { display: inline-block; }
+
+.rams-w-full { width: 100%; }
+
+/* Dynamic-width bar (charts, meters): value flows in via token. */
+.rams-meter-fill {
+    width: var(--rams-meter-value, 0%);
+    transition: width var(--duration-normal);
+}
+
+
+/* SVG sizing utilities work on svg elements directly. */
+svg.rams-icon--xs, svg.rams-icon--sm, svg.rams-icon--lg { display: inline-block; vertical-align: middle; }
+
+/* Andon indicator size channel. */
+.rams-andon__light[style*="--rams-icon-size"] {
+    width: var(--rams-icon-size, 10px);
+    height: var(--rams-icon-size, 10px);
+}
+
+
+/* Generic meter fill: any bar-like element that passes --rams-meter-value.
+ * Distinct from .rams-progress__bar (which reads --rams-progress-value). */
+[style*="--rams-meter-value"] {
+    width: var(--rams-meter-value, 0%);
+}
+
+/* Fixed narrow-width form controls — delineated utility. */
+.rams-w-xs { width: 50px; }
+.rams-w-sm { width: 60px; }
+.rams-w-md { width: 100px; }
+.rams-w-lg { width: 140px; }

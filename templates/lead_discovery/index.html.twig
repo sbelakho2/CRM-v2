@@ -87,7 +87,7 @@
                             </div>
                             <div class="rams-metric rams-mb-1">{{ data.count }}</div>
                             <div class="rams-progress rams-progress--compact rams-mb-1">
-                                <div class="rams-progress__bar rams-progress__bar--{% if data.approval_rate >= 75 %}success{% elseif data.approval_rate >= 50 %}warning{% else %}danger{% endif %}"    style="width: {{ quality_max > 0 ? (data.count / quality_max * 100)|round : 0 }}%"></div>
+                                <div class="rams-progress__bar rams-progress__bar--{% if data.approval_rate >= 75 %}success{% elseif data.approval_rate >= 50 %}warning{% else %}danger{% endif %}"    style="--rams-meter-value: {{  quality_max > 0 ? (data.count / quality_max * 100)|round : 0  }}"></div>
                             </div>
                             <div class="rams-flex rams-justify-between rams-text--xs">
                                 <span class="rams-text--muted">{{ 'lead.count_leads'|trans({'%count%': data.count}) }}</span>   
@@ -157,7 +157,7 @@
                                 <span class="rams-text--sm rams-font-medium">{{  item.count }}</span>
                             </div>
                             <div class="rams-progress rams-progress--compact">    
-                                <div class="rams-progress__bar rams-progress__bar--info"    style="width: {{ geo_max > 0 ? (item.count / geo_max * 100)|round : 0 }}%"></div>
+                                <div class="rams-progress__bar rams-progress__bar--info"    style="--rams-meter-value: {{  geo_max > 0 ? (item.count / geo_max * 100)|round : 0  }}"></div>
                             </div>
                             <div class="rams-flex rams-justify-between rams-text--xs rams-text--muted">
                                 <span>{{ 'lead.analytics_avg'|trans }}:  {{ item.avg_score|number_format(1) }}</span>
@@ -183,7 +183,7 @@
                                 <span class="rams-text--sm rams-font-medium">{{  item.count }}</span>
                             </div>
                             <div class="rams-progress rams-progress--compact">    
-                                <div class="rams-progress__bar rams-progress__bar--primary"    style="width: {{ sec_max > 0 ? (item.count / sec_max * 100)|round : 0 }}%"></div>
+                                <div class="rams-progress__bar rams-progress__bar--primary"    style="--rams-meter-value: {{  sec_max > 0 ? (item.count / sec_max * 100)|round : 0  }}"></div>
                             </div>
                             <div class="rams-flex rams-justify-between rams-text--xs rams-text--muted">
                                 <span>{{ 'lead.analytics_avg_score'|trans }}:   {{ item.avg_score|number_format(1) }}</span>
@@ -360,8 +360,8 @@
                             <td class="rams-table__cell">
                                 {% if lead.leadScore is not null %}
                                     <div class="rams-flex rams-gap-2 rams-items-center">
-                                        <div class="rams-progress rams-progress--compact"  style="width: 60px;">
-                                            <div class="rams-progress__bar" style="width: {{ lead.leadScore }}%; background: {{ lead.leadScore >= 70 ? 'var(--rams-success)' : lead.leadScore >= 40 ? 'var(--rams-warning)' : 'var(--rams-danger)' }}"></div>
+                                        <div class="rams-progress rams-progress--compact" class="rams-w-sm">
+                                            <div class="rams-progress__bar" style="--rams-progress-value: {{  lead.leadScore  }}%\3"></div>
                                         </div>
                                         <span class="rams-text--xs">{{ lead.leadScore }}</span>
                                     </div>

@@ -95,19 +95,19 @@
                 <div style="background: var(--rams-bg-alt, #f8fafc); border: 1px solid var(--rams-border, #e2e8f0); border-radius: 0.5rem; padding: 1rem;">
                     <div class="rams-flex" style="justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                         <div class="rams-flex" style="align-items: center; gap: 0.5rem;">
-                            <span id="status-indicator" class="rams-andon__light rams-andon__light--yellow rams-pulse" style="width: 12px; height: 12px;"></span>
+                            <span id="status-indicator" class="rams-andon__light rams-andon__light--yellow rams-pulse" style="--rams-icon-size: 12px"></span>
                             <strong id="status-label">{{ 'webcrawler.status_discovery_running'|trans }}</strong>
                         </div>
                         <span id="status-time" style="font-size: 0.8rem; color: var(--rams-text-muted, #64748b);"></span>
                     </div>
                     <div class="rams-grid rams-grid--3" style="gap: 0.75rem; font-size: 0.85rem;">
-                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_searches'|trans }}:</span> <strong id="stat-searches">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_llm_accept'|trans }}:</span> <strong id="stat-llm-accept">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_llm_reject'|trans }}:</span> <strong id="stat-llm-reject">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_loc_reject'|trans }}:</span> <strong id="stat-loc-reject">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_saved'|trans }}:</span> <strong id="stat-saved">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_log_lines'|trans }}:</span> <strong id="stat-lines">0</strong></div>
-                        <div><span style="color: var(--rams-text-muted);">{{ 'webcrawler.stat_total_discovered'|trans }}:</span> <strong id="stat-total">{{ stats.discovered }}</strong></div>
+                        <div><span>{{ 'webcrawler.stat_searches'|trans }}:</span> <strong id="stat-searches">0</strong></div>
+                        <div><span>{{ 'webcrawler.stat_llm_accept'|trans }}:</span> <strong id="stat-llm-accept">0</strong></div>
+                        <div><span>{{ 'webcrawler.stat_llm_reject'|trans }}:</span> <strong id="stat-llm-reject">0</strong></div>
+                        <div><span>{{ 'webcrawler.stat_loc_reject'|trans }}:</span> <strong id="stat-loc-reject">0</strong></div>
+                        <div><span>{{ 'webcrawler.stat_saved'|trans }}:</span> <strong id="stat-saved">0</strong></div>
+                        <div><span>{{ 'webcrawler.stat_log_lines'|trans }}:</span> <strong id="stat-lines">0</strong></div>
+                        <div><span>{{ 'webcrawler.stat_total_discovered'|trans }}:</span> <strong id="stat-total">{{ stats.discovered }}</strong></div>
                     </div>
                 </div>
             </div>

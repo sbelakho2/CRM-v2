@@ -1,5 +1,15 @@
 # .woodpecker/audit.yaml — adversarial static gates.
 #
+# BRANCH PROTECTION (operator action, not expressible in-repo): configure
+# the forge so `main` is protected and these pipeline statuses are required
+# before merge — CI gating only bites when the forge enforces it. For this
+# local Woodpecker setup: Settings → Repository → Project settings →
+# Protected branches, or via the API:
+#   woodpecker-cli repo update sbelakho2/CRM-v2 --protect main
+# (keep untrusted fork code OFF this local runner: push/manual/tag events
+# from collaborators with write access only — pull_request events from
+# forks must not execute on a machine-hosted agent.)
+#
 # Runs on the local macOS worker (local backend, no container isolation):
 #   checkout -> toolchain -> composer validation -> static analysis ->
 #   destructive-migration gate -> secrets gate -> dangerous-pattern gate.

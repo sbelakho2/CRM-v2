@@ -209,7 +209,14 @@ class InteractiveLiveQuoteController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
         
-        $result = $this->liveQuoteService->requestQuoteAtQuantity($quote, $quantity, $notes);
+        $result = $this->liveQuoteService->requestQuoteAtQuantity(
+            $quote,
+            $quantity,
+            $notes,
+            $token,
+            $request->getClientIp(),
+            $request->headers->get('User-Agent')
+        );
         
         return new JsonResponse($result);
     }
@@ -233,19 +240,8 @@ class InteractiveLiveQuoteController extends AbstractController
             ], Response::HTTP_NOT_FOUND);
         }
 
-        // Idempotent acceptance: once accepted, replaying the request (double
-        // click, retry, token shared twice) returns the ORIGINAL acceptance
-        // instead of creating a second acceptance event.
-        if ($quote->getStatus() === Quote::STATUS_ACCEPTED) {
-            return new JsonResponse([
-                'success' => true,
-                'idempotent_replay' => true,
-                'quote_number' => $quote->getQuoteNumber(),
-                'accepted_at' => $quote->getUpdatedAt()?->format(\DateTimeInterface::ATOM),
-                'message' => 'This quote has already been accepted.',
-            ]);
-        }
-
+        // Idempotency is handled IN the service: a replay returns the
+        // ORIGINAL QuoteAcceptance record with its authoritative data.
         $data = json_decode($request->getContent(), true);
         $quantity = (int) ($data['quantity'] ?? $quote->getQuantity());
         $customerInfo = [
@@ -256,8 +252,12 @@ class InteractiveLiveQuoteController extends AbstractController
             'po_number' => $data['po_number'] ?? null,
         ];
 
-        $result = $this->liveQuoteService->acceptQuote($quote, $quantity, $customerInfo);
-        
+        try {
+            $result = $this->liveQuoteService->acceptQuote($quote, $quantity, $customerInfo, $token);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
+
         return new JsonResponse($result);
     }
     

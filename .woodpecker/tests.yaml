@@ -48,7 +48,7 @@ steps:
     environment:
       # CI steps run with a sanitized environment that does not carry the
       # user's docker context; point the CLI at the colima socket explicitly.
-      DOCKER_HOST: unix:///Users/sabelakhoua/.colima/default/docker.sock
+      DOCKER_HOST: unix://${HOME}/.colima/default/docker.sock
     commands:
       - |
         set -eu
@@ -128,7 +128,7 @@ steps:
       DATABASE_URL: mysql://crm_test:crm_test_pw@127.0.0.1:3309/crm_upgrade?charset=utf8mb4
       LOCK_DSN: flock
       MAILER_DSN: null://null
-      DOCKER_HOST: unix:///Users/sabelakhoua/.colima/default/docker.sock
+      DOCKER_HOST: unix://${HOME}/.colima/default/docker.sock
     commands:
       - |
         set -eu
@@ -142,7 +142,7 @@ steps:
     depends_on: [phpunit, populated-upgrade]
     failure: ignore
     environment:
-      DOCKER_HOST: unix:///Users/sabelakhoua/.colima/default/docker.sock
+      DOCKER_HOST: unix://${HOME}/.colima/default/docker.sock
     commands:
       - |
         export PATH="/opt/homebrew/bin:$PATH"

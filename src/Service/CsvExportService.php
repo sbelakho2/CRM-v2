@@ -273,6 +273,11 @@ class CsvExportService
             foreach ($quoteIds as $quoteId) {
                 $quote = $this->quoteRepository->find($quoteId);
                 if (!$quote) continue;
+
+                // Archived quotes are invisible to bulk exports: silently
+                // excluded (same visibility contract as the controllers —
+                // an inaccessible ID never leaks data).
+                if ($quote->isArchived()) continue;
                 
                 foreach ($quote->getBomLines() as $line) {
                     $row = [

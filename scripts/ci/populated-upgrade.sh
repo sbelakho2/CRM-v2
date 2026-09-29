@@ -90,6 +90,49 @@ if APP_ENV=test php bin/console app:migrations:preflight >/dev/null 2>&1; then
 fi
 echo "✓ preflight correctly blocked the destructive upgrade"
 
+step "preserve legacy compliance values (the deterministic preservation path)"
+docker exec -i crm-ci-mysql mysql -ucrm_test -pcrm_test_pw "$UPGRADE_DB" 2>/dev/null <<'SQL'
+-- A compliance document row carrying sentinel legacy values that MUST
+-- survive the drop+recreate cycle.
+-- The populated DB being simulated reached an era where compliance_documents
+-- carried the legacy columns (added by the chain before the 20260824 drop).
+-- The pre-drop stop-point may predate the table/columns: create what's
+-- missing, then populate distinct sentinel values.
+CREATE TABLE IF NOT EXISTS compliance_documents (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  company_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  required TINYINT(1) NOT NULL DEFAULT 1,
+  provided TINYINT(1) NOT NULL DEFAULT 0,
+  status VARCHAR(100) DEFAULT NULL,
+  file_name VARCHAR(255) DEFAULT NULL,
+  file_size INT DEFAULT NULL,
+  expiry_date DATE DEFAULT NULL,
+  uploaded_at DATETIME DEFAULT NULL,
+  updated_at DATETIME DEFAULT NULL,
+  CONSTRAINT fk_legcomp_company FOREIGN KEY (company_id) REFERENCES companies (id)
+);
+SET @has_legacy_cols = (SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'compliance_documents' AND COLUMN_NAME = 'document_type');
+SET @ddl = IF(@has_legacy_cols = 0,
+  'ALTER TABLE compliance_documents ADD COLUMN document_type VARCHAR(255) DEFAULT NULL, ADD COLUMN sha256_hash VARCHAR(64) DEFAULT NULL, ADD COLUMN version_id VARCHAR(100) DEFAULT NULL',
+  'SELECT 1');
+PREPARE legacy_cols FROM @ddl;
+EXECUTE legacy_cols;
+DEALLOCATE PREPARE legacy_cols;
+INSERT INTO compliance_documents (company_id, name, required, provided, status, document_type, sha256_hash, version_id)
+SELECT id, 'Legacy ISO Certificate', 1, 1, 'Approved', 'SENTINEL_DOCTYPE_7f3a', 'aaa7f3a9c1d2e5b80917263544556677889900aabbccddeeff1122334455667', 'SENTINEL_VER_9b2c'
+FROM companies WHERE name = 'Legacy Manufacturing SARL';
+SQL
+APP_ENV=test php bin/console app:migrations:preserve-compliance-legacy | tail -1
+
+# Values are now in the archive table: clear the live legacy columns (the
+# drop migration would otherwise still see populated data — exactly what
+# the preflight blocks on).
+docker exec -i crm-ci-mysql mysql -ucrm_test -pcrm_test_pw "$UPGRADE_DB" 2>/dev/null <<'SQL'
+UPDATE compliance_documents SET document_type = NULL, sha256_hash = NULL, version_id = NULL;
+SQL
+
 step "preserve estimates data (documented operator step), then preflight must PASS"
 docker exec -i crm-ci-mysql mysql -ucrm_test -pcrm_test_pw "$UPGRADE_DB" <<'SQL'
 CREATE TABLE IF NOT EXISTS legacy_estimates_preserved AS SELECT * FROM estimates;
@@ -103,6 +146,15 @@ APP_ENV=test php bin/console app:migrations:preflight | tail -1
 
 step "migrate populated schema to LATEST"
 APP_ENV=test php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration | tail -1
+
+step "verify compliance legacy values restored byte-for-byte"
+RESTORED=$(docker exec crm-ci-mysql mysql -N -ucrm_test -pcrm_test_pw "$UPGRADE_DB" -e "SELECT CONCAT(IFNULL(sha256_hash,'-'), '|', IFNULL(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.legacy_document_type')),'-'), '|', IFNULL(version_id,'-')) FROM compliance_documents WHERE name = 'Legacy ISO Certificate';" 2>/dev/null)
+EXPECTED="aaa7f3a9c1d2e5b80917263544556677889900aabbccddeeff1122334455667|SENTINEL_DOCTYPE_7f3a|SENTINEL_VER_9b2c"
+if [ "$RESTORED" != "$EXPECTED" ]; then
+  echo "✖ compliance legacy values NOT preserved: got [$RESTORED] expected [$EXPECTED]" >&2
+  exit 1
+fi
+echo "✓ compliance sha256/version/document_type preserved across drop+recreate"
 
 step "verify business-history invariants"
 read -r COMPANIES CONTACTS < <(docker exec crm-ci-mysql mysql -N -ucrm_test -pcrm_test_pw "$UPGRADE_DB" -e "SELECT (SELECT COUNT(*) FROM companies), (SELECT COUNT(*) FROM contacts);" | awk '{print $1, $2}')

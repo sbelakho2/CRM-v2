@@ -95,6 +95,12 @@ class ExportController extends AbstractController
         if (!$quote) {
             throw $this->createNotFoundException('Quote not found');
         }
+
+        // Archived commercial records are hidden from normal users — exports
+        // must respect the same contract (guessing an ID is not authorization).
+        if ($quote->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createNotFoundException('Quote not found');
+        }
         
         $includeAlternatives = $request->query->getBoolean('alternatives', true);
         $includeConfidence = $request->query->getBoolean('confidence', true);

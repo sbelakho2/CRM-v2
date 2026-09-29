@@ -104,13 +104,16 @@ class MigrationsPreflightCommand extends Command
                     "SELECT COUNT(*) FROM {$table} WHERE {$predicate}"
                 );
                 if ($nonNull > 0) {
+                    $hint = $table === 'compliance_documents'
+                        ? ' Run app:migrations:preserve-compliance-legacy to archive the values first; they are restored automatically after the chain.'
+                        : ' Migrate or deliberately archive that data first.';
                     $blockers[] = sprintf(
-                        'Migration %s would DROP %s.%s which still holds %d populated value(s). '.
-                        'Migrate or deliberately archive that data first.',
+                        'Migration %s would DROP %s.%s which still holds %d populated value(s).%s',
                         $version,
                         $table,
                         $column,
-                        $nonNull
+                        $nonNull,
+                        $hint
                     );
                 }
             }

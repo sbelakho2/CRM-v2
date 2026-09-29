@@ -16,17 +16,20 @@ class ReportBuilderService
     // Field definitions for each data source
     private const SOURCE_FIELDS = [
         'company' => [
+            // Corrected to the REAL Company mapping (round-7 audit: several
+            // advertised fields did not exist — phone/email/industry/size/
+            // state/status were phantom and produced broken reports).
             'id' => ['label' => 'ID', 'type' => 'integer'],
             'name' => ['label' => 'Company Name', 'type' => 'string'],
+            'legalName' => ['label' => 'Legal Name', 'type' => 'string'],
             'website' => ['label' => 'Website', 'type' => 'string'],
-            'phone' => ['label' => 'Phone', 'type' => 'string'],
-            'email' => ['label' => 'Email', 'type' => 'string'],
-            'industry' => ['label' => 'Industry', 'type' => 'string'],
-            'size' => ['label' => 'Company Size', 'type' => 'string'],
-            'status' => ['label' => 'Status', 'type' => 'string'],
+            'sector' => ['label' => 'Sector', 'type' => 'string'],
+            'accountTier' => ['label' => 'Account Tier', 'type' => 'string'],
+            'companyStatus' => ['label' => 'Status', 'type' => 'string'],
+            'pipelineStage' => ['label' => 'Pipeline Stage', 'type' => 'string'],
             'city' => ['label' => 'City', 'type' => 'string'],
-            'state' => ['label' => 'State', 'type' => 'string'],
             'country' => ['label' => 'Country', 'type' => 'string'],
+            'region' => ['label' => 'Region', 'type' => 'string'],
             'createdAt' => ['label' => 'Created Date', 'type' => 'datetime'],
             'updatedAt' => ['label' => 'Updated Date', 'type' => 'datetime'],
         ],
@@ -37,45 +40,41 @@ class ReportBuilderService
             'email' => ['label' => 'Email', 'type' => 'string'],
             'phone' => ['label' => 'Phone', 'type' => 'string'],
             'jobTitle' => ['label' => 'Job Title', 'type' => 'string'],
-            'department' => ['label' => 'Department', 'type' => 'string'],
-            'status' => ['label' => 'Status', 'type' => 'string'],
-            'isPrimary' => ['label' => 'Primary Contact', 'type' => 'boolean'],
+            'isPrimaryContact' => ['label' => 'Primary Contact', 'type' => 'boolean'],
             'createdAt' => ['label' => 'Created Date', 'type' => 'datetime'],
             'company.name' => ['label' => 'Company Name', 'type' => 'string', 'relation' => 'company'],
         ],
         'lead' => [
             'id' => ['label' => 'ID', 'type' => 'integer'],
             'companyName' => ['label' => 'Company Name', 'type' => 'string'],
-            'contactName' => ['label' => 'Contact Name', 'type' => 'string'],
-            'email' => ['label' => 'Email', 'type' => 'string'],
-            'phone' => ['label' => 'Phone', 'type' => 'string'],
-            'source' => ['label' => 'Lead Source', 'type' => 'string'],
-            'status' => ['label' => 'Status', 'type' => 'string'],
-            'score' => ['label' => 'Lead Score', 'type' => 'integer'],
-            'estimatedValue' => ['label' => 'Estimated Value', 'type' => 'decimal'],
+            'legalName' => ['label' => 'Legal Name', 'type' => 'string'],
+            'websiteRoot' => ['label' => 'Website', 'type' => 'string'],
+            'leadUrl' => ['label' => 'Lead URL', 'type' => 'string'],
+            'regionTag' => ['label' => 'Region', 'type' => 'string'],
+            'leadScore' => ['label' => 'Lead Score', 'type' => 'integer'],
+            'reviewStatus' => ['label' => 'Review Status', 'type' => 'string'],
             'createdAt' => ['label' => 'Created Date', 'type' => 'datetime'],
             'updatedAt' => ['label' => 'Updated Date', 'type' => 'datetime'],
-            'convertedAt' => ['label' => 'Converted Date', 'type' => 'datetime'],
         ],
         'rfq' => [
             'id' => ['label' => 'ID', 'type' => 'integer'],
             'rfqNumber' => ['label' => 'RFQ Number', 'type' => 'string'],
-            'title' => ['label' => 'Title', 'type' => 'string'],
+            'type' => ['label' => 'RFQ Type', 'type' => 'string'],
             'status' => ['label' => 'Status', 'type' => 'string'],
-            'priority' => ['label' => 'Priority', 'type' => 'string'],
             'estimatedValue' => ['label' => 'Estimated Value', 'type' => 'decimal'],
-            'receivedDate' => ['label' => 'Received Date', 'type' => 'datetime'],
-            'dueDate' => ['label' => 'Due Date', 'type' => 'datetime'],
+            'currency' => ['label' => 'Currency', 'type' => 'string'],
+            'rfqDate' => ['label' => 'RFQ Date', 'type' => 'datetime'],
+            'sopDate' => ['label' => 'Start of Production', 'type' => 'datetime'],
             'createdAt' => ['label' => 'Created Date', 'type' => 'datetime'],
             'company.name' => ['label' => 'Company Name', 'type' => 'string', 'relation' => 'company'],
         ],
         'quote' => [
             'id' => ['label' => 'ID', 'type' => 'integer'],
             'quoteNumber' => ['label' => 'Quote Number', 'type' => 'string'],
-            'title' => ['label' => 'Title', 'type' => 'string'],
             'status' => ['label' => 'Status', 'type' => 'string'],
-            'totalAmount' => ['label' => 'Total Amount', 'type' => 'decimal'],
-            'validUntil' => ['label' => 'Valid Until', 'type' => 'datetime'],
+            'totalCost' => ['label' => 'Total Cost', 'type' => 'decimal'],
+            'currency' => ['label' => 'Currency', 'type' => 'string'],
+            'issuingCompany' => ['label' => 'Issuing Company', 'type' => 'string'],
             'createdAt' => ['label' => 'Created Date', 'type' => 'datetime'],
             'company.name' => ['label' => 'Company Name', 'type' => 'string', 'relation' => 'company'],
         ],
@@ -93,28 +92,29 @@ class ReportBuilderService
         'calendar' => [
             'id' => ['label' => 'ID', 'type' => 'integer'],
             'title' => ['label' => 'Title', 'type' => 'string'],
-            'type' => ['label' => 'Event Type', 'type' => 'string'],
+            'eventType' => ['label' => 'Event Type', 'type' => 'string'],
             'status' => ['label' => 'Status', 'type' => 'string'],
-            'startTime' => ['label' => 'Start Time', 'type' => 'datetime'],
-            'endTime' => ['label' => 'End Time', 'type' => 'datetime'],
-            'isAllDay' => ['label' => 'All Day', 'type' => 'boolean'],
+            'startAt' => ['label' => 'Start Time', 'type' => 'datetime'],
+            'endAt' => ['label' => 'End Time', 'type' => 'datetime'],
+            'allDay' => ['label' => 'All Day', 'type' => 'boolean'],
             'createdAt' => ['label' => 'Created Date', 'type' => 'datetime'],
         ],
         'email_campaign' => [
             'id' => ['label' => 'ID', 'type' => 'integer'],
             'name' => ['label' => 'Campaign Name', 'type' => 'string'],
-            'subject' => ['label' => 'Subject', 'type' => 'string'],
             'status' => ['label' => 'Status', 'type' => 'string'],
-            'sentCount' => ['label' => 'Sent Count', 'type' => 'integer'],
-            'openCount' => ['label' => 'Open Count', 'type' => 'integer'],
-            'clickCount' => ['label' => 'Click Count', 'type' => 'integer'],
+            'type' => ['label' => 'Type', 'type' => 'string'],
+            'touchCount' => ['label' => 'Touch Count', 'type' => 'integer'],
+            'active' => ['label' => 'Active', 'type' => 'boolean'],
             'createdAt' => ['label' => 'Created Date', 'type' => 'datetime'],
             'scheduledAt' => ['label' => 'Scheduled Date', 'type' => 'datetime'],
+            'sentAt' => ['label' => 'Sent Date', 'type' => 'datetime'],
         ],
         'email_send' => [
             'id' => ['label' => 'ID', 'type' => 'integer'],
-            'recipientEmail' => ['label' => 'Recipient Email', 'type' => 'string'],
+            'emailAddress' => ['label' => 'Recipient Email', 'type' => 'string'],
             'status' => ['label' => 'Status', 'type' => 'string'],
+            'touchNumber' => ['label' => 'Touch Number', 'type' => 'integer'],
             'sentAt' => ['label' => 'Sent Date', 'type' => 'datetime'],
             'openedAt' => ['label' => 'Opened Date', 'type' => 'datetime'],
             'clickedAt' => ['label' => 'Clicked Date', 'type' => 'datetime'],
@@ -135,6 +135,7 @@ class ReportBuilderService
     
     public function __construct(
         private EntityManagerInterface $em,
+        private \Symfony\Bundle\SecurityBundle\Security $security,
         private ?LoggerInterface $logger = null
     ) {}
     
@@ -172,6 +173,23 @@ class ReportBuilderService
         
         $qb = $this->em->createQueryBuilder()
             ->from($entityClass, 'e');
+
+        // BASE DATA SCOPE: reports respect the same visibility contracts as
+        // the controllers. Archived business records are hidden (matching the
+        // archive-not-delete model), and calendar data is scoped to the
+        // current user's own events unless the user is an admin — the report
+        // builder must never become a path around either.
+        $dataSource = $report->getDataSource();
+        if (in_array($dataSource, ['company', 'contact', 'rfq', 'quote', 'email_campaign'], true)) {
+            $qb->andWhere('e.archivedAt IS NULL');
+        }
+        if ($dataSource === 'calendar') {
+            $user = $this->security->getUser();
+            if ($user === null || !$this->security->isGranted('ROLE_ADMIN')) {
+                $qb->andWhere('e.organizer = :reportUser')
+                   ->setParameter('reportUser', $user);
+            }
+        }
         
         // Build SELECT based on columns
         $columns = $report->getColumns();
@@ -339,6 +357,33 @@ class ReportBuilderService
     /**
      * Whitelist check: is $field a declared source field for $dataSource?
      */
+    /**
+     * Idempotently join a relation alias for the current data source, so
+     * filters/groups on relation fields work regardless of which columns
+     * are selected.
+     */
+    private function ensureJoin(QueryBuilder $qb, string $dataSource, string $relation): void
+    {
+        static $allowed = [
+            'company' => ['contact', 'rfq', 'quote', 'lead'],
+            'assignedTo' => ['task'],
+        ];
+        $rootAllowed = $allowed[$relation] ?? [];
+        if (!in_array($dataSource, $rootAllowed, true)) {
+            return; // relation not valid for this source — field whitelist already rejected it
+        }
+
+        foreach ($qb->getDQLParts()['join'] as $joins) {
+            foreach ($joins as $join) {
+                if (str_ends_with((string) $join->getAlias(), $relation)) {
+                    return; // already joined
+                }
+            }
+        }
+
+        $qb->leftJoin("e.{$relation}", $relation);
+    }
+
     private function isValidField(string $field, string $dataSource): bool
     {
         return isset(self::SOURCE_FIELDS[$dataSource][$field]);
@@ -360,13 +405,23 @@ class ReportBuilderService
             $operator = $filter['operator'] ?? 'equals';
             $value = $filter['value'] ?? null;
             
-            // Handle relation fields
+            // WHITELIST (fix for filter bypass): filter fields resolve through
+            // the exact same SOURCE_FIELDS validation as SELECT columns — a
+            // client-supplied identifier is never interpolated into DQL.
+            // Unknown field/operator: skipped (consistent with the rest of
+            // the builder), never turned into DQL.
+            if (!$this->isValidField($field, $dataSource)) {
+                continue;
+            }
+            
+            // Relation fields: ENSURE the alias is joined (fix for broken
+            // relation filters — previously they only worked if another
+            // part of the query happened to create the join).
             if (str_contains($field, '.')) {
-                $fieldPath = str_replace('.', '_', $field);
                 [$relation, $relField] = explode('.', $field, 2);
+                $this->ensureJoin($qb, $dataSource, $relation);
                 $fieldExpr = "{$relation}.{$relField}";
             } else {
-                $fieldPath = $field;
                 $fieldExpr = "e.{$field}";
             }
             

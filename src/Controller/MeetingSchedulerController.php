@@ -220,8 +220,18 @@ class MeetingSchedulerController extends AbstractController
         }
         
         if ($this->isCsrfTokenValid('delete' . $slot->getId(), $request->request->get('_token'))) {
-            $this->slotRepository->remove($slot, true);
-            $this->addFlash('success', $this->translator->trans('meeting.flash.deleted'));
+            // Booked slots carry customer booking history (name/email/phone/
+            // company/notes): once ever booked, they are ARCHIVED, never
+            // hard-deleted — same preservation model as companies/contacts.
+            if ($slot->getBookedByEmail() !== null || $slot->getBookedAt() !== null) {
+                $slot->setStatus(\App\Entity\MeetingSlot::STATUS_CANCELLED);
+                $this->em->flush();
+                $this->addFlash('warning', 'Meeting archived (kept for booking history) rather than deleted.');
+            } else {
+                // Pristine, never-booked availability slots may be removed.
+                $this->slotRepository->remove($slot, true);
+                $this->addFlash('success', $this->translator->trans('meeting.flash.deleted'));
+            }
         }
         
         return $this->redirectToRoute('meeting_index');
@@ -348,16 +358,38 @@ class MeetingSchedulerController extends AbstractController
         
         if ($form->isSubmitted() && $form->isValid()) {
             $data = $form->getData();
-            
-            $slot->book(
-                $data['name'],
-                $data['email'],
-                $data['phone'] ?? null,
-                $data['company'] ?? null,
-                $data['notes'] ?? null
-            );
-            
-            $this->em->flush();
+
+            // ATOMIC booking claim: the available→booked transition happens
+            // via a conditional UPDATE — two simultaneous submissions for the
+            // last slot cannot both win (one gets affected-rows 0 and is
+            // bounced). The isAvailable() check above is display-only.
+            $claimed = $this->em->wrapInTransaction(function () use ($slot, $data): bool {
+                $affected = $this->em->getConnection()->executeStatement(
+                    "UPDATE meeting_slots SET status = 'booked', booked_by_name = :name, booked_by_email = :email, booked_at = NOW() WHERE id = :id AND status = 'available'",
+                    [
+                        'name' => $data['name'],
+                        'email' => $data['email'],
+                        'id' => $slot->getId(),
+                    ]
+                );
+
+                return $affected === 1; // loser of the race gets bounced
+            });
+
+            if ($claimed) {
+                // Refresh the ORM entity from the claimed row for the
+                // confirmation flow below (raw UPDATE bypassed the UoW).
+                $this->em->clear();
+                $slot = $this->slotRepository->find($slot->getId());
+                $slot->book($data['name'], $data['email'], $data['phone'] ?? null, $data['company'] ?? null, $data['notes'] ?? null);
+                $this->em->flush();
+            }
+
+            if (!$claimed) {
+                $this->addFlash('error', $this->translator->trans('meeting.flash.not_available'));
+
+                return $this->redirectToRoute('app_dashboard');
+            }
             
             if (!$slot->isConfirmationSent()) {
                 try {

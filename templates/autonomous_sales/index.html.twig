@@ -163,14 +163,14 @@
             {% if not setup.allDone %}
                 <div class="rams-module rams-mb-6">
                     <div class="rams-module__header">
-                        <div class="rams-flex rams-justify-between rams-items-center" style="width:100%">
+                        <div class="rams-flex rams-justify-between rams-items-center" style="--rams-meter-value: 100%">
                             <h3>{{ 'autonomous_sales.wizard_title'|trans }}</h3>
                             <span class="rams-text--sm rams-text--muted">{{ 'autonomous_sales.setup_progress'|trans({'%completed%': setup.completed, '%total%': setup.total}) }}</span>
                         </div>
                     </div>
                     <div class="rams-module__content">
                         <div class="rams-progress rams-mb-4">
-                            <div class="rams-progress__bar rams-progress__bar--info" style="width: {{ setup.pct }}%"></div>
+                            <div class="rams-progress__bar rams-progress__bar--info" style="--rams-meter-value: {{ setup.pct|default(0) }}%"></div>
                         </div>
 
                         {# Find the NEXT incomplete step and show only that one #}
@@ -276,7 +276,7 @@
                                         <span class="rams-metric__label">{{  stage_name }}</span>
                                     </div>
                                     <div class="rams-progress rams-mt-2">
-                                        <div class="rams-progress__bar rams-progress__bar--{{ stage_color }}" style="width: {{ (stage.count / total_leads * 100)|round }}%"></div>
+                                        <div class="rams-progress__bar rams-progress__bar--{{ stage_color }}" style="--rams-meter-value: {{  (stage.count / total_leads * 100)|round  }}"></div>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -422,7 +422,7 @@
                             <form method="post" action="{{ path('autonomous_sales_score_leads') }}" class="rams-mb-0">
                                 <input type="hidden" name="_token" value="{{ csrf_token('autonomous_sales_score_leads') }}">
                                 <input type="hidden" name="limit" value="50">
-                                <button type="submit" class="rams-btn rams-btn--primary" style="width:100%">{{ 'autonomous_sales.score_leads'|trans }}</button>
+                                <button type="submit" class="rams-btn rams-btn--primary" style="--rams-meter-value: 100%">{{ 'autonomous_sales.score_leads'|trans }}</button>
                             </form>
                             <a href="{{ path('command_center_index') }}" class="rams-btn rams-btn--primary rams-text--center rams-p-3">
                                 {{ 'autonomous_sales.process_inbox'|trans }}
@@ -547,7 +547,7 @@
                                         <div class="rams-text--xs" style="width: 140px; flex-shrink: 0;">{{ item.name|length > 25 ? item.name[:25] ~ '…' : item.name }}</div>
                                         <div class="rams-progress" style="flex: 1; height: 20px;">
                                             <div class="rams-progress__bar {% if item.badge == 'winning' %}rams-progress__bar--success{% elseif item.badge == 'losing' %}rams-progress__bar--danger{% else %}rams-progress__bar--info{% endif %}"
-                                                 style="width: {{ (item.successPct / max_pct * 100)|round }}%; height: 20px; line-height: 20px;">
+                                                 style="--rams-meter-value: {{  (item.successPct / max_pct * 100)|round  }}%; height: 20px; line-height: 20px;">
                                                 <span class="rams-text--xs" style="padding: 0 6px;">{{ item.successPct }}%</span>
                                             </div>
                                         </div>
@@ -656,7 +656,7 @@
             {% for section in variations %}
                 <div class="rams-module rams-mb-6">
                     <div class="rams-module__header">
-                        <div class="rams-flex rams-justify-between rams-items-center" style="width:100%">
+                        <div class="rams-flex rams-justify-between rams-items-center" style="--rams-meter-value: 100%">
                             <h3>{{ section.label }}</h3>
                             <span class="rams-text--sm rams-text--muted">{{ section.count }} {{ section.count != 1 ? 'autonomous_sales.variations'|trans : 'autonomous_sales.variation'|trans }}</span>
                         </div>
@@ -882,7 +882,7 @@
             {# ── Full setup checklist (for reference/debug) ── #}
             <div class="rams-module">
                 <div class="rams-module__header">
-                    <div class="rams-flex rams-justify-between rams-items-center" style="width:100%">
+                    <div class="rams-flex rams-justify-between rams-items-center" style="--rams-meter-value: 100%">
                         <h3>{{ 'autonomous_sales.setup_title'|trans }}</h3>
                         <span class="rams-text--sm rams-text--muted">{{ 'autonomous_sales.setup_progress'|trans({'%completed%': setup.completed, '%total%': setup.total}) }}</span>
                     </div>

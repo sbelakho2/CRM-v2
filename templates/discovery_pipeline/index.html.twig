@@ -165,7 +165,7 @@
 
                 {# Main Progress Bar #}
                 <div class="rams-progress rams-progress--lg">
-                    <div id="progress-bar" class="rams-progress__bar" style="width: 0%"></div>
+                    <div id="progress-bar" class="rams-progress__bar" style="--rams-meter-value: 0%"></div>
                 </div>
                 <div class="rams-flex rams-justify-between rams-items-center rams-mt-2">
                     <div class="rams-flex rams-gap-4">
@@ -358,7 +358,7 @@
                     <form id="enrich-form" class="rams-form rams-flex rams-flex-wrap rams-gap-3 rams-items-end">
                         <div class="rams-form__group">
                             <label class="rams-form__label rams-dymo">{{ 'discovery_pipeline.number_of_leads'|trans }}</label>
-                            <input type="number" name="limit" value="50" min="1" max="100" class="rams-form__input" style="width: 100px;">
+                            <input type="number" name="limit" value="50" min="1" max="100" class="rams-form__input" class="rams-w-md">
                         </div>
                         <div class="rams-form__group">
                             <label class="rams-form__checkbox">
@@ -458,7 +458,7 @@
                         <div class="rams-text--sm rams-text--strong"  style="min-width: 120px;">{{ stage.stage|capitalize }}</div>
                         <div class="flex-1">
                             <div class="rams-progress rams-mb-1">    
-                                <div class="rams-progress__bar rams-progress__bar--info rams-text--xs rams-text--white rams-text--center"        style="width: {{ funnel_max > 0 ? (stage.count / funnel_max * 100)|round : 0 }}%">
+                                <div class="rams-progress__bar rams-progress__bar--info rams-text--xs rams-text--white rams-text--center"        style="--rams-meter-value: {{  funnel_max > 0 ? (stage.count / funnel_max * 100)|round : 0  }}">
                                     {{ stage.count }}
                                 </div>
                             </div>
@@ -492,7 +492,7 @@
                                 <span class="{% if item.approval_rate >= 75 %}rams-text--success{% elseif item.approval_rate >= 50 %}rams-text--warning{% else %}rams-text--danger{% endif %}">{{ item.approval_rate }}%</span>
                             </div>
                             <div class="rams-progress rams-progress--compact rams-mt-1">
-                                <div class="rams-progress__bar rams-progress__bar--info"    style="width: {{ trend_max > 0 ? (item.count / trend_max * 100)|round : 0 }}%"></div>
+                                <div class="rams-progress__bar rams-progress__bar--info"    style="--rams-meter-value: {{  trend_max > 0 ? (item.count / trend_max * 100)|round : 0  }}"></div>
                             </div>
                         </div>
                     </div>

@@ -130,13 +130,13 @@
                         {% if touch.total > 0 %}
                             <div class="rams-stack rams-gap-2">
                                 <div class="rams-progress rams-progress--compact">
-                                    <div class="rams-progress__bar rams-progress__bar--success" style="width: {{ touch.open_rate }}%"></div>
+                                    <div class="rams-progress__bar rams-progress__bar--success" style="--rams-meter-value: {{ touch.open_rate|default(0) }}%"></div>
                                 </div>
                                 <div class="rams-progress rams-progress--compact">
-                                    <div class="rams-progress__bar rams-progress__bar--info" style="width: {{ touch.click_rate }}%"></div>
+                                    <div class="rams-progress__bar rams-progress__bar--info" style="--rams-meter-value: {{ touch.click_rate|default(0) }}%"></div>
                                 </div>
                                 <div class="rams-progress rams-progress--compact">
-                                    <div class="rams-progress__bar rams-progress__bar--primary" style="width: {{ touch.reply_rate }}%"></div>
+                                    <div class="rams-progress__bar rams-progress__bar--primary" style="--rams-meter-value: {{ touch.reply_rate|default(0) }}%"></div>
                                 </div>
                             </div>
                         {% else %}

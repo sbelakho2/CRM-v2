@@ -95,7 +95,7 @@
                                 <span class="rams-text--sm rams-text--bold rams-font-mono">{{ account.engagement_score | default(0) }}%</span>
                             </div>
                             <div class="rams-progress rams-progress--compact">
-                                <div class="rams-progress__bar" style="width: {{ account.engagement_score | default(0) }}%"></div>
+                                <div class="rams-progress__bar" style="--rams-progress-value: {{ account.engagement_score|default(0) }}%"></div>
                             </div>
                         </div>
                     </div>

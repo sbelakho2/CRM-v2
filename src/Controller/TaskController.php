@@ -244,10 +244,17 @@ class TaskController extends AbstractController
         }
 
         if ($this->isCsrfTokenValid('delete' . $task->getId(), $request->request->get('_token'))) {
-            $this->entityManager->remove($task);
-            $this->entityManager->flush();
-
-            $this->addFlash('success', $this->translator->trans('task.flash.deleted'));
+            // Completed tasks are CRM execution history (like activities):
+            // archive instead of hard-delete; open tasks may be removed.
+            if ($task->getCompletedAt() !== null) {
+                $task->setArchivedAt(new \DateTime());
+                $this->entityManager->flush();
+                $this->addFlash('success', 'Task archived (completed-task history preserved).');
+            } else {
+                $this->entityManager->remove($task);
+                $this->entityManager->flush();
+                $this->addFlash('success', $this->translator->trans('task.flash.deleted'));
+            }
         }
 
         return $this->redirectToRoute('app_task_index');

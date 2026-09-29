@@ -301,13 +301,13 @@ class ReportController extends AbstractController
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
-        $report->setIsFavorite(!$report->isFavorite());
+        $report->toggleFavoriteBy($this->getUser());
         $this->em->flush();
         
         if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
             return new JsonResponse([
                 'success' => true,
-                'isFavorite' => $report->isFavorite(),
+                'isFavorite' => $report->isFavoritedBy($this->getUser()),
             ]);
         }
         

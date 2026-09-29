@@ -63,7 +63,7 @@
                         {# Progress Bar #}
                         <div class="rams-progress rams-progress--compact rams-mb-4">
                             <div class="rams-progress__bar {{ stats.completion_percentage == 100 ? 'rams-progress__bar--success' : stats.completion_percentage >= 75 ? 'rams-progress__bar--info' : stats.completion_percentage >= 50 ? 'rams-progress__bar--warning' : 'rams-progress__bar--danger' }}" 
-                                 style="width: {{ stats.completion_percentage }}%"></div>
+                                 style="--rams-progress-value: {{ stats.completion_percentage|default(0) }}%"></div>
                         </div>
 
                         {# Stats Row #}

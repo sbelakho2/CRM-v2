@@ -78,8 +78,8 @@
 
     {# Progress Bar #}
     <div class="rams-progress">
-        <div class="rams-progress__bar {{ stats.completion_percentage == 100 ? 'rams-progress__bar--success' : 'rams-progress__bar--info' }}" 
-             style="width: {{ stats.completion_percentage }}%"></div>
+        <div class="rams-progress__bar {{ stats.completion_percentage == 100 ? 'rams-progress__bar--success' : 'rams-progress__bar--info' }}"
+             style="--rams-progress-value: {{ stats.completion_percentage|default(0) }}%"></div>
     </div>
 
     {# Documents List #}
@@ -92,6 +92,7 @@
             <div class="rams-list">
                 {% for document in documents %}
                     <div class="rams-list__item rams-p-4 rams-border-b">
+                        <!-- document row -->
                         <div class="rams-list__content">
                             <div class="rams-flex rams-items-center rams-gap-3 rams-mb-2">
                                 <h3 class="rams-heading rams-heading--4">{{ document.name }}</h3>
@@ -201,6 +202,14 @@
                                 </button>
                             </form>
                         </div>
+                    </div>
+                {% else %}
+                    <div class="rams-module__content rams-empty-state">
+                        <svg class="rams-empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" width="48" height="48">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <h3 class="rams-empty-state__title">{{ 'compliance.document_checklist'|trans }}</h3>
+                        <p class="rams-empty-state__message">{{ 'compliance.flash.pack_generated'|trans }}</p>
                     </div>
                 {% endfor %}
             </div>

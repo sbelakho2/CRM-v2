@@ -92,7 +92,7 @@
                             </div>
                             <div class="rams-progress rams-progress--compact"> 
                                 {% set maxScore = max(score_counts.range_0_25, score_counts.range_25_50, score_counts.range_50_75, score_counts.range_75_100, 1) %}
-                                <div class="rams-progress__bar" style="width: {{ (score_counts.range_0_25 / maxScore * 100)|round }}%; background: var(--rams-danger, #ef4444);"></div>
+                                <div class="rams-progress__bar" style="--rams-progress-value: {{  (score_counts.range_0_25 / maxScore * 100)|round  }}%\3"></div>
                             </div>
                         </div>
                         <div>
@@ -101,7 +101,7 @@
                                 <span class="rams-text--sm rams-font-medium">{{  score_counts.range_25_50 }}</span>
                             </div>
                             <div class="rams-progress rams-progress--compact"> 
-                                <div class="rams-progress__bar" style="width: {{ (score_counts.range_25_50 / maxScore * 100)|round }}%; background: var(--rams-warning, #f59e0b);"></div>
+                                <div class="rams-progress__bar" style="--rams-progress-value: {{  (score_counts.range_25_50 / maxScore * 100)|round  }}%\3"></div>
                             </div>
                         </div>
                         <div>
@@ -110,7 +110,7 @@
                                 <span class="rams-text--sm rams-font-medium">{{  score_counts.range_50_75 }}</span>
                             </div>
                             <div class="rams-progress rams-progress--compact"> 
-                                <div class="rams-progress__bar" style="width: {{ (score_counts.range_50_75 / maxScore * 100)|round }}%; background: var(--rams-info, #3b82f6);"></div>
+                                <div class="rams-progress__bar" style="--rams-progress-value: {{  (score_counts.range_50_75 / maxScore * 100)|round  }}%\3"></div>
                             </div>
                         </div>
                         <div>
@@ -119,7 +119,7 @@
                                 <span class="rams-text--sm rams-font-medium">{{  score_counts.range_75_100 }}</span>
                             </div>
                             <div class="rams-progress rams-progress--compact"> 
-                                <div class="rams-progress__bar" style="width: {{ (score_counts.range_75_100 / maxScore * 100)|round }}%; background: var(--rams-success, #10b981);"></div>
+                                <div class="rams-progress__bar" style="--rams-progress-value: {{  (score_counts.range_75_100 / maxScore * 100)|round  }}%\3"></div>
                             </div>
                         </div>
                     </div>
@@ -156,7 +156,7 @@
                                 <span class="rams-badge rams-badge--blue">{{ item.count }}</span>
                             </div>
                             <div class="rams-progress rams-progress--compact"> 
-                                <div class="rams-progress__bar" style="width: {{ (item.count / sourceMax * 100)|round }}%;"></div>
+                                <div class="rams-progress__bar" style="--rams-meter-value: {{  (item.count / sourceMax * 100)|round  }}%;"></div>
                             </div>
                         </div>
                         {% endfor %}
@@ -190,7 +190,7 @@
                                 </div>
                                 <div class="rams-metric rams-mb-1">{{ data.count }}</div>
                                 <div class="rams-progress rams-progress--compact rams-mb-1">
-                                    <div class="rams-progress__bar rams-progress__bar--{% if data.approval_rate >= 75 %}success{% elseif data.approval_rate >= 50 %}warning{% else %}danger{% endif %}"    style="width: {{ quality_max > 0 ? (data.count / quality_max * 100)|round : 0 }}%"></div>
+                                    <div class="rams-progress__bar rams-progress__bar--{% if data.approval_rate >= 75 %}success{% elseif data.approval_rate >= 50 %}warning{% else %}danger{% endif %}"    style="--rams-meter-value: {{  quality_max > 0 ? (data.count / quality_max * 100)|round : 0  }}"></div>
                                 </div>
                                 <div class="rams-flex rams-justify-between rams-text--xs">
                                     <span class="rams-text--muted">{{ 'lead.count_leads'|trans({'%count%': data.count}) }}</span>   
@@ -220,7 +220,7 @@
                                     <span class="rams-badge rams-badge--blue">{{ item.count }}</span>
                                 </div>
                                 <div class="rams-progress rams-progress--compact rams-mb-1">
-                                    <div class="rams-progress__bar rams-progress__bar--info"    style="width: {{ src_max > 0 ? (item.count / src_max * 100)|round : 0 }}%"></div>
+                                    <div class="rams-progress__bar rams-progress__bar--info"    style="--rams-meter-value: {{  src_max > 0 ? (item.count / src_max * 100)|round : 0  }}"></div>
                                 </div>
                                 <div class="rams-flex rams-justify-between rams-text--xs rams-text--muted">
                                     <span>{{ 'lead.analytics_avg_score'|trans }}:   <span class="{% if item.avg_score >= 70 %}rams-text--success{% elseif item.avg_score >= 50 %}rams-text--warning{% else %}rams-text--danger{% endif %}">{{ item.avg_score|number_format(1) }}</span></span>
@@ -247,7 +247,7 @@
                                     <span class="rams-text--sm rams-font-medium">{{  stage.count }}</span>
                                 </div>
                                 <div class="rams-progress rams-progress--compact">    
-                                    <div class="rams-progress__bar rams-progress__bar--success"        style="width: {{ funnel_max > 0 ? (stage.count / funnel_max * 100)|round : 0 }}%"></div> 
+                                    <div class="rams-progress__bar rams-progress__bar--success"        style="--rams-meter-value: {{  funnel_max > 0 ? (stage.count / funnel_max * 100)|round : 0  }}"></div> 
                                                 
                                     
                                 </div>
@@ -372,8 +372,8 @@
                             <td class="rams-table__cell">
                                 {% if lead.leadScore is not null %}
                                     <div class="rams-flex rams-gap-2 rams-items-center">
-                                        <div class="rams-progress rams-progress--compact"  style="width: 50px;">
-                                            <div class="rams-progress__bar" style="width: {{ lead.leadScore }}%; background: {{ lead.leadScore >= 70 ? 'var(--rams-success)' : lead.leadScore >= 40 ? 'var(--rams-warning)' : 'var(--rams-danger)' }}"></div>
+                                        <div class="rams-progress rams-progress--compact" class="rams-w-xs">
+                                            <div class="rams-progress__bar" style="--rams-progress-value: {{  lead.leadScore  }}%\3"></div>
                                         </div>
                                         <span class="rams-text--xs">{{ lead.leadScore }}</span>
                                     </div>
