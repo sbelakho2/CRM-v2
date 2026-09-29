@@ -22,6 +22,9 @@ final class Version20260930000000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
+        $this->addColumnIfMissing('report_definitions', 'favorited_by', 'JSON DEFAULT NULL');
+        $this->addColumnIfMissing('tasks', 'archived_at', 'DATETIME DEFAULT NULL');
+
         if (!$this->tableExists('quote_customer_requests')) {
             $this->addSql('CREATE TABLE quote_customer_requests (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -67,6 +70,23 @@ final class Version20260930000000 extends AbstractMigration
     public function down(Schema $schema): void
     {
         $this->skipIf(true, 'Customer request/acceptance records are business history — kept.');
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        return (bool) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+            [$table, $column]
+        );
+    }
+
+    private function addColumnIfMissing(string $table, string $column, string $definition): void
+    {
+        if (!$this->tableExists($table) || $this->columnExists($table, $column)) {
+            return;
+        }
+
+        $this->addSql(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $table, $column, $definition));
     }
 
     private function tableExists(string $table): bool
