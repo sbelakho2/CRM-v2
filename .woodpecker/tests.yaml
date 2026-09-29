@@ -54,7 +54,9 @@ steps:
         export PATH="/opt/homebrew/bin:$PATH"
         # Colima docker socket (machine-local runner; override DOCKER_HOST
         # in the agent environment to relocate).
-        export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
+        # Machine-local colima socket (the runner IS this Mac). Relocate by
+        # exporting DOCKER_HOST in the agent environment.
+        export DOCKER_HOST="${DOCKER_HOST:-unix:///Users/sabelakhoua/.colima/default/docker.sock}"
         # Idempotent throwaway MySQL for this lane. Fresh volume every run:
         # the container is removed with its anonymous volume after tests.
         if docker rm -f crm-ci-mysql >/dev/null 2>&1; then
@@ -134,7 +136,9 @@ steps:
       - |
         set -eu
         export PATH="/opt/homebrew/bin:$PATH"
-        export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
+        # Machine-local colima socket (the runner IS this Mac). Relocate by
+        # exporting DOCKER_HOST in the agent environment.
+        export DOCKER_HOST="${DOCKER_HOST:-unix:///Users/sabelakhoua/.colima/default/docker.sock}"
         # The MySQL container is still up (cleanup runs after this step).
         docker exec crm-ci-mysql mysql -uroot -pci_root_pw -e "GRANT ALL ON \`crm_upgrade_test\`.* TO 'crm_test'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
         bash scripts/ci/populated-upgrade.sh
@@ -147,5 +151,7 @@ steps:
     commands:
       - |
         export PATH="/opt/homebrew/bin:$PATH"
-        export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
+        # Machine-local colima socket (the runner IS this Mac). Relocate by
+        # exporting DOCKER_HOST in the agent environment.
+        export DOCKER_HOST="${DOCKER_HOST:-unix:///Users/sabelakhoua/.colima/default/docker.sock}"
         docker rm -f crm-ci-mysql >/dev/null 2>&1 || true
