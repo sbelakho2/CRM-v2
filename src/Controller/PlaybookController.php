@@ -33,7 +33,11 @@ class PlaybookController extends AbstractController
     #[Route('/', name: 'app_playbook_index', methods: ['GET'])]
     public function index(): Response
     {
-        $playbooks = $this->playbookRepository->findBy([], ['priority' => 'DESC']);
+        $playbooks = $this->playbookRepository->createQueryBuilder('p')
+            ->andWhere('p.archivedAt IS NULL')
+            ->orderBy('p.priority', 'DESC')
+            ->getQuery()
+            ->getResult();
         
         // Calculate stats for each playbook
         $playbookStats = [];
@@ -99,6 +103,10 @@ class PlaybookController extends AbstractController
     #[Route('/{id}', name: 'app_playbook_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(Playbook $playbook): Response
     {
+        if ($playbook->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createNotFoundException('Playbook not found');
+        }
+
         $runs = $this->playbookRunRepository->findByPlaybook($playbook, 50);
         
         // Calculate statistics
@@ -120,6 +128,12 @@ class PlaybookController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function edit(Request $request, Playbook $playbook): Response
     {
+        if ($playbook->isArchived()) {
+            $this->addFlash('error', 'This playbook is archived and read-only.');
+
+            return $this->redirectToRoute('app_playbook_index');
+        }
+
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('playbook_edit', $request->request->get('_token'))) {
                 throw $this->createAccessDeniedException('Invalid CSRF token');
@@ -176,6 +190,10 @@ class PlaybookController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function toggle(Request $request, Playbook $playbook): JsonResponse
     {
+        if ($playbook->isArchived()) {
+            return new JsonResponse(['error' => 'This playbook is archived and cannot be reactivated.'], 409);
+        }
+
         if (!$this->isCsrfTokenValid('playbook_toggle_' . $playbook->getId(), $request->request->get('_csrf_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }

@@ -16,17 +16,28 @@ use Symfony\Component\Lock\LockFactory;
 
 /**
  * Executes DUE pre-scheduled EmailSend rows (drip sequences, triggered
- * emails): status = queued AND scheduled_at <= now.
+ * emails, queued manual sends).
  *
- * This is the missing consumer for the EmailSend.scheduledAt model: rows
- * were created by drip progression / trigger scheduling but nothing
- * processed them. Rows are claimed with FOR UPDATE SKIP LOCKED and a
- * delivery lease, then executed through the canonical sendExisting() path
- * (policy-checked, idempotent, transport-synchronous).
+ * Two-phase execution (audit rule: no external side effects while holding
+ * database locks):
+ *
+ *   Phase 1 — SHORT claim transaction: atomically claim due rows (QUEUED
+ *   and due, or retryable FAILED past their backoff) with
+ *   FOR UPDATE SKIP LOCKED, mark them SENDING with a fresh lease, COMMIT.
+ *
+ *   Phase 2 — delivery OUTSIDE any transaction: each claimed row goes
+ *   through the canonical sendExisting() path (policy-checked, idempotent,
+ *   transport-synchronous), which performs its own per-row state commits.
+ *
+ *   SMTP is irreversible: a database transaction can never roll it back.
+ *   Keeping claims committed before transport and state transitions
+ *   committed per-row after transport is the closest database-only
+ *   approximation of exactly-once; provider message-ID reconciliation is
+ *   the remaining long-term step.
  */
 #[AsCommand(
     name: 'app:email:process-due-sends',
-    description: 'Claim and execute due scheduled EmailSend rows (drip/triggered sequences)',
+    description: 'Claim and execute due scheduled EmailSend rows (drip/triggered/queued manual sends)',
 )]
 class ProcessDueEmailSendsCommand extends Command
 {
@@ -54,64 +65,95 @@ class ProcessDueEmailSendsCommand extends Command
         }
 
         try {
+            // ── Phase 1: short, lock-only claim transaction ────────────────
+            $claimedIds = $this->entityManager->wrapInTransaction(
+                function (): array {
+                    $now = (new \DateTime())->format('Y-m-d H:i:s');
+                    $leaseUntil = (new \DateTime())->modify('+' . self::LEASE_SECONDS . ' seconds')
+                        ->format('Y-m-d H:i:s');
+
+                    // Due now: QUEUED rows whose schedule arrived (or manual
+                    // queue-now rows with no schedule), plus retryable FAILED
+                    // rows whose exponential backoff has elapsed.
+                    $dueIds = $this->entityManager->getConnection()->fetchFirstColumn(
+                        'SELECT id FROM email_sends
+                         WHERE (
+                                (status = :queued
+                                    AND (scheduled_at IS NULL OR scheduled_at <= :now)
+                                    AND (send_lease_expires_at IS NULL OR send_lease_expires_at <= :now))
+                             OR (status = :failed
+                                    AND retry_count < :maxRetries
+                                    AND next_attempt_at IS NOT NULL
+                                    AND next_attempt_at <= :now)
+                           )
+                         ORDER BY scheduled_at
+                         LIMIT ' . self::BATCH_SIZE . '
+                         FOR UPDATE SKIP LOCKED',
+                        [
+                            'queued' => EmailSend::STATUS_QUEUED,
+                            'failed' => EmailSend::STATUS_FAILED,
+                            'now' => $now,
+                            'maxRetries' => EmailCampaignService::MAX_SEND_ATTEMPTS,
+                        ]
+                    );
+
+                    if ($dueIds === []) {
+                        return [];
+                    }
+
+                    $this->entityManager->getConnection()->executeStatement(
+                        'UPDATE email_sends
+                         SET status = :sending, send_lease_expires_at = :lease
+                         WHERE id IN (:ids)',
+                        [
+                            'sending' => EmailSend::STATUS_SENDING,
+                            'lease' => $leaseUntil,
+                            'ids' => $dueIds,
+                        ],
+                        ['ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY]
+                    );
+
+                    return $dueIds;
+                }
+            );
+
+            if ($claimedIds === []) {
+                $io->success('No due scheduled sends.');
+
+                return Command::SUCCESS;
+            }
+
+            // ── Phase 2: delivery outside any transaction ──────────────────
             $counts = ['sent' => 0, 'already' => 0, 'skipped' => 0, 'failed' => 0];
 
-            $this->entityManager->wrapInTransaction(function () use (&$counts, $io): void {
-                $now = new \DateTime();
+            // Fresh rows (the claim transaction committed; identity map is
+            // stale relative to the SENDING transition).
+            $this->entityManager->clear();
+            $rows = $this->sendRepository->createQueryBuilder('e')
+                ->andWhere('e.id IN (:ids)')
+                ->setParameter('ids', $claimedIds)
+                ->getQuery()
+                ->getResult();
 
-                // Atomic claim: lock disjoint due rows; lease them so a crash
-                // mid-run leaves recoverable debris instead of lost work.
-                $dueIds = $this->entityManager->getConnection()->fetchFirstColumn(
-                    'SELECT id FROM email_sends
-                     WHERE status = :queued
-                       AND scheduled_at IS NOT NULL
-                       AND scheduled_at <= :now
-                       AND (send_lease_expires_at IS NULL OR send_lease_expires_at <= :now)
-                     ORDER BY scheduled_at
-                     LIMIT ' . self::BATCH_SIZE . '
-                     FOR UPDATE SKIP LOCKED',
-                    ['queued' => EmailSend::STATUS_QUEUED, 'now' => $now]
-                );
+            foreach ($rows as $send) {
+                $result = $this->campaignService->sendExisting($send, alreadyClaimedByWorker: true);
 
-                if ($dueIds === []) {
-                    return;
-                }
-
-                $leaseUntil = (new \DateTime())->modify('+' . self::LEASE_SECONDS . ' seconds');
-                $this->entityManager->getConnection()->executeStatement(
-                    'UPDATE email_sends SET send_lease_expires_at = :lease WHERE id IN (:ids)',
-                    ['lease' => $leaseUntil, 'ids' => $dueIds],
-                    ['ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY]
-                );
-
-                $rows = $this->sendRepository->createQueryBuilder('e')
-                    ->andWhere('e.id IN (:ids)')
-                    ->setParameter('ids', $dueIds)
-                    ->getQuery()
-                    ->getResult();
-
-                foreach ($rows as $send) {
-                    $result = $this->campaignService->sendExisting($send);
-                    $counts[$result->outcome === CampaignSendResult::ALREADY_SENT
-                        || $result->outcome === CampaignSendResult::ALREADY_IN_PROGRESS
-                        ? 'already'
-                        : ($result->outcome === 'skipped' ? 'skipped' : ($result->outcome === CampaignSendResult::FAILED ? 'failed' : 'sent'))]++;
-                }
-            });
-
-            $total = array_sum($counts);
-            if ($total === 0) {
-                $io->success('No due scheduled sends.');
-            } else {
-                $io->success(sprintf(
-                    'Processed %d due send(s): %d sent, %d skipped by policy, %d already handled, %d failed.',
-                    $total,
-                    $counts['sent'],
-                    $counts['skipped'],
-                    $counts['already'],
-                    $counts['failed']
-                ));
+                match ($result->outcome) {
+                    CampaignSendResult::SENT => $counts['sent']++,
+                    CampaignSendResult::ALREADY_SENT, CampaignSendResult::ALREADY_IN_PROGRESS => $counts['already']++,
+                    'skipped' => $counts['skipped']++,
+                    default => $counts['failed']++,
+                };
             }
+
+            $io->success(sprintf(
+                'Processed %d due send(s): %d sent, %d skipped by policy, %d already handled, %d failed (retryable with backoff).',
+                count($claimedIds),
+                $counts['sent'],
+                $counts['skipped'],
+                $counts['already'],
+                $counts['failed']
+            ));
         } finally {
             $lock->release();
         }

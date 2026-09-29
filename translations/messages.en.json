@@ -1740,7 +1740,13 @@
       "description_placeholder": "Campaign objectives and target audience...",
       "name_placeholder": "Q4 Automotive Outreach",
       "touch_count": "Number of Touches",
-      "touch_count_placeholder": "5"
+      "touch_count_placeholder": "5",
+      "subject": "Email Subject",
+      "subject_placeholder": "Leave empty to use \"[Touch x/y] Campaign Name\"",
+      "body_html": "Email Body (HTML)",
+      "body_html_placeholder": "Supports {{first_name}}, {{last_name}}, {{company}}, {{campaign_name}} merge tags. Leave empty for the branded default.",
+      "from_name": "From Name",
+      "from_email": "From Email"
     },
     "from_email": "From Email",
     "from_name": "From Name",

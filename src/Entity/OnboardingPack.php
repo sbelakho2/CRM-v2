@@ -52,6 +52,12 @@ class OnboardingPack
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $sha256Hash = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $fieldsJson = null; // Extracted company profile fields for submissions
+
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $pdfPath = null; // Generated onboarding PDF (var/uploads relative)
+
     public function __construct()
     {
         $this->status = self::STATUS_DRAFT;
@@ -168,4 +174,28 @@ class OnboardingPack
         $this->sha256Hash = $sha256Hash;
         return $this;
     }
+    public function getFieldsJson(): ?string
+    {
+        return $this->fieldsJson;
+    }
+
+    public function setFieldsJson(?string $fieldsJson): self
+    {
+        $this->fieldsJson = $fieldsJson;
+
+        return $this;
+    }
+
+    public function getPdfPath(): ?string
+    {
+        return $this->pdfPath;
+    }
+
+    public function setPdfPath(?string $pdfPath): self
+    {
+        $this->pdfPath = $pdfPath;
+
+        return $this;
+    }
+
 }

@@ -34,6 +34,7 @@ class EmailCampaignService
         private EmailSendPolicy $sendPolicy,
         private TransportInterface $mailerTransport,
         private ?\App\Service\EmailDripCampaignService $dripCampaignService = null,
+        private ?\App\Service\EmailAbTestService $abTestService = null,
         private ?EmailConsentService $consentService = null
     ) {}
 
@@ -96,11 +97,14 @@ class EmailCampaignService
         );
 
         if ($existing !== null) {
+            $existingId = $existing->getId();
             $claim = $this->claimExistingTouch($existing);
             if ($claim !== null) {
                 return $claim;
             }
-            $send = $existing;
+            // claimExistingTouch cleared the identity map: re-fetch the row
+            // in its freshly-claimed SENDING state.
+            $send = $this->sendRepository->find($existingId);
         } else {
             // No row yet: create the send record in 'queued' state —
             // reflects reality until the transport accepts the message.
@@ -156,11 +160,62 @@ class EmailCampaignService
         $send->setStatus(EmailSend::STATUS_SENT);
         $send->setSentAt(new \DateTime());
         $send->setSendLeaseExpiresAt(null);
+        $send->setNextAttemptAt(null);
         $this->entityManager->flush();
 
         $this->progressDripSequence($send);
 
         return CampaignSendResult::sent();
+    }
+
+    /**
+     * Queue a touch for delivery by the due-send worker (used by the manual
+     * mass-send UI: SMTP handoffs happen in workers, never in web requests).
+     */
+    public function queueTouch(EmailCampaign $campaign, Contact $contact, int $touchNumber): CampaignSendResult
+    {
+        if (!$this->isValidTouchNumber($campaign, $touchNumber)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Touch number %d is outside the campaign sequence (1..%d).',
+                $touchNumber,
+                max(1, (int) $campaign->getTouchCount())
+            ));
+        }
+
+        $existing = $this->sendRepository->findTouch(
+            (int) $campaign->getId(),
+            (int) $contact->getId(),
+            $touchNumber
+        );
+
+        if ($existing !== null) {
+            if ($existing->getStatus() === EmailSend::STATUS_SENT || $existing->getStatus() === EmailSend::STATUS_BOUNCED) {
+                return CampaignSendResult::alreadySent();
+            }
+
+            return CampaignSendResult::alreadyInProgress();
+        }
+
+        $send = new EmailSend();
+        $send->setCampaign($campaign);
+        $send->setContact($contact);
+        $send->setTouchNumber($touchNumber);
+        $send->setEmailAddress($contact->getEmail());
+        $send->setStatus(EmailSend::STATUS_QUEUED);
+        $send->setScheduledAt(new \DateTime()); // due immediately
+
+        $this->entityManager->persist($send);
+
+        try {
+            $this->entityManager->flush();
+        } catch (UniqueConstraintViolationException) {
+            $this->entityManager = $this->managerRegistry->resetManager();
+            $this->sendRepository = $this->entityManager->getRepository(EmailSend::class);
+
+            return CampaignSendResult::alreadyInProgress();
+        }
+
+        return CampaignSendResult::sent(); // queued for delivery
     }
 
     /**
@@ -187,6 +242,9 @@ class EmailCampaignService
 
     private const SEND_LEASE_SECONDS = 900; // 15 minutes
 
+    /** Terminal failure only after this many delivery attempts. */
+    public const MAX_SEND_ATTEMPTS = 5;
+
     private function isValidTouchNumber(EmailCampaign $campaign, int $touchNumber): bool
     {
         $max = max(1, (int) $campaign->getTouchCount());
@@ -195,15 +253,17 @@ class EmailCampaignService
     }
 
     /**
-     * Decide what to do with an existing touch row. Returns a terminal
-     * CampaignSendResult when the caller must NOT proceed, or null when the
-     * row is claimable for a (re)try:
+     * ATOMICALLY claim an existing touch row for this worker.
      *
-     *  - SENT: never resend (idempotency).
-     *  - QUEUED/SENDING with an UNEXPIRED lease: another worker owns it.
-     *  - QUEUED/SENDING with an EXPIRED lease: crash debris — claimable.
-     *  - FAILED/CANCELLED: claimable retry, reusing the row.
-     *  - BOUNCED: terminal for this address (suppression handles retries).
+     * Reading status/lease in PHP and proceeding is a race: two workers can
+     * both see an expired SENDING or a FAILED row and both send it — the
+     * unique (campaign, contact, touch) constraint only protects first
+     * INSERT, not concurrent ownership. Ownership is therefore decided by a
+     * single conditional UPDATE: the one worker whose affectedRows === 1
+     * owns the delivery.
+     *
+     * Returns null when the row was claimed for the caller (row is reloaded
+     * with SENDING state + fresh lease), or a terminal result.
      */
     private function claimExistingTouch(EmailSend $existing): ?CampaignSendResult
     {
@@ -213,36 +273,56 @@ class EmailCampaignService
             return CampaignSendResult::alreadySent();
         }
 
-        if (in_array($status, [EmailSend::STATUS_QUEUED, EmailSend::STATUS_SENDING], true)) {
-            $lease = $existing->getSendLeaseExpiresAt();
-            $leaseAlive = $lease !== null && $lease > new \DateTime();
+        $now = (new \DateTime())->format('Y-m-d H:i:s');
+        $leaseUntil = (new \DateTime())->modify('+' . self::SEND_LEASE_SECONDS . ' seconds')->format('Y-m-d H:i:s');
 
-            // A live SENDING lease means another worker owns delivery.
-            if ($leaseAlive && $status === EmailSend::STATUS_SENDING) {
-                return CampaignSendResult::alreadyInProgress();
-            }
+        // Claimable-by-this-worker:
+        //   - FAILED/CANCELLED rows (retryable within the attempts cap,
+        //     backoff elapsed),
+        //   - SENDING rows with a dead lease (crash debris),
+        //   - QUEUED rows that are due (or unscheduled) with a dead lease.
+        // NOT claimable (affectedRows 0 → in progress elsewhere):
+        //   - live SENDING/QUEUED leases,
+        //   - QUEUED rows scheduled for the future (drip/triggered rows —
+        //     only the due-send worker may execute them at their time).
+        $affected = $this->entityManager->getConnection()->executeStatement(
+            'UPDATE email_sends
+             SET status = :sending,
+                 send_lease_expires_at = :lease,
+                 retry_count = retry_count + 1,
+                 failure_reason = NULL
+             WHERE id = :id
+               AND (
+                     status IN (:failed, :cancelled)
+                     AND retry_count < :maxAttempts
+                     AND (next_attempt_at IS NULL OR next_attempt_at <= :now)
+                   OR (status = :sending
+                       AND (send_lease_expires_at IS NULL OR send_lease_expires_at <= :now))
+                   OR (status = :queued
+                       AND (scheduled_at IS NULL OR scheduled_at <= :now)
+                       AND (send_lease_expires_at IS NULL OR send_lease_expires_at <= :now))
+               )',
+            [
+                'sending' => EmailSend::STATUS_SENDING,
+                'failed' => EmailSend::STATUS_FAILED,
+                'cancelled' => EmailSend::STATUS_CANCELLED,
+                'queued' => EmailSend::STATUS_QUEUED,
+                'lease' => $leaseUntil,
+                'id' => $existing->getId(),
+                'maxAttempts' => self::MAX_SEND_ATTEMPTS,
+                'now' => $now,
+            ]
+        );
 
-            // QUEUED rows scheduled for the future (drip/triggered
-            // scheduling) are not yet due — only the due-send worker may
-            // execute them at their scheduled time.
-            $scheduledFor = $existing->getScheduledAt();
-            if ($status === EmailSend::STATUS_QUEUED && $scheduledFor !== null && $scheduledFor > new \DateTime()) {
-                return CampaignSendResult::alreadyInProgress();
-            }
+        if ($affected === 1) {
+            // Reload through a cleared identity map so the caller sees the
+            // SENDING + lease state this worker just wrote.
+            $this->entityManager->clear();
 
-            // A live QUEUED lease belongs to a worker between claim and
-            // transport handoff.
-            if ($leaseAlive && $status === EmailSend::STATUS_QUEUED) {
-                return CampaignSendResult::alreadyInProgress();
-            }
+            return null;
         }
 
-        // Claimable: stale lease, lease-less non-sending debris, FAILED,
-        // CANCELLED — reuse the row and count the retry attempt.
-        $existing->setRetryCount($existing->getRetryCount() + 1);
-        $existing->setFailureReason(null);
-
-        return null; // caller proceeds with this row
+        return CampaignSendResult::alreadyInProgress();
     }
 
     /**
@@ -254,8 +334,25 @@ class EmailCampaignService
      * row already exists BY DESIGN — never call the create-or-dedupe path
      * for it.
      */
-    public function sendExisting(EmailSend $send): CampaignSendResult
+    public function sendExisting(EmailSend $send, bool $alreadyClaimedByWorker = false): CampaignSendResult
     {
+        // The due-send worker claims rows atomically (FOR UPDATE SKIP LOCKED
+        // + SENDING/lease transition) BEFORE calling this method; it owns
+        // the live lease and proceeds directly. Other callers must win the
+        // conditional claim themselves.
+        if (!$alreadyClaimedByWorker && in_array($send->getStatus(), [EmailSend::STATUS_QUEUED, EmailSend::STATUS_SENDING, EmailSend::STATUS_FAILED], true)) {
+            $sendId = $send->getId();
+            $claim = $this->claimExistingTouch($send);
+            if ($claim !== null) {
+                return $claim;
+            }
+            $this->entityManager->clear();
+            $send = $this->sendRepository->find($sendId);
+            if ($send === null) {
+                return CampaignSendResult::alreadyInProgress();
+            }
+        }
+
         $campaign = $send->getCampaign();
         $contact = $send->getContact();
 
@@ -282,6 +379,7 @@ class EmailCampaignService
             $send->setStatus(EmailSend::STATUS_CANCELLED);
             $send->setFailureReason('policy: ' . $eligibility->reason);
             $send->setSendLeaseExpiresAt(null);
+            $send->setNextAttemptAt(null);
             $this->entityManager->flush();
 
             return CampaignSendResult::skipped((string) $eligibility->reason);
@@ -289,6 +387,22 @@ class EmailCampaignService
 
         if ($send->getStatus() === EmailSend::STATUS_SENT) {
             return CampaignSendResult::alreadySent();
+        }
+
+        // Drip branch conditions are evaluated AT DELIVERY TIME against the
+        // current engagement state (see EmailDripCampaignService).
+        if (
+            $campaign->getType() === EmailCampaign::TYPE_DRIP
+            && $this->dripCampaignService !== null
+            && !$this->dripCampaignService->shouldSendTouch($campaign, $contact, (int) $send->getTouchNumber())
+        ) {
+            $send->setStatus(EmailSend::STATUS_CANCELLED);
+            $send->setFailureReason('drip branch condition not met');
+            $send->setSendLeaseExpiresAt(null);
+            $send->setNextAttemptAt(null);
+            $this->entityManager->flush();
+
+            return CampaignSendResult::skipped('drip_branch_condition');
         }
 
         $send->setRetryCount($send->getRetryCount() + 1);
@@ -339,13 +453,20 @@ class EmailCampaignService
         $this->entityManager->flush();
 
         try {
-            $subject = sprintf('[Touch %d/%d] %s', $touchNumber, $campaign->getTouchCount(), $campaign->getName());
-            
+            // ── Canonical content resolution (configuration actually
+            // reaches delivery): A/B variant (deterministic per contact,
+            // persisted before transport) → touch template → campaign
+            // defaults → branded fallback.
+            $content = $this->resolveCampaignContent($campaign, $contact, $touchNumber, $send);
+
             $email = (new Email())
-                ->from($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site')
+                ->from(new \Symfony\Component\Mime\Address(
+                    $content['from_email'],
+                    $content['from_name']
+                ))
                 ->to($contact->getEmail())
-                ->subject($subject)
-                ->html($this->generateEmailContent($campaign, $contact, $touchNumber, $send));
+                ->subject($content['subject'])
+                ->html($this->personalize($content['body_html'], $contact, $campaign, $touchNumber, $send));
 
             // Add custom headers for webhook tracking
             // These headers will be included when email service sends webhook events
@@ -363,10 +484,22 @@ class EmailCampaignService
 
             $this->mailerTransport->send($email);
         } catch (\Throwable $e) {
-            // Log error and update send record to reflect failure
+            // Log error and update send record to reflect failure. Failed
+            // rows are RETRYABLE with exponential backoff (the due-send
+            // worker picks them up again) until the attempts cap makes the
+            // failure terminal.
             $send->setStatus(EmailSend::STATUS_FAILED);
             $send->setSendLeaseExpiresAt(null);
             $send->setFailureReason($e->getMessage());
+
+            if ($send->getRetryCount() + 1 < self::MAX_SEND_ATTEMPTS) {
+                $backoffSeconds = min(2 ** $send->getRetryCount() * 60, 3600);
+                $send->setNextAttemptAt((new \DateTime())->modify('+' . $backoffSeconds . ' seconds'));
+            } else {
+                // Terminal: no further attempts scheduled.
+                $send->setNextAttemptAt(null);
+            }
+
             $this->entityManager->flush();
 
             throw $e;
@@ -376,6 +509,127 @@ class EmailCampaignService
     /**
      * Generate email content
      */
+    /**
+     * Resolve the content actually delivered for a campaign touch.
+     *
+     *   1. A/B variant configuration — assigned DETERMINISTICALLY per
+     *      contact (stable hash), persisted on the EmailSend BEFORE the
+     *      transport side effect, and its subject/body/from used verbatim.
+     *   2. Touch template: touchTemplates[n]['template_id'] → EmailTemplate
+     *      subjectLine/bodyHtml.
+     *   3. Campaign defaults: subject/bodyHtml/fromName/fromEmail.
+     *   4. Branded fallback (previous behavior) when nothing is configured.
+     *
+     * @return array{subject: string, body_html: string, from_email: string, from_name: string, variant: ?string}
+     */
+    private function resolveCampaignContent(EmailCampaign $campaign, Contact $contact, int $touchNumber, EmailSend $send): array
+    {
+        $defaults = [
+            'subject' => $campaign->getSubject(),
+            'body_html' => $campaign->getBodyHtml(),
+            'from_email' => $campaign->getFromEmail(),
+            'from_name' => $campaign->getFromName(),
+        ];
+
+        // 2. Touch template overrides/extends campaign defaults.
+        $touchTemplates = $campaign->getTouchTemplates();
+        $templateId = $touchTemplates[$touchNumber]['template_id'] ?? null;
+        if ($templateId !== null) {
+            $template = $this->entityManager->find(\App\Entity\EmailTemplate::class, (int) $templateId);
+            if ($template !== null) {
+                $defaults['subject'] = $template->getSubjectLine() ?? $defaults['subject'];
+                $defaults['body_html'] = $template->getBodyHtml() ?? $defaults['body_html'];
+            }
+        }
+
+        $variant = null;
+
+        // 1. A/B variant: deterministic assignment so redelivery retries
+        //    keep the same variant; persisted before transport.
+        $abTest = $this->abTestService?->getCurrentAbTest($campaign);
+        if ($abTest !== null && !empty($abTest['variants'])) {
+            $variantIds = array_merge(['control'], array_keys($abTest['variants']));
+            $variant = $variantIds[crc32((string) $contact->getId()) % count($variantIds)];
+
+            if ($variant !== 'control') {
+                try {
+                    $config = $this->abTestService->getVariantConfiguration($campaign, $variant);
+                    $defaults['subject'] = $config['subject'] ?? $defaults['subject'];
+                    $defaults['body_html'] = $config['body_html'] ?? $defaults['body_html'];
+                    $defaults['from_name'] = $config['from_name'] ?? $defaults['from_name'];
+                } catch (\InvalidArgumentException) {
+                    $variant = 'control';
+                }
+            }
+
+            try {
+                $this->abTestService->recordVariantSend($campaign, $variant, $send);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to record A/B variant assignment', [
+                    'campaign_id' => $campaign->getId(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $send->setVariant($variant);
+
+        $subject = $defaults['subject'] ?? sprintf('[Touch %d/%d] %s', $touchNumber, $campaign->getTouchCount(), $campaign->getName());
+
+        return [
+            'subject' => $subject,
+            'body_html' => $defaults['body_html'] ?? $this->generateEmailContent($campaign, $contact, $touchNumber, $send),
+            'from_email' => $defaults['from_email'] ?? ($_ENV['MAILER_FROM_ADDRESS'] ?? 'noreply@starzelectronics.site'),
+            'from_name' => $defaults['from_name'] ?? 'Starz Electronics',
+            'variant' => $variant,
+        ];
+    }
+
+    /**
+     * Personalize the resolved body: contact/company merge tags, then the
+     * tracking pixel and unsubscribe footer on every campaign email.
+     */
+    private function personalize(string $body, Contact $contact, EmailCampaign $campaign, int $touchNumber, EmailSend $send): string
+    {
+        $companyName = $contact->getCompany() ? $contact->getCompany()->getName() : '';
+        $firstName = $contact->getFirstName() ?? 'there';
+
+        $personalized = str_replace(
+            ['{{first_name}}', '{{last_name}}', '{{email}}', '{{company}}', '{{campaign_name}}', '{{touch_number}}'],
+            [$firstName, $contact->getLastName() ?? '', $contact->getEmail() ?? '', $companyName, $campaign->getName(), (string) $touchNumber],
+            $body
+        );
+
+        return $personalized . $this->renderTrackingFooter($contact, $campaign, $send);
+    }
+
+    /**
+     * Tracking pixel + one-click unsubscribe footer appended to EVERY
+     * campaign email body exactly once, regardless of where the body came
+     * from (variant, template, campaign default or fallback).
+     */
+    private function renderTrackingFooter(Contact $contact, EmailCampaign $campaign, EmailSend $send): string
+    {
+        $trackingPixelSig = $send->getId() ? $this->trackingSigner->signOpen($send->getId()) : null;
+        $trackingPixelUrl = $this->urlGenerator->generate(
+            'app_email_send_track_open',
+            ['id' => $send->getId(), 'sig' => $trackingPixelSig],
+            UrlGeneratorInterface::ABSOLUTE_URL
+        );
+
+        $unsubscribeLink = $this->consentService
+            ? $this->consentService->generateUnsubscribeLink($contact, $campaign->getId())
+            : $this->buildFallbackUnsubscribeLink($contact, $campaign->getId());
+
+        return sprintf(
+            '<!-- campaign tracking --><img src="%s" width="1" height="1" style="display:none;" alt="">'
+            . '<div style="text-align:center;padding:12px;color:#6b7280;font-size:12px;">'
+            . '<a href="%s" style="color:#2563eb;">Unsubscribe</a></div>',
+            htmlspecialchars($trackingPixelUrl, ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars((string) $unsubscribeLink, ENT_QUOTES, 'UTF-8')
+        );
+    }
+
     private function generateEmailContent(EmailCampaign $campaign, Contact $contact, int $touchNumber, EmailSend $send): string
     {
         $companyName = $contact->getCompany() ? $contact->getCompany()->getName() : '';
@@ -467,14 +721,9 @@ class EmailCampaignService
             <strong>STARZ Electronics Morocco Team</strong><br>
             contact@starzelectronics.site</p>
         </div>
-        <div class="footer">
-            <p>&copy; %s STARZ Electronics Morocco. All rights reserved.</p>
-            <p>Touch %d/%d - Campaign: %s (%s)</p>
-            <p><a href="%s">Unsubscribe</a> | <a href="%s">Update Preferences</a></p>
-        </div>
+        <!-- Footer/tracking/unsubscribe are appended centrally by
+             personalize() so they appear exactly once on every body. -->
     </div>
-    <!-- Open tracking pixel -->
-    <img src="%s" width="1" height="1" style="display:none;" alt="">
 </body>
 </html>
         ',
@@ -483,15 +732,7 @@ class EmailCampaignService
             $campaign->getTouchCount(),
             htmlspecialchars((string) $campaign->getName(), ENT_QUOTES, 'UTF-8'),
             $companyName ? '<p><strong>Company:</strong> ' . htmlspecialchars($companyName) . '</p>' : '',
-            htmlspecialchars($trackingLinkUrl, ENT_QUOTES, 'UTF-8'),
-            date('Y'),
-            $touchNumber,
-            $campaign->getTouchCount(),
-            htmlspecialchars((string) $campaign->getName(), ENT_QUOTES, 'UTF-8'),
-            htmlspecialchars((string) $campaign->getLanguage(), ENT_QUOTES, 'UTF-8'),
-            htmlspecialchars($unsubscribeLink, ENT_QUOTES, 'UTF-8'),
-            htmlspecialchars($unsubscribeLink, ENT_QUOTES, 'UTF-8'),
-            htmlspecialchars($trackingPixelUrl, ENT_QUOTES, 'UTF-8')
+            htmlspecialchars($trackingLinkUrl, ENT_QUOTES, 'UTF-8')
         );
     }
 
@@ -687,7 +928,10 @@ class EmailCampaignService
      */
     public function getContactProgress(Contact $contact, EmailCampaign $campaign): array
     {
-        $touches = [1 => false, 2 => false, 3 => false, 4 => false, 5 => false];
+        // Derive from the configured sequence length (drip campaigns can
+        // exceed the old hard-coded five touches).
+        $touchCount = max(1, (int) $campaign->getTouchCount());
+        $touches = array_fill(1, $touchCount, false);
         
         $qb = $this->entityManager->createQueryBuilder();
         $sends = $qb->select('s')

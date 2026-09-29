@@ -28,8 +28,10 @@ final class SafeOutboundUrlGuard
     /** Ports outbound crawler traffic may target. */
     private const ALLOWED_PORTS = [80, 443, 8080, 8443];
 
-    /** Resolution cache (per-process; short-lived by design). */
-    private static array $resolvedCache = [];
+    // NOTE: deliberately NO resolution cache. A cached answer validated now
+    // and connected later is a validation-to-connect gap (DNS rebinding);
+    // every assertAllowed() resolves fresh, and cURL callers pin the
+    // validated IP via CURLOPT_RESOLVE.
 
     /**
      * Validate an outbound URL. Returns the normalized URL on success.
@@ -160,12 +162,13 @@ final class SafeOutboundUrlGuard
      *
      * @return string[]
      */
-    private function resolveHost(string $host): array
+    /**
+     * Resolve a hostname to all its A/AAAA records — fresh, never cached.
+     *
+     * @return string[]
+     */
+    public function resolveHost(string $host): array
     {
-        if (isset(self::$resolvedCache[$host])) {
-            return self::$resolvedCache[$host];
-        }
-
         $ips = [];
 
         $aRecords = @gethostbynamel($host);
@@ -186,11 +189,7 @@ final class SafeOutboundUrlGuard
             }
         }
 
-        if (count(self::$resolvedCache) > 500) {
-            self::$resolvedCache = []; // bound the cache
-        }
-
-        return self::$resolvedCache[$host] = array_values(array_unique($ips));
+        return array_values(array_unique($ips));
     }
 
     /**

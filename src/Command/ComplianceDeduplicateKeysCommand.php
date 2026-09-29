@@ -91,6 +91,17 @@ class ComplianceDeduplicateKeysCommand extends Command
         }
 
         if ($input->getOption('install-unique')) {
+            // Idempotent: the guarded migration may have created the index
+            // already on a clean database.
+            $indexExists = (bool) $this->entityManager->getConnection()->fetchOne(
+                "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'compliance_documents' AND INDEX_NAME = 'uniq_compliance_company_key'"
+            );
+            if ($indexExists) {
+                $io->success('Unique index uniq_compliance_company_key already exists.');
+
+                return Command::SUCCESS;
+            }
+
             $remaining = $this->findDuplicateSets();
             if ($remaining !== []) {
                 $io->error(sprintf('Cannot install unique index: %d duplicate set(s) remain.', count($remaining)));

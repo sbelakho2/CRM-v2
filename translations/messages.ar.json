@@ -1740,7 +1740,13 @@
       "description_placeholder": "أهداف الحملة والجمهور المستهدف...",
       "name_placeholder": "تواصل السيارات للربع الرابع",
       "touch_count": "عدد نقاط التواصل",
-      "touch_count_placeholder": "٥"
+      "touch_count_placeholder": "٥",
+      "subject": "موضوع البريد",
+      "subject_placeholder": "اتركه فارغاً لاستخدام العنوان الافتراضي",
+      "body_html": "نص البريد (HTML)",
+      "body_html_placeholder": "يدعم وسوم {{first_name}} و{{company}}. اتركه فارغاً للنموذج الافتراضي.",
+      "from_name": "اسم المرسل",
+      "from_email": "بريد المرسل"
     },
     "from_email": "بريد المرسل",
     "from_name": "اسم المرسل",

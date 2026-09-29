@@ -281,11 +281,14 @@ class CompliancePackService
                 $document->setDocumentKey($key);
             }
 
-            // Keep the human-readable label current; never touch file data,
-            // expiry, uploadedAt or status of existing rows.
+            // Keep the human-readable label and the required flag current
+            // (a sector change back must RE-promote a previously demoted
+            // requirement); never touch file data, expiry, uploadedAt or
+            // status of existing rows.
             if ($document->getName() !== $docType) {
                 $document->setName($docType);
             }
+            $document->setRequired(true);
         }
 
         // Demote (do NOT delete) rows that are no longer part of the pack.
@@ -347,13 +350,16 @@ class CompliancePackService
             }
         }
 
+        // Completion uses the SAME canonical sector-specific calculation as
+        // getCompletionPercentage() — custom/retired/duplicate rows must
+        // not distort the overview percentage and its sorting.
         return [
             'total' => $total,
             'uploaded' => $uploaded,
             'approved' => $approved,
             'pending' => $pending,
             'expired' => $expired,
-            'completion_percentage' => $total > 0 ? round(min(100.0, ($uploaded / $total) * 100), 1) : 0,
+            'completion_percentage' => $this->getCompletionPercentage($company),
         ];
     }
 }

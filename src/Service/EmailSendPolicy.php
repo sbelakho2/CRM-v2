@@ -63,6 +63,23 @@ final class EmailSendPolicy
             return SendEligibility::skipped('unsubscribed');
         }
 
+        // Reply-stop: a human reply to any touch of THIS campaign pauses
+        // all further automated/manual campaign sends to that contact
+        // until reviewed (any reply may be meaningful).
+        $replied = (int) $this->entityManager->createQueryBuilder()
+            ->select('COUNT(es.id)')
+            ->from(EmailSend::class, 'es')
+            ->where('es.campaign = :campaign')
+            ->andWhere('es.contact = :contact')
+            ->andWhere('es.replied = true')
+            ->setParameter('campaign', $campaign)
+            ->setParameter('contact', $contact)
+            ->getQuery()
+            ->getSingleScalarResult();
+        if ($replied > 0) {
+            return SendEligibility::skipped('replied');
+        }
+
         // Hard-bounce suppression: any bounced send in the last 90 days
         // disqualifies the address.
         $bounced = (int) $this->entityManager->createQueryBuilder()

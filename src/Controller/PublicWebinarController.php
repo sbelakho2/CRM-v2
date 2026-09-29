@@ -92,20 +92,9 @@ class PublicWebinarController extends AbstractController
                 return $this->redirectToRoute('app_webinar_register', ['id' => $webinar->getId()]);
             }
 
-            // Capacity/status/date gate under the webinar row lock, so two
-            // final-seat registrations cannot both pass.
-            $this->entityManager->wrapInTransaction(function () use ($webinar): void {
-                $this->entityManager->getConnection()->executeQuery(
-                    'SELECT id FROM webinars WHERE id = :id FOR UPDATE',
-                    ['id' => $webinar->getId()]
-                );
-                $this->entityManager->refresh($webinar);
-
-                if (!$webinar->canAcceptRegistrations()) {
-                    throw new \RuntimeException('This webinar is no longer accepting registrations.');
-                }
-            });
-
+            // Admission (lock + duplicate check + LIVE capacity count +
+            // insert + counter) is one service transaction — see
+            // WebinarService::registerAttendee.
             // Link an existing CRM contact when one matches; never create
             // Contact rows from unreviewed public submissions (Contact
             // requires a Company — see WebinarService::registerAttendee).

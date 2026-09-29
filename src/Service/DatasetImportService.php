@@ -357,10 +357,23 @@ class DatasetImportService
      * 
      * @return array - Import summary
      */
-    public function importFxRates(string $csvPath, string $signaturePath, string $description): array
+    public function importFxRates(string $csvPath, string $signaturePath, string $description = ''): array
     {
-        // 1. Verify signature
-        $this->verifySignature($csvPath, $signaturePath);
+        // 1. Verify signature: uploaded signature file path OR pasted hash
+        //    (the legacy UI posted a raw hash string, which the old
+        //    file-path-based check could never validate).
+        $pastedHash = null;
+        if ($signaturePath !== '' && !is_file($signaturePath) && preg_match('/^[0-9a-f]{64}$/i', $signaturePath)) {
+            $pastedHash = $signaturePath;
+            $signaturePath = '';
+        }
+        if ($pastedHash !== null) {
+            $this->verifyImportedFile($csvPath, null, $pastedHash);
+        } elseif ($signaturePath !== '') {
+            $this->verifySignature($csvPath, $signaturePath);
+        } else {
+            $this->verifyImportedFile($csvPath, null, null); // raises the explicit missing-signature error
+        }
         
         // 2. Generate version_id
         $versionId = Uuid::v4()->toRfc4122();
@@ -468,6 +481,295 @@ class DatasetImportService
             'errorCount' => count($errors),
             'activated' => empty($errors),
             'description' => $description
+        ];
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Generic header-driven CSV import machinery (tariff + freight)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Verify an uploaded dataset against a signature: either an uploaded
+     * signature FILE (path) or a pasted sha256 HASH string. One must be
+     * provided — datasets are pricing truth and may not import unverified.
+     */
+    private function verifyImportedFile(string $csvPath, ?string $signaturePath, ?string $signatureHash): void
+    {
+        if (!file_exists($csvPath)) {
+            throw new \RuntimeException("Dataset file not found: {$csvPath}");
+        }
+
+        $expectedHash = null;
+
+        if ($signaturePath !== null && $signaturePath !== '' && file_exists($signaturePath)) {
+            $expectedHash = trim((string) file_get_contents($signaturePath));
+        } elseif ($signatureHash !== null && trim($signatureHash) !== '') {
+            $expectedHash = trim($signatureHash);
+        }
+
+        if ($expectedHash === null || $expectedHash === '') {
+            throw new \RuntimeException('Dataset signature missing: upload a signature file or paste the sha256 hash.');
+        }
+
+        $actualHash = hash_file('sha256', $csvPath);
+        if (!hash_equals($expectedHash, $actualHash)) {
+            throw new \RuntimeException(sprintf(
+                'Dataset signature mismatch: expected %s, file hashes to %s.',
+                substr($expectedHash, 0, 12) . '…',
+                substr($actualHash, 0, 12) . '…'
+            ));
+        }
+    }
+
+    /**
+     * Read a CSV into associative rows keyed by lowercased header names.
+     *
+     * @return list<array<string, string>>
+     */
+    private function readCsvAssoc(string $csvPath): array
+    {
+        $handle = fopen($csvPath, 'r');
+        if (!$handle) {
+            throw new \RuntimeException("Cannot open CSV file: {$csvPath}");
+        }
+
+        try {
+            $header = fgetcsv($handle, 0, ',', '"', '\\');
+            if ($header === false || count(array_filter($header, static fn ($h) => trim((string) $h) !== '')) === 0) {
+                throw new \RuntimeException('CSV file has no header row.');
+            }
+            $header = array_map(static fn ($h) => strtolower(trim((string) $h)), $header);
+
+            $rows = [];
+            while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
+                if (count(array_filter($row, static fn ($v) => trim((string) $v) !== '')) === 0) {
+                    continue; // skip blank lines
+                }
+                $rows[] = array_combine($header, array_pad(array_map(static fn ($v) => trim((string) $v), $row), count($header), ''));
+            }
+
+            return $rows;
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    private function parseOptionalDate(?string $value): ?\DateTimeInterface
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return new \DateTime($value);
+    }
+
+    private function beginDatasetVersion(string $type, string $csvPath, string $description): \App\Entity\DatasetVersion
+    {
+        $versionId = Uuid::v4()->toRfc4122();
+        $user = $this->security?->getUser();
+
+        $version = new DatasetVersion();
+        $version->setVersionUuid($versionId);
+        $version->setDatasetType($type);
+        $version->setMetadata(['description' => $description]);
+        $version->setImportedAt(new \DateTime());
+        $version->setImportedBy($user ? $user->getUserIdentifier() : 'system');
+        $version->setSha256Hash(hash_file('sha256', $csvPath));
+        $version->setIsActive(false);
+
+        $this->entityManager->persist($version);
+
+        return $version;
+    }
+
+    /**
+     * Atomically activate a freshly imported version: deactivate all other
+     * versions of the type and every active row of the entity, then mark
+     * this version + its rows active. Called only for error-free imports —
+     * a partial import never takes over live pricing data.
+     */
+    private function activateDatasetVersion(string $type, string $entityClass, \App\Entity\DatasetVersion $version, string $versionId): void
+    {
+        $this->entityManager->createQuery(
+            'UPDATE App\Entity\DatasetVersion v SET v.isActive = false WHERE v.datasetType = :type'
+        )->setParameter('type', $type)->execute();
+
+        $this->entityManager->createQuery(
+            "UPDATE {$entityClass} e SET e.isActive = false"
+        )->execute();
+
+        $version->setIsActive(true);
+
+        $this->entityManager->createQuery(
+            "UPDATE {$entityClass} e SET e.isActive = true WHERE e.versionId = :versionId"
+        )->setParameter('versionId', $versionId)->execute();
+    }
+
+    /**
+     * Import tariff rates from a header-driven CSV.
+     *
+     * Expected columns (order-independent):
+     *   hs_code, origin_country, destination_country, duty_rate, mfn_rate,
+     *   fta_rate, duty_type (ad_valorem|specific|compound), specific_rate,
+     *   effective_date, expiry_date, fta_agreement, notes
+     */
+    public function importTariffRates(string $csvPath, ?string $signaturePath, ?string $signatureHash, string $description = ''): array
+    {
+        $this->verifyImportedFile($csvPath, $signaturePath, $signatureHash);
+
+        $version = $this->beginDatasetVersion('TARIFF_RATES', $csvPath, $description);
+        $versionId = $version->getVersionUuid();
+
+        $rows = $this->readCsvAssoc($csvPath);
+        $imported = 0;
+        $errors = [];
+        $rowNumber = 1; // header
+
+        foreach ($rows as $row) {
+            $rowNumber++;
+            try {
+                $hsCode = $row['hs_code'] ?? '';
+                $origin = $row['origin_country'] ?? '';
+                $destination = $row['destination_country'] ?? '';
+
+                if ($hsCode === '' || $origin === '' || $destination === '') {
+                    throw new \RuntimeException('hs_code, origin_country and destination_country are required.');
+                }
+
+                $dutyType = strtolower($row['duty_type'] ?? 'ad_valorem');
+                if (!in_array($dutyType, ['ad_valorem', 'specific', 'compound'], true)) {
+                    throw new \RuntimeException(sprintf('Unknown duty_type "%s".', $dutyType));
+                }
+                if (in_array($dutyType, ['specific', 'compound'], true) && ($row['specific_rate'] ?? '') === '') {
+                    throw new \RuntimeException('specific_rate is required for specific/compound tariffs.');
+                }
+
+                $tariff = new \App\Entity\TariffRate();
+                $tariff->setHsCode($hsCode);
+                $tariff->setOriginCountry($origin);
+                $tariff->setDestinationCountry($destination);
+                $tariff->setDutyRate(($row['duty_rate'] ?? '') !== '' ? $row['duty_rate'] : null);
+                $tariff->setMfnRate(($row['mfn_rate'] ?? '') !== '' ? $row['mfn_rate'] : null);
+                $tariff->setFtaRate(($row['fta_rate'] ?? '') !== '' ? $row['fta_rate'] : null);
+                $tariff->setDutyType($dutyType);
+                $tariff->setSpecificRate(($row['specific_rate'] ?? '') !== '' ? $row['specific_rate'] : null);
+                $tariff->setFtaAgreement(($row['fta_agreement'] ?? '') !== '' ? $row['fta_agreement'] : null);
+                $tariff->setNotes(($row['notes'] ?? '') !== '' ? $row['notes'] : null);
+                $tariff->setEffectiveDate($this->parseOptionalDate($row['effective_date'] ?? null));
+                $tariff->setExpiryDate($this->parseOptionalDate($row['expiry_date'] ?? null));
+                $tariff->setVersionId($versionId);
+                $tariff->setIsActive(false);
+
+                $this->entityManager->persist($tariff);
+                $imported++;
+
+                if ($imported % 100 === 0) {
+                    $this->entityManager->flush();
+                }
+            } catch (\Throwable $e) {
+                $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+            }
+        }
+
+        $this->entityManager->flush();
+
+        if (empty($errors)) {
+            $this->activateDatasetVersion('TARIFF_RATES', \App\Entity\TariffRate::class, $version, $versionId);
+        }
+        $this->entityManager->flush();
+
+        return [
+            'success' => empty($errors),
+            'version_uuid' => $versionId,
+            'dataset_type' => 'TARIFF_RATES',
+            'imported_count' => $imported,
+            'errors' => $errors,
+            'errorCount' => count($errors),
+            'activated' => empty($errors),
+            'description' => $description,
+        ];
+    }
+
+    /**
+     * Import freight rate tables from a header-driven CSV.
+     *
+     * Expected columns (order-independent):
+     *   origin_port, destination_port, transport_mode, container_type,
+     *   cost_per_unit, currency, transit_days, effective_date, expiry_date,
+     *   carrier, notes
+     */
+    public function importFreightTables(string $csvPath, ?string $signaturePath, ?string $signatureHash, string $description = ''): array
+    {
+        $this->verifyImportedFile($csvPath, $signaturePath, $signatureHash);
+
+        $version = $this->beginDatasetVersion('FREIGHT_TABLES', $csvPath, $description);
+        $versionId = $version->getVersionUuid();
+
+        $rows = $this->readCsvAssoc($csvPath);
+        $imported = 0;
+        $errors = [];
+        $rowNumber = 1; // header
+
+        foreach ($rows as $row) {
+            $rowNumber++;
+            try {
+                $originPort = $row['origin_port'] ?? '';
+                $destinationPort = $row['destination_port'] ?? '';
+                $costPerUnit = $row['cost_per_unit'] ?? '';
+
+                if ($originPort === '' || $destinationPort === '' || $costPerUnit === '') {
+                    throw new \RuntimeException('origin_port, destination_port and cost_per_unit are required.');
+                }
+                if (!is_numeric($costPerUnit)) {
+                    throw new \RuntimeException(sprintf('cost_per_unit "%s" is not numeric.', $costPerUnit));
+                }
+                $currency = strtoupper($row['currency'] ?? 'USD');
+                if (!in_array($currency, ['USD', 'EUR', 'MAD', 'GBP'], true)) {
+                    throw new \RuntimeException(sprintf('Unsupported currency "%s".', $currency));
+                }
+
+                $freight = new \App\Entity\FreightTable();
+                $freight->setOriginPort($originPort);
+                $freight->setDestinationPort($destinationPort);
+                $freight->setTransportMode(($row['transport_mode'] ?? '') !== '' ? ucfirst(strtolower($row['transport_mode'])) : null);
+                $freight->setContainerType(($row['container_type'] ?? '') !== '' ? $row['container_type'] : null);
+                $freight->setCostPerUnit($costPerUnit);
+                $freight->setCurrency($currency);
+                $freight->setTransitDays(($row['transit_days'] ?? '') !== '' ? (int) $row['transit_days'] : null);
+                $freight->setCarrier(($row['carrier'] ?? '') !== '' ? $row['carrier'] : null);
+                $freight->setNotes(($row['notes'] ?? '') !== '' ? $row['notes'] : null);
+                $freight->setEffectiveDate($this->parseOptionalDate($row['effective_date'] ?? null));
+                $freight->setExpiryDate($this->parseOptionalDate($row['expiry_date'] ?? null));
+                $freight->setVersionId($versionId);
+                $freight->setIsActive(false);
+
+                $this->entityManager->persist($freight);
+                $imported++;
+
+                if ($imported % 100 === 0) {
+                    $this->entityManager->flush();
+                }
+            } catch (\Throwable $e) {
+                $errors[] = "Row {$rowNumber}: " . $e->getMessage();
+            }
+        }
+
+        $this->entityManager->flush();
+
+        if (empty($errors)) {
+            $this->activateDatasetVersion('FREIGHT_TABLES', \App\Entity\FreightTable::class, $version, $versionId);
+        }
+        $this->entityManager->flush();
+
+        return [
+            'success' => empty($errors),
+            'version_uuid' => $versionId,
+            'dataset_type' => 'FREIGHT_TABLES',
+            'imported_count' => $imported,
+            'errors' => $errors,
+            'errorCount' => count($errors),
+            'activated' => empty($errors),
+            'description' => $description,
         ];
     }
 

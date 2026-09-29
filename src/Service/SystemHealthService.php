@@ -121,11 +121,13 @@ class SystemHealthService
             $failed = (int) $this->connection->fetchOne(
                 "SELECT COUNT(*) FROM messenger_messages WHERE queue_name = 'failed'"
             );
+            // Live backlog excludes the failed queue (those are parked for
+            // inspection, not evidence of a dead worker).
             $oldestQueuedAgeMinutes = $this->connection->fetchOne(
-                'SELECT TIMESTAMPDIFF(MINUTE, MIN(created_at), NOW()) FROM messenger_messages'
+                "SELECT TIMESTAMPDIFF(MINUTE, MIN(created_at), NOW()) FROM messenger_messages WHERE queue_name <> 'failed'"
             );
             $queuedDepth = (int) $this->connection->fetchOne(
-                'SELECT COUNT(*) FROM messenger_messages'
+                "SELECT COUNT(*) FROM messenger_messages WHERE queue_name <> 'failed'"
             );
 
             if ($failed > 100 || $queuedDepth > 1000 || ((int) $oldestQueuedAgeMinutes > 30 && $queuedDepth > 0)) {

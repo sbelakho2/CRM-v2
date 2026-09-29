@@ -82,6 +82,13 @@ class EmailSend
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $sendLeaseExpiresAt = null;
 
+    /**
+     * Earliest time a FAILED delivery may be retried (exponential backoff
+     * after each transport failure). NULL on non-failed rows.
+     */
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $nextAttemptAt = null;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $openedAt = null;
 
@@ -241,6 +248,18 @@ class EmailSend
     public function setSendLeaseExpiresAt(?\DateTimeInterface $expiresAt): self
     {
         $this->sendLeaseExpiresAt = $expiresAt;
+
+        return $this;
+    }
+
+    public function getNextAttemptAt(): ?\DateTimeInterface
+    {
+        return $this->nextAttemptAt;
+    }
+
+    public function setNextAttemptAt(?\DateTimeInterface $at): self
+    {
+        $this->nextAttemptAt = $at;
 
         return $this;
     }

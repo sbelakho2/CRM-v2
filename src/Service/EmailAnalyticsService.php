@@ -32,6 +32,8 @@ class EmailAnalyticsService
         $stats = $this->entityManager->createQuery(
             'SELECT 
                 COUNT(es.id) as total,
+                SUM(CASE WHEN es.status IN (:delivered) THEN 1 ELSE 0 END) as delivered,
+                SUM(CASE WHEN es.status = :failed THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN es.status = :sent THEN 1 ELSE 0 END) as sent,
                 SUM(CASE WHEN es.opened = true THEN 1 ELSE 0 END) as opened,
                 SUM(CASE WHEN es.clicked = true THEN 1 ELSE 0 END) as clicked,
@@ -42,6 +44,8 @@ class EmailAnalyticsService
         )
         ->setParameter('campaign', $campaign)
         ->setParameter('sent', 'sent')
+        ->setParameter('delivered', ['sent', 'bounced'])
+        ->setParameter('failed', 'failed')
         ->getSingleResult();
 
         $total = (int) $stats['total'];

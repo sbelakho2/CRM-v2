@@ -45,7 +45,7 @@ class MigrationsPreflightCommand extends Command
 
         $executed = array_map(
             static fn (ExecutedMigration $m): string => (string) $m->getVersion(),
-            $this->dependencyFactory->getMigrationRepository()->getExecutedMigrations()->getItems()
+            $this->dependencyFactory->getMetadataStorage()->getExecutedMigrations()->getItems()
         );
 
         $blockers = [];
@@ -85,8 +85,23 @@ class MigrationsPreflightCommand extends Command
                 if (!$this->columnExists($table, $column)) {
                     continue;
                 }
+                // Type-aware populated check: comparing a string column to
+                // numeric 0 invokes MySQL's numeric coercion (non-numeric
+                // strings coerce to 0) and can classify real history as
+                // empty. Text columns test TRIM(col) <> ''; numeric
+                // columns test col <> 0 (plus NOT NULL).
+                $dataType = (string) $this->connection->fetchOne(
+                    'SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+                    [$table, $column]
+                );
+                $isText = in_array($dataType, ['char', 'varchar', 'text', 'longtext', 'mediumtext', 'tinytext'], true);
+                // 0/false is the empty/default state for numeric and
+                // boolean flags; NULL is empty for nullable columns.
+                $predicate = $isText
+                    ? "{$column} IS NOT NULL AND TRIM({$column}) <> ''"
+                    : "{$column} IS NOT NULL AND {$column} <> 0";
                 $nonNull = (int) $this->connection->fetchOne(
-                    "SELECT COUNT(*) FROM {$table} WHERE {$column} IS NOT NULL AND {$column} <> '' AND {$column} <> 0"
+                    "SELECT COUNT(*) FROM {$table} WHERE {$predicate}"
                 );
                 if ($nonNull > 0) {
                     $blockers[] = sprintf(

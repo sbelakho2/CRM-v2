@@ -121,7 +121,7 @@ class UnifiedPdfGeneratorService
      * @param Quote $quote Quote with DFM lint results
      * @return ComplianceDocument Generated DFM report
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Render templates/pdf/dfm_report.html.twig
      * 2. Group findings by severity (Critical/Warning/Info)
      * 3. Show: Check description, affected parts, remediation text
@@ -240,7 +240,7 @@ class UnifiedPdfGeneratorService
      * @param Quote $quote Quote with full costing details
      * @return ComplianceDocument Generated cost breakdown
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Render templates/pdf/cost_breakdown.html.twig
      * 2. Show: Material cost (per-line breakdown with data sources)
      * 3. Show: PCB cost (layers, area, pcb_curve reference)
@@ -296,7 +296,7 @@ class UnifiedPdfGeneratorService
      * @param Quote $quote Quote with imputed/Alibaba parts
      * @return ComplianceDocument Generated exceptions report
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Render templates/pdf/exceptions_report.html.twig
      * 2. List: Parts with imputed pricing (missing from all APIs)
      * 3. List: Parts from Alibaba (indicative pricing, not validated)
@@ -422,7 +422,7 @@ class UnifiedPdfGeneratorService
      * @param Quote $quote Quote with supplier risk data
      * @return ComplianceDocument Generated sourcing risk report
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Render templates/pdf/sourcing_risk.html.twig
      * 2. Show: Supplier concentration (% spend per supplier)
      * 3. Show: Geographic risk (country concentration)
@@ -622,7 +622,7 @@ class UnifiedPdfGeneratorService
      * @param Quote|Estimate $entity Entity with audit data
      * @return ComplianceDocument Generated audit trail
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Render templates/pdf/audit_trail.html.twig
      * 2. Show: SHA-256 hash of each generated PDF
      * 3. Show: Dataset versions used (tariff_rates, freight_tables, etc.)
@@ -776,7 +776,7 @@ class UnifiedPdfGeneratorService
      * @param OnboardingPack $pack Onboarding pack with pre-filled data
      * @return ComplianceDocument Generated onboarding pack
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Render templates/pdf/onboarding_pack.html.twig
      * 2. Include: Company profile, contact information
      * 3. Include: ISO certificates (from ComplianceDocument)
@@ -839,7 +839,7 @@ class UnifiedPdfGeneratorService
      * @param array $metadata Additional metadata (dataset versions, API versions, etc.)
      * @return ComplianceDocument Persisted document entity
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Calculate SHA-256 hash
      * 2. Create ComplianceDocument entity
      * 3. Set documentType, sha256Hash, versionId

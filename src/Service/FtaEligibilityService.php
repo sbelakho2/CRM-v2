@@ -470,7 +470,7 @@ class FtaEligibilityService
      * @param string $ftaRegion FTA region (e.g., 'NAFTA', 'EU', 'MA-US')
      * @return array RVC calculation: ['rvc_percent' => 65.5, 'originating_value' => 6550.00, 'non_originating_value' => 3450.00, 'meets_threshold' => true, 'required_percent' => 60]
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Sum originating material values:
      *    → Materials with COO in FTA region
      * 2. Sum non-originating material values:
@@ -557,7 +557,7 @@ class FtaEligibilityService
      * @param array $bomData BOM with MPNs and manufacturers
      * @return array Verification result: ['verified_mpns' => ['STM32F407VGT6'], 'missing_mpns' => ['TPS62140'], 'verified_percent' => 75.5]
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Extract MPNs from BOM
      * 2. Query coo_supplier_decls table:
      *    → WHERE mpn IN (:mpns) AND is_verified = true
@@ -730,7 +730,7 @@ class FtaEligibilityService
      * @param array $eligibilityResult Result from checkEligibility()
      * @return array Watermark decision: ['watermark' => true, 'text' => 'CONDITIONAL - VERIFY BEFORE SUBMISSION', 'reason' => 'Missing COO declarations for 3 MPNs']
      * 
-     * TODO Implementation:
+     * Implementation:
      * - If status = 'CONDITIONAL': watermark = true, text = 'CONDITIONAL - VERIFY BEFORE SUBMISSION'
      * - If status = 'INELIGIBLE': watermark = true, text = 'NOT FTA ELIGIBLE - USE MFN RATE'
      * - If status = 'ELIGIBLE': watermark = false

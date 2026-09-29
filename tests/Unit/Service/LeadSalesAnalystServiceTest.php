@@ -18,7 +18,7 @@ class LeadSalesAnalystServiceTest extends TestCase
     protected function setUp(): void
     {
         $this->logger = $this->createMock(LoggerInterface::class);
-        $this->service = new LeadSalesAnalystService($this->logger);
+        $this->service = new LeadSalesAnalystService($this->logger, null, null);
     }
 
     private function createLead(array $attributes = []): Lead
@@ -68,6 +68,8 @@ class LeadSalesAnalystServiceTest extends TestCase
         // operating data) — never assumed from source-code defaults.
         $this->service = new LeadSalesAnalystService(
             $this->logger,
+            null, // no verified-register lookup in this unit test
+            null,
             ['pcba' => true, 'smt' => true, 'through_hole' => true, 'testing' => true, 'prototyping' => true],
             ['ISO 9001', 'ISO 14001', 'AS9100'],
         );

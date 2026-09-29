@@ -58,6 +58,12 @@ class Quote
     #[ORM\Column(type: 'decimal', precision: 15, scale: 2)]
     private ?string $totalCost = '0.00';
 
+    #[ORM\Column(type: 'decimal', precision: 15, scale: 2, nullable: true)]
+    private ?string $estimatedCost = null; // Internal cost to fulfil (materials+assembly+freight+duty)
+
+    #[ORM\Column(type: 'decimal', precision: 6, scale: 3, nullable: true)]
+    private ?string $marginOverridePercent = null; // Optional explicit margin (e.g. won-deal actuals)
+
     #[ORM\Column(length: 10)]
     private ?string $currency = 'USD';
 
@@ -149,6 +155,12 @@ class Quote
     {
         $this->archivedAt = $this->archivedAt ?? new \DateTime();
         $this->archivedBy = $by;
+
+        // An archived commercial quote must immediately stop being publicly
+        // reachable: revoke the share token and close interactivity.
+        $this->publicToken = null;
+        $this->tokenExpiresAt = null;
+        $this->interactiveEnabled = false;
 
         return $this;
     }
@@ -607,12 +619,50 @@ class Quote
     }
 
     /**
-     * Get margin percent (stub for QuoteWinPredictorService compatibility)
-     * Returns null to use default value - margin tracking not yet implemented
+     * Margin percent, from real data:
+     *
+     *   1. explicit marginOverridePercent when set (won-deal actuals),
+     *   2. otherwise computed from totalCost vs estimatedCost,
+     *   3. null only when neither is known (callers substitute defaults).
      */
     public function getMarginPercent(): ?float
     {
-        return null;
+        if ($this->marginOverridePercent !== null) {
+            return (float) $this->marginOverridePercent;
+        }
+
+        $total = (float) ($this->totalCost ?? '0');
+        $cost = (float) ($this->estimatedCost ?? '0');
+
+        if ($total <= 0.0 || $cost <= 0.0) {
+            return null; // genuinely unknown, not guessed
+        }
+
+        return round((($total - $cost) / $total) * 100, 3);
+    }
+
+    public function getEstimatedCost(): ?string
+    {
+        return $this->estimatedCost;
+    }
+
+    public function setEstimatedCost(?string $estimatedCost): self
+    {
+        $this->estimatedCost = $estimatedCost;
+
+        return $this;
+    }
+
+    public function getMarginOverridePercent(): ?string
+    {
+        return $this->marginOverridePercent;
+    }
+
+    public function setMarginOverridePercent(?string $marginOverridePercent): self
+    {
+        $this->marginOverridePercent = $marginOverridePercent;
+
+        return $this;
     }
 
     /**

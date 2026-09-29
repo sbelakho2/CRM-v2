@@ -124,8 +124,14 @@ class InteractiveLiveQuoteService
     public function getQuoteByToken(string $token): ?Quote
     {
         $quote = $this->quoteRepository->findOneBy(['publicToken' => $token]);
-        
+
         if (!$quote) {
+            return null;
+        }
+
+        // Archived quotes are not publicly live even if a legacy token row
+        // still resolves.
+        if ($quote->isArchived()) {
             return null;
         }
         

@@ -181,20 +181,40 @@ class AdminDatasetController extends AbstractController
             }
         }
         
-        // 5. Import dataset (currently only FX rates implemented)
+        // 5. Import dataset — all three dataset types are implemented.
+        // Signature: uploaded signature FILE (server path) or pasted sha256
+        // HASH; one of them must match the uploaded file byte-for-byte.
+        $signatureFile = $request->files->get('signature_file');
+        $signaturePath = $signatureFile !== null
+            ? $signatureFile->getPathname()
+            : ($signature !== null && $signature !== '' && is_file($signature) ? $signature : null);
+
         try {
-            if ($datasetType === 'fx_rate') {
-                $result = $this->datasetImport->importFxRates(
+            $description = (string) $request->request->get('description', 'admin import');
+
+            $result = match ($datasetType) {
+                'fx_rate' => $this->datasetImport->importFxRates(
                     $datasetFile->getPathname(),
-                    $signature
-                );
-            } else {
-                // Placeholder for other dataset types
-                $this->addFlash('warning', 'admin_dataset.flash.warning.not_implemented');
-                return $this->redirectToRoute('admin_dataset_import_form');
-            }
+                    $signaturePath ?? '',
+                    $description
+                ),
+                'tariff_rate' => $this->datasetImport->importTariffRates(
+                    $datasetFile->getPathname(),
+                    $signaturePath,
+                    $signature,
+                    $description
+                ),
+                'freight_table' => $this->datasetImport->importFreightTables(
+                    $datasetFile->getPathname(),
+                    $signaturePath,
+                    $signature,
+                    $description
+                ),
+                default => throw new \RuntimeException('Unknown dataset type.'),
+            };
         } catch (\Exception $e) {
             $this->addFlash('error', 'admin_dataset.flash.error.import_failed');
+            $this->addFlash('error', $e->getMessage());
             return $this->redirectToRoute('admin_dataset_import_form');
         }
         

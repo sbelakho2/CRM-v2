@@ -1740,7 +1740,13 @@
       "description_placeholder": "Objectifs de campagne et public cible...",
       "name_placeholder": "Prospection automobile T4",
       "touch_count": "Nombre de points de contact",
-      "touch_count_placeholder": "5"
+      "touch_count_placeholder": "5",
+      "subject": "Objet de l'e-mail",
+      "subject_placeholder": "Vide = \"[Touch x/y] Nom de la campagne\"",
+      "body_html": "Corps de l'e-mail (HTML)",
+      "body_html_placeholder": "Balises {{first_name}}, {{company}}... acceptées. Vide = modèle par défaut.",
+      "from_name": "Nom de l'expéditeur",
+      "from_email": "E-mail expéditeur"
     },
     "from_email": "E-mail de l'expéditeur",
     "from_name": "Nom de l'expéditeur",

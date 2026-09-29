@@ -110,11 +110,38 @@ class DutyCalculationService
             $dutyRate = (float) ($tariffRate->getMfnRate() ?? $tariffRate->getDutyRate());
         }
         
-        // Step 3: Calculate duty amount (ad-valorem).
-        // NOTE: $quantity/$uom are accepted but currently unused — specific
-        // duties ($ per unit/kg) are not yet implemented; only ad-valorem
-        // (% of customs value) duties are calculated.
-        $dutyAmount = $customsValue * ($dutyRate / 100);
+        // Step 3: Calculate the duty amount by the tariff's TYPE.
+        //
+        // A customs engine must not silently treat every tariff as a
+        // percentage: the data model carries duty_type on the tariff row
+        // ('ad_valorem' | 'specific' | 'compound'); unsupported/unknown
+        // types raise an explicit unresolved result instead of returning a
+        // silently-understated ad-valorem figure.
+        $dutyType = strtolower((string) ($tariffRate->getDutyType() ?? 'ad_valorem'));
+        $specificRate = $tariffRate->getSpecificRate(); // $ per UOM
+        $specificAmount = 0.0;
+
+        if ($dutyType === 'specific' || $dutyType === 'compound') {
+            if ($specificRate === null || $quantity <= 0.0) {
+                throw new \RuntimeException(sprintf(
+                    'Tariff %s requires a specific rate and a positive quantity/UOM (%s); got rate=%s qty=%s.',
+                    $dutyType,
+                    $uom,
+                    $specificRate === null ? 'null' : (string) $specificRate,
+                    $quantity
+                ));
+            }
+            $specificAmount = $quantity * (float) $specificRate;
+        }
+
+        $adValoremAmount = $customsValue * ($dutyRate / 100);
+
+        $dutyAmount = match ($dutyType) {
+            'ad_valorem' => $adValoremAmount,
+            'specific' => $specificAmount,
+            'compound' => $adValoremAmount + $specificAmount,
+            default => throw new \RuntimeException(sprintf('Unsupported duty type "%s" for HTS %s — result unresolved rather than guessed.', $dutyType, $htsCode)),
+        };
         
         // Step 4: Calculate VAT if DDP incoterm
         $vatRate = 0.0;

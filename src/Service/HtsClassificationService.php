@@ -34,7 +34,7 @@ class HtsClassificationService
      * @param array $bomLine BOM line data: ['mpn' => 'STM32F407VGT6', 'manufacturer' => 'STMicroelectronics', 'category' => 'Microcontroller', 'description' => '...', 'hts_code' => null]
      * @return array Classification result: ['hts_code' => '8542.39.00', 'confidence' => 85, 'method' => 'MAPPED', 'rule_id' => 123]
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Check if bomLine['hts_code'] is provided (not null/empty)
      *    → If yes, return ['hts_code' => bomLine['hts_code'], 'confidence' => 100, 'method' => 'PROVIDED']
      * 2. Query hts_map_rules for exact MPN match:
@@ -226,7 +226,7 @@ class HtsClassificationService
      * @param HtsMapRule|null $rule Matching rule (null if PROVIDED)
      * @return int Confidence score 0-100
      * 
-     * TODO Implementation:
+     * Implementation:
      * - PROVIDED: Always return 100
      * - MAPPED: Return 85 (or rule.confidence_score if available)
      * - HEURISTIC: Return 60 (or rule.confidence_score if available)
@@ -248,7 +248,7 @@ class HtsClassificationService
      * @param array $bom Array of BOM lines
      * @return array Array of classification results (same order as input)
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Loop through each BOM line
      * 2. Call classifyBomLine() for each
      * 3. Return array of results
@@ -269,7 +269,7 @@ class HtsClassificationService
      * @param array $classificationResults Results from classifyBom()
      * @return array Statistics: ['total' => 100, 'provided' => 20, 'mapped' => 50, 'heuristic' => 25, 'unknown' => 5, 'avg_confidence' => 78.5]
      * 
-     * TODO Implementation:
+     * Implementation:
      * 1. Count classifications by method
      * 2. Calculate average confidence score
      * 3. Return statistics array
@@ -312,7 +312,7 @@ class HtsClassificationService
      * @param string $htsCode HTS code to validate (e.g., '8542.39.00')
      * @return bool True if valid format
      * 
-     * TODO Implementation:
+     * Implementation:
      * - Check format: 4 digits . 2 digits . 2 digits (e.g., '8542.39.00')
      * - Or: 10 digits without dots (e.g., '8542390000')
      * - Validate digit ranges (valid HTS chapters 01-99)
@@ -341,7 +341,7 @@ class HtsClassificationService
      * @param string $htsCode Input HTS code (any format)
      * @return string Normalized HTS code (e.g., '8542.39.00')
      * 
-     * TODO Implementation:
+     * Implementation:
      * - If already has dots, return as-is
      * - If 10 digits without dots, insert dots at positions 4 and 6
      * - Throw exception if invalid format

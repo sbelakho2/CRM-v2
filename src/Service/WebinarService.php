@@ -43,57 +43,97 @@ class WebinarService
     {
         $email = strtolower(trim($email));
 
-        $existing = $this->entityManager->getRepository(WebinarAttendee::class)
-            ->findOneBy(['webinar' => $webinar, 'email' => $email]);
-        if ($existing !== null) {
-            $this->ensureConfirmationEmail($existing);
+        // ONE transaction owns the whole admission decision: webinar row
+        // lock → duplicate check → LIVE capacity count → insert → counter.
+        // Previously the controller locked+checked, closed its transaction,
+        // and only then registered — two final-seat requests could both
+        // pass the lock sequentially and both register.
+        $attendeeId = $this->entityManager->wrapInTransaction(
+            function () use ($webinar, $contact, $email, $name, $companyName): ?int {
+                $conn = $this->entityManager->getConnection();
 
-            return $existing;
-        }
+                // Lock the webinar row.
+                $conn->executeQuery(
+                    'SELECT id FROM webinars WHERE id = :id FOR UPDATE',
+                    ['id' => $webinar->getId()]
+                );
 
-        $attendee = new WebinarAttendee();
-        $attendee->setWebinar($webinar);
-        $attendee->setEmail($email);
-        $attendee->setName($name);
-        $attendee->setRegisteredAt(new \DateTime());
+                // Duplicate registration is idempotent.
+                $existingId = $conn->fetchOne(
+                    'SELECT id FROM webinar_attendees WHERE webinar_id = :wid AND email = :email',
+                    ['wid' => $webinar->getId(), 'email' => $email]
+                );
+                if ($existingId !== null && $existingId !== false) {
+                    return (int) $existingId;
+                }
 
-        if ($contact !== null) {
-            $attendee->setContact($contact);
-            $attendee->setCompany($contact->getCompany());
-        }
-        // Free-text company name is stored as plain text on the attendee —
-        // never fuzzy-matched into Company entities; conversion is an
-        // internal workflow.
-        if ($companyName !== null && trim($companyName) !== '') {
-            $attendee->setCompanyName(trim($companyName));
-        }
+                // LIVE capacity: COUNT(*) under the lock, NOT the
+                // denormalized registeredCount — CSV imports and historical
+                // duplicate-merge migrations do not reliably maintain that
+                // counter. The counter stays as a display best-effort.
+                $archivedAt = $webinar->getArchivedAt();
+                $status = $webinar->getStatus();
+                $scheduledDate = $webinar->getScheduledDate();
+                $max = $webinar->getMaxAttendees();
 
-        // Capacity is enforced under the webinar row lock taken by the
-        // controller's transaction; re-verified here for other callers.
-        if (!$webinar->canAcceptRegistrations()) {
-            throw new \RuntimeException('This webinar is no longer accepting registrations.');
-        }
+                if ($archivedAt !== null
+                    || $status === \App\Entity\Webinar::STATUS_COMPLETED
+                    || $status === \App\Entity\Webinar::STATUS_CANCELLED
+                    || ($scheduledDate !== null && $scheduledDate <= new \DateTime())) {
+                    throw new \RuntimeException('This webinar is no longer accepting registrations.');
+                }
 
-        // Increment registered count
-        $webinar->setRegisteredCount($webinar->getRegisteredCount() + 1);
+                if ($max !== null && $max > 0) {
+                    $liveCount = (int) $conn->fetchOne(
+                        'SELECT COUNT(*) FROM webinar_attendees WHERE webinar_id = :wid',
+                        ['wid' => $webinar->getId()]
+                    );
+                    if ($liveCount >= $max) {
+                        throw new \RuntimeException('This webinar is full.');
+                    }
+                }
 
-        $this->entityManager->persist($attendee);
-        $this->entityManager->persist($webinar);
+                $attendee = new WebinarAttendee();
+                $attendee->setWebinar($webinar);
+                $attendee->setEmail($email);
+                $attendee->setName($name);
+                $attendee->setRegisteredAt(new \DateTime());
 
-        try {
-            $this->entityManager->flush();
-        } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
-            // Concurrent duplicate registration: the database uniqueness is
-            // authoritative — behave idempotently, never surface a 500.
-            $winner = $this->entityManager->getRepository(WebinarAttendee::class)
-                ->findOneBy(['webinar' => $webinar, 'email' => $email]);
-            if ($winner !== null) {
-                $this->ensureConfirmationEmail($winner);
+                if ($contact !== null) {
+                    $attendee->setContact($contact);
+                    $attendee->setCompany($contact->getCompany());
+                }
+                if ($companyName !== null && trim($companyName) !== '') {
+                    $attendee->setCompanyName(trim($companyName));
+                }
 
-                return $winner;
+                $this->entityManager->persist($attendee);
+
+                // Display counter: best-effort maintenance alongside the
+                // authoritative COUNT above.
+                $conn->executeStatement(
+                    'UPDATE webinars SET registered_count = registered_count + 1 WHERE id = :id',
+                    ['id' => $webinar->getId()]
+                );
+
+                $this->entityManager->flush();
+
+                return $attendee->getId();
             }
+        );
 
-            throw $e;
+        // Re-fetch outside the transaction. The raw connection is used so a
+        // manager that a failed flush might have closed cannot break the
+        // idempotent path (the ORM query through a closed manager was the
+        // bug the email code already had to fix once).
+        $row = $this->entityManager->getConnection()->fetchAssociative(
+            'SELECT * FROM webinar_attendees WHERE id = :id',
+            ['id' => $attendeeId]
+        );
+
+        $attendee = $this->entityManager->getRepository(WebinarAttendee::class)->find($attendeeId);
+        if ($attendee === null) {
+            throw new \RuntimeException('Registration could not be confirmed.');
         }
 
         $this->ensureConfirmationEmail($attendee);

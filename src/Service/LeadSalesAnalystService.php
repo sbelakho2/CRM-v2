@@ -114,17 +114,23 @@ class LeadSalesAnalystService
     
     public function __construct(
         private LoggerInterface $logger,
+        private ?\App\Repository\VerifiedCapabilityRepository $capabilityRepository = null,
+        private ?\App\Repository\VerifiedCertificationRepository $certificationRepository = null,
         array $ourCapabilities = [],
         array $ourCertifications = [],
         array $targetSectors = [],
     ) {
-        // Capability/certification truth must come from VERIFIED operating
-        // data (config/DB), never from source-code defaults: a hard-coded
-        // default can turn into an outbound factual claim about a real
-        // factory. Unknown is the safe default — the analyst simply does
-        // not claim capabilities it cannot substantiate.
-        // The DEFAULT_CAPABILITIES / DEFAULT_CERTIFICATIONS constants remain
-        // only as an explicit opt-in template for populating verified data.
+        // Capability/certification truth comes from the VERIFIED registers
+        // (verified_capabilities / verified_certifications — seeded with the
+        // official Starz claims via app:claims:seed-verified, then curated).
+        // Constructor arguments remain as an explicit override; the safe
+        // default before seeding is "no claims", never guessed ones.
+        if ($ourCapabilities === [] && $this->capabilityRepository !== null) {
+            $ourCapabilities = $this->capabilityRepository->findClaimable();
+        }
+        if ($ourCertifications === [] && $this->certificationRepository !== null) {
+            $ourCertifications = $this->certificationRepository->findClaimableStandards();
+        }
         $this->ourCapabilities = $ourCapabilities;
         $this->ourCertifications = $ourCertifications;
         $this->targetSectors = !empty($targetSectors) ? $targetSectors : self::DEFAULT_TARGET_SECTORS;

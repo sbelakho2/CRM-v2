@@ -76,6 +76,7 @@ class QuoteReviewController extends AbstractController
             ->addSelect('COALESCE(c.name, :missingCompany) AS company_name')
             ->setParameter('missingCompany', $this->translator->trans('common.n_a'))
             ->where('q.status IN (:statuses)')
+            ->andWhere('q.archivedAt IS NULL')
             ->setParameter('statuses', ['draft', 'pending_review'])
             ->groupBy('q.id')
             ->orderBy('q.createdAt', 'DESC')
@@ -98,6 +99,7 @@ class QuoteReviewController extends AbstractController
             ->addSelect('c')
             ->addSelect('COALESCE(c.name, :na) AS company_name')
             ->setParameter('na', $this->translator->trans('common.n_a'))
+            ->andWhere('q.archivedAt IS NULL')
             ->andWhere('q.id = :id')
             ->setParameter('id', $id)
             ->getQuery()
@@ -149,6 +151,11 @@ class QuoteReviewController extends AbstractController
             return new JsonResponse(['error' => 'BOM line not found'], 404);
         }
 
+        // Archived commercial quotes are read-only.
+        if ($bomLine->getQuote() !== null && $bomLine->getQuote()->isArchived()) {
+            return new JsonResponse(['error' => 'This quote is archived and read-only'], 409);
+        }
+
         
         $bomLine->setManuallyVerified(true);
         $bomLine->setRequiresReview(false);
@@ -193,6 +200,11 @@ class QuoteReviewController extends AbstractController
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
+        }
+
+        // Archived commercial quotes are read-only.
+        if ($bomLine->getQuote() !== null && $bomLine->getQuote()->isArchived()) {
+            return new JsonResponse(['error' => 'This quote is archived and read-only'], 409);
         }
 
         
@@ -267,6 +279,11 @@ class QuoteReviewController extends AbstractController
         $bomLine = $this->bomLineRepository->find($id);
         if (!$bomLine) {
             return new JsonResponse(['error' => 'BOM line not found'], 404);
+        }
+
+        // Archived commercial quotes are read-only.
+        if ($bomLine->getQuote() !== null && $bomLine->getQuote()->isArchived()) {
+            return new JsonResponse(['error' => 'This quote is archived and read-only'], 409);
         }
 
         // Clear the API-sourced pricing

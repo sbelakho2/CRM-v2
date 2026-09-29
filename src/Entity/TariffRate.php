@@ -35,6 +35,12 @@ class TariffRate
     #[ORM\Column(type: 'decimal', precision: 5, scale: 2, nullable: true)]
     private ?string $ftaRate = null; // FTA preferential rate (0.00 if qualified)
 
+    #[ORM\Column(length: 20, nullable: true, options: ['default' => 'ad_valorem'])]
+    private ?string $dutyType = 'ad_valorem'; // ad_valorem | specific | compound
+
+    #[ORM\Column(type: 'decimal', precision: 12, scale: 4, nullable: true)]
+    private ?string $specificRate = null; // $ per unit of measure (specific/compound)
+
     #[ORM\Column(type: 'date')]
     private ?\DateTimeInterface $effectiveDate = null;
 
@@ -140,6 +146,30 @@ class TariffRate
     public function getFtaRate(): ?string
     {
         return $this->ftaRate;
+    }
+
+    public function getDutyType(): ?string
+    {
+        return $this->dutyType;
+    }
+
+    public function setDutyType(?string $dutyType): self
+    {
+        $this->dutyType = $dutyType;
+
+        return $this;
+    }
+
+    public function getSpecificRate(): ?string
+    {
+        return $this->specificRate;
+    }
+
+    public function setSpecificRate(?string $specificRate): self
+    {
+        $this->specificRate = $specificRate;
+
+        return $this;
     }
 
     public function setFtaRate(?string $ftaRate): self

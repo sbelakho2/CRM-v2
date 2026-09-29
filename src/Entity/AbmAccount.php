@@ -67,7 +67,7 @@ class AbmAccount
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Company $company = null;
 
-    #[ORM\OneToMany(mappedBy: 'abmAccount', targetEntity: AbmHit::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'abmAccount', targetEntity: AbmHit::class, cascade: ['persist'])]
     private Collection $abmHits;
 
     public function __construct()

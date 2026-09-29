@@ -102,6 +102,10 @@ class EmailCampaignController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function show(EmailCampaign $campaign): Response
     {
+        if ($campaign->isArchived() && !$this->isGranted('ROLE_ADMIN')) {
+            throw $this->createNotFoundException('Campaign not found');
+        }
+
         $metrics = $this->campaignService->getCampaignMetrics($campaign);
         
         // Get sends grouped by touch number (recipient contacts joined in
@@ -175,6 +179,12 @@ class EmailCampaignController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function edit(Request $request, EmailCampaign $campaign): Response
     {
+        if ($campaign->isArchived()) {
+            $this->addFlash('error', 'This campaign is archived and read-only.');
+
+            return $this->redirectToRoute('app_email_campaign_index');
+        }
+
         $form = $this->createForm(EmailCampaignType::class, $campaign);
         $form->handleRequest($request);
 
@@ -211,6 +221,14 @@ class EmailCampaignController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function toggleActive(Request $request, EmailCampaign $campaign): Response
     {
+        // Toggle must never resurrect an archived campaign into the
+        // contradictory active+archived state.
+        if ($campaign->isArchived()) {
+            $this->addFlash('error', 'This campaign is archived and cannot be reactivated.');
+
+            return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
+        }
+
         if ($this->isCsrfTokenValid('toggle'.$campaign->getId(), $request->request->get('_token'))) {
             $campaign->setActive(!$campaign->isActive());
             $this->entityManager->flush();
@@ -226,6 +244,12 @@ class EmailCampaignController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function send(Request $request, EmailCampaign $campaign): Response
     {
+        if ($campaign->isArchived()) {
+            $this->addFlash('error', 'This campaign is archived; sending is disabled.');
+
+            return $this->redirectToRoute('app_email_campaign_show', ['id' => $campaign->getId()]);
+        }
+
         if ($request->isMethod('POST')) {
             // CSRF validation for mass email send
             $csrfToken = $request->request->get('_token');
@@ -249,15 +273,19 @@ class EmailCampaignController extends AbstractController
                 return $this->redirectToRoute('app_email_campaign_send', ['id' => $campaign->getId()]);
             }
 
+            // SMTP handoffs belong to workers, never to web requests: the
+            // request only creates canonical QUEUED send rows; the
+            // due-send worker delivers them synchronously through the same
+            // state machine (policy, leases, transport).
             $sentCount = 0;
             $skippedCount = 0;
             $failedCount = 0;
             foreach ($contactIds as $contactId) {
                 $contact = $this->contactRepository->find($contactId);
                 if ($contact) {
-                    $result = $this->campaignService->sendToContact($campaign, $contact, $touchNumber);
+                    $result = $this->campaignService->queueTouch($campaign, $contact, $touchNumber);
                     if ($result->outcome === \App\Service\CampaignSendResult::SENT) {
-                        $sentCount++;
+                        $sentCount++; // queued for delivery
                     } elseif ($result->outcome === \App\Service\CampaignSendResult::FAILED) {
                         $failedCount++;
                     } else {

@@ -177,12 +177,15 @@ class EmailDripCampaignService
             return;
         }
 
-        // Check conditions for next touch
+        // NOTE: branch conditions (opened/clicked/replied...) are NOT
+        // evaluated here. Evaluated at scheduling time — immediately after
+        // the previous delivery — an 'opened' condition would almost always
+        // be false (the customer has not had time to engage) and a
+        // 'not_opened' condition would fire permanently. The next touch is
+        // scheduled unconditionally with its delay, and
+        // shouldSendTouch() re-evaluates the condition against CURRENT
+        // engagement state at the moment the touch becomes due.
         $nextTouchConfig = $touchTemplates[$nextTouch];
-        if (!$this->evaluateConditions($completedSend, $nextTouchConfig['conditions'] ?? [])) {
-            // Conditions not met, skip or branch
-            return;
-        }
 
         // Calculate when to send next touch
         $sendAt = $this->calculateNextSendTime(
@@ -509,6 +512,38 @@ class EmailDripCampaignService
      * @param array $conditions Conditions to evaluate
      * @return bool True if conditions are met
      */
+    /**
+     * Due-time branch evaluation for a drip touch: run when the touch is
+     * ABOUT to be delivered, against the CURRENT state of the previous
+     * touch (opened/clicked/replied flags as they stand now — not as they
+     * stood seconds after the previous email went out).
+     */
+    public function shouldSendTouch(EmailCampaign $campaign, Contact $contact, int $touchNumber): bool
+    {
+        if (!$this->isDripCampaign($campaign)) {
+            return true;
+        }
+
+        $touchTemplates = $campaign->getTouchTemplates();
+        $conditions = $touchTemplates[$touchNumber]['conditions'] ?? [];
+
+        if (empty($conditions)) {
+            return true;
+        }
+
+        $previous = $this->entityManager->getRepository(EmailSend::class)->findOneBy([
+            'campaign' => $campaign,
+            'contact' => $contact,
+            'touchNumber' => $touchNumber - 1,
+        ]);
+
+        if ($previous === null) {
+            return false; // configured against a previous touch that does not exist
+        }
+
+        return $this->evaluateConditions($previous, $conditions);
+    }
+
     private function evaluateConditions(EmailSend $previousSend, array $conditions): bool
     {
         if (empty($conditions)) {

@@ -70,12 +70,16 @@ class EmailSchedulerService
             $scheduledAt = $this->computeOptimalSendTime();
         }
 
-        if ($scheduledAt !== null) {
-            $campaign->setScheduledAt(\DateTime::createFromImmutable($scheduledAt));
-            // Re-scheduling resets the claim: the previous schedule's
-            // dispatch marker no longer applies.
-            $campaign->setScheduledDispatchedAt(null);
-        }
+        // Resolve the EFFECTIVE time with a real fallback: previously an
+        // unset scheduledAt (or an optimization that returned null for
+        // insufficient evidence) left the campaign with no schedule and no
+        // dispatcher — a silent no-op despite returning a recipient count.
+        $effective = $scheduledAt ?? new \DateTimeImmutable();
+
+        $campaign->setScheduledAt(\DateTime::createFromImmutable($effective));
+        // Re-scheduling resets the claim: the previous schedule's
+        // dispatch marker no longer applies.
+        $campaign->setScheduledDispatchedAt(null);
         $this->entityManager->flush();
 
         return count($campaign->getContacts());

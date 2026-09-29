@@ -49,6 +49,9 @@ class FastWebScraperService
 
     private readonly SafeOutboundUrlGuard $urlGuard;
 
+    /** @var list<string> CURLOPT_RESOLVE entries pinning validated IPs */
+    private array $curlResolve = [];
+
     public function __construct(
         private LoggerInterface $logger,
     ) {
@@ -184,15 +187,31 @@ class FastWebScraperService
             return [];
         }
 
-        // Validate everything up front: unsafe URLs never reach curl.
+        // Validate everything up front: unsafe URLs never reach curl. The
+        // validated IP is PINNED per host (CURLOPT_RESOLVE) so cURL connects
+        // to exactly the address the guard validated — no rebinding gap —
+        // while TLS hostname verification stays intact.
         $validated = [];
+        $resolveEntries = [];
         foreach ($urls as $url) {
             try {
                 $validated[$url] = $this->urlGuard->assertAllowed($url);
+                $host = parse_url($url, PHP_URL_HOST);
+                $scheme = parse_url($url, PHP_URL_SCHEME) ?? 'https';
+                if (is_string($host) && !filter_var($host, FILTER_VALIDATE_IP)) {
+                    foreach ($this->urlGuard->resolveHost($host) as $ip) {
+                        if (SafeOutboundUrlGuard::isPubliclyRoutableIp($ip)) {
+                            $port = parse_url($url, PHP_URL_PORT) ?? (str_starts_with($scheme, 'https') ? 443 : 80);
+                            $resolveEntries[] = sprintf('%s:%d:%s', $host, (int) $port, $ip);
+                            break; // one pinned answer per host:port
+                        }
+                    }
+                }
             } catch (UnsafeOutboundUrlException $e) {
                 $this->logger->warning('[FastScraper] Unsafe URL rejected', ['url' => $url, 'reason' => $e->getMessage()]);
             }
         }
+        $this->curlResolve = $resolveEntries;
         if ($validated === []) {
             return array_fill_keys($urls, '');
         }
@@ -280,6 +299,9 @@ class FastWebScraperService
                         'Connection: keep-alive',
                     ],
                     CURLOPT_ENCODING => '', // auto-decode gzip
+                    // Pin the guard-validated IPs: connect to exactly what
+                    // was validated (DNS rebinding mitigation).
+                    CURLOPT_RESOLVE => $this->curlResolve,
                     // TLS verification is enabled: sites failing verification
                     // are skipped by the existing failure handling below.
                     CURLOPT_SSL_VERIFYPEER => true,

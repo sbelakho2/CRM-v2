@@ -288,6 +288,10 @@ class RFQController extends AbstractController
     #[Route('/{id}/nda-executed', name: 'app_rfq_nda_executed', methods: ['POST'])]
     public function ndaExecuted(Request $request, RFQ $rfq, EntityManagerInterface $entityManager): Response
     {
+        if ($redirect = $this->rejectArchived($rfq)) {
+            return $redirect;
+        }
+
         if ($this->isCsrfTokenValid('nda_executed'.$rfq->getId(), $request->request->get('_token'))) {
             $rfq->setNdaExecuted(true);
             
@@ -369,6 +373,7 @@ class RFQController extends AbstractController
             ->leftJoin('r.company', 'c')
             ->addSelect('c')
             ->where('r.status IN (:statuses)')
+            ->andWhere('r.archivedAt IS NULL')
             ->andWhere('r.decisionDate >= :start AND r.decisionDate <= :end OR (r.decisionDate IS NULL AND r.createdAt >= :start AND r.createdAt <= :end)')
             ->setParameter('statuses', ['Won', 'Lost'])
             ->setParameter('start', $startDate)

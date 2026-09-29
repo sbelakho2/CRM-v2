@@ -508,7 +508,7 @@ class EmailAbTestService
      * @param EmailCampaign $campaign Campaign
      * @return array|null Test configuration or null
      */
-    private function getCurrentAbTest(EmailCampaign $campaign): ?array
+    public function getCurrentAbTest(EmailCampaign $campaign): ?array
     {
         $abTestVariants = $campaign->getAbTestVariants();
         if (empty($abTestVariants)) {

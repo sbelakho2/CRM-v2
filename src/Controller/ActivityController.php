@@ -91,6 +91,7 @@ class ActivityController extends AbstractController
 
         // Build query
         $qb = $this->activityRepository->createQueryBuilder('a')
+            ->andWhere('a.archivedAt IS NULL')
             ->leftJoin('a.company', 'c')
             ->leftJoin('a.contact', 'co')
             ->leftJoin('a.user', 'u')
@@ -206,6 +207,7 @@ class ActivityController extends AbstractController
         $contact = $request->query->get('contact');
 
         $qb = $this->activityRepository->createQueryBuilder('a')
+            ->andWhere('a.archivedAt IS NULL')
             ->leftJoin('a.company', 'c')
             ->leftJoin('a.contact', 'co')
             ->leftJoin('a.user', 'u')

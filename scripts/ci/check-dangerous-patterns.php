@@ -169,7 +169,7 @@ if (preg_match('#<server name="DATABASE_URL"[^>]*value="([^"]+)"#', $phpunit, $m
     }
 }
 if (!is_file($root . '/tests/Bootstrap/TestDatabaseGuard.php')) {
-    fail($failures, 'tests/Bootstrap/TestDatabaseGuard.php (fail-closed destructive-test guard) is missing');
+    fail($failures, 'src/Infrastructure/TestDatabaseGuard.php (fail-closed destructive-test guard) is missing');
 }
 
 if ($failures !== []) {

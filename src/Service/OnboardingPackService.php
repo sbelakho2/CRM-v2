@@ -54,14 +54,14 @@ class OnboardingPackService
 
     private readonly HttpClientInterface $httpClient;
     private readonly \App\Security\SafeOutboundUrlGuard $urlGuard;
-
     public function __construct(
         private EntityManagerInterface $entityManager,
         private OnboardingPackRepository $onboardingPackRepository,
         private PortalCandidateRepository $portalCandidateRepository,
         private SupplierPortalRepository $supplierPortalRepository,
         HttpClientInterface $httpClient,
-        private UnifiedPdfGeneratorService $pdfGenerator
+        private UnifiedPdfGeneratorService $pdfGenerator,
+        private \App\Service\VendorPortalApiService $vendorApiService,
     ) {
         // Credential-bearing portal automation: enforce the SSRF guard on
         // every outbound URL AND block private-network destinations at the
@@ -70,6 +70,7 @@ class OnboardingPackService
             ? $httpClient
             : new \Symfony\Component\HttpClient\NoPrivateNetworkHttpClient($httpClient);
         $this->urlGuard = new \App\Security\SafeOutboundUrlGuard();
+        $this->vendorApiService = $vendorApiService;
     }
 
     /**
@@ -314,9 +315,9 @@ class OnboardingPackService
         $method = 'MANUAL'; // Default
         
         if ($vendor === 'ARIBA') {
-            $method = 'ARIBA_API'; // Note: Ariba API integration not yet implemented
+            $method = 'ARIBA_API';
         } elseif ($vendor === 'COUPA') {
-            $method = 'COUPA_API'; // Note: Coupa API integration not yet implemented
+            $method = 'COUPA_API';
         } elseif ($portal->getFormFieldsJson()) {
             $method = 'WEB_FORM'; // Generic web form submission
         }
@@ -325,16 +326,33 @@ class OnboardingPackService
         if ($method === 'WEB_FORM') {
             return $this->submitViaWebForm($pack, $portal, $credentials);
         } elseif ($method === 'ARIBA_API' || $method === 'COUPA_API') {
-            // API integrations not yet implemented - mark as pending
-            $pack->setStatus('PENDING_API_INTEGRATION');
-            $pack->setPortalId($portalId);
-            $this->entityManager->flush();
-            
+            // Real vendor integrations (see VendorPortalApiService): OAuth2
+            // supplier registration for Ariba SLP, keyed REST for Coupa.
+            $result = $method === 'ARIBA_API'
+                ? $this->vendorApiService->submitToAriba($pack, $portal)
+                : $this->vendorApiService->submitToCoupa($pack, $portal);
+
+            if ($result['success']) {
+                $pack->setStatus('SUBMITTED');
+                $pack->setPortalId($portalId);
+                $pack->setSubmittedAt(new \DateTime());
+                $pack->setSubmittedBy($result['external_id'] ?? null);
+                $this->entityManager->flush();
+            } else {
+                // Missing vendor credentials is a CONFIG issue (retryable);
+                // a transport/vendor error keeps the pack pending without
+                // losing work.
+                $pack->setStatus(str_starts_with((string) $result['errorMessage'], 'ARIBA API credentials') || str_starts_with((string) $result['errorMessage'], 'COUPA API credentials') ? 'PENDING_API_INTEGRATION' : 'SUBMISSION_FAILED');
+                $pack->setPortalId($portalId);
+                $pack->setNotes((string) $result['errorMessage']);
+                $this->entityManager->flush();
+            }
+
             return [
-                'success' => false,
+                'success' => $result['success'],
                 'method' => $method,
-                'response' => null,
-                'errorMessage' => "$method integration not yet implemented"
+                'response' => $result['response'],
+                'errorMessage' => $result['errorMessage'],
             ];
         } else {
             // Manual submission - just mark as ready
@@ -372,6 +390,11 @@ class OnboardingPackService
             
             // These requests carry credentials/session data: HTTPS-only,
             // port 443, and validated BEFORE anything is sent.
+            $submitUrlCheck = $portal->getSubmitUrl();
+            if (!$submitUrlCheck) {
+                throw new \RuntimeException('Submit URL not configured');
+            }
+
             $this->urlGuard->assertAllowedCredentialEndpoint($loginUrl);
             $loginResponse = $this->httpClient->request('POST', $loginUrl, [
                 'body' => [
@@ -382,7 +405,15 @@ class OnboardingPackService
             ]);
             
             // Extract session cookie
-            $sessionCookie = $loginResponse->getHeaders()['set-cookie'][0] ?? null;
+            // Scoped cookie handling: parse EVERY Set-Cookie (not just the
+            // first), honor each cookie's own Domain attribute, and only
+            // relay cookies whose scope actually covers the submit host —
+            // same-organization alone is too loose (a subdomain of the
+            // org should not receive the portal session cookie).
+            $sessionCookie = $this->scopedCookieHeader(
+                $loginResponse->getHeaders()['set-cookie'] ?? [],
+                (string) parse_url($submitUrlCheck, PHP_URL_HOST)
+            );
             
             // 2. Get form field mappings
             $formFields = json_decode($portal->getFormFieldsJson() ?? '{}', true);
@@ -420,7 +451,7 @@ class OnboardingPackService
             }
 
             $submitResponse = $this->httpClient->request('POST', $submitUrl, [
-                'headers' => ['Cookie' => $sessionCookie ?? ''],
+                'headers' => ['Cookie' => $sessionCookie],
                 'body' => $formData,
                 'timeout' => 60
             ]);
@@ -512,4 +543,44 @@ class OnboardingPackService
             'portalName' => $portalName
         ];
     }
+    /**
+     * Build a Cookie header from Set-Cookie responses, honoring each
+     * cookie's own Domain scope against the submit host. Cookies whose
+     * scope does not cover the submit host are NOT relayed (cookie-jar
+     * semantics without a jar dependency).
+     */
+    private function scopedCookieHeader(array $setCookieHeaders, string $submitHost): string
+    {
+        $pairs = [];
+        foreach ($setCookieHeaders as $header) {
+            $parts = explode(';', (string) $header);
+            $nameValue = trim((string) ($parts[0] ?? ''));
+            if ($nameValue === '' || !str_contains($nameValue, '=')) {
+                continue;
+            }
+
+            $domainAttr = null;
+            foreach (array_slice($parts, 1) as $attr) {
+                if (preg_match('/^\s*domain\s*=\s*(.+)$/i', $attr, $m)) {
+                    $domainAttr = strtolower(trim($m[1]));
+                    break;
+                }
+            }
+
+            // No Domain attribute → host-only cookie: valid only for the
+            // exact host that set it (the login host). With Domain → valid
+            // for that domain and its subdomains.
+            $covers = false;
+            if ($domainAttr !== null) {
+                $covers = $submitHost === $domainAttr || str_ends_with('.' . $submitHost, '.' . $domainAttr);
+            }
+
+            if ($covers && !preg_match('/\bexpires=Thu, 01 Jan 1970/i', (string) $header)) {
+                $pairs[] = $nameValue;
+            }
+        }
+
+        return implode('; ', $pairs);
+    }
+
 }

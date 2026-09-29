@@ -4,7 +4,7 @@ namespace App\Command;
 
 use App\Entity\Company;
 use App\Service\WebCrawler\CompanyDiscoveryService;
-use App\Tests\Bootstrap\TestDatabaseGuard;
+use App\Infrastructure\TestDatabaseGuard;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
