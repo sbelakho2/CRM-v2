@@ -286,8 +286,8 @@ class EmailCampaignController extends AbstractController
                 $contact = $this->contactRepository->find($contactId);
                 if ($contact) {
                     $result = $this->campaignService->queueTouch($campaign, $contact, $touchNumber);
-                    if ($result->outcome === \App\Service\CampaignSendResult::SENT) {
-                        $sentCount++; // queued for delivery
+                    if ($result->outcome === \App\Service\CampaignSendResult::QUEUED) {
+                        $sentCount++; // QUEUED for worker delivery
                     } elseif ($result->outcome === \App\Service\CampaignSendResult::FAILED) {
                         $failedCount++;
                     } else {

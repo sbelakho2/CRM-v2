@@ -12,6 +12,7 @@ namespace App\Service;
 class CampaignSendResult
 {
     public const SENT = 'sent';
+    public const QUEUED = 'queued';
     public const ALREADY_SENT = 'already_sent';
     public const ALREADY_IN_PROGRESS = 'already_in_progress';
     public const FAILED = 'failed';
@@ -24,6 +25,11 @@ class CampaignSendResult
     public static function sent(): self
     {
         return new self(self::SENT);
+    }
+
+    public static function queued(): self
+    {
+        return new self(self::QUEUED);
     }
 
     public static function alreadySent(): self
@@ -58,6 +64,6 @@ class CampaignSendResult
 
     public function isSuccess(): bool
     {
-        return in_array($this->outcome, [self::SENT, self::ALREADY_SENT, self::ALREADY_IN_PROGRESS], true);
+        return in_array($this->outcome, [self::SENT, self::QUEUED, self::ALREADY_SENT, self::ALREADY_IN_PROGRESS], true);
     }
 }

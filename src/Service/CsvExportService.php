@@ -203,7 +203,7 @@ class CsvExportService
                     $row = array_merge($row, [
                         $line->getConfidenceScore(),
                         $line->getConfidenceLevel(),
-                        $line->isRequiresReview() ? 'Yes' : 'No',
+                        $line->requiresReview() ? 'Yes' : 'No',
                         $line->getLifecycleStatus(),
                         $line->getLifecycleWarning(),
                         implode('; ', $line->getConfidenceReasons() ?? []),
@@ -392,10 +392,10 @@ class CsvExportService
         if ($line->isManuallyVerified()) {
             return 'Verified';
         }
-        if ($line->isRequiresReview()) {
+        if ($line->requiresReview()) {
             return 'Needs Review';
         }
-        if ($line->isHasException()) {
+        if ($line->hasException()) {
             return 'Exception';
         }
         if ($line->getUnitPrice() === null && $line->getManualUnitPrice() === null) {

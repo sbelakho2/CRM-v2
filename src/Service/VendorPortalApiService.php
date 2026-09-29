@@ -182,26 +182,47 @@ final class VendorPortalApiService
      *
      * @return array<string, mixed>
      */
+    /**
+     * Canonical onboarding field keys (exactly what
+     * OnboardingPackService::autoFillFields writes) → vendor payload keys.
+     * One shared map; neither side invents key names anymore.
+     */
+    private const FIELD_MAP = [
+        'companyName' => 'name',
+        'vatNumber' => 'tax_id',
+        'website' => 'website',
+        'country' => 'country',
+        'city' => 'city',
+        'contactName' => 'contact_name',
+        'contactSalesEmail' => 'contact_email',
+        'contactSalesPhone' => 'contact_phone',
+        'bankName' => 'bank_name',
+        'bankSwift' => 'bank_swift',
+        'bankAccountName' => 'bank_account_name',
+    ];
+
     private function mapSupplierPayload(OnboardingPack $pack): array
     {
         $fields = json_decode($pack->getFieldsJson() ?? '{}', true) ?? [];
         $company = $pack->getCompany();
 
-        $payload = [
-            'name' => $fields['company_legal_name'] ?? ($company?->getName() ?? ''),
-            'website' => $fields['website'] ?? ($company?->getWebsite() ?? null),
-            'tax_id' => $fields['tax_id'] ?? null,
-            'country' => $fields['country'] ?? ($company?->getCountry() ?? null),
-            'city' => $fields['city'] ?? ($company?->getCity() ?? null),
-            'contact_email' => $fields['contact_email'] ?? null,
-            'contact_name' => $fields['contact_name'] ?? null,
-            'contact_phone' => $fields['contact_phone'] ?? null,
-            'bank_name' => $fields['bank_name'] ?? null,
-            'bank_swift' => $fields['bank_swift'] ?? null,
-            'bank_account_name' => $fields['bank_account_name'] ?? null,
-            'source' => 'starz-crm-onboarding',
-            'pack_reference' => $pack->getId(),
-        ];
+        $payload = [];
+        foreach (self::FIELD_MAP as $crmKey => $vendorKey) {
+            $value = $fields[$crmKey] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $payload[$vendorKey] = $value;
+        }
+
+        // Company-entity fallbacks for identity fields.
+        $payload['name'] ??= $company?->getName() ?? '';
+        $payload['website'] ??= $company?->getWebsite();
+        $payload['country'] ??= $company?->getCountry();
+        $payload['city'] ??= $company?->getCity();
+
+        $payload['source'] = 'starz-crm-onboarding';
+        $payload['pack_reference'] = $pack->getId();
 
         return array_filter($payload, static fn ($v) => $v !== null && $v !== '');
     }

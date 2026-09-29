@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\SupplierPortal;
+use App\Entity\Company;
 use App\Entity\CompanyCanonical;
 use App\Repository\SupplierPortalRepository;
 use App\Repository\CompanyCanonicalRepository;
@@ -348,50 +349,73 @@ class PortalCrawlerService
      */
     public function createPortal(array $portalData, int $companyId): SupplierPortal
     {
-        // 1. Check if portal already exists
-        $canonicalUrl = $this->canonicalizeDomain($portalData['url']);
-        $existingPortal = $this->supplierPortalRepository->findOneBy([
-            'companyId' => $companyId,
-            'portalUrl' => $canonicalUrl
-        ]);
-        
-        if ($existingPortal) {
-            // Update vendor if changed
-            $existingPortal->setPortalVendor($portalData['vendor']);
-            $this->entityManager->flush();
-            return $existingPortal;
+        // ONE architecture: discovery/TOS state lives on PortalCandidate
+        // (portalUrl, status, discoveredAt, hasRobotsTxt, tosUrl,
+        // tosReviewed); SupplierPortal is the registered-account model
+        // (company association, portalUrl, vendor on the candidate).
+        $company = $this->entityManager->find(Company::class, $companyId);
+        if ($company === null) {
+            throw new \RuntimeException("Company {$companyId} not found");
         }
-        
-        // 2. Create SupplierPortal entity
-        $portal = new SupplierPortal();
-        $portal->setCompanyId($companyId);
-        $portal->setPortalUrl($canonicalUrl);
-        $portal->setPortalVendor($portalData['vendor']);
-        $portal->setDiscoveredAt(new \DateTime());
-        $portal->setStatus('DISCOVERED');
-        
-        // 3. Check robots.txt and TOS
+
+        $canonicalUrl = $this->canonicalizeDomain($portalData['url']);
+        $candidateRepo = $this->entityManager->getRepository(\App\Entity\PortalCandidate::class);
+
+        $candidate = $candidateRepo->findOneBy([
+            'company' => $company,
+            'portalUrl' => $canonicalUrl,
+        ]);
+
+        if ($candidate === null) {
+            $candidate = new \App\Entity\PortalCandidate();
+            $candidate->setCompany($company);
+            $candidate->setPortalUrl($canonicalUrl);
+            $candidate->setDiscoveredAt(new \DateTime());
+            $candidate->setStatus('discovered');
+            $this->entityManager->persist($candidate);
+        }
+
+        // Vendor classification is recorded on the evidence snapshot for the
+        // candidate (SupplierPortal has no vendor column).
+        $evidence = json_decode($candidate->getEvidenceSnapshot() ?? '{}', true) ?? [];
+        $evidence['vendor'] = $portalData['vendor'] ?? 'CUSTOM';
+        $candidate->setEvidenceSnapshot(json_encode($evidence));
+
+        // robots.txt + TOS review on the candidate model
         try {
-            // Extract domain from URL
             $parsedUrl = parse_url($portalData['url']);
             $domain = $parsedUrl['host'] ?? $canonicalUrl;
-            
+
             $robotsCheck = $this->checkRobotsTxt($domain);
+            $candidate->setHasRobotsTxt((bool) ($robotsCheck['allowed'] ?? true));
+
             $tosData = $this->reviewTos($portalData['url']);
-            
-            $portal->setRobotsTxtAllowed($robotsCheck['allowed']);
-            $portal->setTosUrl($tosData['tosUrl']);
-            $portal->setTosExtractedAt($tosData['extractedAt']);
+            if (!empty($tosData['tosUrl'])) {
+                $candidate->setTosUrl((string) $tosData['tosUrl']);
+            }
         } catch (\Exception $e) {
-            // If checks fail, still create portal with defaults
-            $portal->setRobotsTxtAllowed(true);
+            // checks failed: conservative defaults already on the entity
+            // (hasRobotsTxt=true, requiresManualSubmit=true)
         }
-        
-        // 4. Persist portal
-        $this->entityManager->persist($portal);
+
         $this->entityManager->flush();
-        
-        // 5. Return portal
+
+        // A SupplierPortal row is only created for the registered account —
+        // discovery alone does not create one. Callers that need the portal
+        // account use registerPortal()/approval flows.
+        $portal = $this->supplierPortalRepository->findOneBy([
+            'company' => $company,
+            'portalUrl' => $canonicalUrl,
+        ]);
+
+        if ($portal === null) {
+            $portal = new SupplierPortal();
+            $portal->setCompany($company);
+            $portal->setPortalUrl($canonicalUrl);
+            $this->entityManager->persist($portal);
+            $this->entityManager->flush();
+        }
+
         return $portal;
     }
 
@@ -405,27 +429,28 @@ class PortalCrawlerService
      */
     public function getOrCreateCanonical(string $domain, string $companyName): CompanyCanonical
     {
-        // 1. Canonicalize domain
+        // The REAL CompanyCanonical model: domain (not canonicalDomain), a
+        // Company association, alias, isPrimary — created via PrePersist.
         $canonicalDomain = $this->canonicalizeDomain($domain);
-        
-        // 2. Check if canonical exists
+
         $canonical = $this->companyCanonicalRepository->findOneBy([
-            'canonicalDomain' => $canonicalDomain
+            'domain' => $canonicalDomain,
         ]);
-        
-        if ($canonical) {
+
+        if ($canonical !== null) {
             return $canonical;
         }
-        
-        // 3. Create new canonical
+
         $canonical = new CompanyCanonical();
-        $canonical->setCanonicalDomain($canonicalDomain);
-        $canonical->setCompanyName($companyName);
-        $canonical->setCreatedAt(new \DateTime());
-        
-        // 4. Persist and return
+        $canonical->setDomain($canonicalDomain);
+        // The owning company is matched/created by the discovery pipeline;
+        // notes keep the observed name for review when no company is bound.
+        $canonical->setNotes('Discovered as: ' . $companyName);
+        $canonical->setAlias($companyName);
+
         $this->entityManager->persist($canonical);
         $this->entityManager->flush();
+
         return $canonical;
     }
 
@@ -456,15 +481,19 @@ class PortalCrawlerService
         $mergedCount = 0;
         
         foreach ($duplicates as $duplicate) {
-            // Update portals to point to primary
+            // Company is an ASSOCIATION: look up by the mapped property and
+            // re-point via the entity (companyId was never a mapped field).
             $portals = $this->supplierPortalRepository->findBy([
-                'companyId' => $duplicate->getId()
+                'company' => $duplicate
             ]);
-            
+
+            $primaryCompany = $primary->getCompany();
             foreach ($portals as $portal) {
-                $portal->setCompanyId($primaryId);
+                if ($primaryCompany !== null) {
+                    $portal->setCompany($primaryCompany);
+                }
             }
-            
+
             // Remove duplicate
             $this->entityManager->remove($duplicate);
             $mergedCount++;

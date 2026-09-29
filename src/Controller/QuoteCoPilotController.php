@@ -331,7 +331,9 @@ class QuoteCoPilotController extends AbstractController
     #[Route('/{id}/excel', name: 'quote_copilot_customer_excel', methods: ['GET'])]
     public function downloadCustomerExcel(int $id): Response
     {
-        $quote = $this->entityManager->getRepository(Quote::class)->findWithBomLines($id);
+        /** @var \App\Repository\QuoteRepository $quoteRepository */
+        $quoteRepository = $this->entityManager->getRepository(Quote::class);
+        $quote = $quoteRepository->findWithBomLines($id);
         if (!$quote) {
             throw $this->createNotFoundException('Quote not found');
         }
@@ -413,7 +415,9 @@ class QuoteCoPilotController extends AbstractController
     #[Route('/{id}/full-excel', name: 'quote_copilot_full_excel', methods: ['GET'])]
     public function downloadFullExcel(int $id): Response
     {
-        $quote = $this->entityManager->getRepository(Quote::class)->findWithBomLines($id);
+        /** @var \App\Repository\QuoteRepository $quoteRepository */
+        $quoteRepository = $this->entityManager->getRepository(Quote::class);
+        $quote = $quoteRepository->findWithBomLines($id);
         if (!$quote) {
             throw $this->createNotFoundException('Quote not found');
         }

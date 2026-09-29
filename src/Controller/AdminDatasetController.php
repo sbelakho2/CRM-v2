@@ -152,7 +152,10 @@ class AdminDatasetController extends AbstractController
             return $this->redirectToRoute('admin_dataset_import_form');
         }
         
-        $allowedExtensions = ['csv', 'json', 'xml'];
+        // All import implementations are CSV parsers — accept only CSV so
+        // a JSON/XML upload cannot pass validation and then get parsed as
+        // garbage CSV.
+        $allowedExtensions = ['csv'];
         $extension = $datasetFile->getClientOriginalExtension();
         if (!in_array($extension, $allowedExtensions)) {
             $this->addFlash('error', 'admin_dataset.flash.error.invalid_format');
@@ -171,13 +174,17 @@ class AdminDatasetController extends AbstractController
             return $this->redirectToRoute('admin_dataset_import_form');
         }
         
-        // 4. Create snapshot of current data (if requested)
+        // 4. Snapshot is FAIL-CLOSED: this dataset is pricing truth; if the
+        // safety snapshot cannot be created, the import does not proceed.
         if ($createSnapshot) {
             try {
                 $snapshotVersion = $this->datasetImport->snapshotDataset($datasetType, 'PRE_IMPORT');
                 $this->addFlash('info', 'admin_dataset.flash.info.snapshot_created');
             } catch (\Exception $e) {
-                $this->addFlash('warning', 'admin_dataset.flash.warning.snapshot_failed');
+                $this->addFlash('error', 'Snapshot creation failed — import ABORTED so the current dataset stays reversible.');
+                $this->addFlash('error', $e->getMessage());
+
+                return $this->redirectToRoute('admin_dataset_import_form');
             }
         }
         
@@ -195,7 +202,7 @@ class AdminDatasetController extends AbstractController
             $result = match ($datasetType) {
                 'fx_rate' => $this->datasetImport->importFxRates(
                     $datasetFile->getPathname(),
-                    $signaturePath ?? '',
+                    $signaturePath ?? ($signature !== null && $signature !== '' ? (string) $signature : ''),
                     $description
                 ),
                 'tariff_rate' => $this->datasetImport->importTariffRates(
@@ -253,13 +260,17 @@ class AdminDatasetController extends AbstractController
             return $this->redirectToRoute('admin_dataset_index');
         }
         
-        // 3. Create snapshot of current data before rollback
+        // 3. Snapshot before rollback is FAIL-CLOSED: performing the
+        // rollback without a reversibility snapshot is exactly the
+        // destructive path the snapshot exists to prevent.
         try {
             $snapshotVersion = $this->datasetImport->snapshotDataset($datasetType, 'PRE_ROLLBACK');
             $this->addFlash('info', 'admin_dataset.flash.info.snapshot_created');
         } catch (\Exception $e) {
-            $this->addFlash('warning', 'admin_dataset.flash.warning.snapshot_failed');
-            // Continue with rollback anyway
+            $this->addFlash('error', 'Snapshot creation failed — rollback ABORTED so the current dataset stays intact.');
+            $this->addFlash('error', $e->getMessage());
+
+            return $this->redirectToRoute('admin_dataset_index');
         }
         
         // 4. Perform rollback

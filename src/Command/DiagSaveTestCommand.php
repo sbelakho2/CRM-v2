@@ -76,6 +76,7 @@ class DiagSaveTestCommand extends Command
 
             $output->writeln("\n--- DB Verification (inside transaction) ---");
             $stamp = time();
+            // $stamp is the single immutable marker for this invocation.
             $rows = $connection->fetchAllAssociative(
                 'SELECT id, name FROM companies WHERE name LIKE ? OR name LIKE ? ORDER BY id',
                 ['T1_' . $stamp . '%', 'T3_' . $stamp . '%']

@@ -106,6 +106,20 @@ class FtaEligibilityService
                 $bomData,
                 $ftaRule->getFtaAgreement()
             );
+        } elseif ($minimumRvc > 0 && $totalValue <= 0) {
+            // RVC is REQUIRED but the value needed to prove it is missing:
+            // eligibility cannot pass on an unperformed calculation — this
+            // is exactly the CONDITIONAL state (fail-closed, never a pass).
+            return [
+                'eligible' => 'CONDITIONAL',
+                'status' => 'CONDITIONAL',
+                'fta_agreement' => $ftaRule->getFtaAgreement(),
+                'basis' => sprintf('RVC rule requires %.1f%% regional value content but no total value was supplied to prove it', $minimumRvc),
+                'confidence' => 30,
+                'missing_evidence' => ['Total BOM value required to calculate regional value content'],
+                'declaration_template' => null,
+                'roo_evaluation' => $rooEvaluation ?? [],
+            ];
         }
         
         // 5. Determine eligibility status
@@ -329,12 +343,15 @@ class FtaEligibilityService
                     ];
                     
                 case 'RVC':
-                    // RVC is evaluated separately in checkEligibility()
+                    // The RVC number itself is computed in
+                    // checkEligibility() (it needs totalValue); this arm
+                    // must NOT pre-pass it — the eligibility path returns
+                    // CONDITIONAL when the value evidence is missing.
                     return [
                         'passes' => true,
-                        'conditional' => false,
+                        'conditional' => true,
                         'method' => 'RVC',
-                        'details' => 'Regional Value Content checked separately in eligibility calculation',
+                        'details' => 'Regional Value Content evaluated in eligibility calculation (CONDITIONAL until value evidence proves the threshold)',
                         'roo_text' => $rooText,
                     ];
                     
@@ -367,14 +384,16 @@ class FtaEligibilityService
                     ];
                     
                 case 'SPECIFIC_PROCESS':
-                    // Specific process requirements — documented behavior:
-                    // these rules are not machine-verifiable from BOM data, so
-                    // they are treated as passing with a note for the reviewer.
+                    // Specific process requirements are NOT machine-verifiable
+                    // from BOM data: pass=false + conditional=true routes the
+                    // claim to human/documentary verification — consistent
+                    // with the fail-closed handling of unknown CTH/CTC
+                    // evidence, instead of silently treating it as satisfied.
                     return [
-                        'passes' => true,
-                        'conditional' => false,
+                        'passes' => false,
+                        'conditional' => true,
                         'method' => 'Specific Process',
-                        'details' => 'Specific manufacturing process requirement: ' . $rooText,
+                        'details' => 'Specific manufacturing process requirement is not machine-verifiable from BOM data; requires documentary/human verification: ' . $rooText,
                         'roo_text' => $rooText,
                     ];
                     

@@ -48,7 +48,17 @@ class PublicWebinarController extends AbstractController
             throw new NotFoundHttpException('This webinar is no longer available.');
         }
 
-        if (!$webinar->canAcceptRegistrations()) {
+        // Status/date precheck ONLY — capacity is decided by the service
+        // transaction's LIVE COUNT under the row lock (the denormalized
+        // registeredCount can drift above the true count after CSV imports
+        // or duplicate-merge maintenance and would falsely report "full").
+        $scheduledDate = $webinar->getScheduledDate();
+        $status = $webinar->getStatus();
+        if (
+            $status === \App\Entity\Webinar::STATUS_COMPLETED
+            || $status === \App\Entity\Webinar::STATUS_CANCELLED
+            || ($scheduledDate !== null && $scheduledDate <= new \DateTime())
+        ) {
             return $this->render('webinar/register.html.twig', [
                 'webinar' => $webinar,
                 'registration_closed' => true,

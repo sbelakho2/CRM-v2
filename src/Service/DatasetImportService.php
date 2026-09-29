@@ -489,6 +489,31 @@ class DatasetImportService
     // ─────────────────────────────────────────────────────────────────────
 
     /**
+     * Fail-closed schema check: every column the snapshot SQL copies must
+     * exist right now — a schema/entity drift aborts the snapshot instead
+     * of silently cloning a partial dataset.
+     *
+     * @param list<string> $columns
+     */
+    private function assertSnapshotColumns(string $table, array $columns): void
+    {
+        $present = $this->entityManager->getConnection()->fetchFirstColumn(
+            'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+            [$table]
+        );
+        $presentMap = array_flip(array_map('strtolower', $present));
+        foreach ($columns as $column) {
+            if (!isset($presentMap[strtolower($column)])) {
+                throw new \RuntimeException(sprintf(
+                    'Snapshot column %s.%s does not exist — dataset schema drifted from the snapshot definition; refusing to clone a partial dataset.',
+                    $table,
+                    $column
+                ));
+            }
+        }
+    }
+
+    /**
      * Verify an uploaded dataset against a signature: either an uploaded
      * signature FILE (path) or a pasted sha256 HASH string. One must be
      * provided — datasets are pricing truth and may not import unverified.
@@ -590,19 +615,32 @@ class DatasetImportService
      */
     private function activateDatasetVersion(string $type, string $entityClass, \App\Entity\DatasetVersion $version, string $versionId): void
     {
-        $this->entityManager->createQuery(
-            'UPDATE App\Entity\DatasetVersion v SET v.isActive = false WHERE v.datasetType = :type'
-        )->setParameter('type', $type)->execute();
+        // ONE transaction owns the whole active-version switch (deactivate
+        // old, activate new, commit): a failure between steps can no longer
+        // leave NO authoritative live dataset, and concurrent admin imports
+        // cannot interleave — the version set is row-locked.
+        $this->entityManager->wrapInTransaction(function () use ($type, $entityClass, $version, $versionId): void {
+            $this->entityManager->getConnection()->executeStatement(
+                'SELECT id FROM dataset_versions WHERE dataset_type = :type FOR UPDATE',
+                ['type' => $type]
+            );
 
-        $this->entityManager->createQuery(
-            "UPDATE {$entityClass} e SET e.isActive = false"
-        )->execute();
+            $this->entityManager->createQuery(
+                'UPDATE App\Entity\DatasetVersion v SET v.isActive = false WHERE v.datasetType = :type'
+            )->setParameter('type', $type)->execute();
 
-        $version->setIsActive(true);
+            $this->entityManager->createQuery(
+                "UPDATE {$entityClass} e SET e.isActive = false"
+            )->execute();
 
-        $this->entityManager->createQuery(
-            "UPDATE {$entityClass} e SET e.isActive = true WHERE e.versionId = :versionId"
-        )->setParameter('versionId', $versionId)->execute();
+            $version->setIsActive(true);
+
+            $this->entityManager->createQuery(
+                "UPDATE {$entityClass} e SET e.isActive = true WHERE e.versionId = :versionId"
+            )->setParameter('versionId', $versionId)->execute();
+
+            $this->entityManager->flush();
+        });
     }
 
     /**
@@ -783,6 +821,15 @@ class DatasetImportService
      */
     public function snapshotDataset(string $datasetType, string $description): string
     {
+        // Normalize caller identifiers (controller posts lowercase singular
+        // tariff_rate/freight_table/fx_rate) to the version types.
+        $datasetType = match (strtolower(trim($datasetType))) {
+            'tariff_rate', 'tariff_rates' => 'TARIFF_RATES',
+            'freight_table', 'freight_tables' => 'FREIGHT_TABLES',
+            'fx_rate', 'fx_rates' => 'FX_RATES',
+            default => strtoupper(trim($datasetType)),
+        };
+
         // 1. Get current active version
         $activeVersion = $this->datasetVersionRepository->findOneBy([
             'datasetType' => $datasetType,
@@ -806,32 +853,56 @@ class DatasetImportService
         // must be updated in lockstep or the snapshot silently loses data.
         switch ($datasetType) {
             case 'TARIFF_RATES':
-                // Clone tariff_rates
+                // Clone tariff_rates — FULL modern column list (typed duty
+                // fields included), schema-verified before cloning.
+                $this->assertSnapshotColumns('tariff_rates', [
+                    'hs_code', 'origin_country', 'destination_country', 'duty_rate',
+                    'mfn_rate', 'fta_rate', 'duty_type', 'specific_rate',
+                    'effective_date', 'expiry_date', 'fta_agreement', 'notes',
+                    'version_id', 'is_active',
+                ]);
+
                 $recordCount = $this->entityManager->createQuery(
                     'SELECT COUNT(t.id) FROM App\\Entity\\TariffRate t WHERE t.versionId = :versionId'
                 )
                 ->setParameter('versionId', $oldVersionId)
                 ->getSingleScalarResult();
-                
+
                 $this->entityManager->getConnection()->executeStatement(
-                    'INSERT INTO tariff_rates (hts_code, duty_rate, description, version_id, is_active, created_at) 
-                     SELECT hts_code, duty_rate, description, :newVersionId, 0, NOW() 
+                    'INSERT INTO tariff_rates (hs_code, origin_country, destination_country, duty_rate,
+                         mfn_rate, fta_rate, duty_type, specific_rate, effective_date, expiry_date,
+                         fta_agreement, notes, version_id, is_active)
+                     SELECT hs_code, origin_country, destination_country, duty_rate,
+                         mfn_rate, fta_rate, duty_type, specific_rate, effective_date, expiry_date,
+                         fta_agreement, notes, :newVersionId, 0
                      FROM tariff_rates WHERE version_id = :oldVersionId',
                     ['newVersionId' => $newVersionId, 'oldVersionId' => $oldVersionId]
                 );
                 break;
                 
             case 'FREIGHT_TABLES':
-                // Clone freight_tables
+                // Clone freight_tables — the REAL schema (cost_per_unit /
+                // transport_mode / container_type / currency / dates / carrier),
+                // never the phantom rate_per_kg column.
+                $this->assertSnapshotColumns('freight_tables', [
+                    'origin_port', 'destination_port', 'transport_mode', 'container_type',
+                    'cost_per_unit', 'currency', 'transit_days', 'effective_date',
+                    'expiry_date', 'carrier', 'notes', 'version_id', 'is_active',
+                ]);
+
                 $recordCount = $this->entityManager->createQuery(
                     'SELECT COUNT(f.id) FROM App\\Entity\\FreightTable f WHERE f.versionId = :versionId'
                 )
                 ->setParameter('versionId', $oldVersionId)
                 ->getSingleScalarResult();
-                
+
                 $this->entityManager->getConnection()->executeStatement(
-                    'INSERT INTO freight_tables (origin_port, destination_port, carrier, transit_days, rate_per_kg, version_id, is_active, created_at) 
-                     SELECT origin_port, destination_port, carrier, transit_days, rate_per_kg, :newVersionId, 0, NOW() 
+                    'INSERT INTO freight_tables (origin_port, destination_port, transport_mode, container_type,
+                         cost_per_unit, currency, transit_days, effective_date, expiry_date, carrier, notes,
+                         version_id, is_active)
+                     SELECT origin_port, destination_port, transport_mode, container_type,
+                         cost_per_unit, currency, transit_days, effective_date, expiry_date, carrier, notes,
+                         :newVersionId, 0
                      FROM freight_tables WHERE version_id = :oldVersionId',
                     ['newVersionId' => $newVersionId, 'oldVersionId' => $oldVersionId]
                 );
@@ -865,6 +936,9 @@ class DatasetImportService
         $newVersion->setMetadata(['description' => "SNAPSHOT: $description"]);
         $newVersion->setImportedAt(new \DateTime());
         $newVersion->setImportedBy($user ? $user->getUserIdentifier() : 'system');
+        // sha256Hash is NON-NULL on the entity: snapshots carry a synthetic
+        // hash of the cloned row count + timestamp (provenance marker).
+        $newVersion->setSha256Hash(hash('sha256', $datasetType . '|' . $oldVersionId . '|' . $newVersionId . '|' . $recordCount));
         $newVersion->setIsActive(false);
         $newVersion->setRecordCount($recordCount);
         
@@ -903,8 +977,15 @@ class DatasetImportService
         ]);
         
         $datasetType = $targetVersion->getDatasetType();
-        
-        // 3. Deactivate all versions and data for this dataset type
+
+        return $this->entityManager->wrapInTransaction(function () use ($targetVersion, $versionId, $datasetType): array {
+        // 3. Deactivate all versions and data for this dataset type — inside
+        // ONE transaction (the same atomic activation contract as imports).
+        $this->entityManager->getConnection()->executeStatement(
+            'SELECT id FROM dataset_versions WHERE dataset_type = :type FOR UPDATE',
+            ['type' => $datasetType]
+        );
+
         $this->entityManager->createQuery(
             'UPDATE App\\Entity\\DatasetVersion v 
              SET v.isActive = false 
@@ -963,14 +1044,15 @@ class DatasetImportService
         
         // 5. Flush changes
         $this->entityManager->flush();
-        
-        // 6. Return rollback summary
+
+        // 6. Return rollback summary (from inside the transaction closure)
         return [
             'oldVersionId' => $currentVersion?->getVersionUuid(),
             'newVersionId' => $targetVersion->getVersionUuid(),
             'datasetType' => $targetVersion->getDatasetType(),
             'recordCount' => $targetVersion->getRecordCount()
         ];
+        });
     }
 
     /**

@@ -321,16 +321,41 @@ class DutyCalculationService
         
         // Use MFN rate if available, otherwise fallback to standard duty rate
         $dutyRate = (float) ($tariffRate->getMfnRate() ?? $tariffRate->getDutyRate());
-        
-        // Calculate duty amount (ad-valorem)
-        $dutyAmount = $customsValue * ($dutyRate / 100);
-        
+
+        // TYPED duty model — the same semantics calculateDuty() implements:
+        // ad_valorem / specific ($ per UOM) / compound, with an explicit
+        // unresolved result for unknown types (never silently ad-valorem).
+        $dutyType = strtolower((string) ($tariffRate->getDutyType() ?? 'ad_valorem'));
+        $specificRate = $tariffRate->getSpecificRate();
+
+        $specificAmount = 0.0;
+        if ($dutyType === 'specific' || $dutyType === 'compound') {
+            if ($specificRate === null || $quantity <= 0.0) {
+                throw new \RuntimeException(sprintf(
+                    'Tariff %s requires a specific rate and positive quantity/UOM (%s) for HTS %s.',
+                    $dutyType,
+                    $uom,
+                    $htsCode
+                ));
+            }
+            $specificAmount = $quantity * (float) $specificRate;
+        }
+
+        $adValoremAmount = $customsValue * ($dutyRate / 100);
+
+        $dutyAmount = match ($dutyType) {
+            'ad_valorem' => $adValoremAmount,
+            'specific' => $specificAmount,
+            'compound' => $adValoremAmount + $specificAmount,
+            default => throw new \RuntimeException(sprintf('Unsupported duty type "%s" for HTS %s — unresolved rather than guessed.', $dutyType, $htsCode)),
+        };
+
         return [
             'dutyRate' => $dutyRate,
             'dutyAmount' => round($dutyAmount, 2),
-            'dutyType' => 'AD_VALOREM', // Simplified for now
-            'specificRate' => null,
-            'specificUom' => null
+            'dutyType' => strtoupper($dutyType),
+            'specificRate' => $specificRate !== null ? (float) $specificRate : null,
+            'specificUom' => in_array($dutyType, ['specific', 'compound'], true) ? $uom : null
         ];
     }
 
@@ -444,8 +469,24 @@ class DutyCalculationService
             );
             
             $eligibleStatus = $eligibility['eligible'] ?? 'NOT_ELIGIBLE';
-            
-            if (!in_array($eligibleStatus, ['ELIGIBLE', 'CONDITIONAL'])) {
+
+            if ($eligibleStatus !== 'ELIGIBLE') {
+                // CONDITIONAL means missing evidence / unverified rules of
+                // origin: it reports POTENTIAL savings for review but never
+                // applies preferential duty to quoted landed cost.
+                if ($eligibleStatus === 'CONDITIONAL') {
+                    return [
+                        'eligible' => false,
+                        'conditional' => true,
+                        'reason' => $eligibility['reason'] ?? 'FTA eligibility conditional on unverified evidence',
+                        'mfnDuty' => round($mfnDuty, 2),
+                        'ftaDuty' => round($mfnDuty, 2),
+                        'savings' => 0,
+                        'savingsPercent' => 0,
+                        'potentialSavingsIfQualified' => null, // computable only with a verified claim
+                    ];
+                }
+
                 return [
                     'eligible' => false,
                     'reason' => $eligibility['reason'] ?? 'Not eligible for FTA',

@@ -340,18 +340,20 @@ class EmailAnalyticsService
      */
     public function getBestTimeToSend(): array
     {
-        // Analyze open rates by hour of day
-        $hourlyStats = $this->entityManager->createQuery(
-            'SELECT 
-                HOUR(es.openedAt) as hour,
-                COUNT(es.id) as opens,
-                (SELECT COUNT(es2.id) FROM App\Entity\EmailSend es2 WHERE HOUR(es2.sentAt) = HOUR(es.openedAt)) as sent
-             FROM App\Entity\EmailSend es 
-             WHERE es.openedAt IS NOT NULL 
-             GROUP BY HOUR(es.openedAt) 
-             ORDER BY hour ASC'
-        )
-        ->getResult();
+        // Native SQL: HOUR()/DAYOFWEEK() are not registered DQL functions —
+        // the DQL variant failed at parse time. Delivered population only.
+        $hourlyStats = $this->entityManager->getConnection()->fetchAllAssociative(
+            "SELECT
+                HOUR(opened_at) AS `hour`,
+                COUNT(id) AS opens,
+                (SELECT COUNT(es2.id) FROM email_sends es2
+                  WHERE HOUR(es2.sent_at) = HOUR(es.opened_at)
+                    AND es2.status IN ('sent', 'bounced')) AS sent
+             FROM email_sends es
+             WHERE opened_at IS NOT NULL AND es.status IN ('sent', 'bounced')
+             GROUP BY HOUR(opened_at)
+             ORDER BY `hour` ASC"
+        );
 
         $hourlyOpenRates = [];
         foreach ($hourlyStats as $stat) {
@@ -366,18 +368,19 @@ class EmailAnalyticsService
             ];
         }
 
-        // Analyze open rates by day of week
-        $dailyStats = $this->entityManager->createQuery(
-            'SELECT 
-                DAYOFWEEK(es.openedAt) as dayOfWeek,
-                COUNT(es.id) as opens,
-                (SELECT COUNT(es2.id) FROM App\Entity\EmailSend es2 WHERE DAYOFWEEK(es2.sentAt) = DAYOFWEEK(es.openedAt)) as sent
-             FROM App\Entity\EmailSend es 
-             WHERE es.openedAt IS NOT NULL 
-             GROUP BY DAYOFWEEK(es.openedAt) 
-             ORDER BY dayOfWeek ASC'
-        )
-        ->getResult();
+        // Native SQL (same reason as the hourly query above).
+        $dailyStats = $this->entityManager->getConnection()->fetchAllAssociative(
+            "SELECT
+                DAYOFWEEK(opened_at) AS dayOfWeek,
+                COUNT(id) AS opens,
+                (SELECT COUNT(es2.id) FROM email_sends es2
+                  WHERE DAYOFWEEK(es2.sent_at) = DAYOFWEEK(es.opened_at)
+                    AND es2.status IN ('sent', 'bounced')) AS sent
+             FROM email_sends es
+             WHERE opened_at IS NOT NULL AND es.status IN ('sent', 'bounced')
+             GROUP BY DAYOFWEEK(opened_at)
+             ORDER BY dayOfWeek ASC"
+        );
 
         $dailyOpenRates = [];
         $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

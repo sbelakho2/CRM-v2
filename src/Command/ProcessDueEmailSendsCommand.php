@@ -74,8 +74,10 @@ class ProcessDueEmailSendsCommand extends Command
                         ->format('Y-m-d H:i:s');
 
                     // Due now: QUEUED rows whose schedule arrived (or manual
-                    // queue-now rows with no schedule), plus retryable FAILED
-                    // rows whose exponential backoff has elapsed.
+                    // queue-now rows with no schedule), retryable FAILED rows
+                    // whose exponential backoff has elapsed, AND crash-debris
+                    // SENDING rows whose lease expired (a worker died mid-send;
+                    // without this branch they would be stranded forever).
                     $dueIds = $this->entityManager->getConnection()->fetchFirstColumn(
                         'SELECT id FROM email_sends
                          WHERE (
@@ -86,6 +88,9 @@ class ProcessDueEmailSendsCommand extends Command
                                     AND retry_count < :maxRetries
                                     AND next_attempt_at IS NOT NULL
                                     AND next_attempt_at <= :now)
+                             OR (status = :sending
+                                    AND send_lease_expires_at IS NOT NULL
+                                    AND send_lease_expires_at <= :now)
                            )
                          ORDER BY scheduled_at
                          LIMIT ' . self::BATCH_SIZE . '
@@ -119,6 +124,9 @@ class ProcessDueEmailSendsCommand extends Command
             );
 
             if ($claimedIds === []) {
+                // Beat on idle runs too: a worker that only heartbeats when
+                // it has work looks dead to the health probe on quiet days.
+                $this->heartbeatRepository->beat('email:process-due-sends', 'idle');
                 $io->success('No due scheduled sends.');
 
                 return Command::SUCCESS;

@@ -39,6 +39,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class OnboardingPackService
 {
     public const STATUS_MANUAL_COMPLETION_REQUIRED = 'MANUAL_COMPLETION_REQUIRED';
+    public const STATUS_PDF_FAILED = 'PDF_FAILED';
 
     /**
      * Sensitive / financial fields that must never be fabricated.
@@ -106,6 +107,7 @@ class OnboardingPackService
             'bankAccountName' => $env('COMPANY_BANK_ACCOUNT_NAME'),
             'contactSalesName' => $env('COMPANY_CONTACT_SALES_NAME'),
             'contactSalesEmail' => $env('COMPANY_CONTACT_SALES_EMAIL'),
+            'contactName' => $env('COMPANY_CONTACT_NAME'),
             'contactSalesPhone' => $env('COMPANY_CONTACT_SALES_PHONE'),
             'contactFinanceName' => $env('COMPANY_CONTACT_FINANCE_NAME'),
             'contactFinanceEmail' => $env('COMPANY_CONTACT_FINANCE_EMAIL'),
@@ -150,15 +152,23 @@ class OnboardingPackService
      */
     public function generatePack(int $companyId, string $packType = 'FULL', array $customFields = []): array
     {
-        // 1. Create OnboardingPack entity
+        // 1. Create OnboardingPack against the REAL entity model: a
+        //    Company association + createdAt (PrePersist), never phantom
+        //    setCompanyId/setPackType/setGeneratedAt methods.
+        $company = $this->entityManager->find(Company::class, $companyId);
+        if ($company === null) {
+            throw new \RuntimeException("Company {$companyId} not found");
+        }
+
         $pack = new OnboardingPack();
-        $pack->setCompanyId($companyId);
-        $pack->setPackType($packType);
-        $pack->setGeneratedAt(new \DateTime());
+        $pack->setCompany($company);
         $pack->setStatus('GENERATED');
+        // Pack type + custom selection live in packContents (document
+        // references + configuration JSON); createdAt is set by PrePersist.
+        $pack->setPackContents(json_encode(['pack_type' => $packType]));
         $this->entityManager->persist($pack);
         $this->entityManager->flush(); // Get pack ID
-        
+
         // 2. Extract fields from PortalCandidate
         $fieldsExtracted = $this->autoFillFields($companyId, $packType, $customFields);
         $pack->setFieldsJson(json_encode($fieldsExtracted));
@@ -168,20 +178,22 @@ class OnboardingPackService
         if (in_array($packType, ['FULL', 'CUSTOM'], true) && $this->hasMissingSensitiveFields($fieldsExtracted)) {
             $pack->setStatus(self::STATUS_MANUAL_COMPLETION_REQUIRED);
         }
-        
-        // 4. Generate PDF using UnifiedPdfGeneratorService
+
+        // 4. Generate PDF. On failure the pack keeps pdfPath = NULL and a
+        //    dedicated status — never a synthetic path to a nonexistent
+        //    file (submission blocks on missing required artifacts).
         try {
             $pdfPath = $this->pdfGenerator->generateOnboardingPackPdf($pack);
             $pack->setPdfPath($pdfPath);
-        } catch (\Exception $e) {
-            // PDF generation might not be implemented yet
-            $pack->setPdfPath('/tmp/pending_' . $pack->getId() . '.pdf');
-            $pack->setStatus('PENDING_PDF');
+        } catch (\Throwable $e) {
+            $pack->setPdfPath(null);
+            $pack->setStatus(self::STATUS_PDF_FAILED);
+            $pack->setNotes('PDF generation failed: ' . mb_substr($e->getMessage(), 0, 400));
         }
-        
+
         // 5. Update pack
         $this->entityManager->flush();
-        
+
         // 6. Return pack data
         return [
             'packId' => $pack->getId(),
@@ -250,6 +262,7 @@ class OnboardingPackService
             $fields['bankAccountName'] = $config['bankAccountName'] ?? '';
             $fields['contactSalesName'] = $config['contactSalesName'] ?? '';
             $fields['contactSalesEmail'] = $config['contactSalesEmail'] ?? '';
+            $fields['contactName'] = $config['contactName'] ?? '';
             $fields['contactSalesPhone'] = $config['contactSalesPhone'] ?? '';
             $fields['contactFinanceName'] = $config['contactFinanceName'] ?? '';
             $fields['contactFinanceEmail'] = $config['contactFinanceEmail'] ?? '';
@@ -301,6 +314,19 @@ class OnboardingPackService
 
         // 2. A pack with missing sensitive data must never be auto-submitted:
         //    it would either send empty values or require fabricated ones.
+        //    Likewise a pack whose REQUIRED PDF artifact failed to generate:
+        //    pdfPath is NULL (never a synthetic path), and submitting without
+        //    the document the portal demands is a silent data loss.
+        if ($pack->getStatus() === self::STATUS_PDF_FAILED
+            || ($pack->getPdfPath() === null && $pack->getStatus() !== 'READY_FOR_MANUAL_SUBMIT' && $pack->getStatus() !== 'SUBMITTED')) {
+            return [
+                'success' => false,
+                'method' => 'MANUAL',
+                'response' => null,
+                'errorMessage' => 'Pack PDF artifact is not available (generation failed or not yet generated); submission blocked until the document exists',
+            ];
+        }
+
         if ($pack->getStatus() === self::STATUS_MANUAL_COMPLETION_REQUIRED) {
             return [
                 'success' => false,
@@ -334,7 +360,7 @@ class OnboardingPackService
 
             if ($result['success']) {
                 $pack->setStatus('SUBMITTED');
-                $pack->setPortalId($portalId);
+                $this->recordSubmittedPortal($pack, $portalId);
                 $pack->setSubmittedAt(new \DateTime());
                 $pack->setSubmittedBy($result['external_id'] ?? null);
                 $this->entityManager->flush();
@@ -343,7 +369,7 @@ class OnboardingPackService
                 // a transport/vendor error keeps the pack pending without
                 // losing work.
                 $pack->setStatus(str_starts_with((string) $result['errorMessage'], 'ARIBA API credentials') || str_starts_with((string) $result['errorMessage'], 'COUPA API credentials') ? 'PENDING_API_INTEGRATION' : 'SUBMISSION_FAILED');
-                $pack->setPortalId($portalId);
+                $this->recordSubmittedPortal($pack, $portalId);
                 $pack->setNotes((string) $result['errorMessage']);
                 $this->entityManager->flush();
             }
@@ -357,7 +383,7 @@ class OnboardingPackService
         } else {
             // Manual submission - just mark as ready
             $pack->setStatus('READY_FOR_MANUAL_SUBMIT');
-            $pack->setPortalId($portalId);
+            $this->recordSubmittedPortal($pack, $portalId);
             $this->entityManager->flush();
             
             return [
@@ -412,7 +438,8 @@ class OnboardingPackService
             // org should not receive the portal session cookie).
             $sessionCookie = $this->scopedCookieHeader(
                 $loginResponse->getHeaders()['set-cookie'] ?? [],
-                (string) parse_url($submitUrlCheck, PHP_URL_HOST)
+                (string) parse_url($submitUrlCheck, PHP_URL_HOST),
+                (string) parse_url($loginUrl, PHP_URL_HOST)
             );
             
             // 2. Get form field mappings
@@ -463,7 +490,7 @@ class OnboardingPackService
             if ($success) {
                 $pack->setStatus('SUBMITTED');
                 $pack->setSubmittedAt(new \DateTime());
-                $pack->setPortalId($portal->getId());
+                $this->recordSubmittedPortal($pack, (int) $portal->getId());
             } else {
                 $pack->setStatus('SUBMISSION_FAILED');
             }
@@ -528,17 +555,20 @@ class OnboardingPackService
             throw new \RuntimeException("Pack $packId not found");
         }
         
-        // 2. Get portal if submitted
+        // 2. Get portal if submitted (recorded in packContents JSON — the
+        // entity has no portalId column)
         $portalName = null;
-        if ($pack->getPortalId()) {
-            $portal = $this->supplierPortalRepository->find($pack->getPortalId());
+        $contents = json_decode($pack->getPackContents() ?? '{}', true) ?? [];
+        $submittedPortalId = $contents['submitted_portal_id'] ?? null;
+        if ($submittedPortalId !== null) {
+            $portal = $this->supplierPortalRepository->find((int) $submittedPortalId);
             $portalName = $portal?->getPortalUrl();
         }
         
         // 3. Return status
         return [
             'status' => $pack->getStatus(),
-            'generatedAt' => $pack->getGeneratedAt(),
+            'generatedAt' => $pack->getCreatedAt(),
             'submittedAt' => $pack->getSubmittedAt(),
             'portalName' => $portalName
         ];
@@ -549,7 +579,7 @@ class OnboardingPackService
      * scope does not cover the submit host are NOT relayed (cookie-jar
      * semantics without a jar dependency).
      */
-    private function scopedCookieHeader(array $setCookieHeaders, string $submitHost): string
+    private function scopedCookieHeader(array $setCookieHeaders, string $submitHost, string $loginHost): string
     {
         $pairs = [];
         foreach ($setCookieHeaders as $header) {
@@ -567,13 +597,13 @@ class OnboardingPackService
                 }
             }
 
-            // No Domain attribute → host-only cookie: valid only for the
-            // exact host that set it (the login host). With Domain → valid
-            // for that domain and its subdomains.
-            $covers = false;
-            if ($domainAttr !== null) {
-                $covers = $submitHost === $domainAttr || str_ends_with('.' . $submitHost, '.' . $domainAttr);
-            }
+            // HOST-ONLY cookies (no Domain attribute — the common secure
+            // session case) are valid for exactly the host that set them:
+            // relayed when the submit host IS the login host. Domain-scoped
+            // cookies follow their declared scope (domain + subdomains).
+            $covers = $domainAttr === null
+                ? ($submitHost !== '' && $submitHost === $loginHost)
+                : ($submitHost === $domainAttr || str_ends_with('.' . $submitHost, '.' . $domainAttr));
 
             if ($covers && !preg_match('/\bexpires=Thu, 01 Jan 1970/i', (string) $header)) {
                 $pairs[] = $nameValue;
@@ -581,6 +611,17 @@ class OnboardingPackService
         }
 
         return implode('; ', $pairs);
+    }
+
+    /**
+     * Record which portal a pack was submitted to, in the packContents JSON
+     * (the entity models a PortalCandidate relation, not a portal-id column).
+     */
+    private function recordSubmittedPortal(OnboardingPack $pack, int $portalId): void
+    {
+        $contents = json_decode($pack->getPackContents() ?? '{}', true) ?? [];
+        $contents['submitted_portal_id'] = $portalId;
+        $pack->setPackContents(json_encode($contents));
     }
 
 }

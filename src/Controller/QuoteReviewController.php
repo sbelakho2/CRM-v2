@@ -347,7 +347,7 @@ class QuoteReviewController extends AbstractController
         foreach ($quote->getBomLines() as $bomLine) {
             if ($bomLine->getConfidenceLevel() === 'HIGH' && 
                 !$bomLine->isManuallyVerified() &&
-                $bomLine->isRequiresReview()) {
+                $bomLine->requiresReview()) {
                 
                 $bomLine->setManuallyVerified(true);
                 $bomLine->setRequiresReview(false);
@@ -398,7 +398,7 @@ class QuoteReviewController extends AbstractController
         $unpricedLines = [];
 
         foreach ($quote->getBomLines() as $bomLine) {
-            if ($bomLine->isRequiresReview() && !$bomLine->isManuallyVerified()) {
+            if ($bomLine->requiresReview() && !$bomLine->isManuallyVerified()) {
                 $unverifiedLines[] = $bomLine->getMpn() ?? 'Line #' . $bomLine->getLineNumber();
             }
             
@@ -704,7 +704,7 @@ class QuoteReviewController extends AbstractController
                 $stats['verified_count']++;
             }
             
-            if ($line->isRequiresReview() && !$line->isManuallyVerified()) {
+            if ($line->requiresReview() && !$line->isManuallyVerified()) {
                 $stats['requires_review_count']++;
             }
             
@@ -786,12 +786,12 @@ class QuoteReviewController extends AbstractController
             'confidence_level' => $line->getConfidenceLevel(),
             'confidence_reasons' => $line->getConfidenceReasons(),
             'confidence_warnings' => $line->getConfidenceWarnings(),
-            'requires_review' => $line->isRequiresReview(),
+            'requires_review' => $line->requiresReview(),
             'manually_verified' => $line->isManuallyVerified(),
             'verified_by' => $line->getVerifiedBy(),
             'verified_at' => $line->getVerifiedAt()?->format('Y-m-d H:i:s'),
             'manual_notes' => $line->getManualNotes(),
-            'has_exception' => $line->isHasException(),
+            'has_exception' => $line->hasException(),
             'exception_reason' => $line->getExceptionReason(),
             'lead_time_days' => $line->getLeadTimeDays(),
             'availability' => $line->getAvailability(),

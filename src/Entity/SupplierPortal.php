@@ -54,6 +54,21 @@ class SupplierPortal
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $buyerContacted = false;
 
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $portalVendor = null; // ARIBA, COUPA, SAP_SRM, CUSTOM...
+
+    #[ORM\Column(length: 2048, nullable: true)]
+    private ?string $loginUrl = null;
+
+    #[ORM\Column(length: 2048, nullable: true)]
+    private ?string $submitUrl = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $formFieldsJson = null; // Map of form field names to pack fields
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $requiresFileUpload = false;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -201,4 +216,64 @@ class SupplierPortal
         $this->buyerContacted = $buyerContacted;
         return $this;
     }
+    public function getPortalVendor(): ?string
+    {
+        return $this->portalVendor;
+    }
+
+    public function setPortalVendor(?string $portalVendor): self
+    {
+        $this->portalVendor = $portalVendor;
+
+        return $this;
+    }
+
+    public function getLoginUrl(): ?string
+    {
+        return $this->loginUrl;
+    }
+
+    public function setLoginUrl(?string $loginUrl): self
+    {
+        $this->loginUrl = $loginUrl;
+
+        return $this;
+    }
+
+    public function getSubmitUrl(): ?string
+    {
+        return $this->submitUrl;
+    }
+
+    public function setSubmitUrl(?string $submitUrl): self
+    {
+        $this->submitUrl = $submitUrl;
+
+        return $this;
+    }
+
+    public function getFormFieldsJson(): ?string
+    {
+        return $this->formFieldsJson;
+    }
+
+    public function setFormFieldsJson(?string $formFieldsJson): self
+    {
+        $this->formFieldsJson = $formFieldsJson;
+
+        return $this;
+    }
+
+    public function getRequiresFileUpload(): bool
+    {
+        return $this->requiresFileUpload;
+    }
+
+    public function setRequiresFileUpload(bool $requiresFileUpload): self
+    {
+        $this->requiresFileUpload = $requiresFileUpload;
+
+        return $this;
+    }
+
 }

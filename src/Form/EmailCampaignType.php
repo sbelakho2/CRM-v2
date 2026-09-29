@@ -16,6 +16,10 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class EmailCampaignType extends AbstractType
 {
+    public function __construct(
+        private \Doctrine\ORM\EntityManagerInterface $entityManager,
+    ) {}
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
@@ -68,7 +72,7 @@ class EmailCampaignType extends AbstractType
             ->add('touchTemplates', TextareaType::class, [
                 'label' => 'email_campaign.form.touch_templates',
                 'required' => false,
-                'attr' => ['class' => 'rams-form__textarea rams-font-mono', 'rows' => 4, 'placeholder' => '{"1": {"template_id": 12}, "2": {"template_id": 13, "delay_days": 3}}'],
+                'attr' => ['class' => 'rams-form__textarea rams-font-mono', 'rows' => 4, 'placeholder' => '{"1": {"template_id": 12}, "2": {"template_id": 13, "delay_value": 3}}'],
                 'constraints' => [
                     new Assert\Callback([$this, 'validateTouchTemplates']),
                 ],
@@ -85,7 +89,8 @@ class EmailCampaignType extends AbstractType
             ->add('active', CheckboxType::class, [
                 'label' => 'common.active',
                 'required' => false,
-                'data' => true,
+                // NO 'data' => true: overriding the bound model value
+                // silently re-activated paused campaigns on edit.
             ])
         ;
 
@@ -116,7 +121,7 @@ class EmailCampaignType extends AbstractType
     }
 
     /**
-     * Touch templates: JSON map of touchNumber → {template_id, delay_days?,
+     * Touch templates: JSON map of touchNumber → {template_id, delay_value?,
      * conditions?}. Keys must be 1..touchCount; template_id must exist.
      */
     public function validateTouchTemplates($value, \Symfony\Component\Validator\Context\ExecutionContextInterface $context): void
@@ -138,13 +143,32 @@ class EmailCampaignType extends AbstractType
             return; // null/empty model
         }
 
+        // touchCount lives on the parent form data (the entity being bound).
+        $root = $context->getRoot();
+        $touchCount = null;
+        if ($root instanceof EmailCampaign) {
+            $touchCount = $root->getTouchCount();
+        } elseif (is_array($root) && isset($root['touchCount'])) {
+            $touchCount = (int) $root['touchCount'];
+        }
+
         foreach ($decoded as $touch => $config) {
             if (!ctype_digit((string) $touch) || (int) $touch < 1) {
                 $context->buildViolation(sprintf('Touch key "%s" must be a positive integer.', $touch))->addViolation();
                 continue;
             }
+            if ($touchCount !== null && $touchCount > 0 && (int) $touch > $touchCount) {
+                $context->buildViolation(sprintf('Touch %s exceeds the campaign touch count (%d).', $touch, $touchCount))->addViolation();
+                continue;
+            }
             if (!is_array($config) || !isset($config['template_id']) || !ctype_digit((string) $config['template_id'])) {
                 $context->buildViolation(sprintf('Touch %s needs a numeric template_id.', $touch))->addViolation();
+                continue;
+            }
+            // template_id must reference an EXISTING template.
+            $template = $this->entityManager->find(\App\Entity\EmailTemplate::class, (int) $config['template_id']);
+            if ($template === null) {
+                $context->buildViolation(sprintf('Touch %s references template %s which does not exist.', $touch, $config['template_id']))->addViolation();
             }
         }
     }

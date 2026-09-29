@@ -108,6 +108,14 @@ steps:
     commands:
       - php scripts/ci/check-dangerous-patterns.php
 
+  phpstan-divergence-gate:
+    image: bash
+    depends_on: [composer-install]
+    commands:
+      - |
+        set -eu
+        php -d memory_limit=-1 scripts/ci/check-phpstan-divergence.php
+
   composer-audit:
     image: bash
     depends_on: [composer-install]

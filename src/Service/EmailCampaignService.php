@@ -215,7 +215,7 @@ class EmailCampaignService
             return CampaignSendResult::alreadyInProgress();
         }
 
-        return CampaignSendResult::sent(); // queued for delivery
+        return CampaignSendResult::queued();
     }
 
     /**
@@ -500,7 +500,11 @@ class EmailCampaignService
             $send->setSendLeaseExpiresAt(null);
             $send->setFailureReason($e->getMessage());
 
-            if ($send->getRetryCount() + 1 < self::MAX_SEND_ATTEMPTS) {
+            // retryCount IS the attempt counter: incremented exactly once
+            // immediately before every transport attempt (claimExistingTouch
+            // / sendExisting). After a failure, another attempt is scheduled
+            // iff attempts-so-far < MAX — no off-by-one, no mixed counting.
+            if ($send->getRetryCount() < self::MAX_SEND_ATTEMPTS) {
                 $backoffSeconds = min(2 ** $send->getRetryCount() * 60, 3600);
                 $send->setNextAttemptAt((new \DateTime())->modify('+' . $backoffSeconds . ' seconds'));
             } else {
@@ -552,12 +556,31 @@ class EmailCampaignService
 
         $variant = null;
 
-        // 1. A/B variant: deterministic assignment so redelivery retries
-        //    keep the same variant; persisted before transport.
+        // 1. A/B variant — WEIGHTED deterministic bucketing over the
+        //    CONFIGURED audience split (test_percentage shared across
+        //    variants, remainder = control). crc32(contactId) % 10000 maps
+        //    into cumulative percentage bands, so a 20% test with two
+        //    variants yields 10/10/80 — not the equal thirds the old
+        //    modulo-count assignment produced. Stable per contact, so
+        //    redelivery retries keep the same variant.
+        $variant = null;
+
         $abTest = $this->abTestService?->getCurrentAbTest($campaign);
         if ($abTest !== null && !empty($abTest['variants'])) {
-            $variantIds = array_merge(['control'], array_keys($abTest['variants']));
-            $variant = $variantIds[crc32((string) $contact->getId()) % count($variantIds)];
+            $testPercentage = (float) ($abTest['test_percentage'] ?? 20);
+            $variantKeys = array_values(array_keys($abTest['variants']));
+            $perVariant = $testPercentage / max(1, count($variantKeys));
+
+            $bucket = crc32((string) $contact->getId()) % 10000; // 0..9999
+            $cumulative = 0.0;
+            foreach ($variantKeys as $key) {
+                $cumulative += $perVariant * 100.0; // basis points
+                if ($bucket < $cumulative) {
+                    $variant = (string) $key;
+                    break;
+                }
+            }
+            $variant ??= 'control'; // above all bands
 
             if ($variant !== 'control') {
                 try {
@@ -570,14 +593,10 @@ class EmailCampaignService
                 }
             }
 
-            try {
-                $this->abTestService->recordVariantSend($campaign, $variant, $send);
-            } catch (\Throwable $e) {
-                $this->logger->warning('Failed to record A/B variant assignment', [
-                    'campaign_id' => $campaign->getId(),
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            // NOTE: send counters are NOT incremented here — variant sends
+            // are DERIVED from EmailSend rows (status sent/bounced), so a
+            // failed attempt + retry cannot inflate the denominator. Only
+            // the assignment itself is persisted, once, on the row.
         }
 
         $send->setVariant($variant);

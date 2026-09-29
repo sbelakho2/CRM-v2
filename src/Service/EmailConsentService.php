@@ -360,7 +360,7 @@ class EmailConsentService
                 'email' => $contact->getEmail(),
                 'first_name' => $contact->getFirstName(),
                 'last_name' => $contact->getLastName(),
-                'title' => $contact->getTitle(),
+                'title' => $contact->getJobTitle(),
                 'phone' => $contact->getPhone(),
                 'company' => $company?->getName()
             ],

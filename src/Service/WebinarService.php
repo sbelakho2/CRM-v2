@@ -18,6 +18,7 @@ class WebinarService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private \Symfony\Component\Mailer\Transport\TransportInterface $mailerTransport,
         private WebinarRepository $webinarRepository,
         private WebinarAttendeeRepository $webinarAttendeeRepository,
         private MailerInterface $mailer,
@@ -156,6 +157,9 @@ class WebinarService
 
         try {
             $this->sendConfirmationEmail($attendee);
+            // confirmationSentAt is set ONLY after the synchronous transport
+            // accepted the message — MailerInterface would queue it async in
+            // production and mark a delivery that may never happen.
             $attendee->setConfirmationSentAt(new \DateTime());
             $this->entityManager->flush();
         } catch (\Throwable $e) {
@@ -210,7 +214,7 @@ class WebinarService
                 'webinar' => $webinar,
             ]);
 
-        $this->mailer->send($email);
+        $this->mailerTransport->send($email);
         
         // Mark as sent
         $this->markFollowUpSent($attendee);
@@ -280,7 +284,7 @@ class WebinarService
                 'webinar' => $attendee->getWebinar(),
             ]);
 
-        $this->mailer->send($email);
+        $this->mailerTransport->send($email);
     }
 
     /**

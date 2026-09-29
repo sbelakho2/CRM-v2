@@ -266,12 +266,54 @@ class EmailAbTestService
      * @param string|null $metricType Metric to use (open_rate, click_rate, reply_rate)
      * @return string Winning variant ID, or '' when there is insufficient data
      */
+    /**
+     * Canonical per-variant statistics derived from EmailSend rows:
+     * delivered (sent+bounced) population + engagement flags. This is the
+     * single decision source for winners and results views — JSON counters
+     * are display-only.
+     *
+     * @return array<string, array{delivered: int, opened: int, clicked: int, replied: int}>
+     */
+    private function deriveVariantStats(EmailCampaign $campaign): array
+    {
+        $rows = $this->entityManager->createQuery(
+            'SELECT es.variant AS variant,
+                    SUM(CASE WHEN es.status IN (:delivered) THEN 1 ELSE 0 END) AS delivered,
+                    SUM(CASE WHEN es.opened = true THEN 1 ELSE 0 END) AS opened,
+                    SUM(CASE WHEN es.clicked = true THEN 1 ELSE 0 END) AS clicked,
+                    SUM(CASE WHEN es.replied = true THEN 1 ELSE 0 END) AS replied
+             FROM App\\Entity\\EmailSend es
+             WHERE es.campaign = :campaign AND es.variant IS NOT NULL
+             GROUP BY es.variant'
+        )
+        ->setParameter('campaign', $campaign)
+        ->setParameter('delivered', ['sent', 'bounced'])
+        ->getArrayResult();
+
+        $stats = [];
+        foreach ($rows as $row) {
+            $stats[(string) $row['variant']] = [
+                'delivered' => (int) $row['delivered'],
+                'opened' => (int) $row['opened'],
+                'clicked' => (int) $row['clicked'],
+                'replied' => (int) $row['replied'],
+            ];
+        }
+
+        return $stats;
+    }
+
     public function declareWinner(EmailCampaign $campaign, ?string $metricType = null): string
     {
         $abTestConfig = $this->getCurrentAbTest($campaign);
         if (!$abTestConfig) {
             throw new \RuntimeException("No active A/B test found");
         }
+
+        // Variant statistics are DERIVED from canonical EmailSend rows
+        // (delivered population + engagement flags) — the JSON counters are
+        // display-only and never the decision source.
+        $liveStats = $this->deriveVariantStats($campaign);
 
         // Default metric based on test type
         if (!$metricType) {
@@ -286,8 +328,8 @@ class EmailAbTestService
 
         // Minimum-sample guard: a variant with zero sends must never win.
         // Without enough data per variant the test result is meaningless.
-        foreach ($abTestConfig['variants'] as $variantData) {
-            if (($variantData['sends_count'] ?? 0) < self::MIN_SENDS_PER_VARIANT) {
+        foreach (array_keys($abTestConfig['variants']) as $variantId) {
+            if (($liveStats[$variantId]['delivered'] ?? 0) < self::MIN_SENDS_PER_VARIANT) {
                 $abTestVariants = $campaign->getAbTestVariants();
                 $testIndex = $this->findTestIndex($campaign, $abTestConfig) ?? (count($abTestVariants) - 1);
                 $abTestVariants[$testIndex]['winner_declared_at'] = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
@@ -302,19 +344,19 @@ class EmailAbTestService
             }
         }
 
-        // Calculate metrics for each variant
+        // Calculate metrics for each variant from LIVE stats
         $variantMetrics = [];
-        foreach ($abTestConfig['variants'] as $variantId => $variantData) {
-            $sends = $variantData['sends_count'];
-            if ($sends === 0) {
+        foreach (array_keys($abTestConfig['variants']) as $variantId) {
+            $delivered = $liveStats[$variantId]['delivered'] ?? 0;
+            if ($delivered === 0) {
                 $variantMetrics[$variantId] = 0;
                 continue;
             }
 
             $variantMetrics[$variantId] = match($metricType) {
-                'open_rate' => ($variantData['opens_count'] / $sends) * 100,
-                'click_rate' => ($variantData['clicks_count'] / $sends) * 100,
-                'reply_rate' => ($variantData['replies_count'] / $sends) * 100,
+                'open_rate' => ($liveStats[$variantId]['opened'] / $delivered) * 100,
+                'click_rate' => ($liveStats[$variantId]['clicked'] / $delivered) * 100,
+                'reply_rate' => ($liveStats[$variantId]['replied'] / $delivered) * 100,
                 default => 0
             };
         }
@@ -361,12 +403,15 @@ class EmailAbTestService
             'variants' => [],
         ];
 
-        // Calculate comprehensive metrics for each variant
+        // Comprehensive metrics DERIVED from canonical EmailSend rows —
+        // engagement is computed where opens/clicks/replies are recorded,
+        // so the results view can never diverge from reality.
+        $liveStats = $this->deriveVariantStats($campaign);
         foreach ($abTestConfig['variants'] as $variantId => $variantData) {
-            $sends = $variantData['sends_count'];
-            $opens = $variantData['opens_count'];
-            $clicks = $variantData['clicks_count'];
-            $replies = $variantData['replies_count'];
+            $sends = $liveStats[$variantId]['delivered'] ?? 0;
+            $opens = $liveStats[$variantId]['opened'] ?? 0;
+            $clicks = $liveStats[$variantId]['clicked'] ?? 0;
+            $replies = $liveStats[$variantId]['replied'] ?? 0;
 
             $results['variants'][$variantId] = [
                 'id' => $variantId,

@@ -89,8 +89,14 @@ class SystemHealthService
         // evidence of health; a never-run heartbeat on a fresh install
         // stays 'unknown' without degrading.
         if (($details['workers'] ?? null) === 'unknown') {
-            $hasRun = $this->connection->fetchOne('SELECT COUNT(*) FROM worker_heartbeats');
-            if ((int) $hasRun > 0) {
+            try {
+                $hasRun = $this->connection->fetchOne('SELECT COUNT(*) FROM worker_heartbeats');
+                if ((int) $hasRun > 0) {
+                    return self::STATUS_DEGRADED;
+                }
+            } catch (\Throwable) {
+                // Storage unavailable during an incomplete deployment:
+                // report degraded (not a 500 from the health probe itself).
                 return self::STATUS_DEGRADED;
             }
         }
@@ -154,15 +160,21 @@ class SystemHealthService
         // Workers are expected at least every 15 minutes (cron interval
         // plus processing time).
         try {
-            $dueWorkerAge = $this->connection->fetchOne(
-                "SELECT TIMESTAMPDIFF(SECOND, MAX(last_run_at), NOW()) FROM worker_heartbeats WHERE name = 'email:process-due-sends'"
-            );
-            if ($dueWorkerAge === null) {
-                $details['workers'] = 'unknown';
-            } elseif ((int) $dueWorkerAge > 900) {
-                $details['workers'] = self::STATUS_DEGRADED;
-            } else {
-                $details['workers'] = self::STATUS_HEALTHY;
+            // BOTH email workers are required: the due-send executor AND the
+            // scheduled-campaign dispatcher (if the dispatcher dies, due
+            // sends can stay green while scheduled campaigns never enter the
+            // pipeline).
+            $details['workers'] = self::STATUS_HEALTHY;
+            $maxAge = 0;
+            foreach (['email:process-due-sends', 'email:process-scheduled'] as $workerName) {
+                $age = $this->connection->fetchOne(
+                    'SELECT TIMESTAMPDIFF(SECOND, MAX(last_run_at), NOW()) FROM worker_heartbeats WHERE name = :name',
+                    ['name' => $workerName]
+                );
+                if ($age !== null && (int) $age > 900) {
+                    $details['workers'] = self::STATUS_DEGRADED;
+                }
+                $maxAge = max($maxAge, $age === null ? 0 : (int) $age);
             }
         } catch (\Throwable) {
             $details['workers'] = 'unknown';
