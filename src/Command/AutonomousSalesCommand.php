@@ -735,7 +735,11 @@ class AutonomousSalesCommand extends Command
             }
             
             // Classify the reply
-            $classification = $this->emailClassifier->classifyReply($replyContent);
+            $classification = $this->emailClassifier->classifyEmail(
+                $message->getSubject() ?? '',
+                $replyContent,
+                $message->getContact()?->getEmail() ?? ''
+            );
             $category = $classification['classification'];
             
             // Record the classification

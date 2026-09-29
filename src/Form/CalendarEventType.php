@@ -197,7 +197,9 @@ class CalendarEventType extends AbstractType
                 'required' => false,
                 'placeholder' => 'Select lead...',
                 'choice_label' => function (Lead $lead) {
-                    return $lead->getCompanyName() ?: $lead->getEmail();
+                    $emails = $lead->getContactEmailsPublic() ?? [];
+
+                    return $lead->getCompanyName() ?: ($emails[0] ?? 'Lead #' . $lead->getId());
                 },
                 'query_builder' => function (EntityRepository $er) {
                     return $er->createQueryBuilder('l')

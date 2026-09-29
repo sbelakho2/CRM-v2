@@ -9,9 +9,9 @@
  *
  *   1. Fails on ANY undefined-method divergence in the P0-reconciled
  *      modules (zero tolerance — these were just fixed).
- *   2. Enforces a frozen baseline count for the remaining known legacy
- *      divergences (DfmLint/DocumentManager/CostingEngine/...) — it may
- *      shrink, never grow.
+ *   2. The full legacy backlog was reconciled in the round-6 close-out:
+ *      the baseline is ZERO — ANY new undefined-method call anywhere in
+ *      src/ fails the pipeline.
  *
  * Interface-imprecision false positives (DateTimeInterface::modify,
  * UserInterface::get*, TranslatorInterface::setLocale — the runtime objects
@@ -61,7 +61,7 @@ $falsePositivePatterns = [
 
 // Known legacy divergences still to reconcile (frozen baseline — may
 // shrink as modules are reconciled, may never grow).
-$baseline = 55;
+$baseline = 0;
 $total = 0;
 $legacyDivergence = 0;
 $criticalDivergence = [];

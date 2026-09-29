@@ -81,7 +81,7 @@ class DfmLintService
         
         // Filter by category if specified
         if (isset($options['categories']) && !empty($options['categories'])) {
-            $rules = array_filter($rules, fn($r) => in_array($r->getCategory(), $options['categories']));
+            $rules = array_filter($rules, fn($r) => in_array($r->getRuleType(), $options['categories']));
         }
         
         // 3. Apply each rule to BOM
@@ -135,7 +135,7 @@ class DfmLintService
     public function applyRule(DfmRule $rule, array $bomLines, int $quoteId): array
     {
         // 1. Parse rule condition (JSON)
-        $ruleConditionJson = $rule->getRuleConditionJson();
+        $ruleConditionJson = $rule->getCheckLogic();
         if (empty($ruleConditionJson)) {
             return [];
         }
@@ -152,16 +152,18 @@ class DfmLintService
                 $matches = $this->evaluateCondition($ruleCondition, $bomLine);
                 
                 if ($matches) {
-                    // Create DfmFinding
+                    // Create DfmFinding against the REAL model: Quote and
+                    // DfmRule associations, findingType/description fields,
+                    // createdAt via PrePersist (no phantom ID/category/
+                    // message/detectedAt setters).
                     $finding = new DfmFinding();
-                    $finding->setQuoteId($quoteId);
-                    $finding->setBomLineId($bomLine->getId());
-                    $finding->setRuleId($rule->getId());
+                    $finding->setQuote($this->entityManager->find(\App\Entity\Quote::class, $quoteId));
+                    $finding->setDfmRule($rule);
                     $finding->setSeverity($rule->getSeverity());
-                    $finding->setCategory($rule->getCategory());
-                    $finding->setMessage($this->formatMessage($rule->getMessageTemplate(), $bomLine));
+                    $finding->setFindingType($rule->getRuleType());
+                    $finding->setDescription($this->formatMessage($rule->getDescription() ?? '', $bomLine));
                     $finding->setRemediation($rule->getRemediationText() ?? 'Contact engineering for guidance');
-                    $finding->setDetectedAt(new \DateTime());
+                    $finding->setMetadata(['bom_line_id' => $bomLine->getId()]);
                     
                     $findings[] = $finding;
                 }
@@ -423,7 +425,7 @@ class DfmLintService
         // 3. Count by category
         $byCategory = [];
         foreach ($findings as $finding) {
-            $category = $finding->getCategory();
+            $category = $finding->getFindingType() ?? 'unknown';
             $byCategory[$category] = ($byCategory[$category] ?? 0) + 1;
         }
         
@@ -480,10 +482,10 @@ class DfmLintService
             
             $rule = new DfmRule();
             $rule->setRuleName($ruleData['name']);
-            $rule->setCategory($ruleData['category']);
+            $rule->setRuleType($ruleData['category']);
             $rule->setSeverity($ruleData['severity']);
-            $rule->setRuleConditionJson(json_encode($ruleData['condition'] ?? []));
-            $rule->setMessageTemplate($ruleData['message'] ?? '');
+            $rule->setCheckLogic(json_encode($ruleData['condition'] ?? []));
+            $rule->setDescription($ruleData['message'] ?? '');
             $rule->setRemediationText($ruleData['remediation'] ?? '');
             $rule->setIsActive($ruleData['active'] ?? true);
             

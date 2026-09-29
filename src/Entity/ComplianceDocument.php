@@ -86,6 +86,39 @@ class ComplianceDocument
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $snoozedBy = null;
 
+    // ── Generated-document management (DocumentManagerService) ───────────
+    // Generic entity reference for artifacts stored outside the checklist
+    // flow (quote PDFs, reports): polymorphic owner + generation audit.
+    #[ORM\Column(nullable: true)]
+    private ?int $entityId = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $entityType = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $sha256Hash = null;
+
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $versionNumber = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $generatedAt = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $generatedBy = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $versionId = null;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $metadataJson = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $deletedAt = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $deletedBy = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -472,4 +505,124 @@ class ComplianceDocument
     {
         return $this->needsAttention(false);
     }
+    public function getEntityId(): ?int
+    {
+        return $this->entityId;
+    }
+
+    public function setEntityId(?int $entityId): self
+    {
+        $this->entityId = $entityId;
+
+        return $this;
+    }
+
+    public function getEntityType(): ?string
+    {
+        return $this->entityType;
+    }
+
+    public function setEntityType(?string $entityType): self
+    {
+        $this->entityType = $entityType;
+
+        return $this;
+    }
+
+    public function getSha256Hash(): ?string
+    {
+        return $this->sha256Hash;
+    }
+
+    public function setSha256Hash(?string $sha256Hash): self
+    {
+        $this->sha256Hash = $sha256Hash;
+
+        return $this;
+    }
+
+    public function getVersionNumber(): ?int
+    {
+        return $this->versionNumber;
+    }
+
+    public function setVersionNumber(?int $versionNumber): self
+    {
+        $this->versionNumber = $versionNumber;
+
+        return $this;
+    }
+
+    public function getGeneratedAt(): ?\DateTimeInterface
+    {
+        return $this->generatedAt;
+    }
+
+    public function setGeneratedAt(?\DateTimeInterface $generatedAt): self
+    {
+        $this->generatedAt = $generatedAt;
+
+        return $this;
+    }
+
+    public function getGeneratedBy(): ?string
+    {
+        return $this->generatedBy;
+    }
+
+    public function setGeneratedBy(?string $generatedBy): self
+    {
+        $this->generatedBy = $generatedBy;
+
+        return $this;
+    }
+
+    public function getVersionId(): ?string
+    {
+        return $this->versionId;
+    }
+
+    public function setVersionId(?string $versionId): self
+    {
+        $this->versionId = $versionId;
+
+        return $this;
+    }
+
+    public function getMetadataJson(): ?array
+    {
+        return $this->metadataJson;
+    }
+
+    public function setMetadataJson(?array $metadataJson): self
+    {
+        $this->metadataJson = $metadataJson;
+
+        return $this;
+    }
+
+    public function getDeletedAt(): ?\DateTimeInterface
+    {
+        return $this->deletedAt;
+    }
+
+    public function setDeletedAt(?\DateTimeInterface $deletedAt): self
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    public function getDeletedBy(): ?string
+    {
+        return $this->deletedBy;
+    }
+
+    public function setDeletedBy(?string $deletedBy): self
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
 }

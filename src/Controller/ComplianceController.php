@@ -230,10 +230,10 @@ class ComplianceController extends AbstractController
             // and deleting bytes would leave version history pointing at
             // nothing. Retention/purge is a separate explicit mechanism.
 
-            $this->guidanceService->recordAction('compliance_uploaded', [
-                'name' => $document->getName(),
-                'company' => $document->getCompany()->getName(),
-            ]);
+            $this->guidanceService->afterComplianceDocumentUploaded(
+                (string) $document->getCompany()->getName(),
+                (int) $document->getCompany()->getId()
+            );
 
             $this->addFlash('success', $this->translator->trans('compliance.flash.document_uploaded', [
                 '%name%' => $document->getName(),

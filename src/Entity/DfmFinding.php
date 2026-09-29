@@ -46,6 +46,15 @@ class DfmFinding
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadata = null;
 
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $resolution = null; // open, acknowledged, resolved, waived
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $resolutionNotes = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $resolvedAt = null;
+
     #[ORM\Column(type: 'datetime')]
     private ?\DateTimeInterface $createdAt = null;
 
@@ -175,4 +184,40 @@ class DfmFinding
         $this->createdAt = $createdAt;
         return $this;
     }
+    public function getResolution(): ?string
+    {
+        return $this->resolution;
+    }
+
+    public function setResolution(?string $resolution): self
+    {
+        $this->resolution = $resolution;
+
+        return $this;
+    }
+
+    public function getResolutionNotes(): ?string
+    {
+        return $this->resolutionNotes;
+    }
+
+    public function setResolutionNotes(?string $resolutionNotes): self
+    {
+        $this->resolutionNotes = $resolutionNotes;
+
+        return $this;
+    }
+
+    public function getResolvedAt(): ?\DateTimeInterface
+    {
+        return $this->resolvedAt;
+    }
+
+    public function setResolvedAt(?\DateTimeInterface $resolvedAt): self
+    {
+        $this->resolvedAt = $resolvedAt;
+
+        return $this;
+    }
+
 }

@@ -131,8 +131,9 @@ class UnifiedPdfGeneratorService
     public function generateDfmReportPdf(Quote $quote): ComplianceDocument
     {
         // 1. Load real DFM findings for this quote
-        $findings = $this->entityManager->getRepository(\App\Entity\DfmFinding::class)
-            ->findByQuote((int) $quote->getId());
+        /** @var \App\Repository\DfmFindingRepository $dfmRepo */
+        $dfmRepo = $this->entityManager->getRepository(\App\Entity\DfmFinding::class);
+        $findings = $dfmRepo->findByQuote((int) $quote->getId());
 
         $severityCounts = ['CRITICAL' => 0, 'HIGH' => 0, 'MEDIUM' => 0, 'LOW' => 0];
         $issues = [];
@@ -645,8 +646,10 @@ class UnifiedPdfGeneratorService
         $entityType = (new \ReflectionClass($entity))->getShortName();
         $entityId = method_exists($entity, 'getId') ? $entity->getId() : null;
 
+        /** @var \App\Repository\AuditLogRepository $auditRepo */
+        $auditRepo = $this->entityManager->getRepository(\App\Entity\AuditLog::class);
         $logs = $entityId !== null
-            ? $this->entityManager->getRepository(\App\Entity\AuditLog::class)->findByEntity($entityType, (int) $entityId)
+            ? $auditRepo->findByEntity($entityType, (int) $entityId)
             : [];
 
         $events = array_map(fn (\App\Entity\AuditLog $log): array => $this->auditEventToArray($log), array_reverse($logs));
@@ -874,19 +877,25 @@ class UnifiedPdfGeneratorService
         $filepath = "$uploadDir/$filename";
         file_put_contents($filepath, $pdfContent);
         
-        // 5. Create ComplianceDocument entity
+        // 5. Create ComplianceDocument against the REAL model: Company
+        // association + polymorphic entity reference for generated docs.
         $document = new ComplianceDocument();
         if ($companyId) {
-            $document->setCompanyId($companyId);
+            $company = $this->entityManager->find(\App\Entity\Company::class, $companyId);
+            if ($company !== null) {
+                $document->setCompany($company);
+                $document->setEntityId($companyId);
+                $document->setEntityType('company');
+            }
         }
         $document->setDocumentType($documentType);
         $document->setFilePath($filepath);
         $document->setSha256Hash($sha256Hash);
         $document->setVersionId(uniqid('v_', true));
         $document->setUploadedAt(new \DateTime());
-        
+
         if (!empty($metadata)) {
-            $document->setMetadataJson(json_encode($metadata));
+            $document->setMetadataJson(is_array($metadata) ? $metadata : ['raw' => $metadata]);
         }
         
         // 5. Persist and flush

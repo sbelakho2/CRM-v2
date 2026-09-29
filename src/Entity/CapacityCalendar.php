@@ -34,6 +34,13 @@ class CapacityCalendar
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $notes = null;
 
+    /**
+     * Structured booking ledger for the day (quoteId, quantity, bookedAt) —
+     * supports reservation audit and cancellation by quote.
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $bookings = [];
+
     public function getId(): ?int
     {
         return $this->id;
@@ -110,4 +117,29 @@ class CapacityCalendar
         if ($this->availableSlots === null || $this->bookedSlots === null) { return null; }
         return $this->availableSlots - $this->bookedSlots;
     }
+    public function getBookings(): array
+    {
+        return $this->bookings ?? [];
+    }
+
+    public function setBookings(?array $bookings): self
+    {
+        $this->bookings = $bookings;
+
+        return $this;
+    }
+
+    public function addBooking(int $quoteId, int $quantityBoards): self
+    {
+        $bookings = $this->bookings ?? [];
+        $bookings[] = [
+            'quoteId' => $quoteId,
+            'quantity' => $quantityBoards,
+            'bookedAt' => (new \DateTime())->format('Y-m-d H:i:s'),
+        ];
+        $this->bookings = $bookings;
+
+        return $this;
+    }
+
 }

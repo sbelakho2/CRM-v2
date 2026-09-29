@@ -470,7 +470,11 @@ class BOMParser
             $reader = IOFactory::createReader($inputFileType);
             $reader->setReadDataOnly(true);
 
-            // Real dimensions from worksheet metadata
+            // Real dimensions from worksheet metadata. The IReader interface
+            // does not declare listWorksheetInfo(), but every concrete
+            // reader PhpSpreadsheet ships does — narrow via the documented
+            // base class so the call is type-safe.
+            \assert($reader instanceof \PhpOffice\PhpSpreadsheet\Reader\BaseReader);
             $worksheetInfo = $reader->listWorksheetInfo($filePath);
             $totalRows     = $worksheetInfo[0]['totalRows'] ?? 0;
             $highestColIdx = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(

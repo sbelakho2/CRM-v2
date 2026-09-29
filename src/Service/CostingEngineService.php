@@ -318,7 +318,7 @@ class CostingEngineService
             ];
         }
         
-        $capacityRemaining = $slot->getMaxBoards() - $slot->getBookedBoards();
+        $capacityRemaining = ($slot->getAvailableSlots() + $slot->getBookedSlots()) - $slot->getBookedSlots();
         
         if ($capacityRemaining < $quantityBoards) {
             return [
@@ -357,21 +357,14 @@ class CostingEngineService
                 throw new \RuntimeException("Capacity slot $slotId not found");
             }
             
-            $capacityRemaining = $slot->getMaxBoards() - $slot->getBookedBoards();
+            $capacityRemaining = ($slot->getAvailableSlots() + $slot->getBookedSlots()) - $slot->getBookedSlots();
             if ($capacityRemaining < $quantityBoards) {
                 $result = false;
                 return;
             }
             
-            $slot->setBookedBoards($slot->getBookedBoards() + $quantityBoards);
-            
-            $bookings = json_decode($slot->getBookingsJson() ?? '[]', true);
-            $bookings[] = [
-                'quoteId' => $quoteId,
-                'quantity' => $quantityBoards,
-                'bookedAt' => (new \DateTime())->format('Y-m-d H:i:s')
-            ];
-            $slot->setBookingsJson(json_encode($bookings));
+            $slot->setBookedSlots($slot->getBookedSlots() + $quantityBoards);
+            $slot->addBooking($quoteId, $quantityBoards);
             
             $result = true;
         });

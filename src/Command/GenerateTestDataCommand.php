@@ -186,9 +186,10 @@ class GenerateTestDataCommand extends Command
     {
         $activities = [];
 
-        // Refresh contacts to ensure they're managed
+        // Refresh contacts to ensure they're managed. merge() is removed in
+        // modern ORM — re-fetch by ID instead of merging detached instances.
         foreach ($contacts as $key => $contact) {
-            $contacts[$key] = $this->em->merge($contact);
+            $contacts[$key] = $this->em->find(\App\Entity\Contact::class, $contact->getId()) ?? $contact;
         }
         
         for ($i = 0; $i < $count; $i++) {

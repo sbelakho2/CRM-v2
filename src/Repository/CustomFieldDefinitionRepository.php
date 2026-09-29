@@ -168,7 +168,7 @@ class CustomFieldDefinitionRepository extends ServiceEntityRepository
                 ->setParameter('order', $order)
                 ->setParameter('id', $id)
                 ->getQuery()
-                ->executeStatement();
+                ->execute();
         }
     }
 

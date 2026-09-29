@@ -178,11 +178,13 @@ class ExcelImportService
         if (!empty($data['google_drive'])) {
             $company->setGoogleDriveLink($data['google_drive']);
         }
-        if (isset($data['priority'])) {
-            $company->setPriority($data['priority']);
+        // Company's real model: pipelineStage (prospecting priority) and
+        // companyStatus — no phantom priority/status setters.
+        if (isset($data['priority']) && in_array($data['priority'], \App\Entity\Company::VALID_STAGES, true)) {
+            $company->setPipelineStage($data['priority']);
         }
-        if (isset($data['status'])) {
-            $company->setStatus($data['status']);
+        if (isset($data['status']) && in_array($data['status'], \App\Entity\Company::VALID_STATUSES, true)) {
+            $company->setCompanyStatus($data['status']);
         }
 
         $this->entityManager->persist($company);
