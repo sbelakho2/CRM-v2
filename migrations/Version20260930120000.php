@@ -41,7 +41,9 @@ final class Version20260930120000 extends AbstractMigration
 
         // 2. Sales-workflow fields on quote_customer_requests.
         $this->addColumnIfMissing('quote_customer_requests', 'handled_by', 'VARCHAR(255) DEFAULT NULL');
-        $this->addColumnIfMissing('quote_customer_requests', 'resolution_notes', 'TEXT DEFAULT NULL');
+        // Doctrine's type:text maps to LONGTEXT on MySQL — the column
+        // definition must match or the schema-sync lane flags a CHANGE.
+        $this->addColumnIfMissing('quote_customer_requests', 'resolution_notes', 'LONGTEXT DEFAULT NULL');
     }
 
     public function down(Schema $schema): void
